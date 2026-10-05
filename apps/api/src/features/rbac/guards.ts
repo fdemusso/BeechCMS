@@ -5,7 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
 import type { EffectivePermissions, Permission, PermissionAssignment } from '@beechcms/core'
-import { hasPermission, permissionsHeldAnywhere } from '@beechcms/core'
+import { canGrant, hasPermission, permissionsHeldAnywhere } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
 import { RBAC_ERRORS, type RbacErrorCode } from './constants'
@@ -55,6 +55,34 @@ export function canAdministerAccount(
 export function holdsAll(actor: EffectivePermissions, permissions: readonly Permission[]): boolean {
   const held = permissionsHeldAnywhere(actor)
   return permissions.every(permission => held.has(permission))
+}
+
+/**
+ * May the actor edit (or delete) a role, given everywhere it is assigned?
+ *
+ * A role's effect is per-assignment, so mutating it rewrites authority at every scope
+ * it is assigned on. The actor must hold `manage_roles` on EVERY such scope and pass
+ * `canGrant()` there for both the current and the incoming permissions. `revokes`
+ * (deletion) additionally needs `manage_users` per scope, since the cascade drops
+ * those assignments. A role with no assignment grants nothing yet, so it falls back
+ * to {@link holdsAll}.
+ */
+export function canMutateRole(
+  actor: EffectivePermissions,
+  assignments: readonly PermissionAssignment[],
+  currentPermissions: readonly Permission[],
+  nextPermissions: readonly Permission[],
+  revokes = false,
+): boolean {
+  if (assignments.length === 0) {
+    return holdsAll(actor, currentPermissions) && holdsAll(actor, nextPermissions)
+  }
+  const touched = [...currentPermissions, ...nextPermissions]
+  return assignments.every(({ scope }) =>
+    hasPermission(actor, 'manage_roles', scope)
+    && (!revokes || hasPermission(actor, 'manage_users', scope))
+    && canGrant(actor, scope, touched),
+  )
 }
 
 /** Reads a JSON body, returning `undefined` when it is unparseable. */

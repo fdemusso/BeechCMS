@@ -6,7 +6,7 @@
 import { GLOBAL_SCOPE } from '@beechcms/core'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { RBAC_ERRORS } from './constants'
-import { holdsAll, rbacProblem, readJson, type AppContext } from './guards'
+import { canMutateRole, holdsAll, rbacProblem, readJson, type AppContext } from './guards'
 import { roleBodySchema } from './rbac.schema'
 
 /** GET /api/rbac/roles — the full catalogue, system roles included (they are assignable). */
@@ -101,13 +101,14 @@ export const updateRoleHandler = async (context: AppContext) => {
   }
 
   const actor = await resolveEffectivePermissions(context)
-  if (!holdsAll(actor, role.permissions) || !holdsAll(actor, parsed.data.permissions)) {
+  const assignments = await context.get('roleAssignmentRepository').listByRole(roleId)
+  if (!canMutateRole(actor, assignments, role.permissions, parsed.data.permissions)) {
     return rbacProblem(
       context,
       RBAC_ERRORS.ESCALATION_REFUSED,
       403,
       'Forbidden',
-      'A role may not be edited by a caller who does not hold all of its permissions.',
+      'A role may not be edited without full authority on every scope it is assigned to.',
     )
   }
 
@@ -147,13 +148,14 @@ export const deleteRoleHandler = async (context: AppContext) => {
   }
 
   const actor = await resolveEffectivePermissions(context)
-  if (!holdsAll(actor, role.permissions)) {
+  const assignments = await context.get('roleAssignmentRepository').listByRole(roleId)
+  if (!canMutateRole(actor, assignments, role.permissions, [], true)) {
     return rbacProblem(
       context,
       RBAC_ERRORS.ESCALATION_REFUSED,
       403,
       'Forbidden',
-      'A role may not be deleted by a caller who does not hold all of its permissions.',
+      'A role may not be deleted without full authority on every scope it is assigned to.',
     )
   }
 
