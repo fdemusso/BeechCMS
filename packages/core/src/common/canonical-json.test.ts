@@ -27,6 +27,32 @@ describe('canonicalStringify', () => {
     expect(json.endsWith('\n')).toBe(true)
   })
 
+  it('preserves own prototype-related keys in canonical order', () => {
+    // Assignment invokes inherited prototype setters.
+    const value: unknown = JSON.parse('{"prototype":3,"constructor":2,"a":1,"__proto__":{"polluted":true}}')
+
+    const json = canonicalStringify(value)
+
+    expect(json).toBe('{\n  "__proto__": {\n    "polluted": true\n  },\n  "a": 1,\n  "constructor": 2,\n  "prototype": 3\n}\n')
+  })
+
+  it.each([
+    { items: [1, , 3] },
+    { items: [1, undefined, 3] },
+    { items: new Array(2) },
+    { items: [1, ,] },
+  ])('rejects missing array values at their indexed path: %j', (value) => {
+    // Map skips sparse array slots.
+    const index = value.items[0] === undefined ? 0 : 1
+    const serialize = () => canonicalStringify(value)
+
+    expect(serialize).toThrow(expect.objectContaining({
+      name: 'CanonicalSerializationError',
+      path: `items[${index}]`,
+      found: 'undefined',
+    }))
+  })
+
   it('a function anywhere in the tree throws CanonicalSerializationError naming its dotted path', () => {
     const value = { seeds: [{ branches: [{ validate: () => true }] }] }
 
