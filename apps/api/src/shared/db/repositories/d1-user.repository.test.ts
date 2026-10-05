@@ -100,17 +100,22 @@ describe('D1UserRepository', () => {
   })
 
   describe('createInitialAdmin', () => {
-    it('returns true and batches the setup_completed + users inserts', async () => {
+    const roleGrant = { id: 'ura1', roleId: 'role1', scope: '*' }
+
+    it('returns true and batches the setup_completed + users + role grant inserts', async () => {
       const batchMock = vi.fn().mockResolvedValue([])
       const { db, prepareMock, bindMock } = makeMockDb()
       ;(db as any).batch = batchMock
       const created = await new D1UserRepository(db).createInitialAdmin({
         id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
-      })
+      }, roleGrant)
       expect(created).toBe(true)
       expect(batchMock).toHaveBeenCalledTimes(1)
+      expect(batchMock.mock.calls[0][0]).toHaveLength(3)
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO setup_completed'))
+      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO user_role_assignments'))
       expect(bindMock).toHaveBeenCalledWith('u1', 'a@b.com', 'hash', 'admin', 'Test', null)
+      expect(bindMock).toHaveBeenCalledWith('ura1', 'u1', 'role1', '*')
     })
 
     it('returns false when the setup_completed insert violates its unique constraint', async () => {
@@ -119,7 +124,7 @@ describe('D1UserRepository', () => {
       ;(db as any).batch = batchMock
       const created = await new D1UserRepository(db).createInitialAdmin({
         id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
-      })
+      }, roleGrant)
       expect(created).toBe(false)
     })
 
@@ -130,7 +135,7 @@ describe('D1UserRepository', () => {
       await expect(
         new D1UserRepository(db).createInitialAdmin({
           id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
-        }),
+        }, roleGrant),
       ).rejects.toThrow('database is locked')
     })
 
@@ -147,7 +152,7 @@ describe('D1UserRepository', () => {
       userInput.surname = null
       userInput.constructor = 'proto-bypass-attempt'
 
-      const created = await new D1UserRepository(db).createInitialAdmin(userInput)
+      const created = await new D1UserRepository(db).createInitialAdmin(userInput, roleGrant)
       expect(created).toBe(true)
       expect(Object.hasOwn(userInput, 'constructor')).toBe(true)
     })

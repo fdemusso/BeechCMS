@@ -52,6 +52,16 @@ export interface NewUserInput {
   surname: string | null
 }
 
+/**
+ * The (role, scope) grant `createInitialAdmin` writes in the same transaction as the
+ * account itself, so the first administrator can never exist without one.
+ */
+export interface InitialRoleGrant {
+  id: string
+  roleId: string
+  scope: string
+}
+
 export interface IUserRepository {
   /**
    * Returns the total number of registered users.
@@ -69,11 +79,15 @@ export interface IUserRepository {
   create(user: NewUserInput): Promise<void>
 
   /**
-   * Atomically creates the first administrator account, guarded by a
-   * setup-completed marker row inserted in the same transaction. Returns
-   * false instead of throwing when setup was already completed concurrently.
+   * Atomically creates the first administrator account AND its `roleGrant`,
+   * guarded by a setup-completed marker row inserted in the same transaction.
+   * The account can never exist without its role: callers must resolve the
+   * grant before calling this, so a missing or unresolvable role aborts setup
+   * with nothing written instead of leaving a stranded, unrecoverable admin.
+   * Returns false instead of throwing when setup was already completed
+   * concurrently.
    */
-  createInitialAdmin(user: NewUserInput): Promise<boolean>
+  createInitialAdmin(user: NewUserInput, roleGrant: InitialRoleGrant): Promise<boolean>
 
   /** Updates the user's display name, surname, and/or email address. */
   updateProfile(userId: string, fields: { name?: string; surname?: string; email?: string }): Promise<void>

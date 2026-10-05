@@ -113,6 +113,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [IKanbanPositionRepository](interfaces/IKanbanPositionRepository.md)
 - [ImageTransformSpec](interfaces/ImageTransformSpec.md)
 - [ImportPayload](interfaces/ImportPayload.md)
+- [InitialRoleGrant](interfaces/InitialRoleGrant.md)
 - [INotificationRepository](interfaces/INotificationRepository.md)
 - [INotificationService](interfaces/INotificationService.md)
 - [InvitationRecord](interfaces/InvitationRecord.md)
