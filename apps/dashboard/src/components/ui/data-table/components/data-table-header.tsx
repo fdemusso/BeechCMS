@@ -19,7 +19,7 @@ function DataTableHeaderInner<TData>({ table, enableColumnResizing }: DataTableH
   return (
     <>
       {table.getHeaderGroups().map((headerGroup) => (
-        <TableRow key={headerGroup.id}>
+        <TableRow key={headerGroup.id} className="hover:bg-transparent">
           {headerGroup.headers.map((header) => (
             <TableHead
               key={header.id}
@@ -47,4 +47,6 @@ function DataTableHeaderInner<TData>({ table, enableColumnResizing }: DataTableH
   )
 }
 
-export const DataTableHeader = React.memo(DataTableHeaderInner) as typeof DataTableHeaderInner
+// Not memoized: `table` is a stable instance, so React.memo would skip re-renders and freeze
+// header cells (e.g. the select-all checkbox) on stale state.
+export const DataTableHeader = DataTableHeaderInner

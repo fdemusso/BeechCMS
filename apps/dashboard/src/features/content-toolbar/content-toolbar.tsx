@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Flash as Zap } from 'reicon-react'
 
@@ -24,11 +24,32 @@ import type { ContentToolbarProps } from "./types"
 
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 
+const FILTER_BANNER_DISMISSED_KEY = "beechcms.filterBannerDismissed"
+
+// Per-viewer convenience: storage can be blocked or throw, so the banner just falls back to showing.
+function readFilterBannerDismissed(): boolean {
+  try {
+    return localStorage.getItem(FILTER_BANNER_DISMISSED_KEY) === "1"
+  } catch {
+    return false
+  }
+}
+
+function writeFilterBannerDismissed() {
+  try {
+    localStorage.setItem(FILTER_BANNER_DISMISSED_KEY, "1")
+  } catch {
+    // Ignored: the dismissal then only lasts for this mount.
+  }
+}
+
 export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
   const { seed, views, children, filters = {}, availableTagsByColumnId = {}, onExport, onOpenImport, isExportPending } = props
   const { t } = useTranslation()
   const toolbarState = useContentToolbar(props)
-  const [isFilterBannerDismissed, setIsFilterBannerDismissed] = useState(false)
+  const [isFilterBannerDismissed, setIsFilterBannerDismissed] = useState(readFilterBannerDismissed)
+  // Shown only after the user adds a filter from the UI, never for filters loaded with the view.
+  const [isFilterBannerOpen, setIsFilterBannerOpen] = useState(false)
   
   const { can } = usePermissions()
   const canCreate = can("content:create", seed?.slug ?? "")
@@ -137,8 +158,23 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
     applyDatePrecisionMode,
   } = toolbarState
 
+  const hasAnyFilter = Object.keys(filters).length > 0
+  useEffect(() => {
+    if (!hasAnyFilter) setIsFilterBannerOpen(false)
+  }, [hasAnyFilter])
+
   if (!activeView) {
     return null
+  }
+
+  const addConditionFromUi = (columnId: string) => {
+    addConditionToColumn(columnId)
+    if (!isFilterBannerDismissed) setIsFilterBannerOpen(true)
+  }
+  const dismissFilterBanner = () => {
+    writeFilterBannerDismissed()
+    setIsFilterBannerDismissed(true)
+    setIsFilterBannerOpen(false)
   }
 
   const hasFilters = Object.keys(filters).length > 0
@@ -170,7 +206,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                 visibleFilterColumns={visibleFilterColumns}
                 activeFiltersCountByColumn={activeFiltersCountByColumn}
                 onSelectColumn={(columnId: string) => {
-                  addConditionToColumn(columnId)
+                  addConditionFromUi(columnId)
                   setFilterMenuOpen(false)
                   setFilterColumnSearchTerm("")
                   setOpenPillId(columnId)
@@ -241,7 +277,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                 filterColumnSearchTerm={filterColumnSearchTerm}
                 setFilterColumnSearchTerm={setFilterColumnSearchTerm}
                 visibleFilterColumns={visibleFilterColumns}
-                addConditionToColumn={addConditionToColumn}
+                addConditionToColumn={addConditionFromUi}
                 setOpenPillId={setOpenPillId}
                 closeSettingsMenu={closeSettingsMenu}
                 filters={filters}
@@ -301,13 +337,13 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
               filters={filters}
               openPillId={openPillId}
               onOpenPillChange={setOpenPillId}
-              addConditionToColumn={addConditionToColumn}
+              addConditionToColumn={addConditionFromUi}
               removeColumnFilters={removeColumnFilters}
               updateCondition={updateCondition}
               removeCondition={removeCondition}
               availableTagsByColumnId={availableTagsByColumnId}
             >
-              {!isFilterBannerDismissed && (
+              {isFilterBannerOpen && !isFilterBannerDismissed && (
                 <div className="flex h-8 min-w-64 flex-1 items-center justify-between gap-3 rounded-full bg-amber-50 px-3 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
                   <span className="min-w-0 truncate">{t("toolbar.filterBanner.message")}</span>
                   <div className="flex shrink-0 items-center gap-2">
@@ -325,7 +361,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                       variant="link"
                       size="sm"
                       className="h-6 shrink-0 px-1 text-xs text-amber-800 underline hover:text-amber-950 dark:text-amber-200 dark:hover:text-amber-100"
-                      onClick={() => setIsFilterBannerDismissed(true)}
+                      onClick={dismissFilterBanner}
                     >
                       {t("toolbar.filterBanner.dismiss")}
                     </Button>

@@ -146,16 +146,36 @@ export function generateColumns(
       id: "select",
       enableResizing: false,
       size: 40,
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label={translate("common.selectAll")}
-        />
-      ),
+      header: ({ table }) => {
+        // Leaf rows of the current page only: group rows are never selectable, so TanStack's
+        // getIsAllPageRowsSelected() stays false when grouping is on.
+        const getPageRows = () =>
+          table.getRowModel().flatRows.filter((r) => !r.getIsGrouped() && r.getCanSelect())
+        const areAllSelected = () => {
+          const rows = getPageRows()
+          return rows.length > 0 && rows.every((r) => r.getIsSelected())
+        }
+        return (
+          <Checkbox
+            checked={areAllSelected()}
+            onCheckedChange={() => {
+              // Read live state at click time and apply a single update: separate toggleSelected
+              // calls in one tick overwrite each other.
+              const rows = getPageRows()
+              const deselect = areAllSelected()
+              table.setRowSelection((old) => {
+                const next = { ...old }
+                for (const r of rows) {
+                  if (deselect) delete next[r.id]
+                  else next[r.id] = true
+                }
+                return next
+              })
+            }}
+            aria-label={translate("common.selectAll")}
+          />
+        )
+      },
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
