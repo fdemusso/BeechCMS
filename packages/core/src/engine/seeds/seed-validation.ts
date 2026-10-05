@@ -21,6 +21,26 @@ const BRANCH_ID_RE = /^br_[A-Za-z0-9]+$/
 export const BRANCH_ALIAS_RE = /^[a-z][a-zA-Z0-9_]*$/
 
 /**
+ * Reason a branch alias is reserved, or `null` when free to use.
+ * Single source for seed validation and the branch rename route.
+ */
+export function reservedBranchAliasReason(alias: string): string | null {
+  if (SYSTEM_COLUMNS.has(alias)) {
+    return `branch '${alias}' collides with reserved system column. ` +
+      `System columns (id, slug, status, created_at, updated_at) cannot be used as branch aliases.`
+  }
+  if (AUTOMATION_RESERVED_WORDS.has(alias)) {
+    return `branch '${alias}' uses reserved alias. ` +
+      `This word is used by the automation template grammar.`
+  }
+  if (SQL_RESERVED_WORDS.has(alias.toLowerCase())) {
+    return `branch '${alias}' uses SQL reserved keyword. ` +
+      `Please pick a different alias to prevent database errors.`
+  }
+  return null
+}
+
+/**
  * Allowed charset for a seed slug identifier.
  * Must consist solely of lowercase ASCII letters, digits, and underscores.
  * Exported so route handlers and validation functions reuse the exact same guard.
@@ -140,22 +160,8 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
   for (const seed of seeds) {
     const messages: string[] = []
     for (const branch of seed.branches) {
-      if (SYSTEM_COLUMNS.has(branch.alias)) {
-        messages.push(
-          `branch '${branch.alias}' collides with reserved system column. ` +
-          `System columns (id, slug, status, created_at, updated_at) cannot be used as branch aliases.`,
-        )
-      } else if (AUTOMATION_RESERVED_WORDS.has(branch.alias)) {
-        messages.push(
-          `branch '${branch.alias}' uses reserved alias. ` +
-          `This word is used by the automation template grammar.`,
-        )
-      } else if (SQL_RESERVED_WORDS.has(branch.alias.toLowerCase())) {
-        messages.push(
-          `branch '${branch.alias}' uses SQL reserved keyword. ` +
-          `Please pick a different alias to prevent database errors.`,
-        )
-      }
+      const reason = reservedBranchAliasReason(branch.alias)
+      if (reason) messages.push(reason)
     }
     if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })
   }
