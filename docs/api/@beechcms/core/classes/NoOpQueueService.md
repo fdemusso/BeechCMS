@@ -6,7 +6,7 @@
 
 # Class: NoOpQueueService
 
-Safe no-op producer (e.g. unit tests that don't assert on enqueue).
+Drops messages without a transport.
 
 ## Implements
 
