@@ -440,7 +440,10 @@
       "orphansDesc": "Files uploaded but not referenced by any content. Can be manually deleted from Cloudflare R2.",
       "fileCount": "{{count}} total files",
       "referenceVisual": "Visual reference: 1 GB",
-      "noOrphans": "No orphan files found"
+      "noOrphans": "No orphan files found",
+      "orphanCount": "{{count}} orphan files",
+      "pageRange": "{{start}}–{{end}} of {{total}}",
+      "loadFailed": "Could not load storage information"
     },
     "profile": {
       "infoTitle": "Profile information",

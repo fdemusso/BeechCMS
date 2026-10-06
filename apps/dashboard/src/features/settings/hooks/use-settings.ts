@@ -13,7 +13,7 @@ export const SETTINGS_QUERY_KEYS = {
   profile: () => ME_QUERY_KEY,
   sessions: () => [...SETTINGS_QUERY_KEYS.all, 'sessions'] as const,
   activity: () => [...SETTINGS_QUERY_KEYS.all, 'activity'] as const,
-  storage: () => [...SETTINGS_QUERY_KEYS.all, 'storage'] as const,
+  storage: (offset: number) => [...SETTINGS_QUERY_KEYS.all, 'storage', offset] as const,
   notifications: () => [...SETTINGS_QUERY_KEYS.all, 'notifications'] as const,
   general: () => GENERAL_SETTINGS_QUERY_KEY,
 }
@@ -90,10 +90,10 @@ export function useSettingsActivity() {
   })
 }
 
-export function useStorageStats() {
+export function useStorageStats(offset = 0) {
   return useQuery({
-    queryKey: SETTINGS_QUERY_KEYS.storage(),
-    queryFn: settingsApi.getStorage,
+    queryKey: SETTINGS_QUERY_KEYS.storage(offset),
+    queryFn: () => settingsApi.getStorage(offset),
     staleTime: 5 * 60 * 1000,
   })
 }
