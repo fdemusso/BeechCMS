@@ -8,6 +8,33 @@
 
 ## Methods
 
+### changePasswordAndRevokeSessions()
+
+> **changePasswordAndRevokeSessions**(`userId`, `newPasswordHash`, `nowTimestamp`): `Promise`&lt;`void`&gt;
+
+Replaces the password hash and revokes every active refresh token of the user in one
+atomic write, so a password change can never leave old sessions valid.
+
+#### Parameters
+
+##### userId
+
+`string`
+
+##### newPasswordHash
+
+`string`
+
+##### nowTimestamp
+
+`number`
+
+#### Returns
+
+`Promise`&lt;`void`&gt;
+
+***
+
 ### countAll()
 
 > **countAll**(): `Promise`&lt;`number`&gt;

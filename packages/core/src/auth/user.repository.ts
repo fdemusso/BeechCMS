@@ -95,6 +95,12 @@ export interface IUserRepository {
   /** Replaces the user's stored password hash after a successful password change. */
   updatePasswordHash(userId: string, newPasswordHash: string): Promise<void>
 
+  /**
+   * Replaces the password hash and revokes every active refresh token of the user in one
+   * atomic write, so a password change can never leave old sessions valid.
+   */
+  changePasswordAndRevokeSessions(userId: string, newPasswordHash: string, nowTimestamp: number): Promise<void>
+
   /** Sets or clears the user's avatar URL. */
   updateAvatarUrl(userId: string, avatarUrl: string | null): Promise<void>
 

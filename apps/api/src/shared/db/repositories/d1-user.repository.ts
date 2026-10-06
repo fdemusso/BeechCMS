@@ -125,6 +125,15 @@ export class D1UserRepository implements IUserRepository {
       .run()
   }
 
+  async changePasswordAndRevokeSessions(userId: string, newPasswordHash: string, nowTimestamp: number): Promise<void> {
+    await this.db.batch([
+      this.db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(newPasswordHash, userId),
+      this.db
+        .prepare('UPDATE refresh_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL')
+        .bind(nowTimestamp, userId),
+    ])
+  }
+
   async updateAvatarUrl(userId: string, avatarUrl: string | null): Promise<void> {
     await this.db
       .prepare('UPDATE users SET avatar_url = ? WHERE id = ?')
