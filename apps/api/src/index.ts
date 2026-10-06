@@ -3,13 +3,17 @@
 // See LICENSE in the repository root for license terms.
 
 import { createBeechApp } from './factory'
-import { SeedRegistry, SystemIdGenerator } from '@beechcms/core'
-import type { QueueMessage } from '@beechcms/core'
+import { SeedRegistry, SystemClock, SystemIdGenerator } from '@beechcms/core'
+import type { JobHandler, QueueMessage } from '@beechcms/core'
 import { runCronAutomations } from './features/automations/engine/cron-runner'
 import { D1AutomationRepository } from './shared/db/repositories/automations.repository.d1'
 import { D1ContentRepository } from './shared/db/repositories/content.repository.d1'
 import { D1SeedRepository } from './shared/db/repositories/seed.repository.d1'
+import { D1SeedMediaPurgeRepository } from './shared/db/repositories/seed-media-purge.repository.d1'
 import { dispatchQueueBatch } from './shared/jobs/queue-consumer'
+import { createBucketProvider } from './shared/storage/factory'
+import { CloudflareQueueService } from './shared/services/queue/cloudflare-queue-service'
+import { runSeedMediaPurgeStep, SEED_MEDIA_PURGE_JOB } from './features/seeds/seed-media-purge'
 import { semanticSearchHooks, semanticSearchJobs } from './features/search'
 import { contentImportJobs } from './features/content/jobs/import-chunk.worker'
 import type { Env } from './types'
@@ -72,7 +76,19 @@ export default {
       for (const m of batch.messages) m.ack()
       return
     }
-    await dispatchQueueBatch(batch as MessageBatch<QueueMessage>, env, ctx, jobs)
+    const purgeJob: JobHandler<{ jobId: string }> = async (payload, context) => {
+      if (!payload || typeof payload.jobId !== 'string') throw new Error('Invalid seed purge job payload')
+      const more = await runSeedMediaPurgeStep(payload.jobId, {
+        repository: new D1SeedMediaPurgeRepository(env.DB),
+        bucket: context.bucket,
+        clock: context.clock,
+        idGenerator: context.idGenerator,
+        cdnUrl: env.MEDIA_CDN_URL,
+      })
+      if (more) await context.queue.enqueue(SEED_MEDIA_PURGE_JOB, payload)
+    }
+    await dispatchQueueBatch(batch as MessageBatch<QueueMessage>, env, ctx,
+      { ...jobs, [SEED_MEDIA_PURGE_JOB]: purgeJob })
   },
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
@@ -89,6 +105,26 @@ export default {
     const seeds = await seedRepository.listActive()
     const registry = new SeedRegistry(seeds)
     const getSeed = (slug: string) => registry.get(slug) ?? null
+
+    const purgeRepository = new D1SeedMediaPurgeRepository(env.DB)
+    const pendingPurges = await purgeRepository.listPendingIds(10)
+    const bucket = createBucketProvider(env, env.MEDIA_BASE_URL ?? '')
+    const purgeQueue = env.QUEUE
+      ? new CloudflareQueueService(env.QUEUE as Queue<QueueMessage>)
+      : null
+    for (const jobId of pendingPurges) {
+      ctx.waitUntil((async () => {
+        try {
+          const more = await runSeedMediaPurgeStep(jobId, {
+            repository: purgeRepository, bucket, clock: SystemClock,
+            idGenerator: SystemIdGenerator, cdnUrl: env.MEDIA_CDN_URL,
+          })
+          if (more) await purgeQueue?.enqueue(SEED_MEDIA_PURGE_JOB, { jobId })
+        } catch (error) {
+          console.error(`[seed-purge] job ${jobId} failed; cron will retry`, error)
+        }
+      })())
+    }
 
     ctx.waitUntil(
       runCronAutomations(

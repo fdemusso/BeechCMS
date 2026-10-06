@@ -1505,11 +1505,11 @@
       "subtitle": "These operations are irreversible and may cause permanent data loss.",
       "hardDelete": {
         "title": "Permanently delete this content type",
-        "description": "Drops all tables (content, drafts, FTS, junctions) and removes the seed record. All stored data is permanently destroyed.",
+        "description": "Hides this content type immediately, then deletes its tables and media in the background. This cannot be undone.",
         "confirmPlaceholder": "Type the slug to confirm",
         "confirmLabel": "Type \"{{slug}}\" to confirm",
         "button": "Delete permanently",
-        "successToast": "Content type \"{{slug}}\" permanently deleted."
+        "successToast": "Deletion of \"{{slug}}\" started. Media cleanup is pending."
       },
       "dropColumn": {
         "title": "Drop field",

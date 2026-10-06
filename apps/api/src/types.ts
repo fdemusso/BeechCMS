@@ -10,7 +10,7 @@
  */
 
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, OAuthScope, IRoleRepository, IRoleAssignmentRepository, EffectivePermissions, IInvitationRepository, IDeletionLedger, IImageTransformer, IContentViewRepository } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedMediaPurgeRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, OAuthScope, IRoleRepository, IRoleAssignmentRepository, EffectivePermissions, IInvitationRepository, IDeletionLedger, IImageTransformer, IContentViewRepository } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import type { ISetupChecklistRepository } from './shared/db/repositories/d1-setup-checklist.repository'
 
@@ -248,6 +248,7 @@ export interface Variables {
   contentViewRepository: IContentViewRepository
   /** Repository for Seed (content type) definitions themselves. */
   seedRepository: ISeedRepository
+  seedMediaPurgeRepository: ISeedMediaPurgeRepository
   /** Applies schema mutations (create/alter/drop) to the database. */
   schemaMutator: ISchemaMutator
   /** Repository for dashboard layout configuration. */
