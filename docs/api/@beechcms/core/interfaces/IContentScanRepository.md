@@ -13,7 +13,7 @@
 > **getReferencedMediaKeys**(`seeds`): `Promise`&lt;`Set`&lt;`string`&gt;&gt;
 
 Scans across all registered seeds to identify media keys that are currently referenced
-by any content entry. Used for orphaned media detection and storage analytics.
+by any content entry, live or draft. Used for orphaned media detection and storage analytics.
 
 #### Parameters
 

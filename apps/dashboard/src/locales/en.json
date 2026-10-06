@@ -437,13 +437,19 @@
       "usageTitle": "Storage usage",
       "usageDesc": "Space used by files uploaded to R2.",
       "orphansTitle": "Orphan files",
-      "orphansDesc": "Files uploaded but not referenced by any content. Can be manually deleted from Cloudflare R2.",
+      "orphansDesc": "Files uploaded but not referenced by any content file field, live or draft. Review before deleting: a file may still be used elsewhere.",
       "fileCount": "{{count}} total files",
       "referenceVisual": "Visual reference: 1 GB",
       "noOrphans": "No orphan files found",
       "orphanCount": "{{count}} orphan files",
       "pageRange": "{{start}}–{{end}} of {{total}}",
-      "loadFailed": "Could not load storage information"
+      "loadFailed": "Could not load storage information",
+      "selectOrphan": "Select {{filename}}",
+      "deleteSelected": "Delete {{count}} selected",
+      "deleteTitle": "Delete {{count}} files permanently?",
+      "deleteDesc": "The files are removed from storage and cannot be recovered. If any selected file is referenced again or no longer tracked, nothing is deleted.",
+      "deleted": "{{count}} files deleted",
+      "deleteFailed": "Could not delete the selected files. The list has been refreshed: review it and try again."
     },
     "profile": {
       "infoTitle": "Profile information",

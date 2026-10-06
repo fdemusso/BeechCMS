@@ -98,6 +98,15 @@ export function useStorageStats(offset = 0) {
   })
 }
 
+export function useDeleteOrphans() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: settingsApi.deleteOrphans,
+    // Refetch on failure too: a refused selection means the report is stale.
+    onSettled: () => qc.invalidateQueries({ queryKey: [...SETTINGS_QUERY_KEYS.all, 'storage'] }),
+  })
+}
+
 export function useNotificationPrefs() {
   return useQuery({
     queryKey: SETTINGS_QUERY_KEYS.notifications(),

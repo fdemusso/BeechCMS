@@ -229,6 +229,32 @@ The authenticated settings route returns storage usage (`totalBytes`, `fileCount
 
 `orphanTotal` and `orphanBytes` cover the full tracked media library, while `orphans` contains only the requested page. Request the next page with `offset + orphanLimit` while that value is less than `orphanTotal`. The route scans tracked media to compute exact totals on each request; its response size remains bounded by `limit`.
 
+A file counts as referenced when a `file` field of any registered seed points to it, in a live entry or in an unpublished draft. References outside `file` fields (for example rich text embeds or external sites) are not detected. The report is therefore a list of candidates to review, and nothing is deleted automatically.
+
+## Reviewed orphan cleanup — `POST /api/settings/storage/orphans/delete`
+
+Deletes orphans selected from the storage report. Requires `content:delete` at global scope. A caller without the `admin` role may delete only their own uploads, which is the same rule as `DELETE /api/upload/:key`.
+
+```json
+{ "keys": ["media/example.png"] }
+```
+
+`keys` must contain 1–50 distinct, non-empty strings, otherwise the response is `400 settings-storage-invalid-orphan-keys`. Every key is checked again before anything is deleted. If any check fails, nothing is deleted and the response lists the offending `keys`:
+
+| Status | `type` | Cause |
+|---|---|---|
+| 404 | `settings-storage-orphan-not-found` | The key is not tracked media. |
+| 403 | `settings-storage-orphan-forbidden` | The caller is not an admin and did not upload the file. |
+| 409 | `settings-storage-orphan-referenced` | A live or draft `file` field references the key again. |
+
+On success, each object is removed from the bucket and from `media_objects`. The storage counter is reduced by each file's tracked size, and the response returns the updated `totalBytes` and `fileCount`:
+
+```json
+{ "deleted": ["media/example.png"], "totalBytes": 498, "fileCount": 50 }
+```
+
+Use `POST /api/content/stats/storage/sync` to recompute the counter from the bucket contents when it has drifted for other reasons.
+
 ---
 
 ## Environment Variables & Bindings

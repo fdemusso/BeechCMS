@@ -8,6 +8,7 @@ import { isLocaleCode, resolveLocaleConfig, sha256hex, type SiteSettings } from 
 import type { Env, Variables } from '../../types'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { manageableScopes, serializeEffectivePermissions } from '../../shared/rbac/scoped-projection'
+import { deleteR2Objects } from '../../shared/storage/upload'
 
 const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -417,6 +418,55 @@ settingsApp.get('/storage', async (context) => {
     orphanBytes,
     orphanOffset: offset,
     orphanLimit: limit,
+  })
+})
+
+/**
+ * POST /api/settings/storage/orphans/delete
+ * Deletes orphans a reviewer selected from the storage report. Every key is re-checked first:
+ * one that is untracked, referenced again, or not the caller's to delete refuses the whole selection.
+ */
+settingsApp.post('/storage/orphans/delete', async (context) => {
+  let payload: unknown
+  try {
+    payload = await context.req.json()
+  } catch {
+    payload = null
+  }
+  const keys = (payload as { keys?: unknown } | null)?.keys
+  if (!Array.isArray(keys) || keys.length === 0 || keys.length > STORAGE_ORPHAN_PAGE_LIMIT ||
+      !keys.every(key => typeof key === 'string' && key.length > 0) || new Set(keys).size !== keys.length) {
+    return context.json({ type: 'settings-storage-invalid-orphan-keys' }, 400)
+  }
+  const selectedKeys = keys as string[]
+
+  const mediaRepo = context.get('mediaRepository')
+  const mediaFiles = await Promise.all(selectedKeys.map(key => mediaRepo.getByKey(key)))
+  const untrackedKeys = selectedKeys.filter((_, index) => !mediaFiles[index])
+  if (untrackedKeys.length > 0) {
+    return context.json({ type: 'settings-storage-orphan-not-found', keys: untrackedKeys }, 404)
+  }
+
+  // Same owner-or-admin rule as DELETE /api/upload/:key.
+  const { sub: userId, role } = context.get('jwtPayload')
+  const foreignKeys = role === 'admin' ? [] : selectedKeys.filter((_, index) => mediaFiles[index]?.uploaded_by !== userId)
+  if (foreignKeys.length > 0) {
+    return context.json({ type: 'settings-storage-orphan-forbidden', keys: foreignKeys }, 403)
+  }
+
+  const referencedMediaKeys = await context.get('contentScanRepository').getReferencedMediaKeys(context.get('seedRegistry').all())
+  const referencedKeys = selectedKeys.filter(key => referencedMediaKeys.has(key))
+  if (referencedKeys.length > 0) {
+    return context.json({ type: 'settings-storage-orphan-referenced', keys: referencedKeys }, 409)
+  }
+
+  // Decrements the storage counter by each deleted file's tracked size.
+  await deleteR2Objects(context, selectedKeys)
+
+  return context.json({
+    deleted: selectedKeys,
+    totalBytes: await context.get('systemStatsRepository').getStorageUsage(),
+    fileCount: await mediaRepo.count(),
   })
 })
 

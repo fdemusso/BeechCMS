@@ -16,12 +16,11 @@ export class D1ContentScanRepository implements IContentScanRepository {
       if (mediaFields.length === 0) continue
 
       const mediaColumns = mediaFields.map(field => field.alias).join(', ')
-      try {
-        const contentData = await this.db.prepare(
-          `SELECT ${mediaColumns} FROM content_${seed.slug}`
-        ).all<Record<string, string | null>>()
-
-        for (const contentRow of contentData.results ?? []) {
+      // A file kept only by an unpublished draft is still referenced.
+      const tables = seed.allowDrafts ? [`content_${seed.slug}`, `content_${seed.slug}_drafts`] : [`content_${seed.slug}`]
+      for (const table of tables) {
+        const contentRows = await this.readFileColumns(table, mediaColumns)
+        for (const contentRow of contentRows) {
           const rowContentString = Object.values(contentRow).filter(Boolean).join(' ')
           for (const keyMatch of rowContentString.matchAll(/\/api\/media\/([^"'\s\\,}\]]+)/g)) {
             try {
@@ -31,11 +30,21 @@ export class D1ContentScanRepository implements IContentScanRepository {
             }
           }
         }
-      } catch {
-        // Table not yet created (seed:load not run) — skip this seed gracefully
       }
     }
 
     return referencedMediaKeys
+  }
+
+  private async readFileColumns(table: string, mediaColumns: string): Promise<Record<string, string | null>[]> {
+    try {
+      const contentData = await this.db.prepare(`SELECT ${mediaColumns} FROM ${table}`).all<Record<string, string | null>>()
+      return contentData.results ?? []
+    } catch (error) {
+      // Table not yet created (seed:load not run). Any other failure must surface: a skipped
+      // table would make its files look orphaned and offer them for deletion.
+      if (error instanceof Error && /no such table/i.test(error.message)) return []
+      throw error
+    }
   }
 }
