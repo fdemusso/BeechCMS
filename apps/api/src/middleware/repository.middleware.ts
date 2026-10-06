@@ -35,7 +35,7 @@ import { D1RoleRepository } from '../shared/db/repositories/d1-role.repository'
 import { D1RoleAssignmentRepository } from '../shared/db/repositories/d1-role-assignment.repository'
 import { D1InvitationRepository } from '../shared/db/repositories/d1-invitation.repository'
 import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService, UnconfiguredPrivacyService, PermissionRoleGuard } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, IRoleRepository, IRoleAssignmentRepository, IInvitationRepository, IDeletionLedger, IContentViewRepository } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, IRoleRepository, IRoleAssignmentRepository, IInvitationRepository, IDeletionLedger, IContentViewRepository, BeechBucket } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations/engine/automation-runner'
 import { D1AutomationRepository } from '../shared/db/repositories/automations.repository.d1'
@@ -84,6 +84,8 @@ interface RepositoryOverrides {
   hooks?: BeechHooks
   privacyService?: IPrivacyService
   deletionLedger?: IDeletionLedger
+  /** Custom bucket from BeechAppConfig; the default deletion ledger writes here instead of the env-derived provider. */
+  bucket?: BeechBucket
 }
 
 function buildScheduler(context: Context): IScheduler {
@@ -105,9 +107,9 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
 
     // Built here rather than read from context.get('bucket'): storageMiddleware runs AFTER
     // this middleware in factory.ts, and reordering it would rewire every other repository
-    // consumer. Mirrors storage.middleware.ts:21's own createBucketProvider call.
+    // consumer. Mirrors storage.middleware.ts's own bucket resolution: config.bucket wins.
     const baseUrl = context.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '') || new URL(context.req.url).origin
-    const deletionLedger = overrides?.deletionLedger ?? new R2DeletionLedger(createBucketProvider(context.env, baseUrl))
+    const deletionLedger = overrides?.deletionLedger ?? new R2DeletionLedger(overrides?.bucket ?? createBucketProvider(context.env, baseUrl))
     context.set('deletionLedger', deletionLedger)
 
     context.set('repository', overrides?.repository ?? new D1ContentRepository(database, overrides?.hooks, privacyService, undefined, deletionLedger, resolvedClock))
