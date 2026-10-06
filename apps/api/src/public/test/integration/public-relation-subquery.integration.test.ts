@@ -91,6 +91,36 @@ describe('public slice — integration (real D1) relation subquery filters', () 
     expect(row?.parent_id).toBe(referrer.id)
   })
 
+  it('resolves a multi-relation id-array condition inside a subquery through its junction', async () => {
+    const targetRes = await admin.post('/api/content/posts', { title: 'Inner Target', slug: 'sq-inner-target', status: 'published' })
+    expect(targetRes.status).toBe(201)
+    const target = await targetRes.json<{ id: string }>()
+    const middleRes = await admin.post('/api/content/posts', { title: 'Inner Middle', slug: 'sq-inner-middle', related_posts: [target.id], status: 'published' })
+    expect(middleRes.status).toBe(201)
+    const middle = await middleRes.json<{ id: string }>()
+    const outerRes = await admin.post('/api/content/posts', { title: 'Inner Outer', slug: 'sq-inner-outer', related_posts: [middle.id], status: 'published' })
+    expect(outerRes.status).toBe(201)
+    const outer = await outerRes.json<{ id: string }>()
+
+    // Outer: posts referencing any post that references `target`.
+    const filter = JSON.stringify({ where: [{ field: 'related_posts', op: 'in', value: { where: [{ field: 'related_posts', op: 'in', value: [target.id] }] } }] })
+    const response = await publicClient.get(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
+      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+    })
+
+    expect(response.status).toBe(200)
+    const body = await response.json<{ data: Array<{ id: string }>; meta: { total: number } }>()
+    expect(body.data.map(d => d.id)).toEqual([outer.id])
+    expect(body.meta.total).toBe(1)
+
+    // Regression guard: the two junction hops this filter walked.
+    const hops = await harness.db
+      .prepare('SELECT parent_id, target_id FROM rel_posts_related_posts WHERE target_id IN (?, ?) ORDER BY target_id')
+      .bind(target.id, middle.id)
+      .all<{ parent_id: string; target_id: string }>()
+    expect(hops.results).toHaveLength(2)
+  })
+
   it('a subquery matching no target returns 200 with an empty page, never the unfiltered collection', async () => {
     const postRes = await admin.post('/api/content/posts', { title: 'Any Post', slug: 'sq-any-post', status: 'published' })
     expect(postRes.status).toBe(201)

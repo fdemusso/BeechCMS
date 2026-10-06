@@ -62,7 +62,7 @@ export async function resolveRelationSubqueries(
     const { branch: relBranch, targetSeed } = resolvePublicRelationTarget(cond.field, parentSeed, getSeed, 'subquery')
 
     const targetIds = cond.subquery
-      ? await resolveTargetIds(cond.field, cond.subquery, targetSeed, repository, publishedOnly, locale)
+      ? await resolveTargetIds(cond.field, cond.subquery, targetSeed, repository, getSeed, publishedOnly, locale)
       : normalizeIdArray(cond.field, cond.value)
 
     if (targetIds.length === 0) {
@@ -106,11 +106,19 @@ async function resolveTargetIds(
   subquery: NonNullable<PublicFilterCondition['subquery']>,
   targetSeed: Seed,
   repository: ContentRepository,
+  getSeed: (slug: string) => Seed | null,
   publishedOnly: boolean,
   locale?: SelectLocale,
 ): Promise<string[]> {
+  // Inner multi-relation conditions have no physical column: resolve them through their junction first.
+  const inner = await resolveRelationSubqueries(
+    { where: subquery.where, logic: subquery.logic },
+    targetSeed, repository, getSeed, publishedOnly, locale,
+  )
+  if (inner.empty) return []
+
   // Reuses the public filter policy gate: inner fields must be public AND filterable on the TARGET seed.
-  const innerFilters = toEngineFilters(targetSeed, { where: subquery.where, logic: subquery.logic })
+  const innerFilters = toEngineFilters(targetSeed, inner.filter ?? { where: subquery.where, logic: subquery.logic })
 
   const { items, total } = await repository.findMany(targetSeed, {
     filters: innerFilters,

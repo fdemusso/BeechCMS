@@ -85,6 +85,37 @@ describe('resolveRelationSubqueries', () => {
     expect(result.filter).toEqual({ where: [{ field: 'id', op: 'in', value: ['parent-1'] }], logic: 'AND' })
   })
 
+  it('resolves an inner multi-relation id array through the junction before the engine query runs', async () => {
+    vi.mocked(mockRepo.findParentIdsByRelation)
+      .mockResolvedValueOnce(['mid-1'])
+      .mockResolvedValueOnce(['outer-1'])
+    vi.mocked(mockRepo.findMany).mockResolvedValueOnce({ items: [{ id: 'mid-1' }], total: 1 })
+    const parsed: ParsedPublicFilter = {
+      logic: 'AND',
+      where: [{ field: 'related_posts', op: 'in', subquery: { where: [{ field: 'related_posts', op: 'in', value: ['t-1'] }], logic: 'AND' } }],
+    }
+
+    const result = await resolveRelationSubqueries(parsed, postsSeed, mockRepo, getSeed, true)
+
+    expect(mockRepo.findMany).toHaveBeenCalledWith(postsSeed, expect.objectContaining({
+      filters: [{ type: 'system', column: 'id', conditions: [{ op: 'in', value: ['mid-1'] }] }],
+    }))
+    expect(result.filter).toEqual({ where: [{ field: 'id', op: 'in', value: ['outer-1'] }], logic: 'AND' })
+  })
+
+  it('an inner multi-relation id array with no referencing parent answers empty without querying the engine', async () => {
+    vi.mocked(mockRepo.findParentIdsByRelation).mockResolvedValueOnce([])
+    const parsed: ParsedPublicFilter = {
+      logic: 'AND',
+      where: [{ field: 'related_posts', op: 'in', subquery: { where: [{ field: 'related_posts', op: 'in', value: ['t-1'] }], logic: 'AND' } }],
+    }
+
+    const result = await resolveRelationSubqueries(parsed, postsSeed, mockRepo, getSeed, true)
+
+    expect(result).toEqual({ filter: null, empty: true })
+    expect(mockRepo.findMany).not.toHaveBeenCalled()
+  })
+
   it('under AND, an inner query matching nothing returns an empty result without an engine round-trip', async () => {
     vi.mocked(mockRepo.findMany).mockResolvedValueOnce({ items: [], total: 0 })
     const parsed: ParsedPublicFilter = {
