@@ -30,6 +30,10 @@ export interface IPasswordResetTokenRepository {
    */
   findValidByHashWithEmail(tokenHash: string, nowTimestamp: number): Promise<ValidatedResetToken | null>
 
-  /** Marks a token as consumed so it cannot be used again. */
-  markUsed(tokenId: string, nowTimestamp: number): Promise<void>
+  /**
+   * Atomically consumes a token so it cannot be used again.
+   * Returns `true` for the single caller that flipped it from unused to used, `false` when
+   * the token was already consumed (a concurrent redeem won the race).
+   */
+  markUsed(tokenId: string, nowTimestamp: number): Promise<boolean>
 }

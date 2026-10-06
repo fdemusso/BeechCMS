@@ -75,9 +75,11 @@ Ensures only one active reset token exists per user at any time.
 
 ### markUsed()
 
-> **markUsed**(`tokenId`, `nowTimestamp`): `Promise`&lt;`void`&gt;
+> **markUsed**(`tokenId`, `nowTimestamp`): `Promise`&lt;`boolean`&gt;
 
-Marks a token as consumed so it cannot be used again.
+Atomically consumes a token so it cannot be used again.
+Returns `true` for the single caller that flipped it from unused to used, `false` when
+the token was already consumed (a concurrent redeem won the race).
 
 #### Parameters
 
@@ -91,4 +93,4 @@ Marks a token as consumed so it cannot be used again.
 
 #### Returns
 
-`Promise`&lt;`void`&gt;
+`Promise`&lt;`boolean`&gt;

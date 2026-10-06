@@ -70,6 +70,22 @@ describe('D1PasswordResetTokenRepository', () => {
       await new D1PasswordResetTokenRepository(db, fixedIdGen).markUsed('prt-1', NOW)
       expect(bindMock).toHaveBeenCalledWith(NOW, 'prt-1')
     })
+
+    it('only updates a token that is still unused', async () => {
+      const { db, prepareMock } = makeMockDb()
+      await new D1PasswordResetTokenRepository(db, fixedIdGen).markUsed('prt-1', NOW)
+      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('used_at IS NULL'))
+    })
+
+    it('returns true when the update changed a row', async () => {
+      const { db } = makeMockDb({ runChanges: 1 })
+      expect(await new D1PasswordResetTokenRepository(db, fixedIdGen).markUsed('prt-1', NOW)).toBe(true)
+    })
+
+    it('returns false when no row changed because the token was already consumed', async () => {
+      const { db } = makeMockDb({ runChanges: 0 })
+      expect(await new D1PasswordResetTokenRepository(db, fixedIdGen).markUsed('prt-1', NOW)).toBe(false)
+    })
   })
 
   describe('invalidatePending', () => {
