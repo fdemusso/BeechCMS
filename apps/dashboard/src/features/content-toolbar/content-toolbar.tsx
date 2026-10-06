@@ -192,6 +192,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
             onCreateView={onCreateView}
             creatableViewTypes={creatableViewTypes}
             onReorderViews={onReorderViews}
+            onDeleteView={onDeleteView}
           />
 
           {/* Lato destro: strumenti */}

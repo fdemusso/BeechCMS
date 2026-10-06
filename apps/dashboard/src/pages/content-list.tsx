@@ -225,6 +225,7 @@ export function ContentListPage() {
                         onCreateView={canManageViews ? handleCreateView : undefined}
                         creatableViewTypes={creatableViewTypes}
                         onReorderViews={canManageViews ? handleReorderViews : undefined}
+                        onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
                       />
                     </ToolbarStrip>
                     <ViewEmptyState

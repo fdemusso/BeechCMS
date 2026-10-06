@@ -163,6 +163,7 @@
     },
     "widgetRegistry": {
       "unknown": "Widget sconosciuto:",
+      "disabled": "Widget non funzionante in questa versione",
       "widgets": {
         "stat": {
           "label": "Statistica"

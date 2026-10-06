@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { listWidgetDefinitions } from '../registry/widget-registry'
+import { isWidgetDisabled, listWidgetDefinitions } from '../registry/widget-registry'
 import type { WidgetDefinition } from '../registry/widget-definition'
 import { resolveIcon as resolveRegistryIcon } from '@/lib/icon-registry'
 
@@ -57,11 +57,14 @@ export function WidgetPickerDialog({ open, onOpenChange, onSelect }: WidgetPicke
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {grouped.get(category)?.map((def) => {
                   const Icon = resolveIcon(def.icon)
+                  const disabled = isWidgetDisabled(def.type)
                   return (
                     <button
                       key={def.type}
                       type="button"
-                      className="flex flex-col items-start gap-1 rounded-md border p-3 text-left hover:bg-muted/50 transition-colors"
+                      disabled={disabled}
+                      title={disabled ? t('dashboard.widgetRegistry.disabled') : undefined}
+                      className="flex flex-col items-start gap-1 rounded-md border p-3 text-left hover:bg-muted/50 transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
                       onClick={() => onSelect(def.type)}
                     >
                       <Icon className="size-4 text-muted-foreground" />
