@@ -4,8 +4,8 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { hasPermission, resolvePolicies } from '@beechcms/core'
-import type { LocaleConfig, Seed } from '@beechcms/core'
+import { hasPermission, resolveClassification, resolvePolicies } from '@beechcms/core'
+import type { IPrivacyService, LocaleConfig, Seed } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import type { AppEnv } from '../../types'
 import { D1BackrefRepository, type BackrefItem } from './d1-backref.repository'
@@ -32,6 +32,7 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
   const getSeed = c.get('getSeed')
   const backrefMap = c.get('backrefMap')
   const backrefRepository = new D1BackrefRepository(c.env.DB)
+  const privacyService = c.get('privacyService')
 
   // 1. Resolve target seed
   const targetSeed = getSeed(targetSlug)
@@ -107,7 +108,8 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
     }
 
     const { items, total } = await backrefRepository.queryGroup(source, sourceSeed, targetId, limit, offset)
-    const filteredItems = filterVisibility(localizeDisplayNames(items, sourceSeed, localeConfig), sourceSeed)
+    const readable = await decryptDisplayNames(items, sourceSeed, privacyService)
+    const filteredItems = filterVisibility(localizeDisplayNames(readable, sourceSeed, localeConfig), sourceSeed)
 
     return c.json({
       groups: [{
@@ -130,7 +132,8 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
       if (!sourceSeed) return null
 
       const { items, total } = await backrefRepository.queryGroup(source, sourceSeed, targetId, PREVIEW_LIMIT, 0)
-      const filteredItems = filterVisibility(localizeDisplayNames(items, sourceSeed, localeConfig), sourceSeed)
+      const readable = await decryptDisplayNames(items, sourceSeed, privacyService)
+      const filteredItems = filterVisibility(localizeDisplayNames(readable, sourceSeed, localeConfig), sourceSeed)
 
       return {
         sourceSlug: source.sourceSlug,
@@ -155,6 +158,17 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+/** The raw display column of an `encrypt`-classified branch is ciphertext; decrypt it before localization and masking. */
+async function decryptDisplayNames(items: BackrefItem[], sourceSeed: Seed, privacyService: IPrivacyService): Promise<BackrefItem[]> {
+  const displayBranch = sourceSeed.branches.find(b => b.alias === sourceSeed.displayNameAlias)
+  if (!displayBranch || resolveClassification(displayBranch).storage !== 'encrypt') return items
+  return Promise.all(
+    items.map(async (item) =>
+      item.displayName ? { ...item, displayName: await privacyService.decrypt(item.displayName) } : item
+    )
+  )
+}
 
 /** Resolves localized display names to the default locale; masking then applies to the resolved string. */
 function localizeDisplayNames(items: BackrefItem[], sourceSeed: Seed, localeConfig: LocaleConfig | undefined): BackrefItem[] {
