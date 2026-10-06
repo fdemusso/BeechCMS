@@ -84,6 +84,41 @@ describe('GET /distribution/:seed', () => {
   })
 })
 
+describe('GET /distribution/:seed — encrypted storage', () => {
+  const encryptedSeed: Seed = {
+    slug: 'tickets',
+    label: 'Ticket',
+    displayNameAlias: 'title',
+    branches: [
+      { id: 'br_01', alias: 'title', type: 'text', label: 'Title' },
+      { id: 'br_02', alias: 'category', type: 'text', label: 'Category', policies: { classification: 'confidential' } },
+    ],
+  }
+
+  it('rejects a visible confidential column with 400 instead of grouping ciphertext', async () => {
+    const repo = makeRepoStub([{ label: 'v1:random-iv-ciphertext', value: 1 }])
+    const { app } = buildApp({ repo, seeds: { tickets: encryptedSeed } })
+
+    const res = await app.request('/distribution/tickets?column=category')
+
+    expect(res.status).toBe(400)
+    expect(repo.distribution).not.toHaveBeenCalled()
+  })
+
+  it('still groups plain and system columns of the same seed', async () => {
+    const repo = makeRepoStub([{ label: 'draft', value: 2 }])
+    const { app } = buildApp({ repo, seeds: { tickets: encryptedSeed } })
+
+    const responses = [
+      await app.request('/distribution/tickets?column=title'),
+      await app.request('/distribution/tickets?column=status'),
+    ]
+
+    expect(responses.map(r => r.status)).toEqual([200, 200])
+    expect(repo.distribution).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('GET /growth/:seed', () => {
   it('returns 200 and handles a decline from a zero baseline', async () => {
     const repo = makeRepoStub()

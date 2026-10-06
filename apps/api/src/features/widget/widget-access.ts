@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { resolvePolicies } from '@beechcms/core'
+import { resolveClassification, resolvePolicies } from '@beechcms/core'
 import type { ActorContext, AggregateFormula, Branch, Seed } from '@beechcms/core'
 import { applyVisibility } from '../../shared/policies/apply-policies'
 
@@ -27,6 +27,17 @@ export function assertColumnExposed(seed: Seed, alias: string, actor: ActorConte
   if (SYSTEM_COLUMNS.has(alias)) return
   findBranch(seed, alias)
   if (!isExposed(seed, alias, actor)) throw new Error(UNSAFE_COLUMN_ERROR)
+}
+
+/**
+ * Throws UNSAFE_COLUMN unless the column can be grouped in SQL. Encrypted values use a random IV,
+ * so equal plaintexts never share a stored value and the labels would be ciphertext.
+ */
+export function assertGroupable(seed: Seed, alias: string, actor: ActorContext): void {
+  assertColumnExposed(seed, alias, actor)
+  if (!SYSTEM_COLUMNS.has(alias) && resolveClassification(findBranch(seed, alias)).storage !== 'plain') {
+    throw new Error(UNSAFE_COLUMN_ERROR)
+  }
 }
 
 export function assertFilterable(seed: Seed, alias: string, actor: ActorContext): void {
