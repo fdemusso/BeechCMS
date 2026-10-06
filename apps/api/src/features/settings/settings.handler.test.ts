@@ -44,7 +44,7 @@ function buildApp(mocks: any = {}) {
       }),
       emailBelongsToAnotherUser: vi.fn().mockResolvedValue(false),
       updateProfile: vi.fn().mockResolvedValue(undefined),
-      updatePasswordHash: vi.fn().mockResolvedValue(undefined),
+      changePasswordAndRevokeSessions: vi.fn().mockResolvedValue(undefined),
       updateAvatarUrl: vi.fn().mockResolvedValue(undefined),
       updateNotificationPreferences: vi.fn().mockResolvedValue(undefined),
     })
@@ -96,6 +96,7 @@ function buildApp(mocks: any = {}) {
       hash: vi.fn().mockResolvedValue('new-hashed-pwd'),
     })
 
+    c.set('clock', mocks.clock ?? { nowSeconds: () => 1700000000 })
     c.set('jwtPayload', mocks.jwtPayload ?? { sub: 'u1' })
     c.set('effectivePermissions', mocks.effectivePermissions ?? {
       global: new Set(['content:read']),
@@ -475,11 +476,11 @@ describe('Settings Handler', () => {
     })
 
     it('updates password successfully if current password is correct', async () => {
-      const updatePasswordHashSpy = vi.fn().mockResolvedValue(undefined)
+      const changePasswordSpy = vi.fn().mockResolvedValue(undefined)
       const app = buildApp({
         userRepository: {
           findById: vi.fn().mockResolvedValue({ passwordHash: 'old-hash' }),
-          updatePasswordHash: updatePasswordHashSpy,
+          changePasswordAndRevokeSessions: changePasswordSpy,
         },
         hashProvider: {
           verify: vi.fn().mockResolvedValue(true),
@@ -492,7 +493,7 @@ describe('Settings Handler', () => {
         body: JSON.stringify({ currentPassword: 'pwd', newPassword: 'new-valid-pwd' }),
       })
       expect(res.status).toBe(200)
-      expect(updatePasswordHashSpy).toHaveBeenCalledWith('u1', 'new-hashed-pwd')
+      expect(changePasswordSpy).toHaveBeenCalledWith('u1', 'new-hashed-pwd', 1700000000)
     })
   })
 

@@ -294,7 +294,7 @@ settingsApp.put('/password', async (context) => {
   }
 
   const hashedNewPassword = await hashProvider.hash(newPassword)
-  await context.get('userRepository').updatePasswordHash(userId, hashedNewPassword)
+  await context.get('userRepository').changePasswordAndRevokeSessions(userId, hashedNewPassword, context.get('clock').nowSeconds())
   return context.json({ success: true })
 })
 
