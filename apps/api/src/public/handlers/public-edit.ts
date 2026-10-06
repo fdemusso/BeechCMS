@@ -7,7 +7,7 @@ import type { LocaleConfig, Seed } from '@beechcms/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../../shared/utils/query-utils'
 import { checkPublicOperation } from '../validation/access-policy'
-import { publicProblem } from '../errors/problem-details'
+import { publicProblem, internalErrorDetail } from '../errors/problem-details'
 import { slugify } from '../utils/slug-utils'
 import { sanitizePublicPayload } from '../validation/sanitize'
 import { loadLocaleConfig } from '../../shared/localization/locale-config'
@@ -18,11 +18,6 @@ import { AppEnv } from '../../types'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 type PublicCtx = Context<AppEnv>
 type ResolveResult<T> = { ok: true; value: T } | { ok: false; response: Response }
-
-function errorMessage(context: PublicCtx, error: unknown): string {
-  if (context.env.ENV !== 'production' && error instanceof Error) return error.message
-  return 'An unexpected error occurred.'
-}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -284,6 +279,6 @@ export async function publicEditHandler(context: PublicCtx) {
       return publicProblem(context, { type: 'entry-not-found', title: 'Not Found', status: 404, detail: `Entry '${id}' not found for content type '${seedSlug}'.` })
     }
     console.error('Public edit error:', error)
-    return publicProblem(context, { type: 'internal-server-error', title: 'Internal Server Error', status: 500, detail: errorMessage(context, error) })
+    return publicProblem(context, { type: 'internal-server-error', title: 'Internal Server Error', status: 500, detail: internalErrorDetail(context.env, error) })
   }
 }

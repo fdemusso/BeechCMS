@@ -51,7 +51,7 @@ All API errors from the Public API use **RFC 9457 Problem Details** (obsoleting 
 | `slug-conflict` | `409` | Slug already exists for this content type |
 | `idempotency-key-conflict` | `409` | Idempotency key reused with a different payload |
 | `rate-limit-exceeded` | `429` | IP or account exceeded rate limit |
-| `internal-server-error` | `500` | Unhandled server error (details masked to `"An unexpected error occurred."` in production) |
+| `internal-server-error` | `500` | Unhandled server error (details masked to `"An unexpected error occurred."` unless `ENV` is `development` or `test`; an omitted or unrecognised `ENV` is masked) |
 
 > **Note:** The `errors` array is only present on `validation-failed` responses. It provides field-level detail for every field that failed validation.
 
