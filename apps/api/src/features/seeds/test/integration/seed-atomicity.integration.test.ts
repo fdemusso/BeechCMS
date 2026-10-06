@@ -6,9 +6,13 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
+import { SystemIdGenerator } from '@beechcms/core'
 import { createTestHarness, type TestClient, type TestHarness } from '@beechcms/testing'
 import { createBeechApp } from '../../../../factory'
 import { __resetSeedRegistryCache } from '../../../../shared/services/cache/seed-registry-cache'
+import { D1SeedMediaPurgeRepository } from '../../../../shared/db/repositories/seed-media-purge.repository.d1'
+import { R2BucketAdapter } from '../../../../shared/storage/r2-bucket'
+import { runSeedMediaPurgeStep } from '../../seed-media-purge'
 
 describe('seeds slice — schema atomicity (real D1)', () => {
   let harness: TestHarness
@@ -88,20 +92,30 @@ describe('seeds slice — schema atomicity (real D1)', () => {
     expect(await columns('atomic_add')).not.toContain('note')
   })
 
-  it('keeps the content table when hard-delete persistence fails', async () => {
+  it('keeps the content table and restores the seed when the purge DROP batch fails', async () => {
     await createSeed('atomic_hard', false)
-    const before = await version()
     await harness.db.prepare(`CREATE TRIGGER IF NOT EXISTS fail_seed_delete_hard BEFORE DELETE ON seeds
       WHEN OLD.slug = 'atomic_hard' BEGIN SELECT RAISE(ABORT, 'injected persistence failure'); END`).run()
 
+    // Hard delete is accepted as a durable job; the DROP runs (and fails) in the background step.
     const response = await admin.delete('/api/seeds/atomic_hard/hard', {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ confirm: 'atomic_hard' }),
     })
+    expect(response.status).toBe(202)
+    const { jobId } = await response.json<{ jobId: string }>()
 
-    expect([422, 500]).toContain(response.status)
+    const repository = new D1SeedMediaPurgeRepository(env.DB)
+    const bucket = new R2BucketAdapter((env as unknown as { MEDIA_BUCKET: R2Bucket }).MEDIA_BUCKET, 'http://localhost')
+    const more = await runSeedMediaPurgeStep(jobId, {
+      repository, bucket, clock: harness.clock, idGenerator: SystemIdGenerator,
+    })
+
+    expect(more).toBe(false)
+    expect((await repository.get(jobId))?.phase).toBe('failed')
     expect(await storedBranches('atomic_hard')).not.toBeNull()
-    expect(await version()).toBe(before)
+    const seed = await harness.db.prepare("SELECT status FROM seeds WHERE slug = 'atomic_hard'").first<{ status: string }>()
+    expect(seed?.status).toBe('active')
     expect(await columns('atomic_hard')).toContain('title')
   })
 })
