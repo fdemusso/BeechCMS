@@ -233,6 +233,36 @@ describe('Query', () => {
       expect(query.bindings).toEqual(['A', 'B', 10, 20])
     })
 
+    describe('empty membership', () => {
+      it('compiles an empty `in` to a constant false instead of dropping it', () => {
+        const query = buildSelectQuery(mockSeed, {
+          status: 'published',
+          filters: [{ column: 'title', type: 'text', conditions: [{ op: 'in', value: [] }] }]
+        })
+        expect(query.sql).toContain('AND 0')
+        expect(query.bindings).toEqual(['published'])
+      })
+
+      it('keeps the false disjunct neutral under OR', () => {
+        const query = buildSelectQuery(mockSeed, {
+          filterLogic: 'OR',
+          filters: [
+            { column: 'title', type: 'text', conditions: [{ op: 'in', value: [] }] },
+            { column: 'price', type: 'number', conditions: [{ op: 'eq', value: 5 }] }
+          ]
+        })
+        expect(query.sql).toContain('(0 OR price = ?)')
+        expect(query.bindings).toEqual([5])
+      })
+
+      it('treats an empty `not_in` as no constraint', () => {
+        const query = buildSelectQuery(mockSeed, {
+          filters: [{ column: 'title', type: 'text', conditions: [{ op: 'not_in', value: [] }] }]
+        })
+        expect(query.sql).not.toContain('WHERE')
+      })
+    })
+
     it('handles tags conditions', () => {
       const query = buildSelectQuery(mockSeed, {
         filters: [

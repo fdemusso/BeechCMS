@@ -276,12 +276,14 @@ function buildFilterCondition(
   }
   
   if (op === 'in' || op === 'not_in') {
-    if (!Array.isArray(value) || value.length === 0) return null
+    if (!Array.isArray(value)) return null
     const normalizedValues = value
       .map((v) => normalizeFilterValue(type, v))
       .filter((v) => v !== null)
-    
-    if (normalizedValues.length === 0) return null
+
+    // Membership in an empty set is false, not "no constraint"; dropping it would widen the result set.
+    // `not_in` over an empty set is vacuously true, so it adds no clause.
+    if (normalizedValues.length === 0) return op === 'in' ? '0' : null
     
     const placeholders = normalizedValues.map(() => '?').join(', ')
     bindings.push(...(normalizedValues as (string | number | boolean | null)[]))
