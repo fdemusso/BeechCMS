@@ -100,8 +100,14 @@ function normalizeProblemType(type: string): string {
   return `https://beechcms.dev/problems/${type}`
 }
 
+const MESSAGE_EXPOSING_ENVS = new Set(['development', 'test'])
+
+/**
+ * Detail for an unexpected 500. The raw exception message is exposed only for explicit
+ * local environments; an omitted or unrecognised ENV (e.g. `staging`) stays redacted.
+ */
 export function internalErrorDetail(env: { ENV?: string }, error: unknown): string {
-  if (env.ENV !== 'production' && error instanceof Error) return error.message
+  if (env.ENV !== undefined && MESSAGE_EXPOSING_ENVS.has(env.ENV) && error instanceof Error) return error.message
   return 'An unexpected error occurred.'
 }
 
