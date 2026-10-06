@@ -14,7 +14,7 @@ import {
 } from '@beechcms/core'
 import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
-import { SLUG_RE, parseJsonBody, actorFromContext } from './seeds.helpers'
+import { SLUG_RE, parseJsonBody, actorFromContext, relationChangeReasons } from './seeds.helpers'
 
 /**
  * Normalizes a candidate seed definition for MCP operations:
@@ -61,7 +61,7 @@ export function normalizeCandidate(candidate: Seed, storedDef: Seed | null): See
  * Classification of schema migration intent for MCP agents:
  * - `'create'`: Seed does not exist; requires initial table and index creation.
  * - `'additive'`: Additive schema extensions (adding new columns/branches).
- * - `'destructive'`: Involves dropping, renaming, or retyping columns; disallowed in generic MCP apply.
+ * - `'destructive'`: Involves dropping, renaming, retyping, or changing relation storage; disallowed in generic MCP apply.
  */
 export type McpClassification = 'create' | 'additive' | 'destructive'
 
@@ -70,7 +70,7 @@ export type McpClassification = 'create' | 'additive' | 'destructive'
  *
  * @remarks
  * Evaluates whether any branches are omitted (drops), have altered aliases (renames),
- * or have changed types. Because `planExtendSeed` is strictly additive and cannot emit destructive DDL,
+ * have changed types, or alter relation storage. Because `planExtendSeed` is strictly additive and cannot migrate relation data,
  * destructive intent must be classified here to reject or require confirmation.
  *
  * @param stored - Stored seed definition from the repository, or `null` if creating.
@@ -98,6 +98,7 @@ export function classifyCandidate(stored: Seed | null, candidate: Seed): {
     if (next.type !== prev.type) {
       reasons.push(`branch '${prev.id}' type change '${prev.type}' → '${next.type}' — use PATCH /api/seeds/${candidate.slug}/branches/${prev.id}/retype`)
     }
+    reasons.push(...relationChangeReasons(prev, next))
   }
 
   return { classification: reasons.length > 0 ? 'destructive' : 'additive', blockedReasons: reasons }
@@ -193,7 +194,7 @@ mcpApp.post('/:slug/mcp-plan', async (context) => {
  * - Designed for autonomous MCP agents and CI/CD schema deployment workflows.
  * - Validates the candidate against the full active seed set.
  * - Strictly enforces additive-only changes (`classifyCandidate`); destructive intent (column drops,
- *   renames, type changes) is rejected and directed to dedicated confirmation endpoints.
+ *   renames, type changes, relation storage changes) is rejected before DDL planning.
  * - Executes physical DDL and definition upsert in a single CAS-guarded atomic batch (`applyAtomic`).
  * - Rejects with 409 Conflict if registry version drifted (`expectedVersion !== currentVersion`).
  * - Executes post-apply FTS5 rebuilding if required.
@@ -257,7 +258,7 @@ mcpApp.post('/:slug/mcp-apply', async (context) => {
   }
 
   // 2 — additive-only gate. Destructive intent is REJECTED, never confirmed here: drop /
-  //     rename / retype have dedicated endpoints with their own typed confirm tokens.
+  //     rename / retype have dedicated endpoints; relation storage changes require a data migration.
   const { classification, blockedReasons } = classifyCandidate(storedDef, candidate)
   if (blockedReasons.length > 0) {
     return publicProblem(context, {

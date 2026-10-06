@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 import { describe, it, expect } from 'vitest'
 import type { Seed, Branch, SelectLocale, FilterOperator } from '../types.js'
-import { buildSelectQuery } from './query.js'
+import { buildSelectQuery, findUnappliedFilters } from './query.js'
 
 const mockSeed: Seed = {
   slug: 'articles',
@@ -233,6 +233,36 @@ describe('Query', () => {
       expect(query.bindings).toEqual(['A', 'B', 10, 20])
     })
 
+    describe('empty membership', () => {
+      it('compiles an empty `in` to a constant false instead of dropping it', () => {
+        const query = buildSelectQuery(mockSeed, {
+          status: 'published',
+          filters: [{ column: 'title', type: 'text', conditions: [{ op: 'in', value: [] }] }]
+        })
+        expect(query.sql).toContain('AND 0')
+        expect(query.bindings).toEqual(['published'])
+      })
+
+      it('keeps the false disjunct neutral under OR', () => {
+        const query = buildSelectQuery(mockSeed, {
+          filterLogic: 'OR',
+          filters: [
+            { column: 'title', type: 'text', conditions: [{ op: 'in', value: [] }] },
+            { column: 'price', type: 'number', conditions: [{ op: 'eq', value: 5 }] }
+          ]
+        })
+        expect(query.sql).toContain('(0 OR price = ?)')
+        expect(query.bindings).toEqual([5])
+      })
+
+      it('treats an empty `not_in` as no constraint', () => {
+        const query = buildSelectQuery(mockSeed, {
+          filters: [{ column: 'title', type: 'text', conditions: [{ op: 'not_in', value: [] }] }]
+        })
+        expect(query.sql).not.toContain('WHERE')
+      })
+    })
+
     it('handles tags conditions', () => {
       const query = buildSelectQuery(mockSeed, {
         filters: [
@@ -389,6 +419,54 @@ describe('Query', () => {
           }),
         ).toThrow(TypeError)
       }
+    })
+  })
+
+  describe('findUnappliedFilters', () => {
+    const group = (column: string, type: 'text' | 'number' | 'date', op: FilterOperator, value: unknown) =>
+      ({ column, type, conditions: [{ op, value }] }) as never
+
+    it('reports a number filter with an empty value, the case buildSelectQuery drops from WHERE', () => {
+      const filters = [group('price', 'number', 'eq', '')]
+
+      const unapplied = findUnappliedFilters(mockSeed, filters)
+
+      expect(unapplied).toEqual(filters)
+      expect(buildSelectQuery(mockSeed, { filters }).sql).not.toContain('price')
+    })
+
+    it('reports a number filter with a non-numeric value', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [group('price', 'number', 'gt', 'abc')])
+
+      expect(unapplied).toHaveLength(1)
+    })
+
+    it('reports a date filter with an unparsable value', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [group('created_at', 'date', 'lt', 'not-a-date')])
+
+      expect(unapplied).toHaveLength(1)
+    })
+
+    it('reports a filter on a column the seed does not have', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [group('missing', 'text', 'eq', 'x')])
+
+      expect(unapplied).toHaveLength(1)
+    })
+
+    it('does not report an in filter with no values: it compiles to constant false and still constrains', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [group('title', 'text', 'in', [])])
+
+      expect(unapplied).toHaveLength(0)
+    })
+
+    it('accepts filters that bind: numeric string, empty text, is_empty', () => {
+      const filters = [
+        group('price', 'number', 'eq', '12.5'),
+        group('title', 'text', 'eq', ''),
+        group('price', 'number', 'is_empty', null),
+      ]
+
+      expect(findUnappliedFilters(mockSeed, filters)).toEqual([])
     })
   })
 })

@@ -207,6 +207,26 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
 
 
 /**
+ * Lists the filter groups `buildSelectQuery` would silently leave out of the WHERE clause: an unknown
+ * column, or a condition whose value cannot be bound for the field type (empty or unparsable
+ * number/date, `in`/`not_in` value that is not an array). An empty `in` is not listed:
+ * it compiles to constant false and still constrains the read. A caller that needs the filter to constrain the read
+ * (e.g. automations resolving placeholders at run time) uses this to refuse the query instead of
+ * running it unconstrained.
+ *
+ * @param seed The seed the filters apply to.
+ * @param filters The filter groups to check.
+ * @returns The groups that would be dropped, in input order.
+ */
+export function findUnappliedFilters(seed: Seed, filters: FilterGroup[]): FilterGroup[] {
+  return filters.filter((group) =>
+    !isValidColumn(seed, group.column)
+    || group.conditions.some((cond) => buildFilterCondition('col', group.type, cond, []) === null),
+  )
+}
+
+
+/**
  * Normalizes user-provided filter values to a format appropriate for SQL execution.
  * 
  * @param type The type of the filter.
@@ -276,12 +296,14 @@ function buildFilterCondition(
   }
   
   if (op === 'in' || op === 'not_in') {
-    if (!Array.isArray(value) || value.length === 0) return null
+    if (!Array.isArray(value)) return null
     const normalizedValues = value
       .map((v) => normalizeFilterValue(type, v))
       .filter((v) => v !== null)
-    
-    if (normalizedValues.length === 0) return null
+
+    // Membership in an empty set is false, not "no constraint"; dropping it would widen the result set.
+    // `not_in` over an empty set is vacuously true, so it adds no clause.
+    if (normalizedValues.length === 0) return op === 'in' ? '0' : null
     
     const placeholders = normalizedValues.map(() => '?').join(', ')
     bindings.push(...(normalizedValues as (string | number | boolean | null)[]))

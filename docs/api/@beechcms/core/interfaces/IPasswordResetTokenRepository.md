@@ -73,23 +73,20 @@ Ensures only one active reset token exists per user at any time.
 
 ***
 
-### markUsed()
+### redeem()
 
-> **markUsed**(`tokenId`, `nowTimestamp`): `Promise`&lt;`boolean`&gt;
+> **redeem**(`input`): `Promise`&lt;`boolean`&gt;
 
-Atomically consumes a token so it cannot be used again.
-Returns `true` for the single caller that flipped it from unused to used, `false` when
-the token was already consumed (a concurrent redeem won the race).
+Redeems a token in one atomic unit: burns it, replaces the user's password hash and revokes
+every refresh token. Either all three land or none do.
+Returns `true` for the single caller that burned the token, `false` (writing nothing) when it
+was already redeemed by a concurrent request.
 
 #### Parameters
 
-##### tokenId
+##### input
 
-`string`
-
-##### nowTimestamp
-
-`number`
+[`RedeemPasswordResetInput`](RedeemPasswordResetInput.md)
 
 #### Returns
 

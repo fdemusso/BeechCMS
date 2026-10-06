@@ -168,6 +168,29 @@ describe('collection mode', () => {
     expect(opts.filters[0].column).toBe('name')
   })
 
+  it('6b — filter value from a field with HTML-special characters reaches findMany verbatim', async () => {
+    const findMany = vi.fn().mockResolvedValue({ items: [] })
+    const ctx = await makeCtx({
+      entry: { id: 'entry-1', name: "O'Brien & Sons" },
+      repository: { findMany } as unknown as ContentRepository,
+    })
+
+    await executeSetVariable(
+      {
+        type: 'set_variable',
+        name: 'ordini',
+        seed_slug: 'clienti',
+        filters: [{ field: 'name', op: 'eq', value: '{{this.name}}' }],
+      },
+      ctx,
+    )
+
+    // Regression guard: the value was HTML-escaped before the DB comparison, so it never
+    // matched the stored "O'Brien & Sons" and the variable came back empty.
+    const [, opts] = findMany.mock.calls[0]
+    expect(opts.filters[0].conditions[0].value).toBe("O'Brien & Sons")
+  })
+
   it('7 — collection with column pin: scalar aggregates + count non-null', async () => {
     const items = [
       { id: '1', total: 10, created_at: 1 },
@@ -234,7 +257,7 @@ describe('collection mode', () => {
         type: 'set_variable',
         name: 'ordini',
         seed_slug: 'clienti',
-        filters: [{ field: 'customer_id', op: 'eq', value: '{{cliente.id}}' }],
+        filters: [{ field: 'name', op: 'eq', value: '{{cliente.id}}' }],
       },
       ctx,
     )

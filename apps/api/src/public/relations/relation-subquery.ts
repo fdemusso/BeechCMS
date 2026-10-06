@@ -23,8 +23,8 @@ export type ResolvedSubqueryFilter = {
  *   - single relation → `{ field: <alias>, op: 'in', value: [targetId, …] }` (the alias IS a column)
  *   - multi relation  → `{ field: 'id',    op: 'in', value: [parentId, …] }` (resolved via the junction)
  *
- * An unresolved subquery must never reach `buildSelectQuery`: an `in` with an empty array is DROPPED
- * there (query.ts:209), which would answer the whole collection instead of nothing.
+ * An unresolved subquery must never reach `buildSelectQuery`. Short-circuiting an empty target set here
+ * also skips the query entirely, instead of compiling a constant-false `in`.
  */
 export async function resolveRelationSubqueries(
   parsed: ParsedPublicFilter | null,

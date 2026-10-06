@@ -13,6 +13,7 @@ import {
   assertColumnExposed,
   assertFilterable,
   assertFormulaColumns,
+  assertGroupable,
   assertSearchable,
   assertSortable,
 } from './widget-access'
@@ -324,7 +325,7 @@ widgetApp.get('/distribution/:seed', async (context) => {
   const limit = parseBoundedInt(context.req.query('limit'), DEFAULT_DISTRIBUTION_LIMIT, MAXIMUM_DISTRIBUTION_LIMIT)
 
   try {
-    assertColumnExposed(seed, column, resolveActor(context))
+    assertGroupable(seed, column, resolveActor(context))
     const slices = await context
       .get('widgetRepository')
       .distribution(seed, column, window, limit)

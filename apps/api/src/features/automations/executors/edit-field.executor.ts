@@ -34,7 +34,7 @@ export async function executeEditField(
     throw new Error(`edit_field: field '${action.field}' is localized and cannot be set by an automation`)
   }
   const resolved = typeof action.value === 'string'
-    ? interpolate(action.value, context)
+    ? interpolate(action.value, context, { escape: 'none' })
     : action.value
 
   const validation = validateAndSanitizeSeedPayload(seed, { [action.field]: resolved }, {
