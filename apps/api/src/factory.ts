@@ -145,6 +145,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
     roleGuard: config.roleGuard,
     antivirusProvider: config.antivirusProvider,
     scheduler: config.scheduler,
+    bucket: config.bucket,
   }))
 
   // 2. Seed Registry Hydration (D1-backed, version-token-cached per isolate)

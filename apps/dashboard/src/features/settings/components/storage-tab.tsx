@@ -3,7 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 import { FileRemove as FileX } from 'reicon-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -36,7 +38,8 @@ function mimeLabel(mime: string): string {
 
 export function StorageTab() {
   const { t } = useTranslation()
-  const { data: stats, isLoading } = useStorageStats()
+  const [offset, setOffset] = useState(0)
+  const { data: stats, isLoading, isError } = useStorageStats(offset)
 
   if (isLoading) {
     return (
@@ -48,7 +51,10 @@ export function StorageTab() {
   }
 
   const usagePercent = Math.min(100, ((stats?.totalBytes ?? 0) / REFERENCE_BYTES) * 100)
-  const orphanBytes = stats?.orphans.reduce((acc, f) => acc + f.size_bytes, 0) ?? 0
+
+  if (isError) {
+    return <p role="alert">{t('settings.storage.loadFailed')}</p>
+  }
 
   return (
     <div className="space-y-6">
@@ -65,9 +71,9 @@ export function StorageTab() {
                 {t('settings.storage.fileCount', { count: stats?.fileCount ?? 0 })}
               </p>
             </div>
-            {stats?.orphans.length ? (
+            {stats?.orphanTotal ? (
               <Badge variant="secondary" className="mb-1">
-                {stats.orphans.length} orfani · {formatBytes(orphanBytes)}
+                {t('settings.storage.orphanCount', { count: stats.orphanTotal })} · {formatBytes(stats.orphanBytes)}
               </Badge>
             ) : null}
           </div>
@@ -85,7 +91,7 @@ export function StorageTab() {
           <CardDescription>{t('settings.storage.orphansDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
-          {!stats?.orphans.length ? (
+          {!stats?.orphanTotal ? (
             <p className="text-sm text-muted-foreground py-4 text-center">
               {t('settings.storage.noOrphans')}
             </p>
@@ -106,6 +112,19 @@ export function StorageTab() {
                 ))}
               </div>
             </ScrollArea>
+          )}
+          {stats && stats.orphanTotal > stats.orphanLimit && (
+            <div className="flex items-center justify-between gap-3 pt-4">
+              <Button type="button" variant="outline" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - stats.orphanLimit))}>
+                {t('common.previous')}
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {t('settings.storage.pageRange', { start: offset + 1, end: Math.min(offset + stats.orphans.length, stats.orphanTotal), total: stats.orphanTotal })}
+              </span>
+              <Button type="button" variant="outline" disabled={offset + stats.orphanLimit >= stats.orphanTotal} onClick={() => setOffset(offset + stats.orphanLimit)}>
+                {t('common.next')}
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
