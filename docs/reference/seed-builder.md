@@ -94,7 +94,7 @@ Content-Type: application/json
 
 Performs an additive update of an active seed definition. You can add new branches or modify seed metadata (`label`, `allowDrafts`, etc.). This executes additive DDL (`ALTER TABLE ... ADD COLUMN`) for newly added branches and bumps the registry version token.
 
-> **Note:** Destructive field alterations like renaming aliases or changing field types are blocked through `PUT` with HTTP 422 (`alias-rename-not-supported` or `branch-type-change-not-supported`). Omitting existing branches from the payload does not drop the database columns; they are preserved as orphan columns in SQLite. To explicitly drop columns, use `DELETE /api/seeds/:slug/branches/:branchId`.
+> **Note:** Destructive field alterations like renaming aliases or changing field types are blocked through `PUT` with HTTP 422 (`alias-rename-not-supported` or `branch-type-change-not-supported`). Changing an existing relation's `multiple`, `targetSeed`, or effective `onDelete` rule is also blocked with `relation-change-not-supported`: it requires a data migration between the old and new relation storage or FK policy. Omitting existing branches from the payload does not drop the database columns; they are preserved as orphan columns in SQLite. To explicitly drop columns, use `DELETE /api/seeds/:slug/branches/:branchId`.
 
 **Request**
 ```http

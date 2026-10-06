@@ -30,7 +30,7 @@ Database migration statements cannot be planned accurately from abstract schema 
 To prevent race conditions between concurrent agents or dashboard administrators, schema mutations are guarded by **Optimistic Concurrency Control (OCC)**. Every plan records an `expectedVersion`. When applying, the API executes a single atomic SQLite batch (`db.batch()`) containing a compare-and-swap guard against `seed_meta.registry_version`. If another writer modified the schema in the interim, the guard trips, rolls back the entire batch, and returns `409 Conflict`.
 
 ### 4. Strictly Additive Safety Gate
-The MCP apply endpoint (`mcp-apply`) is **strictly additive**. Any candidate schema that omits existing branch IDs, renames aliases, or alters field data types is detected as destructive intent, rejected with HTTP `422`, and referred to dedicated danger-zone endpoints.
+The MCP apply endpoint (`mcp-apply`) is **strictly additive**. Any candidate schema that omits existing branch IDs, renames aliases, alters field data types, or changes an existing relation's `multiple`, `targetSeed`, or effective `onDelete` rule is detected as destructive intent and rejected with HTTP `422`. Relation storage or FK policy changes require a separate data migration; the plan reports them as blocked and emits no DDL.
 
 ---
 
