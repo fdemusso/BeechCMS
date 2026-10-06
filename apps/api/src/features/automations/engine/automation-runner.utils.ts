@@ -5,11 +5,20 @@
 import type { ResolvedContext } from '../evaluator/context-resolver'
 import { parseTemplateKey } from '../evaluator/template-grammar'
 
+/** `html` for markup sinks (mail body); `none` for plain-text and data sinks (DB values, recipients, ids, filters). */
+export type InterpolateEscape = 'html' | 'none'
+
+export interface InterpolateOptions {
+  /** Required so every sink states its escaping explicitly; no single default is safe for all sinks. */
+  escape: InterpolateEscape
+  defaultValue?: string
+  onMissing?: (field: string) => void
+}
+
 export function interpolate(
   template: string,
   context: ResolvedContext,
-  defaultValue = '',
-  onMissing?: (field: string) => void,
+  { escape, defaultValue = '', onMissing }: InterpolateOptions,
 ): string {
   if (!template) return ''
 
@@ -24,7 +33,7 @@ export function interpolate(
     if (val == null || val === '') {
       return defaultValue
     }
-    return escapeHtml(String(val))
+    return escape === 'html' ? escapeHtml(String(val)) : String(val)
   }
 
   return template.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, replacer)

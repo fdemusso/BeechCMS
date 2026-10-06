@@ -38,7 +38,7 @@ export async function executeSetVariable(
   }
 
   if (effectiveFixedId !== undefined) {
-    const resolvedId = interpolate(effectiveFixedId, ctx.context)
+    const resolvedId = interpolate(effectiveFixedId, ctx.context, { escape: 'none' })
     const { items } = await ctx.repository.findMany(targetSeed, {
       filters: [{ column: 'id', type: 'system', conditions: [{ op: 'eq', value: resolvedId }] }],
       status: null,
@@ -55,7 +55,7 @@ export async function executeSetVariable(
   }
 
   const resolvedFilters = (action.filters ?? []).map((f) => {
-    const value = typeof f.value === 'string' ? interpolate(f.value, ctx.context) : f.value
+    const value = typeof f.value === 'string' ? interpolate(f.value, ctx.context, { escape: 'none' }) : f.value
     return conditionToFilterGroup({ ...f, value }, targetSeed)
   })
 
