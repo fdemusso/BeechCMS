@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type { Seed, IVectorRepository } from '@beechcms/core'
-import { vectorTableName, tableName, isValidColumn } from '@beechcms/core'
+import { vectorTableName, tableName, resolvePolicies } from '@beechcms/core'
 
 export class D1VectorRepository implements IVectorRepository {
   constructor(private readonly db: D1Database) {}
@@ -28,7 +28,10 @@ export class D1VectorRepository implements IVectorRepository {
   async getAllVectors(seed: Seed): Promise<{ entryId: string; vector: Float32Array; title: string }[]> {
     const vTable = vectorTableName(seed)
     const cTable = tableName(seed)
-    const titleColumn = isValidColumn(seed, seed.displayNameAlias) ? seed.displayNameAlias : null
+    // The title lands in the publicly served manifest: only a publicly visible display-name branch may feed it.
+    const titleBranch = seed.branches.find((b) => b.alias === seed.displayNameAlias)
+    const policies = titleBranch ? resolvePolicies(titleBranch) : null
+    const titleColumn = policies?.public && policies.visibility === 'full' ? seed.displayNameAlias : null
     const sql = titleColumn
       ? `SELECT v.entry_id, v.vector, c.${titleColumn} AS title FROM ${vTable} v LEFT JOIN ${cTable} c ON c.id = v.entry_id`
       : `SELECT entry_id, vector, NULL AS title FROM ${vTable}`
