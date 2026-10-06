@@ -238,7 +238,7 @@ async function handleRefreshTokenGrant(context: OAuthContext, body: Record<strin
  * authenticated by the grant parameters themselves (authorization code + PKCE verifier, or refresh token).
  *
  * Protections:
- * - Dual-key rate limiting (per client IP and per `client_id` account key).
+ * - Dual-key rate limiting (per client IP and per presented credential hash).
  * - Supported grants: `authorization_code` and `refresh_token`.
  * - Strictly sets `Cache-Control: no-store, Pragma: no-cache`.
  *
@@ -248,14 +248,15 @@ async function handleRefreshTokenGrant(context: OAuthContext, body: Record<strin
 export async function tokenHandler(context: OAuthContext): Promise<Response> {
   try {
     const body = (await context.req.parseBody()) as Record<string, string | File>
-    const rawClientId = readFormField(body, 'client_id')
-
     const clientIp = getClientIp(context.req)
+    // Keyed on the presented credential, never on the public `client_id`: a shared per-client bucket
+    // lets any anonymous caller drain it and lock out every legitimate user of that client (#587).
+    const credential = readFormField(body, 'code') ?? readFormField(body, 'refresh_token')
     const rateLimit = await checkDualKeyRateLimit({
       ipLimiter: context.get('rateLimiters').getLimiter('oauthToken'),
       accountLimiter: context.get('rateLimiters').getLimiter('oauthTokenAccount'),
       clientIp,
-      accountKey: rawClientId || 'unknown',
+      accountKey: credential ? await sha256hex(credential) : clientIp,
     })
     if (!rateLimit.isAllowed) {
       return context.json(

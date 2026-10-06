@@ -192,6 +192,31 @@ describe('OAuth token endpoint', () => {
     })
   })
 
+  describe('rate limiting', () => {
+    it('unauthenticated floods from other IPs do not rate-limit a legitimate code exchange', async () => {
+      const code = await loginAndGetCode()
+      const bogus = { grant_type: 'authorization_code', code: 'bogus', redirect_uri: REDIRECT_URI, client_id: CLIENT_ID, code_verifier: CODE_VERIFIER }
+      const floodFrom = (ip: string) => app.request('/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'cf-connecting-ip': ip },
+        body: new URLSearchParams(bogus).toString(),
+      }, { ...TEST_ENV, DB: db })
+
+      for (let i = 0; i < 12; i++) {
+        await floodFrom('203.0.113.1')
+        await floodFrom('203.0.113.2')
+      }
+
+      const res = await app.request('/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'cf-connecting-ip': '198.51.100.7' },
+        body: new URLSearchParams({ ...bogus, code }).toString(),
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(200)
+    })
+  })
+
   it('with a pre-exhausted rateLimiterRegistry returns 429 with Retry-After', async () => {
     const blockedRegistry: IRateLimiterRegistry = {
       getLimiter: () => ({ checkLimit: async () => ({ isAllowed: false, retryAfterSeconds: 12 }) }),

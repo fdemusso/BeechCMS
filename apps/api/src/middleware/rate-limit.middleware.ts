@@ -38,7 +38,7 @@ export function buildDefaultRegistry(env?: Env): IRateLimiterRegistry {
     publicApiRead: new TokenBucketRateLimiter({ capacity: 60, refillRatePerSecond: 1 }), // Read burst: 60, 1 token/1s
     publicApiWrite: new TokenBucketRateLimiter({ capacity: 10, refillRatePerSecond: 0.2 }), // Write burst: 10, 1 token/5s
     oauthToken: new TokenBucketRateLimiter({ capacity: 20, refillRatePerSecond: 0.5 }), // IP burst: 20, 1 token/2s
-    oauthTokenAccount: new TokenBucketRateLimiter({ capacity: 10, refillRatePerSecond: 0.2 }), // Per-client burst: 10, 1 token/5s
+    oauthTokenAccount: new TokenBucketRateLimiter({ capacity: 10, refillRatePerSecond: 0.2 }), // Per-credential burst: 10, 1 token/5s
   }
 
   const wrapWithBinding = (
