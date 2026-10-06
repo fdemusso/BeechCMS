@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { loadCpuSlot } from '../lib/cpu-slot.js'
 
 /**
  * Tiers with a runner. Mirrors RUNNABLE_TIERS in scripts/lib/test-tiers.mjs, which this
@@ -84,6 +85,25 @@ export async function test(args: TestOptions): Promise<void> {
     commandArgs = ['run', 'test:coverage']
   }
 
+  // The diff runner takes the slot itself; the turbo paths queue here. The full suite and coverage
+  // include the flow tier, which shares one Docker stack across worktrees, so they claim every slot.
+  let releaseSlot = () => {}
+  const slotEnv: Record<string, string> = {}
+  const cpuSlot = command === 'turbo' ? await loadCpuSlot(cwd) : null
+  if (cpuSlot) {
+    const exclusive = tiers.length === 0 || tiers.includes('flow')
+    try {
+      releaseSlot = await cpuSlot.acquireCpuSlot({ exclusive, label: `beech test: turbo ${commandArgs.join(' ')}` })
+    } catch (err) {
+      if ((err as { code?: string }).code !== 'SLOT_TIMEOUT') throw err
+      console.log(pc.red(`  ✗ ${(err as Error).message} The tests did NOT run.`))
+      process.exit(cpuSlot.EXIT_SLOT_TIMEOUT)
+      return
+    }
+    cpuSlot.releaseOnExit(releaseSlot)
+    slotEnv[cpuSlot.HELD_ENV] = '1'
+  }
+
   const resources = await loadTestResources(cwd)
   if (command === 'turbo') commandArgs.push(...resources.turboArgs)
 
@@ -91,8 +111,9 @@ export async function test(args: TestOptions): Promise<void> {
     stdio: 'inherit',
     cwd,
     shell: true,
-    env: { ...process.env, ...resources.env },
+    env: { ...process.env, ...resources.env, ...slotEnv },
   })
+  releaseSlot()
 
   if (result.status !== 0) {
     process.exit(result.status ?? 1)
