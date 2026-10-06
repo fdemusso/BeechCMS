@@ -45,6 +45,10 @@ export interface StorageStats {
   totalBytes: number
   fileCount: number
   orphans: OrphanFile[]
+  orphanTotal: number
+  orphanBytes: number
+  orphanOffset: number
+  orphanLimit: number
 }
 
 export interface GeneralSettings {

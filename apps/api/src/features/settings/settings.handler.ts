@@ -18,6 +18,8 @@ const MAX_PASSWORD_LENGTH = 128
 const MAX_PASSWORD_BYTES = 72
 const SESSION_LIST_LIMIT = 20
 const ACTIVITY_LOG_LIMIT = 30
+const STORAGE_ORPHAN_PAGE_LIMIT = 50
+const STORAGE_MEDIA_SCAN_BATCH = 200
 /** Upper bound on content locales: each localized value holds one validated value per locale. */
 const MAX_LOCALES = 50
 
@@ -375,6 +377,15 @@ settingsApp.get('/activity', async (context) => {
  * Calculates storage usage and identifies orphaned media files.
  */
 settingsApp.get('/storage', async (context) => {
+  const requestedLimit = context.req.query('limit') ?? String(STORAGE_ORPHAN_PAGE_LIMIT)
+  const requestedOffset = context.req.query('offset') ?? '0'
+  const limit = Number(requestedLimit)
+  const offset = Number(requestedOffset)
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > STORAGE_ORPHAN_PAGE_LIMIT ||
+      !Number.isSafeInteger(offset) || offset < 0) {
+    return context.json({ type: 'settings-storage-invalid-pagination' }, 400)
+  }
+
   const mediaRepo = context.get('mediaRepository')
   const statsRepo = context.get('systemStatsRepository')
 
@@ -384,13 +395,28 @@ settingsApp.get('/storage', async (context) => {
   const registeredSeeds = context.get('seedRegistry').all()
   const referencedMediaKeys = await context.get('contentScanRepository').getReferencedMediaKeys(registeredSeeds)
 
-  const { items: allMediaRows } = await mediaRepo.list({ limit: 50, offset: 0 })
-  const orphanedMediaFiles = allMediaRows.filter(mediaFile => !referencedMediaKeys.has(mediaFile.key))
+  const orphans: Awaited<ReturnType<typeof mediaRepo.list>>['items'] = []
+  let orphanTotal = 0
+  let orphanBytes = 0
+  for (let mediaOffset = 0; mediaOffset < totalFileCount; mediaOffset += STORAGE_MEDIA_SCAN_BATCH) {
+    const { items } = await mediaRepo.list({ limit: STORAGE_MEDIA_SCAN_BATCH, offset: mediaOffset })
+    for (const mediaFile of items) {
+      if (referencedMediaKeys.has(mediaFile.key)) continue
+      if (orphanTotal >= offset && orphans.length < limit) orphans.push(mediaFile)
+      orphanTotal++
+      orphanBytes += mediaFile.size_bytes
+    }
+    if (items.length < STORAGE_MEDIA_SCAN_BATCH) break
+  }
 
   return context.json({
     totalBytes: totalStorageUsedBytes,
     fileCount: totalFileCount,
-    orphans: orphanedMediaFiles,
+    orphans,
+    orphanTotal,
+    orphanBytes,
+    orphanOffset: offset,
+    orphanLimit: limit,
   })
 })
 

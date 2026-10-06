@@ -47,7 +47,7 @@ export class D1MediaRepository implements MediaRepository {
    */
   async list(paginationOptions: { limit: number; offset: number }): Promise<{ items: MediaObject[]; total: number }> {
     const { results: mediaItems } = await this.database.prepare(
-      'SELECT key, filename, mime_type, size_bytes, uploaded_by, created_at FROM media_objects ORDER BY created_at DESC LIMIT ? OFFSET ?'
+      'SELECT key, filename, mime_type, size_bytes, uploaded_by, created_at FROM media_objects ORDER BY created_at DESC, key DESC LIMIT ? OFFSET ?'
     ).bind(paginationOptions.limit, paginationOptions.offset).all<MediaObject>()
 
     const totalCountRecord = await this.database.prepare('SELECT COUNT(*) as total FROM media_objects').first<{ total: number }>()
