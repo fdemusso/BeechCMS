@@ -116,8 +116,8 @@ export function rejectManifestOwned(context: AppContext, record: SeedRecord) {
  * @remarks
  * 1. Checks relational constraints, duplicate aliases, and format validity across all active seeds.
  * 2. Compares definition against physical database columns (`content_<slug>`).
- * 3. Plans and executes DDL via `planCreateSeed` (new table) or `planExtendSeed` (additive columns).
- * 4. Upserts definition into `SeedRepository` with `'runtime'` source and bumps the registry version for OCC.
+ * 3. Plans DDL via `planCreateSeed` (new table) or `planExtendSeed` (additive columns).
+ * 4. Applies DDL, definition and registry-version bump in one repository batch.
  * 5. Rebuilds the FTS5 table (destructive) when a new searchable branch was added; failure is audit-logged, not fatal.
  * 6. Dispatches an audit event to the activity logger.
  *
@@ -130,6 +130,7 @@ export function rejectManifestOwned(context: AppContext, record: SeedRecord) {
  */
 export async function validateAndApplySeedDef(context: AppContext, slug: string, candidate: Seed, action: 'create' | 'update', logDetails: any) {
   const repo = context.get('seedRepository')
+  const expectedVersion = await repo.getRegistryVersion()
   const activeSeeds = await repo.listActive()
   const candidateSet = [...activeSeeds.filter((s: any) => s.slug !== slug), candidate]
   const issues = validateSeedDefinitions(candidateSet)
@@ -153,6 +154,7 @@ export async function validateAndApplySeedDef(context: AppContext, slug: string,
     : null
 
   let ftsRebuildNeeded = false
+  let applyResult
   try {
     let stmts: string[]
     if (existingCols === null) {
@@ -162,7 +164,7 @@ export async function validateAndApplySeedDef(context: AppContext, slug: string,
       stmts = plan.statements
       ftsRebuildNeeded = plan.ftsRebuildNeeded
     }
-    await schemaMutator.execDdl(stmts)
+    applyResult = await repo.applyAtomic({ slug, definition: candidate, ddl: stmts, expectedVersion, source: 'runtime' })
   } catch (err) {
     return publicProblem(context, {
       type: 'ddl-failed',
@@ -172,8 +174,9 @@ export async function validateAndApplySeedDef(context: AppContext, slug: string,
     })
   }
 
-  await repo.upsert(slug, candidate, 'runtime')
-  await repo.bumpRegistryVersion()
+  if (!applyResult.applied) {
+    return publicProblem(context, { type: 'conflict', title: 'Schema drift detected', status: 409, detail: 'The seed registry changed. Reload and retry.' })
+  }
 
   // FTS5 cannot ALTER columns: rebuild is destructive, runs after the additive commit.
   let ftsRebuildError: string | undefined
@@ -198,8 +201,8 @@ export async function validateAndApplySeedDef(context: AppContext, slug: string,
  *
  * @remarks
  * Used for operations that cannot be planned additively (e.g. column drops, renames, and type conversions).
- * Rejects fatal validation issues, then runs SQL statements through `schemaMutator.execDestructive`, updates the stored definition,
- * increments the schema registry version, and logs the operation.
+ * Rejects fatal validation issues, then applies destructive DDL, the stored definition,
+ * and the registry-version bump as one batch before logging the operation.
  *
  * @param context - The Hono request context.
  * @param slug - The unique slug identifier of the seed.
@@ -210,7 +213,7 @@ export async function validateAndApplySeedDef(context: AppContext, slug: string,
  */
 export async function applyDestructiveSeedDef(context: AppContext, slug: string, updatedDef: Seed, stmts: string[], logDetails: any) {
   const repo = context.get('seedRepository')
-  const schemaMutator = context.get('schemaMutator')
+  const expectedVersion = await repo.getRegistryVersion()
 
   const activeSeeds = await repo.listActive()
   const candidateSet = [...activeSeeds.filter((s: any) => s.slug !== slug), updatedDef]
@@ -224,14 +227,16 @@ export async function applyDestructiveSeedDef(context: AppContext, slug: string,
     })
   }
 
+  let applyResult
   try {
-    await schemaMutator.execDestructive(stmts)
+    applyResult = await repo.applyDestructiveAtomic({ slug, definition: updatedDef, ddl: stmts, expectedVersion, operation: 'update' })
   } catch (err) {
     return publicProblem(context, { type: 'ddl-failed', title: 'DDL failed', status: 422, detail: internalErrorDetail(context.env, err) })
   }
 
-  await repo.upsert(slug, updatedDef, 'runtime')
-  await repo.bumpRegistryVersion()
+  if (!applyResult.applied) {
+    return publicProblem(context, { type: 'conflict', title: 'Schema drift detected', status: 409, detail: 'The seed registry changed. Reload and retry.' })
+  }
 
   const actor = actorFromContext(context)
   context.get('activityLogger').log({ action: 'update', entityType: 'seed', entityId: slug, details: logDetails, actor })

@@ -280,6 +280,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [ResolvedOptions](type-aliases/ResolvedOptions.md)
 - [RichtextEnvelopeV1](type-aliases/RichtextEnvelopeV1.md)
 - [Scope](type-aliases/Scope.md)
+- [SeedDestructiveApplyInput](type-aliases/SeedDestructiveApplyInput.md)
 - [TimeWindow](type-aliases/TimeWindow.md)
 - [TransferFormat](type-aliases/TransferFormat.md)
 - [TransferRecord](type-aliases/TransferRecord.md)
