@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('node:child_process', () => ({ spawnSync: vi.fn() }))
@@ -34,7 +35,7 @@ describe('Wrangler D1 execution', () => {
     expect(command).toBe(process.execPath)
     expect(args?.[0]).toMatch(/wrangler[/\\]bin[/\\]wrangler\.js$/)
     expect(args?.slice(1)).toEqual([
-      'd1', 'execute', 'beech-db', '--file', expect.stringContaining('/tmp/Mario Rossi/'),
+      'd1', 'execute', 'beech-db', '--file', expect.stringContaining(join('/tmp/Mario Rossi', 'beech-')),
       '--config', options.configPath, local ? '--local' : '--remote',
     ])
     expect(settings?.shell).toBe(false)
@@ -51,7 +52,7 @@ describe('Wrangler D1 execution', () => {
     expect(command).toBe(process.execPath)
     expect(args?.[0]).toMatch(/wrangler[/\\]bin[/\\]wrangler\.js$/)
     expect(args?.slice(1)).toEqual([
-      'd1', 'execute', 'beech-db', '--file', expect.stringContaining('/tmp/Mario Rossi/'),
+      'd1', 'execute', 'beech-db', '--file', expect.stringContaining(join('/tmp/Mario Rossi', 'beech-')),
       '--json', '--config', options.configPath, local ? '--local' : '--remote',
     ])
     expect(settings?.shell).toBe(false)
