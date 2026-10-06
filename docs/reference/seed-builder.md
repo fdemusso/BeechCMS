@@ -4,6 +4,8 @@ All routes under `/api/seeds` require JWT authentication and user role verificat
 
 These endpoints drive the **Seed Builder UI** in the dashboard and interact with `D1SeedRepository` and `D1SchemaMutator` to execute schema changes.
 
+Schema-changing REST routes commit their D1 DDL, seed-row change, and `registry_version` bump in one batch. A failed database statement leaves all three unchanged. If another schema write advances the version before the batch commits, the route returns `409 Conflict` (`conflict`); reload the seed and retry. R2 media cleanup on hard deletion and the optional FTS rebuild after an additive update remain separate from that D1 batch.
+
 ---
 
 ## `GET /api/seeds`
@@ -407,4 +409,3 @@ Content-Type: application/json
 
 > [!TIP]
 > For higher-level usage via IDE agents over Stdio JSON-RPC, see the dedicated [MCP Server (@beechcms/mcp) Reference](/reference/mcp-server).
-

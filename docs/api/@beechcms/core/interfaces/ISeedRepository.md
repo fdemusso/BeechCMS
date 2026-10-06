@@ -36,6 +36,25 @@ Applies additive DDL, the definition upsert and the registry-version bump as ONE
 
 ***
 
+### applyDestructiveAtomic()
+
+> **applyDestructiveAtomic**(`input`): `Promise`&lt;[`SeedApplyResult`](SeedApplyResult.md)&gt;
+
+Applies destructive DDL, the seed-row update or deletion, and the registry-version
+ bump in one OCC-guarded batch. Kept separate from the additive apply contract.
+
+#### Parameters
+
+##### input
+
+[`SeedDestructiveApplyInput`](../type-aliases/SeedDestructiveApplyInput.md)
+
+#### Returns
+
+`Promise`&lt;[`SeedApplyResult`](SeedApplyResult.md)&gt;
+
+***
+
 ### bumpRegistryVersion()
 
 > **bumpRegistryVersion**(): `Promise`&lt;`number`&gt;

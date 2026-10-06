@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { ISeedRepository, SeedRecord, Seed, SeedApplyInput, SeedApplyResult } from '@beechcms/core'
+import type { ISeedRepository, SeedRecord, Seed, SeedApplyInput, SeedApplyResult, SeedDestructiveApplyInput } from '@beechcms/core'
 
 export class D1SeedRepository implements ISeedRepository {
   private static readonly UPSERT_SEED_SQL = `
@@ -103,7 +103,15 @@ export class D1SeedRepository implements ISeedRepository {
   }
 
   async applyAtomic(input: SeedApplyInput): Promise<SeedApplyResult> {
-    const { slug, definition, ddl, expectedVersion, source = 'runtime' } = input
+    return this.applySchemaBatch(input)
+  }
+
+  async applyDestructiveAtomic(input: SeedDestructiveApplyInput): Promise<SeedApplyResult> {
+    return this.applySchemaBatch(input)
+  }
+
+  private async applySchemaBatch(input: SeedApplyInput | SeedDestructiveApplyInput): Promise<SeedApplyResult> {
+    const { slug, ddl, expectedVersion } = input
     const now = Math.floor(Date.now() / 1000)
 
     // CAS guard. `seed_meta.id` is a PRIMARY KEY, so when the version does NOT match, this
@@ -123,9 +131,15 @@ export class D1SeedRepository implements ISeedRepository {
       )
       .bind(expectedVersion)
 
-    const upsert = this.db
-      .prepare(D1SeedRepository.UPSERT_SEED_SQL)
-      .bind(slug, JSON.stringify(definition), source, now, now)
+    const seedWrite = 'operation' in input && input.operation === 'delete'
+      ? this.db.prepare('DELETE FROM seeds WHERE slug = ?').bind(slug)
+      : this.db.prepare(D1SeedRepository.UPSERT_SEED_SQL).bind(
+        slug,
+        JSON.stringify(input.definition),
+        'source' in input ? input.source ?? 'runtime' : 'runtime',
+        now,
+        now,
+      )
 
     const bump = this.db.prepare(
       `UPDATE seed_meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)
@@ -134,7 +148,7 @@ export class D1SeedRepository implements ISeedRepository {
 
     try {
       // Order matters: the guard must be the FIRST statement so nothing is written when it trips.
-      await this.db.batch([guard, ...ddl.map(s => this.db.prepare(s)), upsert, bump])
+      await this.db.batch([guard, ...ddl.map(s => this.db.prepare(s)), seedWrite, bump])
       return { applied: true, version: expectedVersion + 1 }
     } catch (error) {
       // Distinguish "someone else moved the version" from a genuine DDL failure.

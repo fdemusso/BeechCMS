@@ -15,7 +15,7 @@ import {
   BRANCH_ALIAS_RE,
   reservedBranchAliasReason,
 } from '@beechcms/core'
-import { publicProblem } from '../../public/errors/problem-details'
+import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
 import {
   parseJsonBody,
@@ -72,12 +72,21 @@ destructiveApp.delete('/:slug/hard', async (context) => {
   const repo = context.get('seedRepository')
   const schemaMutator = context.get('schemaMutator')
   const seed = existing.definition
+  const expectedVersion = await repo.getRegistryVersion()
 
   await deleteSeedMediaObjects(context, slug, seed, schemaMutator)
 
-  await schemaMutator.execDestructive(generateDropTable(seed))
-  await repo.hardDelete(slug)
-  await repo.bumpRegistryVersion()
+  let applyResult
+  try {
+    applyResult = await repo.applyDestructiveAtomic({
+      slug, ddl: generateDropTable(seed), expectedVersion, operation: 'delete',
+    })
+  } catch (err) {
+    return publicProblem(context, { type: 'ddl-failed', title: 'DDL failed', status: 422, detail: internalErrorDetail(context.env, err) })
+  }
+  if (!applyResult.applied) {
+    return publicProblem(context, { type: 'conflict', title: 'Schema drift detected', status: 409, detail: 'The seed registry changed. Reload and retry.' })
+  }
 
   const actor = actorFromContext(context)
   context.get('activityLogger').log({ action: 'delete', entityType: 'seed', entityId: slug, details: { op: 'hard-delete', slug }, actor })

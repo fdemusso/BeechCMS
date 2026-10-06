@@ -26,6 +26,7 @@ function makeRepo(seeds: Seed[] = [mockSeed]): ISeedRepository {
     getRegistryVersion: vi.fn().mockResolvedValue(1),
     bumpRegistryVersion: vi.fn().mockResolvedValue(2),
     applyAtomic: vi.fn().mockResolvedValue({ applied: true, version: 2 }),
+    applyDestructiveAtomic: vi.fn().mockResolvedValue({ applied: true, version: 2 }),
   }
 }
 
