@@ -23,7 +23,6 @@ import { execSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import picomatch from 'picomatch'
 import { WORKSPACES, parseTiers, isNeverSelected, NEVER_SELECTED_PREFIXES } from './lib/test-tiers.mjs'
 import { resolveTestResources, lowerProcessPriority, describeTestResources } from './lib/test-resources.mjs'
 import { acquireCpuSlot, releaseOnExit, HELD_ENV, EXIT_SLOT_TIMEOUT } from './lib/cpu-slot.mjs'
@@ -221,13 +220,13 @@ function isExcluded(relPath, { include, exclude }) {
 
   // If there's an include list, the file must match at least one pattern
   if (include && include.length > 0) {
-    const matchesInclude = include.some(p => picomatch(p)(relPath))
+    const matchesInclude = include.some(p => path.posix.matchesGlob(relPath, p))
     if (!matchesInclude) return true
   }
 
   // If it matches any exclude pattern, it's excluded
   if (exclude && exclude.length > 0) {
-    const matchesExclude = exclude.some(p => picomatch(p)(relPath))
+    const matchesExclude = exclude.some(p => path.posix.matchesGlob(relPath, p))
     if (matchesExclude) return true
   }
 
