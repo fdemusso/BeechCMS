@@ -78,7 +78,12 @@ export async function resetPassword(
 
   const hashedNewPassword = await context.get('hashProvider').hash(newPassword as string)
 
-  await context.get('passwordResetTokenRepository').markUsed(tokenRecord.id, nowTimestamp)
+  // The validity read above is not a claim: only the atomic consume decides the single winner.
+  const isConsumed = await context.get('passwordResetTokenRepository').markUsed(tokenRecord.id, nowTimestamp)
+  if (!isConsumed) {
+    return context.json({ error: 'Invalid or expired token' }, 400)
+  }
+
   await context.get('userRepository').updatePasswordHash(tokenRecord.userId, hashedNewPassword)
   await context.get('sessionRepository').revokeAllForUser(tokenRecord.userId, nowTimestamp)
 

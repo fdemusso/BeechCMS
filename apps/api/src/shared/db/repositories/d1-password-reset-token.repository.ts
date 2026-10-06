@@ -47,10 +47,13 @@ export class D1PasswordResetTokenRepository implements IPasswordResetTokenReposi
     return { id: row.id, userId: row.user_id, email: row.email }
   }
 
-  async markUsed(tokenId: string, nowTimestamp: number): Promise<void> {
-    await this.db
-      .prepare('UPDATE password_reset_tokens SET used_at = ? WHERE id = ?')
+  /** `WHERE used_at IS NULL` makes the consume atomic: exactly one concurrent redeem
+   *  sees `changes === 1`; the loser is refused. */
+  async markUsed(tokenId: string, nowTimestamp: number): Promise<boolean> {
+    const result = await this.db
+      .prepare('UPDATE password_reset_tokens SET used_at = ? WHERE id = ? AND used_at IS NULL')
       .bind(nowTimestamp, tokenId)
       .run()
+    return (result.meta?.changes ?? 0) > 0
   }
 }
