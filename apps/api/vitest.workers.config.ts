@@ -28,7 +28,7 @@ export default defineConfig({
         // Real (simulated) R2, not a hand-rolled fake: the deletion ledger (soft-delete sprint)
         // needs a working BeechBucket in the integration tier, and Rule 0.3 only allows faking
         // IClock/ITokenService — a Miniflare-backed binding is real infrastructure, not a fake.
-        r2Buckets: ['MEDIA_BUCKET'],
+        r2Buckets: ['MEDIA_BUCKET', 'SEARCH_R2'],
         bindings: { TEST_MIGRATIONS: migrations },
       },
     }),

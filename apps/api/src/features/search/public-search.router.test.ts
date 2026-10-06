@@ -7,6 +7,17 @@ import { publicSearchRouter } from './public-search.router'
 import { Hono } from 'hono'
 import type { AppEnv } from '../../types'
 
+/** App exposing the router with a seed registry knowing only `articles` (publicly readable). */
+function appWithPublicArticles(): Hono<AppEnv> {
+  const app = new Hono<AppEnv>()
+  app.use('*', async (c, next) => {
+    c.set('getSeed', (slug: string) => (slug === 'articles' ? { slug, allowPublicRead: true } : null) as never)
+    await next()
+  })
+  app.route('/search', publicSearchRouter)
+  return app
+}
+
 describe('publicSearchRouter', () => {
   it('returns 400 when q parameter is missing or empty', async () => {
     const app = new Hono<AppEnv>()
@@ -87,8 +98,7 @@ describe('publicSearchRouter', () => {
   })
 
   it('serves the compiled manifest.json for a seed', async () => {
-    const app = new Hono<AppEnv>()
-    app.route('/search', publicSearchRouter)
+    const app = appWithPublicArticles()
 
     const manifestBody = JSON.stringify({
       model: '@cf/baai/bge-small-en-v1.5',
@@ -112,8 +122,7 @@ describe('publicSearchRouter', () => {
   })
 
   it('serves the compiled vectors.bin for a seed', async () => {
-    const app = new Hono<AppEnv>()
-    app.route('/search', publicSearchRouter)
+    const app = appWithPublicArticles()
 
     const vectorBuffer = new Float32Array([0.1, 0.2, 0.3]).buffer
     const getMock = vi.fn().mockResolvedValue({ body: vectorBuffer, httpEtag: undefined })
@@ -128,13 +137,12 @@ describe('publicSearchRouter', () => {
   })
 
   it('returns 404 when the seed has no compiled index yet', async () => {
-    const app = new Hono<AppEnv>()
-    app.route('/search', publicSearchRouter)
+    const app = appWithPublicArticles()
 
     const getMock = vi.fn().mockResolvedValue(null)
     const envMock = { SEARCH_R2: { get: getMock } }
 
-    const res = await app.request('/search/index/unknown/manifest.json', {}, envMock as any)
+    const res = await app.request('/search/index/articles/manifest.json', {}, envMock as any)
     expect(res.status).toBe(404)
   })
 

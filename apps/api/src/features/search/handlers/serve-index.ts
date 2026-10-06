@@ -29,7 +29,8 @@ const INDEX_CACHE_MAX_AGE_SECONDS = 300
  * `:file` must be `manifest.json` or `vectors.bin`; any other value yields 404.
  *
  * @param c - Hono context with typed `AppEnv` bindings and variables.
- * @returns The raw R2 object body, or 404 when the seed has no compiled index yet.
+ * @returns The raw R2 object body, or 404 when the seed is unknown, not publicly readable,
+ * or has no compiled index yet.
  */
 export async function serveIndexHandler(c: Context<AppEnv>): Promise<Response> {
   const seedSlug = c.req.param('seedSlug')
@@ -37,6 +38,12 @@ export async function serveIndexHandler(c: Context<AppEnv>): Promise<Response> {
 
   const contentType = file ? CONTENT_TYPES[file] : undefined
   if (!seedSlug || !file || !contentType) {
+    return c.notFound()
+  }
+
+  // Same gate as every public read; 404 (not 403) so unreadable seeds stay indistinguishable from unknown ones.
+  const seed = c.get('getSeed')(seedSlug)
+  if (seed?.allowPublicRead !== true) {
     return c.notFound()
   }
 
