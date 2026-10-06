@@ -1502,11 +1502,11 @@
       "subtitle": "Queste operazioni sono irreversibili e possono causare perdita permanente di dati.",
       "hardDelete": {
         "title": "Elimina definitivamente questo tipo di contenuto",
-        "description": "Rimuove tutte le tabelle (contenuto, bozze, FTS, junction) e il record seed. Tutti i dati vengono distrutti permanentemente.",
+        "description": "Nasconde subito questo tipo di contenuto, poi elimina tabelle e media in background. L'operazione è irreversibile.",
         "confirmPlaceholder": "Scrivi lo slug per confermare",
         "confirmLabel": "Scrivi \"{{slug}}\" per confermare",
         "button": "Elimina definitivamente",
-        "successToast": "Tipo di contenuto \"{{slug}}\" eliminato definitivamente."
+        "successToast": "Eliminazione di \"{{slug}}\" avviata. La pulizia dei media è in corso."
       },
       "dropColumn": {
         "title": "Rimuovi campo",

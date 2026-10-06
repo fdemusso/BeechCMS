@@ -210,6 +210,10 @@ mcpApp.post('/:slug/mcp-apply', async (context) => {
   if (!SLUG_RE.test(slug)) {
     return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: `slug must match ${SLUG_RE.source}.` })
   }
+  if (await context.get('seedMediaPurgeRepository').getActiveBySlug(slug)) {
+    return publicProblem(context, { type: 'seed-purge-pending', title: 'Seed purge pending', status: 409,
+      detail: `Seed '${slug}' cannot be reapplied until its purge finishes.` })
+  }
 
   const body = await parseJsonBody(context)
   if (body instanceof Response) return body

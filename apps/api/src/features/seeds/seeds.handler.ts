@@ -117,6 +117,10 @@ seedsApp.post('/', async (context) => {
   }
 
   const repo = context.get('seedRepository')
+  if (await context.get('seedMediaPurgeRepository').getActiveBySlug(slug)) {
+    return publicProblem(context, { type: 'seed-purge-pending', title: 'Seed purge pending', status: 409,
+      detail: `Seed '${slug}' cannot be recreated until its purge finishes.` })
+  }
   const existing = await repo.get(slug)
 
   if (existing?.status === 'active') {

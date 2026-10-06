@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Hono } from 'hono'
-import type { Branch, ISeedRepository, ISchemaMutator, Seed, SeedRecord } from '@beechcms/core'
+import type { Branch, ISeedMediaPurgeRepository, ISeedRepository, ISchemaMutator, Seed, SeedRecord } from '@beechcms/core'
 import { seedsApp } from './seeds.handler'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -59,6 +59,27 @@ function makeMutator(overrides: Partial<ISchemaMutator> = {}): ISchemaMutator {
   }
 }
 
+function makePurgeRepo(overrides: Partial<ISeedMediaPurgeRepository> = {}): ISeedMediaPurgeRepository {
+  return {
+    begin: vi.fn().mockResolvedValue(undefined),
+    get: vi.fn().mockResolvedValue(null),
+    getActiveBySlug: vi.fn().mockResolvedValue(null),
+    listPendingIds: vi.fn().mockResolvedValue([]),
+    claim: vi.fn().mockResolvedValue(null),
+    release: vi.fn().mockResolvedValue(undefined),
+    getColumns: vi.fn().mockResolvedValue(null),
+    readPage: vi.fn().mockResolvedValue([]),
+    stagePage: vi.fn().mockResolvedValue(undefined),
+    moveToDrafts: vi.fn().mockResolvedValue(undefined),
+    dropAndStartPurge: vi.fn().mockResolvedValue(undefined),
+    abortDrop: vi.fn().mockResolvedValue(undefined),
+    listKeys: vi.fn().mockResolvedValue([]),
+    completeKey: vi.fn().mockResolvedValue(undefined),
+    finish: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  }
+}
+
 function makeActivityLogger() {
   return { log: vi.fn() }
 }
@@ -70,6 +91,7 @@ function buildApp(opts: {
   jwtPayload?: Record<string, unknown> | null
   repo?: ISeedRepository
   mutator?: ISchemaMutator
+  purgeRepo?: ISeedMediaPurgeRepository
   backrefMap?: Map<string, any[]>
   automationRepository?: any
   db?: any
@@ -80,6 +102,7 @@ function buildApp(opts: {
   const app = new Hono()
   const repo = opts.repo ?? makeRepo()
   const mutator = opts.mutator ?? makeMutator()
+  const purgeRepo = opts.purgeRepo ?? makePurgeRepo()
   const backrefMap = opts.backrefMap ?? new Map()
   const activityLogger = makeActivityLogger()
   // Default stub DB (used by hard-delete R2 cascade) — no results
@@ -96,6 +119,10 @@ function buildApp(opts: {
     c.set('jwtPayload' as never, jwtPayload)
     c.set('seedRepository' as never, repo)
     c.set('schemaMutator' as never, mutator)
+    c.set('seedMediaPurgeRepository' as never, purgeRepo)
+    c.set('idGenerator' as never, { uuid: () => '00000000-0000-4000-8000-000000000001' })
+    c.set('clock' as never, { nowSeconds: () => 1 })
+    c.set('queue' as never, { enqueue: vi.fn().mockResolvedValue(true) })
     c.set('backrefMap' as never, backrefMap)
     c.set('activityLogger' as never, activityLogger)
     c.set('automationRepository' as never, automationRepository)
@@ -114,7 +141,7 @@ function buildApp(opts: {
   app.request = ((input: any, init?: any, env?: any, executionCtx?: any) =>
     originalRequest(input, init, env ?? defaultEnv, executionCtx)) as typeof app.request
 
-  return { app, repo, mutator, activityLogger, bucket, mediaRepository, systemStatsRepository, db }
+  return { app, repo, mutator, purgeRepo, activityLogger, bucket, mediaRepository, systemStatsRepository, db }
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -524,27 +551,27 @@ describe('DELETE /:slug/hard', () => {
     expect(res.status).toBe(409)
   })
 
-  it('hard delete: execDestructive called, hardDelete called, version bumped, audit logged', async () => {
+  it('hard delete accepts a durable purge job before touching tables or media', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
-    const { app, activityLogger } = buildApp({ role: 'admin', repo, mutator })
+    const purgeRepo = makePurgeRepo()
+    const { app, activityLogger, bucket } = buildApp({ role: 'admin', repo, mutator, purgeRepo })
 
     const res = await app.request('/articles/hard', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ confirm: 'articles' }),
     })
-    expect(res.status).toBe(200)
-
-    expect((mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0)
-    // execDdl must NOT have been called for DROP
-    const ddlCalls: string[] = (mutator.execDdl as ReturnType<typeof vi.fn>).mock.calls.flatMap((c: any) => c[0])
-    expect(ddlCalls.every((s: string) => !s.toUpperCase().includes('DROP'))).toBe(true)
-
-    expect((repo.hardDelete as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
-    expect((repo.bumpRegistryVersion as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+    expect(res.status).toBe(202)
+    const body = await res.json() as { jobId: string; status: string }
+    expect(body.status).toBe('pending')
+    expect(body.jobId).toBe('00000000-0000-4000-8000-000000000001')
+    expect(purgeRepo.begin).toHaveBeenCalledWith(body.jobId, baseSeed, 1)
+    expect(mutator.execDestructive).not.toHaveBeenCalled()
+    expect(repo.hardDelete).not.toHaveBeenCalled()
+    expect(bucket.delete).not.toHaveBeenCalled()
     expect(activityLogger.log.mock.calls[0][0].action).toBe('delete')
-    expect(activityLogger.log.mock.calls[0][0].details.op).toBe('hard-delete')
+    expect(activityLogger.log.mock.calls[0][0].details.op).toBe('hard-delete-start')
   })
 })
 
@@ -998,142 +1025,6 @@ describe('Additional validation and 404 paths', () => {
     expect(res.status).toBe(200)
     const body = await res.json() as any
     expect(body.orphans).toEqual([])
-  })
-})
-
-// ─── Hard delete: media cascade ──────────────────────────────────────────────
-
-describe('DELETE /:slug/hard — media cascade (deleteSeedMediaObjects)', () => {
-  const seedWithFile: Seed = {
-    slug: 'articles',
-    label: 'Articles',
-    displayNameAlias: 'title',
-    branches: [
-      { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
-      { id: 'br_02', alias: 'cover', label: 'Cover', type: 'file' },
-    ],
-  }
-  const recordWithFile: SeedRecord = { ...baseRecord, definition: seedWithFile }
-
-  it('400 on confirm mismatch', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
-    const res = await app.request('/articles/hard', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: 'wrong' }),
-    })
-    expect(res.status).toBe(400)
-  })
-
-  it('404 for non-existent seed', async () => {
-    const { app } = buildApp({ role: 'admin' })
-    const res = await app.request('/nope/hard', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: 'nope' }),
-    })
-    expect(res.status).toBe(404)
-  })
-
-  it('skips media cleanup when dbCols is null (table missing)', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(recordWithFile) })
-    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(null) })
-    const { app, bucket } = buildApp({ role: 'admin', repo, mutator })
-
-    const res = await app.request('/articles/hard', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: 'articles' }),
-    })
-    expect(res.status).toBe(200)
-    expect(bucket.delete).not.toHaveBeenCalled()
-  })
-
-  it('skips media cleanup when no file column is present in DB', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(recordWithFile) })
-    const dbCols = new Set(['id', 'title']) // 'cover' column absent
-    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(dbCols) })
-    const { app, bucket } = buildApp({ role: 'admin', repo, mutator })
-
-    const res = await app.request('/articles/hard', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: 'articles' }),
-    })
-    expect(res.status).toBe(200)
-    expect(bucket.delete).not.toHaveBeenCalled()
-  })
-
-  it('extracts R2 keys from rows and deletes them via deleteR2Objects', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(recordWithFile) })
-    const dbCols = new Set(['id', 'title', 'cover'])
-    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(dbCols) })
-    const db = {
-      prepare: (sql: string) => ({
-        all: async () => {
-          expect(sql).toContain('cover')
-          expect(sql).toContain('content_articles')
-          return { results: [{ cover: '/api/media/abc123.png' }, { cover: null }] }
-        },
-      }),
-    }
-    const mediaRepository = {
-      getByKey: vi.fn().mockResolvedValue({ key: 'abc123.png', size_bytes: 100 }),
-      untrack: vi.fn().mockResolvedValue(undefined),
-    }
-    const { app, bucket } = buildApp({ role: 'admin', repo, mutator, db, mediaRepository })
-
-    const res = await app.request(
-      '/articles/hard',
-      {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: 'articles' }),
-      },
-      { DB: db }
-    )
-    expect(res.status).toBe(200)
-    expect(bucket.delete).toHaveBeenCalledWith('abc123.png')
-    expect(mediaRepository.untrack).toHaveBeenCalledWith('abc123.png')
-  })
-
-  it('non-fatal: swallows errors thrown while gathering media keys', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(recordWithFile) })
-    const mutator = makeMutator({ getColumns: vi.fn().mockRejectedValue(new Error('schema unavailable')) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
-
-    const res = await app.request('/articles/hard', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: 'articles' }),
-    })
-    expect(res.status).toBe(200)
-  })
-
-  it('non-fatal: swallows errors thrown by deleteR2Objects itself', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(recordWithFile) })
-    const dbCols = new Set(['id', 'title', 'cover'])
-    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(dbCols) })
-    const db = {
-      prepare: () => ({
-        all: async () => ({ results: [{ cover: '/api/media/abc123.png' }] }),
-      }),
-    }
-    const bucket = { delete: vi.fn().mockRejectedValue(new Error('r2 down')) }
-    const mediaRepository = { getByKey: vi.fn().mockRejectedValue(new Error('lookup failed')), untrack: vi.fn().mockRejectedValue(new Error('untrack failed')) }
-    const { app } = buildApp({ role: 'admin', repo, mutator, db, bucket, mediaRepository })
-
-    const res = await app.request(
-      '/articles/hard',
-      {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: 'articles' }),
-      },
-      { DB: db }
-    )
-    expect(res.status).toBe(200)
   })
 })
 

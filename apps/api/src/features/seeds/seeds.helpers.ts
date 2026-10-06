@@ -15,8 +15,6 @@ import {
   SEED_SLUG_RE,
 } from '@beechcms/core'
 import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
-import { deleteR2Objects } from '../../shared/storage/upload'
-import { extractMediaKeysFromData } from '../../shared/utils/media-utils'
 import type { Env, Variables } from '../../types'
 
 export type AppContext = Context<{ Bindings: Env; Variables: Variables }>
@@ -334,50 +332,4 @@ export function validateIncomingBranches(incomingBranches: Branch[], storedBranc
     }
   }
   return null
-}
-
-/**
- * Scans content records of a seed to extract and delete referenced R2 media objects before table deletion.
- *
- * @remarks
- * Gathers all file branches defined on the seed, selects their column values from `content_<slug>`,
- * extracts storage object keys, and deletes them from Cloudflare R2 storage in batches.
- * Any errors encountered during cleanup are treated as non-fatal warnings to allow table drop to proceed.
- *
- * @param context - The Hono request context.
- * @param slug - The seed slug whose media assets are being purged.
- * @param seed - The seed definition containing branch configurations.
- * @param schemaMutator - Schema mutator instance used to query existing database columns.
- */
-export async function deleteSeedMediaObjects(context: AppContext, slug: string, seed: Seed, schemaMutator: any) {
-  const fileBranches = seed.branches.filter((b: Branch) => b.type === 'file')
-  if (fileBranches.length === 0) return
-
-  try {
-    const dbCols = await schemaMutator.getColumns(`content_${slug}`)
-    if (!dbCols) return
-
-    const validCols = fileBranches.map((b: Branch) => b.alias).filter((a: string) => dbCols.has(a))
-    if (validCols.length === 0) return
-
-    const sql = `SELECT ${validCols.join(', ')} FROM content_${slug}`
-    const { results: rows } = await context.env.DB.prepare(sql).all()
-    const cdnUrl = context.env.MEDIA_CDN_URL
-    const r2Keys: string[] = []
-    
-    for (const row of rows) {
-      for (const b of fileBranches) {
-        const val = row[b.alias]
-        if (!val) continue
-        const keys = extractMediaKeysFromData(seed, { [b.alias]: val }, cdnUrl)
-        r2Keys.push(...keys)
-      }
-    }
-    
-    if (r2Keys.length > 0) {
-      await deleteR2Objects(context, r2Keys).catch((error: unknown) => {
-        console.warn(`Seed drop for '${slug}' left media rows out of sync:`, error)
-      })
-    }
-  } catch { /* non-fatal: drop proceeds */ }
 }

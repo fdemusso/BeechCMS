@@ -6,7 +6,6 @@
 import { Hono } from 'hono'
 import type { Branch, Seed } from '@beechcms/core'
 import {
-  generateDropTable,
   generateDropColumn,
   generateRenameColumn,
   generateRetypeColumn,
@@ -15,34 +14,33 @@ import {
   BRANCH_ALIAS_RE,
   reservedBranchAliasReason,
 } from '@beechcms/core'
-import { publicProblem } from '../../public/errors/problem-details'
+import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
 import {
   parseJsonBody,
   requireConfirm,
   getActiveSeed,
   rejectManifestOwned,
-  deleteSeedMediaObjects,
   applyDestructiveSeedDef,
   actorFromContext,
 } from './seeds.helpers'
+import { SEED_MEDIA_PURGE_JOB } from './seed-media-purge'
 
 export const destructiveApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 /**
- * Permanently hard-deletes a content type, dropping physical tables and associated R2 media assets.
+ * Starts durable deletion of a content type and its R2 media assets.
  *
  * @remarks
  * Irreversible destructive operation.
  * - Requires body `{ confirm: slug }`.
  * - Checks backref graph and rejects with 409 Conflict if referenced by other active seeds.
- * - Deletes all R2 media objects referenced in file columns.
- * - Drops physical content table `content_<slug>` and FTS tables.
- * - Removes seed record permanently from `SeedRepository`.
+ * - Immediately hides the seed and records a durable purge job.
+ * - Background steps stage media keys, drop tables, then delete R2 objects.
  *
  * @route DELETE /api/seeds/:slug/hard
  * @param slug - Seed slug identifier.
- * @returns 200 OK with `{ success: true }`, or 400/404/409/422 Problem Details on error.
+ * @returns 202 Accepted with a purge job ID, or 400/404/409/422 Problem Details on error.
  */
 destructiveApp.delete('/:slug/hard', async (context) => {
   const slug = context.req.param('slug')
@@ -51,6 +49,13 @@ destructiveApp.delete('/:slug/hard', async (context) => {
 
   const confirmErr = requireConfirm(context, slug, body)
   if (confirmErr) return confirmErr
+
+  const purgeRepository = context.get('seedMediaPurgeRepository')
+  const pending = await purgeRepository.getActiveBySlug(slug)
+  if (pending) {
+    return publicProblem(context, { type: 'seed-purge-pending', title: 'Seed purge pending', status: 409,
+      detail: `Seed '${slug}' is already being purged.` })
+  }
 
   const existing = await getActiveSeed(context, slug)
   if (existing instanceof Response) return existing
@@ -69,20 +74,35 @@ destructiveApp.delete('/:slug/hard', async (context) => {
     })
   }
 
-  const repo = context.get('seedRepository')
-  const schemaMutator = context.get('schemaMutator')
   const seed = existing.definition
+  const jobId = context.get('idGenerator').uuid()
+  try {
+    await purgeRepository.begin(jobId, seed, context.get('clock').nowSeconds())
+  } catch (error) {
+    if (await purgeRepository.getActiveBySlug(slug)) {
+      return publicProblem(context, { type: 'seed-purge-pending', title: 'Seed purge pending', status: 409,
+        detail: `Seed '${slug}' is already being purged.` })
+    }
+    return publicProblem(context, { type: 'seed-purge-start-failed', title: 'Seed purge could not start',
+      status: 422, detail: internalErrorDetail(context.env, error) })
+  }
 
-  await deleteSeedMediaObjects(context, slug, seed, schemaMutator)
-
-  await schemaMutator.execDestructive(generateDropTable(seed))
-  await repo.hardDelete(slug)
-  await repo.bumpRegistryVersion()
+  const queued = await context.get('queue').enqueue(SEED_MEDIA_PURGE_JOB, { jobId })
+  if (!queued) console.warn(`Seed purge '${jobId}' will resume from the scheduled worker.`)
 
   const actor = actorFromContext(context)
-  context.get('activityLogger').log({ action: 'delete', entityType: 'seed', entityId: slug, details: { op: 'hard-delete', slug }, actor })
+  context.get('activityLogger').log({ action: 'delete', entityType: 'seed', entityId: slug, details: { op: 'hard-delete-start', slug, jobId }, actor })
 
-  return context.json({ success: true })
+  context.header('Location', `/api/seeds/purges/${jobId}`)
+  return context.json({ jobId, status: 'pending' }, 202)
+})
+
+destructiveApp.get('/purges/:id', async (context) => {
+  const job = await context.get('seedMediaPurgeRepository').get(context.req.param('id'))
+  if (!job) return publicProblem(context, { type: 'seed-purge-not-found', title: 'Seed purge not found',
+    status: 404, detail: 'No seed purge job has this ID.' })
+  return context.json({ id: job.id, slug: job.slug, phase: job.phase,
+    stagedCount: job.stagedCount, purgedCount: job.purgedCount })
 })
 
 /**
