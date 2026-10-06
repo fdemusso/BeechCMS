@@ -264,12 +264,31 @@ export function requireConfirm(context: AppContext, expected: string, body: unkn
   return null
 }
 
+/** Returns relation changes that require physical storage or FK migration. */
+export function relationChangeReasons(stored: Branch, incoming: Branch): string[] {
+  if (stored.type !== 'relation' || incoming.type !== 'relation') return []
+
+  const reasons: string[] = []
+  if ((stored.multiple === true) !== (incoming.multiple === true)) {
+    reasons.push(`branch '${stored.id}' (${stored.alias}) relation multiplicity change requires a data migration`)
+  }
+  if (stored.targetSeed !== incoming.targetSeed) {
+    reasons.push(`branch '${stored.id}' (${stored.alias}) relation target change requires a data migration`)
+  }
+  const storedOnDelete = stored.onDelete ?? (stored.multiple === true ? 'CASCADE' : 'SET NULL')
+  const incomingOnDelete = incoming.onDelete ?? (incoming.multiple === true ? 'CASCADE' : 'SET NULL')
+  if (storedOnDelete !== incomingOnDelete) {
+    reasons.push(`branch '${stored.id}' (${stored.alias}) relation delete behavior change requires a data migration`)
+  }
+  return reasons
+}
+
 /**
  * Validates incoming branches during a definition update (PUT) to reject unconfirmed destructive operations.
  *
  * @remarks
- * Compares incoming branches against stored definitions by ID. If an alias rename or branch type change
- * is detected, rejects the request with a 422 error pointing the caller to dedicated PATCH endpoints.
+ * Compares incoming branches against stored definitions by ID. Alias renames and branch type changes
+ * point callers to dedicated PATCH endpoints; relation storage changes require a data migration.
  * Automatically allocates next sequential branch IDs for any newly appended branches lacking an ID.
  *
  * @param incomingBranches - Branch definitions provided in the update payload.
@@ -298,6 +317,15 @@ export function validateIncomingBranches(incomingBranches: Branch[], storedBranc
           title: 'Branch type change not supported',
           status: 422,
           detail: `Branch '${branch.id}' type change from '${stored.type}' to '${branch.type}' is irreversible. Use PATCH /api/seeds/${slug}/branches/${branch.id}/retype with a typed confirmation.`,
+        })
+      }
+      const relationReasons = relationChangeReasons(stored, branch)
+      if (relationReasons.length > 0) {
+        return publicProblem(context, {
+          type: 'relation-change-not-supported',
+          title: 'Relation change not supported',
+          status: 422,
+          detail: relationReasons.join('; '),
         })
       }
     } else if (!branch.id) {
