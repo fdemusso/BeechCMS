@@ -3,9 +3,11 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { Automation, IAutomationRepository, ContentRepository, Seed, IIdGenerator } from '@beechcms/core'
+import type { Automation, AutomationAction, IAutomationRepository, ContentRepository, Seed, IIdGenerator } from '@beechcms/core'
 import { runCronAutomations } from './cron-runner'
 import type { CronRunnerDeps } from './cron-runner'
+import { interpolate } from './automation-runner.utils'
+import type { ActionContext } from '../executors/index'
 
 vi.mock('../executors', () => ({
   executeAction: vi.fn().mockResolvedValue(undefined),
@@ -309,5 +311,28 @@ describe('runCronAutomations', () => {
     expect(executeActionMock).toHaveBeenCalledTimes(1)
     const [, ctx] = executeActionMock.mock.calls[0]
     expect(ctx.entry).toMatchObject({ id: 'e1', title: 'A' })
+  })
+
+  it('a batch action renders a variable stored by a preceding set_variable next to batch aggregates', async () => {
+    const entries = [{ id: 'e1', title: 'A' }, { id: 'e2', title: 'B' }]
+    const deps = makeDeps()
+    deps.findActiveSpy.mockResolvedValue([makeAutomation({
+      actions: [
+        { type: 'set_variable', name: 'v', seed_slug: 'posts', filters: [] },
+        { type: 'webhook', url: 'https://example.com/hook', body_template: '{"open":"{{v.count}}","batch":"{{batch:count}}"}' },
+      ],
+    })])
+    deps.listSpy.mockResolvedValue({ items: entries, total: 2 })
+    // Stand-in for the set_variable executor's only effect: it writes into the shared variables map.
+    const rendered: string[] = []
+    executeActionMock.mockImplementation(async (action: AutomationAction, ctx: ActionContext) => {
+      if (action.type === 'set_variable') ctx.variables[action.name] = { count: 7 }
+      if (action.type === 'webhook') rendered.push(interpolate(action.body_template ?? '', ctx.context, { escape: 'none' }))
+    })
+
+    await runCronAutomations(deps, TICK)
+
+    // Regression guard: the batch context once skipped the variables map, so `{{v.count}}` rendered empty.
+    expect(rendered).toEqual(['{"open":"7","batch":"2"}'])
   })
 })

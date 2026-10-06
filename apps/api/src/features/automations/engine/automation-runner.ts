@@ -10,12 +10,9 @@ import type {
   Seed,
   IIdGenerator,
 } from '@beechcms/core'
-import { resolvePath } from './automation-runner.utils'
-import { resolveAutomationContext, type ResolvedContext } from '../evaluator/context-resolver'
-import type { ParsedKey } from '../evaluator/template-grammar'
+import { resolveAutomationContext, withVariables } from '../evaluator/context-resolver'
 import { executeAction } from '../executors/index'
 import { evaluateWhen } from '../filters/when-evaluator'
-import { resolveVarAccess } from '../evaluator/var-access-resolver'
 
 export interface AutomationRunnerDeps {
   automationRepository: IAutomationRepository
@@ -23,21 +20,6 @@ export interface AutomationRunnerDeps {
   getSeed: (slug: string) => Seed | null
   idGenerator: IIdGenerator
   env: Record<string, string | undefined>
-}
-
-function withVariables(base: ResolvedContext, variables: Record<string, unknown>): ResolvedContext {
-  return {
-    triggerEntry: base.triggerEntry,
-    lookup(parsed: ParsedKey, onMissing?: (field: string) => void): unknown {
-      if (parsed.kind === 'simple') {
-        const varVal = resolvePath(variables, parsed.path)
-        if (varVal !== undefined) return varVal
-      } else if (parsed.kind === 'var_access') {
-        return resolveVarAccess(parsed, variables, onMissing)
-      }
-      return base.lookup(parsed, onMissing)
-    },
-  }
 }
 
 export class AutomationRunner implements IAutomationRunner {
