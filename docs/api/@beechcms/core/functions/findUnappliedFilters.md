@@ -10,7 +10,8 @@
 
 Lists the filter groups `buildSelectQuery` would silently leave out of the WHERE clause: an unknown
 column, or a condition whose value cannot be bound for the field type (empty or unparsable
-number/date, `in` with no usable values). A caller that needs the filter to constrain the read
+number/date, `in`/`not_in` value that is not an array). An empty `in` is not listed:
+it compiles to constant false and still constrains the read. A caller that needs the filter to constrain the read
 (e.g. automations resolving placeholders at run time) uses this to refuse the query instead of
 running it unconstrained.
 

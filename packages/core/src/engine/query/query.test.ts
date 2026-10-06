@@ -453,10 +453,10 @@ describe('Query', () => {
       expect(unapplied).toHaveLength(1)
     })
 
-    it('reports an in filter with no values', () => {
+    it('does not report an in filter with no values: it compiles to constant false and still constrains', () => {
       const unapplied = findUnappliedFilters(mockSeed, [group('title', 'text', 'in', [])])
 
-      expect(unapplied).toHaveLength(1)
+      expect(unapplied).toHaveLength(0)
     })
 
     it('accepts filters that bind: numeric string, empty text, is_empty', () => {
