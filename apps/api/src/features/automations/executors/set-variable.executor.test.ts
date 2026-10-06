@@ -234,7 +234,7 @@ describe('collection mode', () => {
         type: 'set_variable',
         name: 'ordini',
         seed_slug: 'clienti',
-        filters: [{ field: 'customer_id', op: 'eq', value: '{{cliente.id}}' }],
+        filters: [{ field: 'name', op: 'eq', value: '{{cliente.id}}' }],
       },
       ctx,
     )

@@ -430,6 +430,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [extractIndexableText](functions/extractIndexableText.md)
 - [filterEntryForActor](functions/filterEntryForActor.md)
 - [findBranchById](functions/findBranchById.md)
+- [findUnappliedFilters](functions/findUnappliedFilters.md)
 - [formatScopes](functions/formatScopes.md)
 - [fromCsvCells](functions/fromCsvCells.md)
 - [ftsTableName](functions/ftsTableName.md)

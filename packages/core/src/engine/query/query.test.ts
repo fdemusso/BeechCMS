@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 import { describe, it, expect } from 'vitest'
 import type { Seed, Branch, SelectLocale, FilterOperator } from '../types.js'
-import { buildSelectQuery } from './query.js'
+import { buildSelectQuery, findUnappliedFilters } from './query.js'
 
 const mockSeed: Seed = {
   slug: 'articles',
@@ -389,6 +389,54 @@ describe('Query', () => {
           }),
         ).toThrow(TypeError)
       }
+    })
+  })
+
+  describe('findUnappliedFilters', () => {
+    const group = (column: string, type: 'text' | 'number' | 'date', op: FilterOperator, value: unknown) =>
+      ({ column, type, conditions: [{ op, value }] }) as never
+
+    it('reports a number filter with an empty value, the case buildSelectQuery drops from WHERE', () => {
+      const filters = [group('price', 'number', 'eq', '')]
+
+      const unapplied = findUnappliedFilters(mockSeed, filters)
+
+      expect(unapplied).toEqual(filters)
+      expect(buildSelectQuery(mockSeed, { filters }).sql).not.toContain('price')
+    })
+
+    it('reports a number filter with a non-numeric value', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [group('price', 'number', 'gt', 'abc')])
+
+      expect(unapplied).toHaveLength(1)
+    })
+
+    it('reports a date filter with an unparsable value', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [group('created_at', 'date', 'lt', 'not-a-date')])
+
+      expect(unapplied).toHaveLength(1)
+    })
+
+    it('reports a filter on a column the seed does not have', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [group('missing', 'text', 'eq', 'x')])
+
+      expect(unapplied).toHaveLength(1)
+    })
+
+    it('reports an in filter with no values', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [group('title', 'text', 'in', [])])
+
+      expect(unapplied).toHaveLength(1)
+    })
+
+    it('accepts filters that bind: numeric string, empty text, is_empty', () => {
+      const filters = [
+        group('price', 'number', 'eq', '12.5'),
+        group('title', 'text', 'eq', ''),
+        group('price', 'number', 'is_empty', null),
+      ]
+
+      expect(findUnappliedFilters(mockSeed, filters)).toEqual([])
     })
   })
 })

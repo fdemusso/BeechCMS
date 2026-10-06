@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { findUnappliedFilters } from '@beechcms/core'
 import type { AutomationAction, ContentRepository, Seed } from '@beechcms/core'
 import type { ResolvedContext } from '../evaluator/context-resolver'
 import { conditionToFilterGroup } from '../filters/filter-translation'
@@ -58,6 +59,15 @@ export async function executeSetVariable(
     const value = typeof f.value === 'string' ? interpolate(f.value, ctx.context) : f.value
     return conditionToFilterGroup({ ...f, value }, targetSeed)
   })
+
+  // The query builder drops a filter it cannot bind, which would widen the read to unrelated rows.
+  const unapplied = findUnappliedFilters(targetSeed, resolvedFilters)
+  if (unapplied.length > 0) {
+    const columns = unapplied.map((g) => g.column).join(', ')
+    console.warn(`[set_variable] "${action.name}": filter on ${columns} cannot be applied; collection is empty`)
+    ctx.variables[action.name] = materializeCollection(targetSeed, [], action.column ?? null)
+    return
+  }
 
   const orderDir: 'ASC' | 'DESC' = action.order === 'asc' ? 'ASC' : 'DESC'
   const { items } = await ctx.repository.findMany(targetSeed, {
