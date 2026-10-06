@@ -69,12 +69,11 @@ export function ExpandableCell({
       role="button"
       tabIndex={0}
       className={cn(
-        "cursor-pointer select-none overflow-hidden text-ellipsis whitespace-nowrap block max-w-full transition-[max-width] duration-300 ease-in-out",
+        "relative cursor-pointer select-none block max-w-full",
         className
       )}
-      style={{
-        maxWidth: isExpanded ? `${Math.ceil(content.length * 1.1) + 2}ch` : `${maxLength}ch`
-      }}
+      // Fixed box: expansion is an overlay, so table layout never changes.
+      style={{ width: `${maxLength}ch` }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={() => setIsPinned((prevPinned) => !prevPinned)}
@@ -86,7 +85,19 @@ export function ExpandableCell({
       }}
       title={isPinned ? "Clicca per comprimere" : "Passa il mouse o clicca per espandere"}
     >
-      {content}
+      <span
+        className={cn(
+          "block overflow-hidden text-ellipsis whitespace-nowrap",
+          isExpanded && "invisible"
+        )}
+      >
+        {content}
+      </span>
+      {isExpanded && (
+        <span className="absolute left-0 top-0 z-10 whitespace-nowrap rounded-sm bg-popover shadow-md">
+          {content}
+        </span>
+      )}
     </div>
   )
 }
