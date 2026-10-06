@@ -2,27 +2,19 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useEffect } from "react"
+import { lazy, Suspense, useEffect } from "react"
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { LoginForm } from "@/features/auth"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { ContentListPage } from "@/pages/content-list"
-import { ContentTrashPage } from "@/pages/content-trash"
-import { ImportJobDetailPage } from "@/pages/import-job-detail"
-import { TestFieldsPage } from "@/pages/test-fields"
-import { WidgetLabPage } from "@/pages/widget-lab"
 import { ErrorPage } from "@/pages/error-page"
 import { ForgotPasswordPage } from "@/pages/forgot-password/ForgotPasswordPage"
 import { ResetPasswordPage } from "@/pages/reset-password/ResetPasswordPage"
 import { AcceptInvitePage } from "@/pages/accept-invite/AcceptInvitePage"
 import { SetupPage } from "@/pages/setup/SetupPage"
 import { DashboardPage } from "@/features/dashboard"
-import { DraftsListPage } from "@/pages/drafts-list"
 import { SettingsPage } from "@/features/settings"
 import { CommandPalette } from "@/features/command-palette"
-import { AnalyticsPage } from "@/pages/analytics"
-import { CreateNewPage } from "@/pages/create-new"
-import { ScheduledPage } from "@/pages/scheduled"
 import { FieldsProvider } from "@/components/fields/context"
 import { useLocaleConfig, useSchema } from "@/features/shared"
 import { contentApi } from "@/features/content-management/api/content.api"
@@ -31,6 +23,17 @@ import { EntryEditorDialog } from "@/features/entry-editor"
 import { RichtextEditor } from "@/features/richtext-editor"
 import { ConsentPage } from "@/features/oauth-consent"
 import "./App.css"
+
+// Route-level code splitting: pages off the hot path (content list, dashboard)
+// stay out of the initial bundle.
+const ContentTrashPage = lazy(() => import("@/pages/content-trash").then((m) => ({ default: m.ContentTrashPage })))
+const ImportJobDetailPage = lazy(() => import("@/pages/import-job-detail").then((m) => ({ default: m.ImportJobDetailPage })))
+const TestFieldsPage = lazy(() => import("@/pages/test-fields").then((m) => ({ default: m.TestFieldsPage })))
+const WidgetLabPage = lazy(() => import("@/pages/widget-lab").then((m) => ({ default: m.WidgetLabPage })))
+const AnalyticsPage = lazy(() => import("@/pages/analytics").then((m) => ({ default: m.AnalyticsPage })))
+const CreateNewPage = lazy(() => import("@/pages/create-new").then((m) => ({ default: m.CreateNewPage })))
+const ScheduledPage = lazy(() => import("@/pages/scheduled").then((m) => ({ default: m.ScheduledPage })))
+const DraftsListPage = lazy(() => import("@/pages/drafts-list").then((m) => ({ default: m.DraftsListPage })))
 
 /**
  * Concrete implementation of {@link FieldsContextType} serving as the dependency
@@ -123,7 +126,9 @@ function RootLayout() {
   return (
     <>
       <CommandPalette />
-      <Outlet />
+      <Suspense fallback={<SplashScreen />}>
+        <Outlet />
+      </Suspense>
     </>
   )
 }
