@@ -5,7 +5,7 @@
 import type { ComponentType } from "react"
 import type { DashboardView } from "@beechcms/core"
 import type { ViewTypeId } from "@/features/shared"
-import { Grid, Category, Kanban, ChartPie, Layout, List, Calendar, Map, Story, Feed, Edit, Element4 } from "reicon-react"
+import { Grid, Category, Kanban, ChartPie, Layout, List, Calendar, Map, Story, Feed, Edit } from "reicon-react"
 
 export interface ViewTypeCatalogueEntry {
   readonly type: ViewTypeId
@@ -26,7 +26,6 @@ export const VIEW_TYPE_CATALOGUE: readonly ViewTypeCatalogueEntry[] = [
   { type: "timeline", labelKey: "content.views.types.timeline", Icon: Story },
   { type: "feed", labelKey: "content.views.types.feed", Icon: Feed },
   { type: "form", labelKey: "content.views.types.form", Icon: Edit },
-  { type: "dashboard", labelKey: "content.views.types.dashboard", Icon: Element4 },
 ]
 
 /** Icon of an implemented type, for the switcher tabs. DashboardView is a subset of the catalogue. */

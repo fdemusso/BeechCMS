@@ -580,8 +580,7 @@
         "map": "Mappa",
         "timeline": "Timeline",
         "feed": "Feed",
-        "form": "Modulo",
-        "dashboard": "Dashboard"
+        "form": "Modulo"
       },
       "emptyTitle": "Nessuna vista {{label}}",
       "emptyDescription": "Crea una vista per vedere questo contenuto come {{label}}.",

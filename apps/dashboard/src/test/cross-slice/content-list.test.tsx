@@ -109,6 +109,9 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarInset: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }))
 vi.mock("@/components/ui/context-menu", () => ({
+  ContextMenu: ({ children }: any) => <div>{children}</div>,
+  ContextMenuTrigger: ({ children }: any) => <>{children}</>,
+  ContextMenuContent: ({ children }: any) => <div>{children}</div>,
   ContextMenuItem: ({ children, onSelect }: any) => <button onClick={onSelect}>{children}</button>,
   ContextMenuLabel: ({ children }: any) => <div>{children}</div>,
   ContextMenuSeparator: () => <div />,

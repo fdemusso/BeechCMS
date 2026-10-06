@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { NewEntryButton } from "@/features/content-toolbar/toolbar-components/new-entry-button"

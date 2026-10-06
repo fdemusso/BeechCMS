@@ -38,8 +38,10 @@ export function CardConfigDialog({ open, onClose, seed, config, onSave, mediaBra
   const [headerId, setHeaderId] = React.useState<string>(shown?.header?.branchId ?? NONE)
   const [subtitleId, setSubtitleId] = React.useState<string>(shown?.subtitle?.branchId ?? NONE)
   const [metadataIds, setMetadataIds] = React.useState<string[]>(
-    (shown?.metadata ?? []).map(f => f.branchId),
+    () => (shown?.metadata ?? []).map(f => f.branchId),
   )
+
+  const metadataIdSet = React.useMemo(() => new Set(metadataIds), [metadataIds])
 
   React.useEffect(() => {
     if (open) {
@@ -101,7 +103,7 @@ export function CardConfigDialog({ open, onClose, seed, config, onSave, mediaBra
             </p>
             <div className="flex flex-wrap gap-1.5">
               {eligible.map(b => {
-                const active = metadataIds.includes(b.id)
+                const active = metadataIdSet.has(b.id)
                 const disabled = !active && metadataIds.length >= METADATA_SLOT_CAP
                 return (
                   <button

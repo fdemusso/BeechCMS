@@ -580,8 +580,7 @@
         "map": "Map",
         "timeline": "Timeline",
         "feed": "Feed",
-        "form": "Form",
-        "dashboard": "Dashboard"
+        "form": "Form"
       },
       "emptyTitle": "No {{label}} views yet",
       "emptyDescription": "Create a view to see this content as a {{label}}.",

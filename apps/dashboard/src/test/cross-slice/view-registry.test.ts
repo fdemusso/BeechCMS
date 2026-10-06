@@ -27,9 +27,9 @@ describe("viewRegistry", () => {
     expect(gallery?.enabledTools).toContain("settings")
   })
 
-  it("settings capability lists: table has all five, gallery groupBy, conditionalFormats and pageSize, kanban conditionalFormats", () => {
+  it("settings capability lists: table has all five, gallery groupBy, conditionalFormats, cardLayout and pageSize, kanban conditionalFormats", () => {
     expect(viewRegistry.get("table")?.settings).toEqual(["groupBy", "conditionalFormats", "columns", "pageSize", "density"])
-    expect(viewRegistry.get("gallery")?.settings).toEqual(["groupBy", "conditionalFormats", "pageSize"])
+    expect(viewRegistry.get("gallery")?.settings).toEqual(["groupBy", "conditionalFormats", "cardLayout", "pageSize"])
     expect(viewRegistry.get("kanban")?.settings).toEqual(["conditionalFormats"])
   })
 

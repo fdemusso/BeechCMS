@@ -32,6 +32,7 @@ function makeModel(imageUrl: string | null): GalleryCardDisplayModel {
     excerpt: "",
     dateText: "",
     ariaLabel: "Open detail: Photo",
+    metadata: [],
     statusVariant: "default",
     showStatus: true,
     hasPendingDraft: false,

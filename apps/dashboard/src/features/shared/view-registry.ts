@@ -130,7 +130,7 @@ export interface IViewRegistry {
  * identifiers with no runtime behaviour; the API keeps rejecting them (DashboardView is unchanged).
  */
 export const RESERVED_VIEW_TYPES = [
-  'chart', 'board', 'list', 'calendar', 'map', 'timeline', 'feed', 'form', 'dashboard',
+  'chart', 'board', 'list', 'calendar', 'map', 'timeline', 'feed', 'form',
 ] as const
 export type ReservedViewType = (typeof RESERVED_VIEW_TYPES)[number]
 /** Every View Type the picker knows about: implemented (DashboardView) or reserved. */

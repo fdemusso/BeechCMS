@@ -24,6 +24,9 @@ import type { ContentToolbarProps } from "./types"
 
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 
+const EMPTY_FILTERS: NonNullable<ContentToolbarProps["filters"]> = {}
+const EMPTY_TAGS_BY_COLUMN: NonNullable<ContentToolbarProps["availableTagsByColumnId"]> = {}
+
 const FILTER_BANNER_DISMISSED_KEY = "beechcms.filterBannerDismissed"
 
 // Per-viewer convenience: storage can be blocked or throw, so the banner just falls back to showing.
@@ -44,7 +47,7 @@ function writeFilterBannerDismissed() {
 }
 
 export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
-  const { seed, views, children, filters = {}, availableTagsByColumnId = {}, onExport, onOpenImport, isExportPending } = props
+  const { seed, views, children, filters = EMPTY_FILTERS, availableTagsByColumnId = EMPTY_TAGS_BY_COLUMN, onExport, onOpenImport, isExportPending } = props
   const { t } = useTranslation()
   const toolbarState = useContentToolbar(props)
   const [isFilterBannerDismissed, setIsFilterBannerDismissed] = useState(readFilterBannerDismissed)
