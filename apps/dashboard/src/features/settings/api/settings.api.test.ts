@@ -62,3 +62,15 @@ describe("getStorage", () => {
     expect(result).toEqual(storage)
   })
 })
+
+describe("deleteOrphans", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it("posts the reviewed keys to the orphan cleanup route", async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { deleted: ["media/a.png"], totalBytes: 0, fileCount: 0 } })
+
+    await settingsApi.deleteOrphans(["media/a.png"])
+
+    expect(api.post).toHaveBeenCalledWith("/settings/storage/orphans/delete", { keys: ["media/a.png"] })
+  })
+})
