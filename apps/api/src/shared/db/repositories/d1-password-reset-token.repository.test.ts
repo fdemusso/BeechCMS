@@ -58,33 +58,35 @@ describe('D1PasswordResetTokenRepository', () => {
     })
   })
 
-  describe('markUsed', () => {
-    it('calls UPDATE password_reset_tokens SET used_at', async () => {
-      const { db, prepareMock } = makeMockDb()
-      await new D1PasswordResetTokenRepository(db, fixedIdGen).markUsed('prt-1', NOW)
-      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('used_at'))
+  describe('redeem', () => {
+    const input = { tokenId: 'prt-1', userId: 'u1', newPasswordHash: 'new-hash', nowTimestamp: NOW }
+
+    function makeBatchDb(burnChanges: number) {
+      const bindMock = vi.fn<(...args: any[]) => any>((...args) => ({ args }))
+      const prepareMock = vi.fn<(...args: any[]) => any>(() => ({ bind: bindMock }))
+      const batchMock = vi.fn().mockResolvedValue([
+        { meta: { changes: 1 } },
+        { meta: { changes: 2 } },
+        { meta: { changes: burnChanges } },
+      ])
+      return { db: { prepare: prepareMock, batch: batchMock } as any, batchMock }
+    }
+
+    it('sends password update, session revoke and token burn in one batch', async () => {
+      const { db, batchMock } = makeBatchDb(1)
+      await new D1PasswordResetTokenRepository(db, fixedIdGen).redeem(input)
+      expect(batchMock).toHaveBeenCalledTimes(1)
+      expect(batchMock.mock.calls[0]![0]).toHaveLength(3)
     })
 
-    it('binds nowTimestamp and tokenId in the correct order', async () => {
-      const { db, bindMock } = makeMockDb()
-      await new D1PasswordResetTokenRepository(db, fixedIdGen).markUsed('prt-1', NOW)
-      expect(bindMock).toHaveBeenCalledWith(NOW, 'prt-1')
+    it('returns true when this call burned the token', async () => {
+      const { db } = makeBatchDb(1)
+      expect(await new D1PasswordResetTokenRepository(db, fixedIdGen).redeem(input)).toBe(true)
     })
 
-    it('only updates a token that is still unused', async () => {
-      const { db, prepareMock } = makeMockDb()
-      await new D1PasswordResetTokenRepository(db, fixedIdGen).markUsed('prt-1', NOW)
-      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('used_at IS NULL'))
-    })
-
-    it('returns true when the update changed a row', async () => {
-      const { db } = makeMockDb({ runChanges: 1 })
-      expect(await new D1PasswordResetTokenRepository(db, fixedIdGen).markUsed('prt-1', NOW)).toBe(true)
-    })
-
-    it('returns false when no row changed because the token was already consumed', async () => {
-      const { db } = makeMockDb({ runChanges: 0 })
-      expect(await new D1PasswordResetTokenRepository(db, fixedIdGen).markUsed('prt-1', NOW)).toBe(false)
+    it('returns false when the token was already redeemed', async () => {
+      const { db } = makeBatchDb(0)
+      expect(await new D1PasswordResetTokenRepository(db, fixedIdGen).redeem(input)).toBe(false)
     })
   })
 

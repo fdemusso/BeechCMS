@@ -190,6 +190,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [PutBucketOptions](interfaces/PutBucketOptions.md)
 - [QueueMessage](interfaces/QueueMessage.md)
 - [RateLimitResult](interfaces/RateLimitResult.md)
+- [RedeemPasswordResetInput](interfaces/RedeemPasswordResetInput.md)
 - [RefreshTokenRecord](interfaces/RefreshTokenRecord.md)
 - [RepositoryOptions](interfaces/RepositoryOptions.md)
 - [ResolvedClassification](interfaces/ResolvedClassification.md)
