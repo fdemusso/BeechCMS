@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { resolvePolicies, verifyHashField, sha256hex, validateAndSanitizeSeedPayload, EntryNotFoundError, EntryConflictError } from '@beechcms/core'
+import { resolvePolicies, timingSafeEqual, validateAndSanitizeSeedPayload, EntryNotFoundError, EntryConflictError } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import { rotateFieldRequestSchema } from './rotate-field.schema'
 import type { Env, Variables } from '../../types'
@@ -95,7 +95,9 @@ rotateFieldApp.post('/:slug/:id/rotate-field', async (context) => {
     })
   }
 
-  const isCurrentValueValid = await verifyHashField(storedFieldValueHash, currentValue)
+  // Stored `hash` fields are keyed HMAC-SHA256 (repository write path), never a bare SHA-256.
+  const privacyService = context.get('privacyService')
+  const isCurrentValueValid = timingSafeEqual(storedFieldValueHash, await privacyService.hash(currentValue))
   if (!isCurrentValueValid) {
     return publicProblem(context, { 
       type: 'rotate-field-current-mismatch', 
@@ -120,7 +122,7 @@ rotateFieldApp.post('/:slug/:id/rotate-field', async (context) => {
     })
   }
 
-  const newFieldValueHash = await sha256hex(nextValue)
+  const newFieldValueHash = await privacyService.hash(nextValue)
 
   try {
     await context.get('repository').update(

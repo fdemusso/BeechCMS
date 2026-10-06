@@ -4,9 +4,11 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { Hono } from 'hono'
-import { EntryConflictError, sha256hex } from '@beechcms/core'
+import { EntryConflictError, PrivacyService } from '@beechcms/core'
 import { rotateFieldApp } from './rotate-field.handler'
 import type { Env, Variables } from '../../types'
+
+const privacyService = new PrivacyService('test-master-key-32-chars-minimum-1234567890')
 
 const SEED = {
   slug: 'users',
@@ -15,13 +17,14 @@ const SEED = {
 
 async function buildApp(update: ReturnType<typeof vi.fn>) {
   const repository = {
-    findById: vi.fn(async () => ({ id: 'e1', pin: await sha256hex('old'), updated_at: 1234 })),
+    findById: vi.fn(async () => ({ id: 'e1', pin: await privacyService.hash('old'), updated_at: 1234 })),
     update,
   }
   const app = new Hono<{ Bindings: Env; Variables: Variables }>()
   app.use('*', async (c, next) => {
     c.set('getSeed', (() => SEED) as any)
     c.set('repository', repository as any)
+    c.set('privacyService', privacyService)
     await next()
   })
   app.route('/', rotateFieldApp)
