@@ -5,7 +5,8 @@
  * @module common/canonical-json
  * Deterministic JSON serialization, shared by two callers that must never disagree:
  * the manifest writer (`schema/canonical.ts`, authoring-side) and the schema fingerprint
- * (`engine/schema-fingerprint.ts`, runtime-side).
+ * (`engine/schema-fingerprint.ts`, runtime-side). The public API's Idempotency-Key request
+ * fingerprint also hashes it, so equivalent payloads with reordered JSON keys match.
  *
  * Moved here in sprint 2 because the fingerprint runs inside the Worker and `schema/` is the one
  * module the Worker must never import. The BYTES ARE FROZEN — sprint 1 declared this format a
