@@ -18,7 +18,8 @@ export async function executeWebhook(
   context: ResolvedContext,
   env: Record<string, string | undefined>,
 ): Promise<void> {
-  const body = interpolate(action.body_template ?? '{}', context)
+  // Kept HTML-escaped as before; correct JSON-string escaping is tracked in #563.
+  const body = interpolate(action.body_template ?? '{}', context, { escape: 'html' })
 
   const secret = env.WEBHOOK_SECRET
   let signatureHeader: Record<string, string> = {}
