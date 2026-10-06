@@ -78,14 +78,16 @@ export async function resetPassword(
 
   const hashedNewPassword = await context.get('hashProvider').hash(newPassword as string)
 
-  // The validity read above is not a claim: only the atomic consume decides the single winner.
-  const isConsumed = await context.get('passwordResetTokenRepository').markUsed(tokenRecord.id, nowTimestamp)
-  if (!isConsumed) {
+  // The validity read above is not a claim: only the atomic redeem decides the single winner.
+  const isRedeemed = await context.get('passwordResetTokenRepository').redeem({
+    tokenId: tokenRecord.id,
+    userId: tokenRecord.userId,
+    newPasswordHash: hashedNewPassword,
+    nowTimestamp,
+  })
+  if (!isRedeemed) {
     return context.json({ error: 'Invalid or expired token' }, 400)
   }
-
-  await context.get('userRepository').updatePasswordHash(tokenRecord.userId, hashedNewPassword)
-  await context.get('sessionRepository').revokeAllForUser(tokenRecord.userId, nowTimestamp)
 
   const smtpBaseUrl = env.SMTP_HOST
     ? `http://${env.SMTP_HOST}:${env.SMTP_PORT ?? '8025'}`
