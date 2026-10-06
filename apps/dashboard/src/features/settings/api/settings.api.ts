@@ -42,8 +42,8 @@ export const settingsApi = {
     return data
   },
 
-  getStorage: async (): Promise<StorageStats> => {
-    const { data } = await api.get<StorageStats>('/settings/storage')
+  getStorage: async (offset = 0): Promise<StorageStats> => {
+    const { data } = await api.get<StorageStats>(`/settings/storage?offset=${offset}`)
     return data
   },
 

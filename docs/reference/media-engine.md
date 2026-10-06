@@ -211,6 +211,26 @@ Deletes the object from storage, removes its tracking row from `media_objects`, 
 
 ---
 
+## Storage diagnostics — `GET /api/settings/storage`
+
+The authenticated settings route returns storage usage (`totalBytes`, `fileCount`) and a page of tracked media files that are not referenced by content. Supply `offset` (default `0`) and `limit` (default `50`, maximum `50`) to browse orphan files. Both parameters must be non-negative safe integers, and `limit` must be at least `1`; invalid values return `400 settings-storage-invalid-pagination`.
+
+```json
+{
+  "totalBytes": 510,
+  "fileCount": 51,
+  "orphans": [{ "key": "media/example.png", "filename": "example.png", "mime_type": "image/png", "size_bytes": 10, "uploaded_by": "user-id", "created_at": 1700000000 }],
+  "orphanTotal": 51,
+  "orphanBytes": 510,
+  "orphanOffset": 0,
+  "orphanLimit": 50
+}
+```
+
+`orphanTotal` and `orphanBytes` cover the full tracked media library, while `orphans` contains only the requested page. Request the next page with `offset + orphanLimit` while that value is less than `orphanTotal`. The route scans tracked media to compute exact totals on each request; its response size remains bounded by `limit`.
+
+---
+
 ## Environment Variables & Bindings
 
 | Name | Type | Description |

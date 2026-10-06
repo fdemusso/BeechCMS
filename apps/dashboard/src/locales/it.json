@@ -440,7 +440,10 @@
       "orphansDesc": "File caricati ma non referenziati da nessun contenuto. Possono essere eliminati manualmente da Cloudflare R2.",
       "fileCount": "{{count}} file totali",
       "referenceVisual": "Riferimento visivo: 1 GB",
-      "noOrphans": "Nessun file orfano trovato"
+      "noOrphans": "Nessun file orfano trovato",
+      "orphanCount": "{{count}} file orfani",
+      "pageRange": "{{start}}–{{end}} di {{total}}",
+      "loadFailed": "Impossibile caricare le informazioni sullo storage"
     },
     "profile": {
       "infoTitle": "Informazioni profilo",
