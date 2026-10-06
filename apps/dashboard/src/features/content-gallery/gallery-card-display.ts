@@ -26,6 +26,8 @@ export interface GalleryCardMetadataItem {
 export interface GalleryCardDisplayModel {
   entryId: string
   status: string
+  /** Status badge is meaningful only for seeds that support drafts. */
+  showStatus: boolean
   tags: TagChipData[]
   /** Valore della categoria, stringa vuota se assente: usato per raggruppare la galleria. */
   category: string
@@ -121,7 +123,8 @@ export function buildGalleryCardDisplayModel(
   branches: ResolvedCardFields,
   t: TFunction,
   language: string,
-  format: ElementFormat = NO_ELEMENT_FORMAT
+  format: ElementFormat = NO_ELEMENT_FORMAT,
+  showStatus = true
 ): GalleryCardDisplayModel {
   const status = entry.status?.trim() || "—"
   const tags = branches.tagsBranch
@@ -167,6 +170,7 @@ export function buildGalleryCardDisplayModel(
   return {
     entryId: entry.id,
     status,
+    showStatus,
     tags,
     category,
     imageUrl,
@@ -176,7 +180,7 @@ export function buildGalleryCardDisplayModel(
     metadata,
     ariaLabel,
     statusVariant: getStatusBadgeVariant(status),
-    hasPendingDraft: shouldShowPendingDraftBadge(status, entry.has_pending_draft),
+    hasPendingDraft: showStatus && shouldShowPendingDraftBadge(status, entry.has_pending_draft),
     ...(format.element ? { elementStyle: format.element } : {}),
     ...(Object.keys(slotStyles).length > 0 ? { slotStyles } : {}),
   }

@@ -33,6 +33,7 @@ function makeModel(imageUrl: string | null): GalleryCardDisplayModel {
     dateText: "",
     ariaLabel: "Open detail: Photo",
     statusVariant: "default",
+    showStatus: true,
     hasPendingDraft: false,
   }
 }
@@ -106,5 +107,33 @@ describe("GalleryFolderCard", () => {
     button.click()
 
     expect(onOpen).toHaveBeenCalledWith("wedding")
+  })
+
+  it("shows the custom label and description instead of the group value", () => {
+    render(
+      <GalleryFolderCard
+        seed={seed}
+        group={makeGroup()}
+        onOpen={vi.fn()}
+        style={{ label: "Weddings 2026", description: "Best of the year" }}
+      />
+    )
+
+    expect(screen.getByText("Weddings 2026")).toBeInTheDocument()
+    expect(screen.getByText("Best of the year")).toBeInTheDocument()
+    expect(screen.queryByText("Wedding")).not.toBeInTheDocument()
+  })
+
+  it("renders the edit pencil only when onEdit is provided, and it does not open the folder", () => {
+    const onOpen = vi.fn()
+    const onEdit = vi.fn()
+    const { rerender } = render(<GalleryFolderCard seed={seed} group={makeGroup()} onOpen={onOpen} />)
+    expect(screen.queryByRole("button", { name: "Edit folder Wedding" })).not.toBeInTheDocument()
+
+    rerender(<GalleryFolderCard seed={seed} group={makeGroup()} onOpen={onOpen} onEdit={onEdit} />)
+    screen.getByRole("button", { name: "Edit folder Wedding" }).click()
+
+    expect(onEdit).toHaveBeenCalledOnce()
+    expect(onOpen).not.toHaveBeenCalled()
   })
 })

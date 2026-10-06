@@ -10,6 +10,7 @@ import {
   viewColumnRefSchema,
   type ContentViewConfig,
   type DashboardView,
+  type FolderStyle,
   type KanbanCardConfig,
   type KanbanViewConfig,
   type Seed,
@@ -35,6 +36,7 @@ export interface ViewToolbarState {
   conditionalFormats: ConditionalFormatRule[]
   kanban: KanbanViewConfig | undefined
   card: KanbanCardConfig | undefined
+  folders: Record<string, FolderStyle> | undefined
 }
 
 // Limits mirrored from contentViewConfigSchema. A value past them would make the whole PATCH 422.
@@ -155,6 +157,7 @@ export function toViewToolbarState(config: ContentViewConfig, seed: Seed): ViewT
     conditionalFormats,
     kanban: config.kanban,
     card: config.card,
+    folders: config.folders,
   }
 }
 
@@ -221,5 +224,6 @@ export function toContentViewConfig(state: ViewToolbarState, seed: Seed, type: D
   }
   if (type === "kanban" && state.kanban) config.kanban = state.kanban
   if ((type === "kanban" || type === "gallery") && state.card) config.card = state.card
+  if (type === "gallery" && state.folders) config.folders = state.folders
   return config
 }

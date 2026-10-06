@@ -4,7 +4,7 @@
 
 import type { ComponentType, Dispatch, SetStateAction, SyntheticEvent } from 'react'
 import type { ColumnFiltersState, RowSelectionState, SortingState, VisibilityState } from '@tanstack/react-table'
-import type { DashboardView, KanbanCardConfig, KanbanViewConfig, Seed } from '@beechcms/core'
+import type { DashboardView, FolderStyle, KanbanCardConfig, KanbanViewConfig, Seed } from '@beechcms/core'
 import type { ContentEntry, DateGroupPrecision } from '@/lib/dynamic-columns'
 import type { TableDensity } from '@/lib/density'
 import type { ConditionalFormatRule, ElementFormatter } from '@/lib/conditional-format'
@@ -57,6 +57,8 @@ export interface ViewLayout {
   readonly setKanban: Dispatch<SetStateAction<KanbanViewConfig>>
   readonly card: KanbanCardConfig | undefined
   readonly setCard: Dispatch<SetStateAction<KanbanCardConfig | undefined>>
+  readonly folders: Record<string, FolderStyle> | undefined
+  readonly setFolders: Dispatch<SetStateAction<Record<string, FolderStyle> | undefined>>
 }
 
 /** Emitted after a successful entry-editor save (same shape as EntryEditorDialog's onSaved). */

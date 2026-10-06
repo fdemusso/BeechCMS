@@ -23,6 +23,8 @@ export function GalleryViewRenderer({ seed, query, entries, layout, formatElemen
       groupBy={layout.groupBy}
       formatElement={formatElement}
       card={layout.card}
+      folders={layout.folders}
+      onFoldersChange={layout.setFolders}
     />
     <CardConfigDialog
       open={configDialog.open}

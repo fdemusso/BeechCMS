@@ -22,8 +22,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/small-cta"
+import type { FolderStyle } from "@beechcms/core"
 import type { GalleryCardDisplayModel } from "./gallery-card-display"
 import { GalleryCard } from "./gallery-components/gallery-card"
+import { FolderEditDialog } from "./gallery-components/folder-edit-dialog"
 import { GalleryFolderCard } from "./gallery-components/gallery-folder-card"
 import { formatItemCount } from "./gallery-components/format-item-count"
 import { GallerySkeletonGrid } from "./gallery-components/gallery-skeleton-grid"
@@ -121,10 +123,13 @@ export function ContentGallery({
   groupBy,
   formatElement,
   card,
+  folders,
+  onFoldersChange,
 }: ContentGalleryProps) {
   const { t } = useTranslation()
   const { cardModels, categoryGroups, categoryAlias } = useContentGallery(seed, data, groupBy, formatElement, card)
   const [searchParams, setSearchParams] = useSearchParams()
+  const [editingKey, setEditingKey] = React.useState<string | null>(null)
 
   const rootLabel = seed.labelPlural ?? seed.label
   const folderParam = searchParams.get(FOLDER_PARAM)
@@ -151,6 +156,17 @@ export function ContentGallery({
       return next
     })
   }, [setSearchParams])
+
+  const saveFolderStyle = (key: string, next: FolderStyle) => {
+    const { [key]: _removed, ...rest } = folders ?? {}
+    const merged = Object.keys(next).length > 0 ? { ...rest, [key]: next } : rest
+    onFoldersChange?.(Object.keys(merged).length > 0 ? merged : undefined)
+  }
+  const editingGroup = editingKey ? categoryGroups.find((group) => (group.key ?? UNCATEGORIZED_PARAM) === editingKey) : undefined
+
+  const openLabel = openGroup
+    ? folders?.[openGroup.key ?? UNCATEGORIZED_PARAM]?.label || openGroup.label || t("gallery.folders.uncategorized")
+    : ""
 
   if (isLoading) {
     return <GallerySkeletonGrid />
@@ -179,10 +195,10 @@ export function ContentGallery({
   return (
     <>
       {openGroup ? (
-        <section aria-label={openGroup.label ?? t("gallery.folders.uncategorized")}>
+        <section aria-label={openLabel}>
           <GalleryPathBar
             rootLabel={rootLabel}
-            folderLabel={openGroup.label ?? t("gallery.folders.uncategorized")}
+            folderLabel={openLabel}
             countText={formatItemCount(t, openGroup.models.length, seed)}
             onBack={closeFolder}
           />
@@ -215,11 +231,22 @@ export function ContentGallery({
                   key={group.key ?? UNCATEGORIZED_PARAM}
                   group={group}
                   onOpen={openFolder}
+                  style={folders?.[group.key ?? UNCATEGORIZED_PARAM]}
+                  {...(onFoldersChange ? { onEdit: () => setEditingKey(group.key ?? UNCATEGORIZED_PARAM) } : {})}
                 />
               ))}
             </GalleryGridContainer>
           )}
         </section>
+      )}
+      {editingGroup && editingKey && (
+        <FolderEditDialog
+          open
+          onClose={() => setEditingKey(null)}
+          defaultLabel={editingGroup.label ?? t("gallery.folders.uncategorized")}
+          style={folders?.[editingKey]}
+          onSave={(next) => saveFolderStyle(editingKey, next)}
+        />
       )}
     </>
   )

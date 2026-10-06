@@ -22,12 +22,25 @@ function makeModel(overrides: Partial<GalleryCardDisplayModel> = {}): GalleryCar
     metadata: [],
     ariaLabel: "Open detail: Published entry",
     statusVariant: "default",
+    showStatus: true,
     hasPendingDraft: false,
     ...overrides,
   }
 }
 
 describe("GalleryCard", () => {
+  it("hides the status and pending-draft badges when the seed does not support drafts", () => {
+    render(
+      <GalleryCard
+        model={makeModel({ showStatus: false, hasPendingDraft: true })}
+        onOpen={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByText("published")).not.toBeInTheDocument()
+    expect(screen.queryByText("Pending draft")).not.toBeInTheDocument()
+  })
+
   it("mostra il badge bozza in sospeso quando il modello lo richiede", () => {
     render(
       <GalleryCard

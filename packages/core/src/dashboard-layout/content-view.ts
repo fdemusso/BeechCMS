@@ -97,6 +97,38 @@ export const viewConditionalFormatSchema = z.object({
 })
 
 // ---------------------------------------------------------------------------
+// Gallery folder styles
+// ---------------------------------------------------------------------------
+
+export const FOLDER_COLORS = ['slate', 'red', 'orange', 'amber', 'green', 'teal', 'blue', 'violet', 'pink'] as const
+export const FOLDER_ICONS = [
+  'Folder', 'Star', 'Heart', 'Image', 'Camera', 'Calendar', 'Tag', 'Bookmark', 'Home',
+  'Gift', 'Video', 'Music', 'Book', 'Flag', 'Briefcase', 'Users', 'Sun', 'Crown',
+] as const
+export const MAX_FOLDER_STYLES = 100
+
+/** Cosmetic override of one gallery folder. `label` and `description` are display-only: the folder's group value is untouched. */
+export const folderStyleSchema = z.object({
+  color: z.enum(FOLDER_COLORS).optional(),
+  icon: z.enum(FOLDER_ICONS).optional(),
+  label: z.string().trim().max(60).optional(),
+  description: z.string().trim().max(120).optional(),
+})
+export type FolderStyle = z.output<typeof folderStyleSchema>
+
+function cleanFolders(folders: Record<string, FolderStyle>): Record<string, FolderStyle> | undefined {
+  const entries = Object.entries(folders)
+    .map(([key, style]): [string, FolderStyle] => [key, {
+      ...(style.color ? { color: style.color } : {}),
+      ...(style.icon ? { icon: style.icon } : {}),
+      ...(style.label ? { label: style.label } : {}),
+      ...(style.description ? { description: style.description } : {}),
+    }])
+    .filter(([, style]) => Object.keys(style).length > 0)
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined
+}
+
+// ---------------------------------------------------------------------------
 // The config
 // ---------------------------------------------------------------------------
 
@@ -115,6 +147,10 @@ export const contentViewConfigSchema = z.object({
   kanban: kanbanViewConfigSchema.optional(),
   /** Card layout (Kanban and Gallery). Dropped from any other instance. */
   card: kanbanCardConfigSchema.optional(),
+  /** Gallery-only. Style per folder, keyed by the normalized group value. Dropped from any other instance. */
+  folders: z.record(z.string().min(1).max(100), folderStyleSchema)
+    .refine((folders) => Object.keys(folders).length <= MAX_FOLDER_STYLES)
+    .optional(),
 })
 export type ContentViewConfig = z.output<typeof contentViewConfigSchema>
 export type ViewFilter = z.output<typeof viewFilterSchema>
@@ -244,6 +280,10 @@ export function validateViewConfigAgainstSeed(
   if (type === 'kanban' && config.kanban) cleaned.kanban = cleanKanban(config.kanban, seed)
   if ((type === 'kanban' || type === 'gallery') && config.card) {
     cleaned.card = validateCardConfigAgainstSeed(config.card, seed, { mediaImageOnly: type === 'gallery' }).cleaned
+  }
+  if (type === 'gallery' && config.folders) {
+    const folders = cleanFolders(config.folders)
+    if (folders) cleaned.folders = folders
   }
   return cleaned
 }

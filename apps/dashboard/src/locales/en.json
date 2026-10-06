@@ -894,7 +894,47 @@
       "emptyDescription": "Add the first photo and set its category: folders will appear here.",
       "uncategorized": "Other photos",
       "itemCount": "{{count}} {{label}}",
-      "openAriaLabel": "Open folder {{label}}, {{count}}"
+      "openAriaLabel": "Open folder {{label}}, {{count}}",
+      "edit": {
+        "title": "Customize folder",
+        "label": "Name",
+        "description": "Description",
+        "color": "Color",
+        "icon": "Icon",
+        "reset": "Reset",
+        "openAriaLabel": "Edit folder {{label}}",
+        "colors": {
+          "slate": "Slate",
+          "red": "Red",
+          "orange": "Orange",
+          "amber": "Amber",
+          "green": "Green",
+          "teal": "Teal",
+          "blue": "Blue",
+          "violet": "Violet",
+          "pink": "Pink"
+        },
+        "icons": {
+          "Folder": "Folder",
+          "Star": "Star",
+          "Heart": "Heart",
+          "Image": "Image",
+          "Camera": "Camera",
+          "Calendar": "Calendar",
+          "Tag": "Tag",
+          "Bookmark": "Bookmark",
+          "Home": "Home",
+          "Gift": "Gift",
+          "Video": "Video",
+          "Music": "Music",
+          "Book": "Book",
+          "Flag": "Flag",
+          "Briefcase": "Briefcase",
+          "Users": "People",
+          "Sun": "Sun",
+          "Crown": "Crown"
+        }
+      }
     }
   },
   "siteHeader": {

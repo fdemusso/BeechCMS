@@ -26,6 +26,7 @@ vi.mock("@/features/content-gallery/gallery-hooks", () => ({
       dateText: "",
       ariaLabel: `Apri dettaglio: ${entry.data?.["title"] ?? entry.id}`,
       statusVariant: "outline",
+      showStatus: true,
     }))
     // Raggruppamento minimale: la logica reale è coperta da group-by-category.test.ts.
     // categoryAlias riflette lo stesso "Raggruppa per" passato dal chiamante (groupBy),

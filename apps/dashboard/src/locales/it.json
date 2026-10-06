@@ -894,7 +894,47 @@
       "emptyDescription": "Aggiungi la prima foto e imposta la sua categoria: le cartelle appariranno qui.",
       "uncategorized": "Altre foto",
       "itemCount": "{{count}} {{label}}",
-      "openAriaLabel": "Apri cartella {{label}}, {{count}}"
+      "openAriaLabel": "Apri cartella {{label}}, {{count}}",
+      "edit": {
+        "title": "Personalizza cartella",
+        "label": "Nome",
+        "description": "Descrizione",
+        "color": "Colore",
+        "icon": "Icona",
+        "reset": "Ripristina",
+        "openAriaLabel": "Modifica cartella {{label}}",
+        "colors": {
+          "slate": "Grigio",
+          "red": "Rosso",
+          "orange": "Arancione",
+          "amber": "Ambra",
+          "green": "Verde",
+          "teal": "Turchese",
+          "blue": "Blu",
+          "violet": "Viola",
+          "pink": "Rosa"
+        },
+        "icons": {
+          "Folder": "Cartella",
+          "Star": "Stella",
+          "Heart": "Cuore",
+          "Image": "Immagine",
+          "Camera": "Fotocamera",
+          "Calendar": "Calendario",
+          "Tag": "Tag",
+          "Bookmark": "Segnalibro",
+          "Home": "Casa",
+          "Gift": "Regalo",
+          "Video": "Video",
+          "Music": "Musica",
+          "Book": "Libro",
+          "Flag": "Bandiera",
+          "Briefcase": "Valigetta",
+          "Users": "Persone",
+          "Sun": "Sole",
+          "Crown": "Corona"
+        }
+      }
     }
   },
   "siteHeader": {

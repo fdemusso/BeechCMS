@@ -77,12 +77,13 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
           conditionalFormats: layout.conditionalFormats,
           kanban: layout.kanban,
           card: layout.card,
+          folders: layout.folders,
         },
         seed,
         view.type
       ),
     [query.persistableFilters, query.singleSort, query.pageSize, layout.groupBy, layout.dateGroupPrecision,
-     layout.columnVisibility, layout.density, layout.conditionalFormats, layout.kanban, layout.card, seed, view.type]
+     layout.columnVisibility, layout.density, layout.conditionalFormats, layout.kanban, layout.card, layout.folders, seed, view.type]
   )
   const { isSaving } = useViewConfigAutosave({ slug, viewId: view.id, config, enabled: canManageViews })
 

@@ -39,8 +39,8 @@ export function useContentGallery(
   const cardFields = React.useMemo(() => resolveCardFields(seed, groupBy, card), [seed, groupBy, card])
 
   const cardModels = React.useMemo(
-    () => data.map((entry) => buildGalleryCardDisplayModel(entry, cardFields, t, i18n.language, formatElement(entry))),
-    [data, cardFields, t, i18n.language, formatElement]
+    () => data.map((entry) => buildGalleryCardDisplayModel(entry, cardFields, t, i18n.language, formatElement(entry), !!seed.allowDrafts)),
+    [data, cardFields, t, i18n.language, formatElement, seed.allowDrafts]
   )
 
   const categoryAlias = cardFields.categoryBranch?.alias ?? null

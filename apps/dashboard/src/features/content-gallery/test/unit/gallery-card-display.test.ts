@@ -142,6 +142,15 @@ describe("buildGalleryCardDisplayModel", () => {
     expect(model.ariaLabel).toContain("e1")
   })
 
+  it("sets showStatus from the argument and suppresses hasPendingDraft when false", () => {
+    const entry = makeEntry({ status: "published", has_pending_draft: true } as Partial<ContentEntry>)
+
+    const model = buildGalleryCardDisplayModel(entry, emptyBranches, t, language, undefined, false)
+
+    expect(model.showStatus).toBe(false)
+    expect(model.hasPendingDraft).toBe(false)
+  })
+
   it("imposta statusVariant in base allo status", () => {
     const model = buildModel(makeEntry({ status: "published" }), emptyBranches)
     expect(model.statusVariant).toBe("default")

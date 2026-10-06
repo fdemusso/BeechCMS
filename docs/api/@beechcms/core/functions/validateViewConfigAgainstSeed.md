@@ -74,6 +74,12 @@ Full-width secondary line. Max 1.
 
 `object`[] = `...`
 
+#### folders?
+
+`Record`&lt;`string`, \{ `color?`: `"slate"` \| `"red"` \| `"orange"` \| `"amber"` \| `"green"` \| `"teal"` \| `"blue"` \| `"violet"` \| `"pink"`; `description?`: `string`; `icon?`: `"Folder"` \| `"Star"` \| `"Heart"` \| `"Image"` \| `"Camera"` \| `"Calendar"` \| `"Tag"` \| `"Bookmark"` \| `"Home"` \| `"Gift"` \| `"Video"` \| `"Music"` \| `"Book"` \| `"Flag"` \| `"Briefcase"` \| `"Users"` \| `"Sun"` \| `"Crown"`; `label?`: `string`; \}&gt; = `...`
+
+Gallery-only. Style per folder, keyed by the normalized group value. Dropped from any other instance.
+
 #### groupBy
 
 \{ `columnRef`: `string`; `datePrecision?`: \{ `day`: `boolean`; `month`: `boolean`; `year`: `boolean`; \}; \} \| `null` = `...`
@@ -171,6 +177,12 @@ Full-width secondary line. Max 1.
 ### filters
 
 > **filters**: `object`[]
+
+### folders?
+
+> `optional` **folders?**: `Record`&lt;`string`, \{ `color?`: `"slate"` \| `"red"` \| `"orange"` \| `"amber"` \| `"green"` \| `"teal"` \| `"blue"` \| `"violet"` \| `"pink"`; `description?`: `string`; `icon?`: `"Folder"` \| `"Star"` \| `"Heart"` \| `"Image"` \| `"Camera"` \| `"Calendar"` \| `"Tag"` \| `"Bookmark"` \| `"Home"` \| `"Gift"` \| `"Video"` \| `"Music"` \| `"Book"` \| `"Flag"` \| `"Briefcase"` \| `"Users"` \| `"Sun"` \| `"Crown"`; `label?`: `string`; \}&gt;
+
+Gallery-only. Style per folder, keyed by the normalized group value. Dropped from any other instance.
 
 ### groupBy
 

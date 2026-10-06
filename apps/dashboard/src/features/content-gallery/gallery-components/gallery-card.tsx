@@ -70,35 +70,37 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
           </div>
         )}
 
-        {/* Status badges overlaid top-left */}
-        <div
-          className={cn(
-            "absolute left-3 top-3 flex flex-col items-start gap-1.5",
-            model.slotStyles?.status &&
-              getConditionalFormatCellClass(model.slotStyles.status.tone, model.slotStyles.status.textStyles)
-          )}
-        >
-          <Badge
-            variant="outline"
+        {/* Status badges (draft-enabled seeds only) overlaid top-left */}
+        {model.showStatus && (
+          <div
             className={cn(
-              "text-[10px] font-semibold tracking-wide backdrop-blur-sm",
-              statusBadgeClass(model.status),
+              "absolute left-3 top-3 flex flex-col items-start gap-1.5",
+              model.slotStyles?.status &&
+                getConditionalFormatCellClass(model.slotStyles.status.tone, model.slotStyles.status.textStyles)
             )}
           >
-            {model.status}
-          </Badge>
-          {model.hasPendingDraft && (
             <Badge
               variant="outline"
               className={cn(
                 "text-[10px] font-semibold tracking-wide backdrop-blur-sm",
-                pendingDraftBadgeClass,
+                statusBadgeClass(model.status),
               )}
             >
-              {t("content.table.pendingDraft")}
+              {model.status}
             </Badge>
-          )}
-        </div>
+            {model.hasPendingDraft && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[10px] font-semibold tracking-wide backdrop-blur-sm",
+                  pendingDraftBadgeClass,
+                )}
+              >
+                {t("content.table.pendingDraft")}
+              </Badge>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Content area ── */}
