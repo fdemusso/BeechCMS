@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from "vitest"
 
-import { resolveCardFields } from "@/features/content-gallery/resolve-card-fields"
+import { defaultCardConfig, resolveCardFields } from "@/features/content-gallery/resolve-card-fields"
 import type { Branch, Seed } from "@beechcms/core"
 
 // ---------------------------------------------------------------------------
@@ -127,5 +127,72 @@ describe("resolveCardFields", () => {
       "categoria"
     )
     expect(result.excerptBranch?.alias).toBe("descrizione")
+  })
+
+  describe("con card personalizzata", () => {
+    const withId = (id: string, alias: string, type: string) => ({ ...makeBranch(alias, type), id }) as Branch
+    const seed = makeSeed([
+      withId("br_01", "title", "text"),
+      withId("br_02", "cover", "file"),
+      withId("br_03", "summary", "text"),
+      withId("br_04", "headline", "text"),
+      withId("br_05", "author", "text"),
+    ])
+
+    it("ogni slot valorizzato sostituisce il campo dedotto per quello slot", () => {
+      const result = resolveCardFields(seed, null, {
+        version: 1,
+        media: { branchId: "br_02" },
+        header: { branchId: "br_04" },
+        subtitle: { branchId: "br_05" },
+        metadata: [],
+      })
+
+      expect(result.titleBranch?.alias).toBe("headline")
+      expect(result.excerptBranch?.alias).toBe("author")
+      expect(result.coverBranch?.alias).toBe("cover")
+    })
+
+    it("uno slot vuoto resta vuoto, senza tornare all'euristica", () => {
+      const result = resolveCardFields(seed, null, { version: 1, header: { branchId: "br_04" }, metadata: [] })
+
+      expect(result.titleBranch?.alias).toBe("headline")
+      expect(result.coverBranch).toBeNull()
+      expect(result.excerptBranch).toBeNull()
+    })
+
+    it("defaultCardConfig riproduce i campi dedotti, scartando quelli non offribili dal dialog", () => {
+      const imageSeed = makeSeed([
+        { ...withId("br_01", "title", "text") },
+        { ...withId("br_02", "cover", "file"), fileOptions: { accept: "image" } } as Branch,
+        withId("br_03", "summary", "text"),
+        withId("br_04", "body", "richtext"),
+      ])
+
+      const config = defaultCardConfig(imageSeed)
+
+      expect(config).toEqual({
+        version: 1,
+        media: { branchId: "br_02" },
+        header: { branchId: "br_01" },
+        subtitle: { branchId: "br_03" },
+        metadata: [],
+      })
+      // un cover che non accetta immagini non è un valore valido per lo slot Media
+      expect(defaultCardConfig(seed).media).toBeUndefined()
+    })
+
+    it("metadataBranches segue l'ordine della config e ignora branch inesistenti", () => {
+      const result = resolveCardFields(seed, null, {
+        version: 1,
+        metadata: [{ branchId: "br_05" }, { branchId: "br_99" }, { branchId: "br_03" }],
+      })
+
+      expect(result.metadataBranches.map((b) => b.alias)).toEqual(["author", "summary"])
+    })
+
+    it("senza card metadataBranches è vuoto", () => {
+      expect(resolveCardFields(seed).metadataBranches).toEqual([])
+    })
   })
 })

@@ -48,6 +48,7 @@ const emptyBranches: ResolvedCardFields = {
   dateBranch: null,
   tagsBranch: null,
   categoryBranch: null,
+  metadataBranches: [],
 }
 
 // ---------------------------------------------------------------------------
@@ -340,5 +341,19 @@ describe("buildGalleryCardDisplayModel", () => {
     expect(model.elementStyle).toBeUndefined()
     expect(model.slotStyles).toBeUndefined()
     expect(NO_ELEMENT_FORMAT.element).toBeNull()
+  })
+})
+
+describe("buildGalleryCardDisplayModel — metadata", () => {
+  it("espone il valore grezzo di ogni branch extra, nell'ordine della config", () => {
+    const author = makeBranch("author")
+    const model = buildGalleryCardDisplayModel(
+      { id: "e1", status: "published", data: { author: "Ada" } } as any,
+      { ...emptyBranches, metadataBranches: [author] },
+      ((key: string) => key) as any,
+      "it"
+    )
+
+    expect(model.metadata).toEqual([{ branch: author, value: "Ada" }])
   })
 })

@@ -62,6 +62,8 @@ export interface ContentToolbarProps {
   onDensityChange?: (density: TableDensity) => void
   /** The active View Type's own settings block; `close` closes the settings menu. */
   renderSettingsSection?: (ctx: { close: () => void }) => React.ReactNode
+  /** Opens the card-layout dialog; shown in the settings menu when the View Type lists `cardLayout`. */
+  onOpenCardConfig?: () => void
   /** Fires the export download. Optional: drafts-list.tsx renders this toolbar over a
    *  multi-seed list where a single-seed export has no meaning. */
   onExport?: (format: TransferFormat) => void

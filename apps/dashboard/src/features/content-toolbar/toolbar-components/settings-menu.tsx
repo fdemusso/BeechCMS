@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Settings, Filter, SortV as ArrowUpDown, RowVertical as Rows3, Palette, Eye, EyeOff, RowVertical as Rows2, AlignLeft as AlignJustify, Minus, Plus, Check, Trash2 } from 'reicon-react'
+import { Settings, Filter, Grid as LayoutGrid, SortV as ArrowUpDown, RowVertical as Rows3, Palette, Eye, EyeOff, RowVertical as Rows2, AlignLeft as AlignJustify, Minus, Plus, Check, Trash2 } from 'reicon-react'
 
 import type { VisibilityState } from "@tanstack/react-table"
 import type { TableDensity } from "@/lib/density"
@@ -87,6 +87,7 @@ interface SettingsMenuProps {
   readonly showSort: boolean
   /** The active View Type's own settings block; `close` closes the settings menu. */
   readonly renderSettingsSection?: (ctx: { close: () => void }) => React.ReactNode
+  readonly onOpenCardConfig?: () => void
   readonly isViewNameEditable?: boolean
   readonly onDeleteView?: () => void
   readonly canDeleteView?: boolean
@@ -147,12 +148,13 @@ export function SettingsMenu({
   settings,
   showSort,
   renderSettingsSection,
+  onOpenCardConfig,
   isViewNameEditable,
   onDeleteView,
   canDeleteView,
 }: SettingsMenuProps) {
   const { t } = useTranslation()
-  const showLayoutGroup = settings.includes("groupBy") || settings.includes("conditionalFormats")
+  const showLayoutGroup = settings.includes("groupBy") || settings.includes("conditionalFormats") || settings.includes("cardLayout")
   const showDisplayGroup = settings.includes("columns") || settings.includes("pageSize") || settings.includes("density")
   const settingsSectionNode = renderSettingsSection?.({ close: closeSettingsMenu }) ?? null
   // The display group is the only block that does not end in its own separator (quick actions,
@@ -486,6 +488,17 @@ export function SettingsMenu({
                   </DropdownMenuSubContent>
                 </DropdownMenuPortal>
               </DropdownMenuSub>
+              )}
+              {settings.includes("cardLayout") && onOpenCardConfig && (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    onOpenCardConfig()
+                    closeSettingsMenu()
+                  }}
+                >
+                  <LayoutGrid className="size-4" />
+                  {t("kanban.cardConfig.openConfig", "Configure card layout")}
+                </DropdownMenuItem>
               )}
               {settings.includes("conditionalFormats") && (
                 <DropdownMenuSub>

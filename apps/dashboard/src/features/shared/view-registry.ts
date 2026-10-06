@@ -19,7 +19,7 @@ export type ToolbarTool =
   | 'transfer'
 
 /** Universal settings-menu blocks a View Type opts into (name, filter, sort and delete are always there). */
-export type ViewSetting = 'groupBy' | 'conditionalFormats' | 'columns' | 'pageSize' | 'density'
+export type ViewSetting = 'groupBy' | 'conditionalFormats' | 'cardLayout' | 'columns' | 'pageSize' | 'density'
 
 /** Live list query shared by every View Type. Field names match useContentListQuery's return value. */
 export interface ViewQueryState {

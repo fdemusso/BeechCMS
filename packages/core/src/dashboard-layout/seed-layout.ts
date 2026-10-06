@@ -138,6 +138,19 @@ export function isCardEligibleBranch(branch: Branch): boolean {
   return true
 }
 
+/** Gallery cover: a single-file branch that accepts images (a multi-file/asset-list branch has no single cover). */
+export function isImageMediaBranch(branch: Branch): boolean {
+  return isCardEligibleBranch(branch)
+    && branch.type === 'file'
+    && !isGalleryBranch(branch)
+    && branch.fileOptions?.accept === 'image'
+}
+
+export interface ValidateCardConfigOptions {
+  /** Gallery cards only render an image cover: a non-image `media` slot is dropped. */
+  mediaImageOnly?: boolean
+}
+
 export type ValidateCardConfigResult =
   | { ok: true; cleaned: KanbanCardConfig }
   | { ok: false; errors: string[]; cleaned: KanbanCardConfig }
@@ -145,6 +158,7 @@ export type ValidateCardConfigResult =
 export function validateCardConfigAgainstSeed(
   config: KanbanCardConfig,
   seed: Seed,
+  options: ValidateCardConfigOptions = {},
 ): ValidateCardConfigResult {
   const errors: string[] = []
   const seen = new Set<string>()
@@ -158,7 +172,9 @@ export function validateCardConfigAgainstSeed(
     return { branchId: f.branchId }
   }
 
-  const media    = keepSingle(config.media)
+  const mediaBranch = config.media ? findBranchById(seed, config.media.branchId) : null
+  const mediaAllowed = !options.mediaImageOnly || (mediaBranch !== null && isImageMediaBranch(mediaBranch))
+  const media    = mediaAllowed ? keepSingle(config.media) : null
   const header   = keepSingle(config.header)
   const subtitle = keepSingle(config.subtitle)
 

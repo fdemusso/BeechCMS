@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Seed, KanbanCardConfig, CardSlotField } from '@beechcms/core'
+import type { Seed, Branch, KanbanCardConfig, CardSlotField } from '@beechcms/core'
 import { isCardEligibleBranch, METADATA_SLOT_CAP } from '@beechcms/core'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -16,6 +16,10 @@ interface Props {
   seed: Seed
   config: KanbanCardConfig | undefined
   onSave: (next: KanbanCardConfig) => void
+  /** Restricts the Media slot to the branches it accepts (Gallery: image files only). Default: every eligible branch. */
+  mediaBranchFilter?: (branch: Branch) => boolean
+  /** Shown when no card is saved yet (the layout the view currently renders by default). */
+  defaultConfig?: KanbanCardConfig
 }
 
 const NONE = '__none__'
@@ -24,25 +28,27 @@ function toSlotField(branchId: string | undefined): CardSlotField | null {
   return branchId && branchId !== NONE ? { branchId } : null
 }
 
-export function CardConfigDialog({ open, onClose, seed, config, onSave }: Props) {
+export function CardConfigDialog({ open, onClose, seed, config, onSave, mediaBranchFilter, defaultConfig }: Props) {
   const { t } = useTranslation()
+  const shown = config ?? defaultConfig
   const eligible = seed.branches.filter(isCardEligibleBranch)
+  const mediaBranches = mediaBranchFilter ? eligible.filter(mediaBranchFilter) : eligible
 
-  const [mediaId, setMediaId] = React.useState<string>(config?.media?.branchId ?? NONE)
-  const [headerId, setHeaderId] = React.useState<string>(config?.header?.branchId ?? NONE)
-  const [subtitleId, setSubtitleId] = React.useState<string>(config?.subtitle?.branchId ?? NONE)
+  const [mediaId, setMediaId] = React.useState<string>(shown?.media?.branchId ?? NONE)
+  const [headerId, setHeaderId] = React.useState<string>(shown?.header?.branchId ?? NONE)
+  const [subtitleId, setSubtitleId] = React.useState<string>(shown?.subtitle?.branchId ?? NONE)
   const [metadataIds, setMetadataIds] = React.useState<string[]>(
-    (config?.metadata ?? []).map(f => f.branchId),
+    (shown?.metadata ?? []).map(f => f.branchId),
   )
 
   React.useEffect(() => {
     if (open) {
-      setMediaId(config?.media?.branchId ?? NONE)
-      setHeaderId(config?.header?.branchId ?? NONE)
-      setSubtitleId(config?.subtitle?.branchId ?? NONE)
-      setMetadataIds((config?.metadata ?? []).map(f => f.branchId))
+      setMediaId(shown?.media?.branchId ?? NONE)
+      setHeaderId(shown?.header?.branchId ?? NONE)
+      setSubtitleId(shown?.subtitle?.branchId ?? NONE)
+      setMetadataIds((shown?.metadata ?? []).map(f => f.branchId))
     }
-  }, [open, config])
+  }, [open, shown])
 
   function toggleMetadata(branchId: string) {
     setMetadataIds(prev => {
@@ -74,7 +80,7 @@ export function CardConfigDialog({ open, onClose, seed, config, onSave }: Props)
             label={t('kanban.cardConfig.mediaSlot', 'Media')}
             value={mediaId}
             onChange={setMediaId}
-            branches={eligible}
+            branches={mediaBranches}
           />
           <SlotPicker
             label={t('kanban.cardConfig.headerSlot', 'Header')}

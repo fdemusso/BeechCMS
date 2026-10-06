@@ -80,6 +80,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
     density,
     onDensityChange,
     renderSettingsSection,
+    onOpenCardConfig,
   } = props
 
   const {
@@ -319,6 +320,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                 settings={activeView.settings}
                 showSort={isToolEnabled("sort")}
                 renderSettingsSection={renderSettingsSection}
+                onOpenCardConfig={onOpenCardConfig}
                 isViewNameEditable={Boolean(onRenameView)}
                 onDeleteView={onDeleteView ? () => onDeleteView(activeView.id) : undefined}
                 canDeleteView={canDeleteView ?? false}

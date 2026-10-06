@@ -113,7 +113,7 @@ export const contentViewConfigSchema = z.object({
   conditionalFormats: z.array(viewConditionalFormatSchema).max(50).default([]),
   /** Kanban-only. Dropped from any non-kanban instance. */
   kanban: kanbanViewConfigSchema.optional(),
-  /** Kanban-only card layout. Dropped from any non-kanban instance. */
+  /** Card layout (Kanban and Gallery). Dropped from any other instance. */
   card: kanbanCardConfigSchema.optional(),
 })
 export type ContentViewConfig = z.output<typeof contentViewConfigSchema>
@@ -212,7 +212,7 @@ function cleanKanban(kanban: KanbanViewConfig, seed: Seed): KanbanViewConfig {
 /**
  * Pure auto-cleanup, never an error: drops references to branches the seed no longer has,
  * duplicate filters on one column, date precision on a non-date grouping, and the Kanban
- * sub-config on a non-kanban instance. Same policy as validateCardConfigAgainstSeed.
+ * sub-config on a non-kanban instance and the card layout on a table instance. Same policy as validateCardConfigAgainstSeed.
  */
 export function validateViewConfigAgainstSeed(
   config: ContentViewConfig,
@@ -241,9 +241,10 @@ export function validateViewConfigAgainstSeed(
   const conditionalFormats = config.conditionalFormats.filter((rule) => refExists(seed, rule.columnRef))
 
   const cleaned: ContentViewConfig = { filters, sort, groupBy, appearance, conditionalFormats }
-  if (type !== 'kanban') return cleaned
-  if (config.kanban) cleaned.kanban = cleanKanban(config.kanban, seed)
-  if (config.card) cleaned.card = validateCardConfigAgainstSeed(config.card, seed).cleaned
+  if (type === 'kanban' && config.kanban) cleaned.kanban = cleanKanban(config.kanban, seed)
+  if ((type === 'kanban' || type === 'gallery') && config.card) {
+    cleaned.card = validateCardConfigAgainstSeed(config.card, seed, { mediaImageOnly: type === 'gallery' }).cleaned
+  }
   return cleaned
 }
 

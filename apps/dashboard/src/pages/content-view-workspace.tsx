@@ -182,6 +182,7 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
         density={layout.density}
         onDensityChange={layout.setDensity}
         renderSettingsSection={renderSettingsSection}
+        onOpenCardConfig={() => setConfigDialogOpen(true)}
         onExport={handleExport}
         onOpenImport={() => modals.setImportWizardOpen(true)}
         isExportPending={isExportPending}

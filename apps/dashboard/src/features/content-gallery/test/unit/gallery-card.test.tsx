@@ -19,6 +19,7 @@ function makeModel(overrides: Partial<GalleryCardDisplayModel> = {}): GalleryCar
     title: "Published entry",
     excerpt: "",
     dateText: "",
+    metadata: [],
     ariaLabel: "Open detail: Published entry",
     statusVariant: "default",
     hasPendingDraft: false,

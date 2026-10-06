@@ -219,9 +219,7 @@ export function toContentViewConfig(state: ViewToolbarState, seed: Seed, type: D
     },
     conditionalFormats,
   }
-  if (type === "kanban") {
-    if (state.kanban) config.kanban = state.kanban
-    if (state.card) config.card = state.card
-  }
+  if (type === "kanban" && state.kanban) config.kanban = state.kanban
+  if ((type === "kanban" || type === "gallery") && state.card) config.card = state.card
   return config
 }

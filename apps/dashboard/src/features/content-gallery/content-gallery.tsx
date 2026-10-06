@@ -120,9 +120,10 @@ export function ContentGallery({
   onEdit,
   groupBy,
   formatElement,
+  card,
 }: ContentGalleryProps) {
   const { t } = useTranslation()
-  const { cardModels, categoryGroups, categoryAlias } = useContentGallery(seed, data, groupBy, formatElement)
+  const { cardModels, categoryGroups, categoryAlias } = useContentGallery(seed, data, groupBy, formatElement, card)
   const [searchParams, setSearchParams] = useSearchParams()
 
   const rootLabel = seed.labelPlural ?? seed.label

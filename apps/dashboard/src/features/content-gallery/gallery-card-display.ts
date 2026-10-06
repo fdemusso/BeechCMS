@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { TFunction } from "i18next"
+import type { Branch } from "@beechcms/core"
 
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { shouldShowPendingDraftBadge } from "@/lib/pending-draft"
@@ -15,6 +16,13 @@ export type StatusBadgeVariant = "default" | "secondary" | "outline" | "destruct
 
 export type GalleryCardSlot = "status" | "title" | "excerpt" | "date" | "tags"
 
+/** Campo extra della card personalizzata: valore grezzo, reso da `FieldDisplay`. */
+export interface GalleryCardMetadataItem {
+  branch: Branch
+  value: unknown
+  style?: ElementStyle
+}
+
 export interface GalleryCardDisplayModel {
   entryId: string
   status: string
@@ -25,6 +33,7 @@ export interface GalleryCardDisplayModel {
   title: string
   excerpt: string
   dateText: string
+  metadata: GalleryCardMetadataItem[]
   ariaLabel: string
   statusVariant: StatusBadgeVariant
   hasPendingDraft: boolean
@@ -130,6 +139,13 @@ export function buildGalleryCardDisplayModel(
     : ""
   const dateText = branches.dateBranch ? formatDate(entry.data[branches.dateBranch.alias], language) : ""
 
+  const metadata = branches.metadataBranches.map((branch): GalleryCardMetadataItem => {
+    const style = format.fields[branch.alias]
+    return style
+      ? { branch, value: entry.data[branch.alias], style }
+      : { branch, value: entry.data[branch.alias] }
+  })
+
   const ariaLabel = title
     ? t("gallery.openDetailAriaLabel", { title })
     : t("gallery.openDetailAriaLabelFallback", { id: entry.id })
@@ -157,6 +173,7 @@ export function buildGalleryCardDisplayModel(
     title,
     excerpt,
     dateText,
+    metadata,
     ariaLabel,
     statusVariant: getStatusBadgeVariant(status),
     hasPendingDraft: shouldShowPendingDraftBadge(status, entry.has_pending_draft),
