@@ -10,7 +10,7 @@
 
 Pure auto-cleanup, never an error: drops references to branches the seed no longer has,
 duplicate filters on one column, date precision on a non-date grouping, and the Kanban
-sub-config on a non-kanban instance. Same policy as validateCardConfigAgainstSeed.
+sub-config on a non-kanban instance and the card layout on a table instance. Same policy as validateCardConfigAgainstSeed.
 
 ## Parameters
 
@@ -36,7 +36,7 @@ sub-config on a non-kanban instance. Same policy as validateCardConfigAgainstSee
 
 \{ `header?`: \{ `branchId`: `string`; \} \| `null`; `media?`: \{ `branchId`: `string`; \} \| `null`; `metadata`: `object`[]; `subtitle?`: \{ `branchId`: `string`; \} \| `null`; `version`: `1`; \} = `...`
 
-Kanban-only card layout. Dropped from any non-kanban instance.
+Card layout (Kanban and Gallery). Dropped from any other instance.
 
 #### card.header?
 
@@ -134,7 +134,7 @@ Kanban-only. Dropped from any non-kanban instance.
 
 > `optional` **card?**: `object`
 
-Kanban-only card layout. Dropped from any non-kanban instance.
+Card layout (Kanban and Gallery). Dropped from any other instance.
 
 #### card.header?
 

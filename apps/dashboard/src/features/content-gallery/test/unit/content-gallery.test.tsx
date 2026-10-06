@@ -138,12 +138,18 @@ describe("ContentGallery", () => {
 
   it("con categorie mostra prima le cartelle, senza le card", () => {
     renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} groupBy="categoria" />)
-    expect(screen.getByRole("button", { name: "Open folder Matrimonio, 2 photos" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Open folder Battesimo, 1 photo" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Open folder Matrimonio, 2 Articles" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Open folder Battesimo, 1 Article" })).toBeInTheDocument()
     expect(screen.queryByTestId("card-1")).not.toBeInTheDocument()
   })
 
-  it("aprendo una cartella mostra solo le sue card, e 'Back to folders' riporta alle cartelle", () => {
+  it("nella lista cartelle il breadcrumb mostra il seed come pagina corrente e il totale elementi", () => {
+    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} groupBy="categoria" />)
+    expect(screen.getByText("Articles")).toHaveAttribute("aria-current", "page")
+    expect(screen.getByText("3 Articles")).toBeInTheDocument()
+  })
+
+  it("aprendo una cartella mostra solo le sue card, e il breadcrumb del seed riporta alle cartelle", () => {
     renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} groupBy="categoria" />)
 
     fireEvent.click(screen.getByRole("button", { name: /Open folder Matrimonio/ }))
@@ -151,7 +157,7 @@ describe("ContentGallery", () => {
     expect(section.querySelectorAll("[data-testid^='card-']")).toHaveLength(2)
     expect(screen.queryByTestId("card-2")).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: "Back to folders" }))
+    fireEvent.click(screen.getByRole("button", { name: "Articles" }))
     expect(screen.queryByRole("region", { name: "Matrimonio" })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Open folder Battesimo/ })).toBeInTheDocument()
   })
@@ -173,50 +179,14 @@ describe("ContentGallery", () => {
     expect(screen.getByRole("button", { name: /Open folder Matrimonio/ })).toBeInTheDocument()
   })
 
-  it("con il campo categoria ma senza foto mostra l'invito a creare la prima cartella", () => {
+  it("con il campo categoria ma senza foto mostra lo stato vuoto", () => {
     renderGallery(<ContentGallery seed={seedWithCategory} data={[]} onEdit={vi.fn()} groupBy="categoria" onCreate={vi.fn()} />)
     expect(screen.getByText("You don't have any folders yet")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "New folder" })).toBeInTheDocument()
-  })
-
-  it("'Add photo here' apre la creazione con la categoria precompilata", () => {
-    const onCreate = vi.fn()
-    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} groupBy="categoria" onCreate={onCreate} />)
-
-    fireEvent.click(screen.getByRole("button", { name: /Open folder Matrimonio/ }))
-    fireEvent.click(screen.getByRole("button", { name: "Add photo here" }))
-    expect(onCreate).toHaveBeenCalledWith({ categoria: "Matrimonio" })
-  })
-
-  it("'New folder' chiede il nome e apre la creazione con la categoria precompilata", () => {
-    const onCreate = vi.fn()
-    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} groupBy="categoria" onCreate={onCreate} />)
-
-    fireEvent.click(screen.getByRole("button", { name: "New folder" }))
-    const confirm = screen.getByRole("button", { name: "Create and add photo" })
-    expect(confirm).toBeDisabled()
-
-    fireEvent.change(screen.getByLabelText("Folder name"), { target: { value: "  Comunione " } })
-    fireEvent.click(confirm)
-    expect(onCreate).toHaveBeenCalledWith({ categoria: "Comunione" })
-  })
-
-  it("'New folder' con un nome già esistente apre quella cartella invece di duplicarla", () => {
-    const onCreate = vi.fn()
-    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} groupBy="categoria" onCreate={onCreate} />)
-
-    fireEvent.click(screen.getByRole("button", { name: "New folder" }))
-    fireEvent.change(screen.getByLabelText("Folder name"), { target: { value: "matrimonio" } })
-    fireEvent.click(screen.getByRole("button", { name: "Create and add photo" }))
-
-    expect(onCreate).not.toHaveBeenCalled()
-    expect(screen.getByRole("region", { name: "Matrimonio" })).toBeInTheDocument()
   })
 
   it("senza campo categoria mostra la griglia piatta, senza cartelle", () => {
     renderGallery(<ContentGallery seed={seed} data={[makeEntry("1"), makeEntry("2")]} onEdit={vi.fn()} groupBy={null} onCreate={vi.fn()} />)
     expect(screen.queryAllByRole("region")).toHaveLength(0)
-    expect(screen.queryByRole("button", { name: "New folder" })).not.toBeInTheDocument()
     expect(screen.getByTestId("card-1")).toBeInTheDocument()
   })
 

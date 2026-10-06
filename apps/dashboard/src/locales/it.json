@@ -889,19 +889,11 @@
     "openDetailAriaLabel": "Apri dettaglio: {{title}}",
     "openDetailAriaLabelFallback": "Apri dettaglio entry {{id}}",
     "folders": {
-      "title": "Le tue cartelle",
       "sectionAriaLabel": "Cartelle",
-      "backToFolders": "Torna alle cartelle",
-      "addPhotoHere": "Aggiungi foto qui",
-      "newFolder": "Nuova cartella",
-      "newFolderDescription": "Scrivi il nome della cartella, per esempio “Matrimonio”. Poi aggiungi la prima foto.",
-      "namePlaceholder": "Nome della cartella",
-      "createAndAddPhoto": "Crea e aggiungi foto",
       "emptyTitle": "Non hai ancora nessuna cartella",
-      "emptyDescription": "Premi “Nuova cartella” per iniziare, poi aggiungi la prima foto.",
+      "emptyDescription": "Aggiungi la prima foto e imposta la sua categoria: le cartelle appariranno qui.",
       "uncategorized": "Altre foto",
-      "itemCount_one": "{{count}} foto",
-      "itemCount_other": "{{count}} foto",
+      "itemCount": "{{count}} {{label}}",
       "openAriaLabel": "Apri cartella {{label}}, {{count}}"
     }
   },

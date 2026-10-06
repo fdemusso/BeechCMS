@@ -659,6 +659,7 @@ export function SettingsMenu({
             {!deleteSeparatorAlreadyEmitted && <DropdownMenuSeparator />}
             <DropdownMenuItem
               variant="destructive"
+              className="text-destructive focus:bg-destructive/10 focus:text-destructive [&_svg]:text-destructive"
               disabled={!canDeleteView}
               onSelect={() => {
                 closeSettingsMenu()

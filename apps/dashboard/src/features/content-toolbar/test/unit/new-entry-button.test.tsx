@@ -35,7 +35,7 @@ describe("NewEntryButton", () => {
     expect(screen.getByRole("menuitem", { name: /new template/i })).toBeInTheDocument()
   })
 
-  it("closes the templates menu and creates nothing when New template is chosen", async () => {
+  it("shows the New template item disabled and creates nothing when clicked", async () => {
     const onCreate = vi.fn()
     render(
       <TooltipProvider>
@@ -44,9 +44,10 @@ describe("NewEntryButton", () => {
     )
 
     fireEvent.pointerDown(screen.getByRole("button", { name: /templates/i }))
-    fireEvent.click(await screen.findByRole("menuitem", { name: /new template/i }))
+    const item = await screen.findByRole("menuitem", { name: /new template/i })
+    expect(item).toHaveAttribute("aria-disabled", "true")
 
-    await waitFor(() => expect(screen.queryByRole("menuitem", { name: /new template/i })).not.toBeInTheDocument())
+    fireEvent.click(item)
     expect(onCreate).not.toHaveBeenCalled()
   })
 

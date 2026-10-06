@@ -68,7 +68,7 @@ export function resolveImageUrl(value: unknown): string | null {
   return null
 }
 
-function toPlainText(value: unknown): string {
+export function toPlainText(value: unknown): string {
   if (typeof value === "string") {
     return value.replaceAll(/<[^>]*>/g, " ").replaceAll(/\s+/g, " ").trim()
   }

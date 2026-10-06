@@ -27,7 +27,7 @@ export function NewEntryButton({ canCreate, onCreate, seedLabel }: NewEntryButto
 
   const group = (
     <div className="inline-flex">
-      <Button variant="default" size="sm" className="rounded-r-none gap-1.5" onClick={onCreate} disabled={!canCreate}>
+      <Button variant="default" size="sm" className="rounded-r-none gap-1.5 bg-clip-border" onClick={onCreate} disabled={!canCreate}>
         <Plus className="size-4" />
         {t("siteHeader.new")}
       </Button>
@@ -36,7 +36,7 @@ export function NewEntryButton({ canCreate, onCreate, seedLabel }: NewEntryButto
           <Button
             variant="default"
             size="sm"
-            className="rounded-l-none border-l border-primary-foreground/20 px-1.5"
+            className="rounded-l-none border-l-primary-foreground/20 bg-clip-border px-1.5"
             aria-label={t("toolbar.newEntry.moreOptions")}
             disabled={!canCreate}
           >
@@ -49,7 +49,8 @@ export function NewEntryButton({ canCreate, onCreate, seedLabel }: NewEntryButto
             {t("toolbar.newEntry.templatesDescription")}
           </p>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => {}}>
+          {/* Templates are not implemented yet: keep the entry visible but inert. */}
+          <DropdownMenuItem disabled>
             <Plus className="size-4" />
             {t("toolbar.newEntry.newTemplate")}
           </DropdownMenuItem>

@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import type { Seed } from "@beechcms/core"
 import { Folder } from 'reicon-react'
 import { useTranslation } from "react-i18next"
 
@@ -12,11 +13,12 @@ import { formatItemCount } from "./format-item-count"
 const MAX_PREVIEWS = 3
 
 interface GalleryFolderCardProps {
+  readonly seed: Pick<Seed, "label" | "labelPlural">
   readonly group: GalleryCategoryGroup
   readonly onOpen: (key: string | null) => void
 }
 
-export function GalleryFolderCard({ group, onOpen }: GalleryFolderCardProps) {
+export function GalleryFolderCard({ seed, group, onOpen }: GalleryFolderCardProps) {
   const { t } = useTranslation()
   const label = group.label ?? t("gallery.folders.uncategorized")
   const previews = group.models
@@ -27,7 +29,7 @@ export function GalleryFolderCard({ group, onOpen }: GalleryFolderCardProps) {
     <button
       type="button"
       onClick={() => onOpen(group.key)}
-      aria-label={t("gallery.folders.openAriaLabel", { label, count: formatItemCount(t, group.models.length) })}
+      aria-label={t("gallery.folders.openAriaLabel", { label, count: formatItemCount(t, group.models.length, seed) })}
       className={GALLERY_CARD_SURFACE_CLASS}
     >
       <div className="flex h-36 w-full items-center justify-center bg-gradient-to-br from-muted/40 to-muted/80">
@@ -52,7 +54,7 @@ export function GalleryFolderCard({ group, onOpen }: GalleryFolderCardProps) {
         <Folder className="size-5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <h3 className="font-heading truncate text-base font-semibold">{label}</h3>
-          <p className="text-sm text-muted-foreground">{formatItemCount(t, group.models.length)}</p>
+          <p className="text-sm text-muted-foreground">{formatItemCount(t, group.models.length, seed)}</p>
         </div>
       </div>
     </button>

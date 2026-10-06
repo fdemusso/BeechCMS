@@ -30,7 +30,7 @@
 
 > `optional` **card?**: `object`
 
-Kanban-only card layout. Dropped from any non-kanban instance.
+Card layout (Kanban and Gallery). Dropped from any other instance.
 
 #### card.header?
 

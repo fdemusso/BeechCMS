@@ -114,6 +114,13 @@ export function useDataTableState<TData, TValue>(
   const grouping = groupingProp ?? internalGrouping
   const isGroupingActive = grouping.length > 0
 
+  // The grouped column is hidden only while grouping is active; the user's own visibility
+  // choice is left untouched, so it comes back as it was when grouping is turned off.
+  const effectiveColumnVisibility = React.useMemo<VisibilityState>(() => {
+    if (!isGroupingActive) return columnVisibility
+    return { ...columnVisibility, ...Object.fromEntries(grouping.map((id) => [id, false])) }
+  }, [columnVisibility, grouping, isGroupingActive])
+
   const [expanded, setExpanded] = React.useState<ExpandedState>(true)
 
   const activeDensity = density ?? DEFAULT_DENSITY
@@ -224,7 +231,7 @@ export function useDataTableState<TData, TValue>(
     state: {
       sorting,
       columnFilters,
-      columnVisibility,
+      columnVisibility: effectiveColumnVisibility,
       rowSelection,
       globalFilter,
       pagination: isGroupingActive ? { pageIndex: 0, pageSize: Number.MAX_SAFE_INTEGER } : pagination,

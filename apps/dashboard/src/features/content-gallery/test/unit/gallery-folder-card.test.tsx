@@ -19,6 +19,7 @@ import type { GalleryCardDisplayModel } from "@/features/content-gallery/gallery
 // usano le stringhe inglesi, prese dalla stessa istanza i18next reale usata
 // dal componente (nessuna duplicazione a mano della logica di pluralizzazione).
 const t = i18n.t.bind(i18n)
+const seed = { label: "Article", labelPlural: "Articles" }
 
 function makeModel(imageUrl: string | null): GalleryCardDisplayModel {
   return {
@@ -50,13 +51,13 @@ function makeGroup(overrides: Partial<GalleryCategoryGroup> = {}): GalleryCatego
 // ---------------------------------------------------------------------------
 
 describe("formatItemCount", () => {
-  it("usa il singolare per una sola foto", () => {
-    expect(formatItemCount(t, 1)).toBe("1 photo")
+  it("usa il singolare per un solo elemento", () => {
+    expect(formatItemCount(t, 1, seed)).toBe("1 Article")
   })
 
-  it("usa il plurale per zero o più foto", () => {
-    expect(formatItemCount(t, 0)).toBe("0 photos")
-    expect(formatItemCount(t, 2)).toBe("2 photos")
+  it("usa il plurale per zero o più elementi", () => {
+    expect(formatItemCount(t, 0, seed)).toBe("0 Articles")
+    expect(formatItemCount(t, 2, seed)).toBe("2 Articles")
   })
 })
 
@@ -66,13 +67,13 @@ describe("formatItemCount", () => {
 
 describe("GalleryFolderCard", () => {
   it("mostra l'etichetta del gruppo e il conteggio foto", () => {
-    render(<GalleryFolderCard group={makeGroup()} onOpen={vi.fn()} />)
+    render(<GalleryFolderCard seed={seed} group={makeGroup()} onOpen={vi.fn()} />)
     expect(screen.getByText("Wedding")).toBeInTheDocument()
-    expect(screen.getByText("2 photos")).toBeInTheDocument()
+    expect(screen.getByText("2 Articles")).toBeInTheDocument()
   })
 
   it("usa l'etichetta 'senza categoria' quando il gruppo non ne ha una propria", () => {
-    render(<GalleryFolderCard group={makeGroup({ key: null, label: null })} onOpen={vi.fn()} />)
+    render(<GalleryFolderCard seed={seed} group={makeGroup({ key: null, label: null })} onOpen={vi.fn()} />)
     expect(screen.getByText("Other photos")).toBeInTheDocument()
   })
 
@@ -86,22 +87,22 @@ describe("GalleryFolderCard", () => {
         makeModel("d.jpg"),
       ],
     })
-    render(<GalleryFolderCard group={group} onOpen={vi.fn()} />)
+    render(<GalleryFolderCard seed={seed} group={group} onOpen={vi.fn()} />)
     // alt="" → le anteprime sono immagini decorative, ruolo ARIA "presentation" non "img".
     expect(screen.getAllByRole("presentation")).toHaveLength(3)
   })
 
   it("senza anteprime disponibili mostra l'icona cartella al posto delle immagini", () => {
     const group = makeGroup({ models: [makeModel(null), makeModel(null)] })
-    render(<GalleryFolderCard group={group} onOpen={vi.fn()} />)
+    render(<GalleryFolderCard seed={seed} group={group} onOpen={vi.fn()} />)
     expect(screen.queryAllByRole("presentation")).toHaveLength(0)
   })
 
   it("il bottone ha l'aria-label con etichetta e conteggio, e chiama onOpen con la chiave del gruppo al click", () => {
     const onOpen = vi.fn()
-    render(<GalleryFolderCard group={makeGroup()} onOpen={onOpen} />)
+    render(<GalleryFolderCard seed={seed} group={makeGroup()} onOpen={onOpen} />)
 
-    const button = screen.getByRole("button", { name: "Open folder Wedding, 2 photos" })
+    const button = screen.getByRole("button", { name: "Open folder Wedding, 2 Articles" })
     button.click()
 
     expect(onOpen).toHaveBeenCalledWith("wedding")
