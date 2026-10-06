@@ -46,14 +46,16 @@ Output, exactly one of:
    git -C "$MAIN" ls-remote --heads origin "fix/issue-<id>-*"                        # see below
    ```
    A remote `fix/issue-<id>-*` branch counts as a claim only if it has no PR at all (`gh pr list --head <branch> --state all` is empty), which means an agent pushed but has not opened the PR yet. Branches of merged/closed PRs are not deleted on the remote; a reopened issue gets a fresh branch with a `-v2` suffix.
-3. **Housekeeping**: remove worktrees whose PR is MERGED (`git worktree remove` refuses dirty trees, so never add `--force`):
+3. **Housekeeping**: remove worktrees whose PR is MERGED (`git worktree remove` refuses dirty trees, so never add `--force`). Removing a worktree deletes its `node_modules` and is slow, so run this as its OWN command with `run_in_background: true` and never chain it with step 4: a backlog of merged worktrees otherwise blows the shell timeout before your worktree exists. Use ONE `gh` call for all branches:
    ```bash
    git -C "$MAIN" worktree prune
+   merged=$(gh pr list --state merged --limit 200 --json headRefName --jq '.[].headRefName')
    git -C "$MAIN" worktree list --porcelain | awk '/^worktree .*beech-cms-worktrees\/issue-/{print $2}' | while read -r wt; do
      br=$(git -C "$wt" branch --show-current)
-     [ "$(gh pr list --head "$br" --state merged --json number --jq 'length')" = "1" ] && git -C "$MAIN" worktree remove "$wt" && git -C "$MAIN" branch -D "$br"
+     echo "$merged" | grep -qx "$br" && git -C "$MAIN" worktree remove "$wt" && git -C "$MAIN" branch -D "$br"
    done
    ```
+   Step 4 does not depend on it: start it right after the claim check, in parallel with recon of the issue text.
 4. Create the worktree from `origin/devs` (never local `devs`). Slug = issue title, kebab-case, ≤ 5 words:
    ```bash
    git -C "$MAIN" worktree add -b fix/issue-<id>-<slug> "$MAIN/../beech-cms-worktrees/issue-<id>" origin/devs
@@ -66,7 +68,8 @@ Output, exactly one of:
    [ -d "$MAIN/graphify-out" ] && cp -r "$MAIN/graphify-out" .
    node "$MAIN/scripts/cpu-slot.mjs" -- pnpm build
    ```
-6. From here on every command runs **inside the worktree**.
+6. From here on every command runs **inside the worktree**, reads included (recon, `Read`, grep). Never inspect the main checkout: it may hold the user's uncommitted work or a stale `devs`.
+7. Shell portability (macOS dev machines): no `sed -i` (BSD `sed` needs a suffix argument and fails silently in a chain). Edit files with the Edit tool or `python3`, and check the exit status of every command that rewrites a PR body or file.
 
 ### PHASE 1: INGEST + TRIAGE
 1. `gh issue view <id> --json title,body,labels,comments`. Read the comments too: a human may have narrowed scope or rejected the suggested fix.
@@ -78,11 +81,16 @@ Output, exactly one of:
    | **Production trigger & Likelihood** | Picks the test shape (see table below). |
    | **Why tests miss it** | Picks the test **tier**. Your test must not repeat the blind spot (see PHASE 4). |
    | **Suggested fix** | A hypothesis, not a spec. Verify it fixes the root cause before adopting it. |
-3. **Still real?** Reproduce on the fresh `origin/devs` code. Then pick the outcome:
+3. **Security handling** (label `security`): the issue is already public, but the PR is the permanent, searchable record of the fix. Keep it sober:
+   - PR body, commit message and test names state the violated invariant ("public index served without `allowPublicRead`"), never a step-by-step exploit, payload, request sequence or credential recipe.
+   - Root cause = mechanism in one paragraph, not an attack walkthrough. Link the issue for the scenario instead of copying it.
+   - The RED evidence is the failing assertion line only (expected vs received), not a transcript of leaked data.
+   - Severity `high`/`critical` with a live exploit path and already-written data exposed (leaked secrets, PII in a served artifact): say so in the report to the user so they can decide on rotation or disclosure. That decision is theirs, not the agent's.
+4. **Still real?** Reproduce on the fresh `origin/devs` code. Then pick the outcome:
    - Already fixed upstream → find the PR (`git log origin/devs --oneline -S "<symbol>"`), comment on the issue with it, and stop.
    - Marked `[plausible]`, or can't reproduce → try once more with a minimal repro in the scratchpad. If it still doesn't reproduce, comment with what you tried and stop.
    - API defect → confirm it is reachable from the HTTP entry point with the router + validators active (Woodpecker rule 2). If a schema/validator rejects the input with 400 first, comment "unreachable via HTTP" with the evidence and stop.
-4. **Classify** and choose the evidence strategy:
+5. **Classify** and choose the evidence strategy:
    | Class (labels) | Proof required |
    |---|---|
    | `bug` / `security` / `data-loss` | Behavioural test that FAILS on `origin/devs` and passes after the fix. |
@@ -102,7 +110,8 @@ Do this before designing anything. Most fixes here have prior art.
    - `@beechcms/testing`: `createTestHarness`, `CANONICAL_SEEDS`, `provisionSeeds`, `seedUsers`, `seedCanonicalEntries`, `FixedClock`, `FakeTokenService`, `TEST_ENV`, `UUID_V4_PATTERN`.
    - `apps/api/test/mocks/*` (static repositories for the unit tier), `apps/api/test/helpers/*` (Mailpit, MinIO, webhook-tester clients for the flow tier).
    - Existing `src/features/*/test/integration/*.integration.test.ts` as templates for new integration suites.
-7. **Version reality**: `pnpm list <pkg>` before reasoning about library behaviour (Zod 4, Hono 4, React 19, Vitest 4).
+7. **Harness gap** (the helper you need does not exist, e.g. vector tables, an R2 binding, a reset): do the minimum inside your own test file or the package's vitest config so the regression test can run, state it in the PR, and search `gh issue list --state open --search "<gap>"`. If no issue covers it, file one (`dx-improvement`, `severity:low`) proposing the shared fix. Do NOT grow `@beechcms/testing` inside a bug-fix PR: shared harness changes need their own plan.
+8. **Version reality**: `pnpm list <pkg>` before reasoning about library behaviour (Zod 4, Hono 4, React 19, Vitest 4).
 
 ### PHASE 3: ROOT CAUSE + PLAN
 1. **Trace upstream.** The crash site is rarely the origin. Follow callers, validators, serializers and repositories until you find where the wrong value or the wrong assumption enters.
@@ -111,8 +120,13 @@ Do this before designing anything. Most fixes here have prior art.
    - **Fix tier**: core engine/schema vs API slice vs dashboard component, and why that tier owns it.
    - **Same-pattern instances**: grep for the same defect pattern in the slice. Instances with the same root cause are fixed here. Anything else is filed (PHASE 5.4).
 3. **Invariants** (`_config/architecture.md`, `_config/ponytail_arch.md`): core is the single source of truth; no cross-slice imports; Botanical Engine + Branch IDs for content mutations; no raw SQL in handlers; injected `IClock`/`IIdGenerator`; side effects through `scheduler.waitUntil`; no file bytes through the Worker.
-4. **Anti-band-aid**: no empty catches, no silent fallbacks, no `as any`, no `if (!x) return` at the crash site when the contract upstream is wrong. For user-controlled object keys, use `Object.hasOwn` / `Object.create(null)`.
-5. **Stop and report instead of guessing** if the fix needs a public API contract change, a D1 migration (then load `_config/database_workflow.md` and propose, don't improvise), a new dependency, or a cross-slice redesign. State the options and your recommendation in the report or an issue comment.
+4. **Persisted state**: ask what the old code already WROTE and where it lives (D1 rows, R2 objects, KV/cache entries, edge-cached responses, queued jobs). A fix to the write path does not repair data already written. Decide explicitly, and record it under **Blast radius** in the PR:
+   - **Self-healing**: the next normal write/recompile replaces it (state how long that can take and what protects readers meanwhile, e.g. a read-side gate).
+   - **Needs backfill**: existing rows/objects stay wrong or exposed until something rewrites them. Include the rewrite in the fix only if it is a pure recompute of derived data (e.g. re-run an existing compile job). Anything that needs a D1 migration is a stop condition (step 6).
+   - **Cached copies**: if the leaked/wrong value is served with `Cache-Control` / edge cache, state the max-age after which it disappears.
+   The report to the user must name any stale-data window, never imply "fixed" when old data stays exposed.
+5. **Anti-band-aid**: no empty catches, no silent fallbacks, no `as any`, no `if (!x) return` at the crash site when the contract upstream is wrong. For user-controlled object keys, use `Object.hasOwn` / `Object.create(null)`.
+6. **Stop and report instead of guessing** if the fix needs a public API contract change, a D1 migration (then load `_config/database_workflow.md` and propose, don't improvise), a new dependency, or a cross-slice redesign. State the options and your recommendation in the report or an issue comment.
 
 ### PHASE 4: RED (reproduction first)
 1. Load `_config/testing_conventions.md`. It binds every test you write (tier, placement, four zones, canonical fixtures, assert persisted state, no `any`, no fake timers).
@@ -157,6 +171,7 @@ Stop at the first failure, fix it, and re-run from step 1.
    ```bash
    node "$MAIN/scripts/cpu-slot.mjs" -- node scripts/test-coverage-diff.mjs --base origin/devs
    ```
+   If the script crashes before running tests (e.g. `ERR_MODULE_NOT_FOUND`), that is a tooling defect, not a pass and not a reason to skip the gate: check `gh issue list --state open --search "test-coverage-diff"` (file one if absent), then run the equivalent by hand inside the slot (unit `vitest related --run --project unit <changed files>` plus the integration files of the touched slices) and mark the PR table row `⚠️ script broken, ran manually` with the commands used. Changed-file coverage is then reported as "not measured", never invented.
    Always pass `--base origin/devs`: after `git push -u` the auto-detected base falls back to the possibly stale local `devs`. Add `--tier unit,integration,flow` only if the fix touches Docker-bound code (email, storage/R2, webhooks, automation executors, or anything under `apps/api/test/`).
 2. **Type-check + lint**, limited to changed packages and their dependents:
    ```bash
@@ -186,7 +201,7 @@ Stop at the first failure, fix it, and re-run from step 1.
    Resolves #<id>            <!-- or: Refs #<id> (partial bundle; see issue comment) -->
 
    ### Root cause
-   <mechanism, file:line, why the wrong value/assumption got through>
+   <mechanism, file:line, why the wrong value/assumption got through. `security` label: invariant only, no exploit steps (PHASE 1.3)>
 
    ### Fix
    <what changed, at which tier, and why that tier owns it>
@@ -196,6 +211,7 @@ Stop at the first failure, fix it, and re-run from step 1.
 
    ### Blast radius
    <callers/dependents checked (graphify affected / grep); same-pattern instances fixed here; anything deferred → #NNN>
+   <persisted state: self-healing | needs backfill | cached copies, and how long stale data can remain (PHASE 3.4)>
 
    ### Evidence
    - Regression test: `<path>` › "<it name>" (<tier>)
@@ -237,6 +253,7 @@ One block per issue, no fluff:
 #<id> → PR #<n> (<url>) | CI: green|red(<reason>)|pending
   root cause: <one line>
   test: <path> (<tier>) — RED ✓ revert-check ✓ GREEN ✓
+  stale data: none | <what stays wrong/exposed, until when, who must act>
   follow-ups: #<a>, #<b> | none
 ```
 or `#<id> → NO FIX (<already fixed by #x | not reproducible | unreachable | blocked: <decision needed>>), comment: <url>`.
