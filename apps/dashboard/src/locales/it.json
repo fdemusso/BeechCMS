@@ -438,13 +438,19 @@
       "usageTitle": "Utilizzo storage",
       "usageDesc": "Spazio occupato dai file caricati su R2.",
       "orphansTitle": "File orfani",
-      "orphansDesc": "File caricati ma non referenziati da nessun contenuto. Possono essere eliminati manualmente da Cloudflare R2.",
+      "orphansDesc": "File caricati ma non referenziati da nessun campo file, pubblicato o in bozza. Verifica prima di eliminare: un file potrebbe essere usato altrove.",
       "fileCount": "{{count}} file totali",
       "referenceVisual": "Riferimento visivo: 1 GB",
       "noOrphans": "Nessun file orfano trovato",
       "orphanCount": "{{count}} file orfani",
       "pageRange": "{{start}}–{{end}} di {{total}}",
-      "loadFailed": "Impossibile caricare le informazioni sullo storage"
+      "loadFailed": "Impossibile caricare le informazioni sullo storage",
+      "selectOrphan": "Seleziona {{filename}}",
+      "deleteSelected": "Elimina {{count}} selezionati",
+      "deleteTitle": "Eliminare definitivamente {{count}} file?",
+      "deleteDesc": "I file vengono rimossi dallo storage e non sono recuperabili. Se un file selezionato è di nuovo referenziato o non è più tracciato, non viene eliminato nulla.",
+      "deleted": "{{count}} file eliminati",
+      "deleteFailed": "Impossibile eliminare i file selezionati. L'elenco è stato aggiornato: verificalo e riprova."
     },
     "profile": {
       "infoTitle": "Informazioni profilo",

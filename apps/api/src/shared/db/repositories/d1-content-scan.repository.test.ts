@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi } from 'vitest'
+import type { D1Database } from '@cloudflare/workers-types'
 import type { Seed } from '@beechcms/core'
 import { D1ContentScanRepository } from './d1-content-scan.repository'
 
@@ -76,6 +77,55 @@ describe('D1ContentScanRepository', () => {
 
     const result = await repo.getReferencedMediaKeys([seedWithFiles])
     expect(result.size).toBe(0)
+  })
+
+  it('scans the drafts table of a seed that allows drafts', async () => {
+    const { db, prepareMock } = makeMockDb([{ cover: '/api/media/draft.jpg' }])
+    const repo = new D1ContentScanRepository(db)
+    const seedWithDrafts: Seed = {
+      slug: 'articles',
+      label: 'Article',
+      displayNameAlias: 'title',
+      allowDrafts: true,
+      branches: [{ id: 'br_01', alias: 'cover', type: 'file', label: 'Cover' }],
+    }
+
+    const result = await repo.getReferencedMediaKeys([seedWithDrafts])
+
+    expect(prepareMock).toHaveBeenCalledWith('SELECT cover FROM content_articles_drafts')
+    expect(result).toEqual(new Set(['draft.jpg']))
+  })
+
+  it('skips a content table that does not exist yet', async () => {
+    const allMock = vi.fn().mockRejectedValue(new Error('D1_ERROR: no such table: content_articles: SQLITE_ERROR'))
+    const db = { prepare: vi.fn(() => ({ all: allMock })) } as unknown as D1Database
+    const repo = new D1ContentScanRepository(db)
+    const seedWithFiles: Seed = {
+      slug: 'articles',
+      label: 'Article',
+      displayNameAlias: 'title',
+      branches: [{ id: 'br_01', alias: 'cover', type: 'file', label: 'Cover' }],
+    }
+
+    const result = await repo.getReferencedMediaKeys([seedWithFiles])
+
+    expect(result.size).toBe(0)
+  })
+
+  it('propagates any other read failure instead of reporting the files as unreferenced', async () => {
+    const allMock = vi.fn().mockRejectedValue(new Error('D1_ERROR: no such column: cover: SQLITE_ERROR'))
+    const db = { prepare: vi.fn(() => ({ all: allMock })) } as unknown as D1Database
+    const repo = new D1ContentScanRepository(db)
+    const seedWithFiles: Seed = {
+      slug: 'articles',
+      label: 'Article',
+      displayNameAlias: 'title',
+      branches: [{ id: 'br_01', alias: 'cover', type: 'file', label: 'Cover' }],
+    }
+
+    const scan = repo.getReferencedMediaKeys([seedWithFiles])
+
+    await expect(scan).rejects.toThrow('no such column')
   })
 
   it('handles malformed percent-encoded media URLs without throwing URIError', async () => {

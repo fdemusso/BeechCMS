@@ -5,6 +5,7 @@
 import type { Automation } from '@beechcms/core'
 import type { AutomationContextSelector, ParsedKey } from './template-grammar'
 import { resolvePath } from '../engine/automation-runner.utils'
+import { resolveVarAccess } from './var-access-resolver'
 
 export interface ResolvedContext {
   lookup(key: ParsedKey, onMissing?: (field: string) => void): unknown
@@ -148,5 +149,22 @@ export function deriveEntryContext(
       return base.lookup(parsed, onMissing)
     },
     triggerEntry: entry,
+  }
+}
+
+// Layers set_variable results over a context. Apply it last: deriveEntryContext answers
+// simple keys itself, so a variables layer underneath it would never be reached.
+export function withVariables(base: ResolvedContext, variables: Record<string, unknown>): ResolvedContext {
+  return {
+    triggerEntry: base.triggerEntry,
+    lookup(parsed: ParsedKey, onMissing?: (field: string) => void): unknown {
+      if (parsed.kind === 'simple') {
+        const varVal = resolvePath(variables, parsed.path)
+        if (varVal !== undefined) return varVal
+      } else if (parsed.kind === 'var_access') {
+        return resolveVarAccess(parsed, variables, onMissing)
+      }
+      return base.lookup(parsed, onMissing)
+    },
   }
 }

@@ -5,9 +5,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
 
-vi.mock("../hooks/use-settings", () => ({ useStorageStats: vi.fn() }))
+vi.mock("../hooks/use-settings", () => ({ useStorageStats: vi.fn(), useDeleteOrphans: vi.fn() }))
 
-import { useStorageStats } from "../hooks/use-settings"
+import { useDeleteOrphans, useStorageStats } from "../hooks/use-settings"
 import { StorageTab } from "./storage-tab"
 import type { StorageStats } from "../types/settings.types"
 
@@ -28,8 +28,11 @@ const firstPage: StorageStats = {
 }
 
 describe("StorageTab", () => {
+  const deleteOrphans = vi.fn()
+
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useDeleteOrphans).mockReturnValue({ mutate: deleteOrphans, isPending: false } as unknown as ReturnType<typeof useDeleteOrphans>)
     vi.mocked(useStorageStats).mockImplementation(offset => ({
       data: offset === 0 ? firstPage : {
         ...firstPage,
@@ -49,5 +52,27 @@ describe("StorageTab", () => {
     expect(useStorageStats).toHaveBeenLastCalledWith(50)
     expect(screen.getByText("file-0.png")).toBeInTheDocument()
     expect(screen.queryByText("No orphan files found")).not.toBeInTheDocument()
+  })
+
+  it("deletes only the reviewed orphans once the user confirms", () => {
+    render(<StorageTab />)
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select file-50.png" }))
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select file-48.png" }))
+    fireEvent.click(screen.getByRole("button", { name: "Delete 2 selected" }))
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }))
+
+    expect(deleteOrphans).toHaveBeenCalledTimes(1)
+    expect(deleteOrphans.mock.calls[0][0]).toEqual(["media/file-50.png", "media/file-48.png"])
+  })
+
+  it("clears the selection when the user changes page, so no unseen key is submitted", () => {
+    render(<StorageTab />)
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select file-50.png" }))
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }))
+
+    expect(screen.queryByRole("button", { name: /selected$/ })).not.toBeInTheDocument()
+    expect(deleteOrphans).not.toHaveBeenCalled()
   })
 })

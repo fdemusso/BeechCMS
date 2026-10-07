@@ -12,7 +12,7 @@ import type {
 } from '@beechcms/core'
 import { cronMatches } from './cron-runner.utils'
 import { executeAction } from '../executors/index'
-import { resolveAutomationContext, deriveEntryContext } from '../evaluator/context-resolver'
+import { resolveAutomationContext, deriveEntryContext, withVariables } from '../evaluator/context-resolver'
 import { extractPushdownFilters } from '../filters/when-pushdown'
 import { evaluateWhen } from '../filters/when-evaluator'
 
@@ -79,13 +79,15 @@ export async function runCronAutomations(
 
     // Build the base ResolvedContext once per automation (shared seed-query cache).
     // triggerEntry = first matching entry; batchEntries = full filtered list.
-    const batchResolved = await resolveAutomationContext(
+    const batchBase = await resolveAutomationContext(
       automation,
       matchingEntries[0] ?? null,
       matchingEntries,
     )
 
+    // Shared across actions so set_variable results reach every later action.
     const variables: Record<string, unknown> = {}
+    const batchResolved = withVariables(batchBase, variables)
     const baseCtx = {
       env: deps.env,
       repository: deps.contentRepository,
@@ -99,12 +101,12 @@ export async function runCronAutomations(
       if (PER_ENTRY_ACTIONS.has(action.type)) {
         for (const entry of matchingEntries) {
           // Per-entry: derive a lightweight context whose `this` is the current entry.
-          // Seed-query cache is reused from batchResolved.
-          const entryResolved = deriveEntryContext(batchResolved, entry)
-          // In-memory per-entry condition check (Task 13)
-          if (!evaluateWhen(automation.trigger_conditions, entryResolved)) continue
+          // Seed-query cache is reused from batchBase.
+          const entryBase = deriveEntryContext(batchBase, entry)
+          // In-memory per-entry condition check (Task 13); conditions never see variables, as in the event runner.
+          if (!evaluateWhen(automation.trigger_conditions, entryBase)) continue
           try {
-            await executeAction(action, { ...baseCtx, entry, context: entryResolved })
+            await executeAction(action, { ...baseCtx, entry, context: withVariables(entryBase, variables) })
           } catch (err) {
             console.error('[cron] entry action failed', {
               automationId: automation.id,

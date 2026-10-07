@@ -47,6 +47,10 @@ export const settingsApi = {
     return data
   },
 
+  deleteOrphans: async (keys: string[]): Promise<void> => {
+    await api.post('/settings/storage/orphans/delete', { keys })
+  },
+
   getNotifications: async (): Promise<NotificationPrefs> => {
     const { data } = await api.get<NotificationPrefs>('/settings/notifications')
     return data
