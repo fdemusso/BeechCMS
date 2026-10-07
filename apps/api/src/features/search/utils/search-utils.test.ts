@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect } from 'vitest'
-import { encodeCursor, decodeCursor, buildFtsQuery, mapFtsRow } from './search-utils'
+import { encodeCursor, decodeCursor, buildFtsQuery, mapFtsRow, mapSearchResultRow } from './search-utils'
 import type { Seed } from '@beechcms/core'
 
 const TEXT_SEED = {
@@ -79,6 +79,10 @@ describe('encodeCursor / decodeCursor', () => {
 
   it('returns null when decoded string has no colon separator', () => {
     expect(decodeCursor(btoa('noseparator'))).toBeNull()
+  })
+
+  it('returns null when the rank segment is not a number', () => {
+    expect(decodeCursor(btoa('notanumber:entry-1'))).toBeNull()
   })
 })
 
@@ -254,6 +258,22 @@ describe('mapFtsRow', () => {
     expect(mapFtsRow(row).excerpt).toBe('A <mark>word</mark> here')
   })
 
+  it('strips attributes from <mark> tags instead of passing them through verbatim (#610)', () => {
+    const row = {
+      entry_id: 'e1', schema_slug: 'a', slug: null, status: 'draft',
+      title: null, excerpt: '<mark onmouseover=alert(1)>word</mark> here', rank: 0,
+    }
+    expect(mapFtsRow(row).excerpt).toBe('<mark>word</mark> here')
+  })
+
+  it('strips attributes from a </mark> closing tag as well (#610)', () => {
+    const row = {
+      entry_id: 'e1', schema_slug: 'a', slug: null, status: 'draft',
+      title: null, excerpt: '<mark>word</mark onclick=alert(1)> here', rank: 0,
+    }
+    expect(mapFtsRow(row).excerpt).toBe('<mark>word</mark> here')
+  })
+
   it('collapses multiple whitespace characters in excerpt', () => {
     const row = {
       entry_id: 'e1', schema_slug: 'a', slug: null, status: 'draft',
@@ -268,5 +288,37 @@ describe('mapFtsRow', () => {
       title: null, excerpt: '', rank: 0,
     }
     expect(mapFtsRow(row).title).toBe('')
+  })
+
+  it('returns empty string for null excerpt', () => {
+    const row = {
+      entry_id: 'e1', schema_slug: 'a', slug: null, status: 'draft',
+      title: 'Has a title', excerpt: null, rank: 0,
+    } as any
+    expect(mapFtsRow(row).excerpt).toBe('')
+  })
+})
+
+describe('mapSearchResultRow', () => {
+  it('maps a camelCase repository row to the wire-format SearchResultItem', () => {
+    const row = {
+      entryId: 'e1', schemaSlug: 'articoli', slug: 'my-post',
+      status: 'published', title: 'My Post', excerpt: '<p>A <mark>word</mark> here</p>',
+    }
+    const result = mapSearchResultRow(row as any)
+    expect(result).toEqual({
+      id: 'e1', schema_slug: 'articoli', slug: 'my-post',
+      status: 'published', title: 'My Post', excerpt: 'A <mark>word</mark> here', data: {},
+    })
+  })
+
+  it('defaults title and excerpt to empty strings when null', () => {
+    const row = {
+      entryId: 'e1', schemaSlug: 'articoli', slug: 'my-post',
+      status: 'published', title: null, excerpt: null,
+    } as any
+    const result = mapSearchResultRow(row)
+    expect(result.title).toBe('')
+    expect(result.excerpt).toBe('')
   })
 })

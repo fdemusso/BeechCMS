@@ -67,10 +67,41 @@ describe('semantic-search worker and manifest compilation', () => {
     ])
   })
 
+  it('compileR2Manifest changes the fingerprint when vector content changes but id/title do not (#610)', async () => {
+    const mockSearchR2 = () => {
+      const putMock = vi.fn().mockResolvedValue({})
+      return { put: putMock } as unknown as R2Bucket
+    }
+
+    const buildDb = (vector: Float32Array) => ({
+      prepare: vi.fn().mockReturnValue({
+        all: vi.fn().mockResolvedValue({
+          results: [{ entry_id: 'art-1', vector: vector.buffer, title: 'Same Title' }],
+        }),
+      }),
+    }) as unknown as D1Database
+
+    const r2First  = mockSearchR2()
+    await compileR2Manifest(SEARCH_SEED, buildDb(new Float32Array([0.1, 0.2, 0.3])), r2First)
+    const manifestFirst = JSON.parse(
+      (r2First.put as any).mock.calls.find((call: any[]) => call[0] === 'articles/manifest.json')[1],
+    ) as IndexManifest
+
+    const r2Second = mockSearchR2()
+    await compileR2Manifest(SEARCH_SEED, buildDb(new Float32Array([0.9, 0.8, 0.7])), r2Second)
+    const manifestSecond = JSON.parse(
+      (r2Second.put as any).mock.calls.find((call: any[]) => call[0] === 'articles/manifest.json')[1],
+    ) as IndexManifest
+
+    expect(manifestFirst.records).toEqual(manifestSecond.records)
+    expect(manifestFirst.fingerprint).not.toBe(manifestSecond.fingerprint)
+  })
+
   it('computeVectorJob generates embedding using Workers AI, saves to D1, and compiles R2', async () => {
+    const embedding = new Array(384).fill(0).map((_, i) => (i === 0 ? 0.5 : i === 1 ? 0.25 : i === 2 ? -0.75 : 0))
     const aiRunMock = vi.fn().mockResolvedValue({
-      shape: [1, 3],
-      data: [[0.5, 0.25, -0.75]],
+      shape: [1, 384],
+      data: [embedding],
     })
 
     const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } })
@@ -213,5 +244,147 @@ describe('semantic-search worker and manifest compilation', () => {
       expect.stringContaining('"records":[]'),
       expect.any(Object),
     )
+  })
+
+  describe('guard clauses', () => {
+    const NO_SEARCH_SEED: Seed = {
+      slug: 'prodotti',
+      label: 'Prodotti',
+      displayNameAlias: 'nome',
+      labelPlural: 'Prodotti',
+      allowDrafts: false,
+      branches: [{ id: 'br_01', alias: 'price', label: 'Price', type: 'number', policies: { public: true } }],
+    }
+
+    function seedDb(seed: Seed | null): D1Database {
+      const firstMock = vi.fn().mockResolvedValue(
+        seed ? { slug: seed.slug, definition: JSON.stringify(seed) } : null,
+      )
+      const allMock = vi.fn().mockResolvedValue({ results: [] })
+      const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } })
+      return {
+        prepare: vi.fn().mockReturnValue({
+          bind: vi.fn().mockReturnValue({ run: runMock, first: firstMock, all: allMock }),
+          first: firstMock,
+          all: allMock,
+        }),
+      } as unknown as D1Database
+    }
+
+    it('compileR2Manifest is a no-op when searchR2 is undefined', async () => {
+      await expect(compileR2Manifest(SEARCH_SEED, {} as D1Database, undefined)).resolves.toBeUndefined()
+    })
+
+    it('computeVectorJob skips when the DB binding is missing', async () => {
+      const context: JobContext = {
+        repository: {} as any, bucket: {} as any, clock: {} as any, idGenerator: {} as any,
+        queue: new NoOpQueueService(), env: {},
+      }
+      await expect(computeVectorJob({ seedSlug: 'articles', entryId: 'art-1' }, context)).resolves.toBeUndefined()
+    })
+
+    it('computeVectorJob skips when the seed is not found', async () => {
+      const mockDb = seedDb(null)
+      const context: JobContext = {
+        repository: {} as any, bucket: {} as any, clock: {} as any, idGenerator: {} as any,
+        queue: new NoOpQueueService(), env: { DB: mockDb as any },
+      }
+      await expect(computeVectorJob({ seedSlug: 'articles', entryId: 'art-1' }, context)).resolves.toBeUndefined()
+    })
+
+    it('computeVectorJob skips when the seed has no indexable branches', async () => {
+      const mockDb = seedDb(NO_SEARCH_SEED)
+      const context: JobContext = {
+        repository: { findById: vi.fn() } as any, bucket: {} as any, clock: {} as any, idGenerator: {} as any,
+        queue: new NoOpQueueService(), env: { DB: mockDb as any },
+      }
+      await computeVectorJob({ seedSlug: 'prodotti', entryId: 'p-1' }, context)
+      expect((context.repository as any).findById).not.toHaveBeenCalled()
+    })
+
+    it('computeVectorJob deletes the vector and recompiles when the entry cannot be found', async () => {
+      const mockDb = seedDb(SEARCH_SEED)
+      const putMock = vi.fn().mockResolvedValue({})
+      const context: JobContext = {
+        repository: { findById: vi.fn().mockRejectedValue(new Error('not found')) } as any,
+        bucket: {} as any, clock: {} as any, idGenerator: {} as any,
+        queue: new NoOpQueueService(), env: { DB: mockDb as any, SEARCH_R2: { put: putMock } as any },
+      }
+      await computeVectorJob({ seedSlug: 'articles', entryId: 'art-missing' }, context)
+      expect(mockDb.prepare).toHaveBeenCalledWith('DELETE FROM vector_articles WHERE entry_id = ?')
+      expect(putMock).toHaveBeenCalled()
+    })
+
+    it('computeVectorJob deletes the vector and recompiles when the entry is not published', async () => {
+      const mockDb = seedDb(SEARCH_SEED)
+      const putMock = vi.fn().mockResolvedValue({})
+      const context: JobContext = {
+        repository: { findById: vi.fn().mockResolvedValue({ status: 'draft' }) } as any,
+        bucket: {} as any, clock: {} as any, idGenerator: {} as any,
+        queue: new NoOpQueueService(), env: { DB: mockDb as any, SEARCH_R2: { put: putMock } as any },
+      }
+      await computeVectorJob({ seedSlug: 'articles', entryId: 'art-draft' }, context)
+      expect(mockDb.prepare).toHaveBeenCalledWith('DELETE FROM vector_articles WHERE entry_id = ?')
+      expect(putMock).toHaveBeenCalled()
+    })
+
+    it('computeVectorJob deletes the vector and recompiles when the entry has no indexable text', async () => {
+      const mockDb = seedDb(SEARCH_SEED)
+      const putMock = vi.fn().mockResolvedValue({})
+      const context: JobContext = {
+        repository: { findById: vi.fn().mockResolvedValue({ status: 'published', title: '', body: '' }) } as any,
+        bucket: {} as any, clock: {} as any, idGenerator: {} as any,
+        queue: new NoOpQueueService(), env: { DB: mockDb as any, SEARCH_R2: { put: putMock } as any },
+      }
+      await computeVectorJob({ seedSlug: 'articles', entryId: 'art-empty' }, context)
+      expect(mockDb.prepare).toHaveBeenCalledWith('DELETE FROM vector_articles WHERE entry_id = ?')
+      expect(putMock).toHaveBeenCalled()
+    })
+
+    it('computeVectorJob skips embedding when the AI binding is missing', async () => {
+      const mockDb = seedDb(SEARCH_SEED)
+      const putMock = vi.fn().mockResolvedValue({})
+      const context: JobContext = {
+        repository: { findById: vi.fn().mockResolvedValue({ status: 'published', title: 'Hello', body: 'World' }) } as any,
+        bucket: {} as any, clock: {} as any, idGenerator: {} as any,
+        queue: new NoOpQueueService(), env: { DB: mockDb as any, SEARCH_R2: { put: putMock } as any },
+      }
+      await computeVectorJob({ seedSlug: 'articles', entryId: 'art-1' }, context)
+      expect(putMock).not.toHaveBeenCalled()
+    })
+
+    it('deleteVectorJob skips when the DB binding is missing', async () => {
+      const context: JobContext = {
+        repository: {} as any, bucket: {} as any, clock: {} as any, idGenerator: {} as any,
+        queue: new NoOpQueueService(), env: {},
+      }
+      await expect(deleteVectorJob({ seedSlug: 'articles', entryId: 'art-1' }, context)).resolves.toBeUndefined()
+    })
+
+    it('deleteVectorJob skips when the seed is not found', async () => {
+      const mockDb = seedDb(null)
+      const context: JobContext = {
+        repository: {} as any, bucket: {} as any, clock: {} as any, idGenerator: {} as any,
+        queue: new NoOpQueueService(), env: { DB: mockDb as any },
+      }
+      await expect(deleteVectorJob({ seedSlug: 'articles', entryId: 'art-1' }, context)).resolves.toBeUndefined()
+    })
+
+    it('updateR2ManifestJob skips when the DB binding is missing', async () => {
+      const context: JobContext = {
+        repository: {} as any, bucket: {} as any, clock: {} as any, idGenerator: {} as any,
+        queue: new NoOpQueueService(), env: {},
+      }
+      await expect(updateR2ManifestJob({ seedSlug: 'articles' }, context)).resolves.toBeUndefined()
+    })
+
+    it('updateR2ManifestJob skips when the seed is not found', async () => {
+      const mockDb = seedDb(null)
+      const context: JobContext = {
+        repository: {} as any, bucket: {} as any, clock: {} as any, idGenerator: {} as any,
+        queue: new NoOpQueueService(), env: { DB: mockDb as any },
+      }
+      await expect(updateR2ManifestJob({ seedSlug: 'articles' }, context)).resolves.toBeUndefined()
+    })
   })
 })
