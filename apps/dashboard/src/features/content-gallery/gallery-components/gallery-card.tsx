@@ -6,6 +6,7 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Calendar, Image as ImageIcon, Image as ImageOff } from 'reicon-react'
 
+import { FieldDisplay } from "@/components/fields"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { TagChips } from "@/components/ui/tag-chips"
@@ -69,35 +70,37 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
           </div>
         )}
 
-        {/* Status badges overlaid top-left */}
-        <div
-          className={cn(
-            "absolute left-3 top-3 flex flex-col items-start gap-1.5",
-            model.slotStyles?.status &&
-              getConditionalFormatCellClass(model.slotStyles.status.tone, model.slotStyles.status.textStyles)
-          )}
-        >
-          <Badge
-            variant="outline"
+        {/* Status badges (draft-enabled seeds only) overlaid top-left */}
+        {model.showStatus && (
+          <div
             className={cn(
-              "text-[10px] font-semibold tracking-wide backdrop-blur-sm",
-              statusBadgeClass(model.status),
+              "absolute left-3 top-3 flex flex-col items-start gap-1.5",
+              model.slotStyles?.status &&
+                getConditionalFormatCellClass(model.slotStyles.status.tone, model.slotStyles.status.textStyles)
             )}
           >
-            {model.status}
-          </Badge>
-          {model.hasPendingDraft && (
             <Badge
               variant="outline"
               className={cn(
                 "text-[10px] font-semibold tracking-wide backdrop-blur-sm",
-                pendingDraftBadgeClass,
+                statusBadgeClass(model.status),
               )}
             >
-              {t("content.table.pendingDraft")}
+              {model.status}
             </Badge>
-          )}
-        </div>
+            {model.hasPendingDraft && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[10px] font-semibold tracking-wide backdrop-blur-sm",
+                  pendingDraftBadgeClass,
+                )}
+              >
+                {t("content.table.pendingDraft")}
+              </Badge>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Content area ── */}
@@ -121,6 +124,23 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
           )}>
             {model.excerpt}
           </p>
+        )}
+
+        {/* Campi extra della card personalizzata */}
+        {model.metadata.length > 0 && (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+            {model.metadata.map((item) => (
+              <div key={item.branch.id} className="flex min-w-0 flex-col gap-0.5">
+                <span className="truncate text-[10px] text-muted-foreground">{item.branch.label}</span>
+                <span className={cn(
+                  "truncate text-xs",
+                  item.style && getConditionalFormatCellClass(item.style.tone, item.style.textStyles)
+                )}>
+                  <FieldDisplay branch={item.branch} value={item.value} options={{ maxLength: 24, compact: true }} />
+                </span>
+              </div>
+            ))}
+          </div>
         )}
 
         <div className="mt-auto flex flex-col gap-2 pt-1">

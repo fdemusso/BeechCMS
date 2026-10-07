@@ -5,9 +5,16 @@
 import * as React from "react"
 import { useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { ChevronLeft, FolderAdd, Image as ImageIcon } from 'reicon-react'
+import { FolderAdd, Image as ImageIcon } from 'reicon-react'
 
-import { Button } from "@/components/ui/button"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import {
   Empty,
   EmptyDescription,
@@ -15,20 +22,17 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/small-cta"
+import type { FolderStyle } from "@beechcms/core"
 import type { GalleryCardDisplayModel } from "./gallery-card-display"
 import { GalleryCard } from "./gallery-components/gallery-card"
+import { FolderEditDialog } from "./gallery-components/folder-edit-dialog"
 import { GalleryFolderCard } from "./gallery-components/gallery-folder-card"
 import { formatItemCount } from "./gallery-components/format-item-count"
-import { GalleryNewFolderDialog } from "./gallery-components/gallery-new-folder-dialog"
 import { GallerySkeletonGrid } from "./gallery-components/gallery-skeleton-grid"
 import { useContentGallery } from "./gallery-hooks"
-import { categoryKey } from "./group-by-category"
+import { FOLDER_PARAM, UNCATEGORIZED_PARAM } from "./folder-create-defaults"
 import type { ContentGalleryProps } from "./types"
 
-/** Parametro URL con la cartella aperta: il tasto "indietro" del browser torna alle cartelle. */
-const FOLDER_PARAM = "album"
-/** Valore del parametro per la cartella "Altre foto" (foto senza categoria). */
-const UNCATEGORIZED_PARAM = "__altre"
 
 /**
  * Griglia condivisa da card foto e card cartella, perché occupino esattamente
@@ -64,20 +68,70 @@ function GalleryGrid({
   )
 }
 
+/**
+ * Path bar: breadcrumb sempre visibile sopra le cartelle: nella lista cartelle il seed è la
+ * pagina corrente, dentro una cartella diventa il link per tornare indietro.
+ * A destra il conteggio degli elementi mostrati.
+ */
+function GalleryPathBar({
+  rootLabel,
+  folderLabel,
+  countText,
+  onBack,
+}: {
+  readonly rootLabel: string
+  readonly folderLabel?: string
+  readonly countText: string
+  readonly onBack: () => void
+}) {
+  // pl-7 = px-4 della toolbar + px-3 interno della pillola vista: il testo parte sotto l'icona della prima pillola
+  return (
+    <div data-slot="gallery-path-bar" className="mb-4 flex flex-wrap items-center gap-3 pl-7 pr-4">
+      <Breadcrumb className="min-w-0 flex-1">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            {folderLabel === undefined ? (
+              <BreadcrumbPage className="font-medium">{rootLabel}</BreadcrumbPage>
+            ) : (
+              <BreadcrumbLink asChild>
+                <button type="button" onClick={onBack} className="cursor-pointer">
+                  {rootLabel}
+                </button>
+              </BreadcrumbLink>
+            )}
+          </BreadcrumbItem>
+          {folderLabel !== undefined && (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="font-medium">{folderLabel}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
+        </BreadcrumbList>
+      </Breadcrumb>
+      <span className="text-sm text-muted-foreground">{countText}</span>
+    </div>
+  )
+}
+
 export function ContentGallery({
   seed,
   data,
   isLoading = false,
   onEdit,
-  onCreate,
   groupBy,
   formatElement,
+  card,
+  folders,
+  onFoldersChange,
 }: ContentGalleryProps) {
   const { t } = useTranslation()
-  const { cardModels, categoryGroups, categoryAlias } = useContentGallery(seed, data, groupBy, formatElement)
+  const { cardModels, categoryGroups, categoryAlias } = useContentGallery(seed, data, groupBy, formatElement, card)
   const [searchParams, setSearchParams] = useSearchParams()
-  const [newFolderOpen, setNewFolderOpen] = React.useState(false)
+  const [editingKey, setEditingKey] = React.useState<string | null>(null)
 
+  const rootLabel = seed.labelPlural ?? seed.label
   const folderParam = searchParams.get(FOLDER_PARAM)
   const openGroup = folderParam
     ? categoryGroups.find((group) => (group.key ?? UNCATEGORIZED_PARAM) === folderParam) ?? null
@@ -103,15 +157,16 @@ export function ContentGallery({
     })
   }, [setSearchParams])
 
-  function handleNewFolder(name: string) {
-    setNewFolderOpen(false)
-    const existing = categoryGroups.find((group) => group.key === categoryKey(name))
-    if (existing) {
-      openFolder(existing.key)
-    } else if (onCreate && categoryAlias) {
-      onCreate({ [categoryAlias]: name })
-    }
+  const saveFolderStyle = (key: string, next: FolderStyle) => {
+    const { [key]: _removed, ...rest } = folders ?? {}
+    const merged = Object.keys(next).length > 0 ? { ...rest, [key]: next } : rest
+    onFoldersChange?.(Object.keys(merged).length > 0 ? merged : undefined)
   }
+  const editingGroup = editingKey ? categoryGroups.find((group) => (group.key ?? UNCATEGORIZED_PARAM) === editingKey) : undefined
+
+  const openLabel = openGroup
+    ? folders?.[openGroup.key ?? UNCATEGORIZED_PARAM]?.label || openGroup.label || t("gallery.folders.uncategorized")
+    : ""
 
   if (isLoading) {
     return <GallerySkeletonGrid />
@@ -140,41 +195,22 @@ export function ContentGallery({
   return (
     <>
       {openGroup ? (
-        <section aria-label={openGroup.label ?? t("gallery.folders.uncategorized")}>
-          <div className="mb-5 flex flex-wrap items-center gap-3">
-            <Button variant="outline" size="lg" onClick={closeFolder}>
-              <ChevronLeft className="size-4" />
-              {t("gallery.folders.backToFolders")}
-            </Button>
-            <h3 className="font-heading flex flex-1 items-baseline gap-2 text-xl font-semibold">
-              {openGroup.label ?? t("gallery.folders.uncategorized")}
-              <span className="text-sm font-normal text-muted-foreground">
-                {formatItemCount(t, openGroup.models.length)}
-              </span>
-            </h3>
-            {onCreate && (
-              <Button
-                size="lg"
-                onClick={() => onCreate(openGroup.label ? { [categoryAlias]: openGroup.label } : {})}
-              >
-                <ImageIcon className="size-4" />
-                {t("gallery.folders.addPhotoHere")}
-              </Button>
-            )}
-          </div>
+        <section aria-label={openLabel}>
+          <GalleryPathBar
+            rootLabel={rootLabel}
+            folderLabel={openLabel}
+            countText={formatItemCount(t, openGroup.models.length, seed)}
+            onBack={closeFolder}
+          />
           <GalleryGrid models={openGroup.models} onOpen={onEdit} />
         </section>
       ) : (
         <section aria-label={t("gallery.folders.sectionAriaLabel")}>
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="font-heading text-xl font-semibold">{t("gallery.folders.title")}</h3>
-            {onCreate && (
-              <Button size="lg" onClick={() => setNewFolderOpen(true)}>
-                <FolderAdd className="size-4" />
-                {t("gallery.folders.newFolder")}
-              </Button>
-            )}
-          </div>
+          <GalleryPathBar
+            rootLabel={rootLabel}
+            countText={formatItemCount(t, data.length, seed)}
+            onBack={closeFolder}
+          />
           {categoryGroups.length === 0 ? (
             <Empty className="border">
               <EmptyHeader>
@@ -191,21 +227,27 @@ export function ContentGallery({
             <GalleryGridContainer>
               {categoryGroups.map((group) => (
                 <GalleryFolderCard
+                  seed={seed}
                   key={group.key ?? UNCATEGORIZED_PARAM}
                   group={group}
                   onOpen={openFolder}
+                  style={folders?.[group.key ?? UNCATEGORIZED_PARAM]}
+                  {...(onFoldersChange ? { onEdit: () => setEditingKey(group.key ?? UNCATEGORIZED_PARAM) } : {})}
                 />
               ))}
             </GalleryGridContainer>
           )}
         </section>
       )}
-
-      <GalleryNewFolderDialog
-        open={newFolderOpen}
-        onOpenChange={setNewFolderOpen}
-        onConfirm={handleNewFolder}
-      />
+      {editingGroup && editingKey && (
+        <FolderEditDialog
+          open
+          onClose={() => setEditingKey(null)}
+          defaultLabel={editingGroup.label ?? t("gallery.folders.uncategorized")}
+          style={folders?.[editingKey]}
+          onSave={(next) => saveFolderStyle(editingKey, next)}
+        />
+      )}
     </>
   )
 }

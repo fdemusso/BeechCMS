@@ -8,6 +8,7 @@ import {
   kanbanCardConfigSchema,
   validateLayoutAgainstSeed,
   validateCardConfigAgainstSeed,
+  isImageMediaBranch,
   generateDefaultLayout,
   METADATA_SLOT_CAP,
   type LayoutField,
@@ -87,6 +88,43 @@ describe('validateCardConfigAgainstSeed', () => {
       { id: 'br_09', alias: 'file', type: 'file', label: 'File' },
     ],
   } as any
+
+  describe('mediaImageOnly', () => {
+    const mediaSeed = {
+      ...mockSeed,
+      branches: [
+        ...mockSeed.branches,
+        { id: 'br_10', alias: 'cover', type: 'file', label: 'Cover', fileOptions: { accept: 'image' } },
+        { id: 'br_11', alias: 'photos', type: 'file', label: 'Photos', multiple: true, fileOptions: { accept: 'image' } },
+        { id: 'br_12', alias: 'pdf', type: 'file', label: 'PDF', fileOptions: { accept: 'document' } },
+      ],
+    } as any
+
+    it('keeps a single image file as media', () => {
+      const result = validateCardConfigAgainstSeed(
+        { version: 1, media: { branchId: 'br_10' }, metadata: [] }, mediaSeed, { mediaImageOnly: true },
+      )
+      expect(result.cleaned.media?.branchId).toBe('br_10')
+    })
+
+    it.each(['br_01', 'br_09', 'br_11', 'br_12'])('drops %s as media', (branchId) => {
+      const result = validateCardConfigAgainstSeed(
+        { version: 1, media: { branchId }, metadata: [] }, mediaSeed, { mediaImageOnly: true },
+      )
+      expect(result.cleaned.media).toBeNull()
+    })
+
+    it('does not restrict media without the option (kanban)', () => {
+      const result = validateCardConfigAgainstSeed(
+        { version: 1, media: { branchId: 'br_01' }, metadata: [] }, mediaSeed,
+      )
+      expect(result.cleaned.media?.branchId).toBe('br_01')
+    })
+
+    it('isImageMediaBranch matches only a single image file', () => {
+      expect(mediaSeed.branches.filter(isImageMediaBranch).map((b: any) => b.id)).toEqual(['br_10'])
+    })
+  })
 
   it('strips a branchId absent from seed', () => {
     const result = validateCardConfigAgainstSeed(

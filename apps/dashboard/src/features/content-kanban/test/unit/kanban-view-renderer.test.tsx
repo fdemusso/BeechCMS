@@ -52,6 +52,8 @@ function makeLayout(overrides: Partial<ViewLayout> = {}): ViewLayout {
     setDensity: vi.fn(),
     conditionalFormats: [],
     setConditionalFormats: vi.fn(),
+    folders: undefined,
+    setFolders: vi.fn(),
     kanban: { axisBranchId: null, sort: null },
     setKanban: vi.fn(),
     card: undefined,

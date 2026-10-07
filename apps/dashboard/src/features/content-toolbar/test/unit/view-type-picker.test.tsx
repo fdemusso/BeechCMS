@@ -24,7 +24,7 @@ describe("ViewTypePicker", () => {
 
     for (const label of [
       "Table", "Gallery", "Kanban", "Chart", "Board", "List",
-      "Calendar", "Map", "Timeline", "Feed", "Form", "Dashboard",
+      "Calendar", "Map", "Timeline", "Feed", "Form",
     ]) {
       expect(screen.getByText(label)).toBeInTheDocument()
     }

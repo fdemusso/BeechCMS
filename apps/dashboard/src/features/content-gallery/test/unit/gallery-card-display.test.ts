@@ -48,6 +48,7 @@ const emptyBranches: ResolvedCardFields = {
   dateBranch: null,
   tagsBranch: null,
   categoryBranch: null,
+  metadataBranches: [],
 }
 
 // ---------------------------------------------------------------------------
@@ -139,6 +140,15 @@ describe("buildGalleryCardDisplayModel", () => {
     expect(model.dateText).toBe("")
     expect(model.tags).toEqual([])
     expect(model.ariaLabel).toContain("e1")
+  })
+
+  it("sets showStatus from the argument and suppresses hasPendingDraft when false", () => {
+    const entry = makeEntry({ status: "published", has_pending_draft: true } as Partial<ContentEntry>)
+
+    const model = buildGalleryCardDisplayModel(entry, emptyBranches, t, language, undefined, false)
+
+    expect(model.showStatus).toBe(false)
+    expect(model.hasPendingDraft).toBe(false)
   })
 
   it("imposta statusVariant in base allo status", () => {
@@ -340,5 +350,19 @@ describe("buildGalleryCardDisplayModel", () => {
     expect(model.elementStyle).toBeUndefined()
     expect(model.slotStyles).toBeUndefined()
     expect(NO_ELEMENT_FORMAT.element).toBeNull()
+  })
+})
+
+describe("buildGalleryCardDisplayModel — metadata", () => {
+  it("espone il valore grezzo di ogni branch extra, nell'ordine della config", () => {
+    const author = makeBranch("author")
+    const model = buildGalleryCardDisplayModel(
+      { id: "e1", status: "published", data: { author: "Ada" } } as any,
+      { ...emptyBranches, metadataBranches: [author] },
+      ((key: string) => key) as any,
+      "it"
+    )
+
+    expect(model.metadata).toEqual([{ branch: author, value: "Ada" }])
   })
 })

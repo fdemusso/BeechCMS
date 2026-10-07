@@ -163,6 +163,7 @@
     },
     "widgetRegistry": {
       "unknown": "Unknown widget:",
+      "disabled": "Widget not working in this version",
       "widgets": {
         "stat": {
           "label": "Statistic"
@@ -585,8 +586,7 @@
         "map": "Map",
         "timeline": "Timeline",
         "feed": "Feed",
-        "form": "Form",
-        "dashboard": "Dashboard"
+        "form": "Form"
       },
       "emptyTitle": "No {{label}} views yet",
       "emptyDescription": "Create a view to see this content as a {{label}}.",
@@ -895,20 +895,52 @@
     "openDetailAriaLabel": "Open detail: {{title}}",
     "openDetailAriaLabelFallback": "Open detail for entry {{id}}",
     "folders": {
-      "title": "Your folders",
       "sectionAriaLabel": "Folders",
-      "backToFolders": "Back to folders",
-      "addPhotoHere": "Add photo here",
-      "newFolder": "New folder",
-      "newFolderDescription": "Type the folder name, for example “Wedding”. Then add the first photo.",
-      "namePlaceholder": "Folder name",
-      "createAndAddPhoto": "Create and add photo",
       "emptyTitle": "You don't have any folders yet",
-      "emptyDescription": "Press “New folder” to get started, then add the first photo.",
+      "emptyDescription": "Add the first photo and set its category: folders will appear here.",
       "uncategorized": "Other photos",
-      "itemCount_one": "{{count}} photo",
-      "itemCount_other": "{{count}} photos",
-      "openAriaLabel": "Open folder {{label}}, {{count}}"
+      "itemCount": "{{count}} {{label}}",
+      "openAriaLabel": "Open folder {{label}}, {{count}}",
+      "edit": {
+        "title": "Customize folder",
+        "label": "Name",
+        "description": "Description",
+        "color": "Color",
+        "icon": "Icon",
+        "reset": "Reset",
+        "openAriaLabel": "Edit folder {{label}}",
+        "colors": {
+          "slate": "Slate",
+          "red": "Red",
+          "orange": "Orange",
+          "amber": "Amber",
+          "green": "Green",
+          "teal": "Teal",
+          "blue": "Blue",
+          "violet": "Violet",
+          "pink": "Pink"
+        },
+        "icons": {
+          "Folder": "Folder",
+          "Star": "Star",
+          "Heart": "Heart",
+          "Image": "Image",
+          "Camera": "Camera",
+          "Calendar": "Calendar",
+          "Tag": "Tag",
+          "Bookmark": "Bookmark",
+          "Home": "Home",
+          "Gift": "Gift",
+          "Video": "Video",
+          "Music": "Music",
+          "Book": "Book",
+          "Flag": "Flag",
+          "Briefcase": "Briefcase",
+          "Users": "People",
+          "Sun": "Sun",
+          "Crown": "Crown"
+        }
+      }
     }
   },
   "siteHeader": {

@@ -20,6 +20,7 @@ export function useViewLayoutState(initial: ViewToolbarState, seed: Seed): ViewL
   const [conditionalFormats, setConditionalFormats] = React.useState(initial.conditionalFormats)
   const [kanban, setKanban] = React.useState(initial.kanban ?? { axisBranchId: null, sort: null })
   const [card, setCard] = React.useState(initial.card)
+  const [folders, setFolders] = React.useState(initial.folders)
 
   // Resets precision when grouping moves off a date branch. Also resets on the created_at/updated_at
   // system date columns (they have no branch) — a known quirk, out of scope for this move (SECTION 7).
@@ -47,7 +48,9 @@ export function useViewLayoutState(initial: ViewToolbarState, seed: Seed): ViewL
       setKanban,
       card,
       setCard,
+      folders,
+      setFolders,
     }),
-    [groupBy, dateGroupPrecision, columnVisibility, density, conditionalFormats, kanban, card]
+    [groupBy, dateGroupPrecision, columnVisibility, density, conditionalFormats, kanban, card, folders]
   )
 }

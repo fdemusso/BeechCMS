@@ -4,6 +4,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
+import { useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import type { ContentView, DashboardView, Seed, TransferFormat } from "@beechcms/core"
 import type { ViewEntryActions, ViewEntrySavedInfo } from "@/features/shared"
@@ -11,6 +12,7 @@ import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { ContentToolbar, type UserViewInstance } from "@/features/content-toolbar"
 import { useContentListQuery, useContentListModals, ContentListModals } from "@/features/content-management"
 import { toContentViewConfig, toViewToolbarState, useViewConfigAutosave, useViewLayoutState } from "@/features/content-views"
+import { FOLDER_PARAM, folderCreateDefaults } from "@/features/content-gallery"
 import { downloadExport, readProblem } from "@/features/content-transfer"
 import { compileElementFormatter, type ConditionalFormatRule } from "@/lib/conditional-format"
 import { viewRegistry } from "./view-registry"
@@ -75,12 +77,13 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
           conditionalFormats: layout.conditionalFormats,
           kanban: layout.kanban,
           card: layout.card,
+          folders: layout.folders,
         },
         seed,
         view.type
       ),
     [query.persistableFilters, query.singleSort, query.pageSize, layout.groupBy, layout.dateGroupPrecision,
-     layout.columnVisibility, layout.density, layout.conditionalFormats, layout.kanban, layout.card, seed, view.type]
+     layout.columnVisibility, layout.density, layout.conditionalFormats, layout.kanban, layout.card, layout.folders, seed, view.type]
   )
   const { isSaving } = useViewConfigAutosave({ slug, viewId: view.id, config, enabled: canManageViews })
 
@@ -98,6 +101,15 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
   )
 
   const definition = viewRegistry.get(view.type)
+
+  // Gallery con cartella aperta: "Nuovo" precompila il campo "Raggruppa per" con il valore della cartella.
+  const [searchParams] = useSearchParams()
+  const folderParam = searchParams.get(FOLDER_PARAM)
+  const handleToolbarCreate = React.useCallback(() => {
+    const defaults =
+      view.type === "gallery" ? folderCreateDefaults(seed, query.data, layout.groupBy, folderParam) : undefined
+    modals.handleCreate(defaults)
+  }, [view.type, seed, query.data, layout.groupBy, folderParam, modals.handleCreate])
   const [configDialogOpen, setConfigDialogOpen] = React.useState(false)
 
   const savedListenersRef = React.useRef(new Set<(info: ViewEntrySavedInfo) => void>())
@@ -146,7 +158,7 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
         onDeleteView={onDeleteView}
         canDeleteView={canDeleteView}
         onConditionalFormatsChange={handleConditionalFormatsChange}
-        onCreate={modals.handleCreate}
+        onCreate={handleToolbarCreate}
         searchValue={query.tableSearch}
         onSearchChange={query.setTableSearch}
         sortState={{
@@ -171,6 +183,7 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
         density={layout.density}
         onDensityChange={layout.setDensity}
         renderSettingsSection={renderSettingsSection}
+        onOpenCardConfig={() => setConfigDialogOpen(true)}
         onExport={handleExport}
         onOpenImport={() => modals.setImportWizardOpen(true)}
         isExportPending={isExportPending}

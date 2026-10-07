@@ -3,7 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 import { scan } from 'react-scan'
-if (typeof window !== 'undefined') {
+// Instruments every render, so it is itself a load-time cost. Dev only, and
+// opt-out with VITE_REACT_SCAN=off when profiling the app's own performance.
+if (typeof window !== 'undefined' && import.meta.env.DEV && import.meta.env.VITE_REACT_SCAN !== 'off') {
   scan({
     enabled: true,
     log: true, // Registra anche i log in console

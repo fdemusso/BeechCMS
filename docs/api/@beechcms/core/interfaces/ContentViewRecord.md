@@ -38,7 +38,7 @@ Storage shape: `type` is unchecked text until projectContentView narrows it.
 
 > `optional` **card?**: `object`
 
-Kanban-only card layout. Dropped from any non-kanban instance.
+Card layout (Kanban and Gallery). Dropped from any other instance.
 
 ##### card.header?
 
@@ -75,6 +75,12 @@ Full-width secondary line. Max 1.
 #### filters
 
 > **filters**: `object`[]
+
+#### folders?
+
+> `optional` **folders?**: `Record`&lt;`string`, \{ `color?`: `"slate"` \| `"red"` \| `"orange"` \| `"amber"` \| `"green"` \| `"teal"` \| `"blue"` \| `"violet"` \| `"pink"`; `description?`: `string`; `icon?`: `"Folder"` \| `"Star"` \| `"Heart"` \| `"Image"` \| `"Camera"` \| `"Calendar"` \| `"Tag"` \| `"Bookmark"` \| `"Home"` \| `"Gift"` \| `"Video"` \| `"Music"` \| `"Book"` \| `"Flag"` \| `"Briefcase"` \| `"Users"` \| `"Sun"` \| `"Crown"`; `label?`: `string`; \}&gt;
+
+Gallery-only. Style per folder, keyed by the normalized group value. Dropped from any other instance.
 
 #### groupBy
 

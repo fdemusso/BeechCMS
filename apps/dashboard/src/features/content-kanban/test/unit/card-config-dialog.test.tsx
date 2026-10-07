@@ -75,4 +75,35 @@ describe('CardConfigDialog', () => {
     const [arg] = onSave.mock.calls[0]
     expect(arg).toMatchObject({ version: 1, metadata: expect.any(Array) })
   })
+
+  it('preloads defaultConfig when no card is saved', () => {
+    const onSave = vi.fn()
+    render(
+      <CardConfigDialog
+        open onClose={vi.fn()} seed={seed} config={undefined} onSave={onSave}
+        defaultConfig={{ version: 1, header: { branchId: 'br_01' }, media: { branchId: 'br_02' }, metadata: [{ branchId: 'br_03' }] }}
+      />,
+    )
+    fireEvent.click(screen.getByText('Save'))
+    expect(onSave).toHaveBeenCalledWith({
+      version: 1,
+      media: { branchId: 'br_02' },
+      header: { branchId: 'br_01' },
+      subtitle: undefined,
+      metadata: [{ branchId: 'br_03' }],
+    })
+  })
+
+  it('a saved config wins over defaultConfig', () => {
+    const onSave = vi.fn()
+    render(
+      <CardConfigDialog
+        open onClose={vi.fn()} seed={seed} onSave={onSave}
+        config={{ version: 1, header: { branchId: 'br_03' }, metadata: [] }}
+        defaultConfig={{ version: 1, header: { branchId: 'br_01' }, metadata: [] }}
+      />,
+    )
+    fireEvent.click(screen.getByText('Save'))
+    expect(onSave.mock.calls[0][0].header).toEqual({ branchId: 'br_03' })
+  })
 })

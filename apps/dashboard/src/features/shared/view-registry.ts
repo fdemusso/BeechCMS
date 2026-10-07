@@ -4,7 +4,7 @@
 
 import type { ComponentType, Dispatch, SetStateAction, SyntheticEvent } from 'react'
 import type { ColumnFiltersState, RowSelectionState, SortingState, VisibilityState } from '@tanstack/react-table'
-import type { DashboardView, KanbanCardConfig, KanbanViewConfig, Seed } from '@beechcms/core'
+import type { DashboardView, FolderStyle, KanbanCardConfig, KanbanViewConfig, Seed } from '@beechcms/core'
 import type { ContentEntry, DateGroupPrecision } from '@/lib/dynamic-columns'
 import type { TableDensity } from '@/lib/density'
 import type { ConditionalFormatRule, ElementFormatter } from '@/lib/conditional-format'
@@ -19,7 +19,7 @@ export type ToolbarTool =
   | 'transfer'
 
 /** Universal settings-menu blocks a View Type opts into (name, filter, sort and delete are always there). */
-export type ViewSetting = 'groupBy' | 'conditionalFormats' | 'columns' | 'pageSize' | 'density'
+export type ViewSetting = 'groupBy' | 'conditionalFormats' | 'cardLayout' | 'columns' | 'pageSize' | 'density'
 
 /** Live list query shared by every View Type. Field names match useContentListQuery's return value. */
 export interface ViewQueryState {
@@ -57,6 +57,8 @@ export interface ViewLayout {
   readonly setKanban: Dispatch<SetStateAction<KanbanViewConfig>>
   readonly card: KanbanCardConfig | undefined
   readonly setCard: Dispatch<SetStateAction<KanbanCardConfig | undefined>>
+  readonly folders: Record<string, FolderStyle> | undefined
+  readonly setFolders: Dispatch<SetStateAction<Record<string, FolderStyle> | undefined>>
 }
 
 /** Emitted after a successful entry-editor save (same shape as EntryEditorDialog's onSaved). */
@@ -128,7 +130,7 @@ export interface IViewRegistry {
  * identifiers with no runtime behaviour; the API keeps rejecting them (DashboardView is unchanged).
  */
 export const RESERVED_VIEW_TYPES = [
-  'chart', 'board', 'list', 'calendar', 'map', 'timeline', 'feed', 'form', 'dashboard',
+  'chart', 'board', 'list', 'calendar', 'map', 'timeline', 'feed', 'form',
 ] as const
 export type ReservedViewType = (typeof RESERVED_VIEW_TYPES)[number]
 /** Every View Type the picker knows about: implemented (DashboardView) or reserved. */

@@ -9,3 +9,4 @@
 export { ContentGallery } from "./content-gallery"
 export type { ContentGalleryProps } from "./types"
 export { GalleryViewRenderer, GALLERY_VIEW_DEFINITION } from "./gallery-view-renderer"
+export { FOLDER_PARAM, folderCreateDefaults } from "./folder-create-defaults"

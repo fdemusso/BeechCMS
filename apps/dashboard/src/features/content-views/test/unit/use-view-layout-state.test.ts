@@ -24,6 +24,7 @@ function baseState(overrides: Partial<ViewToolbarState> = {}): ViewToolbarState 
     conditionalFormats: [],
     kanban: undefined,
     card: undefined,
+    folders: undefined,
     ...overrides,
   }
 }

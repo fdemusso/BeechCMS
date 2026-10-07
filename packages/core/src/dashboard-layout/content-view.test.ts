@@ -187,6 +187,44 @@ describe('validateViewConfigAgainstSeed', () => {
     expect(result.card).toBeUndefined()
   })
 
+  it('keeps the card layout but omits the kanban sub-config on a gallery instance', () => {
+    const config: ContentViewConfig = {
+      ...emptyConfig(),
+      kanban: { axisBranchId: 'br_03', sort: null },
+      card: { version: 1, media: null, header: null, subtitle: null, metadata: [] },
+    }
+
+    const result = validateViewConfigAgainstSeed(config, ARTICLES, 'gallery')
+
+    expect(result.kanban).toBeUndefined()
+    expect(result.card).toEqual({ version: 1, media: null, header: null, subtitle: null, metadata: [] })
+  })
+
+  it('keeps folder styles on a gallery instance and drops empty ones', () => {
+    const config: ContentViewConfig = {
+      ...emptyConfig(),
+      folders: { wedding: { color: 'red', icon: 'Heart', label: 'Weddings' }, empty: { label: '' } },
+    }
+
+    const result = validateViewConfigAgainstSeed(config, ARTICLES, 'gallery')
+
+    expect(result.folders).toEqual({ wedding: { color: 'red', icon: 'Heart', label: 'Weddings' } })
+  })
+
+  it('omits folder styles on a non-gallery instance', () => {
+    const config: ContentViewConfig = { ...emptyConfig(), folders: { wedding: { color: 'red' } } }
+
+    const result = validateViewConfigAgainstSeed(config, ARTICLES, 'table')
+
+    expect(result.folders).toBeUndefined()
+  })
+
+  it('rejects a folder style with an unknown color', () => {
+    const result = contentViewConfigSchema.safeParse({ folders: { wedding: { color: 'chartreuse' } } })
+
+    expect(result.success).toBe(false)
+  })
+
   it('resets a kanban axis that is not an axis candidate', () => {
     const config: ContentViewConfig = {
       ...emptyConfig(),

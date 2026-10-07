@@ -163,6 +163,7 @@
     },
     "widgetRegistry": {
       "unknown": "Widget sconosciuto:",
+      "disabled": "Widget non funzionante in questa versione",
       "widgets": {
         "stat": {
           "label": "Statistica"
@@ -585,8 +586,7 @@
         "map": "Mappa",
         "timeline": "Timeline",
         "feed": "Feed",
-        "form": "Modulo",
-        "dashboard": "Dashboard"
+        "form": "Modulo"
       },
       "emptyTitle": "Nessuna vista {{label}}",
       "emptyDescription": "Crea una vista per vedere questo contenuto come {{label}}.",
@@ -895,20 +895,52 @@
     "openDetailAriaLabel": "Apri dettaglio: {{title}}",
     "openDetailAriaLabelFallback": "Apri dettaglio entry {{id}}",
     "folders": {
-      "title": "Le tue cartelle",
       "sectionAriaLabel": "Cartelle",
-      "backToFolders": "Torna alle cartelle",
-      "addPhotoHere": "Aggiungi foto qui",
-      "newFolder": "Nuova cartella",
-      "newFolderDescription": "Scrivi il nome della cartella, per esempio “Matrimonio”. Poi aggiungi la prima foto.",
-      "namePlaceholder": "Nome della cartella",
-      "createAndAddPhoto": "Crea e aggiungi foto",
       "emptyTitle": "Non hai ancora nessuna cartella",
-      "emptyDescription": "Premi “Nuova cartella” per iniziare, poi aggiungi la prima foto.",
+      "emptyDescription": "Aggiungi la prima foto e imposta la sua categoria: le cartelle appariranno qui.",
       "uncategorized": "Altre foto",
-      "itemCount_one": "{{count}} foto",
-      "itemCount_other": "{{count}} foto",
-      "openAriaLabel": "Apri cartella {{label}}, {{count}}"
+      "itemCount": "{{count}} {{label}}",
+      "openAriaLabel": "Apri cartella {{label}}, {{count}}",
+      "edit": {
+        "title": "Personalizza cartella",
+        "label": "Nome",
+        "description": "Descrizione",
+        "color": "Colore",
+        "icon": "Icona",
+        "reset": "Ripristina",
+        "openAriaLabel": "Modifica cartella {{label}}",
+        "colors": {
+          "slate": "Grigio",
+          "red": "Rosso",
+          "orange": "Arancione",
+          "amber": "Ambra",
+          "green": "Verde",
+          "teal": "Turchese",
+          "blue": "Blu",
+          "violet": "Viola",
+          "pink": "Rosa"
+        },
+        "icons": {
+          "Folder": "Cartella",
+          "Star": "Stella",
+          "Heart": "Cuore",
+          "Image": "Immagine",
+          "Camera": "Fotocamera",
+          "Calendar": "Calendario",
+          "Tag": "Tag",
+          "Bookmark": "Segnalibro",
+          "Home": "Casa",
+          "Gift": "Regalo",
+          "Video": "Video",
+          "Music": "Musica",
+          "Book": "Libro",
+          "Flag": "Bandiera",
+          "Briefcase": "Valigetta",
+          "Users": "Persone",
+          "Sun": "Sole",
+          "Crown": "Corona"
+        }
+      }
     }
   },
   "siteHeader": {

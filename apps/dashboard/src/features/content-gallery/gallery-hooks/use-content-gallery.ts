@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import type { Seed } from "@beechcms/core"
+import type { KanbanCardConfig, Seed } from "@beechcms/core"
 
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { NO_ELEMENT_FORMATTER, type ElementFormatter } from "@/lib/conditional-format"
@@ -31,15 +31,16 @@ export function useContentGallery(
   seed: Seed,
   data: ContentEntry[],
   groupBy: string | null,
-  formatElement: ElementFormatter = NO_ELEMENT_FORMATTER
+  formatElement: ElementFormatter = NO_ELEMENT_FORMATTER,
+  card?: KanbanCardConfig
 ): UseContentGalleryResult {
   const { t, i18n } = useTranslation()
 
-  const cardFields = React.useMemo(() => resolveCardFields(seed, groupBy), [seed, groupBy])
+  const cardFields = React.useMemo(() => resolveCardFields(seed, groupBy, card), [seed, groupBy, card])
 
   const cardModels = React.useMemo(
-    () => data.map((entry) => buildGalleryCardDisplayModel(entry, cardFields, t, i18n.language, formatElement(entry))),
-    [data, cardFields, t, i18n.language, formatElement]
+    () => data.map((entry) => buildGalleryCardDisplayModel(entry, cardFields, t, i18n.language, formatElement(entry), !!seed.allowDrafts)),
+    [data, cardFields, t, i18n.language, formatElement, seed.allowDrafts]
   )
 
   const categoryAlias = cardFields.categoryBranch?.alias ?? null
