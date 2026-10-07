@@ -166,6 +166,47 @@ describe('OAuth connected-apps handlers', () => {
       expect(await listRes.json()).toEqual([])
     })
 
+    it('invalidates an authorization code issued but not yet redeemed', async () => {
+      const adminToken = await login(TEST_USERS[0].email)
+      const codeChallenge = await deriveCodeChallenge(CODE_VERIFIER)
+      const consentRes = await app.request('/oauth/authorize/consent', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          response_type: 'code',
+          client_id: CLIENT_ID,
+          redirect_uri: REDIRECT_URI,
+          scope: 'schema:read',
+          state: 'state123',
+          code_challenge: codeChallenge,
+          code_challenge_method: 'S256',
+          approved: true,
+        }),
+      }, { ...TEST_ENV, DB: db })
+      const { redirectTo } = await consentRes.json<{ redirectTo: string }>()
+      const code = new URL(redirectTo).searchParams.get('code')!
+
+      const revokeRes = await app.request(`/oauth/consents/${CLIENT_ID}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      }, { ...TEST_ENV, DB: db })
+      expect(revokeRes.status).toBe(200)
+
+      const tokenRes = await app.request('/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, client_id: CLIENT_ID, code_verifier: CODE_VERIFIER,
+        }).toString(),
+      }, { ...TEST_ENV, DB: db })
+      expect(tokenRes.status).toBe(400)
+      const body = await tokenRes.json<{ error: string }>()
+      expect(body.error).toBe('invalid_grant')
+
+      const remaining = await db.prepare('SELECT COUNT(*) AS n FROM oauth_authorization_codes WHERE client_id = ?').bind(CLIENT_ID).first<{ n: number }>()
+      expect(remaining?.n).toBe(0)
+    })
+
     it('returns 404 for a client the user never authorized', async () => {
       const adminToken = await login(TEST_USERS[0].email)
       const res = await app.request(`/oauth/consents/${CLIENT_ID}`, {

@@ -47,14 +47,41 @@ describe('D1OAuthAuthorizationCodeRepository', () => {
         consumed_at: NOW,
       }
       const { db } = makeMockDb({ firstResult: row })
-      const record = await new D1OAuthAuthorizationCodeRepository(db, clock).findByHash('code-hash', NOW)
+      const record = await new D1OAuthAuthorizationCodeRepository(db, clock).findByHash('code-hash')
       expect(record?.consumedAt).toBe(NOW)
     })
 
-    it('returns null for an expired code', async () => {
+    it('still returns a consumed row past its own expiresAt, so replay stays detectable after the TTL', async () => {
+      const row = {
+        code_hash: 'code-hash',
+        client_id: 'beech-mcp-cli',
+        user_id: 'u1',
+        scope: 'schema:read',
+        redirect_uri: 'http://127.0.0.1/callback',
+        code_challenge: 'challenge',
+        code_challenge_method: 'S256',
+        expires_at: PAST,
+        created_at: PAST,
+        consumed_at: PAST,
+      }
+      const { db } = makeMockDb({ firstResult: row })
+      const record = await new D1OAuthAuthorizationCodeRepository(db, clock).findByHash('code-hash')
+      expect(record?.consumedAt).toBe(PAST)
+      expect(record?.expiresAt).toBe(PAST)
+    })
+
+    it('returns null for an unknown hash', async () => {
       const { db } = makeMockDb({ firstResult: null })
-      const record = await new D1OAuthAuthorizationCodeRepository(db, clock).findByHash('expired-hash', PAST)
+      const record = await new D1OAuthAuthorizationCodeRepository(db, clock).findByHash('unknown-hash')
       expect(record).toBeNull()
+    })
+  })
+
+  describe('invalidateByClientAndUser', () => {
+    it('reports the number of unconsumed codes deleted for the pair', async () => {
+      const { db } = makeMockDb({ runChanges: 2 })
+      const count = await new D1OAuthAuthorizationCodeRepository(db, clock).invalidateByClientAndUser('beech-mcp-cli', 'u1')
+      expect(count).toBe(2)
     })
   })
 })
