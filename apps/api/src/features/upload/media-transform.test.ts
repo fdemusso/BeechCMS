@@ -238,6 +238,37 @@ describe('serveMediaHandler — transform path', () => {
     expect(transformer.specs).toHaveLength(0)
   })
 
+  it('lowering MEDIA_MAX_DIMENSION invalidates a scale variant ETag instead of answering 304', async () => {
+    transformer.probeResult = { width: 1000, height: 6000 }
+    const first = await request(`/api/media/${PHOTO_KEY}?preset=w-640`)
+    expect(first.status).toBe(200)
+    const etag = first.headers.get('ETag')!
+    transformer.specs = []
+
+    const response = await request(`/api/media/${PHOTO_KEY}?preset=w-640`, { MEDIA_MAX_DIMENSION: '2048' }, { 'If-None-Match': etag })
+
+    expect(response.status).toBe(400)
+    const body = await response.json<{ error: string }>()
+    expect(body.error).toBe('media_dimension_exceeded')
+    expect(transformer.specs).toHaveLength(0)
+  })
+
+  it('a scale variant ETag differs per effective MEDIA_MAX_DIMENSION', async () => {
+    const lenient = await request(`/api/media/${PHOTO_KEY}?preset=w-640`)
+
+    const strict = await request(`/api/media/${PHOTO_KEY}?preset=w-640`, { MEDIA_MAX_DIMENSION: '4096' })
+
+    expect(strict.headers.get('ETag')).not.toBe(lenient.headers.get('ETag'))
+  })
+
+  it('a crop variant ETag ignores MEDIA_MAX_DIMENSION', async () => {
+    const first = await request(`/api/media/${PHOTO_KEY}?preset=card`)
+
+    const second = await request(`/api/media/${PHOTO_KEY}?preset=card`, { MEDIA_MAX_DIMENSION: '4096' })
+
+    expect(second.headers.get('ETag')).toBe(first.headers.get('ETag'))
+  })
+
   it('a scale preset is transformed with fit=scale-down and no height', async () => {
     const response = await request(`/api/media/${PHOTO_KEY}?preset=w-640`)
 
@@ -354,6 +385,19 @@ describe('serveMediaHandler — transform path', () => {
 
       expect(response.status).toBe(200)
       expect(cache.matchCalls).toHaveLength(1)
+      expect(transformer.specs).toHaveLength(0)
+    })
+
+    it('lowering MEDIA_MAX_DIMENSION does not serve a warmed scale variant from the edge cache', async () => {
+      transformer.probeResult = { width: 1000, height: 6000 }
+      const warm = await cachedRequest(`/api/media/${PHOTO_KEY}?preset=w-640`)
+      expect(warm.status).toBe(200)
+      await flush()
+      transformer.specs = []
+
+      const response = await app.request(`/api/media/${PHOTO_KEY}?preset=w-640`, {}, { MEDIA_MAX_DIMENSION: '2048' }, executionCtx())
+
+      expect(response.status).toBe(400)
       expect(transformer.specs).toHaveLength(0)
     })
 
