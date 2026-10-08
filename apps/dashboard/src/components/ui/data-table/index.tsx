@@ -4,6 +4,7 @@
 
 import * as React from "react"
 import { useDataTableState } from "./hooks/use-data-table-state"
+import { useDataTableSelection } from "./hooks/use-data-table-selection"
 import { DataTableBody } from "./components/data-table-body"
 import { DataTablePagination } from "./components/data-table-pagination"
 import type { DataTableProps } from "./types"
@@ -16,15 +17,24 @@ function DataTableInner<TData, TValue>(
 ) {
   const { table, isGroupingActive, rowHeight, cellPadding } = useDataTableState(props)
 
+  const selectionEnabled = props.rowSelection !== undefined || !!props.onRowSelectionChange
+  const selection = useDataTableSelection(table, selectionEnabled)
+
   return (
     <div className="flex h-full w-full flex-col">
-      <div className="min-h-0 flex-1 rounded-md border">
+      <div
+        className="group/dt min-h-0 flex-1 rounded-md border outline-none"
+        data-datatable-root=""
+        tabIndex={selectionEnabled ? 0 : undefined}
+        onKeyDown={selection.handleKeyDown}
+      >
         <DataTableBody
           table={table}
           isGroupingActive={isGroupingActive}
           rowHeight={rowHeight}
           cellPadding={cellPadding}
           props={props}
+          selection={selection}
         />
       </div>
 

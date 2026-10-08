@@ -11,6 +11,7 @@ import {
   ContextMenuContent,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
+import type { DataTableSelection } from "../hooks/use-data-table-selection"
 import type { DataTableProps } from "../types"
 import { CELL_CLICK_DELAY_MS } from "../types"
 
@@ -19,6 +20,7 @@ export interface DataTableRowProps<TData, TValue> {
   rowHeight: number
   cellPadding: string
   props: Readonly<DataTableProps<TData, TValue>>
+  selection: DataTableSelection
 }
 
 function DataTableRowInner<TData, TValue>({
@@ -26,6 +28,7 @@ function DataTableRowInner<TData, TValue>({
   rowHeight,
   cellPadding,
   props,
+  selection,
 }: DataTableRowProps<TData, TValue>) {
   const {
     getRowStyles,
@@ -62,12 +65,21 @@ function DataTableRowInner<TData, TValue>({
     <TableRow
       key={row.id}
       data-state={row.getIsSelected() && "selected"}
+      data-row-id={row.id}
+      data-focused={selection.focusedRowId === row.id || undefined}
       className={cn(
-        "transition-colors",
+        "transition-colors group-focus-within/dt:data-[focused]:outline group-focus-within/dt:data-[focused]:-outline-offset-2 group-focus-within/dt:data-[focused]:outline-1 group-focus-within/dt:data-[focused]:outline-ring",
         onRowDoubleClick && "cursor-pointer select-none",
         rowStyles?.rowClassName ?? getRowClassName?.(row.original)
       )}
       style={{ height: rowHeight }}
+      onMouseDown={selection.handleRowMouseDown}
+      onClickCapture={(e) => {
+        if (selection.handleRowClickCapture(row.id, e) && cellClickTimerRef.current) {
+          window.clearTimeout(cellClickTimerRef.current)
+        }
+      }}
+      onClick={(e) => selection.handleRowClick(row.id, e)}
       onDoubleClick={() => {
         if (cellClickTimerRef.current) window.clearTimeout(cellClickTimerRef.current)
         onRowDoubleClick?.(row.original)
@@ -85,6 +97,8 @@ function DataTableRowInner<TData, TValue>({
 
         const handleCellClick = (e: React.MouseEvent<HTMLTableCellElement>) => {
           if (!canActivateCell) return
+          // Selected rows are being worked on: a single click must not trigger click-to-filter.
+          if (row.getIsSelected()) return
           if ((e.target as HTMLElement).closest("button, a, input, [role='button'], [data-no-cell-filter]")) return
           if (cellClickTimerRef.current) window.clearTimeout(cellClickTimerRef.current)
           cellClickTimerRef.current = window.setTimeout(() => {

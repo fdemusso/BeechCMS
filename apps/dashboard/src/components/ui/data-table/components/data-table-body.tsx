@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableRow, TableHeader } from "@/components
 import { DataTableHeader } from "./data-table-header"
 import { DataTableGroupRow } from "./data-table-group-row"
 import { DataTableRow } from "./data-table-row"
+import type { DataTableSelection } from "../hooks/use-data-table-selection"
 import type { DataTableProps } from "../types"
 import { VIRTUAL_CONTAINER_HEIGHT } from "../types"
 
@@ -19,6 +20,7 @@ export interface DataTableBodyProps<TData, TValue> {
   rowHeight: number
   cellPadding: string
   props: Readonly<DataTableProps<TData, TValue>>
+  selection: DataTableSelection
 }
 
 export function DataTableBody<TData, TValue>({
@@ -27,6 +29,7 @@ export function DataTableBody<TData, TValue>({
   rowHeight,
   cellPadding,
   props,
+  selection,
 }: DataTableBodyProps<TData, TValue>) {
   const scrollContainerRef = React.useRef<HTMLDivElement>(null)
   const flatRows = table.getRowModel().rows
@@ -54,6 +57,7 @@ export function DataTableBody<TData, TValue>({
         rowHeight={rowHeight}
         cellPadding={cellPadding}
         props={props}
+        selection={selection}
       />
     )
   }
