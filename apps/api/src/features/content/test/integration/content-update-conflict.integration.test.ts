@@ -88,6 +88,23 @@ describe('content slice — update conflict integration (real D1)', () => {
     expect(liveBody.data.title).toBe('Fresh write')
   })
 
+  it.each([
+    ['a null body updated_at', { updated_at: null }, {}],
+    ['an empty-string body updated_at', { updated_at: '' }, {}],
+    ['an empty If-Match header', {}, { 'If-Match': '' }],
+    ['a wildcard If-Match header', {}, { 'If-Match': '*' }],
+  ])('a PUT with %s requests no guard and applies unconditionally', async (_label, extraBody, headers) => {
+    const created = await admin.post('/api/content/posts', { title: 'Original', slug: `occ-empty-${_label.replace(/\W+/g, '-')}` })
+    const { id } = await created.json<{ id: string }>()
+
+    const response = await admin.put(`/api/content/posts/${id}`, { title: 'Unguarded write', ...extraBody }, { headers })
+
+    expect(response.status).toBe(200)
+    const live = await admin.get(`/api/content/posts/${id}`)
+    const liveBody = await live.json<{ data: { title: string } }>()
+    expect(liveBody.data.title).toBe('Unguarded write')
+  })
+
   it('a PUT with no If-Match and no body updated_at applies unconditionally, unchanged from before OCC', async () => {
     const created = await admin.post('/api/content/posts', { title: 'Original', slug: 'occ-no-guard' })
     const { id } = await created.json<{ id: string }>()

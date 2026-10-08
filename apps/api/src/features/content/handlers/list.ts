@@ -4,7 +4,7 @@
 
 import { Context } from 'hono'
 import { parsePositiveInt, parseQueryFilters, cleanStr, toEngineFilters } from '../../../shared/utils/query-utils'
-import { toEntryEnvelope } from '../../../shared/policies/apply-policies'
+import { applyVisibility, toEntryEnvelope } from '../../../shared/policies/apply-policies'
 import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
@@ -26,6 +26,7 @@ async function buildRelationsMap(
   seed: Seed,
   entries: Record<string, unknown>[],
   localeConfig: LocaleConfig | undefined,
+  actor: ActorContext,
 ): Promise<Record<string, Record<string, string>>> {
   const relationBranches = seed.branches.filter(
     (b: { type: string }) => b.type === 'relation'
@@ -51,17 +52,14 @@ async function buildRelationsMap(
 
     const labelAlias = targetSeedDef.displayNameAlias ?? 'title'
 
-    // Collect unique non-null ids referenced by this branch
+    // Collect unique non-empty ids referenced by this branch (scalar or multi-relation array)
     const ids = Array.from(
       new Set(
-        entries
-          .map((entry) => {
-            const data = entry.data as Record<string, unknown>
-            return typeof data[branch.alias] === 'string' && data[branch.alias]
-              ? (data[branch.alias] as string)
-              : null
-          })
-          .filter((id): id is string => id !== null)
+        entries.flatMap((entry) => {
+          const value = (entry.data as Record<string, unknown>)[branch.alias]
+          const values = Array.isArray(value) ? value : [value]
+          return values.filter((id): id is string => typeof id === 'string' && id !== '')
+        })
       )
     )
 
@@ -84,13 +82,16 @@ async function buildRelationsMap(
       for (const item of items) {
         const row = item as Record<string, unknown>
         const id = row.id as string
-        const label = resolveDisplayName(targetSeedDef, row[labelAlias], labelConfig)
+        // The label obeys the target's visibility policy: a concealed field falls back to the id.
+        const visible = applyVisibility(row, targetSeedDef, actor)
+        const label = resolveDisplayName(targetSeedDef, visible[labelAlias], labelConfig)
         map[id] = label != null && label !== '' ? String(label) : id
       }
 
       relations[branch.alias] = map
-    } catch {
-      // Non-fatal: if the target seed table doesn't exist yet, skip
+    } catch (error) {
+      // Non-fatal only when the target seed table doesn't exist yet; real DB errors surface as 500.
+      if (!(error instanceof Error && /no such table/i.test(error.message))) throw error
     }
   }
 
@@ -216,7 +217,7 @@ export async function listHandler(context: Context<AppEnv>) {
     }
 
     // Build compact relation labels map for N+1 mitigation
-    const relations = await buildRelationsMap(context, seed, entries, localeConfig)
+    const relations = await buildRelationsMap(context, seed, entries, localeConfig, actor)
 
     return context.json({ items: entries, total, page, limit, relations })
   } catch (error) {
