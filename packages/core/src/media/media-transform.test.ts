@@ -130,7 +130,7 @@ describe('buildMediaPresetCatalog', () => {
     )
 
     expect(catalog.get('banner')).toEqual({ kind: 'crop', width: 1600, height: 400 })
-    expect(catalog.get('card')).toEqual({ kind: 'crop', width: 600, height: 400 })
+    expect(catalog.get('card')).toEqual({ kind: 'crop', width: 600, height: 400 }, 5120)
     expect(catalog.has('hero')).toBe(false)
   })
 
@@ -232,8 +232,8 @@ describe('computeMediaVariantEtag', () => {
   const preset = { kind: 'crop' as const, width: 400, height: 300 }
 
   it('is identical for identical inputs', async () => {
-    const first = await computeMediaVariantEtag(source, request, preset)
-    const second = await computeMediaVariantEtag(source, request, preset)
+    const first = await computeMediaVariantEtag(source, request, preset, 5120)
+    const second = await computeMediaVariantEtag(source, request, preset, 5120)
 
     expect(first).toBe(second)
     expect(first).toMatch(/^"mv1-[0-9a-f]{32}"$/)
@@ -241,15 +241,27 @@ describe('computeMediaVariantEtag', () => {
 
   it('changes when the preset definition changes under the same name', async () => {
     // Guards VETO correction 3: redefining a preset must not serve a stale variant under the old ETag.
-    const original = await computeMediaVariantEtag(source, request, preset)
-    const redefined = await computeMediaVariantEtag(source, request, { kind: 'crop', width: 600, height: 400 })
+    const original = await computeMediaVariantEtag(source, request, preset, 5120)
+    const redefined = await computeMediaVariantEtag(source, request, { kind: 'crop', width: 600, height: 400 }, 5120)
 
     expect(redefined).not.toBe(original)
   })
 
+  it('changes with the dimension ceiling for a scale preset only', async () => {
+    const scale = { kind: 'scale' as const, width: 640 }
+
+    const scaleDefault = await computeMediaVariantEtag(source, request, scale, 5120)
+    const scaleLowered = await computeMediaVariantEtag(source, request, scale, 2048)
+    const cropDefault = await computeMediaVariantEtag(source, request, preset, 5120)
+    const cropLowered = await computeMediaVariantEtag(source, request, preset, 2048)
+
+    expect(scaleLowered).not.toBe(scaleDefault)
+    expect(cropLowered).toBe(cropDefault)
+  })
+
   it('changes when the source size changes', async () => {
-    const original = await computeMediaVariantEtag(source, request, preset)
-    const resized = await computeMediaVariantEtag({ ...source, size: 2048 }, request, preset)
+    const original = await computeMediaVariantEtag(source, request, preset, 5120)
+    const resized = await computeMediaVariantEtag({ ...source, size: 2048 }, request, preset, 5120)
 
     expect(resized).not.toBe(original)
   })

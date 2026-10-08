@@ -10,6 +10,7 @@ import {
   validateCardConfigAgainstSeed,
   isImageMediaBranch,
   generateDefaultLayout,
+  formLayoutSchema,
   reconcileLayoutWithSeed,
   METADATA_SLOT_CAP,
   type LayoutField,
@@ -543,6 +544,44 @@ describe('generateDefaultLayout', () => {
   })
 })
 
+
+describe('formLayoutSchema bounds', () => {
+  const section = (id: string) => ({ id, columns: [{ id: `${id}-c`, fields: [] }] })
+  const layoutWith = (sections: unknown[], tabId = 'tab') => ({
+    version: 1,
+    tabs: [{ id: tabId, label: 'Data', sections }],
+  })
+
+  it('accepts a layout at the per-tab section cap', () => {
+    const sections = Array.from({ length: 50 }, (_, i) => section(`s${i}`))
+
+    expect(formLayoutSchema.safeParse(layoutWith(sections)).success).toBe(true)
+  })
+
+  it('rejects more sections per tab than the cap', () => {
+    const sections = Array.from({ length: 51 }, (_, i) => section(`s${i}`))
+
+    expect(formLayoutSchema.safeParse(layoutWith(sections)).success).toBe(false)
+  })
+
+  it('rejects more fields per column than the cap', () => {
+    const fields = Array.from({ length: 101 }, (_, i) => ({ branchId: `br_${i}` }))
+    const sections = [{ id: 's', columns: [{ id: 'c', fields }] }]
+
+    expect(formLayoutSchema.safeParse(layoutWith(sections)).success).toBe(false)
+  })
+
+  it('rejects an id longer than the cap', () => {
+    expect(formLayoutSchema.safeParse(layoutWith([section('s')], 'x'.repeat(65))).success).toBe(false)
+  })
+
+  it('rejects a section label longer than the cap', () => {
+    const sections = [{ ...section('s'), label: 'x'.repeat(121) }]
+
+    expect(formLayoutSchema.safeParse(layoutWith(sections)).success).toBe(false)
+  })
+})
+
 describe('reconcileLayoutWithSeed', () => {
   const seed = defineSeed({
     slug: 'posts',
@@ -598,5 +637,6 @@ describe('reconcileLayoutWithSeed', () => {
 
     expect(validateLayoutAgainstSeed(result, seed).ok).toBe(true)
     expect(placedIds(result).sort()).toEqual(['br_1', 'br_2', 'br_3'])
+
   })
 })

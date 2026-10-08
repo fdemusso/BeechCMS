@@ -362,6 +362,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [MAX\_FOLDER\_STYLES](variables/MAX_FOLDER_STYLES.md)
 - [MAX\_JOB\_ERROR\_SAMPLES](variables/MAX_JOB_ERROR_SAMPLES.md)
 - [MAX\_SECTIONS\_PER\_PAGE](variables/MAX_SECTIONS_PER_PAGE.md)
+- [MAX\_LAYOUT\_BYTES](variables/MAX_LAYOUT_BYTES.md)
 - [MAX\_VIEW\_CONDITIONS](variables/MAX_VIEW_CONDITIONS.md)
 - [MAX\_WIDGET\_CONFIG\_BYTES](variables/MAX_WIDGET_CONFIG_BYTES.md)
 - [MAX\_WIDGETS\_PER\_COLUMN](variables/MAX_WIDGETS_PER_COLUMN.md)

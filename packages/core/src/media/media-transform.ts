@@ -198,9 +198,13 @@ export function deriveScaleOutput(presetWidth: number, source: MediaDimensions, 
   return output.width > maxDimension || output.height > maxDimension ? null : output
 }
 
-/** Identity of a preset's *definition*, so redefining a name never reuses an old variant. */
-export function mediaPresetSignature(preset: MediaPreset): string {
-  return preset.kind === 'crop' ? `crop:${preset.width}x${preset.height}` : `scale:${preset.width}`
+/**
+ * Identity of a preset's *definition*, so redefining a name never reuses an old variant.
+ * A scale preset's validity depends on the effective dimension ceiling (its height derives from the
+ * source), so the ceiling is part of its identity; a crop preset is validated at catalog build.
+ */
+export function mediaPresetSignature(preset: MediaPreset, maxDimension: number): string {
+  return preset.kind === 'crop' ? `crop:${preset.width}x${preset.height}` : `scale:${preset.width}@${maxDimension}`
 }
 
 /** Precondition: `isTransformableMime(sourceMime)` is true. */
@@ -218,14 +222,15 @@ export function buildImageTransformSpec(preset: MediaPreset, request: MediaTrans
 
 /**
  * Strong ETag of a variant: source identity (key + size — keys are never overwritten) plus the
- * canonical request plus the preset definition. Format: `"mv1-<32 hex>"`.
+ * canonical request plus the preset definition (and the ceiling for scale presets). Format: `"mv1-<32 hex>"`.
  */
 export async function computeMediaVariantEtag(
   source: { readonly key: string; readonly size: number },
   request: MediaTransformRequest,
   preset: MediaPreset,
+  maxDimension: number,
 ): Promise<string> {
-  const digest = await sha256hex(`${source.key}\n${source.size}\n${canonicalMediaTransformQuery(request)}\n${mediaPresetSignature(preset)}`)
+  const digest = await sha256hex(`${source.key}\n${source.size}\n${canonicalMediaTransformQuery(request)}\n${mediaPresetSignature(preset, maxDimension)}`)
   return `"mv1-${digest.slice(0, 32)}"`
 }
 
