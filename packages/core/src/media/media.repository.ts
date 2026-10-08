@@ -20,6 +20,12 @@ export interface MediaRepository {
   trackUpload(media: Omit<MediaObject, 'created_at'>): Promise<void>;
 
   /**
+   * Registers a file and counts its bytes toward total storage in one atomic step.
+   * Returns false, counting nothing, when the key is already registered.
+   */
+  registerUpload(media: Omit<MediaObject, 'created_at'>): Promise<boolean>;
+
+  /**
    * Retrieves tracking info for a file by its key.
    */
   getByKey(key: string): Promise<MediaObject | null>;
