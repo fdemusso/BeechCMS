@@ -5,8 +5,8 @@
 import type { ResolvedContext } from '../evaluator/context-resolver'
 import { parseTemplateKey } from '../evaluator/template-grammar'
 
-/** `html` for markup sinks (mail body); `none` for plain-text and data sinks (DB values, recipients, ids, filters). */
-export type InterpolateEscape = 'html' | 'none'
+/** `html` for mail markup; `json` for webhook string values; `none` for plain-text and data sinks. */
+export type InterpolateEscape = 'html' | 'json' | 'none'
 
 export interface InterpolateOptions {
   /** Required so every sink states its escaping explicitly; no single default is safe for all sinks. */
@@ -33,7 +33,10 @@ export function interpolate(
     if (val == null || val === '') {
       return defaultValue
     }
-    return escape === 'html' ? escapeHtml(String(val)) : String(val)
+    const value = String(val)
+    if (escape === 'html') return escapeHtml(value)
+    if (escape === 'json') return JSON.stringify(value).slice(1, -1)
+    return value
   }
 
   return template.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, replacer)
