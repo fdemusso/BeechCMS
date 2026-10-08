@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { SystemClock } from '@beechcms/core'
+import { SystemClock, type MediaObject, type MediaRepository } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { publicProblem } from '../../public/errors/problem-details'
 import { cleanStr } from '../../shared/utils/query-utils'
@@ -18,7 +18,7 @@ const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR
 const HOURS_24_IN_SECONDS = 24 * SECONDS_PER_HOUR
 const DAYS_7_IN_SECONDS = 7 * SECONDS_PER_DAY
 const DAYS_30_IN_SECONDS = 30 * SECONDS_PER_DAY
-const MAX_MEDIA_SCAN = 1000
+const MEDIA_SCAN_BATCH = 200
 const DEFAULT_LIMIT = 12
 const MAX_LIMIT = 100
 const R2_STORAGE_LIMIT = 10 * 1024 * 1024 * 1024 // 10GB
@@ -30,6 +30,20 @@ function getMimeType(extension: string): string {
     }
     const type = extension === 'jpg' ? 'jpeg' : (extension || 'jpeg')
     return `image/${type}`
+}
+
+/**
+ * Reads every tracked upload, one repository page at a time, so the reports
+ * never drop rows beyond a fixed scan window.
+ */
+async function listAllTrackedMedia(mediaRepository: MediaRepository): Promise<MediaObject[]> {
+    const trackedMedia: MediaObject[] = []
+    for (let mediaOffset = 0; ; mediaOffset += MEDIA_SCAN_BATCH) {
+        const { items, total } = await mediaRepository.list({ limit: MEDIA_SCAN_BATCH, offset: mediaOffset })
+        trackedMedia.push(...items)
+        if (items.length < MEDIA_SCAN_BATCH || mediaOffset + MEDIA_SCAN_BATCH >= total) break
+    }
+    return trackedMedia
 }
 
 const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -46,8 +60,7 @@ statsApp.get('/stats/media-library', async (context) => {
         const mediaBaseUrl = (context.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '')) ?? new URL(context.req.url).origin
 
         // 1. Files tracked in the media library
-        // Take the first MAX_MEDIA_SCAN for cross-scanning
-        const { items: mediaRows } = await mediaRepository.list({ limit: MAX_MEDIA_SCAN, offset: 0 })
+        const mediaRows = await listAllTrackedMedia(mediaRepository)
 
         const trackedKeys = new Set<string>()
         const allItems: Array<{ key: string; filename: string; mime_type: string; size_bytes: number; created_at: number; url: string }> = []
@@ -99,7 +112,7 @@ statsApp.get('/stats/unused-media', async (context) => {
         const seeds = context.get('seedRegistry').all()
 
         // All tracked media keys
-        const { items: mediaRows } = await mediaRepository.list({ limit: MAX_MEDIA_SCAN, offset: 0 })
+        const mediaRows = await listAllTrackedMedia(mediaRepository)
 
         if (mediaRows.length === 0) {
             return context.json({ items: [] })
