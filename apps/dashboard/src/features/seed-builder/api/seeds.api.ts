@@ -28,6 +28,8 @@ export const seedsApi = {
     (await api.delete<{ jobId: string; status: "pending" }>(`/seeds/${slug}/hard`, { data: { confirm } })).data,
   dropBranch: async (slug: string, branchId: string, confirm: string) =>
     (await api.delete<{ success: boolean }>(`/seeds/${slug}/branches/${branchId}`, { data: { confirm } })).data,
+  dropOrphan: async (slug: string, column: string, confirm: string) =>
+    (await api.delete<{ success: boolean }>(`/seeds/${slug}/orphans/${column}`, { data: { confirm } })).data,
   renameBranch: async (slug: string, branchId: string, newAlias: string, confirm: string) =>
     (await api.patch<{ success: boolean; affectedAutomations: string[] }>(`/seeds/${slug}/branches/${branchId}/rename`, { newAlias, confirm })).data,
   retypeBranch: async (slug: string, branchId: string, newType: string, confirm: string) =>

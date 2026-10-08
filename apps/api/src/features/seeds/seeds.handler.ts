@@ -16,7 +16,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import type { Branch, Seed } from '@beechcms/core'
-import { nextBranchId, planFtsRebuild } from '@beechcms/core'
+import { nextBranchId, planFtsRebuild, SYSTEM_COLUMNS } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
 import {
@@ -275,8 +275,8 @@ seedsApp.delete('/:slug', async (context) => {
  * Identifies orphaned database columns that exist in the physical table but are absent from the seed definition.
  *
  * @remarks
- * Compares physical SQLite table columns (`content_<slug>`) against known system columns
- * (`id`, `slug`, `status`, `created_at`, `updated_at`) and defined branch aliases.
+ * Compares physical SQLite table columns (`content_<slug>`) against core `SYSTEM_COLUMNS`
+ * and defined branch aliases.
  *
  * @route GET /api/seeds/:slug/orphans
  * @param slug - Seed slug identifier.
@@ -292,7 +292,7 @@ seedsApp.get('/:slug/orphans', async (context) => {
   if (!dbCols) return context.json({ orphans: [] })
 
   const knownAliases = new Set([
-    'id', 'slug', 'status', 'created_at', 'updated_at',
+    ...SYSTEM_COLUMNS,
     ...existing.definition.branches
       .filter((b: Branch) => !(b.type === 'relation' && b.multiple === true))
       .map((b: Branch) => b.alias),
