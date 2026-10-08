@@ -6,6 +6,8 @@ import type { Automation } from '@beechcms/core'
 import type { AutomationContextSelector, ParsedKey } from './template-grammar'
 import { resolvePath } from '../engine/automation-runner.utils'
 import { resolveVarAccess } from './var-access-resolver'
+import { prefetchSeedRows, seedLookupCacheKey } from './seed-lookup'
+import type { SeedLookupDeps } from './seed-lookup'
 
 export interface ResolvedContext {
   lookup(key: ParsedKey, onMissing?: (field: string) => void): unknown
@@ -75,10 +77,14 @@ function applyAggregate(
 }
 
 export async function resolveAutomationContext(
-  _automation: Automation,
+  automation: Automation,
   triggerEntry: Record<string, unknown> | null,
   batchEntries: Array<Record<string, unknown>>,
+  seedLookup?: SeedLookupDeps,
 ): Promise<ResolvedContext> {
+  // lookup() is sync, so every seed-scoped selector the automation uses is loaded here, once per run.
+  const seedRows = seedLookup ? await prefetchSeedRows(automation, seedLookup) : new Map()
+
   function lookup(parsed: ParsedKey, onMissing?: (field: string) => void): unknown {
     if (parsed.kind === 'simple') {
       if (parsed.path.startsWith('this.')) {
@@ -97,7 +103,7 @@ export async function resolveAutomationContext(
       return undefined
     }
 
-    const { scope, selector: _selector, op, field } = parsed
+    const { scope, selector, op, field } = parsed
 
     if (scope === 'this') {
       if (op !== 'field' || !field) { if (onMissing) onMissing(`this.${field}`); return undefined }
@@ -116,8 +122,16 @@ export async function resolveAutomationContext(
       return applyAggregate(op, field, batchEntries, onMissing)
     }
 
-    if (onMissing) onMissing(scope)
-    return undefined
+    const rows = seedRows.get(seedLookupCacheKey(scope, selector))
+    if (!rows) { if (onMissing) onMissing(scope); return undefined }
+
+    if (op === 'field') {
+      if (!field) { if (onMissing) onMissing(`${scope}.field`); return undefined }
+      const val = resolvePath(rows[0] ?? {}, field)
+      if (val === undefined && onMissing) onMissing(`${scope}.${field}`)
+      return val
+    }
+    return applyAggregate(op, field, rows, onMissing)
   }
 
   return { lookup, triggerEntry }
