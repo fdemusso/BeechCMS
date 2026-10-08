@@ -27,6 +27,7 @@ Commands are categorized by operational scope:
 | `npx beech types check` (`beech types:check`) | Consumer | Diffs the committed generated types against live D1 in memory. Writes nothing. Exits 1 when the file is missing or stale. | `--remote`, `-o`/`--output <file>`, `--db <name>` |
 | `npx beech schema export` (`beech schema:export`) | Consumer | Writes `beech.schema.ts` — a reviewable snapshot of the live D1 schema. | `--out <file>`, `--stdout`, `--remote`, `--db <name>` |
 | `npx beech schema diff` (`beech schema:diff`) | Consumer | Compares `beech.schema.ts` against the deployed schema and reports drift. Exits 1 when drift is detected. | `--manifest <file>`, `--remote`, `--db <name>` |
+| `npx beech schema audit` (`beech schema:audit`) | Consumer | Read-only audit of relation storage: compares each relation branch (`multiple`, `targetSeed`, `onDelete`) with the physical FK column, `rel_<slug>_<alias>` junction (and drafts junction) and FK policy. Reports stranded value counts, never changes data. Exits 1 on any mismatch. | `--remote`, `--db <name>` |
 | `npx beech schema plan` (`beech schema:plan`) | Consumer | Shows the exact DDL applying `beech.schema.ts` would run. Writes nothing. Exits 1 when a seed cannot be applied. | `--manifest <file>`, `--api-url <url>` |
 | `npx beech schema apply` (`beech schema:apply`) | Consumer | Applies `beech.schema.ts` through the control plane (`mcp-plan` / `mcp-apply`). Additive only. | `--manifest <file>`, `--api-url <url>`, `-y`/`--yes` |
 | `npx beech forms` | Consumer | Interactive wizard generating React, Vue, Svelte, or Web Component forms. | `--seed <slug>`, `--framework <name>`, `--mode <create\|edit>`, `--out <path>`, `--yes`, `--json` (aliases: `form`, `forms:add`) |
@@ -113,6 +114,26 @@ npx beech types check
 
 npx beech types check --remote -o src/types/beech.ts
 ```
+
+#### Auditing stranded relation data
+
+Releases before the additive relation gate (`relation-change-not-supported`) could save a changed
+`multiple`, `targetSeed` or `onDelete` without migrating the physical storage. The API then reads the
+new shape while the values still sit in the old one. `schema audit` identifies those databases:
+
+```bash
+npx beech schema audit            # local D1
+npx beech schema audit --remote   # production D1
+```
+
+Each finding names the seed, the branch and one of: `wrong_storage` (data in the other shape: FK
+column vs `rel_<slug>_<alias>` junction, including the `_drafts` junction), `missing_storage`,
+`fk_target_mismatch`, `fk_on_delete_mismatch`. `strandedRows` counts values in storage the definition
+no longer reads. These are invisible to the API but still present: **do not drop** that column or
+junction. The command is read-only, never deletes anything, and exits 1 on any finding.
+
+Stale-data window: until a repair is applied, affected relations return empty or partial values for
+entries written before the edit. A reviewed repair workflow is tracked in issue #664.
 
 ### 4. Interactive Form Generation
 
