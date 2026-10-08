@@ -4,7 +4,7 @@
 
 import { ExpandableCell } from "@/components/ui/expandable-cell"
 import { TagChips } from "@/components/ui/tag-chips"
-import { extractTagChips } from "@/lib/tags-utils"
+import { colorForOption, extractTagChips } from "@/lib/tags-utils"
 import type { FieldDisplayProps } from "../types"
 
 /** Fallback truncation length for the pretty-printed JSON string when `options.maxLength` is not set. */
@@ -47,7 +47,12 @@ export function JsonDisplay({ branch, value, options }: FieldDisplayProps) {
     }
 
     if (isTagsField && Array.isArray(parsed)) {
-      return <TagChips tags={extractTagChips(parsed)} className="min-w-0 max-w-full gap-1.5" />
+      // Array values carry no color: tags from the branch options get the palette color of their slot.
+      const chips = extractTagChips(parsed).map((chip) => ({
+        ...chip,
+        color: chip.color ?? colorForOption(chip.label, branch.options),
+      }))
+      return <TagChips tags={chips} className="min-w-0 max-w-full gap-1.5" />
     }
 
     const str = JSON.stringify(parsed, null, 2)

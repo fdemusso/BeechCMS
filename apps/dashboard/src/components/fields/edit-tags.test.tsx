@@ -3,7 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { render, screen, fireEvent } from "@testing-library/react"
+import { FieldEdit } from "@/components/fields/FieldEdit"
 import { TagChips } from "@/components/ui/tag-chips"
 import { JsonEdit } from "@/components/fields/edit/json"
 import type { Branch } from "@beechcms/core"
@@ -62,5 +63,31 @@ describe("Tags max-width and truncation (#301)", () => {
 
     expect(screen.getByText("Legitimate Tag")).toBeInTheDocument()
     expect(screen.queryByText("exploited")).not.toBeInTheDocument()
+  })
+})
+
+describe("FieldEdit routing for tags with options", () => {
+  const tierBranch = {
+    id: "br_tier",
+    alias: "tier",
+    label: "Plan",
+    type: "tags",
+    options: ["free", "pro"],
+  } as unknown as Branch
+
+  it("mostra i tag salvati come chip e non usa il select a valore singolo", () => {
+    render(<FieldEdit branch={tierBranch} value={["pro"]} onChange={vi.fn()} />)
+
+    expect(screen.getByText("pro")).toBeInTheDocument()
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+  })
+
+  it("emette un array quando si rimuove un tag", () => {
+    const onChange = vi.fn()
+    render(<FieldEdit branch={tierBranch} value={["pro"]} onChange={onChange} />)
+
+    fireEvent.click(screen.getByLabelText("Remove tag pro"))
+
+    expect(onChange).toHaveBeenCalledWith([])
   })
 })

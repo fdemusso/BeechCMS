@@ -28,7 +28,7 @@ export function useToolbarSort({
     () =>
       seed.branches.filter(
         (branch) =>
-          ["text", "number", "date"].includes(branch.type as string) &&
+          ["text", "number", "date", "tags"].includes(branch.type as string) &&
           resolvePolicies(branch).sort,
       ),
     [seed.branches]

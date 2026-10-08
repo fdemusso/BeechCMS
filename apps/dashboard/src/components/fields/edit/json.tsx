@@ -12,6 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { colorForOption, extractTagNames, TAG_PALETTE } from "@/lib/tags-utils"
 import type { FieldEditProps } from "../types"
 
 const LazyJsonCodeEditor = React.lazy(() => 
@@ -41,22 +42,28 @@ export function JsonEdit({ branch, value, onChange, disabled, readOnly: propRead
   const [isAddOpen, setIsAddOpen] = React.useState(false)
 
   if (isTagsField && hasOptions) {
-    const currentTags = parseTagsValue(value)
+    // `tags` branches store a plain string[] (the API contract); the colors come from the option slots.
+    // Other tag-like json branches keep the legacy { tag: color } map.
+    const storesArray = branch.type === "tags"
+    const currentTags: Record<string, string> = storesArray
+      ? Object.fromEntries(
+          extractTagNames(value).map((tag) => [tag, colorForOption(tag, branch.options) ?? TAG_PALETTE[0]])
+        )
+      : parseTagsValue(value)
     const predefinedOptions = branch.options ?? []
-
-    const DEFAULT_COLORS = [
-      "#3b82f6", "#06b6d4", "#8b5cf6", "#10b981",
-      "#f59e0b", "#ef4444", "#ec4899", "#64748b",
-    ]
 
     const toggleTag = (tag: string) => {
       if (isReadOnly) return
       const next = { ...currentTags }
       if (!Object.hasOwn(next, tag) || next[tag] === undefined) {
-        const idx = Object.keys(next).length % DEFAULT_COLORS.length
-        next[tag] = DEFAULT_COLORS[idx]
+        const idx = Object.keys(next).length % TAG_PALETTE.length
+        next[tag] = TAG_PALETTE[idx]
       } else {
         delete next[tag]
+      }
+      if (storesArray) {
+        onChange(Object.keys(next))
+        return
       }
       onChange(next)
     }
@@ -165,7 +172,15 @@ export function JsonEdit({ branch, value, onChange, disabled, readOnly: propRead
       <LazyJsonCodeEditor
         id={branch.alias}
         value={value}
-        onChange={(text) => onChange(text)}
+        onChange={(text) => {
+          // `tags` must reach the API as an array; keep the raw text while the JSON is still invalid.
+          if (branch.type !== "tags") return onChange(text)
+          try {
+            onChange(JSON.parse(text) as unknown)
+          } catch {
+            onChange(text)
+          }
+        }}
         readOnly={isReadOnly}
       />
     </React.Suspense>

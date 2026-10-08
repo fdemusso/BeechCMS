@@ -12,6 +12,18 @@ export function parseTagsValue(value: unknown): unknown {
   }
 }
 
+/** Palette for tags drawn from a branch's predefined `options`; a tag keeps the color of its option slot. */
+export const TAG_PALETTE = [
+  "#3b82f6", "#06b6d4", "#8b5cf6", "#10b981",
+  "#f59e0b", "#ef4444", "#ec4899", "#64748b",
+] as const
+
+/** Color of a tag by the position of its option, or undefined when the tag is not one of the options. */
+export function colorForOption(tag: string, options: readonly string[] | undefined): string | undefined {
+  const index = options?.indexOf(tag) ?? -1
+  return index < 0 ? undefined : TAG_PALETTE[index % TAG_PALETTE.length]
+}
+
 export interface TagChipData {
   readonly label: string
   readonly color?: string

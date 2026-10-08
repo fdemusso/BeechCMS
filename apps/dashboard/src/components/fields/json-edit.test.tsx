@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { JsonEdit } from "@/components/fields/edit/json"
 import type { Branch } from "@beechcms/core"
 
@@ -49,6 +49,15 @@ describe("JsonEdit", () => {
     expect(screen.getByText("React")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Add tag/i })).toBeInTheDocument()
     expect(screen.queryByTestId("json-code-editor")).not.toBeInTheDocument()
+  })
+
+  it("con type tags e opzioni emette un array di stringhe (contratto API), non una mappa di colori", () => {
+    const onChange = vi.fn()
+    render(<JsonEdit branch={tagsWithOptionsBranch} value={["React"]} onChange={onChange} />)
+
+    fireEvent.click(screen.getByRole("button", { name: /Remove tag React/i }))
+
+    expect(onChange).toHaveBeenCalledWith([])
   })
 
   it("renderizza JsonCodeEditor per branch con type json", async () => {

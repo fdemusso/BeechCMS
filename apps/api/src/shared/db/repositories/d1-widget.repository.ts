@@ -216,13 +216,21 @@ export class D1WidgetRepository implements IWidgetRepository {
     const { sql: timeWindowFilter, bindings } = this.buildTimeWindowFilter(window)
     const tableName = `content_${seed.slug}`
 
-    const sql =
-      `SELECT ${columnExpression} as label, COUNT(*) as value
-         FROM ${tableName}
-        WHERE ${timeWindowFilter}
-        GROUP BY ${columnExpression}
-        ORDER BY value DESC
-        LIMIT ?`
+    // A tags column stores a JSON array: one slice per tag, so an entry counts once for each of its tags.
+    const isTagsColumn = seed.branches.some(branch => branch.alias === column && branch.type === 'tags')
+    const sql = isTagsColumn
+      ? `SELECT tag.value as label, COUNT(*) as value
+           FROM ${tableName}, json_each(CASE WHEN json_valid(${columnExpression}) THEN ${columnExpression} ELSE '[]' END) AS tag
+          WHERE ${timeWindowFilter}
+          GROUP BY tag.value
+          ORDER BY value DESC
+          LIMIT ?`
+      : `SELECT ${columnExpression} as label, COUNT(*) as value
+           FROM ${tableName}
+          WHERE ${timeWindowFilter}
+          GROUP BY ${columnExpression}
+          ORDER BY value DESC
+          LIMIT ?`
 
     const rows = await this.database
       .prepare(sql)
@@ -291,6 +299,14 @@ export class D1WidgetRepository implements IWidgetRepository {
   private buildCountWhereExpression(seed: Seed, alias: string, value: unknown): { sql: string; bindings: unknown[] } {
     const column = this.resolveColumnExpression(seed, alias)
     if (value === null) return { sql: `COUNT(CASE WHEN ${column} IS NULL THEN 1 END)`, bindings: [] }
+    // A tags column stores a JSON array: the entry matches when the array holds the tag.
+    const isTagsColumn = seed.branches.some(branch => branch.alias === alias && branch.type === 'tags')
+    if (isTagsColumn) {
+      return {
+        sql: `COUNT(CASE WHEN json_valid(${column}) AND EXISTS (SELECT 1 FROM json_each(${column}) WHERE value = ?) THEN 1 END)`,
+        bindings: [value],
+      }
+    }
     if (typeof value === 'boolean') {
       const numericValue = value ? 1 : 0
       return { sql: `COUNT(CASE WHEN ${column} = ? THEN 1 END)`, bindings: [numericValue] }

@@ -27,7 +27,8 @@ export function FieldEdit(props: FieldEditProps) {
     )
   }
 
-  if (branch.options && branch.options.length > 0) {
+  // `tags` holds a string[] and has its own multi-select chip editor; the single-value select would emit a string.
+  if (branch.type !== 'tags' && branch.options && branch.options.length > 0) {
     const SelectComponent = getEditComponent('select' as BranchType)
     return <SelectComponent {...props} />
   }

@@ -6,6 +6,7 @@ import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { BooleanDisplay } from "@/components/fields/display/boolean"
 import { DateDisplay } from "@/components/fields/display/date"
+import { JsonDisplay } from "@/components/fields/display/json"
 import { NumberDisplay } from "@/components/fields/display/number"
 import { RichtextDisplay } from "@/components/fields/display/richtext"
 import type { Branch } from "@beechcms/core"
@@ -172,5 +173,22 @@ describe("RichtextDisplay", () => {
   it("stringa HTML legacy viene scartata e mostra '-'", () => {
     render(<RichtextDisplay branch={branch} value="<p>Hello world</p>" />)
     expect(screen.getByText("-")).toBeInTheDocument()
+  })
+})
+
+describe("JsonDisplay tags con opzioni", () => {
+  const branch = {
+    id: "br_t",
+    alias: "priority",
+    label: "Priority",
+    type: "tags",
+    options: ["low", "medium", "high"],
+  } as unknown as Branch
+
+  it("colora i tag di un array in base alla posizione dell'opzione", () => {
+    render(<JsonDisplay branch={branch} value={["high"]} />)
+
+    const chip = screen.getByText("high").closest("[data-slot='badge']") as HTMLElement
+    expect(chip.style.backgroundColor).toBe("#8b5cf6")
   })
 })
