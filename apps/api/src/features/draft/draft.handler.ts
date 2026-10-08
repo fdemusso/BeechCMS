@@ -118,7 +118,7 @@ draftApp.put('/:slug/:id/draft', draftGuard, async (context) => {
 
   const sensitiveAliases = Object.keys(body).filter((alias) => {
     const branch = seed.branches.find((b) => b.alias === alias)
-    return branch != null && resolvePolicies(branch).privacy !== 'plain'
+    return branch != null && resolvePolicies(branch).privacy === 'hash'
   })
   
   if (sensitiveAliases.length > 0) {

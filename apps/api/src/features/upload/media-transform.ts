@@ -102,11 +102,13 @@ export async function serveTransformedMedia(c: Context<AppEnv>, key: string, req
   const preset = catalog.get(request.preset)
   if (!preset) return mediaTransformError(c, 400, 'media_preset_unknown')
 
+  const maxDimension = resolveMediaMaxDimension(c.env)
   const { bucket, imageTransformer } = c.var
   const edgeCache = imageTransformer ? resolveEdgeCache(c) : null
-  // The preset signature is part of the key so a redefined preset never hits an old variant.
+  // The preset signature (definition + scale ceiling) is part of the key so a redefined preset or a
+  // lowered MEDIA_MAX_DIMENSION never hits an old variant.
   const cacheKey = new Request(
-    `${new URL(c.req.url).origin}/api/media/${encodeMediaKey(key)}?${canonicalMediaTransformQuery(request)}&_p=${mediaPresetSignature(preset)}`,
+    `${new URL(c.req.url).origin}/api/media/${encodeMediaKey(key)}?${canonicalMediaTransformQuery(request)}&_p=${mediaPresetSignature(preset, maxDimension)}`,
   )
 
   if (edgeCache) {
@@ -152,7 +154,7 @@ export async function serveTransformedMedia(c: Context<AppEnv>, key: string, req
     })
   }
 
-  const etag = await computeMediaVariantEtag({ key, size: object.size }, request, preset)
+  const etag = await computeMediaVariantEtag({ key, size: object.size }, request, preset, maxDimension)
   if (ifNoneMatchMatches(c.req.header('If-None-Match'), etag)) {
     await discard(object.body)
     return notModified(etag)
@@ -169,7 +171,7 @@ export async function serveTransformedMedia(c: Context<AppEnv>, key: string, req
       await discard(transformStream)
       return mediaTransformError(c, 502, 'media_transform_failed')
     }
-    if (!deriveScaleOutput(preset.width, dimensions, resolveMediaMaxDimension(c.env))) {
+    if (!deriveScaleOutput(preset.width, dimensions, maxDimension)) {
       await discard(transformStream)
       return mediaTransformError(c, 400, 'media_dimension_exceeded')
     }

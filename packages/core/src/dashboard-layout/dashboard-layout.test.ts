@@ -4,6 +4,9 @@
 import { describe, expect, it } from 'vitest'
 import type { Seed } from '../engine/types.js'
 import {
+  MAX_DASHBOARD_LAYOUT_BYTES,
+  MAX_SECTIONS_PER_PAGE,
+  MAX_WIDGETS_PER_COLUMN,
   MAX_WIDGET_CONFIG_BYTES,
   dashboardLayoutSchema,
   generateDefaultDashboardLayout,
@@ -298,6 +301,62 @@ describe('validateDashboardLayout', () => {
     expect(res.ok).toBe(false)
     expect(res.warnings).toHaveLength(1)
     expect(allWidgets(res.cleaned).map((w) => w.id)).toEqual(['w-1', 'w-1'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// dashboardLayoutSchema — aggregate size limits
+// ---------------------------------------------------------------------------
+
+describe('dashboardLayoutSchema', () => {
+  it('rejects a layout whose serialized size exceeds the aggregate cap', () => {
+    // 40 max-size configs stay under every count cap but pass the 256 KB total.
+    const widgets = Array.from({ length: 40 }, (_, i) =>
+      widget(`w-${i}`, 'core/site-status', { blob: 'x'.repeat(MAX_WIDGET_CONFIG_BYTES - 20) }),
+    )
+    const layout = singleSectionLayout([widgets])
+
+    const res = dashboardLayoutSchema.safeParse(layout)
+
+    expect(JSON.stringify(layout).length).toBeGreaterThan(MAX_DASHBOARD_LAYOUT_BYTES)
+    expect(res.success).toBe(false)
+  })
+
+  it('rejects more widgets in a column than the per-column cap', () => {
+    const widgets = Array.from({ length: MAX_WIDGETS_PER_COLUMN + 1 }, (_, i) =>
+      widget(`w-${i}`, 'core/site-status'),
+    )
+
+    const res = dashboardLayoutSchema.safeParse(singleSectionLayout([widgets]))
+
+    expect(res.success).toBe(false)
+  })
+
+  it('rejects more sections in a page than the per-page cap', () => {
+    const layout = singleSectionLayout([[]])
+    const section = layout.pages[0].sections[0]
+    layout.pages[0].sections = Array.from({ length: MAX_SECTIONS_PER_PAGE + 1 }, (_, i) => ({
+      ...section,
+      id: `s-${i}`,
+    }))
+
+    const res = dashboardLayoutSchema.safeParse(layout)
+
+    expect(res.success).toBe(false)
+  })
+
+  it('rejects an id string longer than the id cap', () => {
+    const layout = singleSectionLayout([[widget('w'.repeat(10_000), 'core/site-status')]])
+
+    const res = dashboardLayoutSchema.safeParse(layout)
+
+    expect(res.success).toBe(false)
+  })
+
+  it('accepts the generated default layout', () => {
+    const layout = generateDefaultDashboardLayout([seedStub('articoli')])
+
+    expect(dashboardLayoutSchema.safeParse(layout).success).toBe(true)
   })
 })
 

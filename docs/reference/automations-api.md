@@ -119,6 +119,8 @@ When `event` is `'cron'`, `cron` must be a valid cron expression string (e.g. `"
 - Access fields from the triggering entry: <span v-pre>`\{\{this.fieldAlias\}\}`</span> or <span v-pre>`\{\{this:fieldAlias\}\}`</span>
 - Access variables declared by `set_variable`: <span v-pre>`\{\{varName.column\}\}`</span> or <span v-pre>`\{\{varName.count\}\}`</span>
 
+For webhook bodies, place placeholders inside JSON string quotes. Substituted values are JSON-escaped, preserving quotes, backslashes, newlines, and other control characters after the receiver parses the body. The surrounding template is unchanged. For example, <span v-pre>`{"note":"\{\{this.note\}\}"}`</span> sends `note` as a string, including when the source value is numeric or boolean.
+
 **Response `201 Created`:**
 
 ```json
