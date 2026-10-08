@@ -23,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { ALIGN_JUSTIFY_CLASS, getBranchAlign, type ColumnAlign } from "@/lib/column-alignment"
 import { pendingDraftBadgeClass, shouldShowPendingDraftBadge } from "@/lib/pending-draft"
 
 import {
@@ -99,6 +100,18 @@ function getIconForType(type: string) {
   }
 }
 
+/** Plain decimal numbers without an explicit `decimals`: the only case where the column picks its own. */
+function usesPlainDecimals(branch: Seed["branches"][number]) {
+  const options = branch.numberOptions
+  return options?.decimals == null && options?.control !== "rating" && (options?.format ?? "decimal") === "decimal"
+}
+
+/** Wraps a header or cell so it follows the column alignment; left is the default and stays unwrapped. */
+function alignContent(align: ColumnAlign, content: React.ReactNode) {
+  if (align === "left") return content
+  return <div className={`flex ${ALIGN_JUSTIFY_CLASS[align]}`}>{content}</div>
+}
+
 /**
  * Generates the unified React Table column definitions mapping.
  * Combines system columns (selection checkbox, ID, slug, status, timestamps, actions dropdown)
@@ -117,9 +130,12 @@ function getIconForType(type: string) {
  * @returns Column definitions list for TanStack Table.
  */
 
-/** Columns hidden until the user decides otherwise: id, slug, created_at, and json branches named like metadata. */
+/**
+ * Columns hidden until the user decides otherwise: id, slug, created_at, status (only meaningful
+ * when the seed has drafts) and json branches named like metadata.
+ */
 export function defaultHiddenColumns(seed: Seed): string[] {
-  const hidden = ["id", "slug", "created_at"]
+  const hidden = ["id", "slug", "created_at", ...(seed.allowDrafts ? [] : ["status"])]
   const metaAliases = seed.branches
     .filter(
       (b) =>
@@ -195,12 +211,14 @@ export function generateColumns(
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.id,
-      header: "ID",
-      cell: ({ row }) => (
-        <span className="font-mono text-xs truncate max-w-[8rem] block" title={row.original.id}>
-          {row.original.id}
-        </span>
-      ),
+      header: () => alignContent("center", "ID"),
+      cell: ({ row }) =>
+        alignContent(
+          "center",
+          <span className="font-mono text-xs truncate max-w-[8rem] block" title={row.original.id}>
+            {row.original.id}
+          </span>
+        ),
       enableSorting: false,
     },
 
@@ -226,7 +244,7 @@ export function generateColumns(
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.status,
-      header: translate("content.table.status"),
+      header: () => alignContent("center", translate("content.table.status")),
       cell: ({ row }) => {
         const status = (row.original.status ?? "").trim() || "—"
         const tone = getStatusTone(status)
@@ -235,7 +253,7 @@ export function generateColumns(
           row.original.has_pending_draft
         )
         return (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
             <span className="inline-flex items-center gap-1.5">
               <IndicatorIcon colorClassName={STATUS_TONE_DOT_CLASS[tone]} aria-label={status} />
               <span className="text-sm">{status}</span>
@@ -281,6 +299,7 @@ export function generateColumns(
   // Colonne dinamiche: solo da seed.branches, cella = solo FieldDisplay
   const dynamicColumns: ColumnDef<ContentEntry>[] = seed.branches.map((branch) => {
     const IconComponent = getIconForType(branch.type)
+    const align = getBranchAlign(branch)
     const baseColumn: ColumnDef<ContentEntry> & GroupingColumnDef<ContentEntry, unknown> = {
       accessorFn: (row) => row.data[branch.alias],
       id: branch.alias,
@@ -288,7 +307,7 @@ export function generateColumns(
       minSize: 80,
       maxSize: 600,
       header: () => (
-        <div className="flex items-center gap-[0.5em] font-medium">
+        <div className={`flex items-center gap-[0.5em] font-medium ${ALIGN_JUSTIFY_CLASS[align]}`}>
           <IconComponent className="h-[1em] w-[1em] shrink-0 text-muted-foreground" />
           <span>{branch.label}</span>
         </div>
@@ -344,16 +363,25 @@ export function generateColumns(
     }
 
     const maxLength = maxLengths?.[branch.alias]
-    const displayOptions = typeof maxLength === "number" ? { maxLength } : undefined
+    const isNumber = branch.type === "number"
+    const displayOptions = !isNumber && typeof maxLength === "number" ? { maxLength } : undefined
+    // For number branches `maxLengths` carries the fraction digits found in the data, so every
+    // value in the column shows the same decimals (e.g. 12,50 next to 3,25).
+    const displayBranch =
+      isNumber && typeof maxLength === "number" && usesPlainDecimals(branch)
+        ? { ...branch, numberOptions: { ...branch.numberOptions, decimals: maxLength } }
+        : branch
     return {
       ...baseColumn,
-      cell: ({ row }) => (
-        <FieldDisplay
-          branch={branch}
-          value={row.original.data[branch.alias]}
-          options={displayOptions}
-        />
-      ),
+      cell: ({ row }) =>
+        alignContent(
+          align,
+          <FieldDisplay
+            branch={displayBranch}
+            value={row.original.data[branch.alias]}
+            options={displayOptions}
+          />
+        ),
     }
   })
 
@@ -433,5 +461,8 @@ export function generateColumns(
     },
   }
 
-  return [...fixedColumns, ...dynamicColumns, actionsColumn]
+  // "Last modified" sits at the far right, right before the actions column.
+  const leadingColumns = fixedColumns.filter((column) => column.id !== "updated_at")
+  const updatedAtColumns = fixedColumns.filter((column) => column.id === "updated_at")
+  return [...leadingColumns, ...dynamicColumns, ...updatedAtColumns, actionsColumn]
 }

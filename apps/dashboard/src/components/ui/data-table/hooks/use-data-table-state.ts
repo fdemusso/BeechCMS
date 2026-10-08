@@ -12,6 +12,7 @@ import {
   getSortedRowModel,
   useReactTable,
   type ColumnFiltersState,
+  type ColumnOrderState,
   type ColumnSizingState,
   type GroupingState,
   type ExpandedState,
@@ -57,6 +58,8 @@ export function useDataTableState<TData, TValue>(
     enableColumnResizing,
     columnSizing: columnSizingProp,
     onColumnSizingChange,
+    columnOrder: columnOrderProp,
+    onColumnOrderChange,
     density,
   } = props
 
@@ -82,6 +85,21 @@ export function useDataTableState<TData, TValue>(
   const [internalColumnSizing, setInternalColumnSizing] = React.useState<ColumnSizingState>({})
   const isControlledColumnSizing = columnSizingProp !== undefined
   const columnSizing = columnSizingProp ?? internalColumnSizing
+
+  const [internalColumnOrder, setInternalColumnOrder] = React.useState<ColumnOrderState>([])
+  const isControlledColumnOrder = columnOrderProp !== undefined
+  const columnOrder = columnOrderProp ?? internalColumnOrder
+  // Leading non-hideable columns (select) stay first: TanStack puts unlisted columns after listed ones.
+  const effectiveColumnOrder = React.useMemo<ColumnOrderState>(() => {
+    if (columnOrder.length === 0) return []
+    const leading: string[] = []
+    for (const column of columns) {
+      const id = column.id ?? (column as { accessorKey?: string }).accessorKey
+      if (column.enableHiding !== false || !id) break
+      leading.push(id)
+    }
+    return [...leading, ...columnOrder.filter((id) => !leading.includes(id))]
+  }, [columns, columnOrder])
 
   const [internalRowSelection, setInternalRowSelection] = React.useState<RowSelectionState>({})
   const isControlledRowSelection = rowSelectionProp !== undefined
@@ -163,6 +181,15 @@ export function useDataTableState<TData, TValue>(
     [columnSizing, isControlledColumnSizing, onColumnSizingChange]
   )
 
+  const handleColumnOrderChange = React.useCallback(
+    (updaterOrValue: ColumnOrderState | ((old: ColumnOrderState) => ColumnOrderState)) => {
+      const next = typeof updaterOrValue === "function" ? updaterOrValue(effectiveColumnOrder) : updaterOrValue
+      if (!isControlledColumnOrder) setInternalColumnOrder(next)
+      onColumnOrderChange?.(next)
+    },
+    [effectiveColumnOrder, isControlledColumnOrder, onColumnOrderChange]
+  )
+
   const handlePaginationChange = React.useCallback(
     (updaterOrValue: PaginationState | ((old: PaginationState) => PaginationState)) => {
       const next = typeof updaterOrValue === "function" ? updaterOrValue(pagination) : updaterOrValue
@@ -228,6 +255,7 @@ export function useDataTableState<TData, TValue>(
     enableColumnResizing,
     columnResizeMode: "onChange",
     onColumnSizingChange: handleColumnSizingChange,
+    onColumnOrderChange: handleColumnOrderChange,
     state: {
       sorting,
       columnFilters,
@@ -238,6 +266,7 @@ export function useDataTableState<TData, TValue>(
       grouping,
       expanded,
       columnSizing,
+      columnOrder: effectiveColumnOrder,
     },
     onPaginationChange: handlePaginationChange,
   })

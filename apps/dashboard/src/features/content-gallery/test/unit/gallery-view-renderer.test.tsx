@@ -55,6 +55,8 @@ function makeLayout(overrides: Partial<ViewLayout> = {}): ViewLayout {
     setDateGroupPrecision: vi.fn(),
     columnVisibility: {},
     setColumnVisibility: vi.fn(),
+    columnOrder: [],
+    setColumnOrder: vi.fn(),
     density: "normal",
     setDensity: vi.fn(),
     conditionalFormats: [],

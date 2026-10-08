@@ -52,6 +52,8 @@ export function ContentTableRenderer({ seed, slug, query, layout, formatElement,
       initialHiddenColumns={tableConfig.initialHiddenColumns}
       columnVisibility={layout.columnVisibility}
       onColumnVisibilityChange={layout.setColumnVisibility}
+      columnOrder={layout.columnOrder}
+      onColumnOrderChange={layout.setColumnOrder}
       columnSizing={tableConfig.columnSizing}
       onColumnSizingChange={tableConfig.setColumnSizing}
       density={layout.density}

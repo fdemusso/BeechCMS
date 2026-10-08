@@ -70,6 +70,33 @@ function computeMaxJsonLength(
   )
 }
 
+/** Fraction digits shown by a number cell without explicit `decimals` (see formatNumber). */
+const MAX_NUMBER_DECIMALS = 2
+
+/**
+ * Computes the largest number of fraction digits across the page, so a column can show every
+ * value with the same decimals.
+ *
+ * @param firstPage - List of entries in the first page layout.
+ * @param alias - The field alias to check.
+ * @returns An integer between 0 and {@link MAX_NUMBER_DECIMALS}.
+ */
+function computeMaxFractionDigits(firstPage: ContentEntry[], alias: string): number {
+  let max = 0
+  for (const row of firstPage) {
+    const cellValue = row.data[alias]
+    if (cellValue == null || cellValue === "") continue
+    const num = Number(cellValue)
+    if (!Number.isFinite(num)) continue
+    const text = String(num)
+    if (text.includes("e")) continue
+    const dot = text.indexOf(".")
+    const digits = dot < 0 ? 0 : text.length - dot - 1
+    if (digits > max) max = digits
+  }
+  return Math.min(max, MAX_NUMBER_DECIMALS)
+}
+
 /**
  * Dispatches to the appropriate length computation helper based on the branch type.
  *
@@ -81,6 +108,7 @@ function computeMaxLengthForBranch(
   branch: Seed["branches"][number],
   firstPage: ContentEntry[],
 ): number | null {
+  if (branch.type === "number") return computeMaxFractionDigits(firstPage, branch.alias)
   if (branch.type === "json") return computeMaxJsonLength(firstPage, branch.alias)
   if (branch.type === "text") return computeMaxStringLength(firstPage, branch.alias)
   return computeMaxStringLength(firstPage, branch.alias)
@@ -93,7 +121,8 @@ function computeMaxLengthForBranch(
  * @param data - The full list of entries available.
  * @param seed - The schema seed structure.
  * @param rowsPerPage - Pagination limits representing the first page bounds.
- * @returns Dictionary mapping field alias keys to character length thresholds.
+ * @returns Dictionary mapping field alias keys to character length thresholds
+ *   (for number branches: the fraction digits to display).
  */
 export function computeMaxLengths(
   data: ContentEntry[],

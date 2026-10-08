@@ -138,6 +138,17 @@ describe('validateViewConfigAgainstSeed', () => {
     expect(result.conditionalFormats).toEqual([])
   })
 
+  it('dedupes the column order and drops refs the seed does not have', () => {
+    const config: ContentViewConfig = {
+      ...emptyConfig(),
+      appearance: { columnOrder: ['br_01', 'br_99', 'br_01'] },
+    }
+
+    const result = validateViewConfigAgainstSeed(config, ARTICLES, 'table')
+
+    expect(result.appearance.columnOrder).toEqual(['br_01'])
+  })
+
   it('keeps only the first filter on a repeated column', () => {
     const config: ContentViewConfig = {
       ...emptyConfig(),

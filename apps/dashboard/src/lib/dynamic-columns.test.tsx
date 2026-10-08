@@ -460,11 +460,84 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
   })
 })
 
+describe("dynamic-columns - number decimals", () => {
+  const seed = makeSeed({
+    branches: [{ id: "n1", alias: "price", label: "Price", type: "number" as const }] as any,
+  })
+
+  it("computeMaxLengths returns the fraction digits for number branches, capped at 2", () => {
+    const rows = (...prices: unknown[]) => prices.map((p, i) => makeEntry(String(i), "items", { price: p }))
+
+    expect(computeMaxLengths(rows(12, 3.5, 7.25), seed, 10).price).toBe(2)
+    expect(computeMaxLengths(rows(12, 3.5), seed, 10).price).toBe(1)
+    expect(computeMaxLengths(rows(12, 3), seed, 10).price).toBe(0)
+    expect(computeMaxLengths(rows(1.23456, null, ""), seed, 10).price).toBe(2)
+  })
+
+  it("renders every value of a plain number column with the same decimals", () => {
+    const cols = generateColumns(seed, vi.fn(), vi.fn(), { price: 2 })
+    const priceCol = cols.find((c) => c.id === "price") as any
+
+    render(<div>{priceCol.cell({ row: { original: makeEntry("1", "items", { price: 12 }) } })}</div>)
+
+    expect(screen.getByText("12,00")).toBeInTheDocument()
+  })
+})
+
+describe("dynamic-columns - alignment by data type", () => {
+  const seed = makeSeed({
+    branches: [
+      { id: "n1", alias: "price", label: "Price", type: "number" as const },
+      { id: "n2", alias: "stars", label: "Stars", type: "number" as const, numberOptions: { control: "rating" } },
+      { id: "b1", alias: "active", label: "Active", type: "boolean" as const },
+      { id: "d1", alias: "when", label: "When", type: "date" as const },
+      { id: "t1", alias: "title", label: "Title", type: "text" as const },
+    ] as any,
+  })
+
+  const align = (header: unknown) => {
+    const { container } = render(<>{(header as () => React.ReactNode)()}</>)
+    const el = container.firstElementChild as HTMLElement
+    return el.classList.contains("justify-end") ? "right" : el.classList.contains("justify-center") ? "center" : "left"
+  }
+
+  it("aligns numbers right, booleans/ratings/status/id center, text and dates left", () => {
+    const cols = generateColumns(seed, vi.fn(), vi.fn())
+    const header = (id: string) => (cols.find((c) => c.id === id) as any).header
+
+    expect(align(header("price"))).toBe("right")
+    expect(align(header("stars"))).toBe("center")
+    expect(align(header("active"))).toBe("center")
+    expect(align(header("status"))).toBe("center")
+    expect(align(header("id"))).toBe("center")
+    expect(align(header("when"))).toBe("left")
+    expect(align(header("title"))).toBe("left")
+  })
+})
+
+describe("generateColumns - default order", () => {
+  it("puts the last modified column after the seed branches, right before actions", () => {
+    const ids = generateColumns(posts, vi.fn(), vi.fn()).map((c) => c.id ?? (c as { accessorKey?: string }).accessorKey)
+
+    expect(ids[0]).toBe("select")
+    expect(ids.slice(-2)).toEqual(["updated_at", "actions"])
+    expect(ids.indexOf("created_at")).toBeLessThan(ids.indexOf(posts.branches[0].alias))
+  })
+})
+
 describe("defaultHiddenColumns", () => {
   it("hides id, slug and created_at for the canonical posts seed", () => {
     const hidden = defaultHiddenColumns(posts)
 
     expect(hidden).toEqual(["id", "slug", "created_at"])
+  })
+
+  it("also hides status when the seed has no drafts, and shows it when drafts are on", () => {
+    const withoutDrafts: Seed = { ...posts, allowDrafts: false }
+    const withDrafts: Seed = { ...posts, allowDrafts: true }
+
+    expect(defaultHiddenColumns(withoutDrafts)).toEqual(["id", "slug", "created_at", "status"])
+    expect(defaultHiddenColumns(withDrafts)).not.toContain("status")
   })
 
   it("appends a json branch whose alias contains metadata after the system columns", () => {

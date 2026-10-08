@@ -18,6 +18,12 @@ undefined → keep; otherwise replaces the whole config.
 
 > **appearance**: `object`
 
+##### appearance.columnOrder?
+
+> `optional` **columnOrder?**: `string`[]
+
+Display order of data columns; columns missing from the list follow in default order.
+
 ##### appearance.density?
 
 > `optional` **density?**: `"compact"` \| `"normal"` \| `"comfortable"`

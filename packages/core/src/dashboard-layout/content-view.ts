@@ -72,6 +72,8 @@ export const VIEW_DENSITIES = ['compact', 'normal', 'comfortable'] as const
 export const viewAppearanceSchema = z.object({
   density: z.enum(VIEW_DENSITIES).optional(),
   hiddenColumns: z.array(viewColumnRefSchema).max(200).optional(),
+  /** Display order of data columns; columns missing from the list follow in default order. */
+  columnOrder: z.array(viewColumnRefSchema).max(200).optional(),
   pageSize: z.number().int().min(1).max(100).optional(),
 })
 
@@ -272,6 +274,9 @@ export function validateViewConfigAgainstSeed(
   const appearance = { ...config.appearance }
   if (appearance.hiddenColumns) {
     appearance.hiddenColumns = [...new Set(appearance.hiddenColumns)].filter((ref) => refExists(seed, ref))
+  }
+  if (appearance.columnOrder) {
+    appearance.columnOrder = [...new Set(appearance.columnOrder)].filter((ref) => refExists(seed, ref))
   }
 
   const conditionalFormats = config.conditionalFormats.filter((rule) => refExists(seed, rule.columnRef))

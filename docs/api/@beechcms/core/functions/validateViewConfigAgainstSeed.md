@@ -18,7 +18,13 @@ sub-config on a non-kanban instance and the card layout on a table instance. Sam
 
 #### appearance
 
-\{ `density?`: `"compact"` \| `"normal"` \| `"comfortable"`; `hiddenColumns?`: `string`[]; `pageSize?`: `number`; \} = `...`
+\{ `columnOrder?`: `string`[]; `density?`: `"compact"` \| `"normal"` \| `"comfortable"`; `hiddenColumns?`: `string`[]; `pageSize?`: `number`; \} = `...`
+
+#### appearance.columnOrder?
+
+`string`[] = `...`
+
+Display order of data columns; columns missing from the list follow in default order.
 
 #### appearance.density?
 
@@ -123,6 +129,12 @@ Kanban-only. Dropped from any non-kanban instance.
 ### appearance
 
 > **appearance**: `object`
+
+#### appearance.columnOrder?
+
+> `optional` **columnOrder?**: `string`[]
+
+Display order of data columns; columns missing from the list follow in default order.
 
 #### appearance.density?
 

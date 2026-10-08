@@ -34,6 +34,8 @@ export interface ContentTableViewProps {
   initialHiddenColumns: string[]
   columnVisibility: VisibilityState
   onColumnVisibilityChange: (updater: VisibilityState | ((old: VisibilityState) => VisibilityState)) => void
+  columnOrder: string[]
+  onColumnOrderChange: (order: string[]) => void
   columnSizing: ColumnSizingState
   onColumnSizingChange: (updater: ColumnSizingState | ((old: ColumnSizingState) => ColumnSizingState)) => void
   density: TableDensity
@@ -72,6 +74,8 @@ export function ContentTableView({
   initialHiddenColumns,
   columnVisibility,
   onColumnVisibilityChange,
+  columnOrder,
+  onColumnOrderChange,
   columnSizing,
   onColumnSizingChange,
   density,
@@ -184,6 +188,8 @@ export function ContentTableView({
       data={data}
       initialHiddenColumns={initialHiddenColumns}
       enableColumnResizing
+      columnOrder={columnOrder}
+      onColumnOrderChange={onColumnOrderChange}
       columnSizing={columnSizing}
       onColumnSizingChange={onColumnSizingChange}
       density={density}

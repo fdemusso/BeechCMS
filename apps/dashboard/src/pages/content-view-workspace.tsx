@@ -72,6 +72,7 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
           groupBy: layout.groupBy,
           dateGroupPrecision: layout.dateGroupPrecision,
           columnVisibility: layout.columnVisibility,
+          columnOrder: layout.columnOrder,
           density: layout.density,
           pageSize: query.pageSize,
           conditionalFormats: layout.conditionalFormats,
@@ -83,7 +84,7 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
         view.type
       ),
     [query.persistableFilters, query.singleSort, query.pageSize, layout.groupBy, layout.dateGroupPrecision,
-     layout.columnVisibility, layout.density, layout.conditionalFormats, layout.kanban, layout.card, layout.folders, seed, view.type]
+     layout.columnVisibility, layout.columnOrder, layout.density, layout.conditionalFormats, layout.kanban, layout.card, layout.folders, seed, view.type]
   )
   const { isSaving } = useViewConfigAutosave({ slug, viewId: view.id, config, enabled: canManageViews })
 

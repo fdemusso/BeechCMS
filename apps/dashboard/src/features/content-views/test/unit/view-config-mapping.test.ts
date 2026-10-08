@@ -130,6 +130,20 @@ describe("toContentViewConfig", () => {
     expect(config.appearance.hiddenColumns).toEqual(["br_01"])
   })
 
+  it("stores the column order as Branch IDs and restores it as column ids", () => {
+    const config = toContentViewConfig(baseState({ columnOrder: ["slug", "title", "ghost"] }), posts, "table")
+    const state = toViewToolbarState(config, posts)
+
+    expect(config.appearance.columnOrder).toEqual(["slug", "br_01"])
+    expect(state.columnOrder).toEqual(["slug", "title"])
+  })
+
+  it("omits the column order when none was set", () => {
+    const config = toContentViewConfig(baseState({ columnOrder: [] }), posts, "table")
+
+    expect(config.appearance.columnOrder).toBeUndefined()
+  })
+
   it("drops kanban and card for a non-kanban type and keeps them for kanban", () => {
     const kanban = { axisBranchId: "br_09", sort: null }
     const card = { version: 1 as const, metadata: [] }

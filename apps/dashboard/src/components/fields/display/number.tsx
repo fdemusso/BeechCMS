@@ -87,5 +87,5 @@ export function NumberDisplay({ branch, value }: FieldDisplayProps) {
   }
 
   const formatted = formatNumber(num, branch.numberOptions)
-  return <div className="font-medium">{formatted}</div>
+  return <div className="font-medium tabular-nums">{formatted}</div>
 }

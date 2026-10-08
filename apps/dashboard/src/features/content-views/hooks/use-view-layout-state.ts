@@ -16,6 +16,7 @@ export function useViewLayoutState(initial: ViewToolbarState, seed: Seed): ViewL
   const [columnVisibility, setColumnVisibility] = React.useState(
     () => initial.columnVisibility ?? Object.fromEntries(defaultHiddenColumns(seed).map((alias) => [alias, false]))
   )
+  const [columnOrder, setColumnOrder] = React.useState<string[]>(() => initial.columnOrder ?? [])
   const [density, setDensity] = React.useState(initial.density ?? DEFAULT_DENSITY)
   const [conditionalFormats, setConditionalFormats] = React.useState(initial.conditionalFormats)
   const [kanban, setKanban] = React.useState(initial.kanban ?? { axisBranchId: null, sort: null })
@@ -40,6 +41,8 @@ export function useViewLayoutState(initial: ViewToolbarState, seed: Seed): ViewL
       setDateGroupPrecision,
       columnVisibility,
       setColumnVisibility,
+      columnOrder,
+      setColumnOrder,
       density,
       setDensity,
       conditionalFormats,
@@ -51,6 +54,6 @@ export function useViewLayoutState(initial: ViewToolbarState, seed: Seed): ViewL
       folders,
       setFolders,
     }),
-    [groupBy, dateGroupPrecision, columnVisibility, density, conditionalFormats, kanban, card, folders]
+    [groupBy, dateGroupPrecision, columnVisibility, columnOrder, density, conditionalFormats, kanban, card, folders]
   )
 }

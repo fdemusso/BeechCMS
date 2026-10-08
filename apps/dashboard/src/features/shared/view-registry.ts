@@ -49,6 +49,8 @@ export interface ViewLayout {
   readonly setDateGroupPrecision: Dispatch<SetStateAction<DateGroupPrecision>>
   readonly columnVisibility: VisibilityState
   readonly setColumnVisibility: Dispatch<SetStateAction<VisibilityState>>
+  readonly columnOrder: string[]
+  readonly setColumnOrder: Dispatch<SetStateAction<string[]>>
   readonly density: TableDensity
   readonly setDensity: Dispatch<SetStateAction<TableDensity>>
   readonly conditionalFormats: ConditionalFormatRule[]

@@ -63,6 +63,7 @@ export function DataTableBody<TData, TValue>({
   }
 
   const { columns, emptyState, enableColumnResizing, manualPagination, data } = props
+  const enableColumnReorder = props.columnOrder !== undefined || props.onColumnOrderChange !== undefined
 
   if (isGroupingActive) {
     return (
@@ -73,7 +74,7 @@ export function DataTableBody<TData, TValue>({
       >
         <Table>
           <TableHeader>
-            <DataTableHeader table={table} enableColumnResizing={enableColumnResizing} />
+            <DataTableHeader table={table} enableColumnResizing={enableColumnResizing} enableColumnReorder={enableColumnReorder} />
           </TableHeader>
           <TableBody>
             {flatRows.length > 0 ? (
@@ -119,7 +120,7 @@ export function DataTableBody<TData, TValue>({
     >
       <Table>
         <TableHeader>
-          <DataTableHeader table={table} enableColumnResizing={enableColumnResizing} />
+          <DataTableHeader table={table} enableColumnResizing={enableColumnResizing} enableColumnReorder={enableColumnReorder} />
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows?.length ? (

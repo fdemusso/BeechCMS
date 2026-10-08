@@ -31,6 +31,8 @@ export interface ViewToolbarState {
   dateGroupPrecision: DateGroupPrecision
   /** undefined → the table's built-in default hidden set. */
   columnVisibility: VisibilityState | undefined
+  /** Column ids in display order; undefined → the table's default order. */
+  columnOrder?: string[]
   density: TableDensity | undefined
   pageSize: number | undefined
   conditionalFormats: ConditionalFormatRule[]
@@ -130,6 +132,11 @@ export function toViewToolbarState(config: ContentViewConfig, seed: Seed): ViewT
           }),
         ])
 
+  const columnOrder = config.appearance.columnOrder?.flatMap((ref) => {
+    const columnId = refToColumnId(seed, ref)
+    return columnId === null ? [] : [columnId]
+  })
+
   const conditionalFormats = config.conditionalFormats.flatMap((rule): ConditionalFormatRule[] => {
     const column = columnFor(rule.columnRef)
     if (!column) return []
@@ -152,6 +159,7 @@ export function toViewToolbarState(config: ContentViewConfig, seed: Seed): ViewT
     groupBy,
     dateGroupPrecision: config.groupBy?.datePrecision ?? DEFAULT_DATE_GROUP_PRECISION,
     columnVisibility,
+    columnOrder,
     density: config.appearance.density,
     pageSize: config.appearance.pageSize,
     conditionalFormats,
@@ -181,6 +189,18 @@ export function toContentViewConfig(state: ViewToolbarState, seed: Seed, type: D
           ...new Set(
             Object.entries(state.columnVisibility).flatMap(([columnId, visible]) => {
               if (visible !== false || columnId === ALWAYS_HIDDEN_COLUMN) return []
+              const ref = columnIdToRef(seed, columnId)
+              return ref === null ? [] : [ref]
+            })
+          ),
+        ].slice(0, MAX_HIDDEN_COLUMNS)
+
+  const columnOrder =
+    state.columnOrder === undefined || state.columnOrder.length === 0
+      ? undefined
+      : [
+          ...new Set(
+            state.columnOrder.flatMap((columnId) => {
               const ref = columnIdToRef(seed, columnId)
               return ref === null ? [] : [ref]
             })
@@ -218,6 +238,7 @@ export function toContentViewConfig(state: ViewToolbarState, seed: Seed, type: D
     appearance: {
       ...(state.density !== undefined ? { density: state.density } : {}),
       ...(hiddenColumns !== undefined ? { hiddenColumns } : {}),
+      ...(columnOrder !== undefined ? { columnOrder } : {}),
       ...(state.pageSize !== undefined ? { pageSize: clampInt(state.pageSize, 1, 100) } : {}),
     },
     conditionalFormats,

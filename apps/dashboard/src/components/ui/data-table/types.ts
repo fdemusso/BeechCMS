@@ -101,6 +101,10 @@ export interface DataTableProps<TData, TValue> {
   columnSizing?: ColumnSizingState
   /** Callback al cambio larghezze colonne (modalità controllata). */
   onColumnSizingChange?: (sizing: ColumnSizingState) => void
+  /** Ordine colonne (id) controllato dall'esterno; ids mancanti seguono nell'ordine di default. */
+  columnOrder?: string[]
+  /** Se presente (o con columnOrder) abilita il drag orizzontale delle intestazioni. */
+  onColumnOrderChange?: (order: string[]) => void
   /** Densità righe (default: "normal"). */
   density?: TableDensity
   /** Single-click activation of a cell value (e.g. click-to-filter). Feature-agnostic. */
