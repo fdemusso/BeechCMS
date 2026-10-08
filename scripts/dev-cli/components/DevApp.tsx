@@ -100,12 +100,12 @@ export function DevApp({ orchestrator, version, onQuit }: DevAppProps) {
     }
 
     if (input === 'd' && errors.length > 0) {
-      orchestrator.logStore.toggleErrorExpanded(clampedErrorIndex)
+      orchestrator.toggleErrorExpanded(clampedErrorIndex)
       return
     }
     if (input === 'x' && errors.length > 0) {
-      orchestrator.logStore.dismissError(clampedErrorIndex)
-      setSelectedErrorIndex((i) => Math.max(0, i - 1))
+      orchestrator.dismissError(clampedErrorIndex)
+      setSelectedErrorIndex(Math.max(0, clampedErrorIndex - 1))
       return
     }
 

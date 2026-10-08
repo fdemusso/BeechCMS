@@ -149,15 +149,19 @@ export class LogStore {
     return this.pendingError ? [...this.errors, this.pendingError] : this.errors
   }
 
+  /** Index is into {@link getErrors}, which includes the pending (in-progress) error as the last entry. */
   toggleErrorExpanded(index: number): void {
-    const all = this.errors
-    if (index >= 0 && index < all.length) {
-      all[index].expanded = !all[index].expanded
-    }
+    const target = this.getErrors()[index]
+    if (target) target.expanded = !target.expanded
   }
 
   dismissError(index: number): void {
-    if (index >= 0 && index < this.errors.length) {
+    const all = this.getErrors()
+    const target = all[index]
+    if (!target) return
+    if (target === this.pendingError) {
+      this.pendingError = null
+    } else {
       this.errors.splice(index, 1)
     }
   }

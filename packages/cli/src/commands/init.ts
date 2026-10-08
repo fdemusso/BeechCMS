@@ -2,10 +2,11 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import pc from 'picocolors'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { createInterface } from 'node:readline/promises'
 import { resolve, basename } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import { findWranglerConfig, resolveDbName, executeD1File, queryD1, type WranglerOptions } from '../lib/wrangler.js'
 
 // System tables created by the base schema migration (0000_v040_base.sql).
@@ -347,6 +348,27 @@ function echoApiKeys(configPath: string | null | undefined): void {
   }
 }
 
+/**
+ * Ensures `.dev.vars` holds a PRIVACY_MASTER_KEY. Never overwrites a non-empty value:
+ * rotating the key makes already-protected fields unreadable.
+ */
+function ensurePrivacyMasterKey(devVarsPath: string): boolean {
+  const content = readFileSync(devVarsPath, 'utf8')
+  const lines = content.split(/\r?\n/)
+  const index = lines.findIndex((line) => /^PRIVACY_MASTER_KEY=/.test(line))
+  if (index !== -1 && lines[index].slice('PRIVACY_MASTER_KEY='.length).trim() !== '') return false
+
+  const entry = `PRIVACY_MASTER_KEY=${randomBytes(32).toString('hex')}`
+  if (index !== -1) {
+    lines[index] = entry
+    writeFileSync(devVarsPath, lines.join('\n'), 'utf8')
+  } else {
+    const separator = content === '' || content.endsWith('\n') ? '' : '\n'
+    appendFileSync(devVarsPath, `${separator}\n# Master key for protected fields (AES-GCM + blind index). Do NOT change once data is stored.\n${entry}\n`, 'utf8')
+  }
+  return true
+}
+
 function checkFiles(cwd: string, checkDevVars: boolean): boolean {
   let ok = true
 
@@ -376,6 +398,9 @@ function checkFiles(cwd: string, checkDevVars: boolean): boolean {
       console.log(pc.dim('  ○ .dev.vars        — not found (optional: only needed for production R2 credentials)'))
     } else {
       console.log(pc.green('  ✓ .dev.vars'))
+      if (ensurePrivacyMasterKey(resolve(cwd, '.dev.vars'))) {
+        console.log(pc.green('  ✓ PRIVACY_MASTER_KEY — generated in .dev.vars'))
+      }
     }
   }
 

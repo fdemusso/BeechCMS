@@ -105,6 +105,7 @@ function buildWranglerJsonc(cfg) {
 }
 
 function buildDevVars(cloudflare) {
+  const PRIVACY_KEY_LINES = `# Master key for protected fields (AES-GCM + blind index). Do NOT change once data is stored.\nPRIVACY_MASTER_KEY=${randomBytes(32).toString('hex')}`
   if (cloudflare) {
     return [
       `# Cloudflare R2 S3 credentials (required for direct client upload via Presigned URLs)`,
@@ -113,6 +114,8 @@ function buildDevVars(cloudflare) {
       `R2_SECRET_ACCESS_KEY=${cloudflare.r2SecretKey}`,
       `R2_ENDPOINT=${cloudflare.r2Endpoint}`,
       `R2_BUCKET_NAME=${cloudflare.r2Bucket}`,
+      '',
+      PRIVACY_KEY_LINES,
     ].join('\n') + '\n'
   }
   return [
@@ -123,6 +126,8 @@ function buildDevVars(cloudflare) {
     'R2_SECRET_ACCESS_KEY=',
     'R2_ENDPOINT=https://<YOUR_ACCOUNT_ID>.r2.cloudflarestorage.com',
     'R2_BUCKET_NAME=',
+    '',
+    PRIVACY_KEY_LINES,
   ].join('\n') + '\n'
 }
 

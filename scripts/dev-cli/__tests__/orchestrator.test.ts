@@ -151,4 +151,18 @@ describe('Orchestrator dev server lifecycle', () => {
     expect(orchestrator.getService('api').status).toBe('starting')
     expect(orchestrator.getService('dashboard').status).toBe('starting')
   })
+
+  it('emits change when an error is toggled or dismissed so the UI re-renders', () => {
+    orchestrator.logStore.addLine('api', 'Error: boom')
+    const revision = orchestrator.getRevision()
+
+    orchestrator.toggleErrorExpanded(0)
+    expect(orchestrator.logStore.getErrors()[0].expanded).toBe(true)
+    expect(orchestrator.getRevision()).toBeGreaterThan(revision)
+
+    const afterToggle = orchestrator.getRevision()
+    orchestrator.dismissError(0)
+    expect(orchestrator.logStore.getErrors()).toHaveLength(0)
+    expect(orchestrator.getRevision()).toBeGreaterThan(afterToggle)
+  })
 })
