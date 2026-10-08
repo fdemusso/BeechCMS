@@ -132,6 +132,33 @@ describe('Dashboard Layout Handler', () => {
       expect(body.type).toContain('invalid-layout')
     })
 
+    it('returns 422 and does not persist a layout above the aggregate size cap', async () => {
+      const { app, repo } = buildApp()
+      const widgets = Array.from({ length: 40 }, (_, i) => ({
+        id: `w-${i}`,
+        type: 'core/stat',
+        config: { blob: 'x'.repeat(8000) },
+      }))
+      const oversized: DashboardLayout = {
+        version: 1,
+        pages: [
+          {
+            id: 'page-1',
+            slug: 'overview',
+            label: 'Overview',
+            sections: [{ id: 'section-1', columns: [{ id: 'col-1', widgets }] }],
+          },
+        ],
+      }
+
+      const res = await app.request('/', putRequest(oversized))
+
+      expect(res.status).toBe(422)
+      const body = await res.json() as { type: string }
+      expect(body.type).toContain('invalid-layout')
+      expect(repo.upsert).not.toHaveBeenCalled()
+    })
+
     it('returns 422 when the layout has duplicate widget ids', async () => {
       const duplicateLayout: DashboardLayout = {
         version: 1,

@@ -63,22 +63,30 @@ export const WIDGET_TYPE_REGEX = /^[a-z0-9@][a-z0-9@/_-]*$/
  *  (`JSON.stringify(widget.config).length`) — guards D1 row bloat. */
 export const MAX_WIDGET_CONFIG_BYTES = 8192
 
+/** Max serialized size of a whole layout. Keeps the `dashboard_layouts` row
+ *  far below D1's per-row limit and bounds the per-request cost of every GET. */
+export const MAX_DASHBOARD_LAYOUT_BYTES = 256 * 1024
+
+export const MAX_SECTIONS_PER_PAGE = 50
+export const MAX_WIDGETS_PER_COLUMN = 50
+const ID_MAX = 64
+
 // ---------------------------------------------------------------------------
 // Zod schemas for shape validation
 // ---------------------------------------------------------------------------
 
 export const dashboardWidgetInstanceSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).max(ID_MAX),
   type: z.string().regex(WIDGET_TYPE_REGEX),
   title: z.string().max(80).optional(),
   config: z.record(z.string(), z.unknown()),
 })
 export const dashboardColumnSchema = z.object({
-  id: z.string().min(1),
-  widgets: z.array(dashboardWidgetInstanceSchema),
+  id: z.string().min(1).max(ID_MAX),
+  widgets: z.array(dashboardWidgetInstanceSchema).max(MAX_WIDGETS_PER_COLUMN),
 })
 export const dashboardSectionSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).max(ID_MAX),
   label: z.string().max(60).optional(),
   hideLabel: z.boolean().optional(),
   collapsible: z.boolean().optional(),
@@ -86,16 +94,21 @@ export const dashboardSectionSchema = z.object({
   columnSpans: z.array(z.number().int().min(1).max(12)).optional(),
 })
 export const dashboardPageSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).max(ID_MAX),
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(40),
   label: z.string().min(1).max(60),
   icon: z.string().max(40).optional(),
-  sections: z.array(dashboardSectionSchema).min(1),
+  sections: z.array(dashboardSectionSchema).min(1).max(MAX_SECTIONS_PER_PAGE),
 })
-export const dashboardLayoutSchema = z.object({
-  version: z.literal(1),
-  pages: z.array(dashboardPageSchema).min(1).max(8),
-})
+export const dashboardLayoutSchema = z
+  .object({
+    version: z.literal(1),
+    pages: z.array(dashboardPageSchema).min(1).max(8),
+  })
+  .refine(
+    (layout) => new TextEncoder().encode(JSON.stringify(layout)).length <= MAX_DASHBOARD_LAYOUT_BYTES,
+    { message: `Layout exceeds the ${MAX_DASHBOARD_LAYOUT_BYTES / 1024} KB size limit.` },
+  )
 
 // ---------------------------------------------------------------------------
 // Default dashboard layout generator
