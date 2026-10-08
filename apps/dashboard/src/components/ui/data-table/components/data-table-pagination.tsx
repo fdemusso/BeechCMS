@@ -17,19 +17,30 @@ import {
 export interface DataTablePaginationProps<TData> {
   table: TanstackTable<TData>
   totalRows?: number
+  /** Selected rows across all pages. A prop so the memoized footer re-renders on selection changes. */
+  selectedCount: number
+  /** Hides the page controls (grouping mode), keeping the selection counter. */
+  hidePagination?: boolean
 }
 
-function DataTablePaginationInner<TData>({ table, totalRows }: DataTablePaginationProps<TData>) {
+function DataTablePaginationInner<TData>({
+  table,
+  totalRows,
+  selectedCount,
+  hidePagination = false,
+}: DataTablePaginationProps<TData>) {
   const { t } = useTranslation()
+  const totalCount =
+    totalRows ?? table.getFilteredRowModel().flatRows.filter((r) => !r.getIsGrouped()).length
 
   return (
     <div className="flex shrink-0 items-center justify-between gap-4 py-4">
-      {table.getFilteredSelectedRowModel().rows.length > 0 && (
+      {selectedCount > 0 && (
         <div className="text-muted-foreground text-sm whitespace-nowrap">
-          {table.getFilteredSelectedRowModel().rows.length} di{" "}
-          {totalRows ?? table.getFilteredRowModel().rows.length} selezionate
+          {t("common.selectedOfTotal", { count: selectedCount, selected: selectedCount, total: totalCount })}
         </div>
       )}
+      {!hidePagination && (
       <Pagination className="ml-auto justify-end">
         <PaginationContent>
           <PaginationItem>
@@ -66,6 +77,7 @@ function DataTablePaginationInner<TData>({ table, totalRows }: DataTablePaginati
           </PaginationItem>
         </PaginationContent>
       </Pagination>
+      )}
     </div>
   )
 }

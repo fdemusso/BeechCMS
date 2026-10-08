@@ -93,6 +93,8 @@ export interface DataTableProps<TData, TValue> {
   onGroupingChange?: (grouping: GroupingState) => void
   /** Callback opzionale al doppio click su una riga. */
   onRowDoubleClick?: (row: TData) => void
+  /** Delete/Backspace con righe selezionate (anche su altre pagine). Assente = scorciatoia disattivata. */
+  onDeleteRows?: (rows: TData[]) => void
   /** Abilita il ridimensionamento colonne (default: false). */
   enableColumnResizing?: boolean
   /** Larghezze colonne controllate dall'esterno (opzionale). */

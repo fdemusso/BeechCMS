@@ -15,6 +15,41 @@ import type { DataTableSelection } from "../hooks/use-data-table-selection"
 import type { DataTableProps } from "../types"
 import { CELL_CLICK_DELAY_MS } from "../types"
 
+const HIT_TOLERANCE_PX = 2
+const VISUAL_CONTENT_SELECTOR = "img, svg, canvas, [data-slot='badge']"
+
+function containsPoint(rect: DOMRect, x: number, y: number) {
+  return (
+    x >= rect.left - HIT_TOLERANCE_PX &&
+    x <= rect.right + HIT_TOLERANCE_PX &&
+    y >= rect.top - HIT_TOLERANCE_PX &&
+    y <= rect.bottom + HIT_TOLERANCE_PX
+  )
+}
+
+/**
+ * True when the click landed on what the cell actually shows (text, icon, badge) rather than on its
+ * padding or on the blank part of a block element stretching across the cell.
+ */
+function isClickOnCellContent(cell: HTMLElement, x: number, y: number): boolean {
+  const range = document.createRange()
+  // jsdom has no layout: fall back to "anything but the bare cell".
+  if (typeof range.getClientRects !== "function") return true
+
+  const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT)
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!node.textContent?.trim()) continue
+    range.selectNodeContents(node)
+    for (const rect of Array.from(range.getClientRects())) {
+      if (containsPoint(rect, x, y)) return true
+    }
+  }
+  for (const el of Array.from(cell.querySelectorAll(VISUAL_CONTENT_SELECTOR))) {
+    if (containsPoint(el.getBoundingClientRect(), x, y)) return true
+  }
+  return false
+}
+
 export interface DataTableRowProps<TData, TValue> {
   row: Row<TData>
   rowHeight: number
@@ -99,6 +134,7 @@ function DataTableRowInner<TData, TValue>({
           if (!canActivateCell) return
           // Selected rows are being worked on: a single click must not trigger click-to-filter.
           if (row.getIsSelected()) return
+          if (e.target === e.currentTarget || !isClickOnCellContent(e.currentTarget, e.clientX, e.clientY)) return
           if ((e.target as HTMLElement).closest("button, a, input, [role='button'], [data-no-cell-filter]")) return
           if (cellClickTimerRef.current) window.clearTimeout(cellClickTimerRef.current)
           cellClickTimerRef.current = window.setTimeout(() => {
@@ -119,7 +155,12 @@ function DataTableRowInner<TData, TValue>({
         return (
           <ContextMenu key={cell.id}>
             <ContextMenuTrigger asChild>
-              <TableCell className={cellClassName} style={cellStyle} onClick={handleCellClick}>
+              <TableCell
+                data-context-menu=""
+                className={cellClassName}
+                style={cellStyle}
+                onClick={handleCellClick}
+              >
                 {cellInner}
               </TableCell>
             </ContextMenuTrigger>

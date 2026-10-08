@@ -51,6 +51,13 @@ export function useContentTableConfig({
     return computeMaxLengths(data, seed, pageSize)
   }, [seed, data, pageSize])
 
+  // Columns must not depend on the selection: new column defs mean new cell component types,
+  // so React would unmount and remount every cell of the page on each (de)selection.
+  // The actions cell reads the latest selection through this getter at render time.
+  const selectedIdsRef = React.useRef(selectedIds)
+  selectedIdsRef.current = selectedIds
+  const getSelectedIds = React.useCallback(() => selectedIdsRef.current, [])
+
   const columns = React.useMemo(() => {
     if (!seed) return []
     return generateColumns(
@@ -58,13 +65,13 @@ export function useContentTableConfig({
       handleEdit,
       handleDelete,
       maxLengths,
-      selectedIds,
+      getSelectedIds,
       handleBulkDelete,
       dateGroupPrecision,
       t,
       handleBulkEdit,
     )
-  }, [seed, handleEdit, handleDelete, maxLengths, selectedIds, handleBulkDelete, dateGroupPrecision, t, handleBulkEdit])
+  }, [seed, handleEdit, handleDelete, maxLengths, getSelectedIds, handleBulkDelete, dateGroupPrecision, t, handleBulkEdit])
 
   const grouping = React.useMemo<GroupingState>(
     () => (groupBy ? [groupBy] : []),

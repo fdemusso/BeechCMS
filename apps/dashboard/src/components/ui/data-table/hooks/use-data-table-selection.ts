@@ -21,18 +21,34 @@ export interface DataTableSelection {
   handleKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void
 }
 
+export interface DataTableSelectionOptions<TData> {
+  enabled: boolean
+  rowHeight: number
+  /** Enter with exactly one row selected (same as a double click). */
+  onRowActivate?: (row: TData) => void
+  /** Delete/Backspace with a selection. Omit to disable the shortcut. */
+  onDeleteRows?: (rows: TData[]) => void
+}
+
 /**
  * Standard list-selection shortcuts for DataTable:
  * - Shift+click: range from anchor (Ctrl/Cmd+Shift+click adds the range)
  * - Ctrl/Cmd+click: toggle one row
  * - Arrows: move focus + select; Shift+Arrows extend; Ctrl/Cmd+Arrows move focus only
- * - Ctrl/Cmd+Space: toggle focused row; Ctrl/Cmd+A: select page; Home/End; Esc: clear
+ * - Enter: with exactly one row selected, acts like a double click on it (onRowActivate)
+ * - Ctrl/Cmd+Space: toggle focused row; Ctrl/Cmd+A: select page; Ctrl/Cmd+Shift+A: deselect all
+ * - Ctrl/Cmd+I: invert selection on the page; Home/End, PageUp/PageDown: move focus
+ * - Ctrl/Cmd+Shift+Up/Down: extend selection to the first/last row of the page
+ * - Alt+Left/Right: previous/next page; Delete/Backspace: onDeleteRows; Shift+F10 / ContextMenu key
+ * - Esc: first clears the selection, second drops the focused row
  */
 export function useDataTableSelection<TData>(
   table: Table<TData>,
-  enabled: boolean
+  { enabled, rowHeight, onRowActivate, onDeleteRows }: DataTableSelectionOptions<TData>
 ): DataTableSelection {
   const anchorRef = React.useRef<string | null>(null)
+  // Esc clears the selection but must keep the focused row (second Esc drops it).
+  const keepFocusOnEmptyRef = React.useRef(false)
   const [focusedRowId, setFocusedRowId] = React.useState<string | null>(null)
 
   const selectionCount = Object.keys(table.getState().rowSelection).length
@@ -40,7 +56,8 @@ export function useDataTableSelection<TData>(
     // Nothing selected anymore (checkbox, Esc, bulk action): drop focus marker and anchor.
     if (selectionCount === 0) {
       anchorRef.current = null
-      setFocusedRowId(null)
+      if (keepFocusOnEmptyRef.current) keepFocusOnEmptyRef.current = false
+      else setFocusedRowId(null)
     }
   }, [selectionCount])
 
@@ -143,6 +160,11 @@ export function useDataTableSelection<TData>(
       if (rows.length === 0) return
       const currentIdx = focusedRowId ? rows.findIndex((r) => r.id === focusedRowId) : -1
 
+      const pageStep = Math.max(
+        1,
+        Math.floor(e.currentTarget.clientHeight / Math.max(rowHeight, 1)) - 1
+      )
+
       const moveTo = (idx: number) => {
         const row = rows[Math.max(0, Math.min(rows.length - 1, idx))]
         setFocusedRowId(row.id)
@@ -155,7 +177,29 @@ export function useDataTableSelection<TData>(
         }
       }
 
+      if (mod && e.shiftKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+        e.preventDefault()
+        const edge = e.key === "ArrowUp" ? rows[0] : rows[rows.length - 1]
+        anchorRef.current ??= focusedRowId ?? edge.id
+        selectRange(rows, edge.id, false)
+        setFocusedRowId(edge.id)
+        return
+      }
+
       switch (e.key) {
+        case "Enter": {
+          // Native buttons/links handle Enter themselves.
+          if (!onRowActivate || target.closest("button, a, [role='button'], [role='checkbox']")) return
+          const selectedIds = Object.keys(table.getState().rowSelection).filter(
+            (id) => table.getState().rowSelection[id]
+          )
+          if (selectedIds.length !== 1) return
+          const row = table.getCoreRowModel().rowsById[selectedIds[0]]
+          if (!row) return
+          e.preventDefault()
+          onRowActivate(row.original)
+          break
+        }
         case "ArrowDown":
           e.preventDefault()
           moveTo(currentIdx < 0 ? 0 : currentIdx + 1)
@@ -164,6 +208,59 @@ export function useDataTableSelection<TData>(
           e.preventDefault()
           moveTo(currentIdx < 0 ? rows.length - 1 : currentIdx - 1)
           break
+        case "PageDown":
+          e.preventDefault()
+          moveTo(currentIdx < 0 ? pageStep - 1 : currentIdx + pageStep)
+          break
+        case "PageUp":
+          e.preventDefault()
+          moveTo(currentIdx < 0 ? 0 : currentIdx - pageStep)
+          break
+        case "ArrowLeft":
+        case "ArrowRight": {
+          if (!e.altKey || table.getState().grouping.length > 0) return
+          const forward = e.key === "ArrowRight"
+          if (!(forward ? table.getCanNextPage() : table.getCanPreviousPage())) return
+          e.preventDefault()
+          if (forward) table.nextPage()
+          else table.previousPage()
+          break
+        }
+        case "Delete":
+        case "Backspace": {
+          if (!onDeleteRows || mod || e.altKey) return
+          const rowsToDelete = Object.keys(table.getState().rowSelection)
+            .filter((id) => table.getState().rowSelection[id])
+            .map((id) => table.getCoreRowModel().rowsById[id])
+            .filter((r): r is Row<TData> => !!r)
+          if (rowsToDelete.length === 0) return
+          e.preventDefault()
+          onDeleteRows(rowsToDelete.map((r) => r.original))
+          break
+        }
+        case "F10":
+        case "ContextMenu": {
+          if (e.key === "F10" && !e.shiftKey) return
+          const rowId =
+            focusedRowId ??
+            Object.keys(table.getState().rowSelection).find((id) => table.getState().rowSelection[id])
+          if (!rowId) return
+          const cell = e.currentTarget.querySelector<HTMLElement>(
+            `[data-row-id="${CSS.escape(rowId)}"] [data-context-menu]`
+          )
+          if (!cell) return
+          e.preventDefault()
+          const rect = cell.getBoundingClientRect()
+          cell.dispatchEvent(
+            new MouseEvent("contextmenu", {
+              bubbles: true,
+              cancelable: true,
+              clientX: rect.left + Math.min(24, rect.width / 2),
+              clientY: rect.top + rect.height / 2,
+            })
+          )
+          break
+        }
         case "Home":
           e.preventDefault()
           moveTo(0)
@@ -187,22 +284,44 @@ export function useDataTableSelection<TData>(
         case "A":
           if (!mod) return
           e.preventDefault()
+          if (e.shiftKey) {
+            table.setRowSelection({})
+            break
+          }
           table.setRowSelection((old) => {
             const next = { ...old }
             for (const r of rows) next[r.id] = true
             return next
           })
           break
-        case "Escape":
-          if (Object.keys(table.getState().rowSelection).length === 0) return
+        case "i":
+        case "I":
+          if (!mod) return
           e.preventDefault()
-          table.setRowSelection({})
+          table.setRowSelection((old) => {
+            const next = { ...old }
+            for (const r of rows) {
+              if (next[r.id]) delete next[r.id]
+              else next[r.id] = true
+            }
+            return next
+          })
+          break
+        case "Escape":
+          if (Object.keys(table.getState().rowSelection).length > 0) {
+            e.preventDefault()
+            keepFocusOnEmptyRef.current = true
+            table.setRowSelection({})
+          } else if (focusedRowId) {
+            e.preventDefault()
+            setFocusedRowId(null)
+          }
           break
         default:
           break
       }
     },
-    [enabled, focusedRowId, getLeafRows, selectRange, table]
+    [enabled, focusedRowId, getLeafRows, onDeleteRows, onRowActivate, rowHeight, selectRange, table]
   )
 
   return { focusedRowId, handleRowClickCapture, handleRowClick, handleRowMouseDown, handleKeyDown }

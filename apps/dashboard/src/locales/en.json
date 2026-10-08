@@ -28,6 +28,8 @@
     "yes": "Yes",
     "no": "No",
     "previous": "Previous",
+    "selectedOfTotal_one": "{{selected}} of {{total}} selected",
+    "selectedOfTotal_other": "{{selected}} of {{total}} selected",
     "next": "Next"
   },
   "dashboard": {

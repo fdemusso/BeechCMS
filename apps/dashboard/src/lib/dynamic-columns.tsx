@@ -108,7 +108,8 @@ function getIconForType(type: string) {
  * @param onEdit - Callback to edit a selected entry.
  * @param onDelete - Callback to delete a selected entry.
  * @param maxLengths - Map containing truncation options.
- * @param selectedIds - List of currently selected row IDs (for bulk actions).
+ * @param selectedIds - Currently selected row IDs (for bulk actions), or a getter read at cell render time
+ *   so the column defs can stay referentially stable across selection changes.
  * @param onBulkDelete - Callback to trigger bulk delete.
  * @param datePrecision - The active grouping precision rules for dates.
  * @param translate - Localization translation function.
@@ -134,7 +135,7 @@ export function generateColumns(
   onEdit: (id: string) => void,
   onDelete: (id: string) => void,
   maxLengths?: Record<string, number>,
-  selectedIds: string[] = [],
+  selectedIds: string[] | (() => string[]) = [],
   onBulkDelete?: (ids: string[]) => void,
   datePrecision: DateGroupPrecision = DEFAULT_DATE_GROUP_PRECISION,
   translate: (key: string, options?: any) => string = (key) => key,
@@ -364,7 +365,8 @@ export function generateColumns(
     size: 56,
     cell: function ActionsCellRender({ row }) {
       const entry = row.original
-      const hasBulkSelection = selectedIds.length > 1
+      const currentSelectedIds = typeof selectedIds === "function" ? selectedIds() : selectedIds
+      const hasBulkSelection = currentSelectedIds.length > 1
       const { can } = usePermissions()
       const canUpdate = can("content:update", seed.slug)
       const canDelete = can("content:delete", seed.slug)
@@ -382,12 +384,12 @@ export function generateColumns(
               <DropdownMenuLabel>{translate("content.actions.label")}</DropdownMenuLabel>
               {hasBulkSelection ? (
                 <>
-                  <DropdownMenuItem onClick={() => onBulkEdit?.(selectedIds)} disabled={!canUpdate}>
+                  <DropdownMenuItem onClick={() => onBulkEdit?.(currentSelectedIds)} disabled={!canUpdate}>
                     {translate("bulkEdit.trigger")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => onBulkDelete?.(selectedIds)}
+                    onClick={() => onBulkDelete?.(currentSelectedIds)}
                     className="text-destructive focus:text-destructive"
                     disabled={!canDelete}
                   >

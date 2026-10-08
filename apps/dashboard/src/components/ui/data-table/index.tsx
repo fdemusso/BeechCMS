@@ -18,7 +18,15 @@ function DataTableInner<TData, TValue>(
   const { table, isGroupingActive, rowHeight, cellPadding } = useDataTableState(props)
 
   const selectionEnabled = props.rowSelection !== undefined || !!props.onRowSelectionChange
-  const selection = useDataTableSelection(table, selectionEnabled)
+  const selection = useDataTableSelection(table, {
+    enabled: selectionEnabled,
+    rowHeight,
+    onRowActivate: props.onRowDoubleClick,
+    onDeleteRows: props.onDeleteRows,
+  })
+  // Selection is keyed by row id and survives page changes, so count it from state:
+  // the row models only know the rows of the current page.
+  const selectedCount = Object.values(table.getState().rowSelection).filter(Boolean).length
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -38,12 +46,12 @@ function DataTableInner<TData, TValue>(
         />
       </div>
 
-      {!isGroupingActive && (
-        <DataTablePagination
-          table={table}
-          totalRows={props.totalRows}
-        />
-      )}
+      <DataTablePagination
+        table={table}
+        totalRows={props.totalRows}
+        selectedCount={selectedCount}
+        hidePagination={isGroupingActive}
+      />
     </div>
   )
 }

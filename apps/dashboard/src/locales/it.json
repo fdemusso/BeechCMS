@@ -28,6 +28,8 @@
     "yes": "Sì",
     "no": "No",
     "previous": "Precedente",
+    "selectedOfTotal_one": "{{selected}} di {{total}} selezionata",
+    "selectedOfTotal_other": "{{selected}} di {{total}} selezionate",
     "next": "Successivo"
   },
   "dashboard": {

@@ -107,6 +107,13 @@ export function ContentTableView({
     [onEdit]
   )
 
+  const handleDeleteRows = React.useCallback(
+    (entries: ContentEntry[]) => {
+      if (can("content:delete", slug)) onBulkDelete(entries.map((entry) => entry.id))
+    },
+    [can, onBulkDelete, slug]
+  )
+
   const memoizedExcludedColumns = React.useMemo(() => ["select", "actions"], [])
 
   const renderContextMenuContent = React.useCallback(
@@ -184,6 +191,7 @@ export function ContentTableView({
       rowSelection={rowSelection}
       onRowSelectionChange={onRowSelectionChange}
       onRowDoubleClick={handleRowDoubleClick}
+      onDeleteRows={handleDeleteRows}
       onCellActivate={onCellActivate}
       cellActivateExcludedColumnIds={memoizedExcludedColumns}
       grouping={grouping}
