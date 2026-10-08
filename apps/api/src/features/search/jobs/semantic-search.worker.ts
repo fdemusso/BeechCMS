@@ -23,6 +23,7 @@ import { extractIndexableText, indexableSearchBranches } from '@beechcms/core'
 import { D1SeedRepository } from '../../../shared/db/repositories/seed.repository.d1'
 import { D1VectorRepository } from '../../../shared/db/repositories/d1-vector.repository'
 import { EMBEDDING_MODEL, EMBEDDING_DIMENSIONS } from '../constants'
+import { normaliseEmbeddingResponse } from '../utils/embedding-response'
 import type { IndexManifest } from '@beechcms/search-client'
 
 // ─── Job payload types ────────────────────────────────────────────────────────
@@ -69,43 +70,6 @@ function resolveWorkerBindings(context: JobContext): {
   }
 }
 
-/**
- * Normalises the heterogeneous response shapes returned by the Workers AI
- * embedding model into a single `Float32Array`.
- *
- * The model may return any of:
- * - A raw `Float32Array`
- * - An object `{ data: number[] | number[][] | Float32Array }`
- * - A plain `number[]`
- *
- * @param aiResponse - Raw value returned by `ai.run(EMBEDDING_MODEL, ...)`.
- * @returns A `Float32Array` containing the embedding vector.
- * @throws `Error` when the response shape is unrecognised.
- */
-function normaliseEmbeddingResponse(aiResponse: unknown): Float32Array {
-  if (aiResponse instanceof Float32Array) {
-    return aiResponse
-  }
-
-  if (Array.isArray((aiResponse as any)?.data)) {
-    const dataField = (aiResponse as any).data as unknown[]
-    const vectorData = Array.isArray(dataField[0])
-      ? (dataField[0] as number[])
-      : (dataField as number[])
-    return new Float32Array(vectorData)
-  }
-
-  if (Array.isArray(aiResponse)) {
-    return new Float32Array(aiResponse as number[])
-  }
-
-  if ((aiResponse as any)?.data instanceof Float32Array) {
-    return (aiResponse as any).data as Float32Array
-  }
-
-  throw new Error('[semantic-search] Unexpected AI response shape from embedding model')
-}
-
 // ─── R2 manifest compilation ──────────────────────────────────────────────────
 
 /**
@@ -125,13 +89,21 @@ export function vectorsKey(seedSlug: string): string {
 }
 
 /**
- * Derives a stable fingerprint for an `IndexManifest` from its ordered records,
- * so `SearchClient` can cache-bust the paired vectors file whenever the index
- * content changes (see `fetchWithCache` in `@beechcms/search-client`).
+ * Derives a stable fingerprint for an `IndexManifest` from its ordered records
+ * AND the concatenated vector bytes, so `SearchClient` can cache-bust the
+ * paired vectors file whenever the index content changes (see `fetchWithCache`
+ * in `@beechcms/search-client`) — including a re-embedding that leaves every
+ * record's `id`/`title` unchanged but changes the vector itself.
  */
-async function computeFingerprint(records: { id: string; title: string }[]): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(records.map((r) => `${r.id}:${r.title}`).join('|'))
+async function computeFingerprint(
+  records:     { id: string; title: string }[],
+  vectorBytes: Uint8Array,
+): Promise<string> {
+  const encoder  = new TextEncoder()
+  const textPart = encoder.encode(records.map((r) => `${r.id}:${r.title}`).join('|'))
+  const data     = new Uint8Array(textPart.length + vectorBytes.length)
+  data.set(textPart, 0)
+  data.set(vectorBytes, textPart.length)
   const digest = await crypto.subtle.digest('SHA-256', data)
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
@@ -166,14 +138,6 @@ export async function compileR2Manifest(
   const storedVectors    = await vectorRepository.getAllVectors(seed)
 
   const records = storedVectors.map((v) => ({ id: v.entryId, title: v.title }))
-  const fingerprint = await computeFingerprint(records)
-
-  const manifest: IndexManifest = {
-    model: EMBEDDING_MODEL,
-    dimensions: EMBEDDING_DIMENSIONS,
-    fingerprint,
-    records,
-  }
 
   // Build the binary manifest: concatenated Float32Array buffers, in the same
   // order as `manifest.records`.
@@ -190,9 +154,22 @@ export async function compileR2Manifest(
     concatenatedFloats.byteLength,
   )
 
+  const fingerprint = await computeFingerprint(records, binaryManifest)
+
+  const manifest: IndexManifest = {
+    model: EMBEDDING_MODEL,
+    dimensions: EMBEDDING_DIMENSIONS,
+    fingerprint,
+    records,
+  }
+
   await Promise.all([
     searchR2.put(vectorsKey(seed.slug), binaryManifest, {
       httpMetadata: { contentType: 'application/octet-stream' },
+      // Lets serveIndexHandler answer If-None-Match against the manifest's own
+      // fingerprint — the R2 httpEtag is a hash of these bytes, not comparable
+      // to the fingerprint SearchClient.fetchWithCache sends.
+      customMetadata: { fingerprint },
     }),
     searchR2.put(manifestKey(seed.slug), JSON.stringify(manifest), {
       httpMetadata: { contentType: 'application/json' },

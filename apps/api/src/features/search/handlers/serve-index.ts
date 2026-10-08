@@ -12,6 +12,7 @@
  */
 
 import type { Context } from 'hono'
+import { ifNoneMatchMatches } from '@beechcms/core'
 import type { AppEnv } from '../../../types'
 import { manifestKey, vectorsKey } from '../jobs/semantic-search.worker'
 
@@ -22,6 +23,26 @@ const CONTENT_TYPES: Record<string, string> = {
 
 /** Cache lifetime, in seconds, for served index assets. */
 const INDEX_CACHE_MAX_AGE_SECONDS = 300
+
+/**
+ * `vectors.bin` is written with the manifest's own `fingerprint` as R2 custom
+ * metadata (see `compileR2Manifest`), because the fingerprint — not R2's
+ * `httpEtag` — is what `SearchClient.fetchWithCache` sends as `If-None-Match`.
+ * `manifest.json` has no such metadata and falls back to `httpEtag`.
+ */
+function resolveEtag(file: string, object: R2Object): string | undefined {
+  if (file === 'vectors.bin') {
+    return object.customMetadata?.['fingerprint'] ?? object.httpEtag
+  }
+  return object.httpEtag
+}
+
+/** R2 object bodies are real `ReadableStream`s in production; test doubles may hand back a plain value. */
+async function discardBody(body: unknown): Promise<void> {
+  if (body && typeof (body as ReadableStream).cancel === 'function') {
+    await (body as ReadableStream).cancel().catch(() => undefined)
+  }
+}
 
 /**
  * Handles `GET /api/v1/public/search/index/:seedSlug/:file`.
@@ -59,10 +80,23 @@ export async function serveIndexHandler(c: Context<AppEnv>): Promise<Response> {
     return c.notFound()
   }
 
+  const etag = resolveEtag(file, object)
+
+  if (ifNoneMatchMatches(c.req.header('If-None-Match'), etag)) {
+    await discardBody(object.body)
+    return new Response(null, {
+      status: 304,
+      headers: {
+        ...(etag ? { ETag: etag } : {}),
+        'Cache-Control': `public, max-age=${INDEX_CACHE_MAX_AGE_SECONDS}`,
+      },
+    })
+  }
+
   c.header('Content-Type', contentType)
   c.header('Cache-Control', `public, max-age=${INDEX_CACHE_MAX_AGE_SECONDS}`)
-  if (object.httpEtag) {
-    c.header('ETag', object.httpEtag)
+  if (etag) {
+    c.header('ETag', etag)
   }
 
   return c.body(object.body)

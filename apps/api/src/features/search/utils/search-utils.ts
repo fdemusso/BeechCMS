@@ -69,12 +69,23 @@ export {
  * `</mark>` wrappers used for search term highlighting.
  * Collapses runs of whitespace produced by tag removal into a single space.
  *
+ * `<mark>`/`</mark>` are normalised to their bare form first (any attributes
+ * discarded), so a literal `<mark onmouseover=…>` present in raw stored text
+ * cannot ride through as executable markup for a consumer that trusts the
+ * excerpt enough to use `innerHTML`.
+ *
  * @param htmlSnippet - Raw HTML string from SQLite's `snippet()` function.
- * @returns Plain-text string with `<mark>…</mark>` highlighting intact.
+ * @returns Plain-text string with bare `<mark>…</mark>` highlighting intact.
  */
 function stripHtmlPreservingMarkTags(htmlSnippet: string): string {
+  const MARK_OPEN_TOKEN  = '\u0000mark-open\u0000'
+  const MARK_CLOSE_TOKEN = '\u0000mark-close\u0000'
   return htmlSnippet
-    .replace(/<(?!\/?mark\b)[^>]*>/gi, ' ')
+    .replace(/<mark\b[^>]*>/gi, MARK_OPEN_TOKEN)
+    .replace(/<\/mark\b[^>]*>/gi, MARK_CLOSE_TOKEN)
+    .replace(/<[^>]*>/g, ' ')
+    .split(MARK_OPEN_TOKEN).join('<mark>')
+    .split(MARK_CLOSE_TOKEN).join('</mark>')
     .replace(/\s+/g, ' ')
     .trim()
 }

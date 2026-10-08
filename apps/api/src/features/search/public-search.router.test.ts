@@ -74,10 +74,11 @@ describe('publicSearchRouter', () => {
   it('generates embedding and sets Edge-Control and Cache-Control headers', async () => {
     const app = new Hono<AppEnv>()
 
+    const embedding = new Array(384).fill(0).map((_, i) => (i === 0 ? 0.12 : i === 1 ? -0.34 : 0))
     const aiMock = {
       run: vi.fn().mockResolvedValue({
-        shape: [1, 3],
-        data: [[0.12, -0.34, 0.56]],
+        shape: [1, 384],
+        data: [embedding],
       }),
     }
 
@@ -94,7 +95,25 @@ describe('publicSearchRouter', () => {
 
     const json = await res.json() as any
     expect(aiMock.run).toHaveBeenCalledWith('@cf/baai/bge-small-en-v1.5', { text: 'deep learning' })
-    expect(json.data).toEqual([0.11999999731779099, -0.3400000035762787, 0.5600000023841858])
+    expect(json.shape).toEqual([384])
+    expect(json.data[0]).toBeCloseTo(0.12)
+    expect(json.data[1]).toBeCloseTo(-0.34)
+  })
+
+  it('returns 500 when the embedding model returns a vector with the wrong dimensionality', async () => {
+    const app = new Hono<AppEnv>()
+
+    const aiMock = {
+      run: vi.fn().mockResolvedValue({ shape: [1, 3], data: [[0.12, -0.34, 0.56]] }),
+    }
+    const envMock = { AI: aiMock }
+
+    app.route('/search', publicSearchRouter)
+
+    const res = await app.request('/search/embed?q=deep+learning', {}, envMock as any)
+    expect(res.status).toBe(500)
+    const json = await res.json() as any
+    expect(json.error).toBe('Failed to generate embedding.')
   })
 
   it('serves the compiled manifest.json for a seed', async () => {
@@ -133,6 +152,75 @@ describe('publicSearchRouter', () => {
     expect(getMock).toHaveBeenCalledWith('articles/vectors.bin')
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+    expect(await res.arrayBuffer()).toEqual(vectorBuffer)
+  })
+
+  it('answers 304 for vectors.bin when If-None-Match matches the stored fingerprint (#610)', async () => {
+    const app = appWithPublicArticles()
+
+    // A real R2 body is a ReadableStream; the 304 path must drain it via .cancel().
+    const cancelMock = vi.fn().mockRejectedValue(new Error('cancel failed, must not throw'))
+    const getMock = vi.fn().mockResolvedValue({
+      body: { cancel: cancelMock },
+      httpEtag: '"r2-etag-unrelated-to-fingerprint"',
+      customMetadata: { fingerprint: 'fp-abc' },
+    })
+    const envMock = { SEARCH_R2: { get: getMock } }
+
+    const res = await app.request(
+      '/search/index/articles/vectors.bin',
+      { headers: { 'If-None-Match': 'fp-abc' } },
+      envMock as any,
+    )
+
+    expect(res.status).toBe(304)
+    expect(res.headers.get('ETag')).toBe('fp-abc')
+    expect(cancelMock).toHaveBeenCalled()
+    expect(await res.text()).toBe('')
+  })
+
+  it('returns 404 for the index route when the seed does not allow public read (#610)', async () => {
+    const app = new Hono<AppEnv>()
+    app.use('*', async (c, next) => {
+      c.set('getSeed', () => ({ slug: 'private', allowPublicRead: false }) as never)
+      await next()
+    })
+    app.route('/search', publicSearchRouter)
+
+    const getMock = vi.fn()
+    const res = await app.request('/search/index/private/manifest.json', {}, { SEARCH_R2: { get: getMock } } as any)
+
+    expect(res.status).toBe(404)
+    expect(getMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 404 for the index route when the SEARCH_R2 binding is missing (#610)', async () => {
+    const app = appWithPublicArticles()
+
+    const res = await app.request('/search/index/articles/manifest.json', {}, {} as any)
+
+    expect(res.status).toBe(404)
+  })
+
+  it('serves 200 and tags vectors.bin with the fingerprint as ETag when content changed (#610)', async () => {
+    const app = appWithPublicArticles()
+
+    const vectorBuffer = new Float32Array([0.1, 0.2, 0.3]).buffer
+    const getMock = vi.fn().mockResolvedValue({
+      body: vectorBuffer,
+      httpEtag: '"r2-etag-unrelated-to-fingerprint"',
+      customMetadata: { fingerprint: 'fp-new' },
+    })
+    const envMock = { SEARCH_R2: { get: getMock } }
+
+    const res = await app.request(
+      '/search/index/articles/vectors.bin',
+      { headers: { 'If-None-Match': 'fp-old' } },
+      envMock as any,
+    )
+
+    expect(res.status).toBe(200)
+    expect(res.headers.get('ETag')).toBe('fp-new')
     expect(await res.arrayBuffer()).toEqual(vectorBuffer)
   })
 

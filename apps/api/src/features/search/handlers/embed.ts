@@ -26,44 +26,8 @@ import {
   EMBEDDING_MODEL,
   EMBED_RATE_LIMITER_KEY,
 } from '../constants'
+import { normaliseEmbeddingResponse } from '../utils/embedding-response'
 import type { EmbedResponse } from '../types'
-
-/**
- * Normalises the heterogeneous response shapes returned by the Workers AI
- * embedding model into a single `Float32Array`.
- *
- * The model may return:
- * - A raw `Float32Array`
- * - An object `{ data: number[] | number[][] | Float32Array }`
- * - A plain `number[]`
- *
- * @param aiResponse - Raw response from `ai.run(EMBEDDING_MODEL, ...)`.
- * @returns A `Float32Array` containing the embedding, or `null` if the
- *   response shape is unrecognised.
- */
-function normaliseEmbeddingResponse(aiResponse: unknown): Float32Array | null {
-  if (aiResponse instanceof Float32Array) {
-    return aiResponse
-  }
-
-  if (Array.isArray((aiResponse as any)?.data)) {
-    const dataField = (aiResponse as any).data as unknown[]
-    const vectorData = Array.isArray(dataField[0])
-      ? (dataField[0] as number[])
-      : (dataField as number[])
-    return new Float32Array(vectorData)
-  }
-
-  if (Array.isArray(aiResponse)) {
-    return new Float32Array(aiResponse as number[])
-  }
-
-  if ((aiResponse as any)?.data instanceof Float32Array) {
-    return (aiResponse as any).data as Float32Array
-  }
-
-  return null
-}
 
 /**
  * Handles `GET /api/v1/public/search/embed?q=…`.
@@ -121,10 +85,6 @@ export async function embedHandler(c: Context<AppEnv>): Promise<Response> {
   try {
     const aiResponse  = await ai.run(EMBEDDING_MODEL, { text: queryText })
     const embeddingVector = normaliseEmbeddingResponse(aiResponse)
-
-    if (!embeddingVector) {
-      return c.json({ error: SEARCH_ERRORS.EMBEDDING_GENERATION_FAILED }, 500)
-    }
 
     c.header('Cache-Control', `public, max-age=${SEARCH_LIMITS.EMBED_CACHE_MAX_AGE_SECONDS}`)
     c.header('Edge-Control', `s-maxage=${SEARCH_LIMITS.EMBED_CACHE_MAX_AGE_SECONDS}`)
