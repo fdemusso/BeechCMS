@@ -80,7 +80,7 @@ export const uploadRoutes = new Hono<AppEnv>()
 
 /** POST /upload — Direct proxied upload fallback (used when presigning is unconfigured). */
 uploadRoutes.post('/upload', async (c) => {
-  const { bucket, mediaRepository: mediaRepo, systemStatsRepository: statsRepo } = c.var
+  const { bucket, mediaRepository: mediaRepo } = c.var
 
   let body: FormData
   try {
@@ -121,8 +121,7 @@ uploadRoutes.post('/upload', async (c) => {
   const uploadedBy = c.var.jwtPayload?.sub ?? ''
   const sanitizedFilename = extractOriginalFilename(key)
 
-  await statsRepo.incrementStorage(sizeBytes)
-  await mediaRepo.trackUpload({
+  await mediaRepo.registerUpload({
     key,
     filename: sanitizedFilename,
     mime_type: mimeType,
@@ -178,7 +177,7 @@ uploadRoutes.post('/upload/presign', async (c) => {
 
 /** POST /upload/confirm — Verify R2 object and record metadata. Idempotent on key. */
 uploadRoutes.post('/upload/confirm', async (c) => {
-  const { bucket, mediaRepository: mediaRepo, systemStatsRepository: statsRepo } = c.var
+  const { bucket, mediaRepository: mediaRepo } = c.var
 
   let body: { key?: unknown }
   try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON body' }, 400) }
@@ -216,14 +215,15 @@ uploadRoutes.post('/upload/confirm', async (c) => {
   const uploadedBy = c.var.jwtPayload?.sub ?? ''
   const filename = extractOriginalFilename(sanitizedKey)
 
-  await statsRepo.incrementStorage(size)
-  await mediaRepo.trackUpload({
+  // A racing confirmation that lost the insert has nothing left to do; the winner logs the upload.
+  const registered = await mediaRepo.registerUpload({
     key: sanitizedKey,
     filename,
     mime_type: mime,
     size_bytes: size,
     uploaded_by: uploadedBy,
   })
+  if (!registered) return c.json({ url: bucket.getUrl(sanitizedKey) }, 200)
 
   const jwtPayload = c.get('jwtPayload')
   if (jwtPayload) {
