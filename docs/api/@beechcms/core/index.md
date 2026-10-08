@@ -251,6 +251,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [ContentViewConfig](type-aliases/ContentViewConfig.md)
 - [CreateContentViewInput](type-aliases/CreateContentViewInput.md)
 - [CreateNotificationInput](type-aliases/CreateNotificationInput.md)
+- [CreateNotificationRecord](type-aliases/CreateNotificationRecord.md)
 - [DashboardView](type-aliases/DashboardView.md)
 - [DataClassification](type-aliases/DataClassification.md)
 - [EntityType](type-aliases/EntityType.md)
