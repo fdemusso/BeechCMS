@@ -27,6 +27,29 @@ export class D1MediaRepository implements MediaRepository {
   }
 
   /**
+   * Registers a media upload and adds its size to total storage in one D1 batch (one transaction).
+   * The storage bump is guarded by the key being absent and runs before the insert, so of several
+   * racing registrations only the one that inserts the row also counts the bytes.
+   */
+  async registerUpload(mediaObject: Omit<MediaObject, 'created_at'>): Promise<boolean> {
+    const [, insertResult] = await this.database.batch([
+      this.database.prepare(
+        "UPDATE system_stats SET value = CAST(value AS INTEGER) + ? WHERE id = 'total_storage_bytes' AND NOT EXISTS (SELECT 1 FROM media_objects WHERE key = ?)"
+      ).bind(mediaObject.size_bytes, mediaObject.key),
+      this.database.prepare(
+        'INSERT OR IGNORE INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)'
+      ).bind(
+        mediaObject.key,
+        mediaObject.filename,
+        mediaObject.mime_type,
+        mediaObject.size_bytes,
+        mediaObject.uploaded_by
+      ),
+    ])
+    return insertResult.meta.changes === 1
+  }
+
+  /**
    * Retrieves a media object's metadata by its unique key.
    */
   async getByKey(mediaKey: string): Promise<MediaObject | null> {
