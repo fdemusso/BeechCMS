@@ -21,6 +21,7 @@ All commands are unified under the `pnpm beech` CLI.
 - `pnpm beech seed:create`     : (Deprecated) Content types are created via dashboard or /api/seeds
 - `pnpm beech seed:load`       : (Deprecated) Schemas are stored canonically in D1
 - `pnpm beech schema:diff`     : (Deprecated) Schema mutations are handled by the Botanical Engine
+- `pnpm beech schema:audit`    : Read-only audit of relation FK/junction storage vs deployed definitions (exit 1 on mismatch)
 - `pnpm beech test`            : Runs workspace tests (accepts `--diff` or `--coverage`)
 - `pnpm beech lint`            : Runs lint checks across the monorepo
 - `pnpm beech deploy`          : Compiles and deploys Worker and assets to Cloudflare production

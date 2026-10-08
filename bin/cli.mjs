@@ -22,6 +22,7 @@ const COMMANDS = {
   'seed:load':      cmdSeedLoad,
   'seed:create':    cmdSeedCreate,
   'schema:diff':    cmdSchemaDiff,
+  'schema:audit':   cmdSchemaAudit,
   'schema:export':  cmdSchemaExport,
   'schema:plan':    cmdSchemaPlan,
   'schema:apply':   cmdSchemaApply,
@@ -94,6 +95,9 @@ function help() {
     ${pc.cyan('schema diff')}     Compare beech.schema.ts against the deployed schema
       --manifest <f>  Manifest path (default: beech.schema.ts)
       Exits 1 when drift is detected.
+    ${pc.cyan('schema audit')}    Report relation storage that no longer matches its definition (read-only)
+      --remote        Target remote D1 instead of local (default: local)
+      --db <name>     Override D1 database name
     ${pc.cyan('schema plan')}     Show what applying beech.schema.ts would change (writes nothing)
       --manifest <f>  Manifest path (default: beech.schema.ts)
       --api-url <url> API origin (default: BEECH_API_URL or http://localhost:8789)
@@ -212,6 +216,14 @@ async function cmdSchemaDiff(args) {
   const db          = dbIdx !== -1 ? args[dbIdx + 1] : undefined
   const { schemaDiff } = await import('@beechcms/cli')
   await schemaDiff({ local: !remote, manifest, db })
+}
+
+async function cmdSchemaAudit(args) {
+  const remote = args.includes('--remote')
+  const dbIdx  = args.indexOf('--db')
+  const db     = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+  const { schemaAudit } = await import('@beechcms/cli')
+  await schemaAudit({ local: !remote, db })
 }
 
 async function cmdSchemaExport(args) {
