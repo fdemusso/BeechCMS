@@ -1,15 +1,25 @@
-ok allora dobbiamo rivedere il sistema delle viste  , ora  vengono trattte come 3 possibilità distinte ma da oggi non sarà piu cosi . ogni seme è una tabella SQL che può essere interpretata in  n possibli liste . nei semi saremo ancora in grado di definire quali viste sono possibili e quali  no nel caos in cui l autore del seme non voglia lasicare la liberta di creare una vista .
+Il `text` con `options` (select a valore singolo) va eliminato e sostituito dai `tags` con scelta. Le opzioni sono sempre trattate come array: oggettivamente è il modello giusto.
 
-da oggi sarà possibili creare tante più viste e l auttale sistema table gallery kanban viene elevato a TIPO DI VISTA . quindi ogni tipo di vsta può avere 1 o più viste se autorizzate dal seme e ciò che le caratterizza e che ogni vista può salvare la sua configurazioene di filtri ragruppamento e aspetto . La toolbar diventa universale a cambiare sono le voci delle impostazioni della toolbar che conteranno anche opzioni specifiche per TIPO DI VISTA. 
+PROBLEMA:
+Oggi un campo "scelta" (es. `tier`: free / pro / enterprise) può essere definito in due modi incoerenti:
+- `text` con `options`: dropdown a valore singolo, salvato come stringa (`"pro"`).
+- `tags` con `options`: chip a selezione multipla, salvato come array (`["pro"]`).
+Nei seed demo i campi a scelta singola erano `tags`, ma il form li instradava al select dei `text`, che emetteva una stringa. Risultato: `Field 'tier' expects type 'array' but received 'string'` e valore non caricato aprendo un'entry. Inoltre `options` oggi non è vincolante: il validatore dei `tags` accetta qualsiasi stringa.
 
-MODIFICHE ALLA GALLERY:
-La gallery è l unico tipo di vista a non usare totalmente l entry editor come le alttre da oggi si passa all entry editor pure qui 
+DECISIONI GIÀ PRESE:
+1. Il `text` con `options` sparisce come tipo di campo a scelta. Lo sostituiscono i `tags` con `options`. Le opzioni sono sempre un array.
+2. I `tags` con `options` possono essere a scelta singola (si può selezionare un solo tag) o multipla. Il dato resta sempre un array. Nel form si mantiene il dropdown (select) per l'inserimento di un tag con scelta; la visualizzazione (form, tabella, gallery, kanban) è quella dei tag: chip colorati.
+3. Per ogni seed deve essere possibile scegliere il colore di ogni opzione (almeno per i tag a scelta singola; da chiarire se vale per tutti). Il dropdown mostra un pallino colore accanto a ogni voce. Oggi il colore deriva dalla posizione nell'array (`colorForOption`, palette fissa): il colore per opzione cambia la forma di `options` (da `string[]` a oggetti con valore e colore).
+4. Il kanban su un campo tag con scelta mostra una colonna per ogni opzione possibile, più "Senza valore" se non obbligatorio. Si tratta come un asse `tags`.
+5. `options` diventa vincolante (opzione A): quando è definito, il validatore rifiuta (400) i valori fuori dall'elenco. Senza `options` i tag restano liberi come oggi.
+6. Nessuna migrazione dei dati. I seed demo vengono riscritti da zero (es. `tier: ['pro']` dichiarato come tag a scelta singola). Il cambio è documentato come NON compatibile con i database precedenti e obbliga a una migrazione/ripartenza da DB nuovo.
 
-TOOLBAR:
-![](image.png) QUesto è l atuale sistema di switch delle viste che da oggi assomigleirà a ![](image_1.png) dove il titolo sarà personalzizabile (nelle impostazioni della vista) e il piu comparira quando si fa over . restera in linea con i tasti funzione della toolbar e parladno di toolbar il tastto new adesso avra anche un sotto menu per selezionare dei template per i nuovi entry. ma sara No OP per ora (assomigliera a questo ![](image_2.png))
-
-
-NUOVE VISTE :
-![](image_3.png) prepareremo un harness per introdurre viste che ci faciliterà di gran lunga il lavoro . un interfaccia tra la tabella SQL , le funzioni della toolbar e la vista. Per ora le viste saranno No OP . ma harness servirà a facilitare la creazioni di nuove viste e va integrata nelle viste esistenti fornirà tutto il necesario per accedere alle proprietà di una vista generica una vista generica contiene  un seme (quindi la il sisema per effeuare operazioni sql integrato e in beech va solo reso "chiamabile" / interfaccizzato / forse e già un interfaccia e deve solo essere un ponte per collegare il seme alla visa ) un elemento che è il sistema di rappresentanza di un qualsiasi dato possiamo dire nella tabella è la row nella gallery e nella kanban è la card . in ogni scenario l elemento condivide ed espone delle proprietà per semplificare eventuali operazioni di visualizzazione per esempio i colori condizionali o la visibilità  degli elementi e via dicnedo .
-
-le viste lavorano idealmente nello stesso spazio e nessuna può sconfinare nel layout rispetto alle altre quindi stessa griglia generale per tutte cosi da garantire lo stesso margine dal menu e dalla finestra e poi quello che succede dentro sta alla vista.
+DA CHIARIRE NELLO SPARRING:
+- Come si dichiara la scelta singola nel seed (nome e forma dell'opzione, es. `multiple: false`) e dove si applica il limite (validatore core, form, API, import, MCP).
+- Forma di `options` con colori per opzione e compatibilità con i seed già scritti che usano `string[]`.
+- Il colore per opzione vale solo per la scelta singola o per tutti i `tags` con `options`?
+- Cosa succede a un'entry che ha un valore non più presente nelle `options` (opzione rimossa o rinominata dal seed).
+- Impatto su filtri, ordinamento (`tags` ora ordinabile nella toolbar), raggruppamento, formattazione condizionale, automazioni e widget che oggi leggono `text` con `options`.
+- Impatto sull'asse kanban (`KanbanAxisBranchType`, `resolveKanbanColumns`) quando il `text` con `options` non esiste più.
+- Cosa succede al seed builder (UI per definire le opzioni, colori e modalità singola/multipla) e al MCP/CLI `schema plan/apply`.
+- Testo della nota di rottura e posizione nella documentazione di versione.
