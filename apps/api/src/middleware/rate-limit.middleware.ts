@@ -20,6 +20,7 @@ export type RateLimiterName =
   | 'publicApiWrite'
   | 'oauthToken'
   | 'oauthTokenAccount'
+  | 'rotateFieldAttempt'
 
 export interface IRateLimiterRegistry {
   getLimiter(name: RateLimiterName): IRateLimiter
@@ -39,6 +40,7 @@ export function buildDefaultRegistry(env?: Env): IRateLimiterRegistry {
     publicApiWrite: new TokenBucketRateLimiter({ capacity: 10, refillRatePerSecond: 0.2 }), // Write burst: 10, 1 token/5s
     oauthToken: new TokenBucketRateLimiter({ capacity: 20, refillRatePerSecond: 0.5 }), // IP burst: 20, 1 token/2s
     oauthTokenAccount: new TokenBucketRateLimiter({ capacity: 10, refillRatePerSecond: 0.2 }), // Per-credential burst: 10, 1 token/5s
+    rotateFieldAttempt: new TokenBucketRateLimiter({ capacity: 5, refillRatePerSecond: 0.1 }), // Per (actor, entry, field) burst: 5, 1 token/10s
   }
 
   const wrapWithBinding = (
@@ -67,6 +69,7 @@ export function buildDefaultRegistry(env?: Env): IRateLimiterRegistry {
     publicApiWrite: wrapWithBinding(env?.PUBLIC_WRITE_RATE_LIMITER, localLimiters.publicApiWrite, { failClosed: false, periodSeconds: 60, limiterName: 'publicApiWrite' }),
     oauthToken: localLimiters.oauthToken,
     oauthTokenAccount: localLimiters.oauthTokenAccount,
+    rotateFieldAttempt: localLimiters.rotateFieldAttempt,
   }
 
   return {

@@ -217,6 +217,10 @@ describe('verifyHashField', () => {
     const stored = Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
     expect(await verifyHashField(stored, 'wrong')).toBe(false)
   })
+
+  it('returns false for a stored value of the wrong length instead of throwing', async () => {
+    expect(await verifyHashField('abc', 'wrong')).toBe(false)
+  })
 })
 
 describe('filterEntryForActor', () => {

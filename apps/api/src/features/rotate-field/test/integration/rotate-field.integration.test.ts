@@ -87,4 +87,31 @@ describe('rotate-field slice — keyed hash integration (real D1)', () => {
     expect(response.status).toBe(200)
     expect(await storedPin()).toBe(await privacy.hash('9999'))
   })
+
+  it('stores the sanitized next value, matching what create/update would hash for the same input', async () => {
+    const rawNext = '  5678\u0007  '
+
+    const response = await rotate('1234', rawNext)
+
+    expect(response.status).toBe(200)
+    const stored = await storedPin()
+    expect(stored).toBe(await privacy.hash('5678'))
+    expect(stored).not.toBe(await privacy.hash(rawNext))
+  })
+
+  it('throttles repeated rotation attempts against the same entry and field', async () => {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const res = await rotate('0000', '5678')
+      expect(res.status).toBe(403)
+    }
+
+    const blocked = await rotate('0000', '5678')
+
+    expect(blocked.status).toBe(429)
+    expect(blocked.headers.get('Retry-After')).not.toBeNull()
+    // The bucket is exhausted even for the correct current value: the limiter runs before
+    // the current-value check, closing the brute-force oracle regardless of outcome.
+    expect((await rotate('1234', '5678')).status).toBe(429)
+    expect(await storedPin()).toBe(await privacy.hash('1234'))
+  })
 })

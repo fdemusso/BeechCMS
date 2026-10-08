@@ -3,6 +3,7 @@
 
 import type { ActorContext, Branch, DataClassification, Seed } from '../types.js'
 import { isLocaleDictionary, isLocalizedBranch } from '../localization/localization.js'
+import { timingSafeEqual } from '../../webhooks/webhook-crypto.js'
 
 /**
  * Computes an un-salted SHA-256 hex digest of a string value.
@@ -18,13 +19,13 @@ export async function sha256hex(value: string): Promise<string> {
 }
 
 /**
- * Verifies if a candidate string matches a stored SHA-256 hash digest.
+ * Verifies if a candidate string matches a stored SHA-256 hash digest, comparing in constant time.
  * @param stored - The expected 64-character SHA-256 hex digest.
  * @param candidate - The raw candidate string to verify.
  * @returns A Promise resolving to true if candidate matches stored digest, false otherwise.
  */
 export async function verifyHashField(stored: string, candidate: string): Promise<boolean> {
-  return stored === (await sha256hex(candidate))
+  return timingSafeEqual(stored, await sha256hex(candidate))
 }
 
 /**

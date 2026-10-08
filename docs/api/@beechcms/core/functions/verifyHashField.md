@@ -8,7 +8,7 @@
 
 > **verifyHashField**(`stored`, `candidate`): `Promise`&lt;`boolean`&gt;
 
-Verifies if a candidate string matches a stored SHA-256 hash digest.
+Verifies if a candidate string matches a stored SHA-256 hash digest, comparing in constant time.
 
 ## Parameters
 
