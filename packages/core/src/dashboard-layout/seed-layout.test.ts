@@ -10,6 +10,7 @@ import {
   validateCardConfigAgainstSeed,
   isImageMediaBranch,
   generateDefaultLayout,
+  reconcileLayoutWithSeed,
   METADATA_SLOT_CAP,
   type LayoutField,
 } from './seed-layout.js'
@@ -542,3 +543,60 @@ describe('generateDefaultLayout', () => {
   })
 })
 
+describe('reconcileLayoutWithSeed', () => {
+  const seed = defineSeed({
+    slug: 'posts',
+    label: 'Post',
+    labelPlural: 'Posts',
+    displayNameAlias: 'title',
+    branches: [
+      { id: 'br_1', alias: 'title', label: 'Title', type: 'text' },
+      { id: 'br_2', alias: 'body', label: 'Body', type: 'richtext' },
+      { id: 'br_3', alias: 'subtitle', label: 'Subtitle', type: 'text' },
+    ],
+  })
+  const field = (branchId: string): LayoutField => ({ branchId })
+  const placedIds = (layout: ReturnType<typeof generateDefaultLayout>): string[] =>
+    layout.tabs.flatMap((t) => t.sections.flatMap((s) => s.columns.flatMap((c) => c.fields.map((f) => f.branchId))))
+
+  it('returns a valid complete layout unchanged', () => {
+    const layout = generateDefaultLayout(seed)
+
+    expect(reconcileLayoutWithSeed(layout, seed)).toEqual(layout)
+  })
+
+  it('appends unplaced layoutable branches as trailing sections of the first tab', () => {
+    const stored = {
+      version: 1 as const,
+      tabs: [
+        { id: 't1', label: 'Data', sections: [{ id: 's1', columns: [{ id: 'c1', fields: [field('br_1')] }] }] },
+        { id: 't2', label: 'Other', sections: [{ id: 's2', columns: [{ id: 'c2', fields: [] }] }] },
+      ],
+    }
+
+    const result = reconcileLayoutWithSeed(stored, seed)
+
+    expect(placedIds(result).sort()).toEqual(['br_1', 'br_2', 'br_3'])
+    expect(result.tabs[0].sections[0]).toEqual(stored.tabs[0].sections[0])
+    expect(result.tabs[1]).toEqual(stored.tabs[1])
+    expect(validateLayoutAgainstSeed(result, seed).ok).toBe(true)
+  })
+
+  it('falls back to the default layout when the stored one breaks the full-width rules', () => {
+    const stored = {
+      version: 1 as const,
+      tabs: [
+        {
+          id: 't1',
+          label: 'Data',
+          sections: [{ id: 's1', columns: [{ id: 'c1', fields: [field('br_1')] }, { id: 'c2', fields: [field('br_2')] }] }],
+        },
+      ],
+    }
+
+    const result = reconcileLayoutWithSeed(stored, seed)
+
+    expect(validateLayoutAgainstSeed(result, seed).ok).toBe(true)
+    expect(placedIds(result).sort()).toEqual(['br_1', 'br_2', 'br_3'])
+  })
+})

@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { canEditLayout, formLayoutSchema, validateLayoutAgainstSeed } from '@beechcms/core'
+import { canEditLayout, formLayoutSchema, reconcileLayoutWithSeed, validateLayoutAgainstSeed } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
@@ -63,8 +63,7 @@ schemaApp.get('/', async (context) => {
   const enriched = visible.map((seed) => {
     const stored = layouts.get(seed.slug)
     if (!stored) return seed
-    const result = validateLayoutAgainstSeed(stored, seed)
-    return { ...seed, layout: result.cleaned }
+    return { ...seed, layout: reconcileLayoutWithSeed(stored, seed) }
   })
 
   return context.json(enriched)
