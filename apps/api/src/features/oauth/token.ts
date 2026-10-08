@@ -163,6 +163,8 @@ async function handleAuthorizationCodeGrant(context: OAuthContext, body: Record<
  *    token family via its authorization code hash (OAuth 2.1 §4.3.1).
  * 4. **Atomic rollback**: If revoking the previous refresh token fails (e.g. concurrent race condition),
  *    the newly created token pair is immediately invalidated.
+ * 5. **Live grant**: the resource owner must still be active and the client consent unrevoked,
+ *    otherwise the exchange fails with `invalid_grant`.
  *
  * @param context - Hono request context.
  * @param body - The parsed form body.
@@ -192,6 +194,15 @@ async function handleRefreshTokenGrant(context: OAuthContext, body: Record<strin
     return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'unknown, expired or revoked refresh token')
   }
   if (old.clientId !== clientId) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'client_id does not match the refresh token')
+
+  // Mirrors the live-grant checks of `authMiddleware` and the consent step: a refresh token
+  // must not outlive the account or the user's consent for this client.
+  const user = await context.get('userRepository').findById(old.userId)
+  if (!user || !user.isActive) {
+    return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'the resource owner is no longer active')
+  }
+  const consent = await context.get('oauthConsentRepository').findActive(clientId, old.userId)
+  if (!consent) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'consent for this client was revoked')
 
   let resolvedScopes: OAuthScope[]
   if (!requestedScope) {
