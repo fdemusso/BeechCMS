@@ -32,11 +32,16 @@ describe('semantic-search worker and manifest compilation', () => {
       ],
     })
     const mockDb = {
-      prepare: vi.fn().mockReturnValue({ all: allMock }),
+      prepare: vi.fn().mockReturnValue({
+        all: allMock,
+        first: vi.fn().mockResolvedValue({ n: 2 }),
+        bind: vi.fn().mockReturnValue({ all: allMock }),
+      }),
     } as unknown as D1Database
 
     const putMock = vi.fn().mockResolvedValue({})
     const mockSearchR2 = {
+      head: vi.fn().mockResolvedValue(null),
       put: putMock,
     } as unknown as R2Bucket
 
@@ -70,15 +75,18 @@ describe('semantic-search worker and manifest compilation', () => {
   it('compileR2Manifest changes the fingerprint when vector content changes but id/title do not (#610)', async () => {
     const mockSearchR2 = () => {
       const putMock = vi.fn().mockResolvedValue({})
-      return { put: putMock } as unknown as R2Bucket
+      return { head: vi.fn().mockResolvedValue(null), put: putMock } as unknown as R2Bucket
+    }
+
+    const buildVectorStatement = (rows: { results: unknown[] }) => {
+      const all = vi.fn().mockResolvedValue(rows)
+      return { all, first: vi.fn().mockResolvedValue({ n: 1 }), bind: vi.fn().mockReturnValue({ all }) }
     }
 
     const buildDb = (vector: Float32Array) => ({
-      prepare: vi.fn().mockReturnValue({
-        all: vi.fn().mockResolvedValue({
-          results: [{ entry_id: 'art-1', vector: vector.buffer, title: 'Same Title' }],
-        }),
-      }),
+      prepare: vi.fn().mockReturnValue(buildVectorStatement({
+        results: [{ entry_id: 'art-1', vector: vector.buffer, title: 'Same Title' }],
+      })),
     }) as unknown as D1Database
 
     const r2First  = mockSearchR2()
@@ -122,7 +130,7 @@ describe('semantic-search worker and manifest compilation', () => {
     } as unknown as D1Database
 
     const putMock = vi.fn().mockResolvedValue({})
-    const mockSearchR2 = { put: putMock } as unknown as R2Bucket
+    const mockSearchR2 = { head: vi.fn().mockResolvedValue(null), put: putMock } as unknown as R2Bucket
 
     const mockRepo = {
       findById: vi.fn().mockResolvedValue({
@@ -180,7 +188,7 @@ describe('semantic-search worker and manifest compilation', () => {
     } as unknown as D1Database
 
     const putMock = vi.fn().mockResolvedValue({})
-    const mockSearchR2 = { put: putMock } as unknown as R2Bucket
+    const mockSearchR2 = { head: vi.fn().mockResolvedValue(null), put: putMock } as unknown as R2Bucket
 
     const context: JobContext = {
       repository: {} as any,
@@ -221,7 +229,7 @@ describe('semantic-search worker and manifest compilation', () => {
     } as unknown as D1Database
 
     const putMock = vi.fn().mockResolvedValue({})
-    const mockSearchR2 = { put: putMock } as unknown as R2Bucket
+    const mockSearchR2 = { head: vi.fn().mockResolvedValue(null), put: putMock } as unknown as R2Bucket
 
     const context: JobContext = {
       repository: {} as any,
@@ -308,7 +316,7 @@ describe('semantic-search worker and manifest compilation', () => {
       const context: JobContext = {
         repository: { findById: vi.fn().mockRejectedValue(new Error('not found')) } as any,
         bucket: {} as any, clock: {} as any, idGenerator: {} as any,
-        queue: new NoOpQueueService(), env: { DB: mockDb as any, SEARCH_R2: { put: putMock } as any },
+        queue: new NoOpQueueService(), env: { DB: mockDb as any, SEARCH_R2: { head: vi.fn().mockResolvedValue(null), put: putMock } as any },
       }
       await computeVectorJob({ seedSlug: 'articles', entryId: 'art-missing' }, context)
       expect(mockDb.prepare).toHaveBeenCalledWith('DELETE FROM vector_articles WHERE entry_id = ?')
@@ -321,7 +329,7 @@ describe('semantic-search worker and manifest compilation', () => {
       const context: JobContext = {
         repository: { findById: vi.fn().mockResolvedValue({ status: 'draft' }) } as any,
         bucket: {} as any, clock: {} as any, idGenerator: {} as any,
-        queue: new NoOpQueueService(), env: { DB: mockDb as any, SEARCH_R2: { put: putMock } as any },
+        queue: new NoOpQueueService(), env: { DB: mockDb as any, SEARCH_R2: { head: vi.fn().mockResolvedValue(null), put: putMock } as any },
       }
       await computeVectorJob({ seedSlug: 'articles', entryId: 'art-draft' }, context)
       expect(mockDb.prepare).toHaveBeenCalledWith('DELETE FROM vector_articles WHERE entry_id = ?')
@@ -334,7 +342,7 @@ describe('semantic-search worker and manifest compilation', () => {
       const context: JobContext = {
         repository: { findById: vi.fn().mockResolvedValue({ status: 'published', title: '', body: '' }) } as any,
         bucket: {} as any, clock: {} as any, idGenerator: {} as any,
-        queue: new NoOpQueueService(), env: { DB: mockDb as any, SEARCH_R2: { put: putMock } as any },
+        queue: new NoOpQueueService(), env: { DB: mockDb as any, SEARCH_R2: { head: vi.fn().mockResolvedValue(null), put: putMock } as any },
       }
       await computeVectorJob({ seedSlug: 'articles', entryId: 'art-empty' }, context)
       expect(mockDb.prepare).toHaveBeenCalledWith('DELETE FROM vector_articles WHERE entry_id = ?')
@@ -347,7 +355,7 @@ describe('semantic-search worker and manifest compilation', () => {
       const context: JobContext = {
         repository: { findById: vi.fn().mockResolvedValue({ status: 'published', title: 'Hello', body: 'World' }) } as any,
         bucket: {} as any, clock: {} as any, idGenerator: {} as any,
-        queue: new NoOpQueueService(), env: { DB: mockDb as any, SEARCH_R2: { put: putMock } as any },
+        queue: new NoOpQueueService(), env: { DB: mockDb as any, SEARCH_R2: { head: vi.fn().mockResolvedValue(null), put: putMock } as any },
       }
       await computeVectorJob({ seedSlug: 'articles', entryId: 'art-1' }, context)
       expect(putMock).not.toHaveBeenCalled()

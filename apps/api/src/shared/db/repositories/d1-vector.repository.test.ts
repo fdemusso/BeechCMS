@@ -84,4 +84,54 @@ describe('D1VectorRepository', () => {
     expect(results[1].title).toBe('Second Article')
     expect(Array.from(results[1].vector)).toEqual(Array.from(vec2))
   })
+
+  it('getVectorPage reads one entry_id-ordered keyset page strictly after the cursor', async () => {
+    const vec = new Float32Array([0.1, 0.2, 0.3])
+    const allMock = vi.fn().mockResolvedValue({ results: [{ entry_id: 'e2', vector: vec.buffer, title: 'Second' }] })
+    const bindMock = vi.fn().mockReturnValue({ all: allMock })
+    const prepareMock = vi.fn().mockReturnValue({ bind: bindMock })
+    const repo = new D1VectorRepository({ prepare: prepareMock } as unknown as D1Database)
+
+    const page = await repo.getVectorPage(TEST_SEED, 'e1', 500)
+
+    expect(prepareMock).toHaveBeenCalledWith(
+      'SELECT v.entry_id, v.vector, c.title AS title FROM vector_articles v LEFT JOIN content_articles c ON c.id = v.entry_id WHERE v.entry_id > ? ORDER BY v.entry_id LIMIT ?',
+    )
+    expect(bindMock).toHaveBeenCalledWith('e1', 500)
+    expect(page.map((row) => row.entryId)).toEqual(['e2'])
+  })
+
+  it('countVectors returns the row count of the seed vector table', async () => {
+    const firstMock = vi.fn().mockResolvedValue({ n: 7 })
+    const prepareMock = vi.fn().mockReturnValue({ first: firstMock })
+    const repo = new D1VectorRepository({ prepare: prepareMock } as unknown as D1Database)
+
+    const count = await repo.countVectors(TEST_SEED)
+
+    expect(prepareMock).toHaveBeenCalledWith('SELECT COUNT(*) AS n FROM vector_articles')
+    expect(count).toBe(7)
+  })
+
+  it('getVectorPage skips the content join and decodes byte-array BLOBs when the display name is not public', async () => {
+    const hiddenTitleSeed: Seed = {
+      ...TEST_SEED,
+      branches: [
+        { id: 'br_01', alias: 'title', label: 'Title', type: 'text', policies: { classification: 'internal', search: true } },
+        TEST_SEED.branches[1]!,
+      ],
+    }
+    const vec = new Float32Array([0.5, -0.5])
+    const allMock = vi.fn().mockResolvedValue({
+      results: [{ entry_id: 'e1', vector: Array.from(new Uint8Array(vec.buffer)), title: null }],
+    })
+    const prepareMock = vi.fn().mockReturnValue({ bind: vi.fn().mockReturnValue({ all: allMock }) })
+    const repo = new D1VectorRepository({ prepare: prepareMock } as unknown as D1Database)
+
+    const page = await repo.getVectorPage(hiddenTitleSeed, null, 10)
+
+    expect(prepareMock).toHaveBeenCalledWith(
+      'SELECT entry_id, vector, NULL AS title FROM vector_articles WHERE entry_id > ? ORDER BY entry_id LIMIT ?',
+    )
+    expect(page).toEqual([{ entryId: 'e1', vector: vec, title: '' }])
+  })
 })
