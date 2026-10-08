@@ -328,7 +328,13 @@ settingsApp.get('/sessions', async (context) => {
   const { sub: userId } = context.get('jwtPayload')
   const nowTimestamp = Math.floor(Date.now() / 1000)
   const sessions = await context.get('sessionRepository').listActiveForUser(userId, nowTimestamp, SESSION_LIST_LIMIT)
-  return context.json(sessions)
+
+  // Dashboard Session contract is snake_case, same as the activity endpoint below.
+  return context.json(sessions.map((session) => ({
+    id: session.id,
+    created_at: session.createdAt,
+    expires_at: session.expiresAt,
+  })))
 })
 
 /**

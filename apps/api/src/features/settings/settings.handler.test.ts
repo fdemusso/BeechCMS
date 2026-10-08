@@ -51,7 +51,7 @@ function buildApp(mocks: any = {}) {
 
     c.set('sessionRepository', mocks.sessionRepository ?? {
       listActiveForUser: vi.fn().mockResolvedValue([
-        { id: 'sess-1', userAgent: 'Mozilla/5.0', expiresAt: 2000000000 },
+        { id: 'sess-1', createdAt: 1900000000, expiresAt: 2000000000 },
       ]),
       revokeById: vi.fn().mockResolvedValue(true),
     })
@@ -521,8 +521,7 @@ describe('Settings Handler', () => {
       const res = await app.request('/sessions')
       expect(res.status).toBe(200)
       const body = await res.json() as any[]
-      expect(body).toHaveLength(1)
-      expect(body[0].id).toBe('sess-1')
+      expect(body).toEqual([{ id: 'sess-1', created_at: 1900000000, expires_at: 2000000000 }])
     })
   })
 
