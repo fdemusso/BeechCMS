@@ -196,28 +196,40 @@ export function validateCardConfigAgainstSeed(
 // Zod schema for shape validation
 // ---------------------------------------------------------------------------
 
+/** Max serialized size of a form layout. Keeps the `seed_layouts` row far below D1's per-row limit. */
+export const MAX_LAYOUT_BYTES = 256 * 1024
+
+const LAYOUT_ID_MAX = 64
+const LAYOUT_LABEL_MAX = 120
+const MAX_SECTIONS_PER_TAB = 50
+const MAX_FIELDS_PER_COLUMN = 100
+
 export const layoutFieldSchema = z.object({ branchId: z.string().regex(/^br_[A-Za-z0-9]+$/) })
 export const layoutColumnSchema = z.object({
-  id: z.string().min(1),
-  fields: z.array(layoutFieldSchema),
+  id: z.string().min(1).max(LAYOUT_ID_MAX),
+  fields: z.array(layoutFieldSchema).max(MAX_FIELDS_PER_COLUMN),
 })
 export const layoutSectionSchema = z.object({
-  id: z.string().min(1),
-  label: z.string().optional(),
+  id: z.string().min(1).max(LAYOUT_ID_MAX),
+  label: z.string().max(LAYOUT_LABEL_MAX).optional(),
   hideLabel: z.boolean().optional(),
   hideBorder: z.boolean().optional(),
   collapsible: z.boolean().optional(),
   columns: z.array(layoutColumnSchema).min(1).max(4),
 })
 export const layoutTabSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).max(LAYOUT_ID_MAX),
   label: z.string().min(1).max(60),
-  sections: z.array(layoutSectionSchema).min(1),
+  sections: z.array(layoutSectionSchema).min(1).max(MAX_SECTIONS_PER_TAB),
 })
-export const formLayoutSchema = z.object({
-  version: z.literal(1),
-  tabs: z.array(layoutTabSchema).min(1).max(8),
-})
+export const formLayoutSchema = z
+  .object({
+    version: z.literal(1),
+    tabs: z.array(layoutTabSchema).min(1).max(8),
+  })
+  .refine((layout) => new TextEncoder().encode(JSON.stringify(layout)).length <= MAX_LAYOUT_BYTES, {
+    message: `Layout exceeds the ${MAX_LAYOUT_BYTES / 1024} KB size limit.`,
+  })
 
 // ---------------------------------------------------------------------------
 // Default layout generator
