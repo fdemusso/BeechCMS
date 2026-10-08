@@ -9,7 +9,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
-import { defineSeed } from '@beechcms/core'
+import { defineSeed, generateTimeTrapToken } from '@beechcms/core'
 import { createTestHarness, TEST_PUBLIC_WRITE_KEY, type TestClient, type TestHarness } from '@beechcms/testing'
 import { createBeechApp } from '../../../factory'
 import { __resetSeedRegistryCache } from '../../../shared/services/cache/seed-registry-cache'
@@ -24,6 +24,9 @@ const publicJsonSeed = defineSeed({
     { id: 'br_02', alias: 'settings', label: 'Settings', type: 'json', policies: { public: true } },
   ],
 })
+
+// Time-Trap tokens are single-use and their table outlives a test, so each test mints a token with its own t0.
+const DEFAULT_TIME_TRAP_SECRET = 'beech-public-timetrap-default-secret'
 
 describe('public slice — idempotent add (real D1)', () => {
   let harness: TestHarness
@@ -67,6 +70,53 @@ describe('public slice — idempotent add (real D1)', () => {
       expect(response.status).toBe(409)
       const body = await response.json<{ type: string }>()
       expect(body.type).toBe('https://beechcms.dev/problems/idempotency-key-conflict')
+      const row = await harness.db.prepare('SELECT COUNT(*) AS n FROM content_public_json').first<{ n: number }>()
+      expect(row?.n).toBe(1)
+    })
+
+    it('replays the cached 201 when an anonymous retry resends its already consumed Time-Trap token', async () => {
+      const token = await generateTimeTrapToken(DEFAULT_TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 2)
+      const anonymous = harness.anonymous()
+      const headers = { 'Idempotency-Key': 'anonymous-lost-response-retry' }
+      const first = await anonymous.post('/api/v1/public/public_json/add', { data: { title: 'Prefs' }, _timeTrapToken: token }, { headers })
+      expect(first.status).toBe(201) // precondition
+      const { id } = await first.json<{ id: string }>()
+
+      // Regression guard: the consumed-token check ran before the idempotency lookup, so the retry got a 422.
+      const response = await anonymous.post('/api/v1/public/public_json/add', { data: { title: 'Prefs' }, _timeTrapToken: token }, { headers })
+
+      expect(response.status).toBe(201)
+      const body = await response.json<{ id: string }>()
+      expect(body.id).toBe(id)
+      const row = await harness.db.prepare('SELECT COUNT(*) AS n FROM content_public_json').first<{ n: number }>()
+      expect(row?.n).toBe(1)
+    })
+
+    it('answers 422 time-trap-replayed when a consumed token is resent without a matching idempotent request', async () => {
+      const token = await generateTimeTrapToken(DEFAULT_TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 3)
+      const anonymous = harness.anonymous()
+      const first = await anonymous.post('/api/v1/public/public_json/add', { data: { title: 'Prefs' }, _timeTrapToken: token }, { headers: { 'Idempotency-Key': 'first-key' } })
+      expect(first.status).toBe(201) // precondition
+
+      const response = await anonymous.post('/api/v1/public/public_json/add', { data: { title: 'Prefs' }, _timeTrapToken: token }, { headers: { 'Idempotency-Key': 'other-key' } })
+
+      expect(response.status).toBe(422)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/time-trap-replayed')
+      const row = await harness.db.prepare('SELECT COUNT(*) AS n FROM content_public_json').first<{ n: number }>()
+      expect(row?.n).toBe(1)
+    })
+
+    it('answers 409 idempotency-key-conflict when a consumed token is resent with a different payload under the same key', async () => {
+      const token = await generateTimeTrapToken(DEFAULT_TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 4)
+      const anonymous = harness.anonymous()
+      const headers = { 'Idempotency-Key': 'changed-payload-key' }
+      const first = await anonymous.post('/api/v1/public/public_json/add', { data: { title: 'Prefs' }, _timeTrapToken: token }, { headers })
+      expect(first.status).toBe(201) // precondition
+
+      const response = await anonymous.post('/api/v1/public/public_json/add', { data: { title: 'Other' }, _timeTrapToken: token }, { headers })
+
+      expect(response.status).toBe(409)
       const row = await harness.db.prepare('SELECT COUNT(*) AS n FROM content_public_json').first<{ n: number }>()
       expect(row?.n).toBe(1)
     })

@@ -235,13 +235,16 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     })
   }
 
+  const idempotencyKey = parseIdempotencyKey(context.req.header('Idempotency-Key'))
   const timeTrapTokenRepo = context.get('timeTrapTokenRepository')
   let tokenHash: string | null = null
+  // A consumed token is only acceptable on an idempotent retry; the stored response decides below.
+  let tokenConsumed = false
   if (timeTrapToken) {
     tokenHash = await sha256hex(timeTrapToken)
     if (timeTrapTokenRepo) {
-      const isUsed = await timeTrapTokenRepo.isTokenUsed(tokenHash)
-      if (isUsed) {
+      tokenConsumed = await timeTrapTokenRepo.isTokenUsed(tokenHash)
+      if (tokenConsumed && !idempotencyKey) {
         return publicProblem(context, {
           type: 'time-trap-replayed',
           title: 'Unprocessable Entity',
@@ -251,15 +254,18 @@ export async function publicAddHandler(context: Context<AppEnv>) {
       }
     }
 
-    const secret = context.env.PUBLIC_TIME_TRAP_SECRET || 'beech-public-timetrap-default-secret'
-    const verification = await verifyTimeTrapToken(timeTrapToken, secret, 1.5, 3600)
-    if (!verification.valid) {
-      return publicProblem(context, {
-        type: 'time-trap-violation',
-        title: 'Unprocessable Entity',
-        status: 422,
-        detail: verification.reason || 'Invalid submission timing.',
-      })
+    // A consumed token passed this verification when it was claimed, and its 1h window may have lapsed since.
+    if (!tokenConsumed) {
+      const secret = context.env.PUBLIC_TIME_TRAP_SECRET || 'beech-public-timetrap-default-secret'
+      const verification = await verifyTimeTrapToken(timeTrapToken, secret, 1.5, 3600)
+      if (!verification.valid) {
+        return publicProblem(context, {
+          type: 'time-trap-violation',
+          title: 'Unprocessable Entity',
+          status: 422,
+          detail: verification.reason || 'Invalid submission timing.',
+        })
+      }
     }
   }
 
@@ -339,7 +345,6 @@ export async function publicAddHandler(context: Context<AppEnv>) {
   privacyData = mergeLocalizedFields(seed, null, privacyData, localeConfig)
   const displayData = resolveLocalizedFields(seed, privacyData, localeConfig)
 
-  const idempotencyKey = parseIdempotencyKey(context.req.header('Idempotency-Key'))
   const finalSlug = pickSlug(body, displayData) || context.get('idGenerator').uuid().slice(0, 8)
   const repository = context.get('repository')
   const idempotencyRepository = context.get('idempotencyRepository')
@@ -365,6 +370,15 @@ export async function publicAddHandler(context: Context<AppEnv>) {
         try { parsedBody = JSON.parse(existing.responseBody) } catch { parsedBody = { success: true } }
         return context.json(parsedBody, existing.responseStatus as 201)
       }
+    }
+
+    if (tokenConsumed) {
+      return publicProblem(context, {
+        type: 'time-trap-replayed',
+        title: 'Unprocessable Entity',
+        status: 422,
+        detail: 'Time-Trap token has already been used',
+      })
     }
 
     const id = context.get('idGenerator').uuid()
