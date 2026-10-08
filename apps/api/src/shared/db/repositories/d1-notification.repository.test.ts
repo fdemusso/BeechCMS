@@ -117,6 +117,26 @@ describe('D1NotificationRepository', () => {
       })
     })
 
+    it('falls back to info type and empty text when the record omits them', async () => {
+      const { db, bindMock } = makeMockDb()
+
+      const id = await new D1NotificationRepository(db, clock, makeIdGen()).create({} as never)
+
+      expect(bindMock).toHaveBeenCalledWith(id, '', '', 'info')
+    })
+
+    it('a repeated dedupeKey stores one notification and returns the same id', async () => {
+      const { D1TestDatabase } = await import('../../../../test/helpers/d1-test-database')
+      const repo = new D1NotificationRepository(new D1TestDatabase({ applyMigrations: true }), clock, makeIdGen())
+      const record = { title: 'One event', message: 'One notification', type: 'info' as const, dedupeKey: 'msg_1' }
+
+      const firstId = await repo.create(record)
+      const secondId = await repo.create(record)
+
+      expect(secondId).toBe(firstId)
+      expect(await repo.list(10)).toHaveLength(1)
+    })
+
     it('handles prototype/builtin property names safely without throwing or leaking prototype', async () => {
       const { db } = makeMockDb({
         allResults: [
