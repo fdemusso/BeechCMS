@@ -15,6 +15,7 @@
  *
  * Scopes: this | batch | <seedSlug> | <contextKey>
  * Selectors: lastone | firstone | all | byid(<id>) | where(<alias>=<value>)
+ *   byid/where take literal values: nested {{...}} inside the parentheses is not parsed.
  * Fields: branch alias, system column, or aggregate (count/sum/avg/min/max/pluck)
  *
  * Sugar:

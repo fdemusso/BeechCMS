@@ -33,11 +33,14 @@ export class AutomationRunner implements IAutomationRunner {
     const automations = await this.deps.automationRepository.findActive(seedSlug, event)
 
     for (const automation of automations) {
-      const resolved = await resolveAutomationContext(automation, entry, [entry])
+      const resolved = await resolveAutomationContext(automation, entry, [entry], {
+        repository: this.deps.contentRepository,
+        getSeed: this.deps.getSeed,
+      })
 
-      // Evaluate conditions with the resolved context (this + batch scopes available).
-      // Variables from set_variable actions are not yet available here; use inline refs
-      // like {{customers:byid({{this.id}}):field}} for cross-seed conditions in v1.
+      // Evaluate conditions with the resolved context (this, batch and seed-scoped refs).
+      // Variables from set_variable actions are not yet available here; seed-scoped refs
+      // need a literal selector, e.g. {{customers:byid(c_42):field}} (no nested {{...}}).
       if (!evaluateWhen(automation.trigger_conditions, resolved)) continue
 
       const variables: Record<string, unknown> = {}

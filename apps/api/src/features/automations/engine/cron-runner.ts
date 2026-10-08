@@ -71,18 +71,20 @@ export async function runCronAutomations(
     // SQL pushdown is only an optimisation (Task 12): OR groups, negated groups,
     // non-eq ops, and batch refs are never translated to filters. Re-check every
     // fetched entry in-memory before any action — batch or per-entry — runs.
-    const pushdownContext = await resolveAutomationContext(automation, entries[0] ?? null, entries)
+    const seedLookup = { repository: deps.contentRepository, getSeed: deps.getSeed }
+    const pushdownContext = await resolveAutomationContext(automation, entries[0] ?? null, entries, seedLookup)
     const matchingEntries = entries.filter((entry) =>
       evaluateWhen(automation.trigger_conditions, deriveEntryContext(pushdownContext, entry)),
     )
     if (matchingEntries.length === 0) continue
 
-    // Build the base ResolvedContext once per automation (shared seed-query cache).
+    // Build the base ResolvedContext once per automation (seed-scoped rows are fetched here, once).
     // triggerEntry = first matching entry; batchEntries = full filtered list.
     const batchBase = await resolveAutomationContext(
       automation,
       matchingEntries[0] ?? null,
       matchingEntries,
+      seedLookup,
     )
 
     // Shared across actions so set_variable results reach every later action.
