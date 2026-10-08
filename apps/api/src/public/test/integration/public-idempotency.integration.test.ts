@@ -25,7 +25,8 @@ const publicJsonSeed = defineSeed({
   ],
 })
 
-// Time-Trap tokens are single-use and their table outlives a test, so each test mints a token with its own t0.
+// Time-Trap tokens are single-use and their table outlives a test. A token minted as "now - N seconds" repeats an earlier
+// test's t0 whenever the tests run N seconds apart, so the table is emptied before each test.
 const DEFAULT_TIME_TRAP_SECRET = 'beech-public-timetrap-default-secret'
 
 describe('public slice — idempotent add (real D1)', () => {
@@ -39,6 +40,7 @@ describe('public slice — idempotent add (real D1)', () => {
       seeds: [publicJsonSeed],
       createApp: (authProviders) => createBeechApp({ seeds: [], authProviders }),
     })
+    await harness.db.prepare('DELETE FROM public_time_trap_tokens').run()
     publicClient = harness.anonymous().withHeaders({ 'X-API-Key': TEST_PUBLIC_WRITE_KEY })
   })
 
