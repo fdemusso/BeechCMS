@@ -29,6 +29,30 @@ describe('D1MediaRepository', () => {
     })
   })
 
+  describe('registerUpload', () => {
+    it('batches a key-guarded storage bump before an INSERT OR IGNORE and reports the insert', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb()
+      db.batch = vi.fn().mockResolvedValue([{ meta: { changes: 0 } }, { meta: { changes: 1 } }])
+      const obj = { key: 'k1', filename: 'img.png', mime_type: 'image/png', size_bytes: 1024, uploaded_by: 'user-1' }
+
+      const registered = await new D1MediaRepository(db).registerUpload(obj)
+
+      expect(registered).toBe(true)
+      expect(prepareMock).toHaveBeenNthCalledWith(1, expect.stringContaining('UPDATE system_stats'))
+      expect(prepareMock).toHaveBeenNthCalledWith(2, expect.stringContaining('INSERT OR IGNORE INTO media_objects'))
+      expect(bindMock).toHaveBeenNthCalledWith(1, 1024, 'k1')
+      expect(bindMock).toHaveBeenNthCalledWith(2, 'k1', 'img.png', 'image/png', 1024, 'user-1')
+    })
+
+    it('returns false when the key was already registered', async () => {
+      const { db } = makeMockDb()
+      db.batch = vi.fn().mockResolvedValue([{ meta: { changes: 0 } }, { meta: { changes: 0 } }])
+      const obj = { key: 'k1', filename: 'img.png', mime_type: 'image/png', size_bytes: 1024, uploaded_by: 'user-1' }
+
+      expect(await new D1MediaRepository(db).registerUpload(obj)).toBe(false)
+    })
+  })
+
   describe('getByKey', () => {
     it('returns the media object when found', async () => {
       const row = { key: 'k1', filename: 'img.png', mime_type: 'image/png', size_bytes: 512, uploaded_by: 'u1', created_at: 1000 }
