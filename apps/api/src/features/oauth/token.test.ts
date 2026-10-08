@@ -113,6 +113,28 @@ describe('OAuth token endpoint', () => {
     expect(refreshRes.status).toBe(400)
   })
 
+  it('replay after the code TTL elapses still revokes every token from the first redemption', async () => {
+    const code = await loginAndGetCode()
+    const firstRes = await tokenRequest({
+      grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, client_id: CLIENT_ID, code_verifier: CODE_VERIFIER,
+    })
+    const { refresh_token: refreshToken } = await firstRes.json<{ refresh_token: string }>()
+
+    // The 60s authorization-code TTL has elapsed by the time the replay arrives; the derived
+    // tokens (30-day lifetime) must still get revoked.
+    await db.prepare(`UPDATE oauth_authorization_codes SET expires_at = 1 WHERE client_id = ?`).bind(CLIENT_ID).run()
+
+    const replayRes = await tokenRequest({
+      grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, client_id: CLIENT_ID, code_verifier: CODE_VERIFIER,
+    })
+    expect(replayRes.status).toBe(400)
+    const replayBody = await replayRes.json<{ error: string }>()
+    expect(replayBody.error).toBe('invalid_grant')
+
+    const refreshRes = await tokenRequest({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: CLIENT_ID })
+    expect(refreshRes.status).toBe(400)
+  })
+
   it('redirect_uri differing from the stored code returns invalid_grant', async () => {
     const code = await loginAndGetCode()
     const res = await tokenRequest({
@@ -189,6 +211,60 @@ describe('OAuth token endpoint', () => {
       expect(wideningRes.status).toBe(400)
       const wideningBody = await wideningRes.json<{ error: string }>()
       expect(wideningBody.error).toBe('invalid_scope')
+    })
+
+    it('refresh after an admin narrows the client allowlist returns invalid_scope', async () => {
+      const code = await loginAndGetCode('schema:read schema:write')
+      const firstRes = await tokenRequest({
+        grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, client_id: CLIENT_ID, code_verifier: CODE_VERIFIER,
+      })
+      const { refresh_token: refreshToken } = await firstRes.json<{ refresh_token: string }>()
+
+      // Simulates an admin revoking schema:write from this client after the grant was issued.
+      await db.prepare(`UPDATE oauth_clients SET allowed_scopes = 'schema:read' WHERE client_id = ?`).bind(CLIENT_ID).run()
+
+      const refreshRes = await tokenRequest({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: CLIENT_ID })
+      expect(refreshRes.status).toBe(400)
+      const body = await refreshRes.json<{ error: string }>()
+      expect(body.error).toBe('invalid_scope')
+    })
+
+    it('refresh after the resource owner is deactivated returns invalid_grant and mints no token', async () => {
+      const code = await loginAndGetCode()
+      const firstRes = await tokenRequest({
+        grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, client_id: CLIENT_ID, code_verifier: CODE_VERIFIER,
+      })
+      const { refresh_token: refreshToken } = await firstRes.json<{ refresh_token: string }>()
+      await db.prepare('UPDATE users SET is_active = 0 WHERE email = ?').bind(TEST_USERS[0].email).run()
+      const before = await db.prepare('SELECT COUNT(*) AS n FROM oauth_tokens').first<{ n: number }>()
+
+      const refreshRes = await tokenRequest({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: CLIENT_ID })
+
+      expect(refreshRes.status).toBe(400)
+      const body = await refreshRes.json<{ error: string }>()
+      expect(body.error).toBe('invalid_grant')
+      const after = await db.prepare('SELECT COUNT(*) AS n FROM oauth_tokens').first<{ n: number }>()
+      expect(after?.n).toBe(before?.n)
+    })
+
+    it('refresh after the consent row is revoked returns invalid_grant and mints no token', async () => {
+      const code = await loginAndGetCode()
+      const firstRes = await tokenRequest({
+        grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, client_id: CLIENT_ID, code_verifier: CODE_VERIFIER,
+      })
+      const { refresh_token: refreshToken } = await firstRes.json<{ refresh_token: string }>()
+      // Revokes the consent row alone: the token cascade in the revoke handler is bypassed on purpose,
+      // so this proves the refresh grant checks consent itself instead of relying on that cascade.
+      await db.prepare('UPDATE oauth_consents SET revoked_at = 1 WHERE client_id = ?').bind(CLIENT_ID).run()
+      const before = await db.prepare('SELECT COUNT(*) AS n FROM oauth_tokens').first<{ n: number }>()
+
+      const refreshRes = await tokenRequest({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: CLIENT_ID })
+
+      expect(refreshRes.status).toBe(400)
+      const body = await refreshRes.json<{ error: string }>()
+      expect(body.error).toBe('invalid_grant')
+      const after = await db.prepare('SELECT COUNT(*) AS n FROM oauth_tokens').first<{ n: number }>()
+      expect(after?.n).toBe(before?.n)
     })
   })
 

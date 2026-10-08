@@ -107,13 +107,18 @@ async function handleAuthorizationCodeGrant(context: OAuthContext, body: Record<
   const nowSeconds = context.get('clock').nowSeconds()
   const codeHash = await sha256hex(code)
   const codeRepository = context.get('oauthAuthorizationCodeRepository')
-  const record = await codeRepository.findByHash(codeHash, nowSeconds)
+  const record = await codeRepository.findByHash(codeHash)
   if (!record) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'unknown or expired authorization code')
 
+  // Replay must be detected even after the code's 60s TTL has passed: the tokens it minted
+  // on first redemption live for up to 30 days, so an expiry filter here would let a replay
+  // past this point go uncaught (RFC 6749 §4.1.2 SHOULD revoke on replay).
   if (record.consumedAt !== null) {
     await context.get('oauthTokenRepository').revokeByAuthorizationCode(codeHash, nowSeconds)
     return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'authorization code already redeemed')
   }
+
+  if (record.expiresAt <= nowSeconds) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'unknown or expired authorization code')
 
   if (record.clientId !== clientId) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'client_id does not match the authorization code')
   if (record.redirectUri !== redirectUri) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'redirect_uri does not match the authorization code')
@@ -158,6 +163,8 @@ async function handleAuthorizationCodeGrant(context: OAuthContext, body: Record<
  *    token family via its authorization code hash (OAuth 2.1 §4.3.1).
  * 4. **Atomic rollback**: If revoking the previous refresh token fails (e.g. concurrent race condition),
  *    the newly created token pair is immediately invalidated.
+ * 5. **Live grant**: the resource owner must still be active and the client consent unrevoked,
+ *    otherwise the exchange fails with `invalid_grant`.
  *
  * @param context - Hono request context.
  * @param body - The parsed form body.
@@ -188,6 +195,15 @@ async function handleRefreshTokenGrant(context: OAuthContext, body: Record<strin
   }
   if (old.clientId !== clientId) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'client_id does not match the refresh token')
 
+  // Mirrors the live-grant checks of `authMiddleware` and the consent step: a refresh token
+  // must not outlive the account or the user's consent for this client.
+  const user = await context.get('userRepository').findById(old.userId)
+  if (!user || !user.isActive) {
+    return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'the resource owner is no longer active')
+  }
+  const consent = await context.get('oauthConsentRepository').findActive(clientId, old.userId)
+  if (!consent) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'consent for this client was revoked')
+
   let resolvedScopes: OAuthScope[]
   if (!requestedScope) {
     resolvedScopes = old.scope
@@ -197,6 +213,12 @@ async function handleRefreshTokenGrant(context: OAuthContext, body: Record<strin
       return tokenError(context, OAUTH_ERRORS.INVALID_SCOPE, 'requested scope exceeds the scope originally granted')
     }
     resolvedScopes = parsed
+  }
+
+  // The client's allowlist can narrow after the token was issued (admin action). Re-check it
+  // on every rotation so a client never keeps rotating into a scope it is no longer allowed.
+  if (!isScopeSubset(resolvedScopes, client.allowedScopes)) {
+    return tokenError(context, OAUTH_ERRORS.INVALID_SCOPE, 'granted scope is no longer allowed for this client')
   }
 
   const pair = await issueTokenPair({

@@ -26,15 +26,21 @@ export interface IOAuthAuthorizationCodeRepository {
   save(record: NewAuthorizationCode): Promise<void>
 
   /**
-   * Returns the code regardless of its consumed state, provided it is unexpired.
-   * Callers MUST inspect `consumedAt`: a non-null value means replay, which
-   * requires cascade revocation via IOAuthTokenRepository.revokeByAuthorizationCode.
+   * Returns the code regardless of its consumed OR expired state — replay must be
+   * detectable even after the 60s TTL, since tokens derived from the code outlive it
+   * by 30 days. Callers MUST inspect `consumedAt` (replay signal, requires cascade
+   * revocation via IOAuthTokenRepository.revokeByAuthorizationCode) and `expiresAt`
+   * separately (an unconsumed-but-expired code is simply invalid, nothing to revoke).
    */
-  findByHash(codeHash: string, nowTimestamp: number): Promise<AuthorizationCodeRecord | null>
+  findByHash(codeHash: string): Promise<AuthorizationCodeRecord | null>
 
   /**
    * Atomically marks the code consumed. Returns true only for the first caller;
-   * every subsequent call returns false, which is the replay signal.
+   * every subsequent call returns false, which is the replay signal. Expiry is
+   * enforced here — redemption, unlike replay detection, must respect the TTL.
    */
   consumeByHash(codeHash: string, nowTimestamp: number): Promise<boolean>
+
+  /** Invalidates every unconsumed code issued to a (client, user) pair, e.g. on consent revoke. */
+  invalidateByClientAndUser(clientId: string, userId: string): Promise<number>
 }
