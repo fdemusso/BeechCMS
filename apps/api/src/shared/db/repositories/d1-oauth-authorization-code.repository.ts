@@ -66,16 +66,16 @@ export class D1OAuthAuthorizationCodeRepository implements IOAuthAuthorizationCo
       .run()
   }
 
-  async findByHash(codeHash: string, nowTimestamp: number): Promise<AuthorizationCodeRecord | null> {
+  async findByHash(codeHash: string): Promise<AuthorizationCodeRecord | null> {
     const row = await this.db
       .prepare(
         `SELECT code_hash, client_id, user_id, scope, redirect_uri, code_challenge,
                 code_challenge_method, expires_at, created_at, consumed_at
          FROM oauth_authorization_codes
-         WHERE code_hash = ? AND expires_at > ?
+         WHERE code_hash = ?
          LIMIT 1`
       )
-      .bind(codeHash, nowTimestamp)
+      .bind(codeHash)
       .first<AuthorizationCodeRow>()
     return row ? rowToRecord(row) : null
   }
@@ -91,5 +91,16 @@ export class D1OAuthAuthorizationCodeRepository implements IOAuthAuthorizationCo
       .run()
     const changes = (result as unknown as { meta?: { changes?: number } })?.meta?.changes ?? 0
     return changes > 0
+  }
+
+  async invalidateByClientAndUser(clientId: string, userId: string): Promise<number> {
+    const result = await this.db
+      .prepare(
+        `DELETE FROM oauth_authorization_codes
+         WHERE client_id = ? AND user_id = ? AND consumed_at IS NULL`
+      )
+      .bind(clientId, userId)
+      .run()
+    return (result as unknown as { meta?: { changes?: number } })?.meta?.changes ?? 0
   }
 }
