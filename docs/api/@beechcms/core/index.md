@@ -511,6 +511,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [isSeoBranch](functions/isSeoBranch.md)
 - [isTransferFormat](functions/isTransferFormat.md)
 - [isTransformableMime](functions/isTransformableMime.md)
+- [isValidAccountEmail](functions/isValidAccountEmail.md)
 - [isValidCodeVerifier](functions/isValidCodeVerifier.md)
 - [isValidColumn](functions/isValidColumn.md)
 - [isValidContentStatus](functions/isValidContentStatus.md)

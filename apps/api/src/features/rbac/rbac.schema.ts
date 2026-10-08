@@ -3,10 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { z } from 'zod'
-import { PERMISSIONS } from '@beechcms/core'
-
-/** Same shape check `POST /auth/setup` applies; kept literal to avoid a shared-regex import. */
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+import { PERMISSIONS, isValidAccountEmail } from '@beechcms/core'
 
 /** bcrypt silently truncates past 72 bytes, so the byte length is validated, not the char count. */
 const passwordSchema = z
@@ -21,7 +18,7 @@ const passwordSchema = z
 export const permissionSchema = z.enum(PERMISSIONS)
 
 export const createUserSchema = z.object({
-  email: z.string().trim().max(254).regex(EMAIL_RE),
+  email: z.string().trim().refine(isValidAccountEmail, { message: 'Invalid email address.' }),
   password: passwordSchema,
   name: z.string().trim().max(120).nullish(),
   surname: z.string().trim().max(120).nullish(),
@@ -47,7 +44,7 @@ export const createAssignmentSchema = z.object({
 })
 
 export const createInvitationSchema = z.object({
-  email: z.string().trim().max(254).regex(EMAIL_RE),
+  email: z.string().trim().refine(isValidAccountEmail, { message: 'Invalid email address.' }),
   roleId: z.string().min(1),
   /** `'*'` or a seeds.slug; existence is checked against the live registry in the handler. */
   scope: z.string().trim().min(1),
