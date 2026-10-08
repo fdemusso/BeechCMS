@@ -21,15 +21,17 @@ export function normalizeBody(raw: unknown): Record<string, unknown> {
 export function resolveIfMatch(context: Context, body: Record<string, unknown>): number | undefined {
   const header = context.req.header('If-Match')
   if (header !== undefined) {
-    const unquoted = header.replace(/^W\//, '').replace(/^"|"$/g, '')
-    const parsed = Number(unquoted)
-    return Number.isFinite(parsed) ? parsed : undefined
+    return parseVersion(header.replace(/^W\//, '').replace(/^"|"$/g, ''))
   }
-  if (body.updated_at !== undefined) {
-    const parsed = Number(body.updated_at)
-    return Number.isFinite(parsed) ? parsed : undefined
-  }
-  return undefined
+  return parseVersion(body.updated_at)
+}
+
+// `Number(null)` and `Number('')` are 0: absent or blank values must mean "no guard", not version 0.
+function parseVersion(value: unknown): number | undefined {
+  if (value === undefined || value === null) return undefined
+  if (typeof value === 'string' && value.trim() === '') return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
 }
 
 export function contentValidationProblem(
