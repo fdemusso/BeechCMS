@@ -22,7 +22,7 @@ import type { JobHandler, JobRegistry, Seed, JobContext } from '@beechcms/core'
 import { extractIndexableText, indexableSearchBranches } from '@beechcms/core'
 import { D1SeedRepository } from '../../../shared/db/repositories/seed.repository.d1'
 import { D1VectorRepository } from '../../../shared/db/repositories/d1-vector.repository'
-import { EMBEDDING_MODEL, EMBEDDING_DIMENSIONS } from '../constants'
+import { EMBEDDING_MODEL, EMBEDDING_DIMENSIONS, VECTOR_COMPILE_PAGE_SIZE } from '../constants'
 import { normaliseEmbeddingResponse } from '../utils/embedding-response'
 import type { IndexManifest } from '@beechcms/search-client'
 
@@ -90,22 +90,76 @@ export function vectorsKey(seedSlug: string): string {
 
 /**
  * Derives a stable fingerprint for an `IndexManifest` from its ordered records
- * AND the concatenated vector bytes, so `SearchClient` can cache-bust the
- * paired vectors file whenever the index content changes (see `fetchWithCache`
- * in `@beechcms/search-client`) — including a re-embedding that leaves every
- * record's `id`/`title` unchanged but changes the vector itself.
+ * AND the vector bytes, so `SearchClient` can cache-bust the paired vectors file
+ * whenever the index content changes (see `fetchWithCache` in `@beechcms/search-client`)
+ * — including a re-embedding that leaves every record's `id`/`title` unchanged but
+ * changes the vector itself.
+ *
+ * The two parts are hashed separately and the digests combined, so the (large) vector
+ * buffer is never copied just to be hashed.
  */
 async function computeFingerprint(
   records:     { id: string; title: string }[],
   vectorBytes: Uint8Array,
 ): Promise<string> {
-  const encoder  = new TextEncoder()
-  const textPart = encoder.encode(records.map((r) => `${r.id}:${r.title}`).join('|'))
-  const data     = new Uint8Array(textPart.length + vectorBytes.length)
-  data.set(textPart, 0)
-  data.set(vectorBytes, textPart.length)
-  const digest = await crypto.subtle.digest('SHA-256', data)
+  const textDigest   = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(records.map((r) => `${r.id}:${r.title}`).join('|')))
+  const vectorDigest = await crypto.subtle.digest('SHA-256', vectorBytes)
+  const combined     = new Uint8Array(textDigest.byteLength + vectorDigest.byteLength)
+  combined.set(new Uint8Array(textDigest), 0)
+  combined.set(new Uint8Array(vectorDigest), textDigest.byteLength)
+  const digest = await crypto.subtle.digest('SHA-256', combined)
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+/**
+ * Reads every stored vector of a seed in `entry_id` pages into ONE preallocated buffer, so peak
+ * memory is the final buffer plus a single page instead of all rows plus a copy of them.
+ */
+async function readVectorSnapshot(
+  seed:     Seed,
+  db:       D1Database,
+  pageSize: number,
+): Promise<{ records: { id: string; title: string }[]; vectorBytes: Uint8Array }> {
+  const vectorRepository = new D1VectorRepository(db)
+  const records: { id: string; title: string }[] = []
+
+  let floats = new Float32Array((await vectorRepository.countVectors(seed)) * EMBEDDING_DIMENSIONS)
+  let usedFloats = 0
+  let cursor: string | null = null
+
+  for (;;) {
+    const page = await vectorRepository.getVectorPage(seed, cursor, pageSize)
+    for (const storedVector of page) {
+      // Rows written after the COUNT can outgrow the buffer.
+      if (usedFloats + storedVector.vector.length > floats.length) {
+        const grown = new Float32Array(Math.max(floats.length * 2, usedFloats + storedVector.vector.length))
+        grown.set(floats.subarray(0, usedFloats))
+        floats = grown
+      }
+      floats.set(storedVector.vector, usedFloats)
+      usedFloats += storedVector.vector.length
+      records.push({ id: storedVector.entryId, title: storedVector.title })
+    }
+    if (page.length < pageSize) break
+    cursor = page[page.length - 1]!.entryId
+  }
+
+  const used = floats.subarray(0, usedFloats)
+  return { records, vectorBytes: new Uint8Array(used.buffer, used.byteOffset, used.byteLength) }
+}
+
+/** Compile attempts before giving up so the queue retries the whole job. */
+const MAX_COMPILE_ATTEMPTS = 5
+
+/** Precondition "the object is still the one I saw" (or "still absent"), for a conditional R2 write. */
+function unchangedSince(head: R2Object | null): R2Conditional {
+  return head ? { etagMatches: head.etag } : { etagDoesNotMatch: '*' }
+}
+
+/** Tuning knobs for {@link compileR2Manifest}. */
+export interface CompileR2ManifestOptions {
+  /** Max vector rows read from D1 per query. Defaults to {@link VECTOR_COMPILE_PAGE_SIZE}. */
+  pageSize?: number
 }
 
 /**
@@ -120,61 +174,63 @@ async function computeFingerprint(
  * These files are consumed by the client-side semantic search runtime to perform
  * in-memory cosine-similarity ranking without a Vectorize index.
  *
+ * Concurrent compiles of one seed are safe: each snapshot is written only if the R2 objects
+ * are unchanged since just before it was read. A job that lost the race re-reads D1 and
+ * retries, so a slower job can never replace a newer index with an older snapshot.
+ *
  * When `searchR2` is `undefined` (e.g. in local development without an R2
  * binding), the function returns immediately without writing anything.
  *
  * @param seed     - Seed whose vectors should be compiled.
  * @param db       - D1 database instance used to load stored vectors.
  * @param searchR2 - R2 bucket to write the manifest files to, or `undefined` to skip.
+ * @param options  - See {@link CompileR2ManifestOptions}.
+ * @throws When every attempt lost the race against another compile.
  */
 export async function compileR2Manifest(
   seed:      Seed,
   db:        D1Database,
   searchR2?: R2Bucket,
+  options:   CompileR2ManifestOptions = {},
 ): Promise<void> {
   if (!searchR2) return
 
-  const vectorRepository = new D1VectorRepository(db)
-  const storedVectors    = await vectorRepository.getAllVectors(seed)
+  const pageSize     = options.pageSize ?? VECTOR_COMPILE_PAGE_SIZE
+  const vectorsPath  = vectorsKey(seed.slug)
+  const manifestPath = manifestKey(seed.slug)
 
-  const records = storedVectors.map((v) => ({ id: v.entryId, title: v.title }))
+  for (let attempt = 0; attempt < MAX_COMPILE_ATTEMPTS; attempt++) {
+    // Head BEFORE the D1 read: any write that lands after this point invalidates the preconditions.
+    const [vectorsHead, manifestHead] = await Promise.all([searchR2.head(vectorsPath), searchR2.head(manifestPath)])
 
-  // Build the binary manifest: concatenated Float32Array buffers, in the same
-  // order as `manifest.records`.
-  const totalFloatCount   = storedVectors.reduce((sum, v) => sum + v.vector.length, 0)
-  const concatenatedFloats = new Float32Array(totalFloatCount)
-  let writeOffset = 0
-  for (const storedVector of storedVectors) {
-    concatenatedFloats.set(storedVector.vector, writeOffset)
-    writeOffset += storedVector.vector.length
-  }
-  const binaryManifest = new Uint8Array(
-    concatenatedFloats.buffer,
-    concatenatedFloats.byteOffset,
-    concatenatedFloats.byteLength,
-  )
+    const { records, vectorBytes } = await readVectorSnapshot(seed, db, pageSize)
+    const fingerprint = await computeFingerprint(records, vectorBytes)
 
-  const fingerprint = await computeFingerprint(records, binaryManifest)
+    const manifest: IndexManifest = {
+      model: EMBEDDING_MODEL,
+      dimensions: EMBEDDING_DIMENSIONS,
+      fingerprint,
+      records,
+    }
 
-  const manifest: IndexManifest = {
-    model: EMBEDDING_MODEL,
-    dimensions: EMBEDDING_DIMENSIONS,
-    fingerprint,
-    records,
-  }
-
-  await Promise.all([
-    searchR2.put(vectorsKey(seed.slug), binaryManifest, {
+    const vectorsWritten = await searchR2.put(vectorsPath, vectorBytes, {
       httpMetadata: { contentType: 'application/octet-stream' },
       // Lets serveIndexHandler answer If-None-Match against the manifest's own
       // fingerprint — the R2 httpEtag is a hash of these bytes, not comparable
       // to the fingerprint SearchClient.fetchWithCache sends.
       customMetadata: { fingerprint },
-    }),
-    searchR2.put(manifestKey(seed.slug), JSON.stringify(manifest), {
+      onlyIf: unchangedSince(vectorsHead),
+    })
+    if (!vectorsWritten) continue
+
+    const manifestWritten = await searchR2.put(manifestPath, JSON.stringify(manifest), {
       httpMetadata: { contentType: 'application/json' },
-    }),
-  ])
+      onlyIf: unchangedSince(manifestHead),
+    })
+    if (manifestWritten) return
+  }
+
+  throw new Error(`[semantic-search] R2 index for "${seed.slug}" kept changing under concurrent compiles — retrying job`)
 }
 
 // ─── Job handlers ─────────────────────────────────────────────────────────────
