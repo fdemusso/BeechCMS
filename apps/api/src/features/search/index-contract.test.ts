@@ -37,11 +37,18 @@ describe('compileR2Manifest / SearchClient contract', () => {
         { entry_id: 'art-2', vector: vec2.buffer, title: 'Second Post' },
       ],
     })
-    const mockDb = { prepare: vi.fn().mockReturnValue({ all: allMock }) } as unknown as D1Database
+    const mockDb = {
+      prepare: vi.fn().mockReturnValue({
+        all: allMock,
+        first: vi.fn().mockResolvedValue({ n: 2 }),
+        bind: vi.fn().mockReturnValue({ all: allMock }),
+      }),
+    } as unknown as D1Database
 
     let manifestBody = ''
     let vectorsBody: Uint8Array | undefined
     const mockSearchR2 = {
+      head: vi.fn().mockResolvedValue(null),
       put: vi.fn((key: string, body: any) => {
         if (key === 'articles/manifest.json') manifestBody = body
         if (key === 'articles/vectors.bin') vectorsBody = body

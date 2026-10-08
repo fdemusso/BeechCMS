@@ -540,6 +540,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [projectContentView](functions/projectContentView.md)
 - [projectContentViews](functions/projectContentViews.md)
 - [projectSchemaContract](functions/projectSchemaContract.md)
+- [reconcileLayoutWithSeed](functions/reconcileLayoutWithSeed.md)
 - [registerSeeds](functions/registerSeeds.md)
 - [reservedBranchAliasReason](functions/reservedBranchAliasReason.md)
 - [resolveAuthorizedViews](functions/resolveAuthorizedViews.md)

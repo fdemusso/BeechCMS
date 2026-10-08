@@ -23,7 +23,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Plus, Loader as Loader2, More as MoreHorizontal, Edit as Pencil } from 'reicon-react'
 import { toast } from 'sonner'
 import type { Seed, FormLayout, Branch } from '@beechcms/core'
-import { generateDefaultLayout, validateLayoutAgainstSeed } from '@beechcms/core'
+import { generateDefaultLayout, reconcileLayoutWithSeed } from '@beechcms/core'
 import type { AxiosError } from 'axios'
 
 import { Badge } from '@/components/ui/badge'
@@ -56,7 +56,7 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
     () => {
       const stored = seed.layout as FormLayout | undefined
       if (stored) {
-        return validateLayoutAgainstSeed(stored, seed).cleaned
+        return reconcileLayoutWithSeed(stored, seed)
       }
       return generateDefaultLayout(seed)
     },

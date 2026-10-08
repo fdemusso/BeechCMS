@@ -415,3 +415,32 @@ export function validateLayoutAgainstSeed(
   return { ok: true, cleaned }
 }
 
+/**
+ * Makes a stored layout safe to serve after the Seed changed. A layout that breaks the
+ * full-width rules falls back to the generated default; otherwise layoutable branches the
+ * layout never placed (added to the Seed later) are appended as trailing sections of the
+ * first tab, so the editor can always render and fill them.
+ */
+export function reconcileLayoutWithSeed(layout: FormLayout, seed: Seed): FormLayout {
+  const result = validateLayoutAgainstSeed(layout, seed)
+  if (!result.ok) return generateDefaultLayout(seed)
+
+  const placed = new Set<string>()
+  for (const tab of result.cleaned.tabs) {
+    for (const section of tab.sections) {
+      for (const column of section.columns) {
+        for (const field of column.fields) placed.add(field.branchId)
+      }
+    }
+  }
+
+  const unplaced = seed.branches.filter((b) => isLayoutableBranch(b) && !placed.has(b.id))
+  if (unplaced.length === 0) return result.cleaned
+
+  const [firstTab, ...otherTabs] = result.cleaned.tabs
+  const extended: LayoutTab = {
+    ...firstTab,
+    sections: [...firstTab.sections, ...buildSectionsForBranches(unplaced, defaultIdFactory)],
+  }
+  return { ...result.cleaned, tabs: [extended, ...otherTabs] }
+}

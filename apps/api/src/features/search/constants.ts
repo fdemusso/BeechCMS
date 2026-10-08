@@ -52,3 +52,6 @@ export const EMBEDDING_DIMENSIONS = 384 as const
 
 /** Rate limiter key used for the public embed endpoint. */
 export const EMBED_RATE_LIMITER_KEY = 'publicApiRead' as const
+
+/** Max vector rows read from D1 per query while compiling a seed's R2 index. */
+export const VECTOR_COMPILE_PAGE_SIZE = 500 as const
