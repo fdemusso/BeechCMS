@@ -28,25 +28,6 @@ interface MediaObject {
   readonly url: string
 }
 
-interface UnusedEntry {
-  readonly id: string
-  readonly data: Record<string, unknown>
-}
-
-function getEntryFileUrl(entry: UnusedEntry): string | null {
-  for (const val of Object.values(entry.data)) {
-    if (typeof val === "string" && (val.startsWith("http") || val.startsWith("/"))) return val
-  }
-  return null
-}
-
-function entryLabel(entry: UnusedEntry): string {
-  for (const val of Object.values(entry.data)) {
-    if (typeof val === "string" && val.trim() && !val.startsWith("http") && !val.startsWith("/")) return val
-  }
-  return entry.id
-}
-
 const SKELETON_ITEMS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"] as const
 
 function MediaGalleryLoading() {
@@ -124,10 +105,10 @@ function MediaGrid({
 }
 
 interface UnusedGridProps {
-  readonly items: readonly UnusedEntry[]
+  readonly items: readonly MediaObject[]
   readonly isDeletingPending: boolean
   readonly deletingVariables?: string
-  readonly onDelete: (id: string, label: string) => void
+  readonly onDelete: (key: string, label: string) => void
   readonly emptyTitle: string
   readonly emptyDesc: string
 }
@@ -152,23 +133,22 @@ function UnusedGrid({
 
   return (
     <div className="grid grid-cols-4 gap-2">
-      {items.map((entry) => {
-        const src = getEntryFileUrl(entry)
-        const label = entryLabel(entry)
-        const isDeleting = isDeletingPending && deletingVariables === entry.id
+      {items.map((item) => {
+        const isImage = item.mime_type.startsWith("image/")
+        const isDeleting = isDeletingPending && deletingVariables === item.key
 
         return (
           <div
-            key={entry.id}
+            key={item.key}
             className={cn(
               "group relative aspect-square overflow-hidden rounded-lg bg-muted/50 border border-border/50 transition-all hover:ring-2 hover:ring-primary/20",
               isDeleting && "opacity-50 grayscale pointer-events-none"
             )}
           >
-            {src ? (
+            {isImage ? (
               <img
-                src={src}
-                alt={label}
+                src={item.url}
+                alt={item.filename}
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
               />
             ) : (
@@ -177,14 +157,14 @@ function UnusedGrid({
               </div>
             )}
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-6 opacity-0 group-hover:opacity-100 transition-opacity">
-              <p className="text-[10px] text-white font-medium truncate mb-1.5">{label}</p>
+              <p className="text-[10px] text-white font-medium truncate mb-1.5">{item.filename}</p>
               <Button
                 variant="destructive"
                 size="sm"
                 className="h-6 w-full text-[10px] gap-1 px-1.5 bg-red-600 hover:bg-red-500 border-none"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onDelete(entry.id, label)
+                  onDelete(item.key, item.filename)
                 }}
               >
                 <Trash2 className="size-3" /> Elimina
@@ -216,8 +196,8 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
 
   const unusedQuery = useQuery({
     queryKey: ["widget", "media-gallery", seedSlug, "unused"],
-    queryFn: async (): Promise<UnusedEntry[]> => {
-      const res = await api.get<{ items: UnusedEntry[] }>("/content/stats/unused-media", {
+    queryFn: async (): Promise<MediaObject[]> => {
+      const res = await api.get<{ items: MediaObject[] }>("/content/stats/unused-media", {
         params: { seedSlug, limit: 12 },
       })
       return res.data.items
@@ -236,11 +216,12 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
   })
 
   const deleteUnusedMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/content/${seedSlug}/${id}`)
+    mutationFn: async (key: string) => {
+      await api.delete(`/upload/${encodeURIComponent(key)}`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["widget", "media-gallery", seedSlug] })
+      queryClient.invalidateQueries({ queryKey: ["widget", "media-library"] })
     },
   })
 
@@ -275,9 +256,9 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
         items={unusedQuery.data ?? []}
         isDeletingPending={deleteUnusedMutation.isPending}
         deletingVariables={deleteUnusedMutation.variables}
-        onDelete={(id, label) => {
+        onDelete={(key, label) => {
           if (confirm(`Eliminare definitivamente ${label}?`)) {
-            deleteUnusedMutation.mutate(id)
+            deleteUnusedMutation.mutate(key)
           }
         }}
         emptyTitle={t("dashboard.widgets.mediaGallery.allInUseTitle")}
