@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME } from '@beechcms/core'
+import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME, isValidAccountEmail } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { sortSeedsByDependencies, planCreateSeed, planExtendSeed } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
@@ -82,7 +82,7 @@ setupApp.post('/auth/setup', async (context) => {
   const p = payload as Record<string, unknown>
   const { email, password, name, surname, settings, track, company, loadDemoData } = p
 
-  if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+  if (typeof email !== 'string' || !isValidAccountEmail(email)) {
     return publicProblem(context, {
       type: 'validation-error',
       title: 'Valid email required',

@@ -31,6 +31,8 @@ BeechCMS is built around a natural, botanical metaphor:
 2. Enter your work **Email** and **Password**.
 3. Click **Sign in**.
 
+Account email addresses are trimmed and lowercased. Setup, account creation, invitations, profile changes, and login share the same validation: at most 254 characters after normalization, with nonempty domain labels separated by dots. Invalid profile changes leave the existing address unchanged.
+
 <p align="center">
   <img src="/images/login-page.png" alt="BeechCMS Login Page" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
 </p>

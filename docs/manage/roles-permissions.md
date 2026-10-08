@@ -179,6 +179,8 @@ An invitation **is a deferred assignment**, subject to exactly the same anti-esc
 
 **Authority is re-checked at redemption.** Before the account is created, the issuer must still be active and must still pass `hasPermission` + `canGrant` for that `(role, scope)`. Authority granted by an admin who has since been demoted or deactivated never lands — the invitee gets `409 invitation-revoked`.
 
+Account and invitation email addresses use the same format and 254-character limit as login. A legacy invitation with an invalid address is rejected before consumption or account creation; revoke it and issue a new invitation with a corrected address.
+
 The invitation is consumed **before** the account is created, atomically, so a race cannot redeem one token twice. Redemption returns no session: the activated account logs in through `POST /auth/login` like any other.
 
 Issuing requires a configured email provider (`EMAIL_PROVIDER=smtp` or `RESEND_API_KEY`); otherwise the request is refused `409 email-unavailable` rather than silently creating an undeliverable invitation.

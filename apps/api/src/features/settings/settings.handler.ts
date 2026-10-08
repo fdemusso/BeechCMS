@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { isLocaleCode, resolveLocaleConfig, sha256hex, type SiteSettings } from '@beechcms/core'
+import { isValidAccountEmail, isLocaleCode, resolveLocaleConfig, sha256hex, type SiteSettings } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { manageableScopes, serializeEffectivePermissions } from '../../shared/rbac/scoped-projection'
@@ -12,7 +12,6 @@ import { deleteR2Objects } from '../../shared/storage/upload'
 
 const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
-const EMAIL_VALIDATION_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 128
 /** bcrypt hasha solo i primi 72 byte UTF-8; oltre viene ignorato silenziosamente */
@@ -222,7 +221,7 @@ settingsApp.put('/profile', async (context) => {
   const surnameInput = typeof payload.surname === 'string' ? payload.surname.trim() : null
   const emailInput = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : null
 
-  if (emailInput !== null && !EMAIL_VALIDATION_REGEX.test(emailInput)) {
+  if (emailInput !== null && !isValidAccountEmail(emailInput)) {
     return context.json({ type: 'bad-request', title: 'Bad Request', status: 400, detail: 'Invalid email format' }, 400)
   }
 

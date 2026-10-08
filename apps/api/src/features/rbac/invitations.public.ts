@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import { GLOBAL_SCOPE, buildEffectivePermissions, canGrant, hasPermission, sha256hex, type EffectivePermissions } from '@beechcms/core'
+import { GLOBAL_SCOPE, buildEffectivePermissions, canGrant, hasPermission, isValidAccountEmail, sha256hex, type EffectivePermissions } from '@beechcms/core'
 import { getClientIp } from '../../shared/utils/request-utils'
 import { publicProblem } from '../../public/errors/problem-details'
 import { RBAC_ERRORS } from './constants'
@@ -84,6 +84,10 @@ export const acceptInvitationHandler = async (context: AppContext) => {
   const tokenHash = await sha256hex(parsed.data.token)
   const invitation = await invitationRepository.findValidByHash(tokenHash, now)
   if (!invitation) return invalid()
+  // Legacy invitations may predate validation parity with login.
+  if (!isValidAccountEmail(invitation.email)) {
+    return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', 'Invalid invitation email address.')
+  }
 
   const role = await context.get('roleRepository').findById(invitation.roleId)
   if (!role) return invalid()
