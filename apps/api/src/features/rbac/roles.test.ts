@@ -8,6 +8,7 @@ import { createBeechApp } from '../../factory'
 import { D1TestDatabase } from '../../../test/helpers/d1-test-database'
 import { seedTestUsers } from '../../../test/helpers/seed-fixtures'
 import { TEST_ENV } from '../../../test/fixtures'
+import { __resetSeedRegistryCache } from '../../shared/services/cache/seed-registry-cache'
 
 describe('features/rbac/roles', () => {
   let db: D1TestDatabase
@@ -144,7 +145,9 @@ describe('features/rbac/roles', () => {
       const passwordHash = await bcrypt.hash('password123', 10)
       await seedTestUsers(db, [{ id: 'user_scoped', email: 'scoped@beechcms.io', password_hash: passwordHash, grantSuperAdmin: false }])
       for (const slug of ['posts', 'blog2']) {
-        await db.prepare(`INSERT INTO seeds (slug, definition, status) VALUES (?, '{}', 'active')`).bind(slug).run()
+        await db.prepare(`INSERT INTO seeds (slug, definition, status) VALUES (?, ?, 'active')`)
+          .bind(slug, JSON.stringify({ slug, label: slug, displayNameAlias: 'title', branches: [] }))
+          .run()
       }
       await insertRole('00000000-0000-4000-8000-0000000000b1', ['manage_roles', 'content:read'])
       await insertRole('00000000-0000-4000-8000-0000000000b2', ['content:delete'])
@@ -153,6 +156,8 @@ describe('features/rbac/roles', () => {
       await assign('ura_news', 'user_scoped', '00000000-0000-4000-8000-0000000000b2', 'blog2')
       await assign('ura_shared_actor', 'user_scoped', '00000000-0000-4000-8000-0000000000b3', 'posts')
       await assign('ura_shared_victim', ADMIN.id, '00000000-0000-4000-8000-0000000000b3', '*')
+      // Drop the isolate cache so the seeds just inserted are parsed from D1.
+      __resetSeedRegistryCache()
       return login('scoped@beechcms.io')
     }
 
