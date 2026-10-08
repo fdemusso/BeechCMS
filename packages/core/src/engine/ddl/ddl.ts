@@ -71,7 +71,7 @@ export function tableName(seed: Seed): string {
  * @param seed The seed definition.
  * @returns The draft table name.
  */
-function draftTableName(seed: Seed): string {
+export function draftTableName(seed: Seed): string {
   return `content_${seed.slug}_drafts`
 }
 
@@ -621,6 +621,26 @@ export function generateDropColumn(seed: Seed, alias: string): string[] {
   if (branch && seed.allowDrafts) {
     stmts.push(`ALTER TABLE ${draftTableName(seed)} DROP COLUMN ${alias};`)
   }
+  return stmts
+}
+
+/**
+ * Returns the SQL statements that drop an orphan column: one left in the physical table after its
+ * branch was removed from the definition. Removes the conventional filter indexes first, since
+ * SQLite refuses to drop an indexed column.
+ *
+ * @param seed The seed definition (the column must not belong to it).
+ * @param column The orphan column name.
+ * @param inDraftTable Whether the draft table also holds the column.
+ * @returns An array of SQL statements.
+ */
+export function generateDropOrphanColumn(seed: Seed, column: string, inDraftTable: boolean): string[] {
+  const stmts = [
+    `DROP INDEX IF EXISTS idx_${seed.slug}_${column};`,
+    `DROP INDEX IF EXISTS idx_${seed.slug}_${column}_bidx;`,
+    `ALTER TABLE ${tableName(seed)} DROP COLUMN ${column};`,
+  ]
+  if (inDraftTable) stmts.push(`ALTER TABLE ${draftTableName(seed)} DROP COLUMN ${column};`)
   return stmts
 }
 

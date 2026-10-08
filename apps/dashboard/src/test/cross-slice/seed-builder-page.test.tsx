@@ -55,6 +55,7 @@ vi.mock("@/features/seed-builder/hooks/use-seeds", () => ({
   useDeleteSeed: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   useHardDeleteSeed: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   useDropBranch: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+  useDropOrphan: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   useRenameBranch: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   useRetypeBranch: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   useRebuildFts: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),

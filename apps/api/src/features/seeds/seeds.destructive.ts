@@ -7,6 +7,10 @@ import { Hono } from 'hono'
 import type { Branch, Seed } from '@beechcms/core'
 import {
   generateDropColumn,
+  generateDropOrphanColumn,
+  draftTableName,
+  tableName,
+  SYSTEM_COLUMNS,
   generateRenameColumn,
   generateRetypeColumn,
   generateRetypeIncompatibleCount,
@@ -154,6 +158,53 @@ destructiveApp.delete('/:slug/branches/:branchId', async (context) => {
 
   const stmts = generateDropColumn(existing.definition, branch.alias)
   const error = await applyDestructiveSeedDef(context, slug, updatedDef, stmts, { op: 'drop-branch', branchId, alias: branch.alias })
+  if (error) return error
+
+  return context.json({ success: true })
+})
+
+/**
+ * Drops an orphan column: a physical column left behind after its branch was removed from the definition.
+ *
+ * @remarks
+ * Irreversible destructive operation.
+ * - Requires body `{ confirm: "<slug>.<column>" }`.
+ * - Rejects system columns and defined branches; only columns reported by `GET /:slug/orphans` qualify.
+ * - The seed definition is unchanged; only the physical column (and its draft-table twin) is dropped.
+ *
+ * @route DELETE /api/seeds/:slug/orphans/:column
+ * @param slug - Seed slug identifier.
+ * @param column - Orphan column name.
+ * @returns 200 OK with `{ success: true }`, or 400/404/422 Problem Details on error.
+ */
+destructiveApp.delete('/:slug/orphans/:column', async (context) => {
+  const slug = context.req.param('slug')
+  const column = context.req.param('column')
+  const body = await parseJsonBody(context)
+  if (body instanceof Response) return body
+
+  const existing = await getActiveSeed(context, slug)
+  if (existing instanceof Response) return existing
+  const owned = rejectManifestOwned(context, existing)
+  if (owned) return owned
+
+  const definition = existing.definition
+  const mutator = context.get('schemaMutator')
+  const columns = await mutator.getColumns(tableName(definition))
+  const isOrphan = BRANCH_ALIAS_RE.test(column)
+    && !SYSTEM_COLUMNS.has(column)
+    && !definition.branches.some((b: Branch) => b.alias === column)
+    && columns?.has(column) === true
+  if (!isOrphan) {
+    return publicProblem(context, { type: 'orphan-not-found', title: 'Orphan column not found', status: 404, detail: `Seed '${slug}' has no orphan column '${column}'.` })
+  }
+
+  const confirmErr = requireConfirm(context, `${slug}.${column}`, body)
+  if (confirmErr) return confirmErr
+
+  const draftColumns = definition.allowDrafts ? await mutator.getColumns(draftTableName(definition)) : null
+  const stmts = generateDropOrphanColumn(definition, column, draftColumns?.has(column) === true)
+  const error = await applyDestructiveSeedDef(context, slug, definition, stmts, { op: 'drop-orphan', alias: column })
   if (error) return error
 
   return context.json({ success: true })

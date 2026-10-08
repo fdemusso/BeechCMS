@@ -633,6 +633,48 @@ describe('DELETE /:slug/branches/:branchId', () => {
   })
 })
 
+describe('DELETE /:slug/orphans/:column', () => {
+  const dropOrphan = (app: { request: (path: string, init: RequestInit) => Promise<Response> | Response }, column: string, confirm: string) =>
+    app.request(`/articles/orphans/${column}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm }),
+    })
+  const withLegacy = () => makeMutator({
+    getColumns: vi.fn().mockResolvedValue(new Set(['id', 'slug', 'status', 'created_at', 'updated_at', 'title', 'body', 'legacy'])),
+  })
+
+  it('drops the orphan column, definition unchanged', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo, mutator: withLegacy() })
+
+    const res = await dropOrphan(app, 'legacy', 'articles.legacy')
+
+    expect(res.status).toBe(200)
+    const mutation = (repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(mutation.ddl).toContain('ALTER TABLE content_articles DROP COLUMN legacy;')
+    expect((mutation.definition as Seed).branches).toEqual(baseSeed.branches)
+  })
+
+  it('404 for a system column, a defined branch and an unknown column', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo, mutator: withLegacy() })
+
+    for (const column of ['status', 'body', 'ghost']) {
+      expect((await dropOrphan(app, column, `articles.${column}`)).status, column).toBe(404)
+    }
+    expect((repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
+  })
+
+  it('400 on confirm mismatch, no DDL', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo, mutator: withLegacy() })
+
+    expect((await dropOrphan(app, 'legacy', 'wrong')).status).toBe(400)
+    expect((repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
+  })
+})
+
 describe('PATCH /:slug/branches/:branchId/rename', () => {
   it('400 on confirm mismatch', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })

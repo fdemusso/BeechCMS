@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator"
 import {
   useHardDeleteSeed,
   useDropBranch,
+  useDropOrphan,
   useRenameBranch,
   useRetypeBranch,
   useRebuildFts,
@@ -100,7 +101,7 @@ function FtsRebuildSection({ slug }: { slug: string }) {
 function OrphansSection({ record }: { record: SeedRecordDTO }) {
   const { t } = useTranslation()
   const { data, refetch, isFetching } = useOrphans(record.slug)
-  const dropBranch = useDropBranch()
+  const dropOrphan = useDropOrphan()
   const [confirms, setConfirms] = React.useState<Record<string, string>>({})
 
   const orphans = data?.orphans ?? []
@@ -109,8 +110,7 @@ function OrphansSection({ record }: { record: SeedRecordDTO }) {
     const expected = `${record.slug}.${col}`
     if (confirms[col] !== expected) return
     try {
-      // Use branch id "orphan" — the API resolves by alias for orphan drops.
-      await dropBranch.mutateAsync({ slug: record.slug, branchId: "_orphan_", confirm: expected })
+      await dropOrphan.mutateAsync({ slug: record.slug, column: col, confirm: expected })
       toast.success(t("seedBuilder.dangerZone.dropColumn.successToast", { alias: col }))
       refetch()
     } catch { /* hook */ }
@@ -142,7 +142,7 @@ function OrphansSection({ record }: { record: SeedRecordDTO }) {
                 type="button"
                 variant="destructive"
                 size="sm"
-                disabled={confirms[col] !== `${record.slug}.${col}` || dropBranch.isPending}
+                disabled={confirms[col] !== `${record.slug}.${col}` || dropOrphan.isPending}
                 onClick={() => handleDrop(col)}
               >
                 {t("seedBuilder.dangerZone.orphans.dropButton")}
