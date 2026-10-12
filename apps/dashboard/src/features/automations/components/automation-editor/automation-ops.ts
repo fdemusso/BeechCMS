@@ -6,7 +6,6 @@ import type { Branch } from '@beechcms/core'
 import type { WhenOp } from '../../schema/automation.schema'
 
 const TEXT_OPS: WhenOp[] = ['eq', 'neq', 'contains', 'startswith', 'endswith', 'isempty', 'isnotempty', 'matches']
-const TEXT_OPTIONS_OPS: WhenOp[] = ['eq', 'neq', 'in', 'notin', 'isempty', 'isnotempty']
 const NUMBER_OPS: WhenOp[] = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isempty', 'isnotempty']
 const DATE_OPS: WhenOp[] = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isempty', 'isnotempty']
 const BOOLEAN_OPS: WhenOp[] = ['eq', 'neq', 'isempty', 'isnotempty']
@@ -29,7 +28,7 @@ export function getWhenOpsForBranch(branch: Branch | undefined): WhenOp[] {
     case 'tags':    return TAGS_OPS
     case 'json':    return TAGS_OPS
     case 'file':    return FILE_OPS
-    case 'text':    return branch.options?.length ? TEXT_OPTIONS_OPS : TEXT_OPS
+    case 'text':    return TEXT_OPS
     default:        return TEXT_OPS
   }
 }

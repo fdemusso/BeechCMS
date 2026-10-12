@@ -18,8 +18,8 @@ describe('BeechForm Component', () => {
         type: 'select',
         label: 'Argomento',
         options: [
-          { label: 'Supporto', value: 'support' },
-          { label: 'Vendite', value: 'sales' },
+          { label: 'Supporto', value: 'support', color: '#3b82f6' },
+          { label: 'Vendite', value: 'sales', color: '#10b981' },
         ],
       },
       { alias: 'privacy', type: 'boolean', placeholder: 'Accetto i termini' },

@@ -15,7 +15,7 @@ const baseSeed: Seed = {
 describe('resolveKanbanConfig', () => {
   it('returns incompatible for allowDrafts seeds', () => {
     const seed: Seed = { ...baseSeed, allowDrafts: true, branches: [
-      { id: 'br_01', alias: 'state', type: 'text', label: 'State', options: ['todo', 'done'] },
+      { id: 'br_01', alias: 'state', type: 'tags', multiple: false, label: 'State', options: [{ value: 'todo', color: '#64748b' }, { value: 'done', color: '#64748b' }] },
     ] }
     const result = resolveKanbanConfig(seed)
     expect(result.compatible).toBe(false)
@@ -34,18 +34,7 @@ describe('resolveKanbanConfig', () => {
     expect(result.reason).toBe('no-candidate-branch')
   })
 
-  it('accepts text branch with options as candidate', () => {
-    const seed: Seed = { ...baseSeed, branches: [
-      { id: 'br_01', alias: 'priority', type: 'text', label: 'Priority', options: ['low', 'high'] },
-    ] }
-    const result = resolveKanbanConfig(seed)
-    expect(result.compatible).toBe(true)
-    expect(result.candidates).toHaveLength(1)
-    expect(result.candidates[0].branchId).toBe('br_01')
-    expect(result.candidates[0].type).toBe('text')
-  })
-
-  it('rejects text branch without options', () => {
+  it('a text branch is never an axis candidate', () => {
     const seed: Seed = { ...baseSeed, branches: [
       { id: 'br_01', alias: 'name', type: 'text', label: 'Name' },
     ] }
@@ -72,7 +61,7 @@ describe('resolveKanbanConfig', () => {
 
   it('excludes status alias even when type would qualify', () => {
     const seed: Seed = { ...baseSeed, branches: [
-      { id: 'br_01', alias: 'status', type: 'text', label: 'Status', options: ['a', 'b'] },
+      { id: 'br_01', alias: 'status', type: 'tags', multiple: false, label: 'Status', options: [{ value: 'a', color: '#64748b' }, { value: 'b', color: '#64748b' }] },
     ] }
     expect(resolveKanbanConfig(seed).compatible).toBe(false)
   })
@@ -89,19 +78,11 @@ describe('resolveKanbanConfig', () => {
 
   it('uses branchId not alias in candidates', () => {
     const seed: Seed = { ...baseSeed, branches: [
-      { id: 'br_42', alias: 'category', type: 'text', label: 'Category', options: ['a'] },
+      { id: 'br_42', alias: 'category', type: 'tags', multiple: false, label: 'Category', options: [{ value: 'a', color: '#64748b' }] },
     ] }
     const result = resolveKanbanConfig(seed)
     expect(result.candidates[0].branchId).toBe('br_42')
     expect(result.candidates[0].alias).toBe('category')
-  })
-
-  it('excludes a localized text branch with options', () => {
-    const seed: Seed = { ...baseSeed, branches: [
-      { id: 'br_01', alias: 'priority', type: 'text', label: 'Priority', options: ['a', 'b'], localized: true },
-    ] }
-    const result = resolveKanbanConfig(seed)
-    expect(result).toEqual({ compatible: false, reason: 'no-candidate-branch', candidates: [] })
   })
 })
 
@@ -116,14 +97,8 @@ describe('resolveKanbanColumns', () => {
     ])
   })
 
-  it('text axis with options: follows options order, null last', () => {
-    const branch: Branch = { id: 'br_01', alias: 'state', type: 'text', label: 'State', options: ['todo', 'in-progress', 'done'] }
-    const cols = resolveKanbanColumns(branch)
-    expect(cols.map(c => c.value)).toEqual(['todo', 'in-progress', 'done', null])
-  })
-
   it('tags axis with branch options: uses options order', () => {
-    const branch: Branch = { id: 'br_01', alias: 'tags', type: 'tags', label: 'Tags', options: ['b', 'a', 'c'] }
+    const branch: Branch = { id: 'br_01', alias: 'tags', type: 'tags', label: 'Tags', options: ['b', 'a', 'c'].map(value => ({ value, color: '#64748b' })) }
     const cols = resolveKanbanColumns(branch)
     expect(cols.map(c => c.value)).toEqual(['b', 'a', 'c', null])
   })
@@ -135,7 +110,7 @@ describe('resolveKanbanColumns', () => {
   })
 
   it('null column always last', () => {
-    const branch: Branch = { id: 'br_01', alias: 'state', type: 'text', label: 'State', options: ['x'] }
+    const branch: Branch = { id: 'br_01', alias: 'state', type: 'tags', multiple: false, label: 'State', options: [{ value: 'x', color: '#64748b' }] }
     const cols = resolveKanbanColumns(branch)
     expect(cols[cols.length - 1].value).toBeNull()
   })
@@ -147,25 +122,17 @@ describe('resolveKanbanColumns', () => {
   })
 
   it('omits null column if branch is required on create or update', () => {
-    const branchReqCreate: Branch = { id: 'br_01', alias: 'state', type: 'text', label: 'State', options: ['x'], requiredOnCreate: true }
+    const branchReqCreate: Branch = { id: 'br_01', alias: 'state', type: 'tags', multiple: false, label: 'State', options: [{ value: 'x', color: '#64748b' }], requiredOnCreate: true }
     const colsReqCreate = resolveKanbanColumns(branchReqCreate)
     expect(colsReqCreate.find(c => c.value === null)).toBeUndefined()
 
-    const branchReqUpdate: Branch = { id: 'br_02', alias: 'state', type: 'text', label: 'State', options: ['x'], requiredOnUpdate: true }
+    const branchReqUpdate: Branch = { id: 'br_02', alias: 'state', type: 'tags', multiple: false, label: 'State', options: [{ value: 'x', color: '#64748b' }], requiredOnUpdate: true }
     const colsReqUpdate = resolveKanbanColumns(branchReqUpdate)
     expect(colsReqUpdate.find(c => c.value === null)).toBeUndefined()
   })
 })
 
 describe('kanbanColumnFilter', () => {
-  it('text axis with value → eq on select type', () => {
-    const branch: Branch = { id: 'br_01', alias: 'state', type: 'text', label: 'State', options: ['todo', 'done'] }
-    const f = kanbanColumnFilter(branch, 'todo')
-    expect(f.column).toBe('state')
-    expect(f.type).toBe('select')
-    expect(f.conditions).toEqual([{ op: 'eq', value: 'todo' }])
-  })
-
   it('boolean axis with value "true" → eq with boolean true', () => {
     const branch: Branch = { id: 'br_01', alias: 'done', type: 'boolean', label: 'Done' }
     const f = kanbanColumnFilter(branch, 'true')
@@ -187,7 +154,7 @@ describe('kanbanColumnFilter', () => {
   })
 
   it('null value (text) → is_empty', () => {
-    const branch: Branch = { id: 'br_01', alias: 'state', type: 'text', label: 'State', options: ['x'] }
+    const branch: Branch = { id: 'br_01', alias: 'state', type: 'tags', multiple: false, label: 'State', options: [{ value: 'x', color: '#64748b' }] }
     const f = kanbanColumnFilter(branch, null)
     expect(f.column).toBe('state')
     expect(f.conditions).toEqual([{ op: 'is_empty', value: null }])

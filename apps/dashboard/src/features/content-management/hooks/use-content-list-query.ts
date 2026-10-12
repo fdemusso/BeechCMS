@@ -147,7 +147,7 @@ export function useContentListQuery(
 
     const result: Record<string, string[]> = {}
     for (const branch of tagBranches) {
-      const set = new Set<string>(branch.options ?? [])
+      const set = new Set<string>()
 
       for (const row of data) {
         for (const tag of extractTagNames(row.data[branch.alias])) {

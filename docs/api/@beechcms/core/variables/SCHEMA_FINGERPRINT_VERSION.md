@@ -6,7 +6,7 @@
 
 # Variable: SCHEMA\_FINGERPRINT\_VERSION
 
-> `const` **SCHEMA\_FINGERPRINT\_VERSION**: `1` = `1`
+> `const` **SCHEMA\_FINGERPRINT\_VERSION**: `2` = `2`
 
 Bumped ONLY when the projection below or the canonical byte format changes — i.e. when
 fingerprints computed by two builds are no longer comparable. It is carried in the fingerprint

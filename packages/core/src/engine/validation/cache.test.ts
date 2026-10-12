@@ -113,3 +113,22 @@ describe('compileSeedSchema caching', () => {
     expect(localizedParsed.success && localizedParsed.data.title).toEqual({ it: 'x' })
   })
 })
+
+describe('compileSeedSchema — tags keys', () => {
+  const tagsSeed = (branch: Record<string, unknown>): Seed => ({
+    ...PLAIN_SEED,
+    branches: [{ id: 'br_07', alias: 'priority', label: 'Priority', type: 'tags', ...branch }] as Seed['branches'],
+  })
+  const option = (value: string) => ({ value, color: '#64748b' })
+
+  it('compiles distinct schemas when option values change or multiple goes from omitted to false', () => {
+    const base = compileSeedSchema(tagsSeed({ options: [option('a'), option('b')] }), baseOptions())
+    const otherValues = compileSeedSchema(tagsSeed({ options: [option('a'), option('c')] }), baseOptions())
+    const singleChoice = compileSeedSchema(tagsSeed({ multiple: false, options: [option('a'), option('b')] }), baseOptions())
+
+    expect(otherValues).not.toBe(base)
+    expect(singleChoice).not.toBe(base)
+    expect(base.safeParse({ priority: ['a', 'b'] }).success).toBe(true)
+    expect(singleChoice.safeParse({ priority: ['a', 'b'] }).success).toBe(false)
+  })
+})

@@ -120,9 +120,10 @@ Must be a non-negative integer and `<= maxItems` when both are set
 
 > `optional` **multiple?**: `boolean`
 
-Optional cardinality for media fields:
-- false/undefined: single asset (string URL)
-- true: asset list (string[] URL)
+Cardinality:
+- `file`: false/undefined → single URL; true → URL list.
+- `relation`: false/undefined → FK column; true → junction table.
+- `tags`: undefined/true → multiple choice (default); false → at most one value. The value is always an array.
 
 ***
 
@@ -151,10 +152,11 @@ rule applies to the FK from the junction table to the target table.
 
 ### options?
 
-> `optional` **options?**: `string`[]
+> `optional` **options?**: [`TagOption`](TagOption.md)[]
 
-Predefined vocabulary for tag/select/multiselect fields.
-Static list defined in the Seed (not persisted to the DB).
+Closed vocabulary — valid ONLY on `tags` (any other type is a fatal seed error).
+When present: non-empty, unique values, `#RRGGBB` colors; written values must be one of the option values.
+Static seed metadata, never persisted in entries.
 
 ***
 

@@ -105,7 +105,7 @@ describe("content-toolbar/shared", () => {
       branches: [
         { alias: "isLive", label: "Live", type: "boolean" },
         { alias: "publishedAt", label: "Data", type: "date" },
-        { alias: "category", label: "Categoria", type: "text", options: ["a"] },
+        { alias: "category", label: "Categoria", type: "text" },
         { alias: "title", label: "Titolo", type: "text" },
         { alias: "views", label: "Visualizzazioni", type: "number" },
         { alias: "meta", label: "Meta", type: "json" },
@@ -124,9 +124,7 @@ describe("content-toolbar/shared", () => {
     expect(withFewStatus.some((c) => c.columnId === "publishedAt" && c.branchType === "date")).toBe(
       true
     )
-    expect(withFewStatus.some((c) => c.columnId === "category" && c.section === "recommended")).toBe(
-      true
-    )
+    expect(withFewStatus.some((c) => c.columnId === "category" && c.section === "other")).toBe(true)
     expect(withFewStatus.some((c) => c.columnId === "title" && c.section === "other")).toBe(true)
     expect(withFewStatus.some((c) => c.columnId === "views" && c.section === "other")).toBe(true)
 

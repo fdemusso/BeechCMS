@@ -27,11 +27,13 @@ describe('tsTypeForBranch — type mapping matrix', () => {
   it('file singular → string', () => expect(tsTypeForBranch(b({ type: 'file' }))).toBe('string'))
   it('file multiple → string[]', () => expect(tsTypeForBranch(b({ type: 'file', multiple: true }))).toBe('string[]'))
 
-  it('text with options → literal union', () => {
-    expect(tsTypeForBranch(b({ type: 'text', options: ['a', 'b'] }))).toBe("'a' | 'b'")
-  })
   it('tags with options → array of literal union', () => {
-    expect(tsTypeForBranch(b({ type: 'tags', options: ['x', 'y'] }))).toBe("('x' | 'y')[]")
+    expect(tsTypeForBranch(b({ type: 'tags', options: [{ value: 'x', color: '#64748b' }, { value: 'y', color: '#ef4444' }] }))).toBe("('x' | 'y')[]")
+  })
+  it('single-choice tags with options → same array of literal union as multiple', () => {
+    const options = [{ value: 'x', color: '#64748b' }, { value: 'y', color: '#ef4444' }]
+
+    expect(tsTypeForBranch(b({ type: 'tags', multiple: false, options }))).toBe(tsTypeForBranch(b({ type: 'tags', options })))
   })
 
   it('repeater → inline Array<{}>', () => {

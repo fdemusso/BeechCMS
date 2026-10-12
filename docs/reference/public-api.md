@@ -104,10 +104,31 @@ GET /api/v1/public/posts/schema
       "label": "Body",
       "requiredOnCreate": false,
       "policies": { "public": true, "visibility": "full" }
+    },
+    {
+      "alias": "priority",
+      "type": "tags",
+      "label": "Priority",
+      "options": [
+        { "label": "low", "value": "low", "color": "#64748b" },
+        { "label": "high", "value": "high", "color": "#ef4444" }
+      ],
+      "multiple": false,
+      "requiredOnCreate": false,
+      "policies": { "public": true, "visibility": "full" }
     }
   ]
 }
 ```
+
+Branch keys specific to `tags`:
+
+| Key | Value | Present when |
+|---|---|---|
+| `options` | `Array<{ label: string; value: string; color: string }>` — `label` equals `value` | the branch declares `options` |
+| `multiple` | `boolean` — `false` = single choice, `true` = multiple choice | `type` is `tags` |
+
+The value of a `tags` branch is always an array of strings, single choice included. A value outside `options`, a duplicate, or more than one value on a single-choice branch is rejected with `400 content-validation-failed`.
 
 ---
 
@@ -393,7 +414,7 @@ The `data` echoed in the response follows the same negotiation as a read (`lang`
 All responses emitted across the Public API surface (`/api/v1/public/*`) carry the `X-Schema-Revision` response header:
 
 ```http
-X-Schema-Revision: v1:a1b2c3d4e5f60718293a4b5c6d7e8f90
+X-Schema-Revision: v2:a1b2c3d4e5f60718293a4b5c6d7e8f90
 ```
 
 - **Format**: `v<version>:<32_hex_sha256>`.

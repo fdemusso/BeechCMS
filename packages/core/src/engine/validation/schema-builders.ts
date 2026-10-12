@@ -9,6 +9,7 @@ import { extensionFromUrl, isExtensionAccepted } from '../../media/file-types.js
 import { isLocalizedWriteDictionary, toLocalizedPatch, type LocaleConfig, type LocalizedPatch } from '../localization/localization.js'
 import { cleanString, stripControlChars, byteLength, isPlainObject, exceedsMaxDepth } from './primitives.js'
 import { isEffectivelyEmpty } from './emptiness.js'
+import { isSingleChoiceTags, tagOptionValues } from '../seeds/tag-options.js'
 import { sanitizeRichtext } from './richtext-sanitizer.js'
 import { resolveFileOptions, isAssetListBranch, collectAssetListItems, extractFileCandidate } from './file-branch.js'
 
@@ -270,27 +271,47 @@ function jsonSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny 
 }
 
 /**
- * Compiles a Zod validation schema for a `tags` branch, constraining it to a
- * bounded array of cleaned strings (fixes #183: previously any array/object
- * shape passed, breaking callers like the kanban swap that cast to `string[]`).
+ * Compiles a Zod validation schema for a `tags` branch: a bounded array of strings.
+ * With `options` the array is a closed vocabulary (exact, case-sensitive match, no trimming);
+ * without, values are cleaned and empty strings dropped. Duplicates are rejected, never merged,
+ * and a single-choice branch (`multiple: false`) accepts at most one value. The first violated
+ * rule emits one issue for the whole array.
  *
+ * @param branch - The tags branch definition.
  * @param options - The resolved validation options.
  * @param allowNull - Whether null values are allowed.
  * @returns The compiled tags schema.
  */
-function tagsSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny {
-  const tagSchema = z
-    .string()
-    .transform((value) => cleanString(value))
-    .refine((value) => byteLength(value) <= options.maxTextLength, {
-      message: `Expected string(max:${options.maxTextLength})`,
-    })
+function tagsSchema(branch: Branch, options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny {
+  const allowedValues = tagOptionValues(branch)
+  const isClosedVocabulary = allowedValues.length > 0
   const base = z
-    .array(tagSchema)
+    .array(z.string())
     .max(MAX_TAGS_COUNT, {
       message: `Expected tags(max:${MAX_TAGS_COUNT})`,
     })
-    .transform((tags) => Array.from(new Set(tags.filter((t) => t.length > 0))))
+    .transform((tags, ctx) => {
+      if (isClosedVocabulary) {
+        if (tags.some((tag) => !allowedValues.includes(tag))) {
+          ctx.addIssue({ code: 'custom', message: `Expected tags(one-of:${allowedValues.join('|')})` })
+          return z.NEVER
+        }
+      }
+      const values = isClosedVocabulary ? tags : tags.map((tag) => cleanString(tag)).filter((tag) => tag.length > 0)
+      if (!isClosedVocabulary && values.some((tag) => byteLength(tag) > options.maxTextLength)) {
+        ctx.addIssue({ code: 'custom', message: `Expected string(max:${options.maxTextLength})` })
+        return z.NEVER
+      }
+      if (new Set(values).size !== values.length) {
+        ctx.addIssue({ code: 'custom', message: 'Expected tags(unique)' })
+        return z.NEVER
+      }
+      if (isSingleChoiceTags(branch) && values.length > 1) {
+        ctx.addIssue({ code: 'custom', message: 'Expected tags(max:1)' })
+        return z.NEVER
+      }
+      return values
+    })
   return withEmptyPreprocessing(base, allowNull)
 }
 
@@ -441,7 +462,7 @@ const BRANCH_SCHEMA_BUILDERS: Record<string, (branch: Branch, options: ResolvedO
   boolean: (_branch, options) => booleanSchema(options.allowNull),
   date: (_branch, options) => dateSchema(options.allowNull),
   json: (_branch, options) => jsonSchema(options, options.allowNull),
-  tags: (_branch, options) => tagsSchema(options, options.allowNull),
+  tags: (branch, options) => tagsSchema(branch, options, options.allowNull),
   file: (branch, options) => fileSchema(branch, options.allowNull),
   relation: (branch, options) => relationSchema(branch, options),
   repeater: (branch, options) => repeaterSchema(branch, options),

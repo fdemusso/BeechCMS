@@ -13,7 +13,11 @@ describe("JsonEdit", () => {
     alias: "tags_field",
     label: "Tags With Options",
     type: "tags",
-    options: ["React", "TypeScript", "Node"],
+    options: [
+      { value: "React", color: "#3b82f6" },
+      { value: "TypeScript", color: "#06b6d4" },
+      { value: "Node", color: "#10b981" },
+    ],
     policies: [],
   } as unknown as Branch
 
@@ -30,7 +34,6 @@ describe("JsonEdit", () => {
     alias: "open_tags",
     label: "Open Tags",
     type: "tags",
-    options: [],
     policies: [],
   } as unknown as Branch
 
@@ -58,6 +61,13 @@ describe("JsonEdit", () => {
     fireEvent.click(screen.getByRole("button", { name: /Remove tag React/i }))
 
     expect(onChange).toHaveBeenCalledWith([])
+  })
+
+  it("il chip di un'opzione selezionata usa il colore dichiarato nell'opzione", () => {
+    render(<JsonEdit branch={tagsWithOptionsBranch} value={["TypeScript"]} onChange={vi.fn()} />)
+
+    const chip = screen.getByText("TypeScript").closest("[data-slot='badge']") as HTMLElement
+    expect(chip.style.backgroundColor).toBe("#06b6d4")
   })
 
   it("renderizza JsonCodeEditor per branch con type json", async () => {

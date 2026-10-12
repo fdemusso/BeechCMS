@@ -59,11 +59,11 @@ describe('generateTypes command', () => {
     expect(content).toContain('generato automaticamente')
   })
 
-  it('embeds a v1 schema fingerprint in the generated module', async () => {
+  it('embeds a v2 schema fingerprint in the generated module', async () => {
     await generateTypes({ out: outPath, local: true })
 
     const content = readFileSync(outPath, 'utf-8')
-    expect(content).toMatch(/export const SCHEMA_FINGERPRINT = 'v1:[0-9a-f]{32}'/)
+    expect(content).toMatch(/export const SCHEMA_FINGERPRINT = 'v2:[0-9a-f]{32}'/)
   })
 
   it('writes to stdout when out is null', async () => {

@@ -21,7 +21,6 @@ import {
   NumberOptionsForm,
   FileOptionsForm,
   RepeaterOptionsForm,
-  TagsOptionsForm,
   PoliciesOptionsForm,
   LocalizedOptionsForm,
 } from "./repeater-branch-options"
@@ -283,10 +282,6 @@ export function BranchItemRow({
 
           {branch.type === "repeater" && (
             <RepeaterOptionsForm branch={branch} onChange={emitChange} subField={subField} />
-          )}
-
-          {(branch.type === "tags" || branch.type === "json") && (
-            <TagsOptionsForm branch={branch} onChange={emitChange} />
           )}
 
           {/* Policies — sub-fields live inside a JSON blob, not a SQL column */}

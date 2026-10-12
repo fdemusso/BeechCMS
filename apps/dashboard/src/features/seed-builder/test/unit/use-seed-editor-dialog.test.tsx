@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { renderHook, act } from "@testing-library/react"
 import type { Branch, Seed } from "@beechcms/core"
 import type { SeedRecordDTO } from "@/features/seed-builder"
+import type { MetaSelectBranch } from "@/components/fields/types"
 
 const mockNavigate = vi.fn()
 const mockBlocker = { state: "unblocked" as const, reset: vi.fn(), proceed: vi.fn() }
@@ -99,7 +100,7 @@ describe("useSeedEditorDialog", () => {
       onClose: vi.fn(),
     }))
 
-    expect(result.current.branchById[META.displayNameAlias]?.options).toEqual(["title", "body"])
+    expect((result.current.branchById[META.displayNameAlias] as MetaSelectBranch | undefined)?.selectOptions).toEqual(["title", "body"])
   })
 
   it("create mode: submit assembles a Seed and calls seedsApi.create via the mutation", async () => {

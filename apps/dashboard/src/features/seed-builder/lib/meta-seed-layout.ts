@@ -4,6 +4,7 @@
 
 import type { TFunction } from "i18next"
 import type { Branch, FormLayout, Seed } from "@beechcms/core"
+import type { MetaSelectBranch } from "@/components/fields/types"
 
 /**
  * Stable virtual branch ids for the meta-seed `_seed`. Private to the hook —
@@ -58,8 +59,8 @@ export function buildMetaBranches(t: TFunction, opts: BuildMetaBranchesOptions):
       label: t("seedBuilder.editor.displayNameAlias"),
       hint: t("seedBuilder.editor.hints.displayNameAlias"),
       type: "select" as Branch["type"], requiredOnCreate: true,
-      options: opts.branchAliasOptions,
-    } as Branch,
+      selectOptions: opts.branchAliasOptions,
+    } as MetaSelectBranch as Branch,
     { id: META.allowPublicRead, alias: "allow_public_read",
       label: t("seedBuilder.editor.allowPublicRead"),
       hint: t("seedBuilder.editor.hints.allowPublicRead"),
@@ -90,7 +91,7 @@ export function buildMetaBranches(t: TFunction, opts: BuildMetaBranchesOptions):
       },
     } as Branch,
     { id: META.dashIcon, alias: "dash_icon", label: t("seedBuilder.editor.dashIcon"),
-      type: "select" as Branch["type"], options: opts.iconNames },
+      type: "select" as Branch["type"], selectOptions: opts.iconNames } as MetaSelectBranch as Branch,
     { id: META.dashGroup, alias: "dash_group", label: t("seedBuilder.editor.dashGroup"),
       hint: t("seedBuilder.editor.hints.dashGroup"),
       type: "text" },

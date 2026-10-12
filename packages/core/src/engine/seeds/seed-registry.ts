@@ -4,6 +4,7 @@
 import type { Seed, Branch } from '../types.js'
 import { AUTOMATION_RESERVED_WORDS } from '../../automations/automations-grammar-words.js'
 import { SQL_RESERVED_WORDS } from '../sql-reserved-words.js'
+import { tagOptionsIssues } from './tag-options.js'
 
 export interface ISeedRegistry {
   /**
@@ -75,6 +76,10 @@ export class SeedRegistry implements ISeedRegistry {
           )
         }
         idsInSeed.add(branch.id)
+        const optionIssues = tagOptionsIssues(branch)
+        if (optionIssues.length > 0) {
+          throw new Error(`Seed "${seed.slug}": ${optionIssues[0]}`)
+        }
       }
     }
     this.orderedSeeds = seeds

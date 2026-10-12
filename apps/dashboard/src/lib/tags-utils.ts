@@ -2,6 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { findTagOption, type Branch } from "@beechcms/core"
+
 export function parseTagsValue(value: unknown): unknown {
   if (typeof value !== "string") return value
 
@@ -12,16 +14,12 @@ export function parseTagsValue(value: unknown): unknown {
   }
 }
 
-/** Palette for tags drawn from a branch's predefined `options`; a tag keeps the color of its option slot. */
-export const TAG_PALETTE = [
-  "#3b82f6", "#06b6d4", "#8b5cf6", "#10b981",
-  "#f59e0b", "#ef4444", "#ec4899", "#64748b",
-] as const
+/** Chip color for a tag that has no declared option color. */
+export const NEUTRAL_TAG_COLOR = "#64748b"
 
-/** Color of a tag by the position of its option, or undefined when the tag is not one of the options. */
-export function colorForOption(tag: string, options: readonly string[] | undefined): string | undefined {
-  const index = options?.indexOf(tag) ?? -1
-  return index < 0 ? undefined : TAG_PALETTE[index % TAG_PALETTE.length]
+/** Declared color of the branch option equal to `tag`, or undefined when the tag is not one of the options. */
+export function colorForOption(tag: string, branch: Pick<Branch, "options">): string | undefined {
+  return findTagOption(branch, tag)?.color
 }
 
 export interface TagChipData {

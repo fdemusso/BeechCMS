@@ -20,6 +20,14 @@
 
 ***
 
+### arrayValue?
+
+> `optional` **arrayValue?**: `boolean`
+
+True for `tags` branches: the value is submitted as `string[]`.
+
+***
+
 ### defaultValue?
 
 > `optional` **defaultValue?**: `unknown`
@@ -53,6 +61,10 @@
 ### options?
 
 > `optional` **options?**: `object`[]
+
+#### color?
+
+> `optional` **color?**: `string`
 
 #### label
 

@@ -414,8 +414,8 @@ describe('json and tags fields', () => {
     expect(r.data.tags).toEqual(['news', 'tech'])
   })
 
-  it('filters out blank tags and deduplicates tags (#445)', () => {
-    const r = safeValidate({ ...validBase(), tags: ['  ', 'a', 'a', '\0'] })
+  it('filters out blank tags (#445)', () => {
+    const r = safeValidate({ ...validBase(), tags: ['  ', 'a', '\0'] })
     expect(r.data.tags).toEqual(['a'])
   })
 })

@@ -17,7 +17,10 @@ describe("Tags max-width and truncation (#301)", () => {
     alias: "tags",
     label: "Tags Field",
     type: "tags",
-    options: [longTagText, "normal-tag"],
+    options: [
+      { value: longTagText, color: "#64748b" },
+      { value: "normal-tag", color: "#3b82f6" },
+    ],
     policies: [],
   } as unknown as Branch
 
@@ -72,7 +75,11 @@ describe("FieldEdit routing for tags with options", () => {
     alias: "tier",
     label: "Plan",
     type: "tags",
-    options: ["free", "pro"],
+    multiple: false,
+    options: [
+      { value: "free", color: "#64748b" },
+      { value: "pro", color: "#3b82f6" },
+    ],
   } as unknown as Branch
 
   it("mostra i tag salvati come chip e non usa il select a valore singolo", () => {

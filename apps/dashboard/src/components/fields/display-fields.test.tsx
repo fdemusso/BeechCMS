@@ -182,13 +182,17 @@ describe("JsonDisplay tags con opzioni", () => {
     alias: "priority",
     label: "Priority",
     type: "tags",
-    options: ["low", "medium", "high"],
+    options: [
+      { value: "low", color: "#64748b" },
+      { value: "medium", color: "#f59e0b" },
+      { value: "high", color: "#ef4444" },
+    ],
   } as unknown as Branch
 
-  it("colora i tag di un array in base alla posizione dell'opzione", () => {
+  it("colora i chip di un array con il colore dichiarato nell'opzione", () => {
     render(<JsonDisplay branch={branch} value={["high"]} />)
 
     const chip = screen.getByText("high").closest("[data-slot='badge']") as HTMLElement
-    expect(chip.style.backgroundColor).toBe("#8b5cf6")
+    expect(chip.style.backgroundColor).toBe("#ef4444")
   })
 })

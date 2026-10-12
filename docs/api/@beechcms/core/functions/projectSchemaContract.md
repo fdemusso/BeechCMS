@@ -18,6 +18,7 @@ Deliberately EXCLUDED, and each for a reason a future reader must not "fix":
   `policies.classification|privacy` — behaviour and storage concerns that leave the response
   shape identical. (`privacy` DOES change a stored value's encoding, but the API type stays
   `string`; drift there is a data concern, not a type concern.)
+- option `color` — presentation only; a color edit cannot change a response byte.
 - anything physical (column order, index names) — see the VETO Audit.
 
 Seeds are sorted by slug; BRANCH ORDER IS PRESERVED, because it is the declared field order the

@@ -45,6 +45,10 @@ export const CANONICAL_SEEDS: readonly Seed[] = [
       { id: 'br_08', alias: 'author_id', label: 'Author', type: 'relation', targetSeed: 'authors' },
       { id: 'br_09', alias: 'category_id', label: 'Category', type: 'relation', targetSeed: 'categories', multiple: false, policies: { public: true } },
       { id: 'br_10', alias: 'related_posts', label: 'Related Posts', type: 'relation', targetSeed: 'posts', multiple: true, policies: { public: true } },
+      {
+        id: 'br_11', alias: 'priority', label: 'Priority', type: 'tags', multiple: false,
+        options: [{ value: 'low', color: '#64748b' }, { value: 'high', color: '#ef4444' }],
+      },
     ],
   }),
 ] as const

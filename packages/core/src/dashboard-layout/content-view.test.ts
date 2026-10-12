@@ -25,7 +25,7 @@ const ARTICLES = defineSeed({
   branches: [
     { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
     { id: 'br_02', alias: 'published_on', label: 'Published on', type: 'date' },
-    { id: 'br_03', alias: 'stage', label: 'Stage', type: 'text', options: ['todo', 'done'] },
+    { id: 'br_03', alias: 'stage', label: 'Stage', type: 'tags', multiple: false, options: [{ value: 'todo', color: '#64748b' }, { value: 'done', color: '#10b981' }] },
     { id: 'br_04', alias: 'summary', label: 'Summary', type: 'richtext' },
   ],
   dashboard: { views: ['table', 'gallery'] },

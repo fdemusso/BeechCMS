@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import type { Seed, Branch } from '../types.js'
+import { tagOptionValues } from './tag-options.js'
 
 const HEADER =
   '// Questo file è generato automaticamente da BeechCMS CLI. Non modificarlo direttamente.\n'
@@ -42,14 +43,11 @@ export function tsTypeForBranch(branch: Branch): string {
     case 'text':
     case 'richtext':
     case 'file': {
-      const base =
-        branch.type === 'text' && branch.options?.length
-          ? literalUnion(branch.options)
-          : 'string'
-      return branch.type === 'file' && branch.multiple ? `${base}[]` : base
+      return branch.type === 'file' && branch.multiple ? 'string[]' : 'string'
     }
     case 'tags': {
-      const base = branch.options?.length ? `(${literalUnion(branch.options)})` : 'string'
+      const values = tagOptionValues(branch)
+      const base = values.length > 0 ? `(${literalUnion(values)})` : 'string'
       return `${base}[]`
     }
     case 'relation':

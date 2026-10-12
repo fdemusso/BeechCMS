@@ -27,6 +27,26 @@ const seedDrafts   = makeSeed({ slug: 'draft-type', label: 'Draft', allowDrafts:
 // ─── SeedRegistry ─────────────────────────────────────────────────────────────
 
 describe('SeedRegistry', () => {
+  describe('constructor — tags options guard', () => {
+    it('throws when a stored seed declares options on a text branch', () => {
+      const legacySeed = makeSeed({
+        slug: 'legacy',
+        branches: [{ id: 'br_01', alias: 'state', label: 'State', type: 'text', options: [{ value: 'a', color: '#64748b' }] }],
+      })
+
+      expect(() => new SeedRegistry([legacySeed])).toThrow(/options are not supported on type 'text'/)
+    })
+
+    it('throws when tags options are a plain string array', () => {
+      const legacySeed = makeSeed({
+        slug: 'legacy',
+        branches: [{ id: 'br_01', alias: 'state', label: 'State', type: 'tags', options: ['a', 'b'] as never }],
+      })
+
+      expect(() => new SeedRegistry([legacySeed])).toThrow(/not a plain string/)
+    })
+  })
+
   describe('all()', () => {
     it('returns an empty array when constructed with no seeds', () => {
       const registry = new SeedRegistry([])

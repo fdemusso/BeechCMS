@@ -37,7 +37,7 @@ const seedPosts = {
   branches: [
     { id: "b1", alias: "title", label: "Title", type: "text" },
     { id: "b2", alias: "createdAt", label: "Date", type: "date" },
-    { id: "b3", alias: "tags", label: "Tags", type: "json", options: ["cms"] },
+    { id: "b3", alias: "tags", label: "Tags", type: "json" },
   ],
 }
 

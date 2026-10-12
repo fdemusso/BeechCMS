@@ -12,74 +12,37 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { colorForOption, extractTagNames, TAG_PALETTE } from "@/lib/tags-utils"
+import { tagOptionValues } from "@beechcms/core"
+import { colorForOption, extractTagNames, NEUTRAL_TAG_COLOR } from "@/lib/tags-utils"
 import type { FieldEditProps } from "../types"
 
 const LazyJsonCodeEditor = React.lazy(() => 
   import("./json-code-editor").then(m => ({ default: m.JsonCodeEditor }))
 )
 
-function parseTagsValue(value: unknown): Record<string, string> {
-  if (!value) return {}
-  if (typeof value === "object" && !Array.isArray(value))
-    return value as Record<string, string>
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value) as unknown
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed))
-        return parsed as Record<string, string>
-    } catch {
-      // ignore
-    }
-  }
-  return {}
-}
-
 export function JsonEdit({ branch, value, onChange, disabled, readOnly: propReadOnly }: FieldEditProps) {
-  const isTagsField = branch.type === "tags" || branch.alias.toLowerCase().includes("tag")
-  const hasOptions = isTagsField && (branch.options?.length ?? 0) > 0
+  const hasOptions = branch.type === "tags" && tagOptionValues(branch).length > 0
   const isReadOnly = Boolean(propReadOnly || disabled || (branch as unknown as { readOnly?: boolean }).readOnly)
   const [isAddOpen, setIsAddOpen] = React.useState(false)
 
-  if (isTagsField && hasOptions) {
-    // `tags` branches store a plain string[] (the API contract); the colors come from the option slots.
-    // Other tag-like json branches keep the legacy { tag: color } map.
-    const storesArray = branch.type === "tags"
-    const currentTags: Record<string, string> = storesArray
-      ? Object.fromEntries(
-          extractTagNames(value).map((tag) => [tag, colorForOption(tag, branch.options) ?? TAG_PALETTE[0]])
-        )
-      : parseTagsValue(value)
-    const predefinedOptions = branch.options ?? []
+  if (hasOptions) {
+    const selectedTags = extractTagNames(value)
+    const predefinedOptions = tagOptionValues(branch)
 
     const toggleTag = (tag: string) => {
       if (isReadOnly) return
-      const next = { ...currentTags }
-      if (!Object.hasOwn(next, tag) || next[tag] === undefined) {
-        const idx = Object.keys(next).length % TAG_PALETTE.length
-        next[tag] = TAG_PALETTE[idx]
-      } else {
-        delete next[tag]
-      }
-      if (storesArray) {
-        onChange(Object.keys(next))
-        return
-      }
-      onChange(next)
+      onChange(selectedTags.includes(tag) ? selectedTags.filter((selected) => selected !== tag) : [...selectedTags, tag])
     }
 
-    const activeEntries = Object.entries(currentTags).filter(([key]) =>
-      Object.hasOwn(currentTags, key)
-    )
-    const availableOptions = predefinedOptions.filter(
-      (opt: string) => !Object.hasOwn(currentTags, opt) || currentTags[opt] === undefined
-    )
+    const availableOptions = predefinedOptions.filter((opt) => !selectedTags.includes(opt))
 
     return (
       <div>
         <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">
-          {activeEntries.length > 0 ? (
-            activeEntries.map(([tag, color]) => (
+          {selectedTags.length > 0 ? (
+            selectedTags.map((tag) => {
+              const color = colorForOption(tag, branch) ?? NEUTRAL_TAG_COLOR
+              return (
               <button
                 key={tag}
                 type="button"
@@ -106,7 +69,8 @@ export function JsonEdit({ branch, value, onChange, disabled, readOnly: propRead
                   </span>
                 )}
               </button>
-            ))
+              )
+            })
           ) : (
             <span className="text-xs text-muted-foreground">No tags selected</span>
           )}
@@ -129,8 +93,8 @@ export function JsonEdit({ branch, value, onChange, disabled, readOnly: propRead
                   Select a tag from the seed
                 </div>
                 <div className="max-h-56 space-y-1 overflow-y-auto">
-                  {predefinedOptions.map((opt: string) => {
-                    const isActive = Object.hasOwn(currentTags, opt) && currentTags[opt] !== undefined
+                  {predefinedOptions.map((opt) => {
+                    const isActive = selectedTags.includes(opt)
                     return (
                       <button
                         key={opt}

@@ -219,8 +219,6 @@ export function getGroupableColumns(
         section: "recommended",
         branchType: "date",
       })
-    } else if (branch.type === "text" && branch.options && branch.options.length > 0) {
-      result.push({ columnId: branch.alias, label: branch.label, section: "recommended" })
     } else if (branch.type === "text") {
       result.push({ columnId: branch.alias, label: branch.label, section: "other" })
     } else if (branch.type === "number") {

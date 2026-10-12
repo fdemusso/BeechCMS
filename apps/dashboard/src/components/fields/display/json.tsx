@@ -47,10 +47,10 @@ export function JsonDisplay({ branch, value, options }: FieldDisplayProps) {
     }
 
     if (isTagsField && Array.isArray(parsed)) {
-      // Array values carry no color: tags from the branch options get the palette color of their slot.
+      // Array values carry no color: it comes from the branch option.
       const chips = extractTagChips(parsed).map((chip) => ({
         ...chip,
-        color: chip.color ?? colorForOption(chip.label, branch.options),
+        color: chip.color ?? colorForOption(chip.label, branch),
       }))
       return <TagChips tags={chips} className="min-w-0 max-w-full gap-1.5" />
     }

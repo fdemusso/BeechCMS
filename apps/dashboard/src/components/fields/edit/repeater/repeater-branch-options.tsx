@@ -261,39 +261,6 @@ export function RepeaterOptionsForm({ branch, onChange, subField }: RepeaterOpti
 }
 
 /**
- * Properties for the {@link TagsOptionsForm} component.
- */
-export interface TagsOptionsFormProps {
-  /** The current branch definition containing tags or predefined JSON options. */
-  branch: Branch
-  /** Callback triggered when options array changes. */
-  onChange: (updated: Branch) => void
-}
-
-/**
- * Form fragment for configuring preset values on tags or json fields.
- */
-export function TagsOptionsForm({ branch, onChange }: TagsOptionsFormProps) {
-  const { t } = useTranslation()
-
-  function set<K extends keyof Branch>(key: K, value: Branch[K]) {
-    onChange({ ...branch, [key]: value })
-  }
-
-  return (
-    <div className="space-y-1">
-      <Label className="text-xs">{t("seedBuilder.branchEditor.options")}</Label>
-      <Input
-        value={(branch.options ?? []).join(",")}
-        onChange={e => set("options", e.target.value ? e.target.value.split(",").map(s => s.trim()) : [])}
-        placeholder={t("seedBuilder.branchEditor.optionsPlaceholder")}
-      />
-      <p className="text-xs text-muted-foreground">{t("seedBuilder.branchEditor.optionsHint")}</p>
-    </div>
-  )
-}
-
-/**
  * Properties for the {@link PoliciesOptionsForm} component.
  */
 export interface PoliciesOptionsFormProps {

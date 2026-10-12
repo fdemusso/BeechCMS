@@ -246,3 +246,87 @@ describe('required json field emptiness detection', () => {
     expect(r.requiredFieldsMissing).not.toContain('settings')
   })
 })
+
+describe('tags branch value validation', () => {
+  const PRIORITY_OPTIONS = [
+    { value: 'low', color: '#64748b' },
+    { value: 'high', color: '#ef4444' },
+  ]
+  const TAGS_SEED: Seed = {
+    slug: 'posts',
+    label: 'Post',
+    displayNameAlias: 'title',
+    branches: [
+      { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+      { id: 'br_07', alias: 'tags', label: 'Tags', type: 'tags' },
+      { id: 'br_11', alias: 'priority', label: 'Priority', type: 'tags', multiple: false, options: PRIORITY_OPTIONS },
+      {
+        id: 'br_12', alias: 'labels', label: 'Labels', type: 'tags',
+        options: [...PRIORITY_OPTIONS, { value: 'mid', color: '#f59e0b' }],
+      },
+    ],
+  }
+  const REQUIRED_SINGLE_SEED: Seed = {
+    ...TAGS_SEED,
+    branches: [{ ...TAGS_SEED.branches[2], requiredOnCreate: true }],
+  }
+
+  it('a value outside the options is rejected with tags(one-of) and yields no data', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { priority: ['urgent'] })
+
+    expect(result.details[0]).toMatchObject({ field: 'priority', expected: 'tags(one-of:low|high)' })
+    expect(result.data).not.toHaveProperty('priority')
+  })
+
+  it('case and whitespace variants of an option are rejected with tags(one-of)', () => {
+    const variants = [['High'], [' high']]
+
+    const results = variants.map(priority => validateAndSanitizeSeedPayload(TAGS_SEED, { priority }))
+
+    expect(results.map(result => result.details[0]?.expected)).toEqual(['tags(one-of:low|high)', 'tags(one-of:low|high)'])
+  })
+
+  it('duplicate option values are rejected with tags(unique) instead of merged', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { labels: ['low', 'low'] })
+
+    expect(result.details[0]).toMatchObject({ field: 'labels', expected: 'tags(unique)' })
+  })
+
+  it('duplicate free tags are rejected with tags(unique)', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { tags: ['a', 'a'] })
+
+    expect(result.details[0]).toMatchObject({ field: 'tags', expected: 'tags(unique)' })
+  })
+
+  it('a single-choice tags branch rejects two distinct values with tags(max:1)', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { priority: ['low', 'high'] })
+
+    expect(result.details[0]).toMatchObject({ field: 'priority', expected: 'tags(max:1)' })
+  })
+
+  it('a required single-choice tags branch rejects [] on create through the required check', () => {
+    const result = validateAndSanitizeSeedPayload(REQUIRED_SINGLE_SEED, { priority: [] }, { operation: 'create' })
+
+    expect(result.requiredFieldsMissing).toContain('priority')
+  })
+
+  it('a bare string is rejected as expected array received string, never coerced', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { priority: 'low' })
+
+    expect(result.details[0]).toMatchObject({ field: 'priority', expected: 'array', received: 'string' })
+  })
+
+  it('a multiple-choice tags branch with options accepts distinct values in received order', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { labels: ['mid', 'low'] })
+
+    expect(result.details).toEqual([])
+    expect(result.data.labels).toEqual(['mid', 'low'])
+  })
+
+  it('a free tags branch trims values and drops empty strings', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { tags: [' news ', '  ', 'tech'] })
+
+    expect(result.details).toEqual([])
+    expect(result.data.tags).toEqual(['news', 'tech'])
+  })
+})

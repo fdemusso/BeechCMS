@@ -3,9 +3,10 @@
 
 import type { Seed, Branch, FilterGroup } from '../../engine/types.js'
 import { isLocalizedBranch } from '../../engine/localization/localization.js'
+import { tagOptionValues } from '../../engine/seeds/tag-options.js'
 
 /** Branch types that can form a discrete, finite set of columns (KB §2). */
-export type KanbanAxisBranchType = 'text' | 'tags' | 'boolean'
+export type KanbanAxisBranchType = 'tags' | 'boolean'
 
 /** A branch eligible to be the kanban axis. */
 export interface KanbanAxisCandidate {
@@ -53,7 +54,6 @@ function isAxisCandidate(b: Branch): KanbanAxisBranchType | null {
   // overwrite every translation with the column value.
   if (isLocalizedBranch(b)) return null
   if (NON_AXIS_TYPES.has(b.type)) return null
-  if (b.type === 'text') return (b.options && b.options.length > 0) ? 'text' : null
   if (b.type === 'tags') return 'tags'
   if (b.type === 'boolean') return 'boolean'
   return null
@@ -94,11 +94,10 @@ export function resolveKanbanColumns(
   const cols: KanbanColumnDescriptor[] = []
   if (branch.type === 'boolean') {
     cols.push({ value: 'false', label: 'No' }, { value: 'true', label: 'Sì' }) // [false, true]
-  } else if (branch.type === 'text' && branch.options?.length) {
-    for (const o of branch.options) cols.push({ value: o, label: o })           // options order
   } else if (branch.type === 'tags') {
-    const ordered = branch.options?.length
-      ? branch.options
+    const optionValues = tagOptionValues(branch)
+    const ordered = optionValues.length > 0
+      ? optionValues
       : [...distinctTagValues].sort((a, b) => a.localeCompare(b))               // alphabetical
     for (const o of ordered) cols.push({ value: o, label: o })
   }

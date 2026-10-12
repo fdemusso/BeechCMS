@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from "vitest"
 
-import { parseTagsValue, extractTagNames, extractTagChips } from "@/lib/tags-utils"
+import { parseTagsValue, extractTagNames, extractTagChips, colorForOption } from "@/lib/tags-utils"
 
 describe("tags-utils", () => {
   it("parseTagsValue fa parse JSON string quando valido", () => {
@@ -40,5 +40,18 @@ describe("tags-utils", () => {
     // Simuliamo un input da parsing JSON che ha chiavi built-in come "constructor" e "toString" se passate come array (anche se JSON non porta prototype, ma i tool interni non devono prelevare function reference o rompere)
     const malformed = [{ label: "Safe" }, { constructor: "Exploit" }, { toString: "Hacked" }] as unknown[]
     expect(extractTagChips(malformed)).toEqual([{ label: "Safe", color: undefined }])
+  })
+
+  it("colorForOption restituisce il colore dichiarato e undefined per un valore assente", () => {
+    const branch = { options: [{ value: "free", color: "#64748b" }, { value: "pro", color: "#3b82f6" }] }
+
+    expect(colorForOption("pro", branch)).toBe("#3b82f6")
+    expect(colorForOption("enterprise", branch)).toBeUndefined()
+  })
+
+  it("riordinare le opzioni non cambia il colore di un valore", () => {
+    const options = [{ value: "free", color: "#64748b" }, { value: "pro", color: "#3b82f6" }]
+
+    expect(colorForOption("pro", { options: [...options].reverse() })).toBe(colorForOption("pro", { options }))
   })
 })

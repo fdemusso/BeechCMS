@@ -88,8 +88,8 @@ A `Branch` is a single typed field on a Seed. Only `id`, `alias`, `label`, and `
 | `type` | `BranchType` | ✅ | One of `text`, `number`, `boolean`, `date`, `file`, `relation`, `tags`, `repeater`, `richtext`, `json` — see the type table below. |
 | `hint` | `string` | — | Tooltip help text in the entry form. UI-only. |
 | `format` | `'plain' \| 'markdown' \| 'html' \| 'date' \| 'datetime' \| 'asset-list'` | — | Semantic variant. `date`/`datetime` apply to `date` branches; `asset-list` on a `multiple: true` `file` branch enables gallery management. |
-| `multiple` | `boolean` | — | On `file`: single URL vs `string[]` of URLs. On `relation`: single FK column vs many-to-many junction table. |
-| `options` | `string[]` | — | Static vocabulary for `text` (select dropdown) or `tags` branches. Not persisted as a DB constraint — advisory/UI only (and generates a TS union in generated types). |
+| `multiple` | `boolean` | — | On `file`: single URL vs `string[]` of URLs. On `relation`: single FK column vs many-to-many junction table. On `tags`: omitted/`true` = multiple choice, `false` = at most one value (the stored value is always an array). |
+| `options` | `{ value: string, color: string }[]` | — | Closed vocabulary, valid **only** on `tags` (any other type is a fatal seed error). Non-empty, unique `value`s, `color` as `#RRGGBB`. Written values must be one of the option values (exact, case-sensitive match); duplicates and values outside the list are rejected with `400`. Static seed metadata — never persisted in entries; generates a TS union in generated types. |
 | `requiredOnCreate` | `boolean` | — | Generates `NOT NULL` in the physical column. |
 | `requiredOnUpdate` | `boolean` | — | Enforced at the API validation layer on update payloads. |
 | `localized` | `boolean` | — | Stores a `{ locale: value }` dictionary in the branch's column so editors translate it per content language. Top-level `text`, `richtext` and `json` branches with `plain` storage only — never repeater sub-fields or `confidential`/`restricted` fields (fatal validation error). Metadata-only: toggling it never emits DDL or rewrites rows. See [Field-Level Localization](/features/localization). |
@@ -105,13 +105,13 @@ A `Branch` is a single typed field on a Seed. Only `id`, `alias`, `label`, and `
 
 | Type | Stored in D1 | Common Use Cases | Example Options & Constraints |
 | :--- | :--- | :--- | :--- |
-| `text` | `TEXT` | Titles, slugs, summaries, single-line text, emails, hashed secrets | `policies: { search: true, sort: true }`, `options: ['news', 'tech']` (select dropdown / TS union) |
+| `text` | `TEXT` | Titles, slugs, summaries, single-line text, emails, hashed secrets | `policies: { search: true, sort: true }` |
 | `number` | `REAL` | Prices, ratings, inventory, metrics | `numberOptions: { format: 'currency' \| 'decimal' \| 'percentage' \| 'compact', currency: 'EUR', min: 0, max: 100, step: 1, decimals: 2, grouping: true, control: 'input' \| 'slider' \| 'rating' \| 'stepper', prefix: '€', suffix: '/mo' }` |
 | `boolean` | `INTEGER (0/1)` with CHECK constraint | Featured toggles, active statuses | `policies: { filter: true }` |
 | `date` | `INTEGER (Unix timestamp in seconds)` | Event dates, deadlines, publication times (API accepts & returns ISO strings) | `format: 'date'` (YYYY-MM-DD) or `format: 'datetime'` (ISO 8601 string) |
 | `file` | `TEXT (URL or JSON Array)` | Images, PDF documents, avatar photos | `fileOptions: { accept: 'image' \| 'document' \| 'any', maxSize: 5242880 }`, plus branch options `multiple: true`, `format: 'asset-list'` |
 | `relation` | `TEXT (FK)` or Junction Table (`multiple: true`) | Author links, category references, many-to-many tags | `targetSeed: 'authors'`, `onDelete: 'SET NULL' \| 'CASCADE' \| 'RESTRICT'` (`SET NULL` disallowed on `multiple: true`; defaults to `'SET NULL'` on single, `'CASCADE'` on multi). Junction table is named `rel_{seed}_{alias}` — must stay under 256 chars and unique across the whole registry. |
-| `tags` | `TEXT (JSON Array)` | Controlled tag arrays, category badges (up to 100 items) | `options: ['news', 'tech', 'design']` (UI suggestions & TS union types) |
+| `tags` | `TEXT (JSON Array)` | Controlled tag arrays, category badges (up to 100 items) | `options: [{ value: 'news', color: '#3b82f6' }, { value: 'tech', color: '#10b981' }]` (closed vocabulary & TS union types), `multiple: false` for a single choice |
 | `repeater` | `TEXT (JSON Array)` | Structured repeatable blocks, feature lists | `fields: [...]` (leaf scalars only; nesting repeater, relation, or file is disallowed), `minItems: 1, maxItems: 5` |
 | `richtext` | `TEXT (TipTap JSON Document)` | Long-form blog posts, articles, documentation | TipTap document format (HTML rendering is provided client-side by `@beechcms/client`) |
 | `json` | `TEXT (JSON String)` | Metadata dictionaries, custom payload configurations | Raw JSON payload (validated, max depth 50) |
@@ -290,7 +290,11 @@ Developers can also evolve schemas interactively using AI agents connected to th
       "fileOptions": { "accept": "image", "maxSize": 2097152 } },
 
     { "id": "br_10", "alias": "segmenti", "label": "Segmenti", "type": "tags",
-      "options": ["vip", "prospect", "churned"] },
+      "options": [
+        { "value": "vip", "color": "#8b5cf6" },
+        { "value": "prospect", "color": "#3b82f6" },
+        { "value": "churned", "color": "#ef4444" }
+      ] },
 
     { "id": "br_11", "alias": "azienda", "label": "Azienda", "type": "relation",
       "targetSeed": "aziende", "onDelete": "SET NULL" },

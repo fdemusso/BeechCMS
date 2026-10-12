@@ -7,6 +7,7 @@ import { SYSTEM_COLUMNS } from '../ddl/ddl.js'
 import { LOCALIZABLE_BRANCH_TYPES } from '../localization/localization.js'
 import { resolveClassification } from '../privacy/policies.js'
 import { sortSeedsByDependencies } from './seed-registry.js'
+import { tagOptionsIssues } from './tag-options.js'
 import { SQL_RESERVED_WORDS } from '../sql-reserved-words.js'
 
 const BRANCH_ID_RE = /^br_[A-Za-z0-9]+$/
@@ -396,6 +397,12 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
         }
       }
     }
+    if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })
+  }
+
+  // ── Fatal 18: tags options / cardinality ───────────────────────────────────
+  for (const seed of seeds) {
+    const messages = seed.branches.flatMap(branch => tagOptionsIssues(branch))
     if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })
   }
 
