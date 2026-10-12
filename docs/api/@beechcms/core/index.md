@@ -553,6 +553,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [registerSeeds](functions/registerSeeds.md)
 - [reservedBranchAliasReason](functions/reservedBranchAliasReason.md)
 - [resolveAuthorizedViews](functions/resolveAuthorizedViews.md)
+- [resolveCandidateIds](functions/resolveCandidateIds.md)
 - [resolveClassification](functions/resolveClassification.md)
 - [resolveDashboardScopeChain](functions/resolveDashboardScopeChain.md)
 - [resolveFileOptions](functions/resolveFileOptions.md)

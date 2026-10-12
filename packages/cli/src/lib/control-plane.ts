@@ -11,7 +11,7 @@
  * the verdict back.
  */
 
-import type { Seed } from '@beechcms/core'
+import type { ManifestSeed } from '@beechcms/core/schema'
 import { createApiClient, resolveApiConfig, BeechClientError, type ApiClient } from '@beechcms/api-client'
 import { CliError } from './d1-context.js'
 
@@ -53,8 +53,8 @@ export interface ControlPlaneOptions {
 }
 
 export interface ControlPlane {
-  plan(slug: string, candidate: Seed): Promise<McpPlan>
-  apply(input: { slug: string; candidate: Seed; expectedVersion: number; planId: string }): Promise<McpApplyResult>
+  plan(slug: string, candidate: ManifestSeed): Promise<McpPlan>
+  apply(input: { slug: string; candidate: ManifestSeed; expectedVersion: number; planId: string }): Promise<McpApplyResult>
   readonly baseUrl: string
 }
 

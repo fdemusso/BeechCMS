@@ -50,6 +50,23 @@ describe('schema-plan', () => {
     expect(planSpy.mock.calls[1][0]).toBe('b')
   })
 
+  it('sends hand-authored branches without locally minted ids so the server matches stored ids by alias', async () => {
+    loadManifestSpy.mockResolvedValueOnce({
+      seeds: [{ slug: 'clienti', label: 'Clienti', displayNameAlias: 'name', branches: [
+        { alias: 'name', label: 'Name', type: 'text' },
+        { id: 'br_c9', alias: 'tier', label: 'Tier', type: 'text' },
+        { alias: 'contacts', label: 'Contacts', type: 'repeater', fields: [{ alias: 'email', label: 'Email', type: 'text' }] }
+      ] }]
+    })
+    planSpy.mockResolvedValue({ applicable: true, statements: [], issues: [], blockedReasons: [] })
+
+    await schemaPlan()
+
+    const candidate = planSpy.mock.calls[0][1]
+    expect(candidate.branches.map((b: { id?: string }) => b.id)).toEqual([undefined, 'br_c9', undefined])
+    expect(candidate.branches[2].fields[0].id).toBeUndefined()
+  })
+
   it('exits with code 1 without throwing when any seed is not appliable', async () => {
     loadManifestSpy.mockResolvedValueOnce({ seeds: [{ slug: 'a', label: 'a', displayNameAlias: 'a', branches: [] }] })
     planSpy.mockResolvedValue({ applicable: false, statements: [], issues: [], blockedReasons: ['cannot drop'] })

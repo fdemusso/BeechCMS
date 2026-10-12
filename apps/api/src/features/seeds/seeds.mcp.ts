@@ -6,10 +6,10 @@
 import { Hono } from 'hono'
 import type { Seed } from '@beechcms/core'
 import {
-  nextBranchId,
   planCreateSeed,
   planExtendSeed,
   planFtsRebuild,
+  resolveCandidateIds,
   validateSeedDefinitions,
 } from '@beechcms/core'
 import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
@@ -18,30 +18,12 @@ import { SLUG_RE, parseJsonBody, actorFromContext, relationChangeReasons } from 
 
 /**
  * Normalizes a candidate seed definition for MCP operations:
- * - Preserves existing branch IDs from stored definition by alias matching if omitted.
- * - Auto-assigns sequential branch IDs via `nextBranchId` for new branches that lack one.
+ * - Preserves existing branch and repeater sub-field IDs from the stored definition by alias matching if omitted.
+ * - Auto-assigns sequential IDs via `nextBranchId` for new branches that lack one.
  * - Defaults `displayNameAlias` from stored definition or first text branch if omitted.
  */
 export function normalizeCandidate(candidate: Seed, storedDef: Seed | null): Seed {
-  const normalized: Seed = {
-    ...candidate,
-    branches: Array.isArray(candidate.branches) ? candidate.branches.map(b => ({ ...b })) : [],
-  }
-
-  const storedByAlias = new Map((storedDef?.branches ?? []).map(b => [b.alias, b]))
-  const accSeed: Pick<Seed, 'branches'> = { branches: [] }
-
-  for (const branch of normalized.branches) {
-    if (!branch.id) {
-      const stored = storedByAlias.get(branch.alias)
-      if (stored?.id) {
-        branch.id = stored.id
-      } else {
-        branch.id = nextBranchId(accSeed)
-      }
-    }
-    accSeed.branches.push(branch)
-  }
+  const normalized: Seed = resolveCandidateIds(candidate, storedDef)
 
   if (!normalized.displayNameAlias) {
     if (storedDef?.displayNameAlias) {

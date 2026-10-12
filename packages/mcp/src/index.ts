@@ -28,7 +28,7 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
 import type { Seed } from '@beechcms/core'
-import { nextBranchId, validateSeedDefinitions } from '@beechcms/core'
+import { resolveCandidateIds, validateSeedDefinitions } from '@beechcms/core'
 import { request, BeechClientError } from './client.js'
 import { savePlan, takePlan } from './plans.js'
 import { listResources, readResource, clearResourceCache, getResourceCount, searchResources } from './resources.js'
@@ -245,25 +245,7 @@ async function handleTool(name: string, args: Record<string, unknown>) {
       const { data: activeSeeds } = await request<Seed[]>('GET', '/api/schema')
       const stored = activeSeeds.find(s => s.slug === rawCandidate.slug)
 
-      const candidate: Seed = {
-        ...rawCandidate,
-        branches: Array.isArray(rawCandidate.branches) ? rawCandidate.branches.map(b => ({ ...b })) : [],
-      }
-
-      const storedByAlias = new Map((stored?.branches ?? []).map(b => [b.alias, b]))
-      const accSeed: Pick<Seed, 'branches'> = { branches: [] }
-
-      for (const branch of candidate.branches) {
-        if (!branch.id) {
-          const matched = storedByAlias.get(branch.alias)
-          if (matched?.id) {
-            branch.id = matched.id
-          } else {
-            branch.id = nextBranchId(accSeed)
-          }
-        }
-        accSeed.branches.push(branch)
-      }
+      const candidate: Seed = resolveCandidateIds(rawCandidate, stored ?? null)
 
       if (!candidate.displayNameAlias) {
         if (stored?.displayNameAlias) {

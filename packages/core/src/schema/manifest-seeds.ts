@@ -15,9 +15,9 @@ import type { Branch, Seed } from '../engine/types.js'
  * Fills in ids for branches authored without one, in declaration order.
  *
  * These ids are AUTHORING-LOCAL and non-authoritative — they exist so `validateSeedDefinitions`,
- * which fatals on a missing id, has a complete `Seed` to check. At plan/apply time the stored id
- * wins: `normalizeCandidate()` in the API's MCP slice matches by alias against the stored
- * definition before minting anything. Never persist an id minted here as if it were stable.
+ * which fatals on a missing id, has a complete `Seed` to check. NEVER send this output to plan/apply:
+ * a minted id looks authoritative to the server and shadows the stored one. The CLI sends the raw
+ * manifest seeds instead, so `resolveCandidateIds()` matches stored ids by alias.
  */
 function withBranchIds(branches: ManifestBranch[]): Branch[] {
   const accumulated: Branch[] = []

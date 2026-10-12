@@ -1336,6 +1336,38 @@ describe('POST /:slug/mcp-plan', () => {
     expect(body.blockedReasons).toEqual([])
   })
 
+  it('resolves ids of a hand-authored candidate, repeater sub-fields included, against the stored seed', async () => {
+    const stored: Seed = {
+      ...baseSeed,
+      branches: [
+        ...baseSeed.branches,
+        { id: 'br_03', alias: 'links', label: 'Links', type: 'repeater', fields: [{ id: 'br_09', alias: 'url', label: 'Url', type: 'text' }] } as Branch,
+      ],
+    }
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue({ ...baseRecord, definition: stored }), listActive: vi.fn().mockResolvedValue([stored]) })
+    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body', 'links'])) })
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const candidate = {
+      ...baseSeed,
+      branches: [
+        { alias: 'title', label: 'Title', type: 'text' },
+        { alias: 'body', label: 'Body', type: 'richtext' },
+        { alias: 'links', label: 'Links', type: 'repeater', fields: [{ alias: 'url', label: 'Url', type: 'text' }] },
+      ],
+    }
+    const res = await app.request('/articles/mcp-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidate }),
+    })
+    const body = await res.json() as any
+
+    expect(body.blockedReasons).toEqual([])
+    expect(body.issues).toEqual([])
+    expect(body.classification).toBe('additive')
+  })
+
   it('classifies "additive" when new branches omit id (auto-assigned sequentially)', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), listActive: vi.fn().mockResolvedValue([baseSeed]) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body'])) })

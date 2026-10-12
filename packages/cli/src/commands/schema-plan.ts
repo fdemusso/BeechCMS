@@ -2,7 +2,6 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import pc from 'picocolors'
-import { manifestToSeeds } from '@beechcms/core/schema'
 import { CliError, exitWithError } from '../lib/d1-context.js'
 import { DEFAULT_MANIFEST_PATH, loadManifest } from '../lib/manifest-loader.js'
 import { createControlPlane, type ControlPlane, type McpPlan } from '../lib/control-plane.js'
@@ -26,7 +25,7 @@ export async function schemaPlan(args: SchemaPlanOptions = {}): Promise<void> {
   try {
     const manifestPath = args.manifest ?? DEFAULT_MANIFEST_PATH
     const manifest = await loadManifest(manifestPath)
-    const { ordered, cycles } = orderSeedsForApply(manifestToSeeds(manifest))
+    const { ordered, cycles } = orderSeedsForApply(manifest.seeds)
 
     if (cycles.length > 0) {
       throw new CliError(
