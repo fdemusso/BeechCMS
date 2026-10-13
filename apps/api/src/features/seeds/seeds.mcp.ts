@@ -6,6 +6,7 @@
 import { Hono } from 'hono'
 import type { Seed } from '@beechcms/core'
 import {
+  diffSeedDefinition,
   planCreateSeed,
   planExtendSeed,
   planFtsRebuild,
@@ -96,6 +97,7 @@ export const mcpApp = new Hono<{ Bindings: Env; Variables: Variables }>()
  * - Diffs candidate against stored definition to classify changes as `'create'`, `'additive'`, or `'destructive'`.
  * - Inspects physical SQLite columns (`content_<slug>`) to compute the exact SQL statements that would execute.
  * - Detects whether changes to text/searchable branches require rebuilding the FTS5 index.
+ * - Reports `definitionChanged` and `changedBranches`: definition-only changes (tag options, colors) produce no DDL.
  * - Returns the current schema registry version to feed into optimistic concurrency control (OCC) checks on apply.
  *
  * @route POST /api/seeds/:slug/mcp-plan
@@ -132,6 +134,7 @@ mcpApp.post('/:slug/mcp-plan', async (context) => {
     .map(i => ({ fatal: i.fatal, messages: i.messages }))
 
   const { classification, blockedReasons } = classifyCandidate(storedDef, candidate)
+  const definitionDiff = diffSeedDefinition(storedDef, candidate)
 
   // Physical columns — the ONLY correct input for planExtendSeed.
   const existingCols = await schemaMutator.getColumns(`content_${slug}`)
@@ -160,6 +163,8 @@ mcpApp.post('/:slug/mcp-plan', async (context) => {
     applicable: blockedReasons.length === 0 && !issues.some(i => i.fatal),
     blockedReasons,                                   // non-empty ⇒ mcp-apply will refuse
     statements,                                       // exactly the DDL mcp-apply will run
+    definitionChanged: definitionDiff.changed,        // false ⇒ applying the candidate changes nothing
+    changedBranches: definitionDiff.changedBranches,  // aliases of new or changed branches, candidate order
     ftsRebuildNeeded,
     expectedVersion: currentVersion,                  // feed this straight back into mcp-apply
     issues,
@@ -246,6 +251,7 @@ mcpApp.post('/:slug/mcp-apply', async (context) => {
   // 2 — additive-only gate. Destructive intent is REJECTED, never confirmed here: drop /
   //     rename / retype have dedicated endpoints; relation storage changes require a data migration.
   const { classification, blockedReasons } = classifyCandidate(storedDef, candidate)
+  const { changedBranches } = diffSeedDefinition(storedDef, candidate)
   if (blockedReasons.length > 0) {
     return publicProblem(context, {
       type: 'destructive-change-not-supported',
@@ -328,6 +334,7 @@ mcpApp.post('/:slug/mcp-apply', async (context) => {
       expectedVersion,
       newVersion: result.version,
       ddlCount: ddl.length,
+      changedBranches,
       ftsRebuilt: ftsRebuildNeeded && !warning,
       outcome: warning ? 'partial' : 'ok',
     },

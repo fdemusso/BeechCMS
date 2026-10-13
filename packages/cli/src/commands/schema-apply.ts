@@ -59,7 +59,7 @@ export async function schemaApply(args: SchemaApplyOptions = {}): Promise<void> 
       )
     }
 
-    const pending = ordered.filter(seed => (previews.get(seed.slug)?.statements.length ?? 0) > 0)
+    const pending = ordered.filter(seed => previews.get(seed.slug)?.definitionChanged === true)
     if (pending.length === 0) {
       console.log(pc.green('\n  ✓ Nothing to apply — the deployed schema already matches the manifest.\n'))
       return
@@ -93,7 +93,10 @@ async function applyOne(controlPlane: ControlPlane, seed: ManifestSeed, preview:
       'The deployed schema changed under this run. Re-run `beech schema plan`.',
     )
   }
-  if (fresh.statements.join('\n') !== preview.statements.join('\n')) {
+  if (
+    fresh.statements.join('\n') !== preview.statements.join('\n')
+    || fresh.changedBranches.join('\n') !== preview.changedBranches.join('\n')
+  ) {
     throw new CliError(
       `The plan for '${seed.slug}' changed between review and apply. Nothing was written for it.`,
       'Someone else changed the schema during this run. Re-run `beech schema plan`.',

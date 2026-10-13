@@ -8,7 +8,8 @@
 
 > **schemaPlan**(`args?`): `Promise`&lt;`void`&gt;
 
-Computes — and only prints — what applying `beech.schema.ts` would do.
+Computes — and only prints — what applying `beech.schema.ts` would change: DDL plus definition-only
+changes (e.g. tag options) the DDL cannot show.
 
 Nothing is written: every plan is the server's own dry run (`POST /api/seeds/:slug/mcp-plan`), so
 the DDL displayed here is literally the DDL `beech schema apply` would execute. Exits 1 when any

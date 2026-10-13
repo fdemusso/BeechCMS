@@ -355,6 +355,8 @@ Content-Type: application/json
   "statements": [
     "ALTER TABLE content_books ADD COLUMN pages REAL;"
   ],
+  "definitionChanged": true,
+  "changedBranches": ["pages"],
   "ftsRebuildNeeded": false,
   "expectedVersion": 4,
   "issues": []
@@ -362,6 +364,8 @@ Content-Type: application/json
 ```
 
 - `classification`: `'create'` (table does not exist), `'additive'` (safe additions only), or `'destructive'` (dropped branch, alias rename, type change).
+- `definitionChanged`: `false` when the stored definition already equals the candidate, so applying it changes nothing. This is the "is there anything to apply" criterion; `statements` cannot answer it because it always contains the idempotent `CREATE INDEX IF NOT EXISTS` statements for an existing seed.
+- `changedBranches`: Aliases (candidate order) of branches that are new or whose definition differs from the stored one. It includes definition-only changes, such as the options and colors of a `tags` branch, that produce no DDL.
 - `expectedVersion`: The current `seed_meta.registry_version` value that must be echoed back to `mcp-apply`.
 
 ---

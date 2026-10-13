@@ -104,4 +104,32 @@ describe('compareManifest', () => {
 
     expect(drift.inSync).toBe(false)
   })
+
+  it('reports in_sync for a tags branch with multiple omitted against a deployed multiple true', () => {
+    const authored = authoredSeed({ branches: [{ alias: 'labels', label: 'Labels', type: 'tags' }] })
+    const deployed = liveSeed({ branches: [{ id: 'br_07', alias: 'labels', label: 'Labels', type: 'tags', multiple: true }] })
+
+    const drift = compareManifest(manifest([authored]), [deployed])
+
+    expect(drift.seeds).toEqual([{ slug: 'posts', status: 'in_sync' }])
+  })
+
+  it('reports differs for a tags branch with multiple omitted against a deployed multiple false', () => {
+    const authored = authoredSeed({ branches: [{ alias: 'labels', label: 'Labels', type: 'tags' }] })
+    const deployed = liveSeed({ branches: [{ id: 'br_07', alias: 'labels', label: 'Labels', type: 'tags', multiple: false }] })
+
+    const drift = compareManifest(manifest([authored]), [deployed])
+
+    expect(drift.seeds).toEqual([{ slug: 'posts', status: 'differs' }])
+  })
+
+  it('reports differs when only an option color changes', () => {
+    const tagsBranch = (color: string) => ({ alias: 'priority', label: 'Priority', type: 'tags' as const, options: [{ value: 'high', color }] })
+    const authored = authoredSeed({ branches: [tagsBranch('#dc2626')] })
+    const deployed = liveSeed({ branches: [{ id: 'br_11', ...tagsBranch('#ef4444') }] })
+
+    const drift = compareManifest(manifest([authored]), [deployed])
+
+    expect(drift.seeds).toEqual([{ slug: 'posts', status: 'differs' }])
+  })
 })

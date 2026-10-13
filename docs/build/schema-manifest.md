@@ -138,7 +138,7 @@ npx beech schema export                 # → beech.schema.ts
 # 3. What differs between the manifest and the deployed schema? (exit 1 on drift)
 npx beech schema diff
 
-# 4. What DDL would applying it run? (writes nothing)
+# 4. What would applying it change? (writes nothing)
 npx beech schema plan
 
 # 5. Apply through the control plane

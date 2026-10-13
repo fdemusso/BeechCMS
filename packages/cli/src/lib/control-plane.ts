@@ -32,6 +32,10 @@ export interface McpPlan {
   blockedReasons: string[]
   /** Exactly the DDL apply will run. Displayed, never parsed. */
   statements: string[]
+  /** False ⇒ the stored definition already equals the candidate: applying it changes nothing. The pending criterion. */
+  definitionChanged: boolean
+  /** Aliases of branches that are new or whose definition differs from the stored one (no DDL needed for most). */
+  changedBranches: string[]
   ftsRebuildNeeded: boolean
   expectedVersion: number
   issues: Array<{ fatal: boolean; messages: string[] }>
