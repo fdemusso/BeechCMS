@@ -11,6 +11,13 @@
 - `X-Schema-Revision` now starts with `v2:` (the projection of `tags` changed). Regenerate client types.
 - `GET /api/v1/public/:seed/schema` exposes `options: { label, value, color }[]` and `multiple` on `tags` branches.
 
+### Dashboard
+
+- Choice editor for `tags` with options: a menu with a color dot per option, replacing the value in single-choice mode and adding chips in multiple mode.
+- Colored chips in the form, table, kanban cards and gallery; values no longer among the options are shown as dashed chips.
+- Seed builder edits the options, their colors and the choice mode of `tags` branches.
+- `json` branches with an alias containing `tag` are no longer rendered as chips.
+
 ### Schema plan / apply
 
 - `beech schema plan` and MCP `beech_schema_plan` report definition-only changes (`definitionChanged`, `changedBranches`) even when they produce no DDL.

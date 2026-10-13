@@ -4,7 +4,9 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { LOCALIZABLE_BRANCH_TYPES, resolvePolicies, type Branch, type DataClassification, type Seed } from "@beechcms/core"
+import { LOCALIZABLE_BRANCH_TYPES, isSingleChoiceTags, resolvePolicies, tagOptionsIssues, type Branch, type DataClassification, type Seed } from "@beechcms/core"
+import { ChevronDown, ChevronUp, Trash2 } from "reicon-react"
+import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -190,6 +192,136 @@ export function FileOptionsForm({ branch, onChange }: FileOptionsFormProps) {
           </SelectContent>
         </Select>
       </div>
+    </div>
+  )
+}
+
+/** Color preset for a newly added option row; the author changes it with the color picker. */
+export const DEFAULT_TAG_OPTION_COLOR = "#64748b"
+
+/**
+ * Properties for the {@link TagOptionsForm} component.
+ */
+export interface TagOptionsFormProps {
+  /** The current `tags` branch definition. */
+  branch: Branch
+  /** Callback triggered when the options list or the choice mode changes. */
+  onChange: (updated: Branch) => void
+}
+
+/**
+ * Form fragment for editing a `tags` branch: choice mode and the ordered list of `{ value, color }` options.
+ * An empty list drops the `options` key (free tags). Issues come from the core; saving is never blocked here.
+ */
+export function TagOptionsForm({ branch, onChange }: TagOptionsFormProps) {
+  const { t } = useTranslation()
+  const options = branch.options ?? []
+  const issues = tagOptionsIssues(branch)
+
+  function setMultiple(multiple: boolean) {
+    const next: Branch = { ...branch }
+    if (multiple) delete next.multiple
+    else next.multiple = false
+    onChange(next)
+  }
+
+  function setOptions(nextOptions: NonNullable<Branch["options"]>) {
+    const next: Branch = { ...branch }
+    if (nextOptions.length === 0) delete next.options
+    else next.options = nextOptions
+    onChange(next)
+  }
+
+  function updateOption(index: number, patch: Partial<NonNullable<Branch["options"]>[number]>) {
+    setOptions(options.map((option, i) => (i === index ? { ...option, ...patch } : option)))
+  }
+
+  function moveOption(index: number, offset: -1 | 1) {
+    const reordered = [...options]
+    const [moved] = reordered.splice(index, 1)
+    reordered.splice(index + offset, 0, moved)
+    setOptions(reordered)
+  }
+
+  return (
+    <div className="space-y-2 rounded-md border p-2">
+      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.options")}</p>
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id={`tags-multiple-${branch.id}`}
+          checked={!isSingleChoiceTags(branch)}
+          onCheckedChange={v => setMultiple(!!v)}
+        />
+        <Label htmlFor={`tags-multiple-${branch.id}`} className="text-xs">{t("seedBuilder.branchEditor.multiple")}</Label>
+      </div>
+
+      {options.length === 0 && (
+        <p className="text-xs text-muted-foreground">{t("seedBuilder.branchEditor.freeTagsHint")}</p>
+      )}
+
+      {options.map((option, index) => (
+        <div key={index} className="flex items-center gap-1">
+          <Input
+            value={option.value}
+            aria-label={t("seedBuilder.branchEditor.optionValue")}
+            onChange={e => updateOption(index, { value: e.target.value })}
+          />
+          <Input
+            type="color"
+            value={option.color}
+            aria-label={t("seedBuilder.branchEditor.optionColor")}
+            className="w-12 shrink-0 p-1"
+            onChange={e => updateOption(index, { color: e.target.value })}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0"
+            aria-label={t("seedBuilder.branchEditor.moveOptionUp")}
+            disabled={index === 0}
+            onClick={() => moveOption(index, -1)}
+          >
+            <ChevronUp className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0"
+            aria-label={t("seedBuilder.branchEditor.moveOptionDown")}
+            disabled={index === options.length - 1}
+            onClick={() => moveOption(index, 1)}
+          >
+            <ChevronDown className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0"
+            aria-label={t("seedBuilder.branchEditor.removeOption")}
+            onClick={() => setOptions(options.filter((_, i) => i !== index))}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
+      ))}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => setOptions([...options, { value: "", color: DEFAULT_TAG_OPTION_COLOR }])}
+      >
+        {t("seedBuilder.branchEditor.addOption")}
+      </Button>
+
+      {issues.length > 0 && (
+        <ul className="space-y-0.5 text-xs text-destructive">
+          {issues.map(issue => <li key={issue}>{issue}</li>)}
+        </ul>
+      )}
     </div>
   )
 }

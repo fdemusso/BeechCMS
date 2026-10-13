@@ -6,6 +6,7 @@
 
 import { describe, it, expect } from "vitest"
 import i18n from "i18next"
+import { CANONICAL_SEEDS } from "@beechcms/testing"
 
 import {
   getStatusBadgeVariant,
@@ -140,6 +141,16 @@ describe("buildGalleryCardDisplayModel", () => {
     expect(model.dateText).toBe("")
     expect(model.tags).toEqual([])
     expect(model.ariaLabel).toContain("e1")
+  })
+
+  it("con tagsBranch priority, tags contiene il chip high con tono option e colore dichiarato", () => {
+    const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts")!
+    const priority = posts.branches.find((branch) => branch.alias === "priority")!
+    const entry = makeEntry({ data: { priority: ["high"] } })
+
+    const model = buildModel(entry, { ...emptyBranches, tagsBranch: priority })
+
+    expect(model.tags).toEqual([{ label: "high", color: "#ef4444", tone: "option" }])
   })
 
   it("sets showStatus from the argument and suppresses hasPendingDraft when false", () => {

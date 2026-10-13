@@ -67,11 +67,7 @@ export function resolveCardFields(
 
   const dateBranch = branches.find((branch) => branch.type === "date") ?? null
 
-  const tagsBranch =
-    branches.find((branch) => {
-      if (branch.type !== "json") return false
-      return branch.alias.toLowerCase().includes("tag")
-    }) ?? null
+  const tagsBranch = branches.find((branch) => branch.type === "tags") ?? null
 
   return {
     coverBranch,

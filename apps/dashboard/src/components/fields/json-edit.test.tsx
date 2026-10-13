@@ -3,24 +3,11 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi } from "vitest"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import { JsonEdit } from "@/components/fields/edit/json"
 import type { Branch } from "@beechcms/core"
 
 describe("JsonEdit", () => {
-  const tagsWithOptionsBranch = {
-    id: "br_tags_opts",
-    alias: "tags_field",
-    label: "Tags With Options",
-    type: "tags",
-    options: [
-      { value: "React", color: "#3b82f6" },
-      { value: "TypeScript", color: "#06b6d4" },
-      { value: "Node", color: "#10b981" },
-    ],
-    policies: [],
-  } as unknown as Branch
-
   const jsonBranch = {
     id: "br_json",
     alias: "metadata",
@@ -36,39 +23,6 @@ describe("JsonEdit", () => {
     type: "tags",
     policies: [],
   } as unknown as Branch
-
-  it("renderizza chip UI quando branch ha type tags e opzioni definite", () => {
-    const onChange = vi.fn()
-    const value = { React: "#3b82f6" }
-
-    render(
-      <JsonEdit
-        branch={tagsWithOptionsBranch}
-        value={value}
-        onChange={onChange}
-      />
-    )
-
-    expect(screen.getByText("React")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Add tag/i })).toBeInTheDocument()
-    expect(screen.queryByTestId("json-code-editor")).not.toBeInTheDocument()
-  })
-
-  it("con type tags e opzioni emette un array di stringhe (contratto API), non una mappa di colori", () => {
-    const onChange = vi.fn()
-    render(<JsonEdit branch={tagsWithOptionsBranch} value={["React"]} onChange={onChange} />)
-
-    fireEvent.click(screen.getByRole("button", { name: /Remove tag React/i }))
-
-    expect(onChange).toHaveBeenCalledWith([])
-  })
-
-  it("il chip di un'opzione selezionata usa il colore dichiarato nell'opzione", () => {
-    render(<JsonEdit branch={tagsWithOptionsBranch} value={["TypeScript"]} onChange={vi.fn()} />)
-
-    const chip = screen.getByText("TypeScript").closest("[data-slot='badge']") as HTMLElement
-    expect(chip.style.backgroundColor).toBe("#06b6d4")
-  })
 
   it("renderizza JsonCodeEditor per branch con type json", async () => {
     const onChange = vi.fn()

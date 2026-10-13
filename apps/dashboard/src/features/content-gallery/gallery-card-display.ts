@@ -7,7 +7,7 @@ import type { Branch } from "@beechcms/core"
 
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { shouldShowPendingDraftBadge } from "@/lib/pending-draft"
-import { extractTagChips, type TagChipData } from "@/lib/tags-utils"
+import { resolveTagChips, type TagChipData } from "@/lib/tags-utils"
 import { NO_ELEMENT_FORMAT, type ElementFormat, type ElementStyle } from "@/lib/conditional-format"
 
 import type { ResolvedCardFields } from "./resolve-card-fields"
@@ -128,7 +128,7 @@ export function buildGalleryCardDisplayModel(
 ): GalleryCardDisplayModel {
   const status = entry.status?.trim() || "—"
   const tags = branches.tagsBranch
-    ? extractTagChips(entry.data[branches.tagsBranch.alias])
+    ? resolveTagChips(entry.data[branches.tagsBranch.alias], branches.tagsBranch)
     : []
   const category = branches.categoryBranch
     ? toPlainText(entry.data[branches.categoryBranch.alias])

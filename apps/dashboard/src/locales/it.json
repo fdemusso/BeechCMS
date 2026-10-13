@@ -1364,6 +1364,14 @@
     "defaultTabBadge": "Predefinita"
   },
   "fields": {
+    "tags": {
+      "empty": "Nessun valore selezionato",
+      "menuTitle": "Scegli tra le opzioni",
+      "allSelected": "Tutte le opzioni sono già selezionate.",
+      "add": "Scegli un valore",
+      "remove": "Rimuovi {{value}}",
+      "notInOptions": "{{value}} — non presente nelle opzioni"
+    },
     "restricted": "Riservato",
     "repeater": {
       "addItem": "Aggiungi elemento",
@@ -1477,9 +1485,14 @@
       "fileAccept_any": "Qualsiasi file",
       "fileAccept_image": "Solo immagini",
       "fileAccept_document": "Solo documenti",
-      "options": "Opzioni (valori)",
-      "optionsPlaceholder": "valore1, valore2, valore3",
-      "optionsHint": "Lista separata da virgole dei valori consentiti.",
+      "options": "Opzioni",
+      "optionValue": "Valore",
+      "optionColor": "Colore",
+      "addOption": "Aggiungi opzione",
+      "removeOption": "Rimuovi opzione",
+      "moveOptionUp": "Sposta su",
+      "moveOptionDown": "Sposta giù",
+      "freeTagsHint": "Nessuna opzione: qualsiasi valore è accettato (tag liberi).",
       "policies": "Policy",
       "removeExistingWarning": "Il campo smette di essere usato; i dati esistenti vengono conservati nel database e non eliminati. Continuare?",
       "reservedAliasError": "Uno o più alias confliggono con nomi di campo di sistema riservati.",

@@ -84,14 +84,14 @@ describe("resolveCardFields", () => {
     expect(result.dateBranch?.alias).toBe("publishedAt")
   })
 
-  it("seleziona tagsBranch dal primo branch json con alias contenente 'tag'", () => {
-    const branches = [makeBranch("tags", "json")]
+  it("tagsBranch è il primo branch tags del seed", () => {
+    const branches = [makeBranch("metadata", "json"), makeBranch("topics", "tags"), makeBranch("labels", "tags")]
     const result = resolveCardFields(makeSeed(branches))
-    expect(result.tagsBranch?.alias).toBe("tags")
+    expect(result.tagsBranch?.alias).toBe("topics")
   })
 
-  it("non seleziona tagsBranch se il branch json non ha 'tag' nell'alias", () => {
-    const branches = [makeBranch("metadata", "json")]
+  it("un branch json con alias tags non diventa tagsBranch", () => {
+    const branches = [makeBranch("tags", "json")]
     const result = resolveCardFields(makeSeed(branches))
     expect(result.tagsBranch).toBeNull()
   })

@@ -3,8 +3,6 @@
 // See LICENSE in the repository root for license terms.
 
 import { ExpandableCell } from "@/components/ui/expandable-cell"
-import { TagChips } from "@/components/ui/tag-chips"
-import { colorForOption, extractTagChips } from "@/lib/tags-utils"
 import type { FieldDisplayProps } from "../types"
 
 /** Fallback truncation length for the pretty-printed JSON string when `options.maxLength` is not set. */
@@ -12,11 +10,10 @@ const DEFAULT_JSON_MAX_LENGTH = 40
 
 /**
  * Renders a JSON value. String values are parsed first (invalid JSON shows an error message).
- * When the branch is a `tags` field (or its alias contains "tag"), renders as chip pills instead
- * of raw JSON — supporting both an object map and an array shape. Everything else is pretty-printed
+ * The value is pretty-printed
  * and truncated via {@link ExpandableCell}.
  */
-export function JsonDisplay({ branch, value, options }: FieldDisplayProps) {
+export function JsonDisplay({ value, options }: FieldDisplayProps) {
   if (value == null || value === "") {
     return <div className="text-muted-foreground">-</div>
   }
@@ -30,31 +27,7 @@ export function JsonDisplay({ branch, value, options }: FieldDisplayProps) {
     }
   }
 
-  const isTagsField = branch.type === "tags" || branch.alias.toLowerCase().includes("tag")
-
   try {
-    if (isTagsField && typeof parsed === "object" && !Array.isArray(parsed)) {
-      const tags = extractTagChips(parsed)
-
-      return (
-        <TagChips
-          tags={tags}
-          maxVisible={1}
-          enableToggle
-          className="min-w-0 max-w-full gap-1.5"
-        />
-      )
-    }
-
-    if (isTagsField && Array.isArray(parsed)) {
-      // Array values carry no color: it comes from the branch option.
-      const chips = extractTagChips(parsed).map((chip) => ({
-        ...chip,
-        color: chip.color ?? colorForOption(chip.label, branch),
-      }))
-      return <TagChips tags={chips} className="min-w-0 max-w-full gap-1.5" />
-    }
-
     const str = JSON.stringify(parsed, null, 2)
     const maxLength = options?.maxLength ?? DEFAULT_JSON_MAX_LENGTH
     return (

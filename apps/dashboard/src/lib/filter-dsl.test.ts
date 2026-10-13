@@ -126,14 +126,14 @@ describe("filter-dsl - matchesCondition (lenient)", () => {
   })
 
   it("tags: contains/eq su keys estratte", () => {
-    const cell = '{"react":"#111111","cms":"#222222"}'
+    const cell = '["react","cms"]'
     expect(matchesCondition(cell, tagsGroup, "contains", "react")).toBe(true)
     expect(matchesCondition(cell, tagsGroup, "eq", "react")).toBe(true)
     expect(matchesCondition(cell, tagsGroup, "contains", "angular")).toBe(false)
   })
 
   it("tags: filtro vuoto -> sempre true (lenient)", () => {
-    const cell = '{"react":"#111111"}'
+    const cell = '["react"]'
     expect(matchesCondition(cell, tagsGroup, "contains", "")).toBe(true)
     expect(matchesCondition(cell, tagsGroup, "eq", "   ")).toBe(true)
   })
@@ -182,10 +182,20 @@ describe("filter-dsl - matchesConditionStrict (strict)", () => {
 
   it("tags strict: filtro vuoto -> false; match/non-match sulle keys", () => {
     const group = mkGroup({ type: "tags" })
-    const cell = '{"react":"#111111","cms":"#222222"}'
+    const cell = '["react","cms"]'
     expect(matchesConditionStrict(cell, group, "contains", "react")).toBe(true)
     expect(matchesConditionStrict(cell, group, "contains", "angular")).toBe(false)
     expect(matchesConditionStrict(cell, group, "contains", "")).toBe(false)
+  })
+
+  it("tags strict: una cella a mappa oggetto non matcha", () => {
+    // Rule 6.2.4: the {tag: color} map format was removed, so it yields no tag names.
+    const group = mkGroup({ type: "tags" })
+    const cell = '{"react":"#111111"}'
+
+    const result = matchesConditionStrict(cell, group, "contains", "react")
+
+    expect(result).toBe(false)
   })
 
   it("number strict: valori non comparabili -> false", () => {

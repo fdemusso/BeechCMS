@@ -23,8 +23,10 @@ import {
   RepeaterOptionsForm,
   PoliciesOptionsForm,
   LocalizedOptionsForm,
+  TagOptionsForm,
 } from "./repeater-branch-options"
 import { withoutIneligibleLocalized } from "./repeater-localization"
+import { withoutIneligibleTagOptions } from "./repeater-tag-options"
 
 /** Full list of all registered BranchTypes. */
 const BRANCH_TYPES: BranchType[] = [
@@ -121,7 +123,7 @@ export function BranchItemRow({
 
   // A type or classification change must never leave `localized: true` where seed validation refuses it (Fatal 17).
   function emitChange(updated: Branch) {
-    onChange(withoutIneligibleLocalized(updated, subField))
+    onChange(withoutIneligibleTagOptions(withoutIneligibleLocalized(updated, subField)))
   }
 
   function set<K extends keyof Branch>(key: K, value: Branch[K]) {
@@ -279,6 +281,8 @@ export function BranchItemRow({
           {branch.type === "number" && <NumberOptionsForm branch={branch} onChange={emitChange} />}
 
           {branch.type === "file" && <FileOptionsForm branch={branch} onChange={emitChange} />}
+
+          {branch.type === "tags" && <TagOptionsForm branch={branch} onChange={emitChange} />}
 
           {branch.type === "repeater" && (
             <RepeaterOptionsForm branch={branch} onChange={emitChange} subField={subField} />

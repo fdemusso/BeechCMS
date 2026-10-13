@@ -1364,6 +1364,14 @@
     "defaultTabBadge": "Default"
   },
   "fields": {
+    "tags": {
+      "empty": "No value selected",
+      "menuTitle": "Choose from the options",
+      "allSelected": "All options are already selected.",
+      "add": "Choose a value",
+      "remove": "Remove {{value}}",
+      "notInOptions": "{{value}} — not in the options"
+    },
     "restricted": "Restricted",
     "repeater": {
       "addItem": "Add item",
@@ -1477,9 +1485,14 @@
       "fileAccept_any": "Any file",
       "fileAccept_image": "Images only",
       "fileAccept_document": "Documents only",
-      "options": "Options (values)",
-      "optionsPlaceholder": "value1, value2, value3",
-      "optionsHint": "Comma-separated list of allowed values.",
+      "options": "Options",
+      "optionValue": "Value",
+      "optionColor": "Color",
+      "addOption": "Add option",
+      "removeOption": "Remove option",
+      "moveOptionUp": "Move up",
+      "moveOptionDown": "Move down",
+      "freeTagsHint": "No options: any value is accepted (free tags).",
       "policies": "Policies",
       "removeExistingWarning": "The field stops being used; existing data is retained in the database and not deleted. Continue?",
       "reservedAliasError": "One or more aliases conflict with reserved system field names.",

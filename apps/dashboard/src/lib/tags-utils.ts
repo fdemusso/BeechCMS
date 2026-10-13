@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { findTagOption, type Branch } from "@beechcms/core"
+import { findTagOption, tagOptionValues, type Branch } from "@beechcms/core"
 
 export function parseTagsValue(value: unknown): unknown {
   if (typeof value !== "string") return value
@@ -14,86 +14,31 @@ export function parseTagsValue(value: unknown): unknown {
   }
 }
 
-/** Chip color for a tag that has no declared option color. */
-export const NEUTRAL_TAG_COLOR = "#64748b"
-
-/** Declared color of the branch option equal to `tag`, or undefined when the tag is not one of the options. */
-export function colorForOption(tag: string, branch: Pick<Branch, "options">): string | undefined {
-  return findTagOption(branch, tag)?.color
-}
+/** How a tag chip is drawn: a declared option, a value no longer among the options, or a free tag. */
+export type TagChipTone = "option" | "obsolete" | "free"
 
 export interface TagChipData {
   readonly label: string
+  /** Declared option color; present only when `tone === "option"`. */
   readonly color?: string
+  readonly tone: TagChipTone
 }
 
-function ownProp(obj: Record<string, unknown>, key: string): unknown {
-  return Object.hasOwn(obj, key) ? obj[key] : undefined
-}
-
-function extractColor(value: unknown): string | undefined {
-  if (typeof value === "string") {
-    const color = value.trim()
-    return color.length > 0 ? color : undefined
-  }
-
-  if (value && typeof value === "object") {
-    const obj = value as Record<string, unknown>
-    const candidate = [ownProp(obj, "color"), ownProp(obj, "hex"), ownProp(obj, "value")].find(
-      (item): item is string => typeof item === "string" && item.trim().length > 0,
-    )
-    return candidate?.trim()
-  }
-
-  return undefined
-}
-
-function extractArrayItemChip(item: unknown): TagChipData | undefined {
-  if (typeof item === "string") {
-    const label = item.trim()
-    return label.length > 0 ? { label } : undefined
-  }
-
-  if (item && typeof item === "object") {
-    const obj = item as Record<string, unknown>
-    const labelCandidate = [ownProp(obj, "label"), ownProp(obj, "name"), ownProp(obj, "value")].find(
-      (candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0,
-    )
-    if (labelCandidate === undefined) {
-      console.warn("extractTagChips: dropping unrecognized tag entry", item)
-      return undefined
-    }
-    const colorCandidate = [ownProp(obj, "color"), ownProp(obj, "hex")].find(
-      (candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0,
-    )
-    return { label: labelCandidate.trim(), color: colorCandidate?.trim() }
-  }
-
-  console.warn("extractTagChips: dropping unrecognized tag entry", item)
-  return undefined
-}
-
-export function extractTagChips(value: unknown): TagChipData[] {
-  const parsed = parseTagsValue(value)
-
-  if (Array.isArray(parsed)) {
-    return parsed
-      .map((item) => extractArrayItemChip(item))
-      .filter((tag): tag is TagChipData => tag !== undefined)
-  }
-
-  if (parsed && typeof parsed === "object") {
-    return Object.entries(parsed as Record<string, unknown>)
-      .map(([label, rawColor]) => ({
-        label: label.trim(),
-        color: extractColor(rawColor),
-      }))
-      .filter((tag) => tag.label.length > 0)
-  }
-
-  return []
-}
-
+/** Stored tag values in order: string items of an array (or JSON-encoded array), verbatim. `[]` for anything else. */
 export function extractTagNames(value: unknown): string[] {
-  return extractTagChips(value).map((tag) => tag.label)
+  const parsed = parseTagsValue(value)
+  if (!Array.isArray(parsed)) return []
+
+  return parsed.filter((item): item is string => typeof item === "string" && item.length > 0)
+}
+
+/** One chip per stored value, colored only from the branch options. Never throws. */
+export function resolveTagChips(value: unknown, branch: Pick<Branch, "options">): TagChipData[] {
+  const hasOptions = tagOptionValues(branch).length > 0
+
+  return extractTagNames(value).map((label): TagChipData => {
+    const option = findTagOption(branch, label)
+    if (option) return { label, color: option.color, tone: "option" }
+    return { label, tone: hasOptions ? "obsolete" : "free" }
+  })
 }
