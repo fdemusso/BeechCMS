@@ -10,6 +10,8 @@ import { KanbanColumnVirtualizer } from './kanban-column-virtualizer'
 interface KanbanColumnProps {
   colValue: string | null
   label: string
+  /** Option color of a tags-axis column; no dot when absent. */
+  color?: string
   fetchState: KanbanColumnFetchState
   cards: KanbanCardDisplayModel[]
   collapsed: boolean
@@ -33,6 +35,7 @@ function SkeletonCard() {
 export const KanbanColumn = React.memo(function KanbanColumn({
   colValue,
   label,
+  color,
   fetchState,
   cards,
   collapsed,
@@ -69,6 +72,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({
           aria-expanded={!collapsed}
         >
           {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {color && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />}
           <span className="truncate max-w-[140px]">{label}</span>
         </button>
         <div className="flex items-center gap-1.5 shrink-0">

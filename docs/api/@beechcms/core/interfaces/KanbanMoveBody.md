@@ -13,9 +13,13 @@ Body of PATCH /:slug/:id/kanban-move. The server applies the axis change (if any
 
 ### axis?
 
-> `optional` **axis?**: \{ `kind`: `"scalar"`; `value`: `string` \| `null`; \} \| \{ `kind`: `"tags"`; `newValue`: `string` \| `null`; `oldValue`: `string` \| `null`; \}
+> `optional` **axis?**: `object`
 
-Present only on a cross-column move (axis value changed). Omit for same-column reorder.
+Present only on a cross-column move: the destination column value (`null` = "Senza valore").
+
+#### value
+
+> **value**: `string` \| `null`
 
 ***
 

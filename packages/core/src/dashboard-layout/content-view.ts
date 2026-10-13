@@ -4,6 +4,7 @@
 import { z } from 'zod'
 import type { Seed } from '../engine/types.js'
 import { findBranchById } from '../engine/seeds/seed-registry.js'
+import { isSingleChoiceTags, tagOptionValues } from '../engine/seeds/tag-options.js'
 import { isViewAuthorized, type DashboardView } from './view-authorization.js'
 import {
   kanbanViewConfigSchema,
@@ -236,10 +237,43 @@ function isDateRef(seed: Seed, ref: string): boolean {
   return DATE_SYSTEM_COLUMNS.has(ref) || findBranchById(seed, ref)?.type === 'date'
 }
 
+/** True when `ref` addresses a `tags` branch that is multiple choice, which cannot be sorted or grouped. */
+function isMultipleChoiceTagsRef(seed: Seed, ref: string): boolean {
+  const branch = findBranchById(seed, ref)
+  return branch?.type === 'tags' && !isSingleChoiceTags(branch)
+}
+
+/**
+ * Brief §2.10: `sort`, `groupBy` and `kanban.sort` may reference a `tags` branch only when it is single choice;
+ * `kanban.axisBranchId` may reference a `tags` branch only when it is a kanban axis candidate.
+ * One message per offending reference, in the order sort, groupBy, kanban axis, kanban sort; `[]` when valid.
+ * References to missing branches and to non-`tags` branches are not issues (cleanup handles them). Pure.
+ */
+export function viewConfigChoiceIssues(config: ContentViewConfig, seed: Seed): string[] {
+  const issues: string[] = []
+  const multipleChoiceIssue = (ref: string, usage: string): void => {
+    if (!isMultipleChoiceTagsRef(seed, ref)) return
+    const alias = findBranchById(seed, ref)?.alias
+    issues.push(`'${alias}' is a multiple-choice tags field: ${usage} needs multiple: false.`)
+  }
+
+  if (config.sort) multipleChoiceIssue(config.sort.columnRef, 'sort')
+  if (config.groupBy) multipleChoiceIssue(config.groupBy.columnRef, 'group by')
+
+  const axis = config.kanban?.axisBranchId ? findBranchById(seed, config.kanban.axisBranchId) : null
+  if (axis?.type === 'tags' && !(isSingleChoiceTags(axis) && tagOptionValues(axis).length > 0)) {
+    issues.push(`'${axis.alias}' cannot be a kanban axis: it needs a single-choice tags field with options.`)
+  }
+
+  if (config.kanban?.sort) multipleChoiceIssue(config.kanban.sort.branchId, 'kanban card sort')
+  return issues
+}
+
 function cleanKanban(kanban: KanbanViewConfig, seed: Seed): KanbanViewConfig {
   const { candidates } = resolveKanbanConfig(seed)
   const axisOk = kanban.axisBranchId !== null && candidates.some((c) => c.branchId === kanban.axisBranchId)
   const sortOk = kanban.sort !== null && findBranchById(seed, kanban.sort.branchId) !== null
+    && !isMultipleChoiceTagsRef(seed, kanban.sort.branchId)
   return {
     ...kanban,
     axisBranchId: axisOk ? kanban.axisBranchId : null,
@@ -249,6 +283,7 @@ function cleanKanban(kanban: KanbanViewConfig, seed: Seed): KanbanViewConfig {
 
 /**
  * Pure auto-cleanup, never an error: drops references to branches the seed no longer has,
+ * `sort`/`groupBy`/kanban sort on a multiple-choice `tags` branch,
  * duplicate filters on one column, date precision on a non-date grouping, and the Kanban
  * sub-config on a non-kanban instance and the card layout on a table instance. Same policy as validateCardConfigAgainstSeed.
  */
@@ -264,9 +299,15 @@ export function validateViewConfigAgainstSeed(
     return true
   })
 
-  const sort = config.sort && refExists(seed, config.sort.columnRef) ? config.sort : null
+  const sort = config.sort && refExists(seed, config.sort.columnRef) && !isMultipleChoiceTagsRef(seed, config.sort.columnRef)
+    ? config.sort
+    : null
 
-  let groupBy = config.groupBy && refExists(seed, config.groupBy.columnRef) ? config.groupBy : null
+  let groupBy = config.groupBy
+    && refExists(seed, config.groupBy.columnRef)
+    && !isMultipleChoiceTagsRef(seed, config.groupBy.columnRef)
+    ? config.groupBy
+    : null
   if (groupBy?.datePrecision && !isDateRef(seed, groupBy.columnRef)) {
     groupBy = { columnRef: groupBy.columnRef }
   }

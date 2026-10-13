@@ -7,7 +7,7 @@
 import { describe, it, expect } from "vitest"
 import { CANONICAL_SEEDS } from "@beechcms/testing"
 
-import { parseTagsValue, extractTagNames, resolveTagChips } from "@/lib/tags-utils"
+import { parseTagsValue, extractTagNames, resolveTagChips, compareTagChoice, tagFilterValues } from "@/lib/tags-utils"
 
 const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts")!
 const priority = posts.branches.find((branch) => branch.alias === "priority")!
@@ -83,5 +83,37 @@ describe("resolveTagChips", () => {
     const reordered = resolveTagChips(["high"], { options: [...options].reverse() })
 
     expect(reordered).toEqual(original)
+  })
+})
+
+describe("compareTagChoice", () => {
+  it("compareTagChoice orders option values by declared position, obsolete after options, empty last", () => {
+    const values = [null, "obsolete", "high", "low"]
+
+    const sorted = [...values].sort((a, b) => compareTagChoice(priority, a, b))
+
+    expect(sorted).toEqual(["low", "high", "obsolete", null])
+  })
+
+  it("compareTagChoice orders free values alphabetically with empty last", () => {
+    const values = [null, "zebra", "apple"]
+
+    const sorted = [...values].sort((a, b) => compareTagChoice(freeTags, a, b))
+
+    expect(sorted).toEqual(["apple", "zebra", null])
+  })
+})
+
+describe("tagFilterValues", () => {
+  it("tagFilterValues returns the option values in declared order and ignores observed values", () => {
+    const values = tagFilterValues(priority, ["high", "stray"])
+
+    expect(values).toEqual(["low", "high"])
+  })
+
+  it("tagFilterValues returns observed values deduplicated and sorted for a branch without options", () => {
+    const values = tagFilterValues(freeTags, ["b", "a", "b"])
+
+    expect(values).toEqual(["a", "b"])
   })
 })

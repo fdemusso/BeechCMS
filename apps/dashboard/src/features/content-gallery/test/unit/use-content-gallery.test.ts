@@ -8,6 +8,7 @@ import { renderHook } from "@testing-library/react"
 import { useContentGallery } from "@/features/content-gallery/gallery-hooks/use-content-gallery"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import type { Branch, Seed } from "@beechcms/core"
+import { CANONICAL_SEEDS } from "@beechcms/testing"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -99,5 +100,17 @@ describe("useContentGallery", () => {
     const { result } = renderHook(() => useContentGallery(seed, data, "campo-inesistente"))
     expect(result.current.categoryAlias).toBeNull()
     expect(result.current.categoryGroups).toEqual([])
+  })
+
+  it("con groupBy su un tag a scelta singola: cartelle nell'ordine delle opzioni", () => {
+    const posts = CANONICAL_SEEDS.find((candidate) => candidate.slug === "posts") as Seed
+    const entries = [
+      makeEntry("e1", { data: { title: "A", priority: ["high"] } } as Partial<ContentEntry>),
+      makeEntry("e2", { data: { title: "B", priority: ["low"] } } as Partial<ContentEntry>),
+    ]
+
+    const { result } = renderHook(() => useContentGallery(posts, entries, "priority"))
+
+    expect(result.current.categoryGroups.map((g) => g.label)).toEqual(["low", "high"])
   })
 })

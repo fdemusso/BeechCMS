@@ -5,6 +5,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, expect, it, vi } from "vitest"
+import { CANONICAL_SEEDS } from "@beechcms/testing"
+import type { Seed } from "@beechcms/core"
 
 import {
   CONDITIONAL_TONE_OPTIONS,
@@ -130,6 +132,15 @@ describe("content-toolbar/shared", () => {
 
     const withManyStatus = getGroupableColumns(seed, Array.from({ length: 9 }, (_, i) => `s${i}`))
     expect(withManyStatus[0].section).toBe("other")
+  })
+
+  it("getGroupableColumns lists a single-choice tags branch as recommended and omits a multiple-choice one", () => {
+    const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts") as Seed
+
+    const columns = getGroupableColumns(posts)
+
+    expect(columns).toContainEqual({ columnId: "priority", label: "Priority", section: "recommended", branchType: "tags" })
+    expect(columns.some((column) => column.columnId === "tags")).toBe(false)
   })
 })
 

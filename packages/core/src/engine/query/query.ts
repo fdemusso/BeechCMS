@@ -14,6 +14,7 @@ import { tableName, ftsTableName, isValidColumn, indexableSearchBranches, SYSTEM
 import { resolveClassification } from '../privacy/policies.js';
 import { isLocaleCode, isLocalizedBranch } from '../localization/localization.js';
 import { activeCondition } from './active-clause.js';
+import { isSingleChoiceTags, tagOptionValues } from '../seeds/tag-options.js';
 
 /** SQLite GLOB twins of `LOCALE_CODE_RE` (`it`, `ast`, `pt-BR`, `es-419`, …). Keep both in sync. */
 const LOCALE_KEY_GLOBS = [
@@ -73,6 +74,33 @@ function columnSql(seed: Seed, table: string, alias: string, locale: SelectLocal
   return alias
 }
 
+/** A multiple-choice `tags` column has no meaningful order, so `orderBy` on it is ignored. */
+function isMultipleChoiceTagsColumn(seed: Seed, alias: string): boolean {
+  const branch = seed.branches.find((b) => b.alias === alias)
+  return branch?.type === 'tags' && !isSingleChoiceTags(branch)
+}
+
+/**
+ * ORDER BY clause for a single-choice tags column: empty values (`NULL`, `[]`) always last, then the option
+ * position (a value outside the options ranks after every option) or, without options, the value alphabetically.
+ * Option values are pushed to `bindings`.
+ */
+function tagsOrderClause(
+  col: string,
+  branch: Branch,
+  dir: 'ASC' | 'DESC',
+  bindings: (string | number | boolean | null)[],
+): string {
+  const head = `(CASE WHEN json_valid(${col}) THEN json_extract(${col}, '$[0]') END)`
+  const options = tagOptionValues(branch)
+  let rank = head
+  if (options.length > 0) {
+    const branches = options.map((_, position) => `WHEN ? THEN ${position}`).join(' ')
+    rank = `CASE ${head} ${branches} ELSE ${options.length} END`
+    bindings.push(...options)
+  }
+  return ` ORDER BY (${head} IS NULL) ASC, ${rank} ${dir}`
+}
 
 /**
  * Builds a parameterized SQL SELECT query and bindings for a given Seed based on search, filtering, status, and ordering options.
@@ -188,10 +216,13 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
   if (!options.isCount) {
     if (kanbanOrderClause) {
       sql += kanbanOrderClause
-    } else if (orderBy && isValidColumn(seed, orderBy.column)) {
+    } else if (orderBy && isValidColumn(seed, orderBy.column) && !isMultipleChoiceTagsColumn(seed, orderBy.column)) {
       const dir = orderBy.dir === 'DESC' ? 'DESC' : 'ASC'
       const col = columnSql(seed, table, orderBy.column, options.locale)
-      sql += ` ORDER BY ${col} ${dir}`
+      const orderedBranch = seed.branches.find((b) => b.alias === orderBy.column)
+      sql += orderedBranch && isSingleChoiceTags(orderedBranch)
+        ? tagsOrderClause(col, orderedBranch, dir, bindings)
+        : ` ORDER BY ${col} ${dir}`
     } else {
       sql += ` ORDER BY ${table}.created_at DESC`
     }
@@ -265,6 +296,40 @@ function normalizeFilterValue(
 }
 
 
+/** On a `tags` column, equality-like operators test membership; `negated` ones are the complement. */
+const TAGS_MEMBERSHIP_OPS: Record<string, { op: 'has_tag' | 'has_any_tag'; negated: boolean }> = {
+  eq: { op: 'has_tag', negated: false },
+  contains: { op: 'has_tag', negated: false },
+  in: { op: 'has_any_tag', negated: false },
+  neq: { op: 'has_tag', negated: true },
+  not_contains: { op: 'has_tag', negated: true },
+  not_in: { op: 'has_any_tag', negated: true },
+}
+
+function buildTagsMembershipCondition(
+  col: string,
+  op: string,
+  value: FilterCondition['value'],
+  bindings: (string | number | boolean | null)[]
+): string | null {
+  const { op: membershipOp, negated } = TAGS_MEMBERSHIP_OPS[op]
+  const isSetOp = membershipOp === 'has_any_tag'
+
+  let tags: string[]
+  if (isSetOp) {
+    if (!Array.isArray(value)) return null
+    tags = value.filter((v) => typeof v === 'string' || typeof v === 'number').map(String)
+    // Same rule as in/not_in: an empty set matches nothing, its negation adds no clause.
+    if (tags.length === 0) return negated ? null : '0'
+  } else {
+    if (typeof value !== 'string' && typeof value !== 'number') return null
+    tags = [String(value)]
+  }
+
+  const condition = buildFilterCondition(col, 'tags', { op: membershipOp, value: isSetOp ? tags : tags[0] }, bindings)
+  return negated && condition ? `NOT (${condition})` : condition
+}
+
 /**
  * Translates a filter condition into its SQL clause and adds parameters to the bindings list.
  * 
@@ -295,6 +360,10 @@ function buildFilterCondition(
     return isEmpty ? `${col} IS NULL` : `${col} IS NOT NULL`
   }
   
+  if (type === 'tags' && Object.hasOwn(TAGS_MEMBERSHIP_OPS, op)) {
+    return buildTagsMembershipCondition(col, op, value, bindings)
+  }
+
   if (op === 'in' || op === 'not_in') {
     if (!Array.isArray(value)) return null
     const normalizedValues = value

@@ -532,6 +532,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [isValidDashboardScope](functions/isValidDashboardScope.md)
 - [isViewAuthorized](functions/isViewAuthorized.md)
 - [junctionTableName](functions/junctionTableName.md)
+- [kanbanColumnEntryValue](functions/kanbanColumnEntryValue.md)
 - [kanbanColumnFilter](functions/kanbanColumnFilter.md)
 - [listTables](functions/listTables.md)
 - [localizedAliasesIn](functions/localizedAliasesIn.md)
@@ -597,3 +598,4 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [verifyPkceChallenge](functions/verifyPkceChallenge.md)
 - [verifyTimeTrapToken](functions/verifyTimeTrapToken.md)
 - [verifyWebhookSignature](functions/verifyWebhookSignature.md)
+- [viewConfigChoiceIssues](functions/viewConfigChoiceIssues.md)

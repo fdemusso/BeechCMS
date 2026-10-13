@@ -101,4 +101,46 @@ describe('content slice — integration (real D1)', () => {
       expect(entry.data.tags).toEqual(['a'])
     })
   })
+
+  describe('GET /api/content/:slug', () => {
+    async function createPost(slug: string, priority: string[]): Promise<string> {
+      const response = await admin.post('/api/content/posts', { title: slug, slug, priority })
+      expect(response.status).toBe(201) // precondition
+      return (await response.json<{ id: string }>()).id
+    }
+
+    it('sorts by a single-choice tags branch in option order with empty values last', async () => {
+      const highId = await createPost('p-high', ['high'])
+      const emptyId = await createPost('p-empty', [])
+      const lowId = await createPost('p-low', ['low'])
+
+      const ascending = await admin.get('/api/content/posts?sortBy=priority&sortDir=asc&page=1&limit=10')
+
+      expect(ascending.status).toBe(200)
+      const ascendingBody = await ascending.json<{ items: { id: string }[] }>()
+      expect(ascendingBody.items.map((item) => item.id)).toEqual([lowId, highId, emptyId])
+
+      const descending = await admin.get('/api/content/posts?sortBy=priority&sortDir=desc&page=1&limit=10')
+
+      expect(descending.status).toBe(200)
+      const descendingBody = await descending.json<{ items: { id: string }[] }>()
+      expect(descendingBody.items.map((item) => item.id)).toEqual([highId, lowId, emptyId])
+    })
+
+    it('filters a tags column with eq by membership', async () => {
+      const highId = await createPost('p-high', ['high'])
+      await createPost('p-low', ['low'])
+      await createPost('p-empty', [])
+
+      const filters = encodeURIComponent(JSON.stringify({
+        priority: { columnId: 'priority', type: 'tags', conditions: [{ op: 'eq', value: 'high' }] },
+      }))
+      const response = await admin.get(`/api/content/posts?page=1&limit=10&filters=${filters}`)
+
+      expect(response.status).toBe(200)
+      const body = await response.json<{ items: { id: string }[]; total: number }>()
+      expect(body.total).toBe(1)
+      expect(body.items[0].id).toBe(highId)
+    })
+  })
 })

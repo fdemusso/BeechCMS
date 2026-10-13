@@ -23,7 +23,7 @@ Authorization: Bearer eyJ...
 |---|---|---|---|
 | `page` | `number` | `1` | Page number |
 | `limit` | `number` | `25` | Items per page (clamped 1–100) |
-| `sortBy` | `string` | `created_at` | Field alias or system column (`created_at`, `updated_at`, `slug`) |
+| `sortBy` | `string` | `created_at` | Field alias or system column (`created_at`, `updated_at`, `slug`). A single-choice `tags` field sorts by option order (alphabetical without options), empty values last; a multiple-choice `tags` field is ignored. |
 | `sortDir` | `asc \| desc` | `asc` | Sort direction |
 | `search` | `string` | — | Full-text search across content fields and slug |
 | `filters` | `string` | — | Serialized JSON string of `QueryFilterGroup[]` |

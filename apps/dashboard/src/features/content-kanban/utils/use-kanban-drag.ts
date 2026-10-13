@@ -278,10 +278,7 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
     if (isSameColumn) {
       body = { axisBranchId, position: newPosition }
     } else {
-      const axis = axisBranch.type === 'tags'
-        ? { kind: 'tags' as const, oldValue: card?.axisValue ?? null, newValue: destColValue }
-        : { kind: 'scalar' as const, value: destColValue }
-      body = { axisBranchId, position: newPosition, axis }
+      body = { axisBranchId, position: newPosition, axis: { value: destColValue } }
     }
 
     // Find entry in cache before patching so we can insert it in dest

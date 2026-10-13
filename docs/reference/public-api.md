@@ -168,6 +168,8 @@ Reads entries for a seed. Requires `allowPublicRead: true` and `PUBLIC_READ_API_
 **Supported filter operators (snake_case required):**
 `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `contains`, `not_contains`, `starts_with`, `ends_with`, `is_empty`, `is_not_empty`, `in`, `not_in`, `has_tag`, `has_any_tag`, `has_all_tags`.
 
+On a `tags` field, `eq`, `contains` and `in` test membership of the stored array, and `neq`, `not_contains` and `not_in` are their negation.
+
 **Single entry request:**
 
 ```http

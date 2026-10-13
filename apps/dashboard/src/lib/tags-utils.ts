@@ -42,3 +42,34 @@ export function resolveTagChips(value: unknown, branch: Pick<Branch, "options">)
     return { label, tone: hasOptions ? "obsolete" : "free" }
   })
 }
+
+/** Sort rank of a single-choice tags value: option position, then a value outside the options, then empty last. */
+function tagChoiceRank(options: readonly string[], value: string | null): number {
+  if (value === null || value === "") return Number.POSITIVE_INFINITY
+  const position = options.indexOf(value)
+  return position === -1 ? options.length : position
+}
+
+/**
+ * Orders two single-choice tags values. With options: declared option position, a value outside the options
+ * after every option (ties keep their order). Without options: `localeCompare(…, "it")`. `null` (empty) is last.
+ */
+export function compareTagChoice(branch: Pick<Branch, "options">, a: string | null, b: string | null): number {
+  const options = tagOptionValues(branch)
+  const emptyA = a === null || a === ""
+  const emptyB = b === null || b === ""
+  if (emptyA || emptyB) return Number(emptyA) - Number(emptyB)
+  if (options.length === 0) return a.localeCompare(b, "it")
+
+  const rankA = tagChoiceRank(options, a)
+  const rankB = tagChoiceRank(options, b)
+  return rankA === rankB ? 0 : rankA - rankB
+}
+
+/** Filter values for a `tags` column: option values in declared order when the branch has options, else `observed` deduplicated and sorted ("it"). */
+export function tagFilterValues(branch: Pick<Branch, "options">, observed: readonly string[]): string[] {
+  const options = tagOptionValues(branch)
+  if (options.length > 0) return options
+
+  return [...new Set(observed)].sort((a, b) => a.localeCompare(b, "it"))
+}

@@ -26,11 +26,14 @@ export function folderCreateDefaults(
   folderParam: string | null
 ): Record<string, unknown> | undefined {
   if (!groupBy || !folderParam || folderParam === UNCATEGORIZED_PARAM) return undefined
-  if (!seed.branches.some((branch) => branch.alias === groupBy)) return undefined
+  const groupBranch = seed.branches.find((branch) => branch.alias === groupBy)
+  if (!groupBranch) return undefined
 
   for (const entry of data) {
     const label = toPlainText(entry.data[groupBy]).trim()
-    if (label && categoryKey(label) === folderParam) return { [groupBy]: label }
+    if (label && categoryKey(label) === folderParam) {
+      return { [groupBy]: groupBranch.type === "tags" ? [label] : label }
+    }
   }
   return undefined
 }

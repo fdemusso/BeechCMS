@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { ColumnDef, GroupingColumnDef } from "@tanstack/react-table"
-import type { Seed } from "@beechcms/core"
+import { isSingleChoiceTags, type Seed } from "@beechcms/core"
 import { More as MoreHorizontal, Text as Type, Hashtag as Hash, ToggleOff as ToggleLeft, Calendar, Code, FileText, File, Link as LinkIcon } from 'reicon-react'
 import { toast } from "sonner"
 
@@ -11,6 +11,7 @@ import { FieldDisplay } from "@/components/fields"
 import { IndicatorIcon } from "@/components/ui/indicator-icon"
 import { RelativeTime } from "@/components/ui/relative-time"
 import { getStatusTone, STATUS_TONE_DOT_CLASS } from "@/lib/status-tone"
+import { extractTagNames } from "@/lib/tags-utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -312,6 +313,15 @@ export function generateColumns(
           <span>{branch.label}</span>
         </div>
       ),
+    }
+
+    if (branch.type === "tags") {
+      if (!isSingleChoiceTags(branch)) {
+        baseColumn.enableSorting = false
+      } else {
+        // Without it TanStack groups an array by identity: one group per row.
+        baseColumn.getGroupingValue = (row) => extractTagNames(row.data[branch.alias])[0] ?? ""
+      }
     }
 
     // Configurazione grouping/aggregation per tipo

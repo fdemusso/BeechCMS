@@ -10,6 +10,14 @@ A single column on the board, in deterministic display order (Q2).
 
 ## Properties
 
+### color?
+
+> `optional` **color?**: `string`
+
+The option color (#RRGGBB) of a tags-axis column. Absent on boolean columns and on the null column.
+
+***
+
 ### label
 
 > **label**: `string`

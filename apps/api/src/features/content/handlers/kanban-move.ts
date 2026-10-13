@@ -4,6 +4,7 @@
 
 import type { Context } from 'hono'
 import {
+  kanbanColumnEntryValue,
   resolveKanbanConfig,
   validateAndSanitizeSeedPayload,
   type KanbanMoveBody,
@@ -12,6 +13,11 @@ import { publicProblem } from '../../../public/errors/problem-details'
 import { handleContentDatabaseError } from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import type { AppEnv } from '../../../types'
+
+function isAxisMove(axis: unknown): axis is NonNullable<KanbanMoveBody['axis']> {
+  if (typeof axis !== 'object' || axis === null || !('value' in axis)) return false
+  return typeof axis.value === 'string' || axis.value === null
+}
 
 export async function kanbanMoveHandler(context: Context<AppEnv>) {
   const slug = context.req.param('slug')
@@ -35,6 +41,9 @@ export async function kanbanMoveHandler(context: Context<AppEnv>) {
   } catch {
     return publicProblem(context, { type: 'content-invalid-body', title: 'Bad Request', status: 400, detail: 'position and axisBranchId are required strings' })
   }
+  if (body.axis !== undefined && !isAxisMove(body.axis)) {
+    return publicProblem(context, { type: 'content-invalid-body', title: 'Bad Request', status: 400, detail: 'axis.value must be a string or null' })
+  }
 
   const compat = resolveKanbanConfig(seed)
   const candidate = compat.candidates.find(c => c.branchId === body.axisBranchId)
@@ -55,20 +64,7 @@ export async function kanbanMoveHandler(context: Context<AppEnv>) {
   let patch: Record<string, unknown> | null = null
 
   if (body.axis) {
-    if (body.axis.kind === 'scalar') {
-      const rawValue = body.axis.value
-      const coerced: unknown = axisBranch.type === 'boolean' && rawValue !== null
-        ? rawValue === 'true'
-        : rawValue
-      patch = { [axisBranch.alias]: coerced }
-    } else {
-      // tags: server-side atomic swap (Q1)
-      const currentTags = (current[axisBranch.alias] as string[] | null) ?? []
-      const { oldValue, newValue } = body.axis
-      const withoutOld = oldValue !== null ? currentTags.filter(t => t !== oldValue) : currentTags
-      const nextTags = newValue !== null && !withoutOld.includes(newValue) ? [...withoutOld, newValue] : withoutOld
-      patch = { [axisBranch.alias]: nextTags }
-    }
+    patch = { [axisBranch.alias]: kanbanColumnEntryValue(axisBranch, body.axis.value) }
 
     const validation = validateAndSanitizeSeedPayload(seed, patch, {
       operation: 'update',

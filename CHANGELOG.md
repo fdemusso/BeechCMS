@@ -18,6 +18,14 @@
 - Seed builder edits the options, their colors and the choice mode of `tags` branches.
 - `json` branches with an alias containing `tag` are no longer rendered as chips.
 
+### Views (kanban, sort, group)
+
+- Kanban axis: only single-choice `tags` with options (and `boolean`); columns follow the option order and color.
+- `PATCH /api/content/:seed/:id/kanban-move`: `axis` is now `{ value }` (`kind`, `oldValue`, `newValue` removed); a tags move writes `[value]` / `[]`.
+- Sort and group-by on `tags` only when single choice, in option order (alphabetical without options), empty values last; `sortBy` on a multiple-choice `tags` field is ignored.
+- `POST/PATCH /api/content/:seed/views` answer `422 content-invalid-view` for sort, group-by, kanban axis or kanban sort on a `tags` field that does not allow it; stored views are cleaned on read.
+- Filters on `tags`: `eq`/`contains`/`in` test membership, `neq`/`not_contains`/`not_in` their negation (Public API included). Automation conditions compare `tags` arrays by membership.
+
 ### Schema plan / apply
 
 - `beech schema plan` and MCP `beech_schema_plan` report definition-only changes (`definitionChanged`, `changedBranches`) even when they produce no DDL.

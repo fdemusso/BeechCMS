@@ -39,4 +39,13 @@ describe("groupByCategory", () => {
     expect(groups[2].key).toBeNull()
     expect(groups[2].models.map((m) => m.entryId)).toEqual(["1", "3"])
   })
+
+  it("ordina i gruppi con il comparatore dato e mette 'senza categoria' in coda", () => {
+    const order = ["low", "high"]
+    const compareLabels = (a: string, b: string) => order.indexOf(a) - order.indexOf(b)
+
+    const groups = groupByCategory([model("1", ""), model("2", "high"), model("3", "low")], compareLabels)
+
+    expect(groups.map((g) => g.label)).toEqual(["low", "high", null])
+  })
 })

@@ -36,15 +36,12 @@ function computeMaxStringLength(firstPage: ContentEntry[], alias: string): numbe
  *
  * @param firstPage - List of entries in the first page layout.
  * @param alias - The field alias to check.
- * @returns An integer representing the target truncation length, or null if tags.
+ * @returns An integer representing the target truncation length.
  */
 function computeMaxJsonLength(
   firstPage: ContentEntry[],
   alias: string,
-): number | null {
-  const isTagsField = alias.toLowerCase().includes("tag")
-  if (isTagsField) return null
-
+): number {
   let max = 0
   for (const row of firstPage) {
     const cellValue = row.data[alias]

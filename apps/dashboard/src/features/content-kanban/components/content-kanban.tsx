@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { DndContext, DragOverlay } from '@dnd-kit/core'
-import { resolveKanbanConfig } from '@beechcms/core'
+import { kanbanColumnEntryValue, resolveKanbanConfig } from '@beechcms/core'
 import type { Branch, KanbanColumnDescriptor, FilterGroup } from '@beechcms/core'
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -76,7 +76,7 @@ function KanbanColumnConnected({
                 ...item,
                 data: {
                   ...(item.data ?? {}),
-                  [axisBranch.alias]: p.axisValue,
+                  [axisBranch.alias]: kanbanColumnEntryValue(axisBranch, p.axisValue),
                 },
               }
               displayModel = buildKanbanCardDisplayModel(
@@ -115,9 +115,10 @@ function KanbanColumnConnected({
       if (!p) return c
       let slots = c.slots
       if (slots) {
-        const updatedHeader = slots.header?.branch.id === axisBranch.id ? { ...slots.header, value: p.axisValue } : slots.header
-        const updatedSubtitle = slots.subtitle?.branch.id === axisBranch.id ? { ...slots.subtitle, value: p.axisValue } : slots.subtitle
-        const updatedMetadata = slots.metadata.map(m => m.branch.id === axisBranch.id ? { ...m, value: p.axisValue } : m)
+        const entryValue = kanbanColumnEntryValue(axisBranch, p.axisValue)
+        const updatedHeader = slots.header?.branch.id === axisBranch.id ? { ...slots.header, value: entryValue } : slots.header
+        const updatedSubtitle = slots.subtitle?.branch.id === axisBranch.id ? { ...slots.subtitle, value: entryValue } : slots.subtitle
+        const updatedMetadata = slots.metadata.map(m => m.branch.id === axisBranch.id ? { ...m, value: entryValue } : m)
         slots = { ...slots, header: updatedHeader, subtitle: updatedSubtitle, metadata: updatedMetadata }
       }
       return {
@@ -156,6 +157,7 @@ function KanbanColumnConnected({
     <KanbanColumn
       colValue={col.value}
       label={col.label}
+      color={col.color}
       fetchState={fetchState}
       cards={cards}
       collapsed={collapsed}
@@ -307,7 +309,7 @@ export function ContentKanban({
                 onToggleCollapse={() => toggleCollapse(col.value)}
                 onEdit={onEdit}
                 onCreateEntry={onCreateEntry
-                  ? () => onCreateEntry(col.value != null ? { [axisBranch.alias]: col.value } : {})
+                  ? () => onCreateEntry(col.value != null ? { [axisBranch.alias]: kanbanColumnEntryValue(axisBranch, col.value) } : {})
                   : undefined}
               />
             )

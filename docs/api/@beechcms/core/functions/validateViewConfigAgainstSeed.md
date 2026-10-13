@@ -9,6 +9,7 @@
 > **validateViewConfigAgainstSeed**(`config`, `seed`, `type`): `object`
 
 Pure auto-cleanup, never an error: drops references to branches the seed no longer has,
+`sort`/`groupBy`/kanban sort on a multiple-choice `tags` branch,
 duplicate filters on one column, date precision on a non-date grouping, and the Kanban
 sub-config on a non-kanban instance and the card layout on a table instance. Same policy as validateCardConfigAgainstSeed.
 

@@ -6,7 +6,11 @@
 
 import { describe, it, expect } from "vitest"
 
+import { CANONICAL_SEEDS } from "@beechcms/testing"
+import type { Seed } from "@beechcms/core"
+
 import {
+  buildFilterableColumns,
   getEntryValueForColumn,
   isEmptyValue,
   isToolbarFilterGroup,
@@ -248,3 +252,23 @@ describe("filter-dsl - matchesFilterGroupStrict", () => {
   })
 })
 
+
+describe("buildFilterableColumns", () => {
+  const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts") as Seed
+
+  it("buildFilterableColumns types a tags branch as tags", () => {
+    const columns = buildFilterableColumns(posts)
+
+    const tagColumnTypes = columns.filter((column) => ["priority", "tags"].includes(column.columnId)).map((column) => column.type)
+    expect(tagColumnTypes).toEqual(["tags", "tags"])
+  })
+
+  it("buildFilterableColumns types a json branch as text whatever its alias", () => {
+    // Regression guard: an alias containing "tag" used to turn a json branch into a tags filter.
+    const malformed: Seed = { ...posts, branches: [{ id: "br_90", alias: "tagsImages", label: "Tags images", type: "json" }] }
+
+    const columns = buildFilterableColumns(malformed)
+
+    expect(columns.find((column) => column.columnId === "tagsImages")?.type).toBe("text")
+  })
+})

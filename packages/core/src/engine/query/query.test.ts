@@ -15,6 +15,8 @@ const mockSeed: Seed = {
     { id: 'br_price', alias: 'price', type: 'number', label: 'Price' },
     { id: 'br_tags', alias: 'tags', type: 'tags', label: 'Tags' },
     { id: 'br_cover', alias: 'cover', type: 'file', label: 'Cover' },
+    { id: 'br_priority', alias: 'priority', type: 'tags', multiple: false, label: 'Priority', options: [{ value: 'low', color: '#64748b' }, { value: 'high', color: '#ef4444' }] },
+    { id: 'br_topic', alias: 'topic', type: 'tags', multiple: false, label: 'Topic' },
   ]
 }
 
@@ -275,6 +277,60 @@ describe('Query', () => {
       expect(query.bindings).toEqual(['tech', 'a', 'b'])
     })
 
+    it('orders a single-choice tags branch by option position with empty values last', () => {
+      const query = buildSelectQuery(mockSeed, {
+        orderBy: { column: 'priority', dir: 'ASC' },
+        pagination: { limit: 10, offset: 0 },
+      })
+
+      expect(query.sql).toContain('CASE')
+      expect(query.sql).toContain('IS NULL) ASC')
+      expect(query.bindings).toEqual(['low', 'high', 10, 0])
+    })
+
+    it('orders a free single-choice tags branch by its first value with empty values last', () => {
+      const query = buildSelectQuery(mockSeed, { orderBy: { column: 'topic', dir: 'DESC' } })
+
+      expect(query.sql).toContain("json_extract(topic, '$[0]')")
+      expect(query.sql).toContain('IS NULL) ASC')
+      expect(query.sql).toMatch(/END\) DESC$/)
+      expect(query.bindings).toEqual([])
+    })
+
+    it('ignores orderBy on a multiple-choice tags branch and falls back to created_at DESC', () => {
+      const query = buildSelectQuery(mockSeed, { orderBy: { column: 'tags', dir: 'ASC' } })
+
+      expect(query.sql).toContain('ORDER BY content_articles.created_at DESC')
+    })
+
+    it('turns eq and contains on a tags column into membership', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'priority', type: 'tags', conditions: [{ op: 'eq', value: 'high' }] },
+          { column: 'tags', type: 'tags', conditions: [{ op: 'contains', value: 'tech' }] },
+        ],
+      })
+
+      expect(query.sql).toContain('json_each(priority)')
+      expect(query.sql).toContain('json_each(tags)')
+      expect(query.sql).not.toContain('priority = ?')
+      expect(query.sql).not.toContain('LIKE')
+      expect(query.bindings).toEqual(['high', 'tech'])
+    })
+
+    it('turns neq and not_in on a tags column into negated membership', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'priority', type: 'tags', conditions: [{ op: 'neq', value: 'high' }] },
+          { column: 'tags', type: 'tags', conditions: [{ op: 'not_in', value: ['a', 'b'] }] },
+        ],
+      })
+
+      expect(query.sql).toContain('NOT (EXISTS (SELECT 1 FROM json_each(priority)')
+      expect(query.sql).toContain('NOT (EXISTS (SELECT 1 FROM json_each(tags)')
+      expect(query.bindings).toEqual(['high', 'a', 'b'])
+    })
+
     it('handles eq and neq conditions', () => {
       const query = buildSelectQuery(mockSeed, {
         filters: [
@@ -423,6 +479,14 @@ describe('Query', () => {
   })
 
   describe('findUnappliedFilters', () => {
+    it('lists a tags eq condition with a null value as unapplied', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [
+        { column: 'priority', type: 'tags', conditions: [{ op: 'eq', value: null }] },
+      ])
+
+      expect(unapplied).toHaveLength(1)
+    })
+
     const group = (column: string, type: 'text' | 'number' | 'date', op: FilterOperator, value: unknown) =>
       ({ column, type, conditions: [{ op, value }] }) as never
 

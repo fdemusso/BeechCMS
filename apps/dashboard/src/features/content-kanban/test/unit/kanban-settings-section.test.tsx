@@ -28,7 +28,7 @@ import type { Seed } from "@beechcms/core"
 import type { ViewLayout } from "@/features/shared"
 import { KanbanSettingsSection } from "../../components/kanban-settings-section"
 
-// Drafts make a seed kanban-incompatible; with them off, "tags" (br_07) is the only axis candidate.
+// Drafts make a seed kanban-incompatible; with them off, "priority" (br_11, single choice with options) is the only axis candidate.
 const posts: Seed = { ...CANONICAL_SEEDS.find((seed) => seed.slug === "posts")!, allowDrafts: false }
 
 function makeLayout(overrides: Partial<ViewLayout> = {}): ViewLayout {
@@ -66,17 +66,18 @@ describe("KanbanSettingsSection", () => {
   it("lists the seed's axis candidates under group-by", () => {
     renderSection(posts, makeLayout())
 
-    expect(screen.getByText("Tags")).toBeInTheDocument()
+    expect(screen.getByText("Priority")).toBeInTheDocument()
+    expect(screen.queryByText("Tags")).not.toBeInTheDocument()
   })
 
-  it("picking Tags sets the axis and closes the menu", () => {
+  it("picking Priority sets the axis and closes the menu", () => {
     const setKanban = vi.fn()
     const { onClose } = renderSection(posts, makeLayout({ setKanban }))
 
-    screen.getByText("Tags").click()
+    screen.getByText("Priority").click()
 
     expect(setKanban).toHaveBeenCalledWith({
-      axisBranchId: "br_07",
+      axisBranchId: "br_11",
       sort: null,
       hiddenColumnValues: [],
       collapsedColumnValues: [],

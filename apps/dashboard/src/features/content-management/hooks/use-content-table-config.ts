@@ -7,13 +7,14 @@ import type {
   ColumnSizingState,
   GroupingState,
 } from "@tanstack/react-table"
-import type { Seed } from "@beechcms/core"
+import { isSingleChoiceTags, type Seed } from "@beechcms/core"
 import {
   generateColumns,
   computeMaxLengths,
   defaultHiddenColumns,
   type ContentEntry,
 } from "@/lib/dynamic-columns"
+import { compareTagChoice, extractTagNames } from "@/lib/tags-utils"
 import type { ViewLayout } from "@/features/shared"
 
 export interface UseContentTableConfigOptions {
@@ -78,6 +79,14 @@ export function useContentTableConfig({
     [groupBy]
   )
 
+  // Groups follow the first occurrence of their rows (manualSorting), so row order sets group order.
+  const rows = React.useMemo(() => {
+    const groupBranch = seed?.branches.find((b: Seed["branches"][number]) => b.alias === groupBy)
+    if (!groupBranch || !isSingleChoiceTags(groupBranch)) return data
+    const firstTag = (entry: ContentEntry) => extractTagNames(entry.data[groupBranch.alias])[0] ?? null
+    return [...data].sort((a, b) => compareTagChoice(groupBranch, firstTag(a), firstTag(b)))
+  }, [data, groupBy, seed])
+
   const isGroupingByDate = React.useMemo(() => {
     if (!seed || !groupBy) return false
     const branch = seed.branches.find((b: Seed["branches"][number]) => b.alias === groupBy)
@@ -118,6 +127,7 @@ export function useContentTableConfig({
 
   return {
     columns,
+    rows,
     tableKey,
     initialHiddenColumns,
     columnSizing,

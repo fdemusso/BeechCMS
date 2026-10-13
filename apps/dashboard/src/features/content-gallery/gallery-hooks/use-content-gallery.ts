@@ -4,10 +4,11 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import type { KanbanCardConfig, Seed } from "@beechcms/core"
+import { isSingleChoiceTags, type KanbanCardConfig, type Seed } from "@beechcms/core"
 
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { NO_ELEMENT_FORMATTER, type ElementFormatter } from "@/lib/conditional-format"
+import { compareTagChoice } from "@/lib/tags-utils"
 
 import { buildGalleryCardDisplayModel } from "../gallery-card-display"
 import type { GalleryCardDisplayModel } from "../gallery-card-display"
@@ -45,10 +46,12 @@ export function useContentGallery(
 
   const categoryAlias = cardFields.categoryBranch?.alias ?? null
 
-  const categoryGroups = React.useMemo(
-    () => (categoryAlias ? groupByCategory(cardModels) : []),
-    [cardModels, categoryAlias]
-  )
+  const categoryBranch = cardFields.categoryBranch
+  const categoryGroups = React.useMemo(() => {
+    if (!categoryAlias) return []
+    if (!categoryBranch || !isSingleChoiceTags(categoryBranch)) return groupByCategory(cardModels)
+    return groupByCategory(cardModels, (a, b) => compareTagChoice(categoryBranch, a, b))
+  }, [cardModels, categoryAlias, categoryBranch])
 
   return {
     cardModels,

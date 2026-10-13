@@ -3,7 +3,7 @@
 
 import type { Seed, Branch, FilterGroup } from '../../engine/types.js'
 import { isLocalizedBranch } from '../../engine/localization/localization.js'
-import { tagOptionValues } from '../../engine/seeds/tag-options.js'
+import { isSingleChoiceTags, tagOptionValues } from '../../engine/seeds/tag-options.js'
 
 /** Branch types that can form a discrete, finite set of columns (KB §2). */
 export type KanbanAxisBranchType = 'tags' | 'boolean'
@@ -22,6 +22,8 @@ export interface KanbanColumnDescriptor {
   /** The discrete axis value. `null` ⇒ the always-last "Senza valore" column. */
   value: string | null
   label: string
+  /** The option color (#RRGGBB) of a tags-axis column. Absent on boolean columns and on the null column. */
+  color?: string
 }
 
 /** Per-seed, dashboard-side kanban view preferences. Persisted in
@@ -54,7 +56,7 @@ function isAxisCandidate(b: Branch): KanbanAxisBranchType | null {
   // overwrite every translation with the column value.
   if (isLocalizedBranch(b)) return null
   if (NON_AXIS_TYPES.has(b.type)) return null
-  if (b.type === 'tags') return 'tags'
+  if (b.type === 'tags') return isSingleChoiceTags(b) && tagOptionValues(b).length > 0 ? 'tags' : null
   if (b.type === 'boolean') return 'boolean'
   return null
 }
@@ -84,22 +86,16 @@ export function resolveKanbanConfig(seed: Seed): KanbanCompatibility {
  * Deterministic, stable column order for a chosen axis (Q2). The "Senza valore"
  * (value: null) column is always appended last. Values out of `options` are NOT
  * given their own column (KB-U25) — the board folds them into "Senza valore".
- *
- * @param distinctTagValues unique tag values observed in data (tags axis without options).
+ * A tags axis yields one column per option, in declared order, carrying the option color.
  */
-export function resolveKanbanColumns(
-  branch: Branch,
-  distinctTagValues: string[] = [],
-): KanbanColumnDescriptor[] {
+export function resolveKanbanColumns(branch: Branch): KanbanColumnDescriptor[] {
   const cols: KanbanColumnDescriptor[] = []
   if (branch.type === 'boolean') {
     cols.push({ value: 'false', label: 'No' }, { value: 'true', label: 'Sì' }) // [false, true]
   } else if (branch.type === 'tags') {
-    const optionValues = tagOptionValues(branch)
-    const ordered = optionValues.length > 0
-      ? optionValues
-      : [...distinctTagValues].sort((a, b) => a.localeCompare(b))               // alphabetical
-    for (const o of ordered) cols.push({ value: o, label: o })
+    for (const option of branch.options ?? []) {
+      cols.push({ value: option.value, label: option.value, color: option.color })
+    }
   }
   const isRequired = Boolean(branch.requiredOnCreate || branch.requiredOnUpdate)
   if (!isRequired) {
@@ -120,10 +116,22 @@ export interface KanbanMoveBody {
   axisBranchId: string
   /** New fractional-index key for this entry in the destination column (KB-S04b/d). */
   position: string
-  /** Present only on a cross-column move (axis value changed). Omit for same-column reorder. */
-  axis?:
-    | { kind: 'scalar'; value: string | null }
-    | { kind: 'tags'; oldValue: string | null; newValue: string | null }
+  /** Present only on a cross-column move: the destination column value (`null` = "Senza valore"). */
+  axis?: { value: string | null }
+}
+
+/**
+ * The entry value that puts an entry in the kanban column `columnValue` of `branch`:
+ * boolean → `true`/`false` (`null` column → `null`), tags → `[columnValue]` (`null` column → `[]`),
+ * any other type → `columnValue` unchanged. Pure.
+ */
+export function kanbanColumnEntryValue(
+  branch: Branch,
+  columnValue: string | null,
+): boolean | string | string[] | null {
+  if (branch.type === 'boolean') return columnValue === null ? null : columnValue === 'true'
+  if (branch.type === 'tags') return columnValue === null ? [] : [columnValue]
+  return columnValue
 }
 
 export function kanbanColumnFilter(branch: Branch, value: string | null): FilterGroup {
