@@ -210,7 +210,7 @@ describe('D1InvitationRepository', () => {
     expect(await repo.findById(id)).toBeNull()
   })
 
-  it('listAll returns rows newest first', async () => {
+  it('list returns one page at a time, newest first, without skipping or repeating rows', async () => {
     const roleId = await makeRole()
     const firstId = await repo.create({
       email: 'a@beechcms.io',
@@ -229,8 +229,11 @@ describe('D1InvitationRepository', () => {
       expiresAt: NOW + 1000,
     })
 
-    const all = await repo.listAll()
-    expect(all.map(row => row.id).sort()).toEqual([firstId, secondId].sort())
+    const firstPage = await repo.list({ limit: 1, offset: 0 })
+    const secondPage = await repo.list({ limit: 1, offset: 1 })
+    const beyond = await repo.list({ limit: 1, offset: 2 })
+    expect([...firstPage, ...secondPage].map(row => row.id).sort()).toEqual([firstId, secondId].sort())
+    expect(beyond).toEqual([])
   })
 
   it('delete removes a row and returns false when absent', async () => {

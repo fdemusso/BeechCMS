@@ -21,7 +21,7 @@ const invitations = {
   findValidByHash: vi.fn<IInvitationRepository['findValidByHash']>(),
   redeem: vi.fn<IInvitationRepository['redeem']>(),
   findById: vi.fn<IInvitationRepository['findById']>(),
-  listAll: vi.fn<IInvitationRepository['listAll']>(),
+  list: vi.fn<IInvitationRepository['list']>(),
   regenerate: vi.fn<IInvitationRepository['regenerate']>(),
   delete: vi.fn<IInvitationRepository['delete']>(),
 }
@@ -41,7 +41,7 @@ const assignments = {
   create: vi.fn<IRoleAssignmentRepository['create']>(),
   delete: vi.fn<IRoleAssignmentRepository['delete']>(),
   findById: vi.fn<IRoleAssignmentRepository['findById']>(),
-  listAll: vi.fn<IRoleAssignmentRepository['listAll']>(),
+  listForUsers: vi.fn<IRoleAssignmentRepository['listForUsers']>(),
   listAllForUser: vi.fn<IRoleAssignmentRepository['listAllForUser']>(),
 }
 
@@ -58,6 +58,7 @@ const users = {
   updateNotificationPreferences: vi.fn<IUserRepository['updateNotificationPreferences']>(),
   emailBelongsToAnotherUser: vi.fn<IUserRepository['emailBelongsToAnotherUser']>(),
   listAccounts: vi.fn<IUserRepository['listAccounts']>(),
+  findAccountById: vi.fn<IUserRepository['findAccountById']>(),
   setActive: vi.fn<IUserRepository['setActive']>(),
 }
 

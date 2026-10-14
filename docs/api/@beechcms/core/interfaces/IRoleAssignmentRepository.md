@@ -108,22 +108,6 @@ An assignment is skipped when its scope names a seed that is absent or
 
 ***
 
-### listAll()
-
-> **listAll**(): `Promise`&lt;[`PermissionAssignment`](PermissionAssignment.md)[]&gt;
-
-Every assignment in the system, decay filter NOT applied.
-
-Exists so the account-list endpoint can resolve each account's scopes in ONE round
-trip instead of one query per account. Administration tables are small by nature;
-content never flows through here.
-
-#### Returns
-
-`Promise`&lt;[`PermissionAssignment`](PermissionAssignment.md)[]&gt;
-
-***
-
 ### listAllForUser()
 
 > **listAllForUser**(`userId`): `Promise`&lt;[`PermissionAssignment`](PermissionAssignment.md)[]&gt;
@@ -155,6 +139,28 @@ Lists every assignment referencing a role, decay filter NOT applied.
 ##### roleId
 
 `string`
+
+#### Returns
+
+`Promise`&lt;[`PermissionAssignment`](PermissionAssignment.md)[]&gt;
+
+***
+
+### listForUsers()
+
+> **listForUsers**(`userIds`): `Promise`&lt;[`PermissionAssignment`](PermissionAssignment.md)[]&gt;
+
+Every assignment of the given users, decay filter NOT applied, in ONE round trip.
+
+Exists so the account-list endpoint can resolve the scopes of one page of accounts
+without a query per account. Callers pass at most [MAX\_PAGE\_SIZE](../variables/MAX_PAGE_SIZE.md) ids (D1 caps
+bound parameters per statement); an empty list returns an empty list.
+
+#### Parameters
+
+##### userIds
+
+readonly `string`[]
 
 #### Returns
 

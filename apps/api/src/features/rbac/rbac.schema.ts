@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { z } from 'zod'
-import { PERMISSIONS, isValidAccountEmail } from '@beechcms/core'
+import { MAX_PAGE_SIZE, PERMISSIONS, isValidAccountEmail } from '@beechcms/core'
 
 /** bcrypt silently truncates past 72 bytes, so the byte length is validated, not the char count. */
 const passwordSchema = z
@@ -16,6 +16,12 @@ const passwordSchema = z
 
 /** The closed vocabulary, reused verbatim. A permission outside it cannot be parsed. */
 const permissionSchema = z.enum(PERMISSIONS)
+
+/** Query string of the paged administration listings. Digits only: no sign, no fraction, no exponent. */
+export const pageQuerySchema = z.object({
+  limit: z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(1).max(MAX_PAGE_SIZE)).optional(),
+  offset: z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(0)).optional(),
+})
 
 export const createUserSchema = z.object({
   email: z.string().trim().refine(isValidAccountEmail, { message: 'Invalid email address.' }),

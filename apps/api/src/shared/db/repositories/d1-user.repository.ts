@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { AdminGuardedResult, IUserRepository, UserRecord, NewUserInput, AccountSummary, InitialRoleGrant } from '@beechcms/core'
+import type { AdminGuardedResult, PageRequest, IUserRepository, UserRecord, NewUserInput, AccountSummary, InitialRoleGrant } from '@beechcms/core'
 import { holdsGlobalManageUsers, otherAdminWithoutUser } from './global-admin-sql'
 
 type AccountRow = {
@@ -14,6 +14,18 @@ type AccountRow = {
   role: string
   is_active: number
   created_at: number
+}
+
+function accountFromRow(row: AccountRow): AccountSummary {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    surname: row.surname,
+    role: row.role,
+    isActive: row.is_active === 1,
+    createdAt: row.created_at,
+  }
 }
 
 type UserRow = {
@@ -157,23 +169,28 @@ export class D1UserRepository implements IUserRepository {
     return row !== null
   }
 
-  async listAccounts(): Promise<AccountSummary[]> {
+  async listAccounts(page: PageRequest): Promise<AccountSummary[]> {
     const rows = await this.db
       .prepare(
         `SELECT id, email, name, surname, role, is_active, created_at
-         FROM users ORDER BY created_at ASC`
+         FROM users ORDER BY created_at ASC, id ASC LIMIT ? OFFSET ?`
       )
+      .bind(page.limit, page.offset)
       .all<AccountRow>()
 
-    return (rows.results ?? []).map(row => ({
-      id: row.id,
-      email: row.email,
-      name: row.name,
-      surname: row.surname,
-      role: row.role,
-      isActive: row.is_active === 1,
-      createdAt: row.created_at,
-    }))
+    return (rows.results ?? []).map(accountFromRow)
+  }
+
+  async findAccountById(userId: string): Promise<AccountSummary | null> {
+    const row = await this.db
+      .prepare(
+        `SELECT id, email, name, surname, role, is_active, created_at
+         FROM users WHERE id = ?`
+      )
+      .bind(userId)
+      .first<AccountRow>()
+
+    return row ? accountFromRow(row) : null
   }
 
   async isLastGlobalAdmin(userId: string): Promise<boolean> {

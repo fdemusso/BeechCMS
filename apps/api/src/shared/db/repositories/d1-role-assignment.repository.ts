@@ -129,9 +129,12 @@ export class D1RoleAssignmentRepository implements IRoleAssignmentRepository {
     return row ? rowToRecord(row) : null
   }
 
-  async listAll(): Promise<PermissionAssignment[]> {
+  async listForUsers(userIds: readonly string[]): Promise<PermissionAssignment[]> {
+    if (userIds.length === 0) return []
+    const placeholders = userIds.map(() => '?').join(', ')
     const rows = await this.db
-      .prepare(`SELECT id, user_id, role_id, scope FROM user_role_assignments`)
+      .prepare(`SELECT id, user_id, role_id, scope FROM user_role_assignments WHERE user_id IN (${placeholders})`)
+      .bind(...userIds)
       .all<AssignmentRow>()
     return (rows.results ?? []).map(rowToRecord)
   }

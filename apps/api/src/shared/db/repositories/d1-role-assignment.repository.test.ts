@@ -81,14 +81,18 @@ describe('D1RoleAssignmentRepository', () => {
     expect(await repo.findById('missing-id')).toBeNull()
   })
 
-  it('listAll returns rows across several users', async () => {
+  it('listForUsers returns only the assignments of the requested users, and nothing for an empty list', async () => {
     const roleId = await roles.create({ name: 'ListAllRole', description: null, permissions: ['content:read'] })
     await seedTestUsers(db, [{ id: 'user_second_01', email: 'second@beechcms.io', password_hash: 'x', grantSuperAdmin: false }])
     await repo.create({ userId: USER_ID, roleId, scope: GLOBAL_SCOPE })
     await repo.create({ userId: 'user_second_01', roleId, scope: GLOBAL_SCOPE })
 
-    const all = await repo.listAll()
-    expect(all.map(a => a.userId).sort()).toEqual([USER_ID, 'user_second_01'].sort())
+    await seedTestUsers(db, [{ id: 'user_third_01', email: 'third@beechcms.io', password_hash: 'x', grantSuperAdmin: false }])
+    await repo.create({ userId: 'user_third_01', roleId, scope: GLOBAL_SCOPE })
+
+    const requested = await repo.listForUsers([USER_ID, 'user_second_01'])
+    expect(requested.map(a => a.userId).sort()).toEqual([USER_ID, 'user_second_01'].sort())
+    expect(await repo.listForUsers([])).toEqual([])
   })
 
   it('listAllForUser includes an assignment on a deleted seed, unlike listActiveForUser', async () => {
