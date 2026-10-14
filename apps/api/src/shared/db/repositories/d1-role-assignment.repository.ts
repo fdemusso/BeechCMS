@@ -148,6 +148,21 @@ export class D1RoleAssignmentRepository implements IRoleAssignmentRepository {
     return row?.total ?? 0
   }
 
+  async countActiveGlobalAdminsExcludingAssignment(assignmentId: string): Promise<number> {
+    const row = await this.db
+      .prepare(
+        `SELECT COUNT(DISTINCT a.user_id) AS total
+         FROM user_role_assignments a
+         JOIN role_permissions rp ON rp.role_id = a.role_id
+         JOIN users u ON u.id = a.user_id
+         WHERE a.scope = ? AND rp.permission = 'manage_users'
+           AND u.is_active = 1 AND a.id != ?`
+      )
+      .bind(GLOBAL_SCOPE, assignmentId)
+      .first<{ total: number }>()
+    return row?.total ?? 0
+  }
+
   async countActiveGlobalAdminsExcludingRole(roleId: string): Promise<number> {
     const row = await this.db
       .prepare(

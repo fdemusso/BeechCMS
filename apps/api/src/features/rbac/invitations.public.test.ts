@@ -19,7 +19,7 @@ const invitations = {
   invalidatePending: vi.fn<IInvitationRepository['invalidatePending']>(),
   create: vi.fn<IInvitationRepository['create']>(),
   findValidByHash: vi.fn<IInvitationRepository['findValidByHash']>(),
-  markUsed: vi.fn<IInvitationRepository['markUsed']>(),
+  redeem: vi.fn<IInvitationRepository['redeem']>(),
   findById: vi.fn<IInvitationRepository['findById']>(),
   listAll: vi.fn<IInvitationRepository['listAll']>(),
   regenerate: vi.fn<IInvitationRepository['regenerate']>(),
@@ -45,6 +45,7 @@ const assignments = {
   listAll: vi.fn<IRoleAssignmentRepository['listAll']>(),
   listAllForUser: vi.fn<IRoleAssignmentRepository['listAllForUser']>(),
   countActiveGlobalAdminsExcludingUser: vi.fn<IRoleAssignmentRepository['countActiveGlobalAdminsExcludingUser']>(),
+  countActiveGlobalAdminsExcludingAssignment: vi.fn<IRoleAssignmentRepository['countActiveGlobalAdminsExcludingAssignment']>(),
   countActiveGlobalAdminsExcludingRole: vi.fn<IRoleAssignmentRepository['countActiveGlobalAdminsExcludingRole']>(),
 }
 
@@ -108,12 +109,11 @@ describe('invitation HTTP handlers', () => {
     vi.resetAllMocks()
     limiter.checkLimit.mockResolvedValue({ isAllowed: true })
     invitations.findValidByHash.mockResolvedValue(invitation)
-    invitations.markUsed.mockResolvedValue(true)
+    invitations.redeem.mockResolvedValue(true)
     roles.findById.mockResolvedValue(role)
     roles.findByIds.mockResolvedValue([role])
     users.findById.mockResolvedValue(issuer)
     users.findByEmail.mockResolvedValue(null)
-    users.create.mockResolvedValue(undefined)
     assignments.listActiveForUser.mockResolvedValue([
       { id: issuer.id, userId: issuer.id, roleId: role.id, scope: '*' },
     ])
@@ -157,7 +157,7 @@ describe('invitation HTTP handlers', () => {
     }
   })
 
-  // Legacy invitation email validation must happen before the single-use claim.
+  // Every refusal must happen before the atomic redeem writes anything.
   const refusals: { reason: string; arrange: () => void; status: number; type: string }[] = [
     { reason: 'unknown invitation', arrange: () => { invitations.findValidByHash.mockResolvedValue(null) }, status: 404, type: 'invitation-invalid' },
     { reason: 'invalid stored email', arrange: () => { invitations.findValidByHash.mockResolvedValue({ ...invitation, email: 'admin@example..com' }) }, status: 422, type: 'validation-failed' },
@@ -167,9 +167,9 @@ describe('invitation HTTP handlers', () => {
     { reason: 'inactive issuer', arrange: () => { users.findById.mockResolvedValue({ ...issuer, isActive: false }) }, status: 409, type: 'invitation-revoked' },
     { reason: 'revoked issuer authority', arrange: () => { assignments.listActiveForUser.mockResolvedValue([]) }, status: 409, type: 'invitation-revoked' },
     { reason: 'role exceeding issuer authority', arrange: () => { roles.findByIds.mockResolvedValue([{ ...role, permissions: ['manage_users'] }]) }, status: 409, type: 'invitation-revoked' },
-    { reason: 'lost single-use claim', arrange: () => { invitations.markUsed.mockResolvedValue(false) }, status: 404, type: 'invitation-invalid' },
+    { reason: 'lost single-use claim', arrange: () => { invitations.redeem.mockResolvedValue(false) }, status: 404, type: 'invitation-invalid' },
     { reason: 'existing account', arrange: () => { users.findByEmail.mockResolvedValue(issuer) }, status: 409, type: 'email-taken' },
-    { reason: 'concurrent account creation', arrange: () => { users.create.mockRejectedValue(new Error('UNIQUE constraint failed: users.email')) }, status: 409, type: 'email-taken' },
+    { reason: 'concurrent account creation', arrange: () => { invitations.redeem.mockRejectedValue(new Error('UNIQUE constraint failed: users.email')) }, status: 409, type: 'email-taken' },
   ]
 
   it.each(refusals)('refuses acceptance for $reason with $status $type', async ({ arrange, status, type }) => {
@@ -209,7 +209,7 @@ describe('invitation HTTP handlers', () => {
   })
 
   it('returns an internal error when account storage fails unexpectedly', async () => {
-    users.create.mockRejectedValue(new Error('Storage unavailable'))
+    invitations.redeem.mockRejectedValue(new Error('Storage unavailable'))
 
     const response = await accept()
 

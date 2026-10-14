@@ -134,6 +134,14 @@ export interface IRoleAssignmentRepository {
   countActiveGlobalAdminsExcludingUser(userId: string): Promise<number>
 
   /**
+   * {@link countActiveGlobalAdmins} ignoring one assignment row. Unlike
+   * {@link countActiveGlobalAdminsExcludingUser}, a user who keeps administrative authority
+   * through ANOTHER assignment still counts, so removing one of two redundant admin
+   * assignments is not mistaken for removing the last administrator.
+   */
+  countActiveGlobalAdminsExcludingAssignment(assignmentId: string): Promise<number>
+
+  /**
    * {@link countActiveGlobalAdmins} ignoring every assignment that goes through one role.
    * `0` means mutating that role would strip the platform of its last administrator.
    */

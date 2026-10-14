@@ -23,6 +23,27 @@ Backs the last-SuperAdmin guardrail consumed by a later sprint.
 
 ***
 
+### countActiveGlobalAdminsExcludingAssignment()
+
+> **countActiveGlobalAdminsExcludingAssignment**(`assignmentId`): `Promise`&lt;`number`&gt;
+
+[countActiveGlobalAdmins](#countactiveglobaladmins) ignoring one assignment row. Unlike
+[countActiveGlobalAdminsExcludingUser](#countactiveglobaladminsexcludinguser), a user who keeps administrative authority
+through ANOTHER assignment still counts, so removing one of two redundant admin
+assignments is not mistaken for removing the last administrator.
+
+#### Parameters
+
+##### assignmentId
+
+`string`
+
+#### Returns
+
+`Promise`&lt;`number`&gt;
+
+***
+
 ### countActiveGlobalAdminsExcludingRole()
 
 > **countActiveGlobalAdminsExcludingRole**(`roleId`): `Promise`&lt;`number`&gt;

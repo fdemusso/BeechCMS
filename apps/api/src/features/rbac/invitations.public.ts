@@ -61,8 +61,9 @@ export const previewInvitationHandler = async (context: AppContext) => {
 
 /**
  * POST /auth/invitations/accept
- * Consumes the invitation FIRST, atomically, then creates the account. No token, no
- * session: the activated account logs in through `POST /auth/login` like any other.
+ * Creates the account, its assignment and the consumption of the invitation in one atomic
+ * write, so a failure never burns the invitation or strands an account without a role.
+ * No token, no session: the activated account logs in through `POST /auth/login` like any other.
  */
 export const acceptInvitationHandler = async (context: AppContext) => {
   const limited = await checkInviteRateLimit(context)
@@ -107,32 +108,34 @@ export const acceptInvitationHandler = async (context: AppContext) => {
     return revoked()
   }
 
-  if (!(await invitationRepository.markUsed(invitation.id, now))) return invalid()
-
-  if (await userRepository.findByEmail(invitation.email)) {
-    return rbacProblem(context, RBAC_ERRORS.EMAIL_TAKEN, 409, 'Conflict', 'An account with this email already exists.')
-  }
+  const emailTaken = () =>
+    rbacProblem(context, RBAC_ERRORS.EMAIL_TAKEN, 409, 'Conflict', 'An account with this email already exists.')
+  if (await userRepository.findByEmail(invitation.email)) return emailTaken()
 
   const userId = context.get('idGenerator').uuid()
   const passwordHash = await context.get('hashProvider').hash(parsed.data.password)
 
   try {
-    await userRepository.create({
-      id: userId,
-      email: invitation.email,
-      passwordHash,
-      role: 'editor',
-      name: parsed.data.name ?? null,
-      surname: parsed.data.surname ?? null,
+    const redeemed = await invitationRepository.redeem({
+      invitationId: invitation.id,
+      user: {
+        id: userId,
+        email: invitation.email,
+        passwordHash,
+        role: 'editor',
+        name: parsed.data.name ?? null,
+        surname: parsed.data.surname ?? null,
+      },
+      assignmentId: context.get('idGenerator').uuid(),
+      roleId: invitation.roleId,
+      scope: invitation.scope,
+      usedAt: now,
     })
+    if (!redeemed) return invalid()
   } catch (error) {
-    if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
-      return rbacProblem(context, RBAC_ERRORS.EMAIL_TAKEN, 409, 'Conflict', 'An account with this email already exists.')
-    }
+    if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) return emailTaken()
     throw error
   }
-
-  await context.get('roleAssignmentRepository').create({ userId, roleId: invitation.roleId, scope: invitation.scope })
 
   return context.json({ id: userId, email: invitation.email }, 201)
 }

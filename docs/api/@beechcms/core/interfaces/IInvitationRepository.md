@@ -127,23 +127,24 @@ Every invitation, newest first. Administration tables are small by nature.
 
 ***
 
-### markUsed()
+### redeem()
 
-> **markUsed**(`invitationId`, `nowTimestamp`): `Promise`&lt;`boolean`&gt;
+> **redeem**(`input`): `Promise`&lt;`boolean`&gt;
 
-Consumes an invitation. Returns TRUE only when THIS call performed the transition
-(`used_at IS NULL` at write time), which is what makes redemption single-use under
-concurrency. A second concurrent redeem gets false and must be refused.
+Redeems an invitation: creates the account, writes its (role, scope) assignment and
+consumes the invitation in ONE atomic write. Either all three land or none does, so a
+failure can neither burn the invitation nor leave an account without its role.
+
+Returns TRUE only when THIS call performed the transition (`used_at IS NULL` at write
+time), which is what makes redemption single-use under concurrency; FALSE means the
+invitation was consumed or revoked meanwhile and nothing was written. Throws when the
+email is already registered (UNIQUE), writing nothing.
 
 #### Parameters
 
-##### invitationId
+##### input
 
-`string`
-
-##### nowTimestamp
-
-`number`
+[`InvitationRedemption`](InvitationRedemption.md)
 
 #### Returns
 
