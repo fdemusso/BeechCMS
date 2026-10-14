@@ -210,7 +210,7 @@ Destructive or breaking schema mutations require dedicated REST endpoints and ex
 
 ### 1. Seed Deletion
 - **Soft Deletion (`DELETE /api/seeds/:slug`)**: Marks the seed as deleted in D1 without dropping physical tables, preserving historic data.
-- **Hard Deletion (`DELETE /api/seeds/:slug/hard`)**: Permanently drops the physical `content_{slug}` table, staging table, FTS5 indexes, and purges all associated R2 media assets.
+- **Hard Deletion (`DELETE /api/seeds/:slug/hard`)**: Works on an active or a soft-deleted seed. Permanently drops the physical `content_{slug}` table, staging table, FTS5 indexes, and purges all associated R2 media assets.
 - **Back-Reference Safety Check (`backrefMap`)**: Both deletion endpoints verify if other Seeds reference the target seed via `relation` branches. If references exist, the API returns **`409 Conflict`**.
 - **Confirmation Payload**: Hard deletion requires explicit confirmation:
   ```json

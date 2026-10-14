@@ -83,6 +83,21 @@ export async function getActiveSeed(context: AppContext, slug: string) {
 }
 
 /**
+ * Retrieves a seed record by slug whatever its status, so a soft-deleted seed can still be purged.
+ *
+ * @param context - The Hono request context.
+ * @param slug - The unique slug identifier of the seed.
+ * @returns The seed entity record (`active` or `deleted`), or a 404 Not Found Problem Details Response if it does not exist.
+ */
+export async function getSeedAnyStatus(context: AppContext, slug: string) {
+  const existing = await context.get('seedRepository').get(slug)
+  if (!existing) {
+    return publicProblem(context, { type: 'seed-not-found', title: 'Seed not found', status: 404, detail: `No seed with slug '${slug}'.` })
+  }
+  return existing
+}
+
+/**
  * Refuses an interactive (dashboard/REST) mutation of a manifest-owned seed.
  *
  * A seed with `source = 'code'` is owned by `beech.schema.ts`. Letting the dashboard edit it would
