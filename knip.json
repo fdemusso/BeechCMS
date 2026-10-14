@@ -1,0 +1,107 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": [
+    "**/dist/**",
+    "**/coverage/**",
+    "graphify-out/**",
+    "docs/api/**",
+    "docs/.vitepress/cache/**",
+    "docs/.vitepress/dist/**"
+  ],
+  "workspaces": {
+    ".": {
+      "entry": [
+        "bin/*.mjs",
+        "scripts/**/*.{mjs,js,ts,tsx}",
+        "doctor.config.ts",
+        "docs/.vitepress/config.mts",
+        "docs/.vitepress/theme/index.ts"
+      ],
+      "project": [
+        "bin/**/*.mjs",
+        "scripts/**/*.{mjs,js,ts,tsx}",
+        "doctor.config.ts",
+        "docs/.vitepress/**/*.{ts,mts,vue}"
+      ]
+    },
+    "apps/api": {
+      "entry": [
+        "src/index.ts",
+        "src/factory.ts",
+        "scripts/*.mjs",
+        "vitest.config.ts",
+        "vitest.scale.config.ts",
+        "vitest.workers.config.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "test/**/*.ts",
+        "scripts/**/*.mjs"
+      ],
+      "ignoreDependencies": [
+        "cloudflare"
+      ]
+    },
+    "apps/dashboard": {
+      "entry": [
+        "src/main.tsx",
+        "vite.config.ts",
+        "vitest.config.ts"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ],
+      "ignoreDependencies": [
+        "tailwindcss",
+        "tw-animate-css",
+        "shadcn",
+        "@tiptap/extension-bubble-menu",
+        "@tiptap/extension-floating-menu",
+        "typescript-eslint",
+        "@fontsource-variable/geist",
+        "@fontsource-variable/lora"
+      ]
+    },
+    "e2e": {
+      "entry": [
+        "playwright.config.ts",
+        "tests/**/*.e2e.ts",
+        "tests/global.setup.ts",
+        "scripts/**/*.{ts,mjs}"
+      ],
+      "project": [
+        "**/*.{ts,mjs}"
+      ],
+      "ignoreDependencies": [
+        "@beechcms/api",
+        "@beechcms/core",
+        "@beechcms/dashboard"
+      ]
+    },
+    "packages/*": {
+      "entry": [
+        "src/index.ts",
+        "vitest.config.ts",
+        "scripts/*.mjs"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}",
+        "scripts/**/*.mjs"
+      ]
+    },
+    "docs/examples/*": {
+      "entry": [
+        "src/index.ts"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ]
+    }
+  },
+  "ignoreBinaries": [
+    "tail",
+    "winget",
+    "brew",
+    "xdg-open"
+  ]
+}
