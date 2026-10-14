@@ -7,6 +7,7 @@ import type {
   IInvitationRepository,
   InvitationRecord,
   InvitationRedemption,
+  PageRequest,
   NewInvitationInput,
   ValidatedInvitation,
   IIdGenerator,
@@ -122,12 +123,13 @@ export class D1InvitationRepository implements IInvitationRepository {
     return row ? rowToRecord(row) : null
   }
 
-  async listAll(): Promise<InvitationRecord[]> {
+  async list(page: PageRequest): Promise<InvitationRecord[]> {
     const rows = await this.db
       .prepare(
         `SELECT id, email, role_id, scope, invited_by, expires_at, created_at, used_at
-         FROM invitations ORDER BY created_at DESC`
+         FROM invitations ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
       )
+      .bind(page.limit, page.offset)
       .all<InvitationRow>()
     return (rows.results ?? []).map(rowToRecord)
   }

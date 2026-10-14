@@ -52,6 +52,35 @@ describe('rbac invitations — integration (real D1)', () => {
       expect(stored).toBeNull()
     })
 
+    it('returns invitations in pages of at most `limit`, each page pointing at the next offset', async () => {
+      const ids: string[] = []
+      for (const name of ['one', 'two', 'three']) {
+        const response = await admin.post('/api/rbac/invitations', { email: `${name}@beech.test`, roleId, scope: GLOBAL_SCOPE })
+        expect(response.status).toBe(201)
+        ids.push((await response.json<{ id: string }>()).id)
+      }
+
+      const firstResponse = await admin.get('/api/rbac/invitations?limit=2')
+      const secondResponse = await admin.get('/api/rbac/invitations?limit=2&offset=2')
+
+      expect(firstResponse.status).toBe(200)
+      expect(secondResponse.status).toBe(200)
+      const first = await firstResponse.json<{ invitations: { id: string }[]; nextOffset: number | null }>()
+      const second = await secondResponse.json<{ invitations: { id: string }[]; nextOffset: number | null }>()
+      expect(first.invitations).toHaveLength(2)
+      expect(first.nextOffset).toBe(2)
+      expect(second.invitations).toHaveLength(1)
+      expect(second.nextOffset).toBeNull()
+      expect([...first.invitations, ...second.invitations].map(invitation => invitation.id).sort()).toEqual([...ids].sort())
+    })
+
+    it.each(['limit=0', 'limit=101', 'offset=-1'])('rejects %s with 422 validation-failed', async (query) => {
+      const response = await admin.get(`/api/rbac/invitations?${query}`)
+
+      expect(response.status).toBe(422)
+      expect(await response.json<{ type: string }>()).toMatchObject({ type: 'https://beechcms.dev/problems/validation-failed' })
+    })
+
     it('still reports a redeemed invitation as accepted', async () => {
       const issued = await admin.post('/api/rbac/invitations', { email: CANONICAL_USERS.viewer.email, roleId, scope: GLOBAL_SCOPE })
       const { id, inviteUrl } = await issued.json<{ id: string; inviteUrl: string }>()

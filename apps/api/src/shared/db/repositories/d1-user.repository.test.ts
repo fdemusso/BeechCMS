@@ -218,7 +218,7 @@ describe('D1UserRepository', () => {
           { id: 'u2', email: 'c@d.com', name: null, surname: null, role: 'admin', is_active: 0, created_at: 200 },
         ],
       })
-      const accounts = await new D1UserRepository(db).listAccounts()
+      const accounts = await new D1UserRepository(db).listAccounts({ limit: 10, offset: 0 })
 
       expect(accounts).toEqual([
         { id: 'u1', email: 'a@b.com', name: 'A', surname: null, role: 'editor', isActive: true, createdAt: 100 },
@@ -227,6 +227,34 @@ describe('D1UserRepository', () => {
       for (const account of accounts) {
         expect(Object.hasOwn(account, 'passwordHash')).toBe(false)
       }
+    })
+
+    it('binds the requested page into the statement', async () => {
+      const { db, bindMock } = makeMockDb({ allResults: [] })
+
+      await new D1UserRepository(db).listAccounts({ limit: 5, offset: 10 })
+
+      expect(bindMock).toHaveBeenCalledWith(5, 10)
+    })
+  })
+
+  describe('findAccountById', () => {
+    it('maps the row to an AccountSummary carrying no passwordHash key', async () => {
+      const { db, bindMock } = makeMockDb({
+        firstResult: { id: 'u1', email: 'a@b.com', name: 'A', surname: null, role: 'editor', is_active: 0, created_at: 100 },
+      })
+
+      const account = await new D1UserRepository(db).findAccountById('u1')
+
+      expect(account).toEqual({ id: 'u1', email: 'a@b.com', name: 'A', surname: null, role: 'editor', isActive: false, createdAt: 100 })
+      expect(Object.hasOwn(account!, 'passwordHash')).toBe(false)
+      expect(bindMock).toHaveBeenCalledWith('u1')
+    })
+
+    it('returns null for an unknown id', async () => {
+      const { db } = makeMockDb({ firstResult: null })
+
+      expect(await new D1UserRepository(db).findAccountById('missing')).toBeNull()
     })
   })
 

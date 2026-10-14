@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import type { NewUserInput } from '../auth/user.repository.js'
+import type { PageRequest } from './types.js'
 import type { Scope } from './permissions.js'
 
 /** One invitation row. `tokenHash` is deliberately absent: nothing above the storage
@@ -84,8 +85,8 @@ export interface IInvitationRepository {
   /** One invitation by id, regardless of state. Null when absent. */
   findById(invitationId: string): Promise<InvitationRecord | null>
 
-  /** Every invitation, newest first. Administration tables are small by nature. */
-  listAll(): Promise<InvitationRecord[]>
+  /** One page of invitations, newest first. */
+  list(page: PageRequest): Promise<InvitationRecord[]>
 
   /** Replaces the token and expiry of an existing PENDING-or-EXPIRED invitation,
    *  preserving its (role, scope, email) pre-assignment. Returns false when the row is

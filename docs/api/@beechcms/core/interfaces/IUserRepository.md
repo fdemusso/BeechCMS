@@ -118,6 +118,24 @@ an unrelated account exists.
 
 ***
 
+### findAccountById()
+
+> **findAccountById**(`userId`): `Promise`&lt;[`AccountSummary`](AccountSummary.md) \| `null`&gt;
+
+One account by id, without credential material. Null when absent.
+
+#### Parameters
+
+##### userId
+
+`string`
+
+#### Returns
+
+`Promise`&lt;[`AccountSummary`](AccountSummary.md) \| `null`&gt;
+
+***
+
 ### findByEmail()
 
 > **findByEmail**(`email`): `Promise`&lt;[`UserRecord`](UserRecord.md) \| `null`&gt;
@@ -175,9 +193,15 @@ active global administrator? ADVISORY — see `IRoleAssignmentRepository.isLastG
 
 ### listAccounts()
 
-> **listAccounts**(): `Promise`&lt;[`AccountSummary`](AccountSummary.md)[]&gt;
+> **listAccounts**(`page`): `Promise`&lt;[`AccountSummary`](AccountSummary.md)[]&gt;
 
-Every account, oldest first, without credential material.
+One page of accounts, oldest first, without credential material.
+
+#### Parameters
+
+##### page
+
+[`PageRequest`](PageRequest.md)
 
 #### Returns
 

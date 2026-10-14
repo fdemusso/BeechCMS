@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { AdminGuardedResult } from '../rbac/types.js'
+import type { AdminGuardedResult, PageRequest } from '../rbac/types.js'
 
 export interface UserRecord {
   id: string
@@ -116,8 +116,11 @@ export interface IUserRepository {
    */
   emailBelongsToAnotherUser(email: string, currentUserId: string): Promise<boolean>
 
-  /** Every account, oldest first, without credential material. */
-  listAccounts(): Promise<AccountSummary[]>
+  /** One page of accounts, oldest first, without credential material. */
+  listAccounts(page: PageRequest): Promise<AccountSummary[]>
+
+  /** One account by id, without credential material. Null when absent. */
+  findAccountById(userId: string): Promise<AccountSummary | null>
 
   /**
    * Flips `users.is_active`. `not-found` when the user does not exist.

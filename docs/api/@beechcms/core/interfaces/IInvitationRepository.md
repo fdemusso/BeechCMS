@@ -92,11 +92,17 @@ Resolves a live (unused, unexpired) invitation by token hash. Null otherwise —
 
 ***
 
-### listAll()
+### list()
 
-> **listAll**(): `Promise`&lt;[`InvitationRecord`](InvitationRecord.md)[]&gt;
+> **list**(`page`): `Promise`&lt;[`InvitationRecord`](InvitationRecord.md)[]&gt;
 
-Every invitation, newest first. Administration tables are small by nature.
+One page of invitations, newest first.
+
+#### Parameters
+
+##### page
+
+[`PageRequest`](PageRequest.md)
 
 #### Returns
 
