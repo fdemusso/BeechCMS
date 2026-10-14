@@ -146,14 +146,25 @@ describe('resolveKanbanColumns', () => {
     expect(cols[cols.length - 1].label).toBe('Senza Categoria')
   })
 
-  it('omits null column if branch is required on create or update', () => {
-    const branchReqCreate: Branch = { id: 'br_01', alias: 'state', type: 'tags', multiple: false, label: 'State', options: [{ value: 'x', color: '#64748b' }], requiredOnCreate: true }
-    const colsReqCreate = resolveKanbanColumns(branchReqCreate)
-    expect(colsReqCreate.find(c => c.value === null)).toBeUndefined()
+  // A required axis still needs somewhere to show entries whose value was removed from the
+  // options; without this column they would match no column and vanish from the board.
+  it.each([
+    ['requiredOnCreate', { requiredOnCreate: true }],
+    ['requiredOnUpdate', { requiredOnUpdate: true }],
+  ])('marks the null column as fallback when the branch is %s', (_name, required) => {
+    const branch: Branch = { id: 'br_01', alias: 'state', type: 'tags', multiple: false, label: 'State', options: [{ value: 'x', color: '#64748b' }], ...required }
 
-    const branchReqUpdate: Branch = { id: 'br_02', alias: 'state', type: 'tags', multiple: false, label: 'State', options: [{ value: 'x', color: '#64748b' }], requiredOnUpdate: true }
-    const colsReqUpdate = resolveKanbanColumns(branchReqUpdate)
-    expect(colsReqUpdate.find(c => c.value === null)).toBeUndefined()
+    const cols = resolveKanbanColumns(branch)
+
+    expect(cols[cols.length - 1]).toEqual({ value: null, label: 'Senza State', fallback: true })
+  })
+
+  it('leaves the null column of an optional branch without the fallback flag', () => {
+    const branch: Branch = { id: 'br_01', alias: 'state', type: 'tags', multiple: false, label: 'State', options: [{ value: 'x', color: '#64748b' }] }
+
+    const cols = resolveKanbanColumns(branch)
+
+    expect(cols[cols.length - 1]).toEqual({ value: null, label: 'Senza State' })
   })
 })
 
@@ -178,11 +189,14 @@ describe('kanbanColumnFilter', () => {
     expect(f.conditions).toEqual([{ op: 'has_tag', value: 'frontend' }])
   })
 
-  it('null value (text) → is_empty', () => {
-    const branch: Branch = { id: 'br_01', alias: 'state', type: 'tags', multiple: false, label: 'State', options: [{ value: 'x', color: '#64748b' }] }
+  // Regression guard: with `is_empty` alone, an entry whose value was removed from the options
+  // matched no column and vanished from the board.
+  it('null value on a tags axis with options → not_in the option values, so obsolete values land there too', () => {
+    const branch: Branch = { id: 'br_01', alias: 'state', type: 'tags', multiple: false, label: 'State', options: [{ value: 'todo', color: '#64748b' }, { value: 'done', color: '#10b981' }] }
+
     const f = kanbanColumnFilter(branch, null)
-    expect(f.column).toBe('state')
-    expect(f.conditions).toEqual([{ op: 'is_empty', value: null }])
+
+    expect(f).toEqual({ column: 'state', type: 'tags', conditions: [{ op: 'not_in', value: ['todo', 'done'] }] })
   })
 
   it('null value (boolean) → is_empty on boolean type', () => {
@@ -192,7 +206,7 @@ describe('kanbanColumnFilter', () => {
     expect(f.conditions).toEqual([{ op: 'is_empty', value: null }])
   })
 
-  it('null value (tags) → is_empty on tags type', () => {
+  it('null value on a tags axis without options → is_empty on tags type', () => {
     const branch: Branch = { id: 'br_01', alias: 'labels', type: 'tags', label: 'Labels' }
     const f = kanbanColumnFilter(branch, null)
     expect(f.type).toBe('tags')

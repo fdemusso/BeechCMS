@@ -24,6 +24,12 @@ export interface KanbanColumnDescriptor {
   label: string
   /** The option color (#RRGGBB) of a tags-axis column. Absent on boolean columns and on the null column. */
   color?: string
+  /**
+   * True on the null column of a required axis. No valid entry belongs there: it only collects entries
+   * whose value is missing or no longer an option, so none disappears from the board. The board shows it
+   * only while it holds entries and never moves or creates an entry into it.
+   */
+  fallback?: true
 }
 
 /** Per-seed, dashboard-side kanban view preferences. Persisted in
@@ -82,10 +88,16 @@ export function resolveKanbanConfig(seed: Seed): KanbanCompatibility {
   return { compatible: true, candidates }
 }
 
+/** True when every entry must hold an axis value, so moving a card to the null column is never valid. */
+export function isKanbanAxisRequired(branch: Pick<Branch, 'requiredOnCreate' | 'requiredOnUpdate'>): boolean {
+  return Boolean(branch.requiredOnCreate || branch.requiredOnUpdate)
+}
+
 /**
  * Deterministic, stable column order for a chosen axis (Q2). The "Senza valore"
- * (value: null) column is always appended last. Values out of `options` are NOT
- * given their own column (KB-U25) — the board folds them into "Senza valore".
+ * (value: null) column is always appended last; on a required axis it is a `fallback` column.
+ * Values out of `options` are NOT given their own column (KB-U25): {@link kanbanColumnFilter}
+ * folds them into "Senza valore".
  * A tags axis yields one column per option, in declared order, carrying the option color.
  */
 export function resolveKanbanColumns(branch: Branch): KanbanColumnDescriptor[] {
@@ -97,18 +109,11 @@ export function resolveKanbanColumns(branch: Branch): KanbanColumnDescriptor[] {
       cols.push({ value: option.value, label: option.value, color: option.color })
     }
   }
-  const isRequired = Boolean(branch.requiredOnCreate || branch.requiredOnUpdate)
-  if (!isRequired) {
-    cols.push({ value: null, label: `Senza ${branch.label}` })                  // always last if not required
-  }
+  const nullColumn: KanbanColumnDescriptor = { value: null, label: `Senza ${branch.label}` }
+  cols.push(isKanbanAxisRequired(branch) ? { ...nullColumn, fallback: true } : nullColumn)
   return cols
 }
 
-/**
- * Pure: the FilterGroup selecting one kanban column's entries for a given axis branch.
- * `value: null` ⇒ "Senza valore" — entries where the axis field is NULL or empty (KB-U25).
- * Boolean descriptor values 'true'/'false' are coerced to actual booleans for the engine.
- */
 /** Body of PATCH /:slug/:id/kanban-move. The server applies the axis change (if any)
  *  AND the position upsert atomically (KB-S04e). */
 export interface KanbanMoveBody {
@@ -134,8 +139,20 @@ export function kanbanColumnEntryValue(
   return columnValue
 }
 
+/**
+ * Pure: the FilterGroup selecting one kanban column's entries for a given axis branch.
+ * `value: null` ⇒ "Senza valore" — entries where the axis field is NULL or empty (KB-U25).
+ * On a tags axis with options it also holds entries whose stored value is no longer an option
+ * (removed or renamed in the seed): `not_in` the option values matches both, so no entry
+ * falls outside every column.
+ * Boolean descriptor values 'true'/'false' are coerced to actual booleans for the engine.
+ */
 export function kanbanColumnFilter(branch: Branch, value: string | null): FilterGroup {
   if (value === null) {
+    const optionValues = branch.type === 'tags' ? tagOptionValues(branch) : []
+    if (optionValues.length > 0) {
+      return { column: branch.alias, type: 'tags', conditions: [{ op: 'not_in', value: optionValues }] }
+    }
     const type = branch.type === 'boolean' ? 'boolean' : branch.type === 'tags' ? 'tags' : 'text'
     return { column: branch.alias, type, conditions: [{ op: 'is_empty', value: null }] }
   }

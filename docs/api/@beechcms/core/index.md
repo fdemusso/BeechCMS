@@ -516,6 +516,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [isFullWidthBranch](functions/isFullWidthBranch.md)
 - [isGalleryBranch](functions/isGalleryBranch.md)
 - [isImageMediaBranch](functions/isImageMediaBranch.md)
+- [isKanbanAxisRequired](functions/isKanbanAxisRequired.md)
 - [isLayoutableBranch](functions/isLayoutableBranch.md)
 - [isLocaleCode](functions/isLocaleCode.md)
 - [isLocaleDictionary](functions/isLocaleDictionary.md)

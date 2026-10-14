@@ -20,7 +20,7 @@ For content with editorial workflows (e.g. `draft`, `review`, `scheduled`, `publ
 ### Features
 
 - **Drag-and-Drop Mutations**: Dragging a card across columns immediately triggers a targeted update mutation on the underlying status field.
-- **Configurable Grouping Branch**: Any enum or select branch (e.g. `status`, `stage`, `category`) can be chosen as the Kanban column determinant.
+- **Configurable Grouping Branch**: A `boolean` branch or a single-choice `tags` branch with `options` (`multiple: false`) can be chosen as the Kanban column determinant. A `tags` axis gets one column per option, in declared order and with the option color; a last "Senza …" column holds entries with no value or with a value that is no longer among the options. On a required branch that column appears only while it holds entries, and cards can be moved out of it but not into it. Dropping a card on a column writes `[value]` (or `[]` on the empty column). Free tags, multiple-choice tags and localized fields cannot be an axis.
 - **Card Badges & Preview Fields**: Cards display display titles, author avatars, relation chips, and thumbnail previews automatically.
 - **Quick Actions**: Edit, duplicate, or inspect incoming backrefs without leaving the board.
 
@@ -36,9 +36,9 @@ Collections rich in imagery (such as Portfolio Projects, Products, Team Members,
 
 ### Category Folders
 
-If the Seed has a `text` branch whose alias contains `categor` (for example `categoria` or `category`), the Gallery groups entries into **folders**, one per distinct value:
+When a branch is selected in the toolbar's **Group by** menu (the same choice the Data Table uses), the Gallery groups entries into **folders**, one per distinct value of that branch:
 
-- **Folders screen**: each folder shows preview thumbnails and the number of entries. Values are compared ignoring case and surrounding spaces, so `Wedding` and `wedding ` land in the same folder. Folders are sorted alphabetically; entries without a category go into a last folder named "Altre foto".
+- **Folders screen**: each folder shows preview thumbnails and the number of entries. Values are compared ignoring case and surrounding spaces, so `Wedding` and `wedding ` land in the same folder. Folders are sorted alphabetically — or in option order when grouping by a single-choice `tags` branch; entries without a category go into a last folder named "Altre foto".
 - **Inside a folder**: the cards of that category, a "Torna alle cartelle" button, and an "Aggiungi foto qui" button that opens the create form with the category already filled in.
 - **New folder**: the "Nuova cartella" button asks for a name and opens the create form with that category prefilled. A folder only exists once an entry with that category is saved; typing the name of an existing folder opens it instead of creating a duplicate.
 - **URL state**: the open folder is stored in the `?album=` query parameter, so the browser back button returns to the folders and the folder survives a reload or closing the create/edit dialog.

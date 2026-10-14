@@ -23,3 +23,4 @@ Presentation-only color, `#RRGGBB`. Lives in the seed only — never persisted i
 > **value**: `string`
 
 Stored value and identity. Unique within the branch; compared exactly (case-sensitive, never trimmed).
+Must already be in canonical form (`normalizeTagValue(value).value === value`) and at most `TAG_MAX_LENGTH` characters.

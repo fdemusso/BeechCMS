@@ -8,7 +8,7 @@
 
 > **diffSeedDefinition**(`stored`, `candidate`): [`SeedDefinitionDiff`](../interfaces/SeedDefinitionDiff.md)
 
-Compares a stored seed definition with a candidate whose ids were already resolved (`normalizeCandidate`). Pure.
+Compares a stored seed definition with a candidate whose ids were already resolved ([resolveCandidateIds](resolveCandidateIds.md)). Pure.
 
 ## Parameters
 

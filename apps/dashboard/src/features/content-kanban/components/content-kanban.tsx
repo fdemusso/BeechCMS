@@ -153,6 +153,9 @@ function KanbanColumnConnected({
     return sorted
   }, [fetchState.cards, pendingCards, col.value, formatElement, queryClient, seedSlug, config.axisBranchId, axisBranch, seed, cardConfig])
 
+  // A fallback column only surfaces entries that would otherwise fit no column; empty, it is noise.
+  if (col.fallback && fetchState.total === 0 && cards.length === 0) return null
+
   return (
     <KanbanColumn
       colValue={col.value}
@@ -164,9 +167,10 @@ function KanbanColumnConnected({
       canEdit={canEdit}
       canCreate={canCreate}
       sortActive={sortActive}
+      acceptsDrops={!col.fallback}
       onToggleCollapse={onToggleCollapse}
       onEdit={onEdit}
-      onCreateEntry={onCreateEntry}
+      onCreateEntry={col.fallback ? undefined : onCreateEntry}
     />
   )
 }

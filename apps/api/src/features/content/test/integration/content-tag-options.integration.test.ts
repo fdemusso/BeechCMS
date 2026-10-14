@@ -4,13 +4,13 @@
 
 /**
  * Content slice — tags options integration tier. A closed-vocabulary `tags` branch is enforced
- * on write through the full middleware chain. The lenient read of an obsolete stored value is not
- * covered here: writing one requires naming the physical column (testing rule 3.7), and reads
- * never pass through the validator.
+ * on write through the full middleware chain. Obsolete stored values are produced the way they
+ * arise in production: an option is removed from the seed after entries were written with it.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
+import { kanbanColumnFilter, type Branch } from '@beechcms/core'
 import { createTestHarness, type TestClient, type TestHarness } from '@beechcms/testing'
 import { createBeechApp } from '../../../../factory'
 import { __resetSeedRegistryCache } from '../../../../shared/services/cache/seed-registry-cache'
@@ -18,6 +18,10 @@ import { __resetSeedRegistryCache } from '../../../../shared/services/cache/seed
 interface ValidationProblem {
   type: string
   errors: Array<{ field: string; expected: string; received: string }>
+}
+
+interface SeedRecordBody {
+  definition: { branches: Branch[] }
 }
 
 describe('content slice — integration (real D1)', () => {
@@ -216,6 +220,60 @@ describe('content slice — integration (real D1)', () => {
       expect(response.status).toBe(200)
       const body = await response.json<{ items: { id: string }[]; total: number }>()
       expect(body.items.map((item) => item.id)).toEqual([id])
+    })
+  })
+
+  describe('GET /api/content/:slug?kanbanAxis=', () => {
+    // The canonical `posts` seed enables drafts, which makes it kanban-incompatible.
+    const slug = 'tickets'
+
+    async function provisionTickets(): Promise<void> {
+      const created = await admin.post('/api/seeds', {
+        slug,
+        label: 'Tickets',
+        branches: [
+          { alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+          {
+            alias: 'stage', label: 'Stage', type: 'tags', multiple: false,
+            options: [{ value: 'todo', color: '#64748b' }, { value: 'done', color: '#10b981' }],
+          },
+        ],
+      })
+      expect(created.status).toBe(201) // precondition
+    }
+
+    async function createTicket(entrySlug: string, stage: string[]): Promise<string> {
+      const response = await admin.post(`/api/content/${slug}`, { title: entrySlug, slug: entrySlug, stage })
+      expect(response.status).toBe(201) // precondition
+      return (await response.json<{ id: string }>()).id
+    }
+
+    async function dropOption(value: string): Promise<Branch> {
+      const existing = await (await admin.get(`/api/seeds/${slug}`)).json<SeedRecordBody>()
+      const branches = existing.definition.branches.map((branch) =>
+        branch.alias === 'stage' ? { ...branch, options: branch.options?.filter((option) => option.value !== value) } : branch)
+      const updated = await admin.put(`/api/seeds/${slug}`, { ...existing.definition, branches })
+      expect(updated.status).toBe(200) // precondition
+      const stage = branches.find((branch) => branch.alias === 'stage')
+      if (!stage) throw new Error('stage branch missing after seed update')
+      return stage
+    }
+
+    // Regression guard: the empty column used to filter on `is_empty` only, so an entry whose
+    // value was removed from the options matched no column and disappeared from the board.
+    it('lists empty entries and entries with an obsolete value in the empty column', async () => {
+      await provisionTickets()
+      await createTicket('t-todo', ['todo'])
+      const emptyId = await createTicket('t-empty', [])
+      const obsoleteId = await createTicket('t-done', ['done'])
+      const stage = await dropOption('done')
+      const filters = encodeURIComponent(JSON.stringify([kanbanColumnFilter(stage, null)]))
+
+      const response = await admin.get(`/api/content/${slug}?kanbanAxis=${stage.id}&page=1&limit=10&filters=${filters}`)
+
+      expect(response.status).toBe(200)
+      const body = await response.json<{ items: { id: string }[] }>()
+      expect(body.items.map((item) => item.id).sort()).toEqual([emptyId, obsoleteId].sort())
     })
   })
 })

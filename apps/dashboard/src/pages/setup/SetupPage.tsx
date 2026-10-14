@@ -145,7 +145,8 @@ export function SetupPage() {
   // Step 2: Enter jumps to the next empty field; when all are filled it advances.
   function handleCredentialsKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
-    if (!(e.target instanceof HTMLInputElement)) return
+    const target = e.target
+    if (!(target instanceof HTMLInputElement)) return
     e.preventDefault()
     const fields = [
       { id: 'name', value: name },
@@ -154,7 +155,7 @@ export function SetupPage() {
       { id: 'password', value: password },
       { id: 'confirm', value: confirm },
     ]
-    const current = fields.findIndex((f) => f.id === e.target.id)
+    const current = fields.findIndex((f) => f.id === target.id)
     const ordered = [...fields.slice(current + 1), ...fields.slice(0, current + 1)]
     const nextEmpty = ordered.find((f) => !f.value.trim())
     if (nextEmpty) {

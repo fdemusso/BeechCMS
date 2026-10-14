@@ -155,7 +155,8 @@ rule applies to the FK from the junction table to the target table.
 > `optional` **options?**: [`TagOption`](TagOption.md)[]
 
 Closed vocabulary — valid ONLY on `tags` (any other type is a fatal seed error).
-When present: non-empty, unique values, `#RRGGBB` colors; written values must be one of the option values.
+When present: non-empty, at most `TAG_OPTIONS_MAX_COUNT` entries, unique canonical values, `#RRGGBB` colors;
+written values must be one of the option values.
 Static seed metadata, never persisted in entries.
 
 ***

@@ -4,6 +4,7 @@
 
 import type { Context } from 'hono'
 import {
+  isKanbanAxisRequired,
   kanbanColumnEntryValue,
   resolveKanbanConfig,
   validateAndSanitizeSeedPayload,
@@ -52,6 +53,11 @@ export async function kanbanMoveHandler(context: Context<AppEnv>) {
   }
 
   const axisBranch = seed.branches.find(b => b.id === body.axisBranchId)!
+  // The board offers no drop on a required axis's null column; this guards direct API calls,
+  // since the update validator does not enforce required fields on a partial patch.
+  if (body.axis?.value === null && isKanbanAxisRequired(axisBranch)) {
+    return publicProblem(context, { type: 'content-validation-error', title: 'Unprocessable Entity', status: 422, detail: `'${axisBranch.alias}' is required and cannot be emptied` })
+  }
 
   const repository = context.get('repository')
   let current: Record<string, unknown>

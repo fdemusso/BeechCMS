@@ -31,6 +31,7 @@ const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme
 /** Why a tag value cannot be stored. */
 export type TagValueRejection = 'ill-formed' | 'too-long'
 
+/** Outcome of {@link normalizeTagValue}: the canonical value (possibly `''`), or why it was rejected. */
 export type TagValueResult =
   | { readonly ok: true; readonly value: string }
   | { readonly ok: false; readonly reason: TagValueRejection }

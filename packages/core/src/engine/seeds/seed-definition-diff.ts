@@ -53,7 +53,7 @@ export interface SeedDefinitionDiff {
   changedBranches: string[]
 }
 
-/** Compares a stored seed definition with a candidate whose ids were already resolved (`normalizeCandidate`). Pure. */
+/** Compares a stored seed definition with a candidate whose ids were already resolved ({@link resolveCandidateIds}). Pure. */
 export function diffSeedDefinition(stored: Seed | null, candidate: Seed): SeedDefinitionDiff {
   if (stored === null) return { changed: true, changedBranches: [] }
 

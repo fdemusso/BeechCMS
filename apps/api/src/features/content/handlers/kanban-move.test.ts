@@ -17,10 +17,12 @@ const posts = { ...CANONICAL_SEEDS.find((seed) => seed.slug === 'posts')!, allow
 function makeContext(overrides: {
   body?: unknown
   current?: Record<string, unknown>
+  seed?: Seed
 } = {}) {
   const {
     body,
     current = { id: 'entry-1', title: 'x', priority: ['low'], updated_at: 1 },
+    seed = posts,
   } = overrides
 
   const updateWithKanbanPosition = vi.fn().mockResolvedValue(undefined)
@@ -34,7 +36,7 @@ function makeContext(overrides: {
       json: vi.fn().mockResolvedValue(body),
     },
     get: vi.fn((key: string) => {
-      if (key === 'getSeed') return () => posts
+      if (key === 'getSeed') return () => seed
       if (key === 'repository') return { findById: vi.fn().mockResolvedValue(current), updateWithKanbanPosition }
       if (key === 'idGenerator') return () => 'gen-id'
       if (key === 'jwtPayload') return { sub: 'user-1' }
@@ -113,6 +115,24 @@ describe('kanbanMoveHandler', () => {
   it('rejects a destination value outside the options with 422 content-validation-error and writes nothing', async () => {
     const { ctx, updateWithKanbanPosition } = makeContext({
       body: { position: 'col-a', axisBranchId: 'br_11', axis: { value: 'urgent' } },
+    })
+
+    const result = await kanbanMoveHandler(ctx as never)
+
+    expect(result).toMatchObject({ status: 422, type: 'content-validation-error' })
+    expect(updateWithKanbanPosition).not.toHaveBeenCalled()
+  })
+
+  // Regression guard: the partial-patch validator does not enforce required fields, so without
+  // the handler check a direct call could empty a required axis through the fallback column.
+  it('rejects a move to the null column of a required axis with 422 content-validation-error and writes nothing', async () => {
+    const requiredPosts: Seed = {
+      ...posts,
+      branches: posts.branches.map((branch) => (branch.id === 'br_11' ? { ...branch, requiredOnUpdate: true } : branch)),
+    }
+    const { ctx, updateWithKanbanPosition } = makeContext({
+      seed: requiredPosts,
+      body: { position: 'col-a', axisBranchId: 'br_11', axis: { value: null } },
     })
 
     const result = await kanbanMoveHandler(ctx as never)

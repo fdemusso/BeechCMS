@@ -62,6 +62,8 @@ True for `tags` branches: the value is submitted as `string[]`.
 
 > `optional` **options?**: `object`[]
 
+Choice list for select-like branches. `color` (`#RRGGBB`) is set on `tags` options.
+
 #### color?
 
 > `optional` **color?**: `string`

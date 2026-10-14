@@ -18,6 +18,8 @@ interface KanbanColumnProps {
   canEdit: boolean
   canCreate: boolean
   sortActive: boolean
+  /** False on a fallback column: cards can leave it but never be dropped into it. */
+  acceptsDrops?: boolean
   onToggleCollapse: () => void
   onEdit: (id: string) => void
   onCreateEntry?: () => void
@@ -42,12 +44,13 @@ export const KanbanColumn = React.memo(function KanbanColumn({
   canEdit,
   canCreate,
   sortActive,
+  acceptsDrops = true,
   onToggleCollapse,
   onEdit,
   onCreateEntry,
 }: KanbanColumnProps) {
   const droppableId = `col:${colValue ?? '__null__'}`
-  const { isOver, setNodeRef } = useDroppable({ id: droppableId, data: { colValue } })
+  const { isOver, setNodeRef } = useDroppable({ id: droppableId, data: { colValue }, disabled: !acceptsDrops })
 
   const { total, hasNextPage, isLoading, isFetching, fetchNextPage } = fetchState
   const loaded = cards.length

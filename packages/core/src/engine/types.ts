@@ -75,7 +75,10 @@ export interface ActorContext {
 
 /** One entry of a `tags` branch's closed vocabulary. Array order is significant (menu, kanban columns, sort). */
 export interface TagOption {
-  /** Stored value and identity. Unique within the branch; compared exactly (case-sensitive, never trimmed). */
+  /**
+   * Stored value and identity. Unique within the branch; compared exactly (case-sensitive, never trimmed).
+   * Must already be in canonical form (`normalizeTagValue(value).value === value`) and at most `TAG_MAX_LENGTH` characters.
+   */
   value: string
   /** Presentation-only color, `#RRGGBB`. Lives in the seed only — never persisted in entries. */
   color: string
@@ -115,7 +118,8 @@ export interface Branch {
   multiple?: boolean
   /**
    * Closed vocabulary — valid ONLY on `tags` (any other type is a fatal seed error).
-   * When present: non-empty, unique values, `#RRGGBB` colors; written values must be one of the option values.
+   * When present: non-empty, at most `TAG_OPTIONS_MAX_COUNT` entries, unique canonical values, `#RRGGBB` colors;
+   * written values must be one of the option values.
    * Static seed metadata, never persisted in entries.
    */
   options?: TagOption[]
