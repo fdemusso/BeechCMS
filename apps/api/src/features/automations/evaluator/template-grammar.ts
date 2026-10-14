@@ -53,7 +53,7 @@ export type AutomationContextSelector =
   | { kind: 'byid'; id: string }
   | { kind: 'where'; alias: string; value: string }
 
-export type AggregateOp = 'count' | 'sum' | 'avg' | 'min' | 'max' | 'pluck'
+type AggregateOp = 'count' | 'sum' | 'avg' | 'min' | 'max' | 'pluck'
 
 export type ParsedKey =
   | { kind: 'simple'; path: string }

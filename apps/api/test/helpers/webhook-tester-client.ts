@@ -30,7 +30,7 @@ export async function newBucket(): Promise<{ url: string; uuid: string }> {
   return { url: `${BASE}/${uuid}`, uuid }
 }
 
-export async function getRequests(uuid: string): Promise<WebhookTesterRequest[]> {
+async function getRequests(uuid: string): Promise<WebhookTesterRequest[]> {
   const res = await fetch(`${BASE}/api/session/${uuid}/requests`)
   if (!res.ok) return []
   const raw = await res.json() as RawRequest[]

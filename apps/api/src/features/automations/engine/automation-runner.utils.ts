@@ -6,7 +6,7 @@ import type { ResolvedContext } from '../evaluator/context-resolver'
 import { parseTemplateKey } from '../evaluator/template-grammar'
 
 /** `html` for mail markup; `json` for webhook string values; `none` for plain-text and data sinks. */
-export type InterpolateEscape = 'html' | 'json' | 'none'
+type InterpolateEscape = 'html' | 'json' | 'none'
 
 export interface InterpolateOptions {
   /** Required so every sink states its escaping explicitly; no single default is safe for all sinks. */

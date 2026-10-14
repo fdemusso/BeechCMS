@@ -18,7 +18,7 @@ import type {
 
 const DEFAULT_FROM = 'Beech CMS <onboarding@resend.dev>'
 
-export interface EmailProviderEnv {
+interface EmailProviderEnv {
   /** "smtp" | "resend"; default "resend" if absent */
   provider?: string
   /** Resend API key, used when provider is "resend" */

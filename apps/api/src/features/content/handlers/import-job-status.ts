@@ -16,7 +16,7 @@ import { IMPORT_JOBS_SLUG, readImportJobRecord, toImportJobResponse, type Import
  * import may be unavailable when it finishes. `content:create` is the permission the import
  * route itself demands, so the two can never drift apart.
  */
-export async function canReadImportJob(context: Context<AppEnv>, job: ImportJobRecord): Promise<boolean> {
+async function canReadImportJob(context: Context<AppEnv>, job: ImportJobRecord): Promise<boolean> {
   if (job.createdBy === context.get('jwtPayload').sub) return true
   const effective = await resolveEffectivePermissions(context)
   return hasPermission(effective, 'content:create', job.targetSeed)

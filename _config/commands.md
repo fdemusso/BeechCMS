@@ -26,6 +26,9 @@ All commands are unified under the `pnpm beech` CLI.
 - `pnpm beech lint`            : Runs lint checks across the monorepo
 - `pnpm beech deploy`          : Compiles and deploys Worker and assets to Cloudflare production
 - `pnpm beech doctor`          : Executes dashboard diagnostics checks
+- `pnpm knip`                  : Dead-code scan (unused files, dependencies, exports, types); config in `knip.json`
+- `pnpm knip:ci`               : Same scan limited to files and dependencies; exits 1 on any finding (runs in CI)
+- `pnpm knip:production`       : Scan limited to code reachable from production entry points
 
 ## Heavy commands with several agents (`scripts/cpu-slot.mjs`)
 - `node scripts/cpu-slot.mjs [--exclusive] -- <command>` : runs `<command>` inside a machine-wide CPU slot shared by every worktree (queues, never skips; exit 75 = timed out waiting, command not run). Also applies below-normal priority, caps `VITEST_MAX_WORKERS`, and shares the main checkout's Turbo cache.

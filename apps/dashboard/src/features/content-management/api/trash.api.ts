@@ -5,9 +5,6 @@
 import { api } from "@/lib/api"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 
-/** Mirrors the API's `MAX_BULK_SIZE` (apps/api/src/features/content/handlers/trash.ts). */
-export const MAX_TRASH_BULK_SIZE = 500
-
 export interface TrashListParams {
   page: number
   limit: number
@@ -20,7 +17,7 @@ export interface TrashListResponse {
   limit: number
 }
 
-export interface BulkTrashFailedItem {
+interface BulkTrashFailedItem {
   id: string
   problem: { status: number; type: string; detail: string }
 }

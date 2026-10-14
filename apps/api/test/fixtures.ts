@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs'
 /**
  * GLOBAL TEST CONFIGURATION
  */
-export const TEST_JWT_SECRET = 'beech_cms_super_secret_test_key_2024_!@#'
+const TEST_JWT_SECRET = 'beech_cms_super_secret_test_key_2024_!@#'
 export const TEST_PUBLIC_READ_KEY = 'pk_read_live_6f8g9h0j1k2l'
 export const TEST_PUBLIC_WRITE_KEY = 'pk_write_live_9a8b7c6d5e4f'
 

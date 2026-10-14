@@ -8,7 +8,7 @@ import { TABLE_VIEW_DEFINITION } from "@/features/content-management"
 import { GALLERY_VIEW_DEFINITION } from "@/features/content-gallery"
 import { KANBAN_VIEW_DEFINITION } from "@/features/content-kanban"
 
-export class ViewRegistryImpl implements IViewRegistry {
+class ViewRegistryImpl implements IViewRegistry {
   private readonly map = new Map<DashboardView, ViewDefinition>()
   register(def: ViewDefinition): void { this.map.set(def.type, def) }
   get(type: DashboardView): ViewDefinition | undefined { return this.map.get(type) }

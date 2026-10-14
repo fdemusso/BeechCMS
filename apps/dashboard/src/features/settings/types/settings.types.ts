@@ -33,7 +33,7 @@ export interface ActivityEntry {
   created_at: number
 }
 
-export interface OrphanFile {
+interface OrphanFile {
   key: string
   filename: string
   mime_type: string

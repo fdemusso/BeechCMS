@@ -50,7 +50,7 @@ export interface FtsQueryResult {
 /**
  * Decodes a pagination cursor (`${rank}:${entryId}`).
  */
-export function decodeCursor(cursor: string): { rank: number; entryId: string } | null {
+function decodeCursor(cursor: string): { rank: number; entryId: string } | null {
   try {
     const decoded = atob(cursor)
     const separatorIndex = decoded.indexOf(':')
@@ -210,6 +210,4 @@ export function mapFtsRowToResultRow(row: FtsRow): SearchResultRow {
     rank: row.rank,
   }
 }
-
-export { activeClause, activeCondition } from '@beechcms/core'
 

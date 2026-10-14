@@ -12,7 +12,7 @@ import { ContentTableView } from "./ContentTableView"
 import { toTableRowStyles } from "./table-row-styles"
 
 /** The Table View Type's renderer: owns column/grouping derivation, the harness owns layout state. */
-export function ContentTableRenderer({ seed, slug, query, layout, formatElement, entries }: ViewRendererProps) {
+function ContentTableRenderer({ seed, slug, query, layout, formatElement, entries }: ViewRendererProps) {
   const { t } = useTranslation()
   const { can } = usePermissions()
 

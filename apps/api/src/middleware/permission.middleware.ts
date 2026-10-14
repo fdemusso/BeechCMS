@@ -9,7 +9,7 @@ import { resolveEffectivePermissions } from '../shared/rbac/effective-permission
 import type { Env, Variables } from '../types'
 
 /** Frozen error-code map for this gate, per the `auth/constants.ts` convention. */
-export const PERMISSION_ERRORS = {
+const PERMISSION_ERRORS = {
   FORBIDDEN: 'forbidden',
   ACCOUNT_DISABLED: 'account_disabled',
   ROUTE_NOT_REGISTERED: 'route_not_registered',
@@ -20,7 +20,7 @@ export const PERMISSION_ERRORS = {
  * - `'global'`   — the route is not seed-scoped; it is checked at `GLOBAL_SCOPE`.
  * - `'capture1'` — capture group 1 of `pattern` is the `seeds.slug` to check against.
  */
-export type ScopeSource = 'global' | 'capture1'
+type ScopeSource = 'global' | 'capture1'
 
 /**
  * What a route demands.
@@ -42,7 +42,7 @@ export type RouteRequirement =
   | { kind: 'authenticated' }
   | { kind: 'legacy-admin' }
 
-export interface ProtectedRoute {
+interface ProtectedRoute {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
   /** Tested against `c.req.path`, which includes the `/api` prefix. */
   pattern: RegExp
@@ -67,7 +67,7 @@ const LEGACY_ADMIN: RouteRequirement = { kind: 'legacy-admin' }
  * caller. Adding a route without adding a row breaks that route loudly in the
  * completeness test, which is the intended failure mode.
  */
-export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
+const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   // --- settings: self-service first, then the site-wide ones -------------------
   { method: 'GET',    pattern: /^\/api\/settings\/me$/,                    requirement: AUTHED },
   { method: 'PUT',    pattern: /^\/api\/settings\/profile$/,               requirement: AUTHED },

@@ -41,15 +41,13 @@ import {
 } from '@beechcms/core'
 import { BaseD1Repository } from './base.repository.d1'
 
-export { activeClause, activeCondition }
-
 // ── Private helpers ───────────────────────────────────────────────────────────
 
 function isCiphertext(value: unknown): boolean {
   return typeof value === 'string' && /^v1:[A-Za-z0-9+/=]+:[A-Za-z0-9+/=]+$/.test(value)
 }
 
-export async function prepareBlindIndexOptions(
+async function prepareBlindIndexOptions(
   seed: Seed,
   options: SelectOptions,
   privacyService: IPrivacyService

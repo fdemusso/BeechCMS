@@ -19,7 +19,7 @@ export interface UseLayoutBuilderArgs {
   initialLayout: FormLayout
 }
 
-export interface MoveFieldArgs {
+interface MoveFieldArgs {
   from: { tabId: string; sectionId: string; columnId: string; branchId: string }
   to: { tabId: string; sectionId: string; columnId: string }
 }

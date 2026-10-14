@@ -16,7 +16,7 @@ export interface EffectivePermissionsPayload {
   byScope: Record<Scope, Permission[]>
 }
 
-export interface MeNotificationPrefs {
+interface MeNotificationPrefs {
   contentCreate: boolean
   contentUpdate: boolean
   contentDelete: boolean

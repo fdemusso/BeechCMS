@@ -58,14 +58,14 @@ const ALWAYS_HIDDEN_COLUMN = "id"
 const SYSTEM_COLUMNS = new Set<string>(VIEW_SYSTEM_COLUMNS)
 const DATE_SYSTEM_COLUMNS = new Set<string>(["created_at", "updated_at"])
 
-export function columnIdToRef(seed: Seed, columnId: string): ViewColumnRef | null {
+function columnIdToRef(seed: Seed, columnId: string): ViewColumnRef | null {
   const ref = SYSTEM_COLUMNS.has(columnId)
     ? columnId
     : seed.branches.find((branch) => branch.alias === columnId)?.id
   return ref !== undefined && viewColumnRefSchema.safeParse(ref).success ? (ref as ViewColumnRef) : null
 }
 
-export function refToColumnId(seed: Seed, ref: string): string | null {
+function refToColumnId(seed: Seed, ref: string): string | null {
   if (SYSTEM_COLUMNS.has(ref)) return ref
   return findBranchById(seed, ref)?.alias ?? null
 }

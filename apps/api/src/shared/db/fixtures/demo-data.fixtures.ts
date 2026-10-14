@@ -33,7 +33,7 @@ function toRichtextDoc(text: string) {
   }
 }
 
-export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
+const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
   {
     id: 'c0100000-0000-4000-8000-000000000001',
     slug: 'elisa-colombo',
@@ -296,7 +296,7 @@ export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
   },
 ]
 
-export const DEMO_ABBONAMENTI_FIXTURES: DemoEntryFixture[] = [
+const DEMO_ABBONAMENTI_FIXTURES: DemoEntryFixture[] = [
   {
     id: 'a0100000-0000-4000-8000-000000000001',
     slug: 'subscription-vertex-digital',
@@ -519,7 +519,7 @@ export const DEMO_ABBONAMENTI_FIXTURES: DemoEntryFixture[] = [
   },
 ]
 
-export const DEMO_TICKET_FIXTURES: DemoEntryFixture[] = [
+const DEMO_TICKET_FIXTURES: DemoEntryFixture[] = [
   {
     id: 't0100000-0000-4000-8000-000000000001',
     slug: 'webhook-integration-failure-on-invoice-paid-event',
@@ -762,7 +762,7 @@ export const DEMO_TICKET_FIXTURES: DemoEntryFixture[] = [
   },
 ]
 
-export const DEMO_CHANGELOG_FIXTURES: DemoEntryFixture[] = [
+const DEMO_CHANGELOG_FIXTURES: DemoEntryFixture[] = [
   {
     id: 'ch100000-0000-4000-8000-000000000001',
     slug: 'v2-4-0-context-aware-privacy',
@@ -785,7 +785,7 @@ export const DEMO_CHANGELOG_FIXTURES: DemoEntryFixture[] = [
   },
 ]
 
-export const DEMO_ARTICOLI_FIXTURES: DemoEntryFixture[] = [
+const DEMO_ARTICOLI_FIXTURES: DemoEntryFixture[] = [
   {
     id: 'ar100000-0000-4000-8000-000000000001',
     slug: 'guide-to-application-level-encryption',

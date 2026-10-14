@@ -12,14 +12,13 @@ import {
   planExtendSeed,
   planFtsRebuild,
   SLUG_RE,
-  SEED_SLUG_RE,
 } from '@beechcms/core'
 import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
 
 export type AppContext = Context<{ Bindings: Env; Variables: Variables }>
 
-export { SLUG_RE, SEED_SLUG_RE }
+export { SLUG_RE }
 
 /**
  * Guard ensuring the authenticated caller possesses the `'admin'` role.

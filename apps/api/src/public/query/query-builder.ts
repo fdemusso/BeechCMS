@@ -12,8 +12,8 @@ export type PublicQueryInput = {
   latest?: string
 }
 
-export type PublicFilterLogic = 'AND' | 'OR'
-export type PublicFilterOperator =
+type PublicFilterLogic = 'AND' | 'OR'
+type PublicFilterOperator =
   | 'eq'
   | 'neq'
   | 'gt'
@@ -32,7 +32,7 @@ export type PublicFilterOperator =
   | 'has_any_tag'
   | 'has_all_tags'
 
-export type PublicSubquery = {
+type PublicSubquery = {
   where: PublicFilterCondition[]
   logic: PublicFilterLogic
 }

@@ -10,7 +10,7 @@ import type { Env, Variables } from '../types'
 /**
  * Route mapping definition for OAuth scope enforcement.
  */
-export interface OAuthScopeRoute {
+interface OAuthScopeRoute {
   /** HTTP method accepted for the route. */
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
   /** Regular expression tested against the full request path (`c.req.path`). */
@@ -38,7 +38,7 @@ export interface OAuthScopeRoute {
  *
  * Patterns match against `c.req.path`, which includes the `/api` prefix.
  */
-export const OAUTH_SCOPE_ROUTES: readonly OAuthScopeRoute[] = [
+const OAUTH_SCOPE_ROUTES: readonly OAuthScopeRoute[] = [
   { method: 'GET',  pattern: /^\/api\/seeds\/?$/,                    scope: 'schema:read',  tools: 'beech_list_seeds' },
   { method: 'GET',  pattern: /^\/api\/seeds\/[^/]+$/,                scope: 'schema:read',  tools: 'beech_get_seed' },
   { method: 'GET',  pattern: /^\/api\/schema\/?$/,                   scope: 'schema:read',  tools: 'beech_schema_export, beech_schema_validate' },

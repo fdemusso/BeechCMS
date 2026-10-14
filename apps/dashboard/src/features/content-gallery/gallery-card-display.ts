@@ -14,10 +14,10 @@ import type { ResolvedCardFields } from "./resolve-card-fields"
 
 export type StatusBadgeVariant = "default" | "secondary" | "outline" | "destructive"
 
-export type GalleryCardSlot = "status" | "title" | "excerpt" | "date" | "tags"
+type GalleryCardSlot = "status" | "title" | "excerpt" | "date" | "tags"
 
 /** Campo extra della card personalizzata: valore grezzo, reso da `FieldDisplay`. */
-export interface GalleryCardMetadataItem {
+interface GalleryCardMetadataItem {
   branch: Branch
   value: unknown
   style?: ElementStyle

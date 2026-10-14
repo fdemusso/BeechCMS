@@ -1,18 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import { SUPPORTED_FILE_TYPES } from '@beechcms/core'
-
-/**
- * Sample attachment fixture object representation.
- */
-export interface SampleFileAttachment {
-  filename: string
-  mimeType: string
-  data: string
-  buffer: Uint8Array
-}
-
 /**
  * Creates authentic binary or text sample buffers for all supported file types in BeechCMS.
  *
@@ -165,25 +153,4 @@ export function bufferToBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(bytes[i])
   }
   return btoa(binary)
-}
-
-/**
- * Returns an attachment object for an extension using its authentic bytes and registered MIME.
- *
- * @param ext - The file extension.
- * @returns The structured SampleFileAttachment object.
- */
-export function createSampleAttachment(ext: string): SampleFileAttachment {
-  const normalised = ext.replace(/^\./, '').toLowerCase().trim()
-  const def = SUPPORTED_FILE_TYPES[normalised]
-  if (!def) {
-    throw new Error(`Unsupported extension: ${ext}`)
-  }
-  const buffer = getSampleBufferForExtension(normalised)
-  return {
-    filename: `sample.${normalised}`,
-    mimeType: def.primaryMime,
-    data: bufferToBase64(buffer),
-    buffer,
-  }
 }

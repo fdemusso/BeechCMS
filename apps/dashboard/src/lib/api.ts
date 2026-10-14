@@ -10,7 +10,7 @@
  */
 import axios, { type AxiosError } from 'axios';
 
-export const LOGIN_PATH = '/admin/login';
+const LOGIN_PATH = '/admin/login';
 
 /** Decodifica il payload JWT: il backend (jose) emette base64url (-/_, no padding),
  *  atob() capisce solo base64 standard (+//) e lancia InvalidCharacterError altrimenti.
@@ -33,7 +33,7 @@ export interface LoginResponse {
 // In-memory access token — never touches localStorage
 let _accessToken: string | null = null;
 
-export function getAccessToken(): string | null { return _accessToken }
+function getAccessToken(): string | null { return _accessToken }
 export function setAccessToken(token: string): void { _accessToken = token }
 export function clearAccessToken(): void { _accessToken = null }
 

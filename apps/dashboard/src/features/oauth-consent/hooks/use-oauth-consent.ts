@@ -5,7 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { oauthApi } from '../api/oauth.api'
 
-export const OAUTH_QUERY_KEYS = {
+const OAUTH_QUERY_KEYS = {
   all: ['oauth'] as const,
   authorizationRequest: (raw: string) => [...OAUTH_QUERY_KEYS.all, 'authorize-request', raw] as const,
   connectedApps: () => [...OAUTH_QUERY_KEYS.all, 'connected-apps'] as const,

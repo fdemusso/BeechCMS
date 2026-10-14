@@ -23,7 +23,7 @@ import { SLUG_RE, parseJsonBody, actorFromContext, relationChangeReasons } from 
  * - Auto-assigns sequential IDs via `nextBranchId` for new branches that lack one.
  * - Defaults `displayNameAlias` from stored definition or first text branch if omitted.
  */
-export function normalizeCandidate(candidate: Seed, storedDef: Seed | null): Seed {
+function normalizeCandidate(candidate: Seed, storedDef: Seed | null): Seed {
   const normalized: Seed = resolveCandidateIds(candidate, storedDef)
 
   if (!normalized.displayNameAlias) {
@@ -46,7 +46,7 @@ export function normalizeCandidate(candidate: Seed, storedDef: Seed | null): See
  * - `'additive'`: Additive schema extensions (adding new columns/branches).
  * - `'destructive'`: Involves dropping, renaming, retyping, or changing relation storage; disallowed in generic MCP apply.
  */
-export type McpClassification = 'create' | 'additive' | 'destructive'
+type McpClassification = 'create' | 'additive' | 'destructive'
 
 /**
  * Diffs a proposed candidate seed against the stored seed definition to detect destructive intent.
@@ -60,7 +60,7 @@ export type McpClassification = 'create' | 'additive' | 'destructive'
  * @param candidate - Proposed candidate seed definition.
  * @returns An object with the classification (`create`, `additive`, or `destructive`) and a list of blocking reasons.
  */
-export function classifyCandidate(stored: Seed | null, candidate: Seed): {
+function classifyCandidate(stored: Seed | null, candidate: Seed): {
   classification: McpClassification
   blockedReasons: string[]
 } {

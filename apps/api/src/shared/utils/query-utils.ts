@@ -16,9 +16,9 @@ export interface ContentEntry {
   updated_at: number | null
 }
 
-export type QueryFilterType = FilterType
+type QueryFilterType = FilterType
 
-export type QueryFilterOperator =
+type QueryFilterOperator =
   | 'eq'
   | 'gt'
   | 'gte'
@@ -28,7 +28,7 @@ export type QueryFilterOperator =
   | 'is_empty'
   | 'is_not_empty'
 
-export interface QueryFilterCondition {
+interface QueryFilterCondition {
   id?: string
   op: QueryFilterOperator
   value: string | number | boolean | null

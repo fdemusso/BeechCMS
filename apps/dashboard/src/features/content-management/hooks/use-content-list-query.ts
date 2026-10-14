@@ -54,7 +54,7 @@ export interface ContentListQueryInitialState {
 }
 
 /** Condition id of the `?status=` URL prefilter. That filter is a navigation lens, never part of a saved view. */
-export const STATUS_PREFILTER_CONDITION_ID = "status-prefilter"
+const STATUS_PREFILTER_CONDITION_ID = "status-prefilter"
 
 export function useContentListQuery(
   slug: string | undefined,

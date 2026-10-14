@@ -14,4 +14,4 @@ export const rotateFieldRequestSchema = z.object({
   nextValue: z.string().min(1, "The new value is required"),
 })
 
-export type RotateFieldRequest = z.infer<typeof rotateFieldRequestSchema>
+type RotateFieldRequest = z.infer<typeof rotateFieldRequestSchema>

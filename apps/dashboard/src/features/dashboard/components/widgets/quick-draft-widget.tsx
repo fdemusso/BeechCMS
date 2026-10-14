@@ -15,7 +15,7 @@ import { DashboardWidgetShell } from "@/features/dashboard"
 import { DASHBOARD_QUERY_KEYS, GLOBAL_DRAFTS_QUERY_KEY } from "@/features/shared"
 import { cn } from "@/lib/utils"
 
-export interface QuickDraftSeedOption {
+interface QuickDraftSeedOption {
   slug: string
   label: string
   /** Alias del branch che funge da nome leggibile dell'entry (es. "title", "name", "author") */
