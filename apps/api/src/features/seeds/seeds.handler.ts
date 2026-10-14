@@ -23,9 +23,12 @@ import {
   SLUG_RE,
   requireAdmin,
   actorFromContext,
-  parseJsonBody,
+  parseJsonObject,
   getActiveSeed,
   rejectManifestOwned,
+  rejectMalformedBranches,
+  externalReferencers,
+  assignMissingBranchIds,
   validateAndApplySeedDef,
   validateIncomingBranches,
 } from './seeds.helpers'
@@ -106,11 +109,11 @@ seedsApp.get('/:slug', async (context) => {
  * @returns 201 Created with `{ slug }`, or 400/409/422 Problem Details on error.
  */
 seedsApp.post('/', async (context) => {
-  const body = await parseJsonBody(context)
+  const body = await parseJsonObject(context)
   if (body instanceof Response) return body
 
-  const candidate = body as Seed
-  const slug = candidate?.slug
+  const candidate = body as unknown as Seed
+  const slug = candidate.slug
 
   if (!slug || !SLUG_RE.test(slug)) {
     return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: `slug must match ${SLUG_RE.source}.` })
@@ -132,15 +135,12 @@ seedsApp.post('/', async (context) => {
     })
   }
 
+  const malformed = rejectMalformedBranches(context, candidate.branches)
+  if (malformed) return malformed
+
   // Assign ids to branches that are missing one
-  const accSeed: Pick<Seed, 'branches'> = { branches: [] }
   const branches: Branch[] = Array.isArray(candidate.branches) ? candidate.branches : []
-  for (const branch of branches) {
-    if (!branch.id) {
-      branch.id = nextBranchId(accSeed)
-    }
-    accSeed.branches.push({ ...branch })
-  }
+  assignMissingBranchIds(branches)
 
   // Default displayNameAlias to first text branch if not provided
   if (!candidate.displayNameAlias) {
@@ -171,7 +171,7 @@ seedsApp.post('/', async (context) => {
  */
 seedsApp.put('/:slug', async (context) => {
   const slug = context.req.param('slug')
-  const body = await parseJsonBody(context)
+  const body = await parseJsonObject(context)
   if (body instanceof Response) return body
 
   const existing = await getActiveSeed(context, slug)
@@ -179,7 +179,9 @@ seedsApp.put('/:slug', async (context) => {
   const owned = rejectManifestOwned(context, existing)
   if (owned) return owned
 
-  const incoming = body as Seed
+  const incoming = body as unknown as Seed
+  const malformed = rejectMalformedBranches(context, incoming.branches)
+  if (malformed) return malformed
   const storedBranches = existing.definition.branches
   const incomingBranches: Branch[] = Array.isArray(incoming.branches) ? incoming.branches : []
 
@@ -208,7 +210,7 @@ seedsApp.put('/:slug', async (context) => {
  */
 seedsApp.post('/:slug/branches', async (context) => {
   const slug = context.req.param('slug')
-  const body = await parseJsonBody(context)
+  const body = await parseJsonObject(context)
   if (body instanceof Response) return body
 
   const existing = await getActiveSeed(context, slug)
@@ -216,7 +218,7 @@ seedsApp.post('/:slug/branches', async (context) => {
   const owned = rejectManifestOwned(context, existing)
   if (owned) return owned
 
-  const newBranch = body as Branch
+  const newBranch = body as unknown as Branch
   newBranch.id = nextBranchId(existing.definition)
 
   const candidate: Seed = {
@@ -250,10 +252,8 @@ seedsApp.delete('/:slug', async (context) => {
   const owned = rejectManifestOwned(context, existing)
   if (owned) return owned
 
-  const backrefMap = context.get('backrefMap')
-  const inbound = backrefMap.get(slug)
-  if (inbound && inbound.length > 0) {
-    const referencers = [...new Set(inbound.map((r: any) => r.sourceSlug))]
+  const referencers = externalReferencers(context, slug)
+  if (referencers.length > 0) {
     return publicProblem(context, {
       type: 'seed-referenced',
       title: 'Seed referenced',

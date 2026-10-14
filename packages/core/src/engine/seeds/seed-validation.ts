@@ -64,15 +64,16 @@ export interface SeedValidationIssue {
 export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
   const result: SeedValidationIssue[] = []
 
-  // ── Fatal 1: unknown relation targets ────────────────────────────────────
+  // ── Fatal 1: missing or unknown relation targets ─────────────────────────
   const slugSet = new Set(seeds.map(s => s.slug))
   for (const seed of seeds) {
     const messages: string[] = []
     for (const branch of seed.branches) {
-      if (branch.type === 'relation' && branch.targetSeed) {
-        if (!slugSet.has(branch.targetSeed)) {
-          messages.push(`branch '${branch.alias}' targets unknown seed '${branch.targetSeed}'`)
-        }
+      if (branch.type !== 'relation') continue
+      if (!branch.targetSeed) {
+        messages.push(`branch '${branch.alias}' is a relation and requires a targetSeed`)
+      } else if (!slugSet.has(branch.targetSeed)) {
+        messages.push(`branch '${branch.alias}' targets unknown seed '${branch.targetSeed}'`)
       }
     }
     if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })
