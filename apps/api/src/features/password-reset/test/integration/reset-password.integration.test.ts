@@ -32,10 +32,12 @@ describe('password-reset slice — integration (real D1)', () => {
       env: { RESEND_API_KEY: 'test-key' },
       createApp: (authProviders) => createBeechApp({ seeds: [], authProviders }),
     })
+    // seedUsers is INSERT OR IGNORE, so an account deactivated by an earlier test stays inactive.
+    await harness.db.prepare('UPDATE users SET is_active = 1 WHERE id = ?').bind(user.id).run()
   })
 
-  // The handler stamps validity with wall-clock `Date.now()`, not the injected IClock, so the
-  // frozen harness clock would make every seeded token look expired.
+  // createBeechApp binds the handlers' `clock` to SystemClock; only the token service honours the
+  // harness clock. A frozen-clock expiry would therefore make every seeded token look expired.
   async function issueResetToken(): Promise<void> {
     await harness.db.prepare('DELETE FROM password_reset_tokens').run()
     await harness.db
@@ -46,17 +48,17 @@ describe('password-reset slice — integration (real D1)', () => {
 
   // The handler reads `executionCtx` eagerly and Hono throws when none is supplied; the harness
   // client passes none, so this route is driven through the app with a real ExecutionContext.
-  async function reset(password: string): Promise<Response> {
+  async function postResetPassword(rawBody: string): Promise<Response> {
     return harness.app.request(
       '/auth/reset-password',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: RESET_TOKEN, password }),
-      },
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: rawBody },
       harness.env,
       createExecutionContext(),
     )
+  }
+
+  async function reset(password: string): Promise<Response> {
+    return postResetPassword(JSON.stringify({ token: RESET_TOKEN, password }))
   }
 
   async function storedPasswordHash(): Promise<string> {
@@ -142,6 +144,34 @@ describe('password-reset slice — integration (real D1)', () => {
 
       expect(replay.status).toBe(400)
       expect(bcrypt.compareSync('first-new-password', await storedPasswordHash())).toBe(true)
+    })
+
+    it.each([
+      ['null', 'null'],
+      ['an array', '[]'],
+      ['a string', '"token"'],
+      ['a number', '42'],
+    ])('rejects a JSON body that is %s with 400 instead of crashing', async (_label, rawBody) => {
+      await issueResetToken()
+      const hashBefore = await storedPasswordHash()
+
+      const response = await postResetPassword(rawBody)
+
+      expect(response.status).toBe(400)
+      expect(await storedPasswordHash()).toBe(hashBefore)
+      expect(await usedTokenCount()).toBe(0)
+    })
+
+    it('rejects a valid token that belongs to a deactivated account and keeps its password', async () => {
+      await issueResetToken()
+      await harness.db.prepare('UPDATE users SET is_active = 0 WHERE id = ?').bind(user.id).run()
+      const hashBefore = await storedPasswordHash()
+
+      const response = await reset('first-new-password')
+
+      expect(response.status).toBe(400)
+      expect(await storedPasswordHash()).toBe(hashBefore)
+      expect(await usedTokenCount()).toBe(0)
     })
 
     it('lets only one of two concurrent requests redeem the same token', async () => {
