@@ -142,6 +142,28 @@ export function SetupPage() {
     setStep((s) => (s < 3 ? ((s + 1) as 1 | 2 | 3) : s))
   }
 
+  // Step 2: Enter jumps to the next empty field; when all are filled it advances.
+  function handleCredentialsKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
+    if (!(e.target instanceof HTMLInputElement)) return
+    e.preventDefault()
+    const fields = [
+      { id: 'name', value: name },
+      { id: 'surname', value: surname },
+      { id: 'email', value: email },
+      { id: 'password', value: password },
+      { id: 'confirm', value: confirm },
+    ]
+    const current = fields.findIndex((f) => f.id === e.target.id)
+    const ordered = [...fields.slice(current + 1), ...fields.slice(0, current + 1)]
+    const nextEmpty = ordered.find((f) => !f.value.trim())
+    if (nextEmpty) {
+      document.getElementById(nextEmpty.id)?.focus()
+      return
+    }
+    goNext()
+  }
+
   async function handleFinish() {
     setError(null)
     if (track === 'normal') {
@@ -272,7 +294,7 @@ export function SetupPage() {
           )}
 
           {step === 2 && (
-            <div className="space-y-4">
+            <div className="space-y-4" onKeyDown={handleCredentialsKeyDown}>
               <p className="text-sm font-semibold text-foreground">{t('setup.step2Title')}</p>
 
               <div className="grid grid-cols-2 gap-3">
