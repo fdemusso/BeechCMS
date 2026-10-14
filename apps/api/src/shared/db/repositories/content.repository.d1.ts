@@ -41,8 +41,6 @@ import {
 } from '@beechcms/core'
 import { BaseD1Repository } from './base.repository.d1'
 
-export { activeClause, activeCondition }
-
 // ── Private helpers ───────────────────────────────────────────────────────────
 
 function isCiphertext(value: unknown): boolean {

@@ -354,10 +354,6 @@ The server converts the column value into the entry value (`kanbanColumnEntryVal
 | `409` | `content-update-conflict` | The entry changed between read and write. |
 | `422` | `content-validation-error` | The new axis value fails validation (for example, a value that is not an option), or `axis.value` is `null` on a required axis. |
 
-### Reorder a Card — `PATCH /api/content/:seed/:id/kanban-position`
-
-Stores only the board position (`{ "axisBranchId": "br_02", "position": "a0V" }`) and never touches the entry. Same `400` and `404` errors as `kanban-move`.
-
 ---
 
 ## Delete Entry — `DELETE /api/content/:seed/:id`

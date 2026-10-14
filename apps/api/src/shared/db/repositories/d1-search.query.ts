@@ -211,5 +211,3 @@ export function mapFtsRowToResultRow(row: FtsRow): SearchResultRow {
   }
 }
 
-export { activeClause, activeCondition } from '@beechcms/core'
-

@@ -6,7 +6,7 @@ import { SUPPORTED_FILE_TYPES } from '@beechcms/core'
 /**
  * Sample attachment fixture object representation.
  */
-export interface SampleFileAttachment {
+interface SampleFileAttachment {
   filename: string
   mimeType: string
   data: string

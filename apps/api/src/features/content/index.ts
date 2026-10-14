@@ -11,7 +11,6 @@ import { updateHandler } from './handlers/update'
 import { deleteHandler } from './handlers/delete'
 import { facetsHandler } from './handlers/facets'
 import { bulkHandler } from './handlers/bulk.handler'
-import { kanbanPositionHandler } from './handlers/kanban-position'
 import { kanbanMoveHandler } from './handlers/kanban-move'
 import { listViewsHandler, createViewHandler, updateViewHandler, deleteViewHandler, reorderViewsHandler } from './handlers/views'
 import { trashListHandler, restoreHandler, bulkRestoreHandler, bulkPurgeHandler, reconcilePurgesHandler } from './handlers/trash'
@@ -26,7 +25,6 @@ const content = new Hono<AppEnv>()
 content.get('/import-jobs/:id', importJobStatusHandler)
 
 content.patch('/:slug/:id/kanban-move', kanbanMoveHandler)
-content.patch('/:slug/:id/kanban-position', kanbanPositionHandler)
 content.get('/:slug/views', listViewsHandler)                       // before /:slug/:id
 content.post('/:slug/views', createViewHandler)
 content.put('/:slug/views/order', reorderViewsHandler)              // literal segment, before /:slug/views/:viewId

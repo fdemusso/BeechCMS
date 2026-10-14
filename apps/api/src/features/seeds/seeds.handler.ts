@@ -328,7 +328,4 @@ seedsApp.post('/:slug/fts/rebuild', async (context) => {
   return context.json({ success: true })
 })
 
-export { McpClassification, classifyCandidate } from './seeds.mcp'
 export * from './seeds.helpers'
-export { destructiveApp } from './seeds.destructive'
-export { mcpApp } from './seeds.mcp'

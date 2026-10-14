@@ -31,7 +31,7 @@ apps/api/src/features/content/
     ├── update.ts
     ├── delete.ts
     ├── helpers.ts        # Shared validation/serialization for this slice
-    └── …                 # bulk, facets, kanban-move, kanban-position, view-config
+    └── …                 # bulk, facets, kanban-move, view-config
 ```
 
 ### 1. The Thin Handler Pattern
