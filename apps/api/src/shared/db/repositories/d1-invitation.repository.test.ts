@@ -133,7 +133,7 @@ describe('D1InvitationRepository', () => {
     expect(assignments?.n).toBe(0)
   })
 
-  it('invalidatePending consumes only pending rows for that email', async () => {
+  it('supersedePending deletes only the unredeemed rows of that email and keeps redeemed and foreign ones', async () => {
     const roleId = await makeRole()
     const pendingId = await repo.create({
       email: 'repeat@beechcms.io',
@@ -152,9 +152,20 @@ describe('D1InvitationRepository', () => {
       expiresAt: NOW + 1000,
     })
 
-    await repo.invalidatePending('repeat@beechcms.io', NOW)
+    const redeemedId = await repo.create({
+      email: 'repeat@beechcms.io',
+      tokenHash: 'hash-redeemed',
+      roleId,
+      scope: GLOBAL_SCOPE,
+      invitedBy: INVITER_ID,
+      expiresAt: NOW + 1000,
+    })
+    await db.prepare('UPDATE invitations SET used_at = ? WHERE id = ?').bind(NOW, redeemedId).run()
 
-    expect((await repo.findById(pendingId))?.usedAt).toBe(NOW)
+    await repo.supersedePending('repeat@beechcms.io')
+
+    expect(await repo.findById(pendingId)).toBeNull()
+    expect((await repo.findById(redeemedId))?.usedAt).toBe(NOW)
     expect((await repo.findById(otherId))?.usedAt).toBeNull()
   })
 

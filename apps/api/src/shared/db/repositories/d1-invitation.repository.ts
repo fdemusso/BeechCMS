@@ -49,10 +49,10 @@ export class D1InvitationRepository implements IInvitationRepository {
     private readonly idGenerator: IIdGenerator,
   ) {}
 
-  async invalidatePending(email: string, nowTimestamp: number): Promise<void> {
+  async supersedePending(email: string): Promise<void> {
     await this.db
-      .prepare('UPDATE invitations SET used_at = ? WHERE email = ? AND used_at IS NULL')
-      .bind(nowTimestamp, email)
+      .prepare('DELETE FROM invitations WHERE email = ? AND used_at IS NULL')
+      .bind(email)
       .run()
   }
 

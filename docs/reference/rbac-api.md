@@ -231,7 +231,7 @@ An invitation **is a deferred assignment**: it carries a pre-assigned `(role, sc
 - **TTL**: 72 hours.
 - **Hash-only at rest**: the row stores `sha256hex(token)`; the plaintext exists once, inside the email.
 - **No ghost account**: no `users` row is created at invite time. The account is materialised at redemption — which is why regeneration reuses the row instead of recreating anything.
-- **One pending per email**: `invalidatePending()` runs before every issue.
+- **One pending per email**: `supersedePending()` deletes the address's unredeemed invitations before every issue, so a reissued invitation never lingers as `accepted`.
 - **Status is derived**, never stored: `used_at` set → `accepted`; unset and past `expires_at` → `expired`; otherwise `pending`.
 
 Email delivery is required. With no `EMAIL_PROVIDER=smtp` and no `RESEND_API_KEY`, issuing and regenerating are refused `409 email-unavailable`. The link points at `${APP_URL}/admin/accept-invite?token=…`, and the send is dispatched via `executionCtx.waitUntil()` so it never blocks the response.

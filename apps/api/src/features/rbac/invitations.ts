@@ -123,7 +123,7 @@ export const createInvitationHandler = async (context: AppContext) => {
   }
 
   const now = context.get('clock').nowSeconds()
-  await context.get('invitationRepository').invalidatePending(email, now)
+  await context.get('invitationRepository').supersedePending(email)
 
   const token = generateOpaqueToken()
   const tokenHash = await sha256hex(token)

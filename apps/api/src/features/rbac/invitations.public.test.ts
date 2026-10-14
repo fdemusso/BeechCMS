@@ -16,7 +16,7 @@ import type { Env, Variables } from '../../types'
 import { acceptInvitationHandler, previewInvitationHandler } from './invitations.public'
 
 const invitations = {
-  invalidatePending: vi.fn<IInvitationRepository['invalidatePending']>(),
+  supersedePending: vi.fn<IInvitationRepository['supersedePending']>(),
   create: vi.fn<IInvitationRepository['create']>(),
   findValidByHash: vi.fn<IInvitationRepository['findValidByHash']>(),
   redeem: vi.fn<IInvitationRepository['redeem']>(),
