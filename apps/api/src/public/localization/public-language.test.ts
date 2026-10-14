@@ -58,6 +58,23 @@ describe('parseAcceptLanguage', () => {
 
     expect(tags).toEqual(['en', 'de', 'it'])
   })
+
+  it('drops an entry whose q-value is outside the RFC 9110 weight grammar, whatever Number() makes of it', () => {
+    // Regression guard: Number() also reads hex, exponent, signed and padded strings as 1, which let a
+    // malformed `en;q=0x1` outrank the well-formed `it;q=0.5`.
+    const malformed = ['0x1', '1e0', '+1', '+0.9', ' 1', '.5', '0.1234', '1.0001', '0.5e0']
+    for (const q of malformed) {
+      const tags = parseAcceptLanguage(`en;q=${q}, it;q=0.5`)
+
+      expect(tags).toEqual(['it'])
+    }
+  })
+
+  it('keeps every q-value the RFC 9110 weight grammar allows', () => {
+    const tags = parseAcceptLanguage('de;q=0.001, en;q=1.000, it;q=0.5, pt-BR;q=1, fr;q=0.')
+
+    expect(tags).toEqual(['en', 'pt-BR', 'it', 'de'])
+  })
 })
 
 describe('loadPublicLanguage', () => {

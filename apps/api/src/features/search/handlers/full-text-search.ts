@@ -42,7 +42,9 @@ export async function fullTextSearchHandler(c: Context<AppEnv>): Promise<Respons
   const schemaSlug   = c.req.query('schema_slug') ?? null
   const statusFilter = c.req.query('status') ?? null
   const rawLimit     = Number.parseInt(c.req.query('limit') ?? String(SEARCH_LIMITS.DEFAULT_PAGE_SIZE), 10)
-  const limit        = Math.min(Math.max(rawLimit, SEARCH_LIMITS.MIN_PAGE_SIZE), SEARCH_LIMITS.MAX_PAGE_SIZE)
+  // parseInt yields NaN for non-numeric input and Math.min/max propagate it into the SQL LIMIT bind.
+  const requestedLimit = Number.isNaN(rawLimit) ? SEARCH_LIMITS.DEFAULT_PAGE_SIZE : rawLimit
+  const limit        = Math.min(Math.max(requestedLimit, SEARCH_LIMITS.MIN_PAGE_SIZE), SEARCH_LIMITS.MAX_PAGE_SIZE)
   const cursor       = c.req.query('cursor') ?? null
 
   if (queryText.length < SEARCH_LIMITS.QUERY_MIN_LENGTH) {

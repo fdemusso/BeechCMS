@@ -28,6 +28,9 @@ const ALL_LANGUAGES = new Set(['all', '*'])
 /** Bounds parsing work on a hostile header; browsers send a handful of entries. */
 const MAX_ACCEPT_LANGUAGE_ENTRIES = 20
 
+/** RFC 9110 `weight` value: `0` or `1`, then at most three decimals (`1` allows only zeros). Number() alone also reads hex, exponent, signed and padded strings. */
+const Q_VALUE_PATTERN = /^(?:0(?:\.\d{0,3})?|1(?:\.0{0,3})?)$/
+
 /** `EN-us` → `en-US`. Anything that is not `language[-region]` comes back trimmed for isLocaleCode to refuse. */
 function normalizeLanguageTag(raw: string): string {
   const trimmed = raw.trim()
@@ -56,7 +59,8 @@ export function parseAcceptLanguage(header: string | undefined): string[] {
     .map((part, index) => {
       const [rawTag, ...params] = part.split(';')
       const qParam = params.map((param) => param.trim()).find((param) => param.startsWith('q='))
-      const q = qParam === undefined ? 1 : Number(qParam.slice(2))
+      const rawQ = qParam?.slice(2)
+      const q = rawQ === undefined ? 1 : Q_VALUE_PATTERN.test(rawQ) ? Number(rawQ) : Number.NaN
       return { tag: normalizeLanguageTag(rawTag), q, index }
     })
     .filter((entry) => isLocaleCode(entry.tag) && Number.isFinite(entry.q) && entry.q > 0 && entry.q <= 1)
