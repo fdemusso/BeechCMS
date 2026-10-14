@@ -92,34 +92,17 @@ Resolves a live (unused, unexpired) invitation by token hash. Null otherwise —
 
 ***
 
-### invalidatePending()
+### list()
 
-> **invalidatePending**(`email`, `nowTimestamp`): `Promise`&lt;`void`&gt;
+> **list**(`page`): `Promise`&lt;[`InvitationRecord`](InvitationRecord.md)[]&gt;
 
-Consumes every pending invitation for an email before a new one is issued, so at
- most one live token per address exists at any time.
+One page of invitations, newest first.
 
 #### Parameters
 
-##### email
+##### page
 
-`string`
-
-##### nowTimestamp
-
-`number`
-
-#### Returns
-
-`Promise`&lt;`void`&gt;
-
-***
-
-### listAll()
-
-> **listAll**(): `Promise`&lt;[`InvitationRecord`](InvitationRecord.md)[]&gt;
-
-Every invitation, newest first. Administration tables are small by nature.
+[`PageRequest`](PageRequest.md)
 
 #### Returns
 
@@ -177,3 +160,24 @@ Replaces the token and expiry of an existing PENDING-or-EXPIRED invitation,
 #### Returns
 
 `Promise`&lt;`boolean`&gt;
+
+***
+
+### supersedePending()
+
+> **supersedePending**(`email`): `Promise`&lt;`void`&gt;
+
+Deletes every unredeemed invitation for an email before a new one is issued, so at
+ most one live token per address exists at any time. They are removed, not marked
+ used: `used_at` means "redeemed", and a superseded row must never be reported as
+ accepted.
+
+#### Parameters
+
+##### email
+
+`string`
+
+#### Returns
+
+`Promise`&lt;`void`&gt;

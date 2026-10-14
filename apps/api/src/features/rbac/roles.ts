@@ -43,10 +43,6 @@ export const createRoleHandler = async (context: AppContext) => {
   }
 
   const roleRepository = context.get('roleRepository')
-  const existing = await roleRepository.listAll()
-  if (existing.some(role => role.name === parsed.data.name)) {
-    return rbacProblem(context, RBAC_ERRORS.ROLE_NAME_TAKEN, 409, 'Conflict', 'A role with this name already exists.')
-  }
 
   try {
     const id = await roleRepository.create({
@@ -57,6 +53,7 @@ export const createRoleHandler = async (context: AppContext) => {
     })
     return context.json({ id }, 201)
   } catch (error) {
+    // `roles.name` is UNIQUE: the constraint, not a read of the whole catalogue, is the arbiter.
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
       return rbacProblem(context, RBAC_ERRORS.ROLE_NAME_TAKEN, 409, 'Conflict', 'A role with this name already exists.')
     }

@@ -133,7 +133,7 @@ describe('D1InvitationRepository', () => {
     expect(assignments?.n).toBe(0)
   })
 
-  it('invalidatePending consumes only pending rows for that email', async () => {
+  it('supersedePending deletes only the unredeemed rows of that email and keeps redeemed and foreign ones', async () => {
     const roleId = await makeRole()
     const pendingId = await repo.create({
       email: 'repeat@beechcms.io',
@@ -152,9 +152,20 @@ describe('D1InvitationRepository', () => {
       expiresAt: NOW + 1000,
     })
 
-    await repo.invalidatePending('repeat@beechcms.io', NOW)
+    const redeemedId = await repo.create({
+      email: 'repeat@beechcms.io',
+      tokenHash: 'hash-redeemed',
+      roleId,
+      scope: GLOBAL_SCOPE,
+      invitedBy: INVITER_ID,
+      expiresAt: NOW + 1000,
+    })
+    await db.prepare('UPDATE invitations SET used_at = ? WHERE id = ?').bind(NOW, redeemedId).run()
 
-    expect((await repo.findById(pendingId))?.usedAt).toBe(NOW)
+    await repo.supersedePending('repeat@beechcms.io')
+
+    expect(await repo.findById(pendingId)).toBeNull()
+    expect((await repo.findById(redeemedId))?.usedAt).toBe(NOW)
     expect((await repo.findById(otherId))?.usedAt).toBeNull()
   })
 
@@ -199,7 +210,7 @@ describe('D1InvitationRepository', () => {
     expect(await repo.findById(id)).toBeNull()
   })
 
-  it('listAll returns rows newest first', async () => {
+  it('list returns one page at a time, newest first, without skipping or repeating rows', async () => {
     const roleId = await makeRole()
     const firstId = await repo.create({
       email: 'a@beechcms.io',
@@ -218,8 +229,11 @@ describe('D1InvitationRepository', () => {
       expiresAt: NOW + 1000,
     })
 
-    const all = await repo.listAll()
-    expect(all.map(row => row.id).sort()).toEqual([firstId, secondId].sort())
+    const firstPage = await repo.list({ limit: 1, offset: 0 })
+    const secondPage = await repo.list({ limit: 1, offset: 1 })
+    const beyond = await repo.list({ limit: 1, offset: 2 })
+    expect([...firstPage, ...secondPage].map(row => row.id).sort()).toEqual([firstId, secondId].sort())
+    expect(beyond).toEqual([])
   })
 
   it('delete removes a row and returns false when absent', async () => {

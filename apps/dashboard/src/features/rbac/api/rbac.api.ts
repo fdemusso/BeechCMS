@@ -8,9 +8,30 @@ import type {
   CreateUserPayload, InvitationView, RoleBodyPayload, RoleRecord,
 } from "../types/rbac.types"
 
+/** Matches the API's largest page (`MAX_PAGE_SIZE`): fewest round trips per listing. */
+const PAGE_SIZE = 100
+
+/**
+ * The admin listings are paged server-side so one request never loads a whole table.
+ * The dashboard still shows everything, so it walks the pages until `nextOffset` is null.
+ */
+type Page<K extends string, T> = Record<K, T[]> & { nextOffset: number | null }
+
+async function listAllPages<K extends string, T>(path: string, key: K): Promise<T[]> {
+  const rows: T[] = []
+  let offset: number | null = 0
+  while (offset !== null) {
+    const { data }: { data: Page<K, T> } = await api.get<Page<K, T>>(path, {
+      params: { limit: PAGE_SIZE, offset },
+    })
+    rows.push(...data[key])
+    offset = data.nextOffset
+  }
+  return rows
+}
+
 export const rbacApi = {
-  listUsers: async (): Promise<AccountView[]> =>
-    (await api.get<{ users: AccountView[] }>("/rbac/users")).data.users,
+  listUsers: (): Promise<AccountView[]> => listAllPages<"users", AccountView>("/rbac/users", "users"),
 
   createUser: async (payload: CreateUserPayload): Promise<AccountView> =>
     (await api.post<AccountView>("/rbac/users", payload)).data,
@@ -43,8 +64,8 @@ export const rbacApi = {
     await api.delete(`/rbac/roles/${roleId}`)
   },
 
-  listInvitations: async (): Promise<InvitationView[]> =>
-    (await api.get<{ invitations: InvitationView[] }>("/rbac/invitations")).data.invitations,
+  listInvitations: (): Promise<InvitationView[]> =>
+    listAllPages<"invitations", InvitationView>("/rbac/invitations", "invitations"),
 
   createInvitation: async (payload: CreateInvitationPayload): Promise<{ id: string; expiresAt: number; inviteUrl: string }> =>
     (await api.post<{ id: string; expiresAt: number; inviteUrl: string }>("/rbac/invitations", payload)).data,

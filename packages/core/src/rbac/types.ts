@@ -50,6 +50,15 @@ export interface EffectivePermissions {
   byScope: ReadonlyMap<Scope, ReadonlySet<Permission>>
 }
 
+/** One page of an administration listing. `limit` is at most {@link MAX_PAGE_SIZE}. */
+export interface PageRequest {
+  limit: number
+  offset: number
+}
+
+/** Largest page the administration listings serve. Keeps every `IN (...)` fan-out under D1's bound-parameter cap. */
+export const MAX_PAGE_SIZE = 100
+
 /**
  * Outcome of a write that must never remove the platform's last active global
  * administrator. The repository enforces the invariant inside the write itself (one
@@ -128,13 +137,13 @@ export interface IRoleAssignmentRepository {
   findById(assignmentId: string): Promise<PermissionAssignment | null>
 
   /**
-   * Every assignment in the system, decay filter NOT applied.
+   * Every assignment of the given users, decay filter NOT applied, in ONE round trip.
    *
-   * Exists so the account-list endpoint can resolve each account's scopes in ONE round
-   * trip instead of one query per account. Administration tables are small by nature;
-   * content never flows through here.
+   * Exists so the account-list endpoint can resolve the scopes of one page of accounts
+   * without a query per account. Callers pass at most {@link MAX_PAGE_SIZE} ids (D1 caps
+   * bound parameters per statement); an empty list returns an empty list.
    */
-  listAll(): Promise<PermissionAssignment[]>
+  listForUsers(userIds: readonly string[]): Promise<PermissionAssignment[]>
 
   /**
    * Every assignment of one user, decay filter NOT applied — administration screens must

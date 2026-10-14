@@ -64,13 +64,16 @@ Frozen map (`apps/api/src/features/rbac/constants.ts`) — codes are never renam
 
 ### `GET /api/rbac/users`
 
+Paged: `?limit=1..100` (default 100) and `?offset=0..` select a window of the accounts table, oldest first. The response carries `nextOffset`, the offset of the next page or `null` on the last one. A malformed value is refused `422 validation-failed`. The visibility filter below applies to each page afterwards, so a page of a scoped holder may hold fewer than `limit` rows; keep following `nextOffset` until it is `null`.
+
 Accounts the caller may administer, each with its **raw** (non-decayed) assignments. The caller's own account is always included.
 
 Visibility is computed with `canAdministerAccount()`: a global `manage_users` holder sees everyone; a scoped holder sees an account only when they hold `manage_users` on **every** scope that account is assigned to. An account with no assignment at all is visible only to a global holder — zero-trust accounts stay out of a scoped manager's reach until deliberately assigned into their scope.
 
 ```json
 { "users": [ { "id": "…", "email": "…", "name": null, "surname": null,
-               "role": "editor", "isActive": true, "assignments": [ … ] } ] }
+               "role": "editor", "isActive": true, "assignments": [ … ] } ],
+  "nextOffset": null }
 ```
 
 ### `POST /api/rbac/users`
@@ -100,7 +103,7 @@ Accounts minted here always receive `users.role = 'editor'`, never `'admin'`. Th
 
 ### `GET /api/rbac/users/:userId`
 
-The account plus its assignments. Returns `404 not-found` for a malformed id, a missing account, **and** a target the caller may not administer.
+The account plus its assignments, looked up by id. Returns `404 not-found` for a malformed id, a missing account, **and** a target the caller may not administer.
 
 ### `PATCH /api/rbac/users/:userId/active`
 
@@ -231,7 +234,7 @@ An invitation **is a deferred assignment**: it carries a pre-assigned `(role, sc
 - **TTL**: 72 hours.
 - **Hash-only at rest**: the row stores `sha256hex(token)`; the plaintext exists once, inside the email.
 - **No ghost account**: no `users` row is created at invite time. The account is materialised at redemption — which is why regeneration reuses the row instead of recreating anything.
-- **One pending per email**: `invalidatePending()` runs before every issue.
+- **One pending per email**: `supersedePending()` deletes the address's unredeemed invitations before every issue, so a reissued invitation never lingers as `accepted`.
 - **Status is derived**, never stored: `used_at` set → `accepted`; unset and past `expires_at` → `expired`; otherwise `pending`.
 
 Email delivery is required. With no `EMAIL_PROVIDER=smtp` and no `RESEND_API_KEY`, issuing and regenerating are refused `409 email-unavailable`. The link points at `${APP_URL}/admin/accept-invite?token=…`, and the send is dispatched via `executionCtx.waitUntil()` so it never blocks the response.
@@ -253,6 +256,8 @@ Email delivery is required. With no `EMAIL_PROVIDER=smtp` and no `RESEND_API_KEY
 | `422` | `validation-failed` / `unknown-scope` |
 
 ### `GET /api/rbac/invitations`
+
+Paged like `GET /api/rbac/users`: `?limit=1..100` (default 100), `?offset=0..`, newest first, `nextOffset` in the response (`null` on the last page), `422 validation-failed` on a malformed value.
 
 Scope-gated listing: a scoped `manage_users` holder never enumerates invitations outside their perimeter. Each row carries `roleName` and the derived `status`.
 

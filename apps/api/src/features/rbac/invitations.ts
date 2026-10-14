@@ -9,7 +9,7 @@ import { sendInvitationEmail, resolveEmailLocale, type EmailLocale } from '../..
 import { generateOpaqueToken } from '../../shared/utils/opaque-token'
 import { sha256hex } from '@beechcms/core'
 import { RBAC_ERRORS } from './constants'
-import { rbacProblem, readJson, type AppContext } from './guards'
+import { rbacProblem, readJson, readPage, type AppContext } from './guards'
 import { createInvitationSchema } from './rbac.schema'
 
 /** 72 hours (brief §3: "link di invito con scadenza"; §4: an expired one is regenerable). */
@@ -123,7 +123,7 @@ export const createInvitationHandler = async (context: AppContext) => {
   }
 
   const now = context.get('clock').nowSeconds()
-  await context.get('invitationRepository').invalidatePending(email, now)
+  await context.get('invitationRepository').supersedePending(email)
 
   const token = generateOpaqueToken()
   const tokenHash = await sha256hex(token)
@@ -152,13 +152,23 @@ export const createInvitationHandler = async (context: AppContext) => {
 }
 
 /**
- * GET /api/rbac/invitations
+ * GET /api/rbac/invitations?limit&offset
  * Visibility is scope-gated the same way as any other administration listing: a scoped
  * `manage_users` holder must not enumerate invitations outside their perimeter.
+ *
+ * Paged over the invitations table; the visibility filter applies to each page afterwards, so
+ * a page may hold fewer than `limit` rows. `nextOffset` is null on the last page.
  */
 export const listInvitationsHandler = async (context: AppContext) => {
+  const page = readPage(context)
+  if (!page) {
+    return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', 'Invalid limit or offset.')
+  }
+
   const now = context.get('clock').nowSeconds()
-  const rows = await context.get('invitationRepository').listAll()
+  // One extra row tells whether another page exists without a COUNT.
+  const fetched = await context.get('invitationRepository').list({ limit: page.limit + 1, offset: page.offset })
+  const rows = fetched.slice(0, page.limit)
   const roles = await context.get('roleRepository').findByIds([...new Set(rows.map(row => row.roleId))])
   const roleById = new Map(roles.map(role => [role.id, role]))
 
@@ -177,6 +187,7 @@ export const listInvitationsHandler = async (context: AppContext) => {
       createdAt: row.createdAt,
       status: row.usedAt !== null ? 'accepted' : row.expiresAt <= now ? 'expired' : 'pending',
     })),
+    nextOffset: fetched.length > page.limit ? page.offset + page.limit : null,
   })
 }
 

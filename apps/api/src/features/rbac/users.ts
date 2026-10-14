@@ -6,7 +6,7 @@
 import type { AccountSummary, PermissionAssignment } from '@beechcms/core'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { RBAC_ERRORS } from './constants'
-import { canAdministerAccount, rbacProblem, readJson, type AppContext } from './guards'
+import { canAdministerAccount, rbacProblem, readJson, readPage, type AppContext } from './guards'
 import { createUserSchema, setActiveSchema } from './rbac.schema'
 
 /**
@@ -23,16 +23,26 @@ const CREATED_ACCOUNT_ROLE = 'editor'
 type AccountView = AccountSummary & { assignments: PermissionAssignment[] }
 
 /**
- * GET /api/rbac/users
+ * GET /api/rbac/users?limit&offset
  * Accounts the caller may administer, each with its raw (non-decayed) assignments.
  * The caller's own account is always included.
+ *
+ * Paged over the accounts table; the visibility filter applies to each page afterwards, so a
+ * page may hold fewer than `limit` rows. `nextOffset` is null on the last page.
  */
 export const listUsersHandler = async (context: AppContext) => {
+  const page = readPage(context)
+  if (!page) {
+    return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', 'Invalid limit or offset.')
+  }
+
   const actor = await resolveEffectivePermissions(context)
   const actorId = context.get('jwtPayload')?.sub ?? ''
 
-  const accounts = await context.get('userRepository').listAccounts()
-  const allAssignments = await context.get('roleAssignmentRepository').listAll()
+  // One extra row tells whether another page exists without a COUNT.
+  const fetched = await context.get('userRepository').listAccounts({ limit: page.limit + 1, offset: page.offset })
+  const accounts = fetched.slice(0, page.limit)
+  const allAssignments = await context.get('roleAssignmentRepository').listForUsers(accounts.map(account => account.id))
 
   const byUser = new Map<string, PermissionAssignment[]>()
   for (const assignment of allAssignments) {
@@ -48,7 +58,7 @@ export const listUsersHandler = async (context: AppContext) => {
     users.push({ ...account, assignments })
   }
 
-  return context.json({ users })
+  return context.json({ users, nextOffset: fetched.length > page.limit ? page.offset + page.limit : null })
 }
 
 /**
@@ -123,7 +133,7 @@ export const getUserHandler = async (context: AppContext) => {
 
   if (!context.get('idGenerator').isValid(userId)) return notFound()
 
-  const account = (await context.get('userRepository').listAccounts()).find(a => a.id === userId)
+  const account = await context.get('userRepository').findAccountById(userId)
   if (!account) return notFound()
 
   const assignments = await context.get('roleAssignmentRepository').listAllForUser(userId)

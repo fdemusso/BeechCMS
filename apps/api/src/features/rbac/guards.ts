@@ -4,11 +4,12 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
-import type { EffectivePermissions, Permission, PermissionAssignment } from '@beechcms/core'
-import { canGrant, hasPermission, permissionsHeldAnywhere } from '@beechcms/core'
+import type { EffectivePermissions, PageRequest, Permission, PermissionAssignment } from '@beechcms/core'
+import { MAX_PAGE_SIZE, canGrant, hasPermission, permissionsHeldAnywhere } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
 import { RBAC_ERRORS, type RbacErrorCode } from './constants'
+import { pageQuerySchema } from './rbac.schema'
 
 export type AppContext = Context<{ Bindings: Env; Variables: Variables }>
 
@@ -92,4 +93,15 @@ export async function readJson(context: AppContext): Promise<unknown | undefined
   } catch {
     return undefined
   }
+}
+
+/**
+ * Reads `?limit&offset` of a paged administration listing. A client that sends neither gets
+ * the first {@link MAX_PAGE_SIZE} rows; `undefined` means a malformed value, which the caller
+ * answers with 422.
+ */
+export function readPage(context: AppContext): PageRequest | undefined {
+  const parsed = pageQuerySchema.safeParse(context.req.query())
+  if (!parsed.success) return undefined
+  return { limit: parsed.data.limit ?? MAX_PAGE_SIZE, offset: parsed.data.offset ?? 0 }
 }
