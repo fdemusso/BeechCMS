@@ -116,6 +116,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [INotificationRepository](interfaces/INotificationRepository.md)
 - [INotificationService](interfaces/INotificationService.md)
 - [InvitationRecord](interfaces/InvitationRecord.md)
+- [InvitationRedemption](interfaces/InvitationRedemption.md)
 - [IOAuthAuthorizationCodeRepository](interfaces/IOAuthAuthorizationCodeRepository.md)
 - [IOAuthClientRepository](interfaces/IOAuthClientRepository.md)
 - [IOAuthConsentRepository](interfaces/IOAuthConsentRepository.md)

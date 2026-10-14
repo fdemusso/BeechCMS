@@ -6,6 +6,7 @@
 import type {
   IInvitationRepository,
   InvitationRecord,
+  InvitationRedemption,
   NewInvitationInput,
   ValidatedInvitation,
   IIdGenerator,
@@ -87,14 +88,27 @@ export class D1InvitationRepository implements IInvitationRepository {
     }
   }
 
-  /** `WHERE used_at IS NULL` makes the consume atomic: exactly one concurrent redeem
-   *  sees `changes === 1`; the loser is refused. */
-  async markUsed(invitationId: string, nowTimestamp: number): Promise<boolean> {
-    const result = await this.db
-      .prepare('UPDATE invitations SET used_at = ? WHERE id = ? AND used_at IS NULL')
-      .bind(nowTimestamp, invitationId)
-      .run()
-    return (result.meta?.changes ?? 0) > 0
+  /**
+   * One `db.batch` (a transaction). Both inserts are guarded by "invitation still pending"
+   * and the consume runs last, so a concurrent redeem that lost the race writes nothing and
+   * sees `changes === 0`. The users.email UNIQUE index rejects a second account for the
+   * same address and rolls the whole batch back, invitation untouched.
+   */
+  async redeem(input: InvitationRedemption): Promise<boolean> {
+    const pending = 'EXISTS (SELECT 1 FROM invitations WHERE id = ? AND used_at IS NULL)'
+    const { user } = input
+    const results = await this.db.batch([
+      this.db
+        .prepare(`INSERT INTO users (id, email, password_hash, role, name, surname) SELECT ?, ?, ?, ?, ?, ? WHERE ${pending}`)
+        .bind(user.id, user.email, user.passwordHash, user.role, user.name, user.surname, input.invitationId),
+      this.db
+        .prepare(`INSERT INTO user_role_assignments (id, user_id, role_id, scope) SELECT ?, ?, ?, ? WHERE ${pending}`)
+        .bind(input.assignmentId, user.id, input.roleId, input.scope, input.invitationId),
+      this.db
+        .prepare('UPDATE invitations SET used_at = ? WHERE id = ? AND used_at IS NULL')
+        .bind(input.usedAt, input.invitationId),
+    ])
+    return (results[2]?.meta?.changes ?? 0) > 0
   }
 
   async findById(invitationId: string): Promise<InvitationRecord | null> {

@@ -58,4 +58,4 @@ One invitation row. `tokenHash` is deliberately absent: nothing above the storag
 
 > **usedAt**: `number` \| `null`
 
-Non-null once redeemed. Single-use is enforced by [IInvitationRepository.markUsed](IInvitationRepository.md#markused).
+Non-null once redeemed. Single-use is enforced by [IInvitationRepository.redeem](IInvitationRepository.md#redeem).

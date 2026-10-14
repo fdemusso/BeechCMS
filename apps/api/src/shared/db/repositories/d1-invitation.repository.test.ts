@@ -16,6 +16,7 @@ let repo: D1InvitationRepository
 let roles: D1RoleRepository
 
 const INVITER_ID = 'user_inviter_01'
+const INVITER_ID_EMAIL = 'inviter@beechcms.io'
 const NOW = 1_700_000_000
 
 beforeEach(async () => {
@@ -23,11 +24,22 @@ beforeEach(async () => {
   ids = new SequentialIdGenerator()
   repo = new D1InvitationRepository(db, ids)
   roles = new D1RoleRepository(db, ids)
-  await seedTestUsers(db, [{ id: INVITER_ID, email: 'inviter@beechcms.io', password_hash: 'x', grantSuperAdmin: false }])
+  await seedTestUsers(db, [{ id: INVITER_ID, email: INVITER_ID_EMAIL, password_hash: 'x', grantSuperAdmin: false }])
 })
 
 async function makeRole(): Promise<string> {
   return roles.create({ name: 'InviteRole', description: null, permissions: ['content:read'] })
+}
+
+function redemption(invitationId: string, roleId: string, email: string) {
+  return {
+    invitationId,
+    user: { id: `user_${invitationId}`, email, passwordHash: 'x', role: 'editor', name: null, surname: null },
+    assignmentId: `assignment_${invitationId}`,
+    roleId,
+    scope: GLOBAL_SCOPE,
+    usedAt: NOW,
+  }
 }
 
 describe('D1InvitationRepository', () => {
@@ -75,14 +87,14 @@ describe('D1InvitationRepository', () => {
       invitedBy: INVITER_ID,
       expiresAt: NOW + 1000,
     })
-    await repo.markUsed(usedId, NOW)
+    await repo.redeem(redemption(usedId, roleId, 'used@beechcms.io'))
     expect(await repo.findValidByHash('hash-used', NOW)).toBeNull()
 
     expect(await repo.findValidByHash('hash-unknown', NOW)).toBeNull()
     expect(expiredId).toBeTruthy()
   })
 
-  it('markUsed returns true once and false on the second call', async () => {
+  it('redeem creates the account and its assignment, consumes the invitation, and refuses a second call', async () => {
     const roleId = await makeRole()
     const id = await repo.create({
       email: 'single-use@beechcms.io',
@@ -92,9 +104,33 @@ describe('D1InvitationRepository', () => {
       invitedBy: INVITER_ID,
       expiresAt: NOW + 1000,
     })
+    const input = redemption(id, roleId, 'single-use@beechcms.io')
 
-    expect(await repo.markUsed(id, NOW)).toBe(true)
-    expect(await repo.markUsed(id, NOW)).toBe(false)
+    expect(await repo.redeem(input)).toBe(true)
+    expect(await repo.redeem({ ...input, user: { ...input.user, id: 'user_second', email: 'second@beechcms.io' }, assignmentId: 'assignment_second' })).toBe(false)
+
+    const users = await db.prepare('SELECT COUNT(*) AS n FROM users WHERE email IN (?, ?)').bind('single-use@beechcms.io', 'second@beechcms.io').first<{ n: number }>()
+    expect(users?.n).toBe(1)
+    const assignment = await db.prepare('SELECT role_id, scope FROM user_role_assignments WHERE user_id = ?').bind(input.user.id).first<{ role_id: string; scope: string }>()
+    expect(assignment).toEqual({ role_id: roleId, scope: GLOBAL_SCOPE })
+  })
+
+  it('redeem rolls back account, assignment and consumption when the email is already registered', async () => {
+    const roleId = await makeRole()
+    const id = await repo.create({
+      email: INVITER_ID_EMAIL,
+      tokenHash: 'hash-taken',
+      roleId,
+      scope: GLOBAL_SCOPE,
+      invitedBy: INVITER_ID,
+      expiresAt: NOW + 1000,
+    })
+
+    await expect(repo.redeem(redemption(id, roleId, INVITER_ID_EMAIL))).rejects.toThrow('UNIQUE constraint failed')
+
+    expect(await repo.findValidByHash('hash-taken', NOW)).not.toBeNull()
+    const assignments = await db.prepare('SELECT COUNT(*) AS n FROM user_role_assignments WHERE role_id = ?').bind(roleId).first<{ n: number }>()
+    expect(assignments?.n).toBe(0)
   })
 
   it('invalidatePending consumes only pending rows for that email', async () => {
@@ -143,7 +179,7 @@ describe('D1InvitationRepository', () => {
     expect(row?.expiresAt).toBe(NOW + 2000)
     expect(await repo.findValidByHash('hash-regenerated', NOW)).not.toBeNull()
 
-    await repo.markUsed(id, NOW)
+    await repo.redeem(redemption(id, roleId, 'regen@beechcms.io'))
     expect(await repo.regenerate(id, 'hash-again', NOW + 3000)).toBe(false)
   })
 

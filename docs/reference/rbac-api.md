@@ -166,6 +166,7 @@ The actor must hold every permission in **both** the current and the incoming se
 | `200` | `{ "id": "…" }` |
 | `403` | `escalation-refused` |
 | `409` | `system-role-immutable` — `SuperAdmin` and any other `is_system` role |
+| `409` | `role-name-taken` — the new `name` belongs to another role |
 | `409` | `last-global-admin` — the edit would strip `manage_users` from the role carrying the last global administrator |
 | `404` | `not-found` |
 
@@ -219,7 +220,7 @@ The anti-escalation choke point. Two independent conditions must both hold:
 
 Authorized on the assignment's **own** scope; `404` when the caller lacks authority there.
 
-Refused `409 last-global-admin` when the assignment is at `*`, its role carries `manage_users`, and no other active account still administers the platform. `204` on success.
+Refused `409 last-global-admin` when the assignment is at `*`, its role carries `manage_users`, and no other assignment still lets an active account administer the platform. An account holding a second global `manage_users` assignment stays an administrator, so removing one of the two is allowed. `204` on success.
 
 ---
 
@@ -294,8 +295,8 @@ Redemption order, which is load-bearing:
 1. Resolve the invitation by token hash; `404 invitation-invalid` if absent/expired/used.
 2. Re-validate the scope against the live seed registry (`422 unknown-scope`).
 3. **Re-evaluate the issuer's live authority** without a JWT — the issuer must still be active and must still pass `hasPermission` + `canGrant` for this `(role, scope)`. Otherwise `409 invitation-revoked`. Authority granted by an admin who has since been demoted or deactivated never lands.
-4. `markUsed()` atomically — the invitation is consumed **before** the account exists, so a race cannot redeem it twice.
-5. Create the account (`users.role = 'editor'`) and write the assignment.
+4. `409 email-taken` if the address is already registered; the invitation is left untouched.
+5. `redeem()` — create the account (`users.role = 'editor'`), write the assignment and consume the invitation in **one** atomic write. A failure never burns the invitation or leaves an account without its role, and a race cannot redeem it twice (`404 invitation-invalid` for the loser).
 
 No token and no session are returned: the activated account logs in through `POST /auth/login` like any other (`201 { id, email }`).
 

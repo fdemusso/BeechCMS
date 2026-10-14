@@ -115,13 +115,21 @@ export const updateRoleHandler = async (context: AppContext) => {
   const refusal = await refuseIfLastAdminRole(context, roleId, role.permissions, parsed.data.permissions)
   if (refusal) return refusal
 
-  const updated = await roleRepository.update(roleId, {
-    name: parsed.data.name,
-    description: parsed.data.description ?? null,
-    icon: parsed.data.icon ?? null,
-    permissions: parsed.data.permissions,
-  })
-  if (!updated) return notFound()
+  try {
+    const updated = await roleRepository.update(roleId, {
+      name: parsed.data.name,
+      description: parsed.data.description ?? null,
+      icon: parsed.data.icon ?? null,
+      permissions: parsed.data.permissions,
+    })
+    if (!updated) return notFound()
+  } catch (error) {
+    // `roles.name` is UNIQUE: the constraint, not a pre-read, is the only race-free arbiter.
+    if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
+      return rbacProblem(context, RBAC_ERRORS.ROLE_NAME_TAKEN, 409, 'Conflict', 'A role with this name already exists.')
+    }
+    throw error
+  }
 
   return context.json({ id: roleId })
 }

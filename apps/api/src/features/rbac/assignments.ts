@@ -123,7 +123,7 @@ export const deleteAssignmentHandler = async (context: AppContext) => {
   if (assignment.scope === GLOBAL_SCOPE) {
     const role = await context.get('roleRepository').findById(assignment.roleId)
     if (role?.permissions.includes('manage_users')) {
-      const others = await assignmentRepository.countActiveGlobalAdminsExcludingUser(assignment.userId)
+      const others = await assignmentRepository.countActiveGlobalAdminsExcludingAssignment(assignment.id)
       if (others === 0) {
         return rbacProblem(
           context,

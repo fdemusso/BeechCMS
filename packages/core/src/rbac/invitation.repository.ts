@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
+import type { NewUserInput } from '../auth/user.repository.js'
 import type { Scope } from './permissions.js'
 
 /** One invitation row. `tokenHash` is deliberately absent: nothing above the storage
@@ -14,7 +15,7 @@ export interface InvitationRecord {
   invitedBy: string
   expiresAt: number
   createdAt: number
-  /** Non-null once redeemed. Single-use is enforced by {@link IInvitationRepository.markUsed}. */
+  /** Non-null once redeemed. Single-use is enforced by {@link IInvitationRepository.redeem}. */
   usedAt: number | null
 }
 
@@ -34,6 +35,16 @@ export interface ValidatedInvitation {
   roleId: string
   scope: Scope
   invitedBy: string
+}
+
+/** What {@link IInvitationRepository.redeem} writes in one transaction. */
+export interface InvitationRedemption {
+  invitationId: string
+  user: NewUserInput
+  assignmentId: string
+  roleId: string
+  scope: Scope
+  usedAt: number
 }
 
 /**
@@ -57,11 +68,16 @@ export interface IInvitationRepository {
   findValidByHash(tokenHash: string, nowTimestamp: number): Promise<ValidatedInvitation | null>
 
   /**
-   * Consumes an invitation. Returns TRUE only when THIS call performed the transition
-   * (`used_at IS NULL` at write time), which is what makes redemption single-use under
-   * concurrency. A second concurrent redeem gets false and must be refused.
+   * Redeems an invitation: creates the account, writes its (role, scope) assignment and
+   * consumes the invitation in ONE atomic write. Either all three land or none does, so a
+   * failure can neither burn the invitation nor leave an account without its role.
+   *
+   * Returns TRUE only when THIS call performed the transition (`used_at IS NULL` at write
+   * time), which is what makes redemption single-use under concurrency; FALSE means the
+   * invitation was consumed or revoked meanwhile and nothing was written. Throws when the
+   * email is already registered (UNIQUE), writing nothing.
    */
-  markUsed(invitationId: string, nowTimestamp: number): Promise<boolean>
+  redeem(input: InvitationRedemption): Promise<boolean>
 
   /** One invitation by id, regardless of state. Null when absent. */
   findById(invitationId: string): Promise<InvitationRecord | null>

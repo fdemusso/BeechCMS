@@ -134,6 +134,16 @@ describe('D1RoleAssignmentRepository', () => {
     expect(await repo.countActiveGlobalAdminsExcludingUser(USER_ID)).toBe(1)
   })
 
+  it('countActiveGlobalAdminsExcludingAssignment keeps a user who holds a second admin assignment', async () => {
+    const roleA = await roles.create({ name: 'ExclAssignA', description: null, permissions: ['manage_users'] })
+    const roleB = await roles.create({ name: 'ExclAssignB', description: null, permissions: ['manage_users'] })
+    const first = await repo.create({ userId: USER_ID, roleId: roleA, scope: GLOBAL_SCOPE })
+    expect(await repo.countActiveGlobalAdminsExcludingAssignment(first)).toBe(0)
+
+    await repo.create({ userId: USER_ID, roleId: roleB, scope: GLOBAL_SCOPE })
+    expect(await repo.countActiveGlobalAdminsExcludingAssignment(first)).toBe(1)
+  })
+
   it('countActiveGlobalAdminsExcludingRole returns 0 when that role is the only source of admins and 1 when another role also grants it', async () => {
     const adminRoleId = await roles.create({ name: 'ExclRoleAdmin', description: null, permissions: ['manage_users'] })
     await repo.create({ userId: USER_ID, roleId: adminRoleId, scope: GLOBAL_SCOPE })
