@@ -313,3 +313,65 @@ describe('evaluateWhen — null operands', () => {
   })
 })
 
+
+// ---------------------------------------------------------------------------
+// Missing values are not numbers
+// ---------------------------------------------------------------------------
+
+describe('evaluateWhen — missing values in numeric comparisons', () => {
+  const numeric = (op: 'gt' | 'gte' | 'lt' | 'lte', limit: number): WhenNode => ({
+    kind: 'predicate',
+    left: { kind: 'ref', key: 'this.price' },
+    op,
+    right: { kind: 'literal', value: limit },
+  })
+
+  // Number(null) and Number('') are both 0, which made a missing price satisfy `price < 10`.
+  it.each([
+    ['lt', 10],
+    ['lte', 0],
+    ['gte', 0],
+    ['gt', -1],
+  ] as const)('%s %d is false when the field is null', (op, limit) => {
+    expect(evaluateWhen(numeric(op, limit), makeContext({ price: null }))).toBe(false)
+  })
+
+  it.each([
+    ['lt', 10],
+    ['lte', 0],
+    ['gte', 0],
+    ['gt', -1],
+  ] as const)('%s %d is false when the field is an empty string', (op, limit) => {
+    expect(evaluateWhen(numeric(op, limit), makeContext({ price: '' }))).toBe(false)
+  })
+
+  it('lt is false when the field is absent from the entry', () => {
+    expect(evaluateWhen(numeric('lt', 10), makeContext({}))).toBe(false)
+  })
+
+  it('lt stays true for a real number below the limit, including zero', () => {
+    expect(evaluateWhen(numeric('lt', 10), makeContext({ price: 0 }))).toBe(true)
+  })
+
+  it('eq does not treat 0 as equal to an empty string', () => {
+    const node: WhenNode = {
+      kind: 'predicate',
+      left: { kind: 'ref', key: 'this.price' },
+      op: 'eq',
+      right: { kind: 'literal', value: '' },
+    }
+
+    expect(evaluateWhen(node, makeContext({ price: 0 }))).toBe(false)
+  })
+
+  it('neq treats 0 as different from an empty string', () => {
+    const node: WhenNode = {
+      kind: 'predicate',
+      left: { kind: 'ref', key: 'this.price' },
+      op: 'neq',
+      right: { kind: 'literal', value: '' },
+    }
+
+    expect(evaluateWhen(node, makeContext({ price: 0 }))).toBe(true)
+  })
+})

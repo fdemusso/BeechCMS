@@ -3,11 +3,11 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi } from 'vitest'
-import { executeSetVariable } from './set-variable.executor'
+import { executeSetVariable, materializeCollection } from './set-variable.executor'
 import { resolveAutomationContext } from '../evaluator/context-resolver'
 import { resolveVarAccess } from '../evaluator/var-access-resolver'
 import { parseTemplateKey } from '../evaluator/template-grammar'
-import type { ContentRepository, Seed } from '@beechcms/core'
+import type { ContentRepository, Seed, SelectOptions } from '@beechcms/core'
 
 const MOCK_SEED: Seed = {
   slug: 'clienti',
@@ -402,5 +402,57 @@ describe('legacy load_type backward compatibility', () => {
     expect(result.count).toBe(2)
     expect(result.sum).toBeDefined()
     expect(result.pluck).toBeDefined()
+  })
+})
+
+describe('materializeCollection — aggregates over missing values', () => {
+  const items = [
+    { id: 'a', total: 10, created_at: 1 },
+    { id: 'b', total: null, created_at: 2 },
+  ]
+
+  it('the general avg divides by the rows that hold a number, like the pinned avg', () => {
+    const general = materializeCollection(MOCK_SEED, items, null)
+    const pinned = materializeCollection(MOCK_SEED, items, 'total')
+
+    expect((general.avg as Record<string, number>).total).toBe(10)
+    expect(pinned.avg).toBe(10)
+  })
+
+  it('the general avg is 0 when no row holds a number', () => {
+    const general = materializeCollection(MOCK_SEED, [{ id: 'a', total: null, created_at: 1 }], null)
+
+    expect((general.avg as Record<string, number>).total).toBe(0)
+  })
+})
+
+describe('executeSetVariable — large collections', () => {
+  function pagedRepository(total: number): ContentRepository {
+    const rows = Array.from({ length: total }, (_, index) => ({ id: `c_${index}`, total: 1, created_at: index }))
+    const findMany = vi.fn(async (_seed: Seed, options: SelectOptions) => {
+      const { limit, offset } = options.pagination ?? { limit: rows.length, offset: 0 }
+      return { items: rows.slice(offset, offset + limit), total }
+    })
+    return { findMany } as unknown as ContentRepository
+  }
+
+  // A single 1000-row read silently dropped the rest, so count/sum covered only part of the seed.
+  it('aggregates over every matching row, not only the first page', async () => {
+    const ctx = await makeCtx({ repository: pagedRepository(2500) })
+
+    await executeSetVariable({ type: 'set_variable', name: 'all', seed_slug: 'clienti', filters: [] }, ctx)
+
+    const collection = ctx.variables.all as { count: number; sum: Record<string, number> }
+    expect(collection.count).toBe(2500)
+    expect(collection.sum.total).toBe(2500)
+  })
+
+  // 10_000 is the MAX_AUTOMATION_ROWS ceiling that keeps one run inside the isolate's memory budget.
+  it('stops at the row ceiling instead of loading an unbounded table', async () => {
+    const ctx = await makeCtx({ repository: pagedRepository(10_500) })
+
+    await executeSetVariable({ type: 'set_variable', name: 'all', seed_slug: 'clienti', filters: [] }, ctx)
+
+    expect((ctx.variables.all as { count: number }).count).toBe(10_000)
   })
 })

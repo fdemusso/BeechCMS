@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect } from 'vitest'
-import type { WhenNode, Seed } from '@beechcms/core'
+import { buildSelectQuery, type WhenNode, type Seed } from '@beechcms/core'
 import { extractPushdownFilters } from './when-pushdown'
 
 // ---------------------------------------------------------------------------
@@ -60,16 +60,16 @@ describe('extractPushdownFilters — safe predicates', () => {
     expect(result[0].conditions[0].value).toBe('paid')
   })
 
-  it('root neq predicate is pushed', () => {
+  // SQL `col != ?` drops NULL rows while evaluateWhen's neq keeps them, so pushing it down
+  // would hide entries the condition accepts.
+  it('root neq predicate is not pushed', () => {
     const node: WhenNode = {
       kind: 'predicate',
       left: { kind: 'ref', key: 'this.status' },
       op: 'neq',
       right: { kind: 'literal', value: 'cancelled' },
     }
-    const result = extractPushdownFilters(node, seed)
-    expect(result).toHaveLength(1)
-    expect(result[0].conditions[0].op).toBe('neq')
+    expect(extractPushdownFilters(node, seed)).toEqual([])
   })
 
   it('root gt predicate is pushed', () => {
@@ -279,3 +279,47 @@ describe('extractPushdownFilters — cross-seed refs stay in-memory', () => {
   })
 })
 
+
+// ---------------------------------------------------------------------------
+// Encrypted fields
+// ---------------------------------------------------------------------------
+
+describe('extractPushdownFilters — encrypted fields', () => {
+  const encryptedSeed: Seed = {
+    ...makeSeed(['status']),
+    branches: [
+      { id: 'br_01', alias: 'status', label: 'Status', type: 'text' },
+      { id: 'br_02', alias: 'secret', label: 'Secret', type: 'text', policies: { classification: 'confidential' } },
+    ],
+  }
+
+  // The query builder throws a TypeError for range and substring operators on an encrypted column,
+  // which failed the whole automation on every tick.
+  it.each(['gt', 'lt', 'contains'] as const)('a %s predicate on an encrypted field yields a query the builder accepts', (op) => {
+    const node: WhenNode = {
+      kind: 'predicate',
+      left: { kind: 'ref', key: 'this.secret' },
+      op,
+      right: { kind: 'literal', value: 'abc' },
+    }
+
+    const filters = extractPushdownFilters(node, encryptedSeed)
+
+    expect(() => buildSelectQuery(encryptedSeed, { filters })).not.toThrow()
+  })
+
+  it('a pushable predicate on a plain field next to an encrypted one is still pushed', () => {
+    const node: WhenNode = {
+      kind: 'group',
+      op: 'AND',
+      children: [
+        { kind: 'predicate', left: { kind: 'ref', key: 'this.secret' }, op: 'contains', right: { kind: 'literal', value: 'abc' } },
+        { kind: 'predicate', left: { kind: 'ref', key: 'this.status' }, op: 'eq', right: { kind: 'literal', value: 'paid' } },
+      ],
+    }
+
+    const filters = extractPushdownFilters(node, encryptedSeed)
+
+    expect(filters.map((group) => group.column)).toEqual(['status'])
+  })
+})

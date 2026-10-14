@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { Automation, AutomationAction, IAutomationRepository, ContentRepository, Seed, IIdGenerator } from '@beechcms/core'
+import type { Automation, AutomationAction, IAutomationRepository, ContentRepository, Seed, SelectOptions, IIdGenerator } from '@beechcms/core'
 import { runCronAutomations } from './cron-runner'
 import type { CronRunnerDeps } from './cron-runner'
 import { interpolate } from './automation-runner.utils'
@@ -334,5 +334,43 @@ describe('runCronAutomations', () => {
 
     // Regression guard: the batch context once skipped the variables map, so `{{v.count}}` rendered empty.
     expect(rendered).toEqual(['{"open":"7","batch":"2"}'])
+  })
+})
+
+describe('runCronAutomations — large seeds', () => {
+  beforeEach(() => {
+    executeActionMock.mockReset()
+    executeActionMock.mockResolvedValue(undefined)
+  })
+
+  const editField: AutomationAction = { type: 'edit_field', field: 'title', value: 'x' }
+
+  function pagedRepository(total: number): ContentRepository {
+    const rows = Array.from({ length: total }, (_, index) => ({ id: `e${index}` }))
+    const findMany = vi.fn(async (_seed: Seed, options: SelectOptions) => {
+      const { limit, offset } = options.pagination ?? { limit: rows.length, offset: 0 }
+      return { items: rows.slice(offset, offset + limit), total }
+    })
+    return { findMany } as unknown as ContentRepository
+  }
+
+  // A single 1000-row read silently dropped every later entry from the tick.
+  it('runs a per-entry action for every matching entry, not only the first page', async () => {
+    const deps = makeDeps({ contentRepository: pagedRepository(2500) })
+    deps.findActiveSpy.mockResolvedValue([makeAutomation({ actions: [editField] })])
+
+    await runCronAutomations(deps, TICK)
+
+    expect(executeActionMock).toHaveBeenCalledTimes(2500)
+  })
+
+  // 10_000 is the MAX_AUTOMATION_ROWS ceiling that keeps one tick inside the isolate's memory budget.
+  it('stops at the row ceiling instead of loading an unbounded seed', async () => {
+    const deps = makeDeps({ contentRepository: pagedRepository(10_500) })
+    deps.findActiveSpy.mockResolvedValue([makeAutomation({ actions: [editField] })])
+
+    await runCronAutomations(deps, TICK)
+
+    expect(executeActionMock).toHaveBeenCalledTimes(10_000)
   })
 })

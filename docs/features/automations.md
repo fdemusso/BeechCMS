@@ -15,7 +15,7 @@ An automation rule consists of three building blocks:
 
 - **Trigger**: The event that initiates the workflow.
   - **Lifecycle Events**: `create`, `update`, or `delete` on any specified Seed.
-  - **Schedule (`cron`)**: Recurring time intervals (e.g. daily summaries, weekly cleanups).
+  - **Schedule (`cron`)**: Recurring time intervals (e.g. daily summaries, weekly cleanups), written as a standard five-field cron expression evaluated in UTC. An expression that cannot fire is rejected when the automation is saved.
 - **Conditions**: Optional logical rules (e.g. `status == 'published'`, `priority == 'high'`) that must evaluate to true for execution to proceed.
 - **Actions**: A sequential pipeline of operations executed in exact order.
 
@@ -49,11 +49,11 @@ Declare a variable with a `fixed_id` (either a literal ID or an interpolated val
 
 ### Collection Mode & Aggregates
 
-When `fixed_id` is omitted, `set_variable` loads up to 1,000 records from a target Seed, allowing powerful aggregates and navigation:
+When `fixed_id` is omitted, `set_variable` loads up to 10,000 records from a target Seed (a larger Seed is read partially and a warning is logged), allowing powerful aggregates and navigation:
 
 - **`\{\{posts.count\}\}`**: Total count of matching items.
 - **`\{\{orders.sum.total\}\}`**: Sum of a numeric Branch (`total`).
-- **`\{\{orders.avg.total\}\}`**: Average value.
+- **`\{\{orders.avg.total\}\}`**: Average over the records that hold a number; empty values are ignored.
 - **`\{\{posts.min.publishedAt\}\}`**: Minimum date/value.
 - **`\{\{posts.max.publishedAt\}\}`**: Maximum date/value.
 - **`\{\{tags.pluck.name\}\}`**: Comma-separated list of up to 100 values.

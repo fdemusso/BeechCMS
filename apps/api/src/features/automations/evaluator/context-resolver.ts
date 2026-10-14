@@ -6,6 +6,7 @@ import type { Automation } from '@beechcms/core'
 import type { AutomationContextSelector, ParsedKey } from './template-grammar'
 import { resolvePath } from '../engine/automation-runner.utils'
 import { resolveVarAccess } from './var-access-resolver'
+import { numericValue } from './numeric'
 import { prefetchSeedRows, seedLookupCacheKey } from './seed-lookup'
 import type { SeedLookupDeps } from './seed-lookup'
 
@@ -30,27 +31,30 @@ function applyAggregate(
     case 'sum': {
       if (!field) { if (onMissing) onMissing('sum:field'); return 0 }
       return rows.reduce((acc, r) => {
-        const v = Number(r[field])
-        if (Number.isNaN(v)) { if (onMissing) onMissing(`sum:${field}:NaN`); return acc }
+        const v = numericValue(r[field])
+        if (v === null) { if (onMissing) onMissing(`sum:${field}:NaN`); return acc }
         return acc + v
       }, 0)
     }
 
     case 'avg': {
       if (!field || rows.length === 0) { if (onMissing && !field) onMissing('avg:field'); return 0 }
-      const total = rows.reduce((acc, r) => {
-        const v = Number(r[field])
-        if (Number.isNaN(v)) { if (onMissing) onMissing(`avg:${field}:NaN`); return acc }
-        return acc + v
-      }, 0)
-      return rows.length > 0 ? total / rows.length : 0
+      let total = 0
+      let counted = 0
+      for (const r of rows) {
+        const v = numericValue(r[field])
+        if (v === null) { if (onMissing) onMissing(`avg:${field}:NaN`); continue }
+        total += v
+        counted++
+      }
+      return counted > 0 ? total / counted : 0
     }
 
     case 'min': {
       if (!field || rows.length === 0) { if (onMissing && !field) onMissing('min:field'); return null }
       return rows.reduce<number | null>((acc, r) => {
-        const v = Number(r[field])
-        if (Number.isNaN(v)) return acc
+        const v = numericValue(r[field])
+        if (v === null) return acc
         return acc === null || v < acc ? v : acc
       }, null)
     }
@@ -58,8 +62,8 @@ function applyAggregate(
     case 'max': {
       if (!field || rows.length === 0) { if (onMissing && !field) onMissing('max:field'); return null }
       return rows.reduce<number | null>((acc, r) => {
-        const v = Number(r[field])
-        if (Number.isNaN(v)) return acc
+        const v = numericValue(r[field])
+        if (v === null) return acc
         return acc === null || v > acc ? v : acc
       }, null)
     }
