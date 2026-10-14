@@ -160,6 +160,21 @@ describe('fullTextSearchHandler', () => {
     )
   })
 
+  it('falls back to the default pageSize (20) when limit is not a number', async () => {
+    const { app, searchMock } = createTestApp({ searchRows: [], total: 0 })
+
+    // parseInt yields NaN for these; NaN survives Math.min/Math.max and would be bound into SQL LIMIT.
+    for (const limit of ['abc', '', 'NaN']) {
+      const response = await app.request(`/search?q=hello&limit=${limit}`)
+
+      expect(response.status).toBe(200)
+      expect(searchMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ limit: 20 }),
+        expect.any(Array),
+      )
+    }
+  })
+
   it('propagates cursor query parameter', async () => {
     const { app, searchMock } = createTestApp({ searchRows: [], total: 0 })
     await app.request('/search?q=hello&cursor=some-cursor-token')
