@@ -38,7 +38,7 @@ export class D1PasswordResetTokenRepository implements IPasswordResetTokenReposi
         `SELECT prt.id, prt.user_id, u.email
          FROM password_reset_tokens prt
          JOIN users u ON u.id = prt.user_id
-         WHERE prt.token_hash = ? AND prt.expires_at > ? AND prt.used_at IS NULL`
+         WHERE prt.token_hash = ? AND prt.expires_at > ? AND prt.used_at IS NULL AND u.is_active = 1`
       )
       .bind(tokenHash, nowTimestamp)
       .first<ValidatedResetTokenRow>()
