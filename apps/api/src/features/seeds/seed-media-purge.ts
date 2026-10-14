@@ -64,9 +64,9 @@ export async function runSeedMediaPurgeStep(id: string, deps: SeedMediaPurgeDepe
       try {
         await repository.dropAndStartPurge(id, token, generateDropTable(job.definition), clock.nowSeconds())
       } catch (error) {
-        // D1 rolls the DROP batch back; restore access while all content and media still exist.
+        // D1 rolls the DROP batch back; restore the seed's prior status while all content and media still exist.
         await repository.abortDrop(id, token, clock.nowSeconds())
-        console.error(`[seed-purge] DROP failed for '${job.slug}'; seed restored`, error)
+        console.error(`[seed-purge] DROP failed for '${job.slug}'; seed status restored`, error)
         return false
       }
     }

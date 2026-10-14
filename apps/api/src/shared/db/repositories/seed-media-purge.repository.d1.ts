@@ -40,11 +40,13 @@ export class D1SeedMediaPurgeRepository implements ISeedMediaPurgeRepository {
     await this.db.batch([
       this.db.prepare(`INSERT INTO seed_meta (id, value)
         SELECT 'registry_version', 'stale-seed-purge' WHERE NOT EXISTS (
-          SELECT 1 FROM seeds WHERE slug = ? AND status = 'active'
+          SELECT 1 FROM seeds WHERE slug = ?
         )`).bind(seed.slug),
+      // prior_status lets abortDrop restore 'deleted' for a seed that was soft-deleted before the purge.
       this.db.prepare(`INSERT INTO seed_media_purge_jobs
-        (id, slug, definition, phase, created_at, updated_at) VALUES (?, ?, ?, 'live', ?, ?)`)
-        .bind(id, seed.slug, JSON.stringify(seed), now, now),
+        (id, slug, definition, phase, prior_status, created_at, updated_at)
+        SELECT ?, slug, ?, 'live', status, ?, ? FROM seeds WHERE slug = ?`)
+        .bind(id, JSON.stringify(seed), now, now, seed.slug),
       ...guards.create.map(sql => this.db.prepare(sql)),
       this.db.prepare(`UPDATE seeds SET status = 'deleted', updated_at = ? WHERE slug = ? AND status = 'active'`)
         .bind(now, seed.slug),
@@ -152,8 +154,9 @@ export class D1SeedMediaPurgeRepository implements ISeedMediaPurgeRepository {
       )`).bind(id, token)
     const fail = this.db.prepare(`UPDATE seed_media_purge_jobs SET phase = 'failed', updated_at = ?
       WHERE id = ? AND lease_token = ?`).bind(now, id, token)
-    const restore = this.db.prepare(`UPDATE seeds SET status = 'active', updated_at = ? WHERE slug =
-      (SELECT slug FROM seed_media_purge_jobs WHERE id = ?)`).bind(now, id)
+    const restore = this.db.prepare(`UPDATE seeds SET
+      status = (SELECT prior_status FROM seed_media_purge_jobs WHERE id = ?), updated_at = ?
+      WHERE slug = (SELECT slug FROM seed_media_purge_jobs WHERE id = ?)`).bind(id, now, id)
     const bump = this.db.prepare(`UPDATE seed_meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)
       WHERE id = 'registry_version'`)
     const clear = this.db.prepare('DELETE FROM seed_media_purge_keys WHERE job_id = ?').bind(id)

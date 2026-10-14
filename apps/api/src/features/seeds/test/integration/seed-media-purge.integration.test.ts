@@ -173,4 +173,87 @@ describe('seeds slice — media purge (real D1 and R2)', () => {
     expect(await env.MEDIA_BUCKET.get('live.png')).not.toBeNull()
     expect(await env.MEDIA_BUCKET.get('draft.png')).not.toBeNull()
   })
+
+  describe('soft-deleted seed', () => {
+    async function softDeleteSeed(): Promise<void> {
+      const response = await admin.delete('/api/seeds/purge_articles')
+      if (response.status !== 200) throw new Error(`soft delete returned ${response.status}: ${await response.text()}`)
+    }
+
+    function requestHardDelete(slug: string): Promise<Response> {
+      return admin.delete(`/api/seeds/${slug}/hard`, {
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirm: slug }),
+      })
+    }
+
+    it('accepts hard deletion with 202 and keeps the seed soft-deleted while staging runs', async () => {
+      await arrangeMedia()
+      await softDeleteSeed()
+
+      const response = await requestHardDelete('purge_articles')
+
+      expect(response.status).toBe(202)
+      const { jobId } = await response.json<{ jobId: string }>()
+      expect((await repository.get(jobId))?.phase).toBe('live')
+      const seed = await env.DB.prepare('SELECT status FROM seeds WHERE slug = ?').bind('purge_articles')
+        .first<{ status: string }>()
+      expect(seed?.status).toBe('deleted')
+      expect(await env.MEDIA_BUCKET.get('live.png')).not.toBeNull()
+    })
+
+    it('purges tables, seed row and media once the background steps drain', async () => {
+      await arrangeMedia()
+      await softDeleteSeed()
+      const accepted = await requestHardDelete('purge_articles')
+      if (accepted.status !== 202) throw new Error(`seed purge returned ${accepted.status}: ${await accepted.text()}`)
+      const { jobId } = await accepted.json<{ jobId: string }>()
+
+      const more = await drainPurge(jobId)
+
+      expect(more).toBe(false)
+      expect((await repository.get(jobId))?.phase).toBe('done')
+      const seed = await env.DB.prepare('SELECT COUNT(*) AS n FROM seeds WHERE slug = ?').bind('purge_articles')
+        .first<{ n: number }>()
+      expect(seed?.n).toBe(0)
+      const tables = await env.DB.prepare(`SELECT COUNT(*) AS n FROM sqlite_master
+        WHERE name IN ('content_purge_articles', 'content_purge_articles_drafts')`).first<{ n: number }>()
+      expect(tables?.n).toBe(0)
+      expect(await env.MEDIA_BUCKET.get('live.png')).toBeNull()
+    })
+
+    it('leaves the seed soft-deleted, not active, when the atomic table drop fails', async () => {
+      const entryId = await arrangeMedia()
+      await softDeleteSeed()
+      // Regression guard: rollback used to write the literal 'active', silently reviving a seed the user deleted.
+      await env.DB.prepare(`CREATE TABLE purge_blocker (
+        id TEXT PRIMARY KEY, article_id TEXT NOT NULL REFERENCES content_purge_articles(id))`).run()
+      await env.DB.prepare('INSERT INTO purge_blocker (id, article_id) VALUES (?, ?)')
+        .bind('block', entryId).run()
+      const accepted = await requestHardDelete('purge_articles')
+      if (accepted.status !== 202) throw new Error(`seed purge returned ${accepted.status}: ${await accepted.text()}`)
+      const { jobId } = await accepted.json<{ jobId: string }>()
+
+      const result = await drainPurge(jobId)
+
+      expect(result).toBe(false)
+      expect((await repository.get(jobId))?.phase).toBe('failed')
+      const seed = await env.DB.prepare('SELECT status FROM seeds WHERE slug = ?').bind('purge_articles')
+        .first<{ status: string }>()
+      expect(seed?.status).toBe('deleted')
+      const tables = await env.DB.prepare(`SELECT COUNT(*) AS n FROM sqlite_master
+        WHERE name IN ('content_purge_articles', 'content_purge_articles_drafts')`).first<{ n: number }>()
+      expect(tables?.n).toBe(2)
+      expect(await env.MEDIA_BUCKET.get('live.png')).not.toBeNull()
+    })
+
+    it('answers 404 seed-not-found for a slug that was never a seed and creates no job', async () => {
+      const response = await requestHardDelete('never_existed')
+
+      expect(response.status).toBe(404)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toMatch(/seed-not-found$/)
+      const jobs = await env.DB.prepare('SELECT COUNT(*) AS n FROM seed_media_purge_jobs').first<{ n: number }>()
+      expect(jobs?.n).toBe(0)
+    })
+  })
 })

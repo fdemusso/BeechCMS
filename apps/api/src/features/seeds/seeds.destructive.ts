@@ -24,6 +24,7 @@ import {
   parseJsonBody,
   requireConfirm,
   getActiveSeed,
+  getSeedAnyStatus,
   rejectManifestOwned,
   applyDestructiveSeedDef,
   actorFromContext,
@@ -41,6 +42,7 @@ export const destructiveApp = new Hono<{ Bindings: Env; Variables: Variables }>(
  * Irreversible destructive operation.
  * - Requires body `{ confirm: slug }`.
  * - Checks backref graph and rejects with 409 Conflict if referenced by other active seeds.
+ * - Accepts an active or soft-deleted seed; the job records the prior status so a failed DROP restores it.
  * - Immediately hides the seed and records a durable purge job.
  * - Background steps stage media keys, drop tables, then delete R2 objects.
  *
@@ -63,7 +65,7 @@ destructiveApp.delete('/:slug/hard', async (context) => {
       detail: `Seed '${slug}' is already being purged.` })
   }
 
-  const existing = await getActiveSeed(context, slug)
+  const existing = await getSeedAnyStatus(context, slug)
   if (existing instanceof Response) return existing
   const owned = rejectManifestOwned(context, existing)
   if (owned) return owned

@@ -177,7 +177,7 @@ Authorization: Bearer eyJ...
 
 ## `DELETE /api/seeds/:slug/hard`
 
-Starts durable hard deletion of a content type. **This is destructive and irreversible.** The seed becomes unavailable immediately. A background job stages media keys from the live and draft tables in bounded pages, drops the content, draft, search, and junction tables, then deletes the R2 objects in retryable batches. The registry version changes when the seed is hidden and when its tables are dropped.
+Starts durable hard deletion of a content type, whether it is active or already soft-deleted (`DELETE /api/seeds/:slug`). **This is destructive and irreversible.** The seed becomes unavailable immediately. A background job stages media keys from the live and draft tables in bounded pages, drops the content, draft, search, and junction tables, then deletes the R2 objects in retryable batches. The registry version changes when the seed is hidden and when its tables are dropped.
 
 **Guards:**
 1. **Back-reference Check**: Fails with `409 Conflict` (`seed-referenced`) if any other active seed references this content type via a `relation` field.
@@ -202,7 +202,7 @@ Content-Type: application/json
 }
 ```
 
-`GET /api/seeds/purges/<jobId>` reports `phase` (`live`, `drafts`, `purging`, `done`, or `failed`), `stagedCount`, and `purgedCount`. A transient staging or R2 failure stays pending and is retried by the queue or scheduled worker. If the table DROP fails, the D1 batch rolls back, the seed is restored, and the job reports `failed`. Recreating the slug while cleanup is pending returns `409 seed-purge-pending`.
+`GET /api/seeds/purges/<jobId>` reports `phase` (`live`, `drafts`, `purging`, `done`, or `failed`), `stagedCount`, and `purgedCount`. A transient staging or R2 failure stays pending and is retried by the queue or scheduled worker. If the table DROP fails, the D1 batch rolls back, the seed returns to the status it had when the purge started (`active` or `deleted`), and the job reports `failed`. Recreating the slug while cleanup is pending returns `409 seed-purge-pending`.
 
 ---
 
