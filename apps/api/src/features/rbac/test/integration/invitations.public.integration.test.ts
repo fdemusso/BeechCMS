@@ -66,6 +66,19 @@ describe('rbac invitation acceptance — integration (real D1)', () => {
       expect((await readInvitationUsedAt(id))?.used_at).not.toBeNull()
     })
 
+    it('refuses an invitation once the harness clock passes its 72h expiry', async () => {
+      const { id, token } = await issueInvitation()
+      const usersBefore = await countUsers()
+      harness.clock.advance((72 * 60 * 60 + 1) * 1000)
+
+      const response = await harness.anonymous().post('/auth/invitations/accept', { token, password: INVITEE_PASSWORD })
+
+      expect(response.status).toBe(404)
+      expect(await response.json<{ type: string }>()).toMatchObject({ type: 'https://beechcms.dev/problems/invitation-invalid' })
+      expect(await readInvitationUsedAt(id)).toEqual({ used_at: null })
+      expect(await countUsers()).toBe(usersBefore)
+    })
+
     it('leaves the invitation unconsumed when the email was registered after it was issued', async () => {
       const { id, token } = await issueInvitation()
       const registered = await admin.post('/api/rbac/users', { email: INVITEE_EMAIL, password: INVITEE_PASSWORD })
