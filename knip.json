@@ -12,6 +12,9 @@
         "bin/**/*.mjs",
         "scripts/**/*.{mjs,js,ts,tsx}",
         "docs/.vitepress/**/*.{ts,mts}"
+      ],
+      "ignoreDependencies": [
+        "@beechcms/core"
       ]
     },
     "apps/api": {
