@@ -131,9 +131,9 @@ export interface IViewRegistry {
  * Brief §1/§4: View Types announced in the "Add view" picker but not implemented. Dashboard-only
  * identifiers with no runtime behaviour; the API keeps rejecting them (DashboardView is unchanged).
  */
-export const RESERVED_VIEW_TYPES = [
+const RESERVED_VIEW_TYPES = [
   'chart', 'board', 'list', 'calendar', 'map', 'timeline', 'feed', 'form',
 ] as const
-export type ReservedViewType = (typeof RESERVED_VIEW_TYPES)[number]
+type ReservedViewType = (typeof RESERVED_VIEW_TYPES)[number]
 /** Every View Type the picker knows about: implemented (DashboardView) or reserved. */
 export type ViewTypeId = DashboardView | ReservedViewType

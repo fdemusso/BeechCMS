@@ -13,7 +13,7 @@ import type { ContentEntry } from "@/lib/dynamic-columns"
  * True for the relation-label stub `useContentList` primes into the detail cache: `updated_at: null` and `data` holding
  * only the target's display name. A row read from `GET /api/content/:slug/:id` always carries `updated_at`.
  */
-export function isRelationLabelStub(entry: ContentEntry | undefined): boolean {
+function isRelationLabelStub(entry: ContentEntry | undefined): boolean {
   return entry !== undefined && entry.updated_at === null
 }
 

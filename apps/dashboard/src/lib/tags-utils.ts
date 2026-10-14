@@ -15,7 +15,7 @@ export function parseTagsValue(value: unknown): unknown {
 }
 
 /** How a tag chip is drawn: a declared option, a value no longer among the options, or a free tag. */
-export type TagChipTone = "option" | "obsolete" | "free"
+type TagChipTone = "option" | "obsolete" | "free"
 
 export interface TagChipData {
   readonly label: string

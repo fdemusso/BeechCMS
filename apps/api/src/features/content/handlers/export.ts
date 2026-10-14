@@ -32,7 +32,7 @@ const FILE_EXTENSIONS: Record<TransferFormat, string> = { csv: 'csv', ndjson: 'n
  * never "no limit". No absolute ceiling above the operator's value — unlike an upload size,
  * this bound is over the operator's own stored rows, not over attacker-supplied input.
  */
-export function resolveExportMaxRows(env: { EXPORT_MAX_ROWS?: string }): number {
+function resolveExportMaxRows(env: { EXPORT_MAX_ROWS?: string }): number {
   const raw = env.EXPORT_MAX_ROWS
   if (!raw) return DEFAULT_EXPORT_MAX_ROWS
   const parsed = Number.parseInt(raw, 10)

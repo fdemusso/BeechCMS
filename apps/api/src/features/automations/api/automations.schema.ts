@@ -116,7 +116,7 @@ const createEntryActionSchema = z.object({
   field_map: z.record(z.string(), z.string()),
 })
 
-export const automationActionSchema = z.discriminatedUnion('type', [
+const automationActionSchema = z.discriminatedUnion('type', [
   setVariableActionSchema,
   webhookActionSchema,
   sendMailActionSchema,
@@ -172,5 +172,5 @@ export const toggleAutomationSchema = z.object({
   enabled: z.boolean(),
 })
 
-export type CreateAutomationBody = z.infer<typeof createAutomationSchema>
-export type UpdateAutomationBody = z.infer<typeof updateAutomationSchema>
+type CreateAutomationBody = z.infer<typeof createAutomationSchema>
+type UpdateAutomationBody = z.infer<typeof updateAutomationSchema>

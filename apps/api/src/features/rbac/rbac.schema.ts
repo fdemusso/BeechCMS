@@ -15,7 +15,7 @@ const passwordSchema = z
   })
 
 /** The closed vocabulary, reused verbatim. A permission outside it cannot be parsed. */
-export const permissionSchema = z.enum(PERMISSIONS)
+const permissionSchema = z.enum(PERMISSIONS)
 
 export const createUserSchema = z.object({
   email: z.string().trim().refine(isValidAccountEmail, { message: 'Invalid email address.' }),

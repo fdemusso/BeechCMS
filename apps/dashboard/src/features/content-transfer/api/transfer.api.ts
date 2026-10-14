@@ -33,7 +33,7 @@ export interface ImportJobResponse {
   finishedAt: number | null
 }
 
-export interface PresignResponse {
+interface PresignResponse {
   uploadUrl: string
   key: string
   expiresIn: number
@@ -49,7 +49,7 @@ export interface ProblemDetails {
 }
 
 /** The non-RFC-7807 body `R2Bucket.presignPut()` throws when S3 credentials are absent. */
-export interface StorageNotConfiguredProblem {
+interface StorageNotConfiguredProblem {
   error: "presigned_urls_require_s3_credentials"
   message: string
 }

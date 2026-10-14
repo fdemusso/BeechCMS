@@ -116,15 +116,6 @@ export async function moveKanbanCard(slug: string, id: string, body: import('@be
   return res.data
 }
 
-export async function updateKanbanPosition(
-  slug: string,
-  id: string,
-  body: { position: string; axisBranchId: string }
-): Promise<{ success: boolean }> {
-  const res = await api.patch<{ success: boolean }>(`/content/${slug}/${id}/kanban-position`, body)
-  return res.data
-}
-
 export interface KanbanColumnQueryParams {
   filters?: FilterGroup[]
   kanbanAxis: string

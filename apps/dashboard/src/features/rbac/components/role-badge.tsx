@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { resolveIcon } from "@/lib/icon-registry"
 import { cn } from "@/lib/utils"
 
-export interface RoleBadgeInfo {
+interface RoleBadgeInfo {
   readonly id: string
   readonly name: string
   readonly icon?: string | null

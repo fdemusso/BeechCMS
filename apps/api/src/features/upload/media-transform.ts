@@ -47,7 +47,7 @@ export function mediaTransformError(c: Context<AppEnv>, status: 400 | 500 | 502,
   return c.json({ error: code, message: MEDIA_ERROR_MESSAGES[code] }, status)
 }
 
-export function resolveMediaMaxDimension(env: { MEDIA_MAX_DIMENSION?: string }): number {
+function resolveMediaMaxDimension(env: { MEDIA_MAX_DIMENSION?: string }): number {
   const raw = env.MEDIA_MAX_DIMENSION
   if (!raw) return DEFAULT_MEDIA_MAX_DIMENSION
   const parsed = Number.parseInt(raw, 10)
@@ -59,7 +59,7 @@ export function resolveMediaMaxDimension(env: { MEDIA_MAX_DIMENSION?: string }):
 // logged once instead of on every request.
 let catalogMemo: { raw: string | undefined; maxDimension: number; result: MediaPresetCatalog | MediaPresetCatalogError } | null = null
 
-export function resolveMediaPresetCatalog(env: { MEDIA_PRESETS?: string; MEDIA_MAX_DIMENSION?: string }): MediaPresetCatalog | MediaPresetCatalogError {
+function resolveMediaPresetCatalog(env: { MEDIA_PRESETS?: string; MEDIA_MAX_DIMENSION?: string }): MediaPresetCatalog | MediaPresetCatalogError {
   const raw = env.MEDIA_PRESETS?.trim() || undefined
   const maxDimension = resolveMediaMaxDimension(env)
   if (catalogMemo && catalogMemo.raw === raw && catalogMemo.maxDimension === maxDimension) return catalogMemo.result

@@ -17,7 +17,7 @@ type OAuthContext = Context<{ Bindings: Env; Variables: Variables }>
 /**
  * Successful token response body adhering to RFC 6749 §5.1.
  */
-export interface TokenResponseBody {
+interface TokenResponseBody {
   /** The issued access token string. */
   access_token: string
   /** Fixed Bearer token type identifier. */

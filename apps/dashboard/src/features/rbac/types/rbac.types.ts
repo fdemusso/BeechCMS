@@ -17,7 +17,7 @@ export type AssignmentView = PermissionAssignment & {
   permissions: Permission[]
 }
 
-export type InvitationStatus = 'pending' | 'accepted' | 'expired'
+type InvitationStatus = 'pending' | 'accepted' | 'expired'
 
 export interface InvitationView {
   id: string

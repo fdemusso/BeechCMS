@@ -14,7 +14,7 @@ type OAuthContext = Context<{ Bindings: Env; Variables: Variables }>
  * One row of the dashboard "Connected apps" list: a live consent, enriched with
  * the client's display name and with token liveness.
  */
-export interface ConnectedAppSummary {
+interface ConnectedAppSummary {
   /** Stable identifier of the OAuth client (e.g. `beech-mcp-cli`). */
   clientId: string
   /** Human-readable client name; falls back to `clientId` when the client row was disabled. */
@@ -34,7 +34,7 @@ export interface ConnectedAppSummary {
 /**
  * Successful response payload returned when revoking a connected application.
  */
-export interface RevokeConsentResponse {
+interface RevokeConsentResponse {
   /** Indicates that the authorization revocation succeeded. */
   revoked: boolean
   /** Count of active access and refresh tokens revoked during cascade. */

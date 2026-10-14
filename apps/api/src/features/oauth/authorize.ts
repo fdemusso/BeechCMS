@@ -25,7 +25,7 @@ type OAuthContext = Context<{ Bindings: Env; Variables: Variables }>
  * to render client information, requested scopes, and determine whether
  * user interaction is required.
  */
-export interface AuthorizationRequestMetadata {
+interface AuthorizationRequestMetadata {
   /** Basic display details of the requesting OAuth client. */
   client: { clientId: string; name: string }
   /** Every OAuth scope requested by the client in this flow. */
@@ -44,7 +44,7 @@ export interface AuthorizationRequestMetadata {
  * Request body sent by the dashboard SPA consent screen when the user
  * submits an authorization decision (approval or rejection).
  */
-export interface ConsentDecisionBody {
+interface ConsentDecisionBody {
   /** OAuth response_type ('code'). */
   response_type: string
   /** The requesting client identifier. */

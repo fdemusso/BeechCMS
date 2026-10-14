@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import { TableHead, TableRow } from "@/components/ui/table"
 
-export interface DataTableHeaderProps<TData> {
+interface DataTableHeaderProps<TData> {
   table: TanstackTable<TData>
   enableColumnResizing?: boolean
   /** Horizontal drag of header cells. Columns that cannot be hidden (select, actions) stay put. */

@@ -23,7 +23,7 @@ import { SLUG_RE, parseJsonBody, actorFromContext, relationChangeReasons } from 
  * - Auto-assigns sequential IDs via `nextBranchId` for new branches that lack one.
  * - Defaults `displayNameAlias` from stored definition or first text branch if omitted.
  */
-export function normalizeCandidate(candidate: Seed, storedDef: Seed | null): Seed {
+function normalizeCandidate(candidate: Seed, storedDef: Seed | null): Seed {
   const normalized: Seed = resolveCandidateIds(candidate, storedDef)
 
   if (!normalized.displayNameAlias) {

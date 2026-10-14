@@ -47,7 +47,7 @@ export function resolveEmailLocale(raw: unknown): EmailLocale {
  * Specific functions extend this type with the additional fields
  * required for their respective templates.
  */
-export interface BaseEmailParams {
+interface BaseEmailParams {
   /** Main recipient address. */
   to: string
   /** Email body language. Use `resolveEmailLocale()` before passing it here. */

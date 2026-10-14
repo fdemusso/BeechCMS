@@ -71,7 +71,7 @@ export function fkProblemOrNull(c: Context, error: unknown, method: string): Res
   })
 }
 
-export interface PublicProblemDetailItem {
+interface PublicProblemDetailItem {
   field: string
   expected: string
   received: string

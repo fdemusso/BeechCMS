@@ -22,14 +22,14 @@ export type LanguageNegotiation =
   | { readonly ok: false; readonly detail: string }
 
 /** Query parameter that carries the resolved language in the edge-cache key. */
-export const LANGUAGE_CACHE_PARAM = '__beech_lang'
+const LANGUAGE_CACHE_PARAM = '__beech_lang'
 
 const ALL_LANGUAGES = new Set(['all', '*'])
 /** Bounds parsing work on a hostile header; browsers send a handful of entries. */
 const MAX_ACCEPT_LANGUAGE_ENTRIES = 20
 
 /** `EN-us` → `en-US`. Anything that is not `language[-region]` comes back trimmed for isLocaleCode to refuse. */
-export function normalizeLanguageTag(raw: string): string {
+function normalizeLanguageTag(raw: string): string {
   const trimmed = raw.trim()
   const parts = trimmed.split('-')
   if (parts.length === 1) return trimmed.toLowerCase()
@@ -91,7 +91,7 @@ export function negotiatePublicLanguage(
 }
 
 /** True when some seed has a localized branch — the only case where a public read depends on language. */
-export function registryUsesLocalization(registry: Pick<ISeedRegistry, 'all'>): boolean {
+function registryUsesLocalization(registry: Pick<ISeedRegistry, 'all'>): boolean {
   return registry.all().some((seed) => seed.branches.some(isLocalizedBranch))
 }
 

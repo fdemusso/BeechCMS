@@ -6,7 +6,7 @@ import { useMemo, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import type { Seed } from "@beechcms/core"
 import { getGroupableColumns } from "../shared"
-export interface DateGroupPrecision {
+interface DateGroupPrecision {
   year: boolean
   month: boolean
   day: boolean

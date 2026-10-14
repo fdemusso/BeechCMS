@@ -115,7 +115,7 @@ export function SwitchField({ label, checked, onChange }: SwitchFieldProps) {
   )
 }
 
-export interface VariantOption {
+interface VariantOption {
   readonly value: string
   readonly labelKey: string
 }

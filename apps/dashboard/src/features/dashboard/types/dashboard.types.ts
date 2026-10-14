@@ -9,7 +9,7 @@ export interface DashboardStats {
   month: number
 }
 
-export interface CloudflareMetric {
+interface CloudflareMetric {
   value: number
   unit?: string
   trend: number

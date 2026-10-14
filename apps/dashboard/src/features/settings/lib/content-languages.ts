@@ -5,7 +5,7 @@
 import { isLocaleCode } from "@beechcms/core"
 
 /** Mirrors `MAX_LOCALES` in apps/api/src/features/settings/settings.handler.ts. */
-export const MAX_CONTENT_LANGUAGES = 50
+const MAX_CONTENT_LANGUAGES = 50
 
 export type AddContentLanguageError = "invalid" | "duplicate" | "limit"
 

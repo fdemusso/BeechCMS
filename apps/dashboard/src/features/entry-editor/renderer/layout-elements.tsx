@@ -51,7 +51,7 @@ function gridClassFor(columnCount: number): string {
 }
 
 /** Properties for the {@link ColumnRenderer} helper component. */
-export interface ColumnRendererProps {
+interface ColumnRendererProps {
   /** The column schema layout containing field lists. */
   readonly column: LayoutColumn
   /** Map of schema branches. */
@@ -159,7 +159,7 @@ function ColumnRenderer({
 }
 
 /** Properties for the {@link SectionRenderer} helper component. */
-export interface SectionRendererProps {
+interface SectionRendererProps {
   /** The section layout schema. */
   readonly section: LayoutSection
   /** True if this is the final section inside its parent tab. */

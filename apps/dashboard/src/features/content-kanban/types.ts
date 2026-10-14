@@ -55,11 +55,6 @@ export interface KanbanBoardConfig extends KanbanConfig {
   collapsedColumnValues?: string[]
 }
 
-/** Card-level config surfaced alongside axis/sort prefs. */
-export interface KanbanCardBoardConfig {
-  cardConfig?: KanbanCardConfig
-}
-
 export interface ContentKanbanProps {
   seed: Seed
   seedSlug: string

@@ -6,7 +6,7 @@ import * as React from "react"
 import type { Seed } from "@beechcms/core"
 
 /** `trash` = reversible move to the Trash; `purge` = irreversible erasure (GDPR path). */
-export type ContentDeleteMode = "trash" | "purge"
+type ContentDeleteMode = "trash" | "purge"
 
 export interface ContentDeleteDialogProps {
   open: boolean

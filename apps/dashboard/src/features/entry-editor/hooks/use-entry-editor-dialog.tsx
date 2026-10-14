@@ -66,18 +66,18 @@ export interface EditorBranch {
   [key: string]: unknown
 }
 
-export function slugFromText(text: string): string {
+function slugFromText(text: string): string {
   return slugify(text)
 }
 
-export function createEmptyRichtextDoc(): Record<string, unknown> {
+function createEmptyRichtextDoc(): Record<string, unknown> {
   return {
     type: "doc",
     content: [{ type: "paragraph" }],
   }
 }
 
-export function createInitialFormData(branches: EditorBranch[]): Record<string, unknown> {
+function createInitialFormData(branches: EditorBranch[]): Record<string, unknown> {
   const initial: Record<string, unknown> = {}
   for (const branch of branches) {
     if (branch.type === "boolean") {
@@ -93,7 +93,7 @@ export function createInitialFormData(branches: EditorBranch[]): Record<string, 
   return initial
 }
 
-export function deriveAutoSlugText(rawValue: unknown): string {
+function deriveAutoSlugText(rawValue: unknown): string {
   if (typeof rawValue === "string") {
     return rawValue
   }
