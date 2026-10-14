@@ -24,6 +24,11 @@ interface MediaItem {
 const TRACKED_UPLOADS = 1001
 const INSERT_CHUNK = 100
 const OLDEST_KEY = 'media/file-0.png'
+// created_at is index + 1 and the report sorts newest first.
+const NEWEST_KEY = `media/file-${TRACKED_UPLOADS - 1}.png`
+// Mirror DEFAULT_LIMIT and MAX_LIMIT in stats.handler.ts, which are the public paging contract.
+const DEFAULT_PAGE_SIZE = 12
+const MAX_PAGE_SIZE = 100
 const TRACKED_SIZE_BYTES = 10
 
 describe('stats slice — media endpoints (real D1)', () => {
@@ -80,6 +85,33 @@ describe('stats slice — media endpoints (real D1)', () => {
       expect(body.total).toBe(TRACKED_UPLOADS)
       expect(body.items).toHaveLength(1)
       expect(body.items[0]).toMatchObject({ key: OLDEST_KEY, size_bytes: TRACKED_SIZE_BYTES, mime_type: 'image/png' })
+    })
+  })
+
+  describe('GET /api/content/stats/media-library pagination parameters', () => {
+    // parseInt yields NaN for non-numeric input and Math.min/Array.slice then return an empty or
+    // truncated page instead of falling back, so each malformed value must serve the default first page.
+    it('serves the default first page for a non-numeric, negative or zero limit and a non-numeric or negative offset', async () => {
+      const malformedQueries = ['limit=abc', 'limit=-5', 'limit=0', 'offset=abc', 'offset=-3']
+
+      const observed: Record<string, { status: number; count: number; firstKey: string | undefined }> = {}
+      for (const query of malformedQueries) {
+        const response = await admin.get(`/api/content/stats/media-library?${query}`)
+        const body = await response.json<{ items: MediaItem[]; total: number }>()
+        observed[query] = { status: response.status, count: body.items.length, firstKey: body.items[0]?.key }
+      }
+
+      const defaultFirstPage = { status: 200, count: DEFAULT_PAGE_SIZE, firstKey: NEWEST_KEY }
+      expect(observed).toEqual(Object.fromEntries(malformedQueries.map(query => [query, defaultFirstPage])))
+    })
+
+    it('clamps a limit above the maximum page size', async () => {
+      const response = await admin.get('/api/content/stats/media-library?limit=500')
+
+      expect(response.status).toBe(200)
+      const body = await response.json<{ items: MediaItem[]; total: number }>()
+      expect(body.items).toHaveLength(MAX_PAGE_SIZE)
+      expect(body.total).toBe(TRACKED_UPLOADS)
     })
   })
 

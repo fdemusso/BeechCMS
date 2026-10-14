@@ -7,7 +7,7 @@ import { Hono } from 'hono'
 import { SystemClock, type MediaObject, type MediaRepository } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { publicProblem } from '../../public/errors/problem-details'
-import { cleanStr } from '../../shared/utils/query-utils'
+import { cleanStr, parsePositiveInt } from '../../shared/utils/query-utils'
 
 const DATABASE_ERROR = 'Database error'
 const INTERNAL_SERVER_ERROR = 'Internal Server Error'
@@ -55,8 +55,9 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 statsApp.get('/stats/media-library', async (context) => {
     try {
         const mediaRepository = context.get('mediaRepository')
-        const limit = Math.min(Number.parseInt(context.req.query('limit') ?? String(DEFAULT_LIMIT), 10), MAX_LIMIT)
-        const offset = Number.parseInt(context.req.query('offset') ?? '0', 10)
+        const limit = Math.min(parsePositiveInt(context.req.query('limit'), DEFAULT_LIMIT), MAX_LIMIT)
+        // parsePositiveInt rejects 0, which is also the fallback, so offset=0 and invalid values both give the first page.
+        const offset = parsePositiveInt(context.req.query('offset'), 0)
         const mediaBaseUrl = (context.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '')) ?? new URL(context.req.url).origin
 
         // 1. Files tracked in the media library
