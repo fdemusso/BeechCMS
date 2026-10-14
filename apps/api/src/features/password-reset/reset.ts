@@ -8,6 +8,7 @@ import type { Env, Variables } from '../../types'
 import { sendPasswordChangedEmail, resolveEmailLocale } from '../../shared/email'
 import { sha256hex } from '@beechcms/core'
 import { getClientIp } from '../../shared/utils/request-utils'
+import { readJsonObject } from './read-json-object'
 
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 128
@@ -37,10 +38,8 @@ export async function resetPassword(
     return context.json({ error: 'Too many requests' }, 429, headers)
   }
 
-  let payload: Record<string, unknown>
-  try {
-    payload = await req.json()
-  } catch {
+  const payload = await readJsonObject(req)
+  if (!payload) {
     return context.json({ error: 'Invalid request body' }, 400)
   }
 
@@ -69,7 +68,7 @@ export async function resetPassword(
 
   const emailLocale = resolveEmailLocale(payload.locale)
   const tokenHash = await sha256hex(resetToken as string)
-  const nowTimestamp = Math.floor(Date.now() / 1000)
+  const nowTimestamp = context.get('clock').nowSeconds()
 
   const tokenRecord = await context.get('passwordResetTokenRepository').findValidByHashWithEmail(tokenHash, nowTimestamp)
   if (!tokenRecord) {
