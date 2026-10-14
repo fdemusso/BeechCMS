@@ -4,7 +4,6 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type { AccountSummary, PermissionAssignment } from '@beechcms/core'
-import { GLOBAL_SCOPE } from '@beechcms/core'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { RBAC_ERRORS } from './constants'
 import { canAdministerAccount, rbacProblem, readJson, type AppContext } from './guards'
@@ -168,26 +167,9 @@ export const setUserActiveHandler = async (context: AppContext) => {
   const actor = await resolveEffectivePermissions(context)
   if (!canAdministerAccount(actor, assignments)) return notFound()
 
-  // LAST-ADMIN GUARDRAIL. `countActiveGlobalAdminsExcludingUser` counts OTHER accounts
-  // that can still administer the platform. Zero means this account is the last one, and
-  // the refusal applies to everyone — the holder included (brief §4: no self-revocation).
-  if (!parsed.data.isActive) {
-    const others = await assignmentRepository.countActiveGlobalAdminsExcludingUser(userId)
-    if (others === 0) {
-      const isGlobalAdmin = await holdsGlobalManageUsers(context, userId)
-      if (isGlobalAdmin) {
-        return rbacProblem(
-          context,
-          RBAC_ERRORS.LAST_GLOBAL_ADMIN,
-          409,
-          'Conflict',
-          'This is the last active account able to administer the platform; it cannot be deactivated.',
-        )
-      }
-    }
-  }
-
   if (!parsed.data.isActive && target.role === 'admin') {
+    // The Developer is usually also the sole administrator; that is the more fundamental refusal.
+    if (await userRepository.isLastGlobalAdmin(userId)) return lastAdminProblem(context)
     return rbacProblem(
       context,
       RBAC_ERRORS.DEVELOPER_PROTECTED,
@@ -197,8 +179,12 @@ export const setUserActiveHandler = async (context: AppContext) => {
     )
   }
 
-  const changed = await userRepository.setActive(userId, parsed.data.isActive)
-  if (!changed) return notFound()
+  // LAST-ADMIN GUARDRAIL, enforced inside the UPDATE itself (brief §4: no self-revocation, so
+  // the refusal applies to the holder too). A count read beforehand would let two concurrent
+  // deactivations of different administrators both pass.
+  const result = await userRepository.setActive(userId, parsed.data.isActive)
+  if (result === 'not-found') return notFound()
+  if (result === 'last-global-admin') return lastAdminProblem(context)
 
   if (!parsed.data.isActive) {
     await context.get('sessionRepository').revokeAllForUser(userId, context.get('clock').nowSeconds())
@@ -207,11 +193,12 @@ export const setUserActiveHandler = async (context: AppContext) => {
   return context.json({ id: userId, isActive: parsed.data.isActive })
 }
 
-/** Whether a user currently holds `manage_users` at `'*'` through any live assignment. */
-async function holdsGlobalManageUsers(context: AppContext, userId: string): Promise<boolean> {
-  const assignments = await context.get('roleAssignmentRepository').listActiveForUser(userId)
-  const globalRoleIds = [...new Set(assignments.filter(a => a.scope === GLOBAL_SCOPE).map(a => a.roleId))]
-  if (globalRoleIds.length === 0) return false
-  const roles = await context.get('roleRepository').findByIds(globalRoleIds)
-  return roles.some(role => role.permissions.includes('manage_users'))
+function lastAdminProblem(context: AppContext) {
+  return rbacProblem(
+    context,
+    RBAC_ERRORS.LAST_GLOBAL_ADMIN,
+    409,
+    'Conflict',
+    'This is the last active account able to administer the platform; it cannot be deactivated.',
+  )
 }

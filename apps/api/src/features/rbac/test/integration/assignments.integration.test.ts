@@ -21,7 +21,7 @@ describe('rbac assignments — integration (real D1)', () => {
     await env.DB.prepare('DELETE FROM roles WHERE is_system = 0').run()
     harness = await createTestHarness({
       db: env.DB,
-      users: [CANONICAL_USERS.admin],
+      users: [CANONICAL_USERS.admin, CANONICAL_USERS.editor],
       createApp: (authProviders) => createBeechApp({ seeds: [], authProviders }),
     })
     admin = await harness.asUser('admin')
@@ -50,7 +50,7 @@ describe('rbac assignments — integration (real D1)', () => {
       expect(await countAdminAssignments()).toBe(1)
     })
 
-    it('still refuses removing the only assignment that makes the last global admin', async () => {
+    it('refuses removing the Developer\'s only assignment with last-global-admin, the more fundamental refusal', async () => {
       // The harness seeds the admin's assignment with a non-UUID id, which the route rejects as malformed.
       await harness.db
         .prepare('UPDATE user_role_assignments SET id = ? WHERE user_id = ?')
@@ -61,6 +61,24 @@ describe('rbac assignments — integration (real D1)', () => {
 
       expect(response.status).toBe(409)
       expect(await response.json<{ type: string }>()).toMatchObject({ type: 'https://beechcms.dev/problems/last-global-admin' })
+      expect(await countAdminAssignments()).toBe(1)
+    })
+
+    it('refuses removing the Developer\'s SuperAdmin assignment with developer-protected while another administrator exists', async () => {
+      await harness.db
+        .prepare('UPDATE user_role_assignments SET id = ? WHERE user_id = ?')
+        .bind(ONLY_ADMIN_ASSIGNMENT_ID, CANONICAL_USERS.admin.id)
+        .run()
+      const role = await admin.post('/api/rbac/roles', { name: 'Second Admin Role', permissions: ['manage_users'] })
+      expect(role.status).toBe(201)
+      const { id: roleId } = await role.json<{ id: string }>()
+      const assigned = await admin.post('/api/rbac/assignments', { userId: CANONICAL_USERS.editor.id, roleId, scope: GLOBAL_SCOPE })
+      expect(assigned.status).toBe(201)
+
+      const response = await admin.delete(`/api/rbac/assignments/${ONLY_ADMIN_ASSIGNMENT_ID}`)
+
+      expect(response.status).toBe(409)
+      expect(await response.json<{ type: string }>()).toMatchObject({ type: 'https://beechcms.dev/problems/developer-protected' })
       expect(await countAdminAssignments()).toBe(1)
     })
   })

@@ -73,30 +73,6 @@ describe('D1RoleAssignmentRepository', () => {
     expect(row?.n).toBe(1)
   })
 
-  it('countActiveGlobalAdmins ignores inactive users, roles lacking manage_users, and dedupes a doubled grant', async () => {
-    const adminRoleId = await roles.create({ name: 'Admin', description: null, permissions: ['manage_users'] })
-    const nonAdminRoleId = await roles.create({ name: 'NonAdmin', description: null, permissions: ['content:read'] })
-
-    await seedTestUsers(db, [
-      { id: 'user_inactive_01', email: 'inactive@beechcms.io', password_hash: 'x', grantSuperAdmin: false },
-      { id: 'user_nonadmin_01', email: 'nonadmin@beechcms.io', password_hash: 'x', grantSuperAdmin: false },
-    ])
-    await db.prepare(`UPDATE users SET is_active = 0 WHERE id = 'user_inactive_01'`).run()
-
-    // Active user holds manage_users twice at GLOBAL_SCOPE (via two roles) -> counted once.
-    const adminRoleId2 = await roles.create({ name: 'Admin2', description: null, permissions: ['manage_users'] })
-    await repo.create({ userId: USER_ID, roleId: adminRoleId, scope: GLOBAL_SCOPE })
-    await repo.create({ userId: USER_ID, roleId: adminRoleId2, scope: GLOBAL_SCOPE })
-
-    // Inactive user holds manage_users too -> excluded.
-    await repo.create({ userId: 'user_inactive_01', roleId: adminRoleId, scope: GLOBAL_SCOPE })
-
-    // Active user with a role lacking manage_users -> excluded.
-    await repo.create({ userId: 'user_nonadmin_01', roleId: nonAdminRoleId, scope: GLOBAL_SCOPE })
-
-    expect(await repo.countActiveGlobalAdmins()).toBe(1)
-  })
-
   it('findById returns the row, or null when absent', async () => {
     const roleId = await roles.create({ name: 'FindMe', description: null, permissions: ['content:read'] })
     const id = await repo.create({ userId: USER_ID, roleId, scope: GLOBAL_SCOPE })
@@ -122,36 +98,5 @@ describe('D1RoleAssignmentRepository', () => {
 
     expect(await repo.listAllForUser(USER_ID)).toHaveLength(1)
     expect(await repo.listActiveForUser(USER_ID)).toHaveLength(0)
-  })
-
-  it('countActiveGlobalAdminsExcludingUser returns 0 with a single admin and 1 with two', async () => {
-    const adminRoleId = await roles.create({ name: 'ExclUserAdmin', description: null, permissions: ['manage_users'] })
-    await repo.create({ userId: USER_ID, roleId: adminRoleId, scope: GLOBAL_SCOPE })
-    expect(await repo.countActiveGlobalAdminsExcludingUser(USER_ID)).toBe(0)
-
-    await seedTestUsers(db, [{ id: 'user_second_admin', email: 'admin2@beechcms.io', password_hash: 'x', grantSuperAdmin: false }])
-    await repo.create({ userId: 'user_second_admin', roleId: adminRoleId, scope: GLOBAL_SCOPE })
-    expect(await repo.countActiveGlobalAdminsExcludingUser(USER_ID)).toBe(1)
-  })
-
-  it('countActiveGlobalAdminsExcludingAssignment keeps a user who holds a second admin assignment', async () => {
-    const roleA = await roles.create({ name: 'ExclAssignA', description: null, permissions: ['manage_users'] })
-    const roleB = await roles.create({ name: 'ExclAssignB', description: null, permissions: ['manage_users'] })
-    const first = await repo.create({ userId: USER_ID, roleId: roleA, scope: GLOBAL_SCOPE })
-    expect(await repo.countActiveGlobalAdminsExcludingAssignment(first)).toBe(0)
-
-    await repo.create({ userId: USER_ID, roleId: roleB, scope: GLOBAL_SCOPE })
-    expect(await repo.countActiveGlobalAdminsExcludingAssignment(first)).toBe(1)
-  })
-
-  it('countActiveGlobalAdminsExcludingRole returns 0 when that role is the only source of admins and 1 when another role also grants it', async () => {
-    const adminRoleId = await roles.create({ name: 'ExclRoleAdmin', description: null, permissions: ['manage_users'] })
-    await repo.create({ userId: USER_ID, roleId: adminRoleId, scope: GLOBAL_SCOPE })
-    expect(await repo.countActiveGlobalAdminsExcludingRole(adminRoleId)).toBe(0)
-
-    const otherAdminRoleId = await roles.create({ name: 'OtherAdminRole', description: null, permissions: ['manage_users'] })
-    await seedTestUsers(db, [{ id: 'user_other_admin', email: 'other-admin@beechcms.io', password_hash: 'x', grantSuperAdmin: false }])
-    await repo.create({ userId: 'user_other_admin', roleId: otherAdminRoleId, scope: GLOBAL_SCOPE })
-    expect(await repo.countActiveGlobalAdminsExcludingRole(adminRoleId)).toBe(1)
   })
 })

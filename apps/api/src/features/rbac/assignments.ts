@@ -122,25 +122,11 @@ export const deleteAssignmentHandler = async (context: AppContext) => {
 
   if (assignment.scope === GLOBAL_SCOPE) {
     const role = await context.get('roleRepository').findById(assignment.roleId)
-    if (role?.permissions.includes('manage_users')) {
-      const others = await assignmentRepository.countActiveGlobalAdminsExcludingAssignment(assignment.id)
-      if (others === 0) {
-        return rbacProblem(
-          context,
-          RBAC_ERRORS.LAST_GLOBAL_ADMIN,
-          409,
-          'Conflict',
-          'This assignment carries the last active global administrator and cannot be removed.',
-        )
-      }
-    }
-  }
-
-  if (assignment.scope === GLOBAL_SCOPE) {
-    const role = await context.get('roleRepository').findById(assignment.roleId)
     if (role?.name === SUPER_ADMIN_ROLE_NAME) {
       const owner = await context.get('userRepository').findById(assignment.userId)
       if (owner?.role === 'admin') {
+        // The Developer is usually also the sole administrator; that is the more fundamental refusal.
+        if (await assignmentRepository.isLastGlobalAdminAssignment(assignmentId)) return lastAdminProblem(context)
         return rbacProblem(
           context,
           RBAC_ERRORS.DEVELOPER_PROTECTED,
@@ -152,7 +138,20 @@ export const deleteAssignmentHandler = async (context: AppContext) => {
     }
   }
 
-  const deleted = await assignmentRepository.delete(assignmentId)
-  if (!deleted) return notFound()
+  // The last-admin invariant is enforced inside the delete statement itself, not by a
+  // count read beforehand, so concurrent deletions cannot both pass it.
+  const result = await assignmentRepository.delete(assignmentId)
+  if (result === 'not-found') return notFound()
+  if (result === 'last-global-admin') return lastAdminProblem(context)
   return context.body(null, 204)
+}
+
+function lastAdminProblem(context: AppContext) {
+  return rbacProblem(
+    context,
+    RBAC_ERRORS.LAST_GLOBAL_ADMIN,
+    409,
+    'Conflict',
+    'This assignment carries the last active global administrator and cannot be removed.',
+  )
 }

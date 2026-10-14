@@ -239,6 +239,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 ## Type Aliases
 
 - [ActivityAction](type-aliases/ActivityAction.md)
+- [AdminGuardedResult](type-aliases/AdminGuardedResult.md)
 - [AggregateFormula](type-aliases/AggregateFormula.md)
 - [AnalyticsMetric](type-aliases/AnalyticsMetric.md)
 - [AntivirusStatus](type-aliases/AntivirusStatus.md)

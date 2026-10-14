@@ -14,7 +14,7 @@ tooling, which brief §2 keeps OUT of the dashboard permission axis entirely —
 deliberately no `manage_seeds` permission to map onto. So the question this guard
 answers is not "which seed?" but "may this account hand platform authority to a
 client at all?", and the marker for that is holding `manage_users` at
-[GLOBAL\_SCOPE](../variables/GLOBAL_SCOPE.md) — the same SuperAdmin marker `countActiveGlobalAdmins()` uses.
+[GLOBAL\_SCOPE](../variables/GLOBAL_SCOPE.md) — the same SuperAdmin marker the last-global-admin guard uses.
 
 A seed-scoped collaborator therefore cannot mint an MCP token, no matter which
 scopes the client requests. Denial is all-or-nothing: there is no partial grant.

@@ -112,7 +112,7 @@ Reversible deactivation.
 
 On deactivation every refresh token of the account is revoked in the same request, so the session dies with the flag instead of at the next refresh. The still-unexpired access JWT is already refused `403 account_disabled` by `permissionMiddleware()`.
 
-**Last-admin guardrail.** Deactivation is refused `409 last-global-admin` when the target holds `manage_users` at `*` through a live assignment and no other active account can still administer the platform. The refusal applies to everyone, the holder included — there is no self-revocation escape hatch.
+**Last-admin guardrail.** Deactivation is refused `409 last-global-admin` when the target holds `manage_users` at `*` through a live assignment and no other active account can still administer the platform. The refusal applies to everyone, the holder included — there is no self-revocation escape hatch. The check runs inside the mutating statement itself (account deactivation, assignment delete, role edit and role delete), so two concurrent requests aimed at different remaining administrators cannot both succeed.
 
 | Status | Body |
 |---|---|

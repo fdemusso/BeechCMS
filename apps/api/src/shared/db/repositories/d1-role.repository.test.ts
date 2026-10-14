@@ -36,7 +36,7 @@ describe('D1RoleRepository', () => {
     expect(new Set(found?.permissions)).toEqual(new Set(['content:read', 'content:update']))
   })
 
-  it('update fully replaces the permission set and updates icon and returns true', async () => {
+  it('update fully replaces the permission set and updates icon and reports applied', async () => {
     const roleId = await repo.create({
       name: 'Editor',
       description: null,
@@ -51,13 +51,13 @@ describe('D1RoleRepository', () => {
       permissions: ['content:delete'],
     })
 
-    expect(updated).toBe(true)
+    expect(updated).toBe('applied')
     const found = await repo.findById(roleId)
     expect(found?.icon).toBe('Shield')
     expect(found?.permissions).toEqual(['content:delete'])
   })
 
-  it('update on the seeded SuperAdmin returns false and leaves its 7 permissions byte-identical', async () => {
+  it('update on the seeded SuperAdmin reports not-found and leaves its 7 permissions byte-identical', async () => {
     const superAdmin = await db
       .prepare(`SELECT id FROM roles WHERE name = 'SuperAdmin'`)
       .first<{ id: string }>()
@@ -69,22 +69,22 @@ describe('D1RoleRepository', () => {
       permissions: ['content:read'],
     })
 
-    expect(updated).toBe(false)
+    expect(updated).toBe('not-found')
     const after = await repo.findById(superAdmin!.id)
     expect(after?.name).toBe('SuperAdmin')
     expect(new Set(after?.permissions)).toEqual(new Set(before?.permissions))
   })
 
-  it('update on a missing role id returns false', async () => {
+  it('update on a missing role id reports not-found', async () => {
     const updated = await repo.update('does-not-exist', {
       name: 'X',
       description: null,
       permissions: ['content:read'],
     })
-    expect(updated).toBe(false)
+    expect(updated).toBe('not-found')
   })
 
-  it('delete on a system role returns false and leaves the row present', async () => {
+  it('delete on a system role reports not-found and leaves the row present', async () => {
     const superAdmin = await db
       .prepare(`SELECT id FROM roles WHERE name = 'SuperAdmin'`)
       .first<{ id: string }>()
@@ -92,7 +92,7 @@ describe('D1RoleRepository', () => {
 
     const deleted = await repo.delete(superAdmin!.id)
 
-    expect(deleted).toBe(false)
+    expect(deleted).toBe('not-found')
     const stillThere = await repo.findById(superAdmin!.id)
     expect(stillThere).not.toBeNull()
   })

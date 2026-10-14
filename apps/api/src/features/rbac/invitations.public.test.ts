@@ -40,13 +40,9 @@ const assignments = {
   listByRole: vi.fn<IRoleAssignmentRepository['listByRole']>(),
   create: vi.fn<IRoleAssignmentRepository['create']>(),
   delete: vi.fn<IRoleAssignmentRepository['delete']>(),
-  countActiveGlobalAdmins: vi.fn<IRoleAssignmentRepository['countActiveGlobalAdmins']>(),
   findById: vi.fn<IRoleAssignmentRepository['findById']>(),
   listAll: vi.fn<IRoleAssignmentRepository['listAll']>(),
   listAllForUser: vi.fn<IRoleAssignmentRepository['listAllForUser']>(),
-  countActiveGlobalAdminsExcludingUser: vi.fn<IRoleAssignmentRepository['countActiveGlobalAdminsExcludingUser']>(),
-  countActiveGlobalAdminsExcludingAssignment: vi.fn<IRoleAssignmentRepository['countActiveGlobalAdminsExcludingAssignment']>(),
-  countActiveGlobalAdminsExcludingRole: vi.fn<IRoleAssignmentRepository['countActiveGlobalAdminsExcludingRole']>(),
 }
 
 const users = {

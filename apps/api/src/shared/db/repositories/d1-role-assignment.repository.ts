@@ -4,12 +4,14 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type {
+  AdminGuardedResult,
   IRoleAssignmentRepository,
   PermissionAssignment,
   NewAssignmentInput,
   IIdGenerator,
 } from '@beechcms/core'
 import { GLOBAL_SCOPE } from '@beechcms/core'
+import { otherAdminWithoutAssignment, roleCarriesManageUsers } from './global-admin-sql'
 
 type AssignmentRow = {
   id: string
@@ -82,32 +84,41 @@ export class D1RoleAssignmentRepository implements IRoleAssignmentRepository {
     return existing?.id ?? assignmentId
   }
 
-  async delete(assignmentId: string): Promise<boolean> {
+  /**
+   * One statement: the row is deleted unless it is the global `manage_users` assignment of
+   * the last active global administrator. An account that keeps administrative authority
+   * through ANOTHER assignment still counts as remaining.
+   */
+  async delete(assignmentId: string): Promise<AdminGuardedResult> {
     const result = await this.db
-      .prepare(`DELETE FROM user_role_assignments WHERE id = ?`)
+      .prepare(
+        `DELETE FROM user_role_assignments
+         WHERE id = ?
+           AND NOT (
+             scope = '${GLOBAL_SCOPE}'
+             AND ${roleCarriesManageUsers('user_role_assignments.role_id')}
+             AND NOT ${otherAdminWithoutAssignment('user_role_assignments.id')}
+           )`
+      )
       .bind(assignmentId)
       .run()
-    return (result.meta.changes ?? 0) > 0
+    if ((result.meta.changes ?? 0) > 0) return 'applied'
+
+    return (await this.findById(assignmentId)) ? 'last-global-admin' : 'not-found'
   }
 
-  /**
-   * Counts the accounts that could still administer the platform. Read by the
-   * last-SuperAdmin guardrail in a later sprint; exposed here so the guardrail does
-   * not have to introduce its own SQL.
-   */
-  async countActiveGlobalAdmins(): Promise<number> {
+  async isLastGlobalAdminAssignment(assignmentId: string): Promise<boolean> {
     const row = await this.db
       .prepare(
-        `SELECT COUNT(DISTINCT a.user_id) AS total
-         FROM user_role_assignments a
-         JOIN role_permissions rp ON rp.role_id = a.role_id
-         JOIN users u ON u.id = a.user_id
-         WHERE a.scope = ? AND rp.permission = 'manage_users' AND u.is_active = 1`
+        `SELECT 1 AS refused FROM user_role_assignments
+         WHERE id = ?
+           AND scope = '${GLOBAL_SCOPE}'
+           AND ${roleCarriesManageUsers('user_role_assignments.role_id')}
+           AND NOT ${otherAdminWithoutAssignment('user_role_assignments.id')}`
       )
-      .bind(GLOBAL_SCOPE)
-      .first<{ total: number }>()
-
-    return row?.total ?? 0
+      .bind(assignmentId)
+      .first()
+    return row !== null
   }
 
   async findById(assignmentId: string): Promise<PermissionAssignment | null> {
@@ -131,50 +142,5 @@ export class D1RoleAssignmentRepository implements IRoleAssignmentRepository {
       .bind(userId)
       .all<AssignmentRow>()
     return (rows.results ?? []).map(rowToRecord)
-  }
-
-  async countActiveGlobalAdminsExcludingUser(userId: string): Promise<number> {
-    const row = await this.db
-      .prepare(
-        `SELECT COUNT(DISTINCT a.user_id) AS total
-         FROM user_role_assignments a
-         JOIN role_permissions rp ON rp.role_id = a.role_id
-         JOIN users u ON u.id = a.user_id
-         WHERE a.scope = ? AND rp.permission = 'manage_users'
-           AND u.is_active = 1 AND a.user_id != ?`
-      )
-      .bind(GLOBAL_SCOPE, userId)
-      .first<{ total: number }>()
-    return row?.total ?? 0
-  }
-
-  async countActiveGlobalAdminsExcludingAssignment(assignmentId: string): Promise<number> {
-    const row = await this.db
-      .prepare(
-        `SELECT COUNT(DISTINCT a.user_id) AS total
-         FROM user_role_assignments a
-         JOIN role_permissions rp ON rp.role_id = a.role_id
-         JOIN users u ON u.id = a.user_id
-         WHERE a.scope = ? AND rp.permission = 'manage_users'
-           AND u.is_active = 1 AND a.id != ?`
-      )
-      .bind(GLOBAL_SCOPE, assignmentId)
-      .first<{ total: number }>()
-    return row?.total ?? 0
-  }
-
-  async countActiveGlobalAdminsExcludingRole(roleId: string): Promise<number> {
-    const row = await this.db
-      .prepare(
-        `SELECT COUNT(DISTINCT a.user_id) AS total
-         FROM user_role_assignments a
-         JOIN role_permissions rp ON rp.role_id = a.role_id
-         JOIN users u ON u.id = a.user_id
-         WHERE a.scope = ? AND rp.permission = 'manage_users'
-           AND u.is_active = 1 AND a.role_id != ?`
-      )
-      .bind(GLOBAL_SCOPE, roleId)
-      .first<{ total: number }>()
-    return row?.total ?? 0
   }
 }

@@ -3,7 +3,6 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import { GLOBAL_SCOPE } from '@beechcms/core'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { RBAC_ERRORS } from './constants'
 import { canMutateRole, holdsAll, rbacProblem, readJson, type AppContext } from './guards'
@@ -112,17 +111,15 @@ export const updateRoleHandler = async (context: AppContext) => {
     )
   }
 
-  const refusal = await refuseIfLastAdminRole(context, roleId, role.permissions, parsed.data.permissions)
-  if (refusal) return refusal
-
   try {
-    const updated = await roleRepository.update(roleId, {
+    const result = await roleRepository.update(roleId, {
       name: parsed.data.name,
       description: parsed.data.description ?? null,
       icon: parsed.data.icon ?? null,
       permissions: parsed.data.permissions,
     })
-    if (!updated) return notFound()
+    if (result === 'not-found') return notFound()
+    if (result === 'last-global-admin') return lastAdminRoleProblem(context)
   } catch (error) {
     // `roles.name` is UNIQUE: the constraint, not a pre-read, is the only race-free arbiter.
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
@@ -167,40 +164,19 @@ export const deleteRoleHandler = async (context: AppContext) => {
     )
   }
 
-  const refusal = await refuseIfLastAdminRole(context, roleId, role.permissions, [])
-  if (refusal) return refusal
-
-  const deleted = await roleRepository.delete(roleId)
-  if (!deleted) return notFound()
+  const result = await roleRepository.delete(roleId)
+  if (result === 'not-found') return notFound()
+  if (result === 'last-global-admin') return lastAdminRoleProblem(context)
 
   return context.body(null, 204)
 }
 
 /**
- * LAST-ADMIN GUARDRAIL, role edition.
- *
- * Refuses a mutation that would strip `manage_users` from a role currently assigned at
- * `'*'` when no OTHER role still carries an active global administrator. Deletion passes
- * `nextPermissions: []`, which is the same question.
+ * LAST-ADMIN GUARDRAIL, role edition. The repository refuses, inside the write itself, an
+ * edit that strips `manage_users` from (or a delete of) a role carrying the last active
+ * global administrator; this only renders the refusal.
  */
-async function refuseIfLastAdminRole(
-  context: AppContext,
-  roleId: string,
-  currentPermissions: readonly string[],
-  nextPermissions: readonly string[],
-) {
-  const losesManageUsers =
-    currentPermissions.includes('manage_users') && !nextPermissions.includes('manage_users')
-  if (!losesManageUsers) return null
-
-  const assignmentRepository = context.get('roleAssignmentRepository')
-  const globalAssignments = (await assignmentRepository.listByRole(roleId))
-    .filter(assignment => assignment.scope === GLOBAL_SCOPE)
-  if (globalAssignments.length === 0) return null
-
-  const others = await assignmentRepository.countActiveGlobalAdminsExcludingRole(roleId)
-  if (others > 0) return null
-
+function lastAdminRoleProblem(context: AppContext) {
   return rbacProblem(
     context,
     RBAC_ERRORS.LAST_GLOBAL_ADMIN,
