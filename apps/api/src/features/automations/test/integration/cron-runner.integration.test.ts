@@ -27,6 +27,8 @@ const ordersSeed = defineSeed({
   branches: [
     { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true } as Branch,
     { id: 'br_02', alias: 'note', label: 'Note', type: 'text' } as Branch,
+    { id: 'br_03', alias: 'amount', label: 'Amount', type: 'number' } as Branch,
+    { id: 'br_04', alias: 'flag', label: 'Flag', type: 'text' } as Branch,
   ],
 })
 
@@ -89,6 +91,35 @@ describe('runCronAutomations — integration (real D1)', () => {
       expect(response.status).toBe(200)
       const body = await response.json<{ data: { note: string | null } }>()
       expect(body.data.note).toBe('2 open')
+    }
+  })
+
+  // A number left unset is stored as NULL, unlike an empty text which is stored as ''. The action writes `flag`
+  // because automations stored by earlier tests still fire on this tick and own `note`.
+  it('a neq condition processes entries whose field is NULL, matching the in-memory evaluator', async () => {
+    const stored = await admin.post('/api/automations', {
+      seed_slug: 'cr_orders',
+      name: 'flag-not-done',
+      triggers: [{ event: 'cron', cron: '* * * * *' }],
+      trigger_conditions: {
+        kind: 'predicate',
+        left: { kind: 'ref', key: 'this.amount' },
+        op: 'neq',
+        right: { kind: 'literal', value: 5 },
+      },
+      actions: [{ type: 'edit_field', field: 'flag', value: 'seen' }],
+    })
+    expect(stored.status).toBe(201)
+
+    await runTick()
+
+    // Regression guard: the SQL prefilter `amount != 5` excludes NULL rows, so entries that never had
+    // an amount were skipped even though evaluateWhen accepts them.
+    for (const id of entryIds) {
+      const response = await admin.get(`/api/content/cr_orders/${id}`)
+      expect(response.status).toBe(200)
+      const body = await response.json<{ data: { flag: string | null } }>()
+      expect(body.data.flag).toBe('seen')
     }
   })
 })

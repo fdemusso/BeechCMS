@@ -222,3 +222,82 @@ describe('toggleAutomationSchema', () => {
     expect(toggleAutomationSchema.safeParse({ enabled: 'true' }).success).toBe(false)
   })
 })
+
+describe('createAutomationSchema — cron expression', () => {
+  const cronBody = (cron: string) => ({
+    ...minimalValid,
+    triggers: [{ event: 'cron' as const, cron }],
+  })
+
+  // Every expression here is one cronMatches can never satisfy, so the automation would be stored and never fire.
+  it.each([
+    'foo',
+    '61 * * * *',
+    '5/15 * * * *',
+    '* * * *',
+    '* * * * * *',
+    '0 24 * * *',
+    '0 9 32 * *',
+    '0 9 * 13 *',
+    '0 9 * * 8',
+    '*/0 * * * *',
+    '10-5 * * * *',
+    '1-70 * * * *',
+    '0 9 * * MON',
+  ])('rejects the unfireable expression %j', (cron) => {
+    const result = createAutomationSchema.safeParse(cronBody(cron))
+
+    expect(result.success).toBe(false)
+  })
+
+  it.each([
+    '* * * * *',
+    '*/15 * * * *',
+    '0 9 * * 7',
+    '0 9 * * 1-5',
+    '0,30 8-18 * * *',
+    '1-10/2 * * * *',
+    '0 0 1 1 *',
+  ])('accepts the fireable expression %j', (cron) => {
+    const result = createAutomationSchema.safeParse(cronBody(cron))
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects an unfireable expression on a partial update as well', () => {
+    const result = updateAutomationSchema.safeParse({ triggers: [{ event: 'cron', cron: 'foo' }] })
+
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('createAutomationSchema — trigger_conditions nesting', () => {
+  function nestedGroup(depth: number): unknown {
+    let node: unknown = {
+      kind: 'predicate',
+      left: { kind: 'literal', value: 1 },
+      op: 'eq',
+      right: { kind: 'literal', value: 1 },
+    }
+    for (let level = 0; level < depth; level++) {
+      node = { kind: 'group', op: 'AND', children: [node] }
+    }
+    return node
+  }
+
+  it('rejects a pathologically deep condition tree with a validation error instead of recursing it', () => {
+    const body = { ...minimalValid, trigger_conditions: nestedGroup(50_000) }
+
+    // The depth refine only ran after the children were parsed, so a deep body overflowed the stack first.
+    const parse = () => createAutomationSchema.safeParse(body)
+
+    expect(parse).not.toThrow()
+    expect(parse().success).toBe(false)
+  })
+
+  it('still accepts a tree at the maximum depth', () => {
+    const result = createAutomationSchema.safeParse({ ...minimalValid, trigger_conditions: nestedGroup(10) })
+
+    expect(result.success).toBe(true)
+  })
+})

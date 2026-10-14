@@ -5,6 +5,7 @@
 import type { WhenNode, WhenPredicate, WhenGroup, WhenOperand } from '@beechcms/core'
 import type { ResolvedContext } from '../evaluator/context-resolver'
 import { parseTemplateKey } from '../evaluator/template-grammar'
+import { numericValue } from '../evaluator/numeric'
 
 export function evaluateWhen(
   node: WhenNode | null,
@@ -66,10 +67,10 @@ function compare(op: string, left: unknown, right: unknown): boolean {
     case 'eq':  return isMember(left, right)
     case 'neq': return !isMember(left, right)
 
-    case 'gt':  return Number(left) > Number(right)
-    case 'gte': return Number(left) >= Number(right)
-    case 'lt':  return Number(left) < Number(right)
-    case 'lte': return Number(left) <= Number(right)
+    case 'gt':  return compareNumbers(left, right, (a, b) => a > b)
+    case 'gte': return compareNumbers(left, right, (a, b) => a >= b)
+    case 'lt':  return compareNumbers(left, right, (a, b) => a < b)
+    case 'lte': return compareNumbers(left, right, (a, b) => a <= b)
 
     case 'contains':
       if (Array.isArray(left)) return typeof right === 'string' && left.includes(right)
@@ -89,10 +90,17 @@ function compare(op: string, left: unknown, right: unknown): boolean {
   }
 }
 
+/** A missing or non-numeric side is not comparable: it must not satisfy any range, whatever Number() would make of it. */
+function compareNumbers(left: unknown, right: unknown, test: (a: number, b: number) => boolean): boolean {
+  const a = numericValue(left)
+  const b = numericValue(right)
+  return a !== null && b !== null && test(a, b)
+}
+
 function coerceEqual(a: unknown, b: unknown): boolean {
   if (a === null && b === null) return true
   if (a === null || b === null) return false
-  if (typeof a === 'number' && typeof b === 'string' && !Number.isNaN(Number(b))) return a === Number(b)
-  if (typeof b === 'number' && typeof a === 'string' && !Number.isNaN(Number(a))) return Number(a) === b
+  if (typeof a === 'number' && typeof b === 'string' && numericValue(b) !== null) return a === numericValue(b)
+  if (typeof b === 'number' && typeof a === 'string' && numericValue(a) !== null) return numericValue(a) === b
   return a === b
 }

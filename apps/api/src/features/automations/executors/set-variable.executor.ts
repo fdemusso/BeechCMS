@@ -7,6 +7,8 @@ import type { AutomationAction, ContentRepository, Seed } from '@beechcms/core'
 import type { ResolvedContext } from '../evaluator/context-resolver'
 import { conditionToFilterGroup } from '../filters/filter-translation'
 import { interpolate } from '../engine/automation-runner.utils'
+import { findAllEntries } from '../engine/entry-pages'
+import { numericValue } from '../evaluator/numeric'
 
 type SetVariableAction = Extract<AutomationAction, { type: 'set_variable' }>
 
@@ -70,10 +72,9 @@ export async function executeSetVariable(
   }
 
   const orderDir: 'ASC' | 'DESC' = action.order === 'asc' ? 'ASC' : 'DESC'
-  const { items } = await ctx.repository.findMany(targetSeed, {
+  const items = await findAllEntries(ctx.repository, targetSeed, {
     filters: resolvedFilters,
     status: null,
-    pagination: { limit: 1000, offset: 0 },
     orderBy: action.order_by ? { column: action.order_by, dir: orderDir } : undefined,
   })
 
@@ -115,8 +116,7 @@ function formatPluckValues(items: Array<Record<string, unknown>>, key: string): 
 
 function calculatePinnedStats(items: Array<Record<string, unknown>>, pinned: string): Record<string, unknown> {
   const nonNull = items.filter((r) => r[pinned] != null)
-  const nums = nonNull.map((r) => Number(r[pinned]))
-  const validNums = nums.filter((n) => !Number.isNaN(n))
+  const validNums = items.flatMap((r) => numericValue(r[pinned]) ?? [])
   const total = validNums.reduce((a, n) => a + n, 0)
   const pluck = formatPluckValues(items, pinned)
 
@@ -131,18 +131,16 @@ function calculatePinnedStats(items: Array<Record<string, unknown>>, pinned: str
 }
 
 function extractValidNumbers(items: Array<Record<string, unknown>>, key: string): number[] {
-  return items
-    .map((r) => {
-      const v = r[key]
-      const n = Number(v)
-      if (!Number.isNaN(n)) return n
-      if (typeof v === 'string') {
-        const d = Date.parse(v)
-        return Number.isNaN(d) ? Number.NaN : d / 1000
-      }
-      return Number.NaN
-    })
-    .filter((n) => !Number.isNaN(n))
+  return items.flatMap((r) => {
+    const v = r[key]
+    const n = numericValue(v)
+    if (n !== null) return n
+    if (typeof v === 'string') {
+      const d = Date.parse(v)
+      if (!Number.isNaN(d)) return d / 1000
+    }
+    return []
+  })
 }
 
 function calculateGeneralStats(seed: Seed, items: Array<Record<string, unknown>>): Record<string, unknown> {
@@ -157,7 +155,7 @@ function calculateGeneralStats(seed: Seed, items: Array<Record<string, unknown>>
       const nums = extractValidNumbers(items, branch.alias)
       const total = nums.reduce((a, n) => a + n, 0)
       sum[branch.alias] = total
-      avg[branch.alias] = items.length > 0 ? total / items.length : 0
+      avg[branch.alias] = nums.length > 0 ? total / nums.length : 0
       min[branch.alias] = nums.length > 0 ? Math.min(...nums) : 0
       max[branch.alias] = nums.length > 0 ? Math.max(...nums) : 0
     } else {

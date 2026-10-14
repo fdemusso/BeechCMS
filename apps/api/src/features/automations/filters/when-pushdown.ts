@@ -2,10 +2,15 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { resolveClassification } from '@beechcms/core'
 import type { WhenNode, WhenPredicate, TriggerCondition, FilterGroup, Seed } from '@beechcms/core'
 import { conditionToFilterGroup } from './filter-translation'
 
-const PUSHDOWN_OPS = new Set<string>(['eq', 'neq', 'contains', 'gt', 'lt', 'isempty', 'isnotempty'])
+// `neq` stays in memory: SQL `col != ?` drops NULL rows, evaluateWhen's neq keeps them.
+const PUSHDOWN_OPS = new Set<string>(['eq', 'contains', 'gt', 'lt', 'isempty', 'isnotempty'])
+
+// The query builder only filters an encrypted column by equality (blind index) or emptiness, and throws on the rest.
+const ENCRYPTED_PUSHDOWN_OPS = new Set<string>(['eq', 'isempty', 'isnotempty'])
 
 export function extractPushdownFilters(
   node: WhenNode | null,
@@ -40,6 +45,9 @@ function tryPushdown(pred: WhenPredicate, seed: Seed): FilterGroup | null {
   if (!field) return null
 
   if (!PUSHDOWN_OPS.has(pred.op)) return null
+
+  const branch = seed.branches.find((b) => b.alias === field)
+  if (branch && resolveClassification(branch).storage === 'encrypt' && !ENCRYPTED_PUSHDOWN_OPS.has(pred.op)) return null
 
   if (pred.op === 'isempty' || pred.op === 'isnotempty') {
     return conditionToFilterGroup(

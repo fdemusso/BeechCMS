@@ -80,3 +80,26 @@ describe('interpolate', () => {
     expect(res).toBe("O'Brien & <Sons>")
   })
 })
+
+describe('interpolate — inherited object keys', () => {
+  // `path in obj` resolved Object.prototype members, so these rendered native function source into mails and webhooks.
+  it.each([
+    'constructor',
+    'toString',
+    'hasOwnProperty',
+    '__proto__',
+    'this.constructor',
+    'this.toString',
+    'this.constructor.name',
+  ])('{{%s}} renders as empty text', async (key) => {
+    const res = interpolate(`[{{${key}}}]`, await makeCtx({ title: 'x' }), { escape: 'none' })
+
+    expect(res).toBe('[]')
+  })
+
+  it('still resolves an own property whose name matches an Object.prototype member', async () => {
+    const res = interpolate('{{toString}}', await makeCtx({ toString: 'own-value' }), { escape: 'none' })
+
+    expect(res).toBe('own-value')
+  })
+})

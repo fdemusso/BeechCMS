@@ -11,6 +11,7 @@ import type {
   Seed,
 } from '@beechcms/core'
 import { cronMatches } from './cron-runner.utils'
+import { findAllEntries } from './entry-pages'
 import { executeAction } from '../executors/index'
 import { resolveAutomationContext, deriveEntryContext, withVariables } from '../evaluator/context-resolver'
 import { extractPushdownFilters } from '../filters/when-pushdown'
@@ -144,10 +145,5 @@ async function fetchMatchingEntries(
   const filters: FilterGroup[] = automation.trigger_conditions
     ? extractPushdownFilters(automation.trigger_conditions, seed)
     : []
-  const result = await repository.findMany(seed, {
-    filters,
-    status: null,
-    pagination: { limit: 1000, offset: 0 },
-  })
-  return result.items
+  return findAllEntries(repository, seed, { filters, status: null })
 }

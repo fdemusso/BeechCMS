@@ -5,12 +5,14 @@
 import type { Seed } from '@beechcms/core'
 import type { ParsedKey, InlineCondition } from './template-grammar'
 import { materializeCollection } from '../executors/set-variable.executor'
+import { getOwn } from '../engine/automation-runner.utils'
+import { numericValue } from './numeric'
 
 type VarAccessParsed = Extract<ParsedKey, { kind: 'var_access' }>
 
 function toNumeric(v: unknown): number {
-  const n = Number(v)
-  if (Number.isFinite(n)) return n
+  const n = numericValue(v)
+  if (n !== null) return n
   if (typeof v === 'string') {
     const d = Date.parse(v)
     if (!Number.isNaN(d)) return d / 1000
@@ -66,7 +68,7 @@ export function resolveVarAccess(
   variables: Record<string, unknown>,
   onMissing?: (field: string) => void,
 ): unknown {
-  if (!(parsed.name in variables)) {
+  if (!Object.hasOwn(variables, parsed.name)) {
     onMissing?.(parsed.name)
     return undefined
   }
@@ -114,7 +116,7 @@ export function resolveVarAccess(
         current = (current as any)?.['count']
       } else if (step.field) {
         const sub = (current as any)?.[step.op]
-        current = typeof sub === 'object' && sub !== null ? sub[step.field] : sub
+        current = typeof sub === 'object' && sub !== null ? getOwn(sub, step.field) : sub
       } else {
         current = (current as any)?.[step.op]
       }
@@ -124,7 +126,7 @@ export function resolveVarAccess(
 
     // ── field access ───────────────────────────────────────────────────────
     if (step.type === 'field') {
-      current = (current as any)?.[step.name]
+      current = getOwn(current, step.name)
     }
   }
 

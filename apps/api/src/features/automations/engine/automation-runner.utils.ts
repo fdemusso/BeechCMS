@@ -52,18 +52,20 @@ function escapeHtml(input: string): string {
     .replace(/'/g, '&#39;')
 }
 
+/** Reads an own property only, so inherited members such as `constructor` or `toString` never resolve. */
+export function getOwn(source: unknown, key: string): unknown {
+  if (typeof source !== 'object' || source === null || !Object.hasOwn(source, key)) return undefined
+  return (source as Record<string, unknown>)[key]
+}
+
 export function resolvePath(obj: Record<string, unknown>, path: string): unknown {
-  if (path in obj && obj[path] !== undefined) {
-    return obj[path]
-  }
-  const parts = path.split('.')
+  const direct = getOwn(obj, path)
+  if (direct !== undefined) return direct
+
   let current: unknown = obj
-  for (const part of parts) {
-    if (current && typeof current === 'object') {
-      current = (current as Record<string, unknown>)[part]
-    } else {
-      return undefined
-    }
+  for (const part of path.split('.')) {
+    current = getOwn(current, part)
+    if (current === undefined) return undefined
   }
   return current
 }
