@@ -3,6 +3,7 @@
 
 import type { Branch, TagOption } from '../types.js'
 import { cleanString, isPlainObject } from '../validation/primitives.js'
+import { normalizeTagValue, TAG_MAX_LENGTH, TAG_OPTIONS_MAX_COUNT } from './tag-value.js'
 
 /** Accepted option color format: 6-digit hex, the value `<input type="color">` emits. */
 export const TAG_OPTION_COLOR_RE = /^#[0-9a-fA-F]{6}$/
@@ -36,10 +37,24 @@ function optionEntryIssues(prefix: string, entry: unknown, index: number, seenVa
   const validValue = typeof value === 'string' && value !== '' && value === cleanString(value)
   if (!validValue) {
     issues.push(`${prefix}option #${index} value must be a non-empty string without leading or trailing whitespace.`)
-  } else if (seenValues.has(value)) {
-    issues.push(`${prefix}duplicate option value '${value}'.`)
   } else {
-    seenValues.add(value)
+    const normalized = normalizeTagValue(value)
+    if (!normalized.ok) {
+      issues.push(
+        normalized.reason === 'too-long'
+          ? `${prefix}option '${value.slice(0, 40)}' value is too long (max ${TAG_MAX_LENGTH} characters).`
+          : `${prefix}option #${index} value is not valid text (lone surrogate).`,
+      )
+    } else if (normalized.value !== value) {
+      issues.push(
+        `${prefix}option #${index} value must already be normalized: no invisible or control characters, `
+        + `single spaces, Unicode NFC (use ${JSON.stringify(normalized.value)}).`,
+      )
+    } else if (seenValues.has(value)) {
+      issues.push(`${prefix}duplicate option value '${value}'.`)
+    } else {
+      seenValues.add(value)
+    }
   }
   if (typeof color !== 'string' || !TAG_OPTION_COLOR_RE.test(color)) {
     const optionLabel = validValue ? `'${value}'` : `#${index}`
@@ -71,6 +86,8 @@ function branchTagOptionsIssues(prefix: string, branch: Branch): string[] {
     if (raw.options !== undefined) {
       if (!Array.isArray(raw.options) || raw.options.length === 0) {
         issues.push(`${prefix}options must be a non-empty array of { value, color } objects.`)
+      } else if (raw.options.length > TAG_OPTIONS_MAX_COUNT) {
+        issues.push(`${prefix}options must contain at most ${TAG_OPTIONS_MAX_COUNT} entries (got ${raw.options.length}).`)
       } else {
         const seenValues = new Set<string>()
         raw.options.forEach((entry: unknown, index) => {

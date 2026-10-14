@@ -15,6 +15,7 @@ import { resolveClassification } from '../privacy/policies.js';
 import { isLocaleCode, isLocalizedBranch } from '../localization/localization.js';
 import { activeCondition } from './active-clause.js';
 import { isSingleChoiceTags, tagOptionValues } from '../seeds/tag-options.js';
+import { normalizeTagValue, TAG_OPTIONS_MAX_COUNT } from '../seeds/tag-value.js';
 
 /** SQLite GLOB twins of `LOCALE_CODE_RE` (`it`, `ast`, `pt-BR`, `es-419`, …). Keep both in sync. */
 const LOCALE_KEY_GLOBS = [
@@ -381,10 +382,23 @@ function buildFilterCondition(
 
   if (op === 'has_tag' || op === 'has_any_tag' || op === 'has_all_tags') {
     if (type !== 'tags' && type !== 'json') return null
-    const tags = (op === 'has_tag' ? [value] : Array.isArray(value) ? value : [value])
-      .map(t => String(t))
-    
-    if (tags.length === 0) return null
+    const requested = [...new Set((op === 'has_tag' ? [value] : Array.isArray(value) ? value : [value]).map(t => String(t)))]
+
+    if (requested.length === 0) return null
+    // One bound parameter per tag and D1 allows 100 per statement: an oversized set is a malformed filter.
+    if (requested.length > TAG_OPTIONS_MAX_COUNT) return null
+
+    // A stored `tags` value is always normalized, so the needle is too. One that cannot be normalized
+    // (blank, too long, ill-formed) matches nothing, and `has_all_tags` over it can never be satisfied.
+    let tags = requested
+    if (type === 'tags') {
+      const normalized = requested.flatMap((t) => {
+        const result = normalizeTagValue(t)
+        return result.ok && result.value.length > 0 ? [result.value] : []
+      })
+      if (normalized.length === 0 || (op === 'has_all_tags' && normalized.length < requested.length)) return '0'
+      tags = [...new Set(normalized)]
+    }
 
     // json_each on array → value is the element; on object → key is the property name.
     // Tags stored as ["photo"] (array) or {"photo":"#3b82f6"} (object) must both match.

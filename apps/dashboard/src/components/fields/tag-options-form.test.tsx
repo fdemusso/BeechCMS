@@ -98,6 +98,47 @@ describe("TagOptionsForm", () => {
     expect(expectedIssues.length).toBeGreaterThan(0)
     expect(screen.getAllByRole("listitem")).toHaveLength(expectedIssues.length)
   })
+
+  it("con 50 opzioni \"Add option\" è disabilitato e un click non emette nulla", () => {
+    const full = { ...priority, options: Array.from({ length: 50 }, (_, i) => ({ value: `o${i}`, color: "#64748b" })) } as Branch
+    render(<TagOptionsForm branch={full} onChange={onChange} />)
+
+    const addButton = screen.getByRole("button", { name: "Add option" })
+    fireEvent.click(addButton)
+
+    expect(addButton).toBeDisabled()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it("con 49 opzioni \"Add option\" resta abilitato", () => {
+    const almostFull = { ...priority, options: Array.from({ length: 49 }, (_, i) => ({ value: `o${i}`, color: "#64748b" })) } as Branch
+    render(<TagOptionsForm branch={almostFull} onChange={onChange} />)
+
+    const addButton = screen.getByRole("button", { name: "Add option" })
+
+    expect(addButton).toBeEnabled()
+  })
+
+  it("digitare un valore di 26 caratteri emette il valore così com'è e il form mostra un solo errore", () => {
+    const tooLong = "a".repeat(26)
+    const { rerender } = render(<TagOptionsForm branch={priority} onChange={onChange} />)
+    const [firstValue] = screen.getAllByRole("textbox", { name: "Value" })
+
+    fireEvent.change(firstValue, { target: { value: tooLong } })
+    const emitted = onChange.mock.calls[0][0] as Branch
+    rerender(<TagOptionsForm branch={emitted} onChange={onChange} />)
+
+    expect(emitted.options?.[0].value).toBe(tooLong)
+    expect(screen.getAllByRole("listitem")).toHaveLength(1)
+  })
+
+  it("un valore con spazio zero-width mostra l'errore invece di essere accettato in silenzio", () => {
+    const invisible = { ...priority, options: [{ value: "lo\u200Bw", color: "#64748b" }] } as Branch
+
+    render(<TagOptionsForm branch={invisible} onChange={onChange} />)
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(1)
+  })
 })
 
 describe("withoutIneligibleTagOptions", () => {

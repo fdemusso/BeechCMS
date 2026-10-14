@@ -10,6 +10,10 @@
 - No migration. Start from a fresh database (`pnpm beech db:reset`) and rewrite seeds in the new shape. Data migration is deferred to 0.9.
 - `X-Schema-Revision` now starts with `v2:` (the projection of `tags` changed). Regenerate client types.
 - `GET /api/v1/public/:seed/schema` exposes `options: { label, value, color }[]` and `multiple` on `tags` branches.
+- `tags` are small labels, and the limits say so: at most 10 per field, at most 25 characters per tag (counted as user-perceived characters, hard-capped at 100 bytes so stacked combining marks cannot bypass it), at most 50 `options` per branch. Previously 100 tags of up to 50,000 bytes each.
+- Free tags are normalized before storage: control and invisible characters (zero-width, bidi overrides, soft hyphen, BOM, Unicode tag block) are removed, every whitespace run becomes one space, text is trimmed and put in Unicode NFC. A tag that is empty after cleaning is dropped. Case is preserved. A lone UTF-16 surrogate is rejected (`tags(valid-text)`); a tag over the length cap is rejected (`tags(item-max:25)`). Closed-vocabulary writes still match options exactly, apart from NFC.
+- Seed validation rejects option values that are not already in this canonical form, longer than 25 characters, or beyond 50 options.
+- Filters on `tags` columns normalize their needles the same way and accept at most 50 distinct values. Existing stored values are not rewritten; entries saved before this change keep their old form until they are next saved.
 
 ### Dashboard
 

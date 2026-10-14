@@ -1492,7 +1492,7 @@
       "removeOption": "Rimuovi opzione",
       "moveOptionUp": "Sposta su",
       "moveOptionDown": "Sposta giù",
-      "freeTagsHint": "Nessuna opzione: qualsiasi valore è accettato (tag liberi).",
+      "freeTagsHint": "Nessuna opzione: qualsiasi etichetta breve è accettata (tag liberi, massimo 10 per campo, 25 caratteri ciascuno).",
       "policies": "Policy",
       "removeExistingWarning": "Il campo smette di essere usato; i dati esistenti vengono conservati nel database e non eliminati. Continuare?",
       "reservedAliasError": "Uno o più alias confliggono con nomi di campo di sistema riservati.",

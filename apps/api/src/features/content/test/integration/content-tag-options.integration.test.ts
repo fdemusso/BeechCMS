@@ -83,6 +83,51 @@ describe('content slice — integration (real D1)', () => {
       expect(problem.errors[0]).toMatchObject({ field: 'priority', expected: 'array', received: 'string' })
       expect(await countPosts()).toBe(before)
     })
+
+    it('rejects 11 free tags with 400 tags(max:10) and persists nothing', async () => {
+      const before = await countPosts()
+      const eleven = Array.from({ length: 11 }, (_, i) => `t${i}`)
+
+      const response = await admin.post('/api/content/posts', { title: 'Tagged', slug: 'tagged', tags: eleven })
+
+      expect(response.status).toBe(400)
+      const problem = await response.json<ValidationProblem>()
+      expect(problem.errors[0]).toMatchObject({ field: 'tags', expected: 'tags(max:10)' })
+      expect(await countPosts()).toBe(before)
+    })
+
+    it('rejects a 26-character tag with 400 tags(item-max:25) and persists nothing', async () => {
+      const before = await countPosts()
+
+      const response = await admin.post('/api/content/posts', { title: 'Tagged', slug: 'tagged', tags: ['a'.repeat(26)] })
+
+      expect(response.status).toBe(400)
+      const problem = await response.json<ValidationProblem>()
+      expect(problem.errors[0]).toMatchObject({ field: 'tags', expected: 'tags(item-max:25)' })
+      expect(await countPosts()).toBe(before)
+    })
+
+    it('rejects a tag that differs from another only by a zero-width space as tags(unique)', async () => {
+      const before = await countPosts()
+
+      const response = await admin.post('/api/content/posts', { title: 'Tagged', slug: 'tagged', tags: ['news', 'news\u200B'] })
+
+      expect(response.status).toBe(400)
+      const problem = await response.json<ValidationProblem>()
+      expect(problem.errors[0]).toMatchObject({ field: 'tags', expected: 'tags(unique)' })
+      expect(await countPosts()).toBe(before)
+    })
+
+    // The stored form is what filters and sorting compare against, so it must be the canonical one.
+    it('persists a decomposed, padded, tab-split tag in its canonical form', async () => {
+      const response = await admin.post('/api/content/posts', { title: 'Tagged', slug: 'tagged', tags: [' cafe\u0301 \u200B ', 'a\t b'] })
+
+      expect(response.status).toBe(201)
+      const { id } = await response.json<{ id: string }>()
+      const fetched = await admin.get(`/api/content/posts/${id}`)
+      const entry = await fetched.json<{ data: { tags: string[] } }>()
+      expect(entry.data.tags).toEqual(['caf\u00E9', 'a b'])
+    })
   })
 
   describe('PUT /api/content/:slug/:id', () => {
@@ -96,6 +141,21 @@ describe('content slice — integration (real D1)', () => {
       expect(response.status).toBe(400)
       const problem = await response.json<ValidationProblem>()
       expect(problem.errors[0]).toMatchObject({ field: 'tags', expected: 'tags(unique)' })
+      const fetched = await admin.get(`/api/content/posts/${id}`)
+      const entry = await fetched.json<{ data: { tags: string[] } }>()
+      expect(entry.data.tags).toEqual(['a'])
+    })
+
+    it('rejects an over-long tag with 400 tags(item-max:25) and keeps the stored row', async () => {
+      const created = await admin.post('/api/content/posts', { title: 'Tagged', slug: 'tagged', tags: ['a'] })
+      expect(created.status).toBe(201)
+      const { id } = await created.json<{ id: string }>()
+
+      const response = await admin.put(`/api/content/posts/${id}`, { tags: ['a', 'b'.repeat(26)] })
+
+      expect(response.status).toBe(400)
+      const problem = await response.json<ValidationProblem>()
+      expect(problem.errors[0]).toMatchObject({ field: 'tags', expected: 'tags(item-max:25)' })
       const fetched = await admin.get(`/api/content/posts/${id}`)
       const entry = await fetched.json<{ data: { tags: string[] } }>()
       expect(entry.data.tags).toEqual(['a'])
@@ -141,6 +201,21 @@ describe('content slice — integration (real D1)', () => {
       const body = await response.json<{ items: { id: string }[]; total: number }>()
       expect(body.total).toBe(1)
       expect(body.items[0].id).toBe(highId)
+    })
+
+    it('finds an entry by a decomposed needle because stored tags and the filter share one canonical form', async () => {
+      const created = await admin.post('/api/content/posts', { title: 'cafe', slug: 'cafe', tags: ['caf\u00E9'] })
+      expect(created.status).toBe(201) // precondition
+      const { id } = await created.json<{ id: string }>()
+
+      const filters = encodeURIComponent(JSON.stringify({
+        tags: { columnId: 'tags', type: 'tags', conditions: [{ op: 'has_tag', value: 'cafe\u0301' }] },
+      }))
+      const response = await admin.get(`/api/content/posts?page=1&limit=10&filters=${filters}`)
+
+      expect(response.status).toBe(200)
+      const body = await response.json<{ items: { id: string }[]; total: number }>()
+      expect(body.items.map((item) => item.id)).toEqual([id])
     })
   })
 })

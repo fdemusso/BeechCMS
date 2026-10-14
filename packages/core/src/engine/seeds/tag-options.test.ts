@@ -124,6 +124,64 @@ describe('tagOptionsIssues', () => {
     ])
   })
 
+  it('rejects an option value of 26 characters and accepts one of 25', () => {
+    const results = [25, 26].map((length) => tagOptionsIssues(tagsBranch({ options: [{ value: 'a'.repeat(length), color: '#3b82f6' }] })))
+
+    expect(results.map((issues) => issues.length)).toEqual([0, 1])
+    expect(results[1][0]).toContain('too long')
+  })
+
+  it('truncates an absurdly long option value in the issue instead of echoing it whole', () => {
+    const issues = tagOptionsIssues(tagsBranch({ options: [{ value: 'x'.repeat(10_000), color: '#3b82f6' }] }))
+
+    expect(issues).toHaveLength(1)
+    expect(issues[0].length).toBeLessThan(200)
+  })
+
+  it('accepts 50 options and rejects 51 with one issue instead of one per entry', () => {
+    const optionsOf = (count: number) => Array.from({ length: count }, (_, i) => ({ value: `o${i}`, color: '#3b82f6' }))
+
+    const results = [50, 51].map((count) => tagOptionsIssues(tagsBranch({ options: optionsOf(count) })))
+
+    expect(results.map((issues) => issues.length)).toEqual([0, 1])
+  })
+
+  it('does not scan the entries of an oversized options list', () => {
+    const entries = Array.from({ length: 5_000 }, () => 'not-an-object')
+
+    const issues = tagOptionsIssues(tagsBranch({ options: entries }))
+
+    expect(issues).toHaveLength(1)
+  })
+
+  it('flags an option value carrying an invisible, control or non-NFC character', () => {
+    const values = ['a\u200Bb', 'a\u202Eb', 'a\u00ADb', 'a\tb', 'a\nb', 'a  b', 'a\u00A0b', 'cafe\u0301', 'a\u0000b']
+
+    const results = values.map((value) => tagOptionsIssues(tagsBranch({ options: [{ value, color: '#3b82f6' }] })))
+
+    expect(results.map((issues) => issues.length)).toEqual(values.map(() => 1))
+  })
+
+  it('flags an option made only of zero-width characters as not a valid value', () => {
+    const issues = tagOptionsIssues(tagsBranch({ options: [{ value: '\u200B\u200B', color: '#3b82f6' }] }))
+
+    expect(issues).toHaveLength(1)
+  })
+
+  it('flags an option value with a lone surrogate', () => {
+    const issues = tagOptionsIssues(tagsBranch({ options: [{ value: 'a\uD83D', color: '#3b82f6' }] }))
+
+    expect(issues).toHaveLength(1)
+  })
+
+  it('accepts emoji, accented and non-Latin option values already in canonical form', () => {
+    const values = ['🔥', 'caf\u00E9', '日本語', '👩\u200D💻', 'Foo', 'foo']
+
+    const issues = tagOptionsIssues(tagsBranch({ options: values.map((value) => ({ value, color: '#3b82f6' })) }))
+
+    expect(issues).toEqual([])
+  })
+
   it('returns [] for valid single, multiple and free tags', () => {
     const branches = [tagsBranch({ multiple: false }), tagsBranch({ multiple: true }), tagsBranch({ options: undefined })]
 

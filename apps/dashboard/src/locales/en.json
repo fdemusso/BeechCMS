@@ -1492,7 +1492,7 @@
       "removeOption": "Remove option",
       "moveOptionUp": "Move up",
       "moveOptionDown": "Move down",
-      "freeTagsHint": "No options: any value is accepted (free tags).",
+      "freeTagsHint": "No options: any short label is accepted (free tags, up to 10 per field, 25 characters each).",
       "policies": "Policies",
       "removeExistingWarning": "The field stops being used; existing data is retained in the database and not deleted. Continue?",
       "reservedAliasError": "One or more aliases conflict with reserved system field names.",

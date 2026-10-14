@@ -4,7 +4,7 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { LOCALIZABLE_BRANCH_TYPES, isSingleChoiceTags, resolvePolicies, tagOptionsIssues, type Branch, type DataClassification, type Seed } from "@beechcms/core"
+import { LOCALIZABLE_BRANCH_TYPES, isSingleChoiceTags, resolvePolicies, tagOptionsIssues, TAG_OPTIONS_MAX_COUNT, type Branch, type DataClassification, type Seed } from "@beechcms/core"
 import { ChevronDown, ChevronUp, Trash2 } from "reicon-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -312,6 +312,7 @@ export function TagOptionsForm({ branch, onChange }: TagOptionsFormProps) {
         type="button"
         variant="outline"
         size="sm"
+        disabled={options.length >= TAG_OPTIONS_MAX_COUNT}
         onClick={() => setOptions([...options, { value: "", color: DEFAULT_TAG_OPTION_COLOR }])}
       >
         {t("seedBuilder.branchEditor.addOption")}

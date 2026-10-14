@@ -10,6 +10,7 @@ import { isLocalizedWriteDictionary, toLocalizedPatch, type LocaleConfig, type L
 import { cleanString, stripControlChars, byteLength, isPlainObject, exceedsMaxDepth } from './primitives.js'
 import { isEffectivelyEmpty } from './emptiness.js'
 import { isSingleChoiceTags, tagOptionValues } from '../seeds/tag-options.js'
+import { normalizeTagValue, TAG_MAX_COUNT, TAG_MAX_LENGTH, TAG_RAW_MAX_COUNT } from '../seeds/tag-value.js'
 import { sanitizeRichtext } from './richtext-sanitizer.js'
 import { resolveFileOptions, isAssetListBranch, collectAssetListItems, extractFileCandidate } from './file-branch.js'
 
@@ -200,8 +201,6 @@ function dateSchema(allowNull: boolean): z.ZodTypeAny {
 
 /** Max nesting depth accepted when walking a `json` branch value. */
 const JSON_MAX_DEPTH = 50
-/** Max number of items accepted in a `tags` branch array. */
-const MAX_TAGS_COUNT = 100
 
 /**
  * Recursively strips control characters from string leaves while enforcing a
@@ -271,35 +270,47 @@ function jsonSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny 
 }
 
 /**
- * Compiles a Zod validation schema for a `tags` branch: a bounded array of strings.
- * With `options` the array is a closed vocabulary (exact, case-sensitive match, no trimming);
- * without, values are cleaned and empty strings dropped. Duplicates are rejected, never merged,
+ * Compiles a Zod validation schema for a `tags` branch: a small array of short labels.
+ * Free values go through {@link normalizeTagValue} (invisible/control characters removed, whitespace
+ * collapsed, NFC) and may not exceed {@link TAG_MAX_LENGTH} characters; at most {@link TAG_MAX_COUNT} survive.
+ * With `options` the array is a closed vocabulary (exact, case-sensitive match after NFC, no trimming);
+ * without, values are normalized and those that clean to nothing are dropped. Duplicates are rejected, never merged,
  * and a single-choice branch (`multiple: false`) accepts at most one value. The first violated
  * rule emits one issue for the whole array.
  *
  * @param branch - The tags branch definition.
- * @param options - The resolved validation options.
  * @param allowNull - Whether null values are allowed.
  * @returns The compiled tags schema.
  */
-function tagsSchema(branch: Branch, options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny {
+function tagsSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
   const allowedValues = tagOptionValues(branch)
   const isClosedVocabulary = allowedValues.length > 0
   const base = z
     .array(z.string())
-    .max(MAX_TAGS_COUNT, {
-      message: `Expected tags(max:${MAX_TAGS_COUNT})`,
-    })
+    // Coarse guard so a huge payload is not scanned; the real cap applies after blanks are dropped.
+    .max(TAG_RAW_MAX_COUNT, { message: `Expected tags(max:${TAG_MAX_COUNT})` })
     .transform((tags, ctx) => {
-      if (isClosedVocabulary) {
-        if (tags.some((tag) => !allowedValues.includes(tag))) {
-          ctx.addIssue({ code: 'custom', message: `Expected tags(one-of:${allowedValues.join('|')})` })
+      const values: string[] = []
+      for (const tag of tags) {
+        if (isClosedVocabulary) {
+          // Exact match: only NFC is applied, so a padded or invisible-char variant of an option is rejected.
+          values.push(tag.normalize('NFC'))
+          continue
+        }
+        const normalized = normalizeTagValue(tag)
+        if (!normalized.ok) {
+          const expected = normalized.reason === 'too-long' ? `tags(item-max:${TAG_MAX_LENGTH})` : 'tags(valid-text)'
+          ctx.addIssue({ code: 'custom', message: `Expected ${expected}` })
           return z.NEVER
         }
+        if (normalized.value.length > 0) values.push(normalized.value)
       }
-      const values = isClosedVocabulary ? tags : tags.map((tag) => cleanString(tag)).filter((tag) => tag.length > 0)
-      if (!isClosedVocabulary && values.some((tag) => byteLength(tag) > options.maxTextLength)) {
-        ctx.addIssue({ code: 'custom', message: `Expected string(max:${options.maxTextLength})` })
+      if (isClosedVocabulary && values.some((tag) => !allowedValues.includes(tag))) {
+        ctx.addIssue({ code: 'custom', message: `Expected tags(one-of:${allowedValues.join('|')})` })
+        return z.NEVER
+      }
+      if (values.length > TAG_MAX_COUNT) {
+        ctx.addIssue({ code: 'custom', message: `Expected tags(max:${TAG_MAX_COUNT})` })
         return z.NEVER
       }
       if (new Set(values).size !== values.length) {
@@ -462,7 +473,7 @@ const BRANCH_SCHEMA_BUILDERS: Record<string, (branch: Branch, options: ResolvedO
   boolean: (_branch, options) => booleanSchema(options.allowNull),
   date: (_branch, options) => dateSchema(options.allowNull),
   json: (_branch, options) => jsonSchema(options, options.allowNull),
-  tags: (branch, options) => tagsSchema(branch, options, options.allowNull),
+  tags: (branch, options) => tagsSchema(branch, options.allowNull),
   file: (branch, options) => fileSchema(branch, options.allowNull),
   relation: (branch, options) => relationSchema(branch, options),
   repeater: (branch, options) => repeaterSchema(branch, options),
