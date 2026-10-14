@@ -28,6 +28,8 @@ import {
   rejectManifestOwned,
   applyDestructiveSeedDef,
   actorFromContext,
+  externalReferencers,
+  automationReferencesAlias,
 } from './seeds.helpers'
 import { SEED_MEDIA_PURGE_JOB } from './seed-media-purge'
 
@@ -68,10 +70,8 @@ destructiveApp.delete('/:slug/hard', async (context) => {
   const owned = rejectManifestOwned(context, existing)
   if (owned) return owned
 
-  const backrefMap = context.get('backrefMap')
-  const inbound = backrefMap.get(slug)
-  if (inbound && inbound.length > 0) {
-    const referencers = [...new Set(inbound.map((r: any) => r.sourceSlug))]
+  const referencers = externalReferencers(context, slug)
+  if (referencers.length > 0) {
     return publicProblem(context, {
       type: 'seed-referenced',
       title: 'Seed referenced',
@@ -277,9 +277,8 @@ destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
     const automationRepo = context.get('automationRepository')
     if (automationRepo) {
       const automations = await automationRepo.list(slug)
-      const oldAlias = branch.alias
       affectedAutomations = automations
-        .filter((a: any) => JSON.stringify(a).includes(oldAlias))
+        .filter((a: any) => automationReferencesAlias(a, branch.alias))
         .map((a: any) => a.id)
     }
   } catch { /* non-fatal */ }
@@ -293,7 +292,8 @@ destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
  * @remarks
  * Irreversible destructive operation.
  * - Validates `newType` against supported types (`text`, `number`, `boolean`, `date`, `json`, `richtext`, `file`, `tags`, `relation`, `repeater`).
- * - Rejects retyping to or from `'repeater'`.
+ * - Rejects retyping to or from `'repeater'`, and retyping a multi-relation (it has no column).
+ * - Retyping to `'relation'` is rejected by seed validation: a retype carries no `targetSeed`.
  * - Requires body `{ newType: string, confirm: "<slug>.<alias>" }`.
  * - Rejects with 422 if any existing value would be zeroed or truncated by the conversion.
  * - Generates column retyping DDL and rebuilds FTS.
@@ -331,6 +331,15 @@ destructiveApp.patch('/:slug/branches/:branchId/retype', async (context) => {
       title: 'Retype not supported',
       status: 422,
       detail: "Retyping to or from 'repeater' is not supported in v1.",
+    })
+  }
+
+  if (branch.type === 'relation' && branch.multiple === true) {
+    return publicProblem(context, {
+      type: 'retype-not-supported',
+      title: 'Retype not supported',
+      status: 422,
+      detail: `Branch '${branch.alias}' is a multi-relation stored in a junction table and has no column to retype.`,
     })
   }
 

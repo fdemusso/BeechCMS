@@ -15,7 +15,7 @@ import {
 } from '@beechcms/core'
 import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
-import { SLUG_RE, parseJsonBody, actorFromContext, relationChangeReasons } from './seeds.helpers'
+import { SLUG_RE, parseJsonObject, rejectMalformedBranches, actorFromContext, relationChangeReasons } from './seeds.helpers'
 
 /**
  * Normalizes a candidate seed definition for MCP operations:
@@ -110,13 +110,15 @@ mcpApp.post('/:slug/mcp-plan', async (context) => {
     return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: `slug must match ${SLUG_RE.source}.` })
   }
 
-  const body = await parseJsonBody(context)
+  const body = await parseJsonObject(context)
   if (body instanceof Response) return body
 
-  const candidateInput = (body as { candidate?: unknown }).candidate
+  const candidateInput = body.candidate
   if (!candidateInput || typeof candidateInput !== 'object') {
     return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: '`candidate` must be a Seed object.' })
   }
+  const malformed = rejectMalformedBranches(context, (candidateInput as { branches?: unknown }).branches)
+  if (malformed) return malformed
   const rawCandidate: Seed = { ...(candidateInput as Seed), slug }
 
   const repo = context.get('seedRepository')
@@ -202,19 +204,16 @@ mcpApp.post('/:slug/mcp-apply', async (context) => {
       detail: `Seed '${slug}' cannot be reapplied until its purge finishes.` })
   }
 
-  const body = await parseJsonBody(context)
+  const body = await parseJsonObject(context)
   if (body instanceof Response) return body
 
-  const { candidate: candidateInput, expectedVersion, planId, source } = body as {
-    candidate?: unknown
-    expectedVersion?: unknown
-    planId?: unknown
-    source?: unknown
-  }
+  const { candidate: candidateInput, expectedVersion, planId, source } = body
 
   if (!candidateInput || typeof candidateInput !== 'object') {
     return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: '`candidate` must be a Seed object.' })
   }
+  const malformed = rejectMalformedBranches(context, (candidateInput as { branches?: unknown }).branches)
+  if (malformed) return malformed
   if (!Number.isInteger(expectedVersion)) {
     return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: '`expectedVersion` must be an integer. Obtain it from POST /api/seeds/:slug/mcp-plan.' })
   }

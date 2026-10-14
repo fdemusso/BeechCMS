@@ -4,7 +4,36 @@
 
 import { describe, expect, it } from 'vitest'
 import { CANONICAL_SEEDS } from '@beechcms/testing'
-import { relationChangeReasons } from './seeds.helpers'
+import { automationReferencesAlias, relationChangeReasons } from './seeds.helpers'
+
+describe('automationReferencesAlias', () => {
+  const automation = {
+    id: 'auto_1',
+    name: 'Notify',
+    actions: [{ type: 'send_mail', to: 'ops@example.com', subject_template: 'New {{this.title}}', body_template: 'Sub: {{this.subtitle}}' }],
+  }
+
+  it.each([
+    ['title', true],
+    ['subtitle', true],
+    ['sub', false],
+    ['itle', false],
+    ['a', false],
+    ['name', false],
+    ['subject_template', false],
+  ])('alias %s referenced=%s', (alias, expected) => {
+    // Only whole identifiers inside string values count; substrings and JSON keys are not references.
+    const result = automationReferencesAlias(automation, alias)
+
+    expect(result).toBe(expected)
+  })
+
+  it('finds an alias held as a whole string value', () => {
+    const result = automationReferencesAlias({ id: 'auto_2', actions: [{ type: 'edit_field', field: 'title', value: 1 }] }, 'title')
+
+    expect(result).toBe(true)
+  })
+})
 
 describe('relationChangeReasons', () => {
   it.each([

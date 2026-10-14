@@ -49,6 +49,22 @@ describe('resolveCandidateIds', () => {
     expect(resolveCandidateIds(candidate, stored).branches[0].id).toBe('br_09')
   })
 
+  it('never mints an id an explicit branch later in the candidate already carries', () => {
+    const candidate = { slug: 'fresh', branches: [
+      { alias: 'a', label: 'A', type: 'text' },
+      { id: 'br_01', alias: 'b', label: 'B', type: 'text' },
+    ] }
+
+    expect(resolveCandidateIds(candidate, null).branches.map(b => b.id)).toEqual(['br_02', 'br_01'])
+  })
+
+  it('never recycles the id of a stored branch the candidate omits', () => {
+    const storedWithTop: Seed = { ...stored, branches: [...stored.branches, { id: 'br_05', alias: 'old', label: 'Old', type: 'text' }] }
+    const candidate = { slug: 'clienti', branches: [{ alias: 'fresh', label: 'Fresh', type: 'text' }] }
+
+    expect(resolveCandidateIds(candidate, storedWithTop).branches[0].id).toBe('br_06')
+  })
+
   it('mints sequential ids when there is no stored definition', () => {
     const candidate = { slug: 'fresh', branches: [
       { alias: 'a', label: 'A', type: 'text' },

@@ -67,6 +67,72 @@ export async function parseJsonBody(context: AppContext): Promise<unknown> {
 }
 
 /**
+ * Parses the request body as JSON and requires it to be a plain object.
+ *
+ * @remarks
+ * Valid JSON of another shape (`null`, a number, a string, an array) is a client error, not a crash:
+ * handlers read properties off the body immediately.
+ *
+ * @param context - The Hono request context.
+ * @returns The parsed object, or a 400 Bad Request Problem Details Response.
+ */
+export async function parseJsonObject(context: AppContext): Promise<Record<string, unknown> | Response> {
+  const body = await parseJsonBody(context)
+  if (body instanceof Response) return body
+  if (!isPlainObject(body)) {
+    return publicProblem(context, { type: 'invalid-json', title: 'Invalid JSON', status: 400, detail: 'Body must be a JSON object.' })
+  }
+  return body
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Rejects a candidate whose `branches` (or a repeater's `fields`) holds an entry that is not an object.
+ *
+ * @param context - The Hono request context.
+ * @param branches - The raw `branches` value of the candidate; non-arrays are left to seed validation.
+ * @returns A 400 Bad Request Problem Details Response, or `null` when every entry is an object.
+ */
+export function rejectMalformedBranches(context: AppContext, branches: unknown) {
+  if (!Array.isArray(branches)) return null
+  const malformed = branches.some(branch =>
+    !isPlainObject(branch) || (Array.isArray(branch.fields) && branch.fields.some(field => !isPlainObject(field))),
+  )
+  if (!malformed) return null
+  return publicProblem(context, { type: 'invalid-json', title: 'Invalid JSON', status: 400, detail: '`branches` entries (and repeater `fields` entries) must be objects.' })
+}
+
+/**
+ * Slugs of the OTHER seeds that hold a relation to `slug`.
+ *
+ * A relation back to its own seed dies with the seed, so it never blocks deleting it.
+ */
+export function externalReferencers(context: AppContext, slug: string): string[] {
+  const inbound = context.get('backrefMap').get(slug) ?? []
+  return [...new Set(inbound.map(ref => ref.sourceSlug).filter(source => source !== slug))]
+}
+
+/**
+ * Whether an automation refers to a branch alias.
+ *
+ * Matches the alias as a whole identifier inside any string VALUE of the automation (templates such as
+ * `{{this.title}}`, `field`, `column`). Substrings of a longer identifier and JSON keys do not count.
+ */
+export function automationReferencesAlias(automation: unknown, alias: string): boolean {
+  const token = new RegExp(`(?<![A-Za-z0-9_])${alias}(?![A-Za-z0-9_])`)
+  const visit = (value: unknown): boolean => {
+    if (typeof value === 'string') return token.test(value)
+    if (Array.isArray(value)) return value.some(visit)
+    if (isPlainObject(value)) return Object.values(value).some(visit)
+    return false
+  }
+  return visit(automation)
+}
+
+/**
  * Retrieves an active seed record by slug from the database repository.
  *
  * @param context - The Hono request context.
@@ -306,7 +372,7 @@ export function relationChangeReasons(stored: Branch, incoming: Branch): string[
  * @remarks
  * Compares incoming branches against stored definitions by ID. Alias renames and branch type changes
  * point callers to dedicated PATCH endpoints; relation storage changes require a data migration.
- * Automatically allocates next sequential branch IDs for any newly appended branches lacking an ID.
+ * Allocates ids for newly appended branches lacking one via {@link assignMissingBranchIds}.
  *
  * @param incomingBranches - Branch definitions provided in the update payload.
  * @param storedBranches - Currently persisted branch definitions in the repository.
@@ -315,10 +381,11 @@ export function relationChangeReasons(stored: Branch, incoming: Branch): string[
  * @returns `null` if valid, or a 422 Unprocessable Entity Problem Details Response on rejected destructive changes.
  */
 export function validateIncomingBranches(incomingBranches: Branch[], storedBranches: Branch[], slug: string, context: AppContext) {
+  assignMissingBranchIds(incomingBranches, storedBranches)
   const storedById = new Map(storedBranches.map((b: Branch) => [b.id, b]))
 
   for (const branch of incomingBranches) {
-    const stored = branch.id ? storedById.get(branch.id) : undefined
+    const stored = storedById.get(branch.id)
     if (stored) {
       if (branch.alias !== stored.alias) {
         return publicProblem(context, {
@@ -345,10 +412,23 @@ export function validateIncomingBranches(incomingBranches: Branch[], storedBranc
           detail: relationReasons.join('; '),
         })
       }
-    } else if (!branch.id) {
-      const accSeed = { branches: incomingBranches.filter(b => b.id) }
-      branch.id = nextBranchId(accSeed)
     }
   }
   return null
+}
+
+/**
+ * Gives every branch that lacks an id the next free `br_NN`.
+ *
+ * The pool of taken ids is the stored branches plus every explicit id in the request, so a minted id
+ * collides with neither a later explicit id nor the id of a stored branch the request omits (a recycled
+ * id would let a new definition inherit the physical column of a dropped one).
+ */
+export function assignMissingBranchIds(branches: Branch[], storedBranches: Branch[] = []): void {
+  const taken = [...storedBranches, ...branches.filter(branch => branch.id)]
+  for (const branch of branches) {
+    if (branch.id) continue
+    branch.id = nextBranchId({ branches: taken })
+    taken.push(branch)
+  }
 }

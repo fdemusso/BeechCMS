@@ -44,6 +44,22 @@ describe('validateSeedDefinitions', () => {
     expect(fatal.some(i => i.slug === 'posts' && i.messages.some(m => m.includes('nonexistent')))).toBe(true)
   })
 
+  it('fatal: relation branch without a targetSeed', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'author', label: 'Author', type: 'relation' },
+        ],
+      }),
+    ]
+
+    const fatal = validateSeedDefinitions(seeds).filter(i => i.fatal)
+
+    expect(fatal.some(i => i.slug === 'posts' && i.messages.some(m => m.includes("'author'") && m.includes('targetSeed')))).toBe(true)
+  })
+
   // ── Fatal 2: multi-relation SET NULL ────────────────────────────────────────
 
   it('fatal: multi-relation with SET NULL', () => {
