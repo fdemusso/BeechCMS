@@ -3,8 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { IRoleRepository, RoleRecord, NewRoleInput, IIdGenerator, Permission } from '@beechcms/core'
+import type { AdminGuardedResult, IRoleRepository, RoleRecord, NewRoleInput, IIdGenerator, Permission } from '@beechcms/core'
 import { isPermission, SUPER_ADMIN_ROLE_NAME } from '@beechcms/core'
+import { otherAdminWithoutRole, roleCarriesManageUsers, roleHasGlobalAssignment } from './global-admin-sql'
 
 type RoleRow = {
   id: string
@@ -84,37 +85,78 @@ export class D1RoleRepository implements IRoleRepository {
     return roleId
   }
 
-  async update(roleId: string, input: NewRoleInput): Promise<boolean> {
+  async update(roleId: string, input: NewRoleInput): Promise<AdminGuardedResult> {
     // The is_system guard must cover the permission statements too, not just the row
     // update: replacing SuperAdmin's permission set while leaving its name intact would
     // be a silent authority change. `is_system` is written only by the migration, so
     // reading it first cannot race with any runtime write.
     const row = await this.db
-      .prepare(`SELECT is_system FROM roles WHERE id = ? LIMIT 1`)
+      .prepare(
+        `SELECT is_system, ${roleCarriesManageUsers('roles.id')} AS has_manage_users
+         FROM roles WHERE id = ? LIMIT 1`
+      )
       .bind(roleId)
-      .first<{ is_system: number }>()
+      .first<{ is_system: number; has_manage_users: number }>()
 
-    if (!row || row.is_system === 1) return false
+    if (!row || row.is_system === 1) return 'not-found'
 
-    await this.db.batch([
+    // Only an edit that strips `manage_users` can remove an administrator. The guard excludes
+    // THIS role's own rows, so it reads the same in every statement of the batch even after
+    // the permission rows are rewritten. `has_manage_users` is a pre-read snapshot: a
+    // concurrent edit of this very role cannot shrink the set of administrators on its own.
+    const guarded = row.has_manage_users === 1 && !input.permissions.includes('manage_users')
+    const keepsAdmin = `NOT (${roleHasGlobalAssignment('?')} AND NOT ${otherAdminWithoutRole('?')})`
+
+    const permissions = [...new Set(input.permissions)]
+    const statements = [
       this.db
         .prepare(
           `UPDATE roles SET name = ?, description = ?, icon = ?, updated_at = unixepoch()
-           WHERE id = ? AND is_system = 0`
+           WHERE id = ? AND is_system = 0${guarded ? ` AND ${keepsAdmin}` : ''}`
         )
-        .bind(input.name, input.description, input.icon ?? null, roleId),
-      this.db.prepare(`DELETE FROM role_permissions WHERE role_id = ?`).bind(roleId),
-      ...this.permissionInserts(roleId, input.permissions),
-    ])
-    return true
+        .bind(input.name, input.description, input.icon ?? null, roleId, ...(guarded ? [roleId, roleId] : [])),
+      this.db
+        .prepare(`DELETE FROM role_permissions WHERE role_id = ?${guarded ? ` AND ${keepsAdmin}` : ''}`)
+        .bind(roleId, ...(guarded ? [roleId, roleId] : [])),
+      ...permissions.map(permission =>
+        this.db
+          .prepare(
+            guarded
+              ? `INSERT OR IGNORE INTO role_permissions (role_id, permission) SELECT ?, ? WHERE ${keepsAdmin}`
+              : `INSERT OR IGNORE INTO role_permissions (role_id, permission) VALUES (?, ?)`
+          )
+          .bind(roleId, permission, ...(guarded ? [roleId, roleId] : []))
+      ),
+    ]
+    const results = await this.db.batch(statements)
+    if ((results[0]?.meta?.changes ?? 0) > 0) return 'applied'
+
+    return (await this.exists(roleId)) ? 'last-global-admin' : 'not-found'
   }
 
-  async delete(roleId: string): Promise<boolean> {
+  /** One statement: refused when the role carries the last active global administrator. */
+  async delete(roleId: string): Promise<AdminGuardedResult> {
     const result = await this.db
-      .prepare(`DELETE FROM roles WHERE id = ? AND is_system = 0`)
+      .prepare(
+        `DELETE FROM roles
+         WHERE id = ? AND is_system = 0
+           AND NOT (
+             ${roleCarriesManageUsers('roles.id')}
+             AND ${roleHasGlobalAssignment('roles.id')}
+             AND NOT ${otherAdminWithoutRole('roles.id')}
+           )`
+      )
       .bind(roleId)
       .run()
-    return (result.meta.changes ?? 0) > 0
+    if ((result.meta.changes ?? 0) > 0) return 'applied'
+
+    // A system role never reaches the guard: report it as absent, like `update` does.
+    const row = await this.db.prepare(`SELECT is_system FROM roles WHERE id = ?`).bind(roleId).first<{ is_system: number }>()
+    return row && row.is_system === 0 ? 'last-global-admin' : 'not-found'
+  }
+
+  private async exists(roleId: string): Promise<boolean> {
+    return (await this.db.prepare(`SELECT 1 AS present FROM roles WHERE id = ?`).bind(roleId).first()) !== null
   }
 
   private permissionInserts(roleId: string, permissions: readonly Permission[]): D1PreparedStatement[] {

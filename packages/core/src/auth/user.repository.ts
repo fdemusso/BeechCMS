@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
+import type { AdminGuardedResult } from '../rbac/types.js'
+
 export interface UserRecord {
   id: string
   email: string
@@ -118,8 +120,10 @@ export interface IUserRepository {
   listAccounts(): Promise<AccountSummary[]>
 
   /**
-   * Flips `users.is_active`. Returns false when the user does not exist.
+   * Flips `users.is_active`. `not-found` when the user does not exist.
    * Reversible by design (brief §4): rows, assignments and tokens are all preserved.
+   * Deactivation returns `last-global-admin` and changes nothing when the account is the
+   * last active global administrator.
    */
-  setActive(userId: string, isActive: boolean): Promise<boolean>
+  setActive(userId: string, isActive: boolean): Promise<AdminGuardedResult>
 }

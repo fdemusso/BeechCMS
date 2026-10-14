@@ -168,10 +168,12 @@ Every account, oldest first, without credential material.
 
 ### setActive()
 
-> **setActive**(`userId`, `isActive`): `Promise`&lt;`boolean`&gt;
+> **setActive**(`userId`, `isActive`): `Promise`&lt;[`AdminGuardedResult`](../type-aliases/AdminGuardedResult.md)&gt;
 
-Flips `users.is_active`. Returns false when the user does not exist.
+Flips `users.is_active`. `not-found` when the user does not exist.
 Reversible by design (brief §4): rows, assignments and tokens are all preserved.
+Deactivation returns `last-global-admin` and changes nothing when the account is the
+last active global administrator.
 
 #### Parameters
 
@@ -185,7 +187,7 @@ Reversible by design (brief §4): rows, assignments and tokens are all preserved
 
 #### Returns
 
-`Promise`&lt;`boolean`&gt;
+`Promise`&lt;[`AdminGuardedResult`](../type-aliases/AdminGuardedResult.md)&gt;
 
 ***
 

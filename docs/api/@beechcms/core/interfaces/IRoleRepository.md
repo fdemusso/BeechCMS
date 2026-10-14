@@ -30,10 +30,11 @@ Creates a role and its permission rows atomically. Returns the new role id.
 
 ### delete()
 
-> **delete**(`roleId`): `Promise`&lt;`boolean`&gt;
+> **delete**(`roleId`): `Promise`&lt;[`AdminGuardedResult`](../type-aliases/AdminGuardedResult.md)&gt;
 
 Deletes a non-system role and, by cascade, its permissions and assignments.
-Returns false when the role does not exist or is a system role.
+`not-found` when the role does not exist or is a system role; `last-global-admin` when
+the role carries the last active global administrator.
 
 #### Parameters
 
@@ -43,7 +44,7 @@ Returns false when the role does not exist or is a system role.
 
 #### Returns
 
-`Promise`&lt;`boolean`&gt;
+`Promise`&lt;[`AdminGuardedResult`](../type-aliases/AdminGuardedResult.md)&gt;
 
 ***
 
@@ -97,14 +98,15 @@ Lists every role, system roles included, ordered by name.
 
 ### update()
 
-> **update**(`roleId`, `input`): `Promise`&lt;`boolean`&gt;
+> **update**(`roleId`, `input`): `Promise`&lt;[`AdminGuardedResult`](../type-aliases/AdminGuardedResult.md)&gt;
 
 Replaces a role's name, description and full permission set atomically.
 
-Returns false — changing NOTHING, permissions included — when the role does not
-exist or is a system role. System roles are seeded by migration and are immutable
-in both halves of the write, which is the guarantee callers rely on to keep
-`SuperAdmin` intact.
+`not-found` — changing NOTHING, permissions included — when the role does not exist or
+is a system role. System roles are seeded by migration and are immutable in both halves
+of the write, which is the guarantee callers rely on to keep `SuperAdmin` intact.
+`last-global-admin` when the new set drops `manage_users` from a role that carries the
+last active global administrator; nothing is written then either.
 
 #### Parameters
 
@@ -118,4 +120,4 @@ in both halves of the write, which is the guarantee callers rely on to keep
 
 #### Returns
 
-`Promise`&lt;`boolean`&gt;
+`Promise`&lt;[`AdminGuardedResult`](../type-aliases/AdminGuardedResult.md)&gt;

@@ -50,6 +50,16 @@ export interface EffectivePermissions {
   byScope: ReadonlyMap<Scope, ReadonlySet<Permission>>
 }
 
+/**
+ * Outcome of a write that must never remove the platform's last active global
+ * administrator. The repository enforces the invariant inside the write itself (one
+ * conditional statement), so two concurrent requests cannot both pass a stale count.
+ * - `applied`: the write happened.
+ * - `not-found`: the target does not exist (or is an immutable system role); nothing changed.
+ * - `last-global-admin`: refused because it would leave no other active global administrator.
+ */
+export type AdminGuardedResult = 'applied' | 'not-found' | 'last-global-admin'
+
 /** Storage contract for roles and their permission bundles. */
 export interface IRoleRepository {
   /** Retrieves a role with its permissions, or null when it does not exist. */
@@ -67,18 +77,20 @@ export interface IRoleRepository {
   /**
    * Replaces a role's name, description and full permission set atomically.
    *
-   * Returns false — changing NOTHING, permissions included — when the role does not
-   * exist or is a system role. System roles are seeded by migration and are immutable
-   * in both halves of the write, which is the guarantee callers rely on to keep
-   * `SuperAdmin` intact.
+   * `not-found` — changing NOTHING, permissions included — when the role does not exist or
+   * is a system role. System roles are seeded by migration and are immutable in both halves
+   * of the write, which is the guarantee callers rely on to keep `SuperAdmin` intact.
+   * `last-global-admin` when the new set drops `manage_users` from a role that carries the
+   * last active global administrator; nothing is written then either.
    */
-  update(roleId: string, input: NewRoleInput): Promise<boolean>
+  update(roleId: string, input: NewRoleInput): Promise<AdminGuardedResult>
 
   /**
    * Deletes a non-system role and, by cascade, its permissions and assignments.
-   * Returns false when the role does not exist or is a system role.
+   * `not-found` when the role does not exist or is a system role; `last-global-admin` when
+   * the role carries the last active global administrator.
    */
-  delete(roleId: string): Promise<boolean>
+  delete(roleId: string): Promise<AdminGuardedResult>
 }
 
 /** Storage contract for (user, role, scope) assignments. */
@@ -98,14 +110,11 @@ export interface IRoleAssignmentRepository {
   /** Creates an assignment. Returns its id; an existing identical triple is a no-op. */
   create(input: NewAssignmentInput): Promise<string>
 
-  /** Removes one assignment. Returns false when it did not exist. */
-  delete(assignmentId: string): Promise<boolean>
-
   /**
-   * Counts accounts holding `manage_users` at {@link GLOBAL_SCOPE} and still active.
-   * Backs the last-SuperAdmin guardrail consumed by a later sprint.
+   * Removes one assignment. `not-found` when it did not exist; `last-global-admin` when it is
+   * the global `manage_users` assignment of the last active global administrator.
    */
-  countActiveGlobalAdmins(): Promise<number>
+  delete(assignmentId: string): Promise<AdminGuardedResult>
 
   /** One assignment by id, decay filter NOT applied. Null when absent. */
   findById(assignmentId: string): Promise<PermissionAssignment | null>
@@ -125,25 +134,4 @@ export interface IRoleAssignmentRepository {
    * {@link listActiveForUser} deliberately hides.
    */
   listAllForUser(userId: string): Promise<PermissionAssignment[]>
-
-  /**
-   * {@link countActiveGlobalAdmins} ignoring one user. `0` means that user is the last
-   * account able to administer the platform, and any operation revoking their authority
-   * must be refused.
-   */
-  countActiveGlobalAdminsExcludingUser(userId: string): Promise<number>
-
-  /**
-   * {@link countActiveGlobalAdmins} ignoring one assignment row. Unlike
-   * {@link countActiveGlobalAdminsExcludingUser}, a user who keeps administrative authority
-   * through ANOTHER assignment still counts, so removing one of two redundant admin
-   * assignments is not mistaken for removing the last administrator.
-   */
-  countActiveGlobalAdminsExcludingAssignment(assignmentId: string): Promise<number>
-
-  /**
-   * {@link countActiveGlobalAdmins} ignoring every assignment that goes through one role.
-   * `0` means mutating that role would strip the platform of its last administrator.
-   */
-  countActiveGlobalAdminsExcludingRole(roleId: string): Promise<number>
 }

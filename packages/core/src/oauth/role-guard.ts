@@ -56,7 +56,7 @@ export class AllowAllRoleGuard implements IRoleGuard {
  * deliberately no `manage_seeds` permission to map onto. So the question this guard
  * answers is not "which seed?" but "may this account hand platform authority to a
  * client at all?", and the marker for that is holding `manage_users` at
- * {@link GLOBAL_SCOPE} — the same SuperAdmin marker `countActiveGlobalAdmins()` uses.
+ * {@link GLOBAL_SCOPE} — the same SuperAdmin marker the last-global-admin guard uses.
  *
  * A seed-scoped collaborator therefore cannot mint an MCP token, no matter which
  * scopes the client requests. Denial is all-or-nothing: there is no partial grant.

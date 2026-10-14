@@ -10,79 +10,6 @@ Storage contract for (user, role, scope) assignments.
 
 ## Methods
 
-### countActiveGlobalAdmins()
-
-> **countActiveGlobalAdmins**(): `Promise`&lt;`number`&gt;
-
-Counts accounts holding `manage_users` at [GLOBAL\_SCOPE](../variables/GLOBAL_SCOPE.md) and still active.
-Backs the last-SuperAdmin guardrail consumed by a later sprint.
-
-#### Returns
-
-`Promise`&lt;`number`&gt;
-
-***
-
-### countActiveGlobalAdminsExcludingAssignment()
-
-> **countActiveGlobalAdminsExcludingAssignment**(`assignmentId`): `Promise`&lt;`number`&gt;
-
-[countActiveGlobalAdmins](#countactiveglobaladmins) ignoring one assignment row. Unlike
-[countActiveGlobalAdminsExcludingUser](#countactiveglobaladminsexcludinguser), a user who keeps administrative authority
-through ANOTHER assignment still counts, so removing one of two redundant admin
-assignments is not mistaken for removing the last administrator.
-
-#### Parameters
-
-##### assignmentId
-
-`string`
-
-#### Returns
-
-`Promise`&lt;`number`&gt;
-
-***
-
-### countActiveGlobalAdminsExcludingRole()
-
-> **countActiveGlobalAdminsExcludingRole**(`roleId`): `Promise`&lt;`number`&gt;
-
-[countActiveGlobalAdmins](#countactiveglobaladmins) ignoring every assignment that goes through one role.
-`0` means mutating that role would strip the platform of its last administrator.
-
-#### Parameters
-
-##### roleId
-
-`string`
-
-#### Returns
-
-`Promise`&lt;`number`&gt;
-
-***
-
-### countActiveGlobalAdminsExcludingUser()
-
-> **countActiveGlobalAdminsExcludingUser**(`userId`): `Promise`&lt;`number`&gt;
-
-[countActiveGlobalAdmins](#countactiveglobaladmins) ignoring one user. `0` means that user is the last
-account able to administer the platform, and any operation revoking their authority
-must be refused.
-
-#### Parameters
-
-##### userId
-
-`string`
-
-#### Returns
-
-`Promise`&lt;`number`&gt;
-
-***
-
 ### create()
 
 > **create**(`input`): `Promise`&lt;`string`&gt;
@@ -103,9 +30,10 @@ Creates an assignment. Returns its id; an existing identical triple is a no-op.
 
 ### delete()
 
-> **delete**(`assignmentId`): `Promise`&lt;`boolean`&gt;
+> **delete**(`assignmentId`): `Promise`&lt;[`AdminGuardedResult`](../type-aliases/AdminGuardedResult.md)&gt;
 
-Removes one assignment. Returns false when it did not exist.
+Removes one assignment. `not-found` when it did not exist; `last-global-admin` when it is
+the global `manage_users` assignment of the last active global administrator.
 
 #### Parameters
 
@@ -115,7 +43,7 @@ Removes one assignment. Returns false when it did not exist.
 
 #### Returns
 
-`Promise`&lt;`boolean`&gt;
+`Promise`&lt;[`AdminGuardedResult`](../type-aliases/AdminGuardedResult.md)&gt;
 
 ***
 

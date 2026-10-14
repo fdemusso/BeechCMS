@@ -231,16 +231,21 @@ describe('D1UserRepository', () => {
   })
 
   describe('setActive', () => {
-    it('flips the column and returns true when a row changed', async () => {
+    it('flips the column and reports applied when a row changed', async () => {
       const { db, bindMock } = makeMockDb({ runChanges: 1 })
-      const changed = await new D1UserRepository(db).setActive('u1', false)
-      expect(changed).toBe(true)
-      expect(bindMock).toHaveBeenCalledWith(0, 'u1')
+      const result = await new D1UserRepository(db).setActive('u1', false)
+      expect(result).toBe('applied')
+      expect(bindMock).toHaveBeenCalledWith('u1')
     })
 
-    it('returns false for an unknown id', async () => {
-      const { db } = makeMockDb({ runChanges: 0 })
-      expect(await new D1UserRepository(db).setActive('unknown', true)).toBe(false)
+    it('reports not-found for an unknown id', async () => {
+      const { db } = makeMockDb({ runChanges: 0, firstResult: null })
+      expect(await new D1UserRepository(db).setActive('unknown', true)).toBe('not-found')
+    })
+
+    it('reports last-global-admin when the guarded update changed nothing for an existing account', async () => {
+      const { db } = makeMockDb({ runChanges: 0, firstResult: { id: 'u1' } })
+      expect(await new D1UserRepository(db).setActive('u1', false)).toBe('last-global-admin')
     })
   })
 })
