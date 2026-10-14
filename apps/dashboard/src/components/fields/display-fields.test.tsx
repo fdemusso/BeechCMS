@@ -7,8 +7,10 @@ import { render, screen } from "@testing-library/react"
 import { BooleanDisplay } from "@/components/fields/display/boolean"
 import { DateDisplay } from "@/components/fields/display/date"
 import { JsonDisplay } from "@/components/fields/display/json"
+import { TagsDisplay } from "@/components/fields/display/tags"
 import { NumberDisplay } from "@/components/fields/display/number"
 import { RichtextDisplay } from "@/components/fields/display/richtext"
+import { CANONICAL_SEEDS } from "@beechcms/testing"
 import type { Branch } from "@beechcms/core"
 
 const branch = { id: "br_01", alias: "field", label: "Field", type: "text" } as unknown as Branch
@@ -176,19 +178,52 @@ describe("RichtextDisplay", () => {
   })
 })
 
-describe("JsonDisplay tags con opzioni", () => {
-  const branch = {
-    id: "br_t",
-    alias: "priority",
-    label: "Priority",
-    type: "tags",
-    options: ["low", "medium", "high"],
-  } as unknown as Branch
+describe("TagsDisplay", () => {
+  const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts")!
+  const priority = posts.branches.find((b) => b.alias === "priority") as Branch
+  const freeTags = posts.branches.find((b) => b.alias === "tags") as Branch
 
-  it("colora i tag di un array in base alla posizione dell'opzione", () => {
-    render(<JsonDisplay branch={branch} value={["high"]} />)
+  it("un valore valido è un chip con sfondo del colore dichiarato", () => {
+    render(<TagsDisplay branch={priority} value={["high"]} />)
 
     const chip = screen.getByText("high").closest("[data-slot='badge']") as HTMLElement
-    expect(chip.style.backgroundColor).toBe("#8b5cf6")
+
+    expect(chip.style.backgroundColor).toBe("#ef4444")
+  })
+
+  it("un valore fuori elenco è un chip con aria-label \"not in the options\"", () => {
+    render(<TagsDisplay branch={priority} value={["gone"]} />)
+
+    const chip = screen.getByLabelText("gone — not in the options")
+
+    expect(chip).toBeInTheDocument()
+  })
+
+  it("un valore di posts.tags è un chip senza stile inline", () => {
+    render(<TagsDisplay branch={freeTags} value={["react"]} />)
+
+    const chip = screen.getByText("react").closest("[data-slot='badge']") as HTMLElement
+
+    expect(chip.getAttribute("style")).toBeNull()
+  })
+
+  it("la stringa maschera è resa come testo", () => {
+    render(<TagsDisplay branch={priority} value="••••••••" />)
+
+    const masked = screen.getByText("••••••••")
+
+    expect(masked).toBeInTheDocument()
+    expect(masked.closest("[data-slot='badge']")).toBeNull()
+  })
+})
+
+describe("JsonDisplay", () => {
+  it("un branch json con alias tags e valore array è reso come JSON, non come chip", () => {
+    // Rule 6.2.4: the alias heuristic was removed (brief §2.9), so no chip is drawn for json branches.
+    const jsonTagsAlias = { id: "br_j", alias: "tags", label: "Tags", type: "json" } as unknown as Branch
+
+    render(<JsonDisplay branch={jsonTagsAlias} value={["a"]} />)
+
+    expect(document.querySelector("[data-slot='badge']")).toBeNull()
   })
 })

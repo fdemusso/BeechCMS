@@ -11,7 +11,7 @@
  */
 
 import pc from 'picocolors'
-import type { Seed } from '@beechcms/core'
+import { normalizeSeedDefinition, type Seed } from '@beechcms/core'
 import { MANIFEST_VERSION, seedsToManifest, toCanonicalJson } from '@beechcms/core/schema'
 import type { BeechSchemaManifest, ManifestSeed } from '@beechcms/core/schema'
 
@@ -34,50 +34,16 @@ export interface ManifestDrift {
   inSync: boolean
 }
 
-/** Seed-level flags the engine materializes as `false` when omitted by an author. */
-const SEED_FLAGS = ['allowDrafts', 'allowPublicRead', 'allowPublicPost', 'allowPublicEdit', 'softDelete'] as const
-
-/** Branch-level flags with the same omitted-means-false semantics. */
-const BRANCH_FLAGS = ['requiredOnCreate', 'requiredOnUpdate', 'multiple'] as const
-
-type Comparable = Record<string, unknown>
-
 /**
- * Reduces one seed to the form both sides are compared in.
- *
- * Three normalizations, each preventing a specific false positive:
- *  - `layout` is dropped: it is server-populated presentation state, never authored.
- *  - branch `id` is dropped, recursively: a hand-authored branch has none, and `manifestToSeeds`
- *    mints authoring-local ids that will not match the stored `br_XX`. Identity is the alias here;
- *    the AUTHORITATIVE id match happens server-side in `normalizeCandidate` at apply time.
- *  - the boolean flags above are defaulted, so an author who omits `allowDrafts` does not "differ"
- *    from a stored definition that spells out `allowDrafts: false`.
- *
- * Unknown keys are copied through untouched: a field this function has never heard of must show up
- * as drift, not vanish silently.
- */
-function normalizeSeed(seed: ManifestSeed | Seed): Comparable {
-  const { layout: _layout, branches, ...rest } = seed as Seed & Comparable
-  const normalized: Comparable = { ...rest }
-  for (const flag of SEED_FLAGS) normalized[flag] = normalized[flag] === true
-  normalized.branches = (branches ?? []).map(normalizeBranch)
-  return normalized
-}
-
-function normalizeBranch(branch: unknown): Comparable {
-  const { id: _id, fields, ...rest } = branch as Comparable & { fields?: unknown[] }
-  const normalized: Comparable = { ...rest }
-  for (const flag of BRANCH_FLAGS) normalized[flag] = normalized[flag] === true
-  if (fields !== undefined) normalized.fields = fields.map(normalizeBranch)
-  return normalized
-}
-
-/**
- * Canonical bytes for one normalized seed, produced by the SAME frozen serializer the manifest
+ * Canonical bytes for one seed reduced by `normalizeSeedDefinition` (branch ids excluded, omitted flags ≡ `false`,
+ * omitted `multiple` on `tags` ≡ `true`, `layout` excluded), produced by the SAME frozen serializer the manifest
  * itself is written with — one format, one producer (sprint 1's compatibility surface).
+ *
+ * Identity here is the alias: the AUTHORITATIVE id match happens server-side in `normalizeCandidate` at apply time.
+ * Unknown keys are copied through untouched, so a field this module has never heard of shows up as drift.
  */
 function canonicalize(seed: ManifestSeed | Seed): string {
-  const normalized = normalizeSeed(seed) as unknown as ManifestSeed
+  const normalized = normalizeSeedDefinition(seed) as unknown as ManifestSeed
   return toCanonicalJson({ version: MANIFEST_VERSION, seeds: [normalized] })
 }
 

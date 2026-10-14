@@ -104,10 +104,33 @@ GET /api/v1/public/posts/schema
       "label": "Body",
       "requiredOnCreate": false,
       "policies": { "public": true, "visibility": "full" }
+    },
+    {
+      "alias": "priority",
+      "type": "tags",
+      "label": "Priority",
+      "options": [
+        { "label": "low", "value": "low", "color": "#64748b" },
+        { "label": "high", "value": "high", "color": "#ef4444" }
+      ],
+      "multiple": false,
+      "requiredOnCreate": false,
+      "policies": { "public": true, "visibility": "full" }
     }
   ]
 }
 ```
+
+Branch keys specific to `tags`:
+
+| Key | Value | Present when |
+|---|---|---|
+| `options` | `Array<{ label: string; value: string; color: string }>` — `label` equals `value` | the branch declares `options` |
+| `multiple` | `boolean` — `false` = single choice, `true` = multiple choice | `type` is `tags` |
+
+The value of a `tags` branch is always an array of strings, single choice included. A value outside `options`, a duplicate, or more than one value on a single-choice branch is rejected with `400 content-validation-failed`.
+
+Tag values are normalized on write (invisible/control characters removed, whitespace collapsed, trimmed, Unicode NFC; case preserved). A field holds at most 10 tags of 25 characters each; a longer tag or a larger array is rejected with `400 content-validation-failed`, never truncated. See [Tag values](/build/schema-modeling#tag-values).
 
 ---
 
@@ -146,6 +169,10 @@ Reads entries for a seed. Requires `allowPublicRead: true` and `PUBLIC_READ_API_
 
 **Supported filter operators (snake_case required):**
 `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `contains`, `not_contains`, `starts_with`, `ends_with`, `is_empty`, `is_not_empty`, `in`, `not_in`, `has_tag`, `has_any_tag`, `has_all_tags`.
+
+On a `tags` field, `eq`, `contains` and `in` test membership of the stored array, and `neq`, `not_contains` and `not_in` are their negation.
+
+`has_tag`, `has_any_tag` and `has_all_tags` on a `tags` field normalize each requested tag with the same rule used on write, so `" design "` matches `design`. A tag that cannot be normalized (blank, too long) matches nothing, and `has_all_tags` containing one matches no entry. A list of more than 50 tags is a malformed filter and is ignored.
 
 **Single entry request:**
 
@@ -393,7 +420,7 @@ The `data` echoed in the response follows the same negotiation as a read (`lang`
 All responses emitted across the Public API surface (`/api/v1/public/*`) carry the `X-Schema-Revision` response header:
 
 ```http
-X-Schema-Revision: v1:a1b2c3d4e5f60718293a4b5c6d7e8f90
+X-Schema-Revision: v2:a1b2c3d4e5f60718293a4b5c6d7e8f90
 ```
 
 - **Format**: `v<version>:<32_hex_sha256>`.

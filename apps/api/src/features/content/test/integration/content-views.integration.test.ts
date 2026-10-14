@@ -19,7 +19,12 @@ type ViewBody = {
   type: string
   title: string | null
   position: number
-  config: { filters: Array<{ columnRef: string }>; kanban?: unknown }
+  config: {
+    filters: Array<{ columnRef: string }>
+    sort: { columnRef: string; desc: boolean } | null
+    groupBy: { columnRef: string } | null
+    kanban?: unknown
+  }
 }
 
 describe('content slice — views (real D1)', () => {
@@ -100,6 +105,21 @@ describe('content slice — views (real D1)', () => {
     })
   })
 
+  describe('GET /api/content/:slug/views (tags cleanup)', () => {
+    it('returns a stored config without sort on a multiple-choice tags branch', async () => {
+      const [tableView] = await (await admin.get('/api/content/posts/views')).json<ViewBody[]>()
+      // Direct write: the PATCH route refuses this config, so only a view stored before `multiple` changed can hold it.
+      const staleConfig = JSON.stringify({ sort: { columnRef: 'br_07', desc: false } })
+      await harness.db.prepare('UPDATE seed_views SET config = ? WHERE id = ?').bind(staleConfig, tableView.id).run()
+
+      const response = await admin.get('/api/content/posts/views')
+
+      expect(response.status).toBe(200)
+      const views = await response.json<ViewBody[]>()
+      expect(views.find((view) => view.id === tableView.id)?.config.sort).toBeNull()
+    })
+  })
+
   describe('POST /api/content/:slug/views', () => {
     it('appends an authorized instance with a trimmed title and a cleaned config', async () => {
       const response = await admin.post('/api/content/posts/views', {
@@ -146,6 +166,48 @@ describe('content slice — views (real D1)', () => {
       expect(row?.n).toBe(0)
     })
 
+    it('refuses a table view sorted by a multiple-choice tags branch with 422 content-invalid-view and stores no instance', async () => {
+      const response = await admin.post('/api/content/posts/views', {
+        type: 'table',
+        config: { sort: { columnRef: 'br_07', desc: false } },
+      })
+
+      expect(response.status).toBe(422)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/content-invalid-view')
+
+      const row = await harness.db.prepare("SELECT COUNT(*) AS n FROM seed_views WHERE seed_slug = 'posts'").first<{ n: number }>()
+      expect(row?.n).toBe(0)
+    })
+
+    it('refuses a table view grouped by a multiple-choice tags branch with 422 content-invalid-view', async () => {
+      const response = await admin.post('/api/content/posts/views', {
+        type: 'table',
+        config: { groupBy: { columnRef: 'br_07' } },
+      })
+
+      expect(response.status).toBe(422)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/content-invalid-view')
+
+      const row = await harness.db.prepare("SELECT COUNT(*) AS n FROM seed_views WHERE seed_slug = 'posts'").first<{ n: number }>()
+      expect(row?.n).toBe(0)
+    })
+
+    it('stores a table view sorted and grouped by a single-choice tags branch', async () => {
+      const response = await admin.post('/api/content/posts/views', {
+        type: 'table',
+        config: { sort: { columnRef: 'br_11', desc: true }, groupBy: { columnRef: 'br_11' } },
+      })
+
+      expect(response.status).toBe(201)
+      const view = await response.json<ViewBody>()
+      expect(view.config.sort).toEqual({ columnRef: 'br_11', desc: true })
+
+      const row = await harness.db.prepare('SELECT config FROM seed_views WHERE id = ?').bind(view.id).first<{ config: string }>()
+      expect(JSON.parse(row?.config ?? '{}')).toMatchObject({ sort: { columnRef: 'br_11' }, groupBy: { columnRef: 'br_11' } })
+    })
+
     it('bootstraps the defaults before the first create so the seed keeps a Table instance', async () => {
       const response = await admin.post('/api/content/posts/views', { type: 'gallery' })
 
@@ -178,6 +240,22 @@ describe('content slice — views (real D1)', () => {
       const view = await response.json<ViewBody>()
       expect(view.title).toBe('Mine')
       expect(view.config.filters).toEqual([{ columnRef: 'br_01', conditions: [{ op: 'eq', value: 'x' }] }])
+    })
+
+    it('refuses a config grouped by a multiple-choice tags branch and keeps the stored config', async () => {
+      const [tableView] = await (await admin.get('/api/content/posts/views')).json<ViewBody[]>()
+      const storedBefore = await harness.db.prepare('SELECT config FROM seed_views WHERE id = ?').bind(tableView.id).first<{ config: string }>()
+
+      const response = await admin.patch(`/api/content/posts/views/${tableView.id}`, {
+        config: { groupBy: { columnRef: 'br_07' } },
+      })
+
+      expect(response.status).toBe(422)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/content-invalid-view')
+
+      const storedAfter = await harness.db.prepare('SELECT config FROM seed_views WHERE id = ?').bind(tableView.id).first<{ config: string }>()
+      expect(storedAfter?.config).toBe(storedBefore?.config)
     })
 
     it('drops the kanban sub-config from a non-kanban instance', async () => {

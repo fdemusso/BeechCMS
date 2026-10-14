@@ -190,7 +190,7 @@ describe('public slice — integration (real D1) relation expansion', () => {
 
     // Regression guard: client query builder relies on immutable header format for drift check.
     const revision = response.headers.get('x-schema-revision')!
-    expect(revision.startsWith('v1:')).toBe(true)
+    expect(revision.startsWith('v2:')).toBe(true)
   })
 
   it('attaches X-Schema-Revision header on 400 Bad Request error responses', async () => {

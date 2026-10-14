@@ -179,6 +179,8 @@ Computes a dry-run migration plan on the server against the physical D1 table st
       "CREATE TABLE IF NOT EXISTS content_products (...);",
       "CREATE INDEX IF NOT EXISTS idx_products_sku ON content_products (sku);"
     ],
+    "definitionChanged": true,
+    "changedBranches": [],
     "ftsRebuildNeeded": false,
     "expectedVersion": 4,
     "expiresInSeconds": 600,
@@ -188,7 +190,7 @@ Computes a dry-run migration plan on the server against the physical D1 table st
 
 #### Safety Classifications:
 - **`create`**: The table does not exist; provisions new tables and indexes.
-- **`additive`**: Only new branches or harmless metadata changes were added.
+- **`additive`**: Only new branches or harmless metadata changes were added. Definition-only changes (tag options, option colors, `multiple`) produce no DDL and are listed in `changedBranches`; `definitionChanged: false` means applying changes nothing.
 - **`destructive`**: Dropped branches, alias renames, or type alterations detected. `applicable` is set to `false` and `blockedReasons` explains what was blocked.
 
 ---

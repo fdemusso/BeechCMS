@@ -49,25 +49,36 @@ function evalPredicate(pred: WhenPredicate, context: ResolvedContext): boolean {
   return compare(pred.op, left, right)
 }
 
+/** A `tags` value is an array: equality and membership operators test its members. */
+function isMember(left: unknown, right: unknown): boolean {
+  return Array.isArray(left) ? left.some((member) => coerceEqual(member, right)) : coerceEqual(left, right)
+}
+
+function isEmptyValue(value: unknown): boolean {
+  return value == null || value === '' || (Array.isArray(value) && value.length === 0)
+}
+
 function compare(op: string, left: unknown, right: unknown): boolean {
   switch (op) {
-    case 'isempty':    return left == null || left === ''
-    case 'isnotempty': return left != null && left !== ''
+    case 'isempty':    return isEmptyValue(left)
+    case 'isnotempty': return !isEmptyValue(left)
 
-    case 'eq':  return coerceEqual(left, right)
-    case 'neq': return !coerceEqual(left, right)
+    case 'eq':  return isMember(left, right)
+    case 'neq': return !isMember(left, right)
 
     case 'gt':  return Number(left) > Number(right)
     case 'gte': return Number(left) >= Number(right)
     case 'lt':  return Number(left) < Number(right)
     case 'lte': return Number(left) <= Number(right)
 
-    case 'contains':   return typeof left === 'string' && typeof right === 'string' && left.includes(right)
+    case 'contains':
+      if (Array.isArray(left)) return typeof right === 'string' && left.includes(right)
+      return typeof left === 'string' && typeof right === 'string' && left.includes(right)
     case 'startswith': return typeof left === 'string' && typeof right === 'string' && left.startsWith(right)
     case 'endswith':   return typeof left === 'string' && typeof right === 'string' && left.endsWith(right)
 
-    case 'in':    return Array.isArray(right) && right.some((r) => coerceEqual(left, r))
-    case 'notin': return !Array.isArray(right) || !right.some((r) => coerceEqual(left, r))
+    case 'in':    return Array.isArray(right) && right.some((r) => isMember(left, r))
+    case 'notin': return !Array.isArray(right) || !right.some((r) => isMember(left, r))
 
     case 'matches': {
       if (typeof left !== 'string' || typeof right !== 'string') return false

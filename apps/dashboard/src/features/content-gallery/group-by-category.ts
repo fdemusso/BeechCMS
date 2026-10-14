@@ -20,10 +20,13 @@ export function categoryKey(label: string): string {
 /**
  * Raggruppa le card per categoria. Il confronto ignora maiuscole e spazi ai bordi
  * ("Matrimonio" e "matrimonio " finiscono nello stesso gruppo); l'etichetta è la
- * prima forma incontrata. I gruppi sono in ordine alfabetico, "senza categoria" in coda.
- * Mantiene l'ordine originale delle card dentro ogni gruppo.
+ * prima forma incontrata. I gruppi sono in ordine alfabetico (o secondo `compareLabels`),
+ * "senza categoria" in coda. Mantiene l'ordine originale delle card dentro ogni gruppo.
  */
-export function groupByCategory(models: GalleryCardDisplayModel[]): GalleryCategoryGroup[] {
+export function groupByCategory(
+  models: GalleryCardDisplayModel[],
+  compareLabels: (a: string, b: string) => number = (a, b) => a.localeCompare(b, "it", { sensitivity: "base" })
+): GalleryCategoryGroup[] {
   const groups = new Map<string, GalleryCategoryGroup>()
   const uncategorized: GalleryCardDisplayModel[] = []
 
@@ -42,9 +45,7 @@ export function groupByCategory(models: GalleryCardDisplayModel[]): GalleryCateg
     }
   }
 
-  const sorted = [...groups.values()].sort((a, b) =>
-    (a.label ?? "").localeCompare(b.label ?? "", "it", { sensitivity: "base" })
-  )
+  const sorted = [...groups.values()].sort((a, b) => compareLabels(a.label ?? "", b.label ?? ""))
   if (uncategorized.length > 0) {
     sorted.push({ key: null, label: null, models: uncategorized })
   }

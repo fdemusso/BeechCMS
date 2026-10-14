@@ -3,20 +3,11 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi } from "vitest"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import { JsonEdit } from "@/components/fields/edit/json"
 import type { Branch } from "@beechcms/core"
 
 describe("JsonEdit", () => {
-  const tagsWithOptionsBranch = {
-    id: "br_tags_opts",
-    alias: "tags_field",
-    label: "Tags With Options",
-    type: "tags",
-    options: ["React", "TypeScript", "Node"],
-    policies: [],
-  } as unknown as Branch
-
   const jsonBranch = {
     id: "br_json",
     alias: "metadata",
@@ -30,35 +21,8 @@ describe("JsonEdit", () => {
     alias: "open_tags",
     label: "Open Tags",
     type: "tags",
-    options: [],
     policies: [],
   } as unknown as Branch
-
-  it("renderizza chip UI quando branch ha type tags e opzioni definite", () => {
-    const onChange = vi.fn()
-    const value = { React: "#3b82f6" }
-
-    render(
-      <JsonEdit
-        branch={tagsWithOptionsBranch}
-        value={value}
-        onChange={onChange}
-      />
-    )
-
-    expect(screen.getByText("React")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Add tag/i })).toBeInTheDocument()
-    expect(screen.queryByTestId("json-code-editor")).not.toBeInTheDocument()
-  })
-
-  it("con type tags e opzioni emette un array di stringhe (contratto API), non una mappa di colori", () => {
-    const onChange = vi.fn()
-    render(<JsonEdit branch={tagsWithOptionsBranch} value={["React"]} onChange={onChange} />)
-
-    fireEvent.click(screen.getByRole("button", { name: /Remove tag React/i }))
-
-    expect(onChange).toHaveBeenCalledWith([])
-  })
 
   it("renderizza JsonCodeEditor per branch con type json", async () => {
     const onChange = vi.fn()

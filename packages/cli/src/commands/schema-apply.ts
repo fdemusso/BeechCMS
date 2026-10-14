@@ -4,8 +4,7 @@
 import { randomUUID } from 'node:crypto'
 import * as p from '@clack/prompts'
 import pc from 'picocolors'
-import type { Seed } from '@beechcms/core'
-import { manifestToSeeds } from '@beechcms/core/schema'
+import type { ManifestSeed } from '@beechcms/core/schema'
 import { CliError, exitWithError } from '../lib/d1-context.js'
 import { DEFAULT_MANIFEST_PATH, loadManifest } from '../lib/manifest-loader.js'
 import { createControlPlane, type ControlPlane, type McpPlan } from '../lib/control-plane.js'
@@ -31,7 +30,7 @@ export async function schemaApply(args: SchemaApplyOptions = {}): Promise<void> 
   try {
     const manifestPath = args.manifest ?? DEFAULT_MANIFEST_PATH
     const manifest = await loadManifest(manifestPath)
-    const { ordered, cycles } = orderSeedsForApply(manifestToSeeds(manifest))
+    const { ordered, cycles } = orderSeedsForApply(manifest.seeds)
 
     if (cycles.length > 0) {
       throw new CliError(
@@ -60,7 +59,7 @@ export async function schemaApply(args: SchemaApplyOptions = {}): Promise<void> 
       )
     }
 
-    const pending = ordered.filter(seed => (previews.get(seed.slug)?.statements.length ?? 0) > 0)
+    const pending = ordered.filter(seed => previews.get(seed.slug)?.definitionChanged === true)
     if (pending.length === 0) {
       console.log(pc.green('\n  ✓ Nothing to apply — the deployed schema already matches the manifest.\n'))
       return
@@ -85,7 +84,7 @@ export async function schemaApply(args: SchemaApplyOptions = {}): Promise<void> 
 
 /** One write. Re-plans first: the previous seed's apply bumped `registry_version`, so the version
  *  printed in the preview is already stale by construction. */
-async function applyOne(controlPlane: ControlPlane, seed: Seed, preview: McpPlan, planId: string) {
+async function applyOne(controlPlane: ControlPlane, seed: ManifestSeed, preview: McpPlan, planId: string) {
   const fresh = await controlPlane.plan(seed.slug, seed)
 
   if (!fresh.applicable) {
@@ -94,7 +93,10 @@ async function applyOne(controlPlane: ControlPlane, seed: Seed, preview: McpPlan
       'The deployed schema changed under this run. Re-run `beech schema plan`.',
     )
   }
-  if (fresh.statements.join('\n') !== preview.statements.join('\n')) {
+  if (
+    fresh.statements.join('\n') !== preview.statements.join('\n')
+    || fresh.changedBranches.join('\n') !== preview.changedBranches.join('\n')
+  ) {
     throw new CliError(
       `The plan for '${seed.slug}' changed between review and apply. Nothing was written for it.`,
       'Someone else changed the schema during this run. Re-run `beech schema plan`.',
@@ -105,7 +107,7 @@ async function applyOne(controlPlane: ControlPlane, seed: Seed, preview: McpPlan
 }
 
 /** Single confirmation for the whole run. Refuses to guess in a non-interactive shell. */
-async function confirmApply(pending: Seed[], skip: boolean): Promise<void> {
+async function confirmApply(pending: ManifestSeed[], skip: boolean): Promise<void> {
   if (skip) return
   if (!process.stdout.isTTY) {
     throw new CliError(

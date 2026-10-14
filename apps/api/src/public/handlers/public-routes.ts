@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { Hono } from 'hono'
-import { generateTimeTrapToken, resolveClassification } from '@beechcms/core'
+import { generateTimeTrapToken, isSingleChoiceTags, resolveClassification } from '@beechcms/core'
 import type { AppEnv } from '../../types'
 import { publicReadHandler } from './public-read'
 import { publicAddHandler } from './public-add'
@@ -48,15 +48,13 @@ publicApp.get('/:seed/schema', (c) => {
     })
     .map(branch => {
       const rawBranch = branch as unknown as Record<string, unknown>
-      const rawOptions = Array.isArray(rawBranch.options)
-        ? rawBranch.options.map((opt) => (typeof opt === 'string' ? { label: opt, value: opt } : opt))
-        : undefined
       return {
         alias: branch.alias,
         type: branch.type,
         label: branch.label,
         placeholder: typeof rawBranch.placeholder === 'string' ? rawBranch.placeholder : undefined,
-        options: rawOptions,
+        options: branch.options?.map(({ value, color }) => ({ label: value, value, color })),
+        multiple: branch.type === 'tags' ? !isSingleChoiceTags(branch) : undefined,
         helpText: typeof rawBranch.helpText === 'string' ? rawBranch.helpText : undefined,
         requiredOnCreate: branch.requiredOnCreate ?? false,
         policies: {

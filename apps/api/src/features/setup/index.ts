@@ -10,7 +10,6 @@ import { sortSeedsByDependencies, planCreateSeed, planExtendSeed } from '@beechc
 import { publicProblem } from '../../public/errors/problem-details'
 import { DEMO_SEED_DEFINITIONS } from '../../shared/db/fixtures/demo-seeds'
 import { validateAndApplySeedDef } from '../seeds/seeds.helpers'
-import { DEMO_SEEDS } from '../../shared/db/fixtures/demo-seeds.fixtures'
 import { getHydratedRegistry } from '../../shared/services/cache/seed-registry-cache'
 
 const setupApp = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -265,7 +264,7 @@ setupApp.post('/auth/setup', async (context) => {
       const seedRepo = context.get('seedRepository')
       const schemaMutator = context.get('schemaMutator')
 
-      const sortedSeeds = sortSeedsByDependencies(DEMO_SEEDS)
+      const sortedSeeds = sortSeedsByDependencies(DEMO_SEED_DEFINITIONS)
       for (const seed of sortedSeeds) {
         const existingCols = await schemaMutator.getColumns(`content_${seed.slug}`)
         const stmts = existingCols === null

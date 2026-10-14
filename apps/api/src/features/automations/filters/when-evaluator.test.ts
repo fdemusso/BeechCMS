@@ -165,6 +165,47 @@ describe('evaluateWhen — predicates', () => {
 // AND / OR groups with short-circuit
 // ---------------------------------------------------------------------------
 
+describe('evaluateWhen — tags arrays', () => {
+  const tagsCtx = makeContext({ priority: ['high'], labels: [] })
+  const predicate = (key: string, op: string, right?: unknown): WhenNode => ({
+    kind: 'predicate',
+    left: { kind: 'ref', key },
+    op,
+    ...(right === undefined ? {} : { right: { kind: 'literal', value: right } }),
+  } as WhenNode)
+
+  it('eq on a tags array matches a member and neq is its negation', () => {
+    const eqMember = evaluateWhen(predicate('this.priority', 'eq', 'high'), tagsCtx)
+    const neqMember = evaluateWhen(predicate('this.priority', 'neq', 'high'), tagsCtx)
+    const eqOther = evaluateWhen(predicate('this.priority', 'eq', 'low'), tagsCtx)
+
+    expect([eqMember, neqMember, eqOther]).toEqual([true, false, false])
+  })
+
+  it('contains on a tags array matches an exact member only', () => {
+    const exact = evaluateWhen(predicate('this.priority', 'contains', 'high'), tagsCtx)
+    const prefix = evaluateWhen(predicate('this.priority', 'contains', 'hi'), tagsCtx)
+
+    expect([exact, prefix]).toEqual([true, false])
+  })
+
+  it('in and notin on a tags array test overlap with the right-hand list', () => {
+    const overlapping = evaluateWhen(predicate('this.priority', 'in', ['low', 'high']), tagsCtx)
+    const disjoint = evaluateWhen(predicate('this.priority', 'in', ['low']), tagsCtx)
+    const notOverlapping = evaluateWhen(predicate('this.priority', 'notin', ['low']), tagsCtx)
+
+    expect([overlapping, disjoint, notOverlapping]).toEqual([true, false, true])
+  })
+
+  it('isempty treats an empty tags array as empty', () => {
+    const emptyArray = evaluateWhen(predicate('this.labels', 'isempty'), tagsCtx)
+    const filledArray = evaluateWhen(predicate('this.priority', 'isempty'), tagsCtx)
+    const notEmptyArray = evaluateWhen(predicate('this.labels', 'isnotempty'), tagsCtx)
+
+    expect([emptyArray, filledArray, notEmptyArray]).toEqual([true, false, false])
+  })
+})
+
 describe('evaluateWhen — groups', () => {
   it('AND group — all true', () => {
     const node: WhenNode = {

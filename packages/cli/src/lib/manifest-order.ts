@@ -11,18 +11,18 @@
  * whether they resolve.
  */
 
-import type { Seed } from '@beechcms/core'
+import type { ManifestSeed } from '@beechcms/core/schema'
 
 export interface ApplyOrder {
   /** Dependency-ordered; ties broken by slug so two runs over one manifest are identical. */
-  ordered: Seed[]
+  ordered: ManifestSeed[]
   /** Slug groups that reference each other. Non-empty ⇒ no total order exists. */
   cycles: string[][]
 }
 
 /** Relation targets this manifest also defines. Self-references are ignored: a seed may point at its
  *  own table, and `planCreateSeed` emits that FK inside the same CREATE TABLE. */
-function manifestTargets(seed: Seed, slugs: Set<string>): string[] {
+function manifestTargets(seed: ManifestSeed, slugs: Set<string>): string[] {
   const targets = new Set<string>()
   for (const branch of seed.branches ?? []) {
     if (branch.type === 'relation' && branch.targetSeed && branch.targetSeed !== seed.slug && slugs.has(branch.targetSeed)) {
@@ -32,16 +32,16 @@ function manifestTargets(seed: Seed, slugs: Set<string>): string[] {
   return [...targets].sort((a, b) => a.localeCompare(b))
 }
 
-export function orderSeedsForApply(seeds: Seed[]): ApplyOrder {
+export function orderSeedsForApply(seeds: ManifestSeed[]): ApplyOrder {
   const bySlug = new Map(seeds.map(seed => [seed.slug, seed]))
   const slugs = new Set(bySlug.keys())
   const sorted = [...seeds].sort((a, b) => a.slug.localeCompare(b.slug))
 
-  const ordered: Seed[] = []
+  const ordered: ManifestSeed[] = []
   const state = new Map<string, 'visiting' | 'done'>()
   const cycles: string[][] = []
 
-  function visit(seed: Seed, stack: string[]): void {
+  function visit(seed: ManifestSeed, stack: string[]): void {
     const mark = state.get(seed.slug)
     if (mark === 'done') return
     if (mark === 'visiting') {

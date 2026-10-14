@@ -1,44 +1,119 @@
+// @vitest-environment node
+
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-// @vitest-environment node
-
 import { describe, it, expect } from "vitest"
+import { CANONICAL_SEEDS } from "@beechcms/testing"
 
-import { parseTagsValue, extractTagNames, extractTagChips } from "@/lib/tags-utils"
+import { parseTagsValue, extractTagNames, resolveTagChips, compareTagChoice, tagFilterValues } from "@/lib/tags-utils"
 
-describe("tags-utils", () => {
-  it("parseTagsValue fa parse JSON string quando valido", () => {
-    expect(parseTagsValue('{"react":"#fff"}')).toEqual({ react: "#fff" })
+const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts")!
+const priority = posts.branches.find((branch) => branch.alias === "priority")!
+const freeTags = posts.branches.find((branch) => branch.alias === "tags")!
+
+describe("parseTagsValue", () => {
+  it("fa parse JSON string quando valido", () => {
+    const result = parseTagsValue('["a","b"]')
+
+    expect(result).toEqual(["a", "b"])
   })
 
-  it("parseTagsValue ritorna valore originale su JSON non valido", () => {
-    expect(parseTagsValue("{bad")).toBe("{bad")
+  it("ritorna valore originale su JSON non valido", () => {
+    const result = parseTagsValue("{bad")
+
+    expect(result).toBe("{bad")
+  })
+})
+
+describe("extractTagNames", () => {
+  it("restituisce le stringhe di un array (o di un array JSON-encoded) verbatim e in ordine, senza trim", () => {
+    const fromArray = extractTagNames([" react ", "cms"])
+    const fromEncoded = extractTagNames('[" react ", "cms"]')
+
+    expect(fromArray).toEqual([" react ", "cms"])
+    expect(fromEncoded).toEqual([" react ", "cms"])
   })
 
-  it("extractTagNames estrae nomi da array/stringhe e oggetti", () => {
-    expect(extractTagNames('[" react ", "cms"]')).toEqual(["react", "cms"])
-    expect(extractTagNames({ react: "#fff", cms: "#000" })).toEqual(["react", "cms"])
-    expect(extractTagNames(null)).toEqual([])
+  it("restituisce [] per mappa oggetto, numero, null e stringa non-JSON", () => {
+    const inputs: unknown[] = [{ react: "#fff" }, 42, null, "not json"]
+
+    const results = inputs.map((input) => extractTagNames(input))
+
+    expect(results).toEqual([[], [], [], []])
   })
 
-  it("extractTagChips preserva array di oggetti {label,color} senza perdite (#230)", () => {
-    const value = '[{"label":"Urgent","color":"#ff0000"},{"label":"VIP","color":"#00ff00"}]'
-    expect(extractTagChips(value)).toEqual([
-      { label: "Urgent", color: "#ff0000" },
-      { label: "VIP", color: "#00ff00" },
+  it("scarta elementi non stringa e stringhe vuote", () => {
+    const result = extractTagNames(["a", 1, null, "", { label: "x" }, "b"])
+
+    expect(result).toEqual(["a", "b"])
+  })
+})
+
+describe("resolveTagChips", () => {
+  it("dà tono option e il colore dichiarato a un valore di priority", () => {
+    const chips = resolveTagChips(["high"], priority)
+
+    expect(chips).toEqual([{ label: "high", color: "#ef4444", tone: "option" }])
+  })
+
+  it("dà tono obsolete senza colore a un valore fuori elenco, anche a \"High\" (confronto esatto)", () => {
+    const chips = resolveTagChips(["gone", "High"], priority)
+
+    expect(chips).toEqual([
+      { label: "gone", tone: "obsolete" },
+      { label: "High", tone: "obsolete" },
     ])
   })
 
-  it("extractTagChips scarta solo entry array non normalizzabili", () => {
-    const value = '[{"label":"Urgent"}, {"foo":"bar"}, "cms", 42]'
-    expect(extractTagChips(value)).toEqual([{ label: "Urgent", color: undefined }, { label: "cms" }])
+  it("dà tono free senza colore a ogni valore di posts.tags", () => {
+    const chips = resolveTagChips(["react", "cms"], freeTags)
+
+    expect(chips).toEqual([
+      { label: "react", tone: "free" },
+      { label: "cms", tone: "free" },
+    ])
   })
 
-  it("extractTagChips non è vulnerabile a lookup su prototipi", () => {
-    // Simuliamo un input da parsing JSON che ha chiavi built-in come "constructor" e "toString" se passate come array (anche se JSON non porta prototype, ma i tool interni non devono prelevare function reference o rompere)
-    const malformed = [{ label: "Safe" }, { constructor: "Exploit" }, { toString: "Hacked" }] as unknown[]
-    expect(extractTagChips(malformed)).toEqual([{ label: "Safe", color: undefined }])
+  it("riordinare le opzioni non cambia il colore risolto di un valore", () => {
+    const options = priority.options!
+
+    const original = resolveTagChips(["high"], { options })
+    const reordered = resolveTagChips(["high"], { options: [...options].reverse() })
+
+    expect(reordered).toEqual(original)
+  })
+})
+
+describe("compareTagChoice", () => {
+  it("compareTagChoice orders option values by declared position, obsolete after options, empty last", () => {
+    const values = [null, "obsolete", "high", "low"]
+
+    const sorted = [...values].sort((a, b) => compareTagChoice(priority, a, b))
+
+    expect(sorted).toEqual(["low", "high", "obsolete", null])
+  })
+
+  it("compareTagChoice orders free values alphabetically with empty last", () => {
+    const values = [null, "zebra", "apple"]
+
+    const sorted = [...values].sort((a, b) => compareTagChoice(freeTags, a, b))
+
+    expect(sorted).toEqual(["apple", "zebra", null])
+  })
+})
+
+describe("tagFilterValues", () => {
+  it("tagFilterValues returns the option values in declared order and ignores observed values", () => {
+    const values = tagFilterValues(priority, ["high", "stray"])
+
+    expect(values).toEqual(["low", "high"])
+  })
+
+  it("tagFilterValues returns observed values deduplicated and sorted for a branch without options", () => {
+    const values = tagFilterValues(freeTags, ["b", "a", "b"])
+
+    expect(values).toEqual(["a", "b"])
   })
 })

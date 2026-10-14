@@ -4,6 +4,9 @@
 
 import type { Branch } from "@beechcms/core"
 
+/** Dashboard-only branch of the seed-builder meta-seed: a single-value select over a plain vocabulary. Never persisted. */
+export type MetaSelectBranch = Branch & { selectOptions?: readonly string[] }
+
 /** Props condivise per i componenti di sola lettura (display) */
 export interface FieldDisplayProps {
   readonly branch: Branch

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { Branch, BranchType, Seed, NumberFieldOptions, FileFieldOptions } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
 import type { ResolvedOptions } from './index.js'
+import { isSingleChoiceTags, tagOptionValues } from '../seeds/tag-options.js'
 import { isLocalizedBranch } from '../localization/localization.js'
 import { schemaForBranch, localizedSchema } from './schema-builders.js'
 
@@ -65,8 +66,10 @@ interface BranchFingerprint {
   t: BranchType
   /** The branch format option, or null. */
   f: string | null
-  /** Whether the branch accepts multiple values. */
+  /** Whether the branch accepts multiple values (resolved: `tags` default to multiple). */
   m: boolean
+  /** Option values in declared order, or null. */
+  o: string[] | null
   /** Whether the branch is required on creation. */
   rc: boolean
   /** Whether the branch is required on update. */
@@ -96,7 +99,8 @@ function buildBranchFingerprint(branch: Branch): BranchFingerprint {
     a: branch.alias,
     t: branch.type,
     f: branch.format ?? null,
-    m: branch.multiple === true,
+    m: branch.type === 'tags' ? !isSingleChoiceTags(branch) : branch.multiple === true,
+    o: branch.options ? tagOptionValues(branch) : null,
     rc: branch.requiredOnCreate === true,
     ru: branch.requiredOnUpdate === true,
     n: branch.numberOptions ?? null,

@@ -6,7 +6,11 @@
 
 import { describe, it, expect } from "vitest"
 
+import { CANONICAL_SEEDS } from "@beechcms/testing"
+import type { Seed } from "@beechcms/core"
+
 import {
+  buildFilterableColumns,
   getEntryValueForColumn,
   isEmptyValue,
   isToolbarFilterGroup,
@@ -126,14 +130,14 @@ describe("filter-dsl - matchesCondition (lenient)", () => {
   })
 
   it("tags: contains/eq su keys estratte", () => {
-    const cell = '{"react":"#111111","cms":"#222222"}'
+    const cell = '["react","cms"]'
     expect(matchesCondition(cell, tagsGroup, "contains", "react")).toBe(true)
     expect(matchesCondition(cell, tagsGroup, "eq", "react")).toBe(true)
     expect(matchesCondition(cell, tagsGroup, "contains", "angular")).toBe(false)
   })
 
   it("tags: filtro vuoto -> sempre true (lenient)", () => {
-    const cell = '{"react":"#111111"}'
+    const cell = '["react"]'
     expect(matchesCondition(cell, tagsGroup, "contains", "")).toBe(true)
     expect(matchesCondition(cell, tagsGroup, "eq", "   ")).toBe(true)
   })
@@ -182,10 +186,20 @@ describe("filter-dsl - matchesConditionStrict (strict)", () => {
 
   it("tags strict: filtro vuoto -> false; match/non-match sulle keys", () => {
     const group = mkGroup({ type: "tags" })
-    const cell = '{"react":"#111111","cms":"#222222"}'
+    const cell = '["react","cms"]'
     expect(matchesConditionStrict(cell, group, "contains", "react")).toBe(true)
     expect(matchesConditionStrict(cell, group, "contains", "angular")).toBe(false)
     expect(matchesConditionStrict(cell, group, "contains", "")).toBe(false)
+  })
+
+  it("tags strict: una cella a mappa oggetto non matcha", () => {
+    // Rule 6.2.4: the {tag: color} map format was removed, so it yields no tag names.
+    const group = mkGroup({ type: "tags" })
+    const cell = '{"react":"#111111"}'
+
+    const result = matchesConditionStrict(cell, group, "contains", "react")
+
+    expect(result).toBe(false)
   })
 
   it("number strict: valori non comparabili -> false", () => {
@@ -238,3 +252,23 @@ describe("filter-dsl - matchesFilterGroupStrict", () => {
   })
 })
 
+
+describe("buildFilterableColumns", () => {
+  const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts") as Seed
+
+  it("buildFilterableColumns types a tags branch as tags", () => {
+    const columns = buildFilterableColumns(posts)
+
+    const tagColumnTypes = columns.filter((column) => ["priority", "tags"].includes(column.columnId)).map((column) => column.type)
+    expect(tagColumnTypes).toEqual(["tags", "tags"])
+  })
+
+  it("buildFilterableColumns types a json branch as text whatever its alias", () => {
+    // Regression guard: an alias containing "tag" used to turn a json branch into a tags filter.
+    const malformed: Seed = { ...posts, branches: [{ id: "br_90", alias: "tagsImages", label: "Tags images", type: "json" }] }
+
+    const columns = buildFilterableColumns(malformed)
+
+    expect(columns.find((column) => column.columnId === "tagsImages")?.type).toBe("text")
+  })
+})

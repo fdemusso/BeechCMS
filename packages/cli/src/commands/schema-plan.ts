@@ -2,7 +2,6 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import pc from 'picocolors'
-import { manifestToSeeds } from '@beechcms/core/schema'
 import { CliError, exitWithError } from '../lib/d1-context.js'
 import { DEFAULT_MANIFEST_PATH, loadManifest } from '../lib/manifest-loader.js'
 import { createControlPlane, type ControlPlane, type McpPlan } from '../lib/control-plane.js'
@@ -16,7 +15,8 @@ export interface SchemaPlanOptions {
 }
 
 /**
- * Computes — and only prints — what applying `beech.schema.ts` would do.
+ * Computes — and only prints — what applying `beech.schema.ts` would change: DDL plus definition-only
+ * changes (e.g. tag options) the DDL cannot show.
  *
  * Nothing is written: every plan is the server's own dry run (`POST /api/seeds/:slug/mcp-plan`), so
  * the DDL displayed here is literally the DDL `beech schema apply` would execute. Exits 1 when any
@@ -26,7 +26,7 @@ export async function schemaPlan(args: SchemaPlanOptions = {}): Promise<void> {
   try {
     const manifestPath = args.manifest ?? DEFAULT_MANIFEST_PATH
     const manifest = await loadManifest(manifestPath)
-    const { ordered, cycles } = orderSeedsForApply(manifestToSeeds(manifest))
+    const { ordered, cycles } = orderSeedsForApply(manifest.seeds)
 
     if (cycles.length > 0) {
       throw new CliError(
@@ -53,7 +53,7 @@ export async function schemaPlan(args: SchemaPlanOptions = {}): Promise<void> {
       console.log(pc.yellow(`  ⚠ ${blocked.length} seed(s) cannot be applied: ${blocked.map(p => p.slug).join(', ')}\n`))
       process.exit(1)
     }
-    const changing = plans.filter(plan => plan.statements.length > 0)
+    const changing = plans.filter(plan => plan.definitionChanged)
     if (changing.length === 0) {
       console.log(pc.green('  ✓ Nothing to apply — the deployed schema already matches the manifest.\n'))
       return
@@ -84,7 +84,12 @@ export function renderPlan(plan: McpPlan): void {
     }
   }
   for (const reason of plan.blockedReasons) console.log(pc.red(`    ✗ ${reason}`))
-  for (const statement of plan.statements) console.log(pc.dim(`    ${statement}`))
-  if (plan.statements.length === 0 && plan.applicable) console.log(pc.dim('    (no change)'))
+  if (plan.applicable && !plan.definitionChanged) {
+    // Apply skips this seed, so its idempotent index statements are not worth showing.
+    console.log(pc.dim('    (no change)'))
+  } else {
+    for (const statement of plan.statements) console.log(pc.dim(`    ${statement}`))
+    for (const alias of plan.changedBranches) console.log(pc.yellow(`    ~ ${alias} — definition changed`))
+  }
   if (plan.ftsRebuildNeeded) console.log(pc.yellow('    ! full-text index will be rebuilt after apply'))
 }

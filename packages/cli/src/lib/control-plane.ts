@@ -11,7 +11,7 @@
  * the verdict back.
  */
 
-import type { Seed } from '@beechcms/core'
+import type { ManifestSeed } from '@beechcms/core/schema'
 import { createApiClient, resolveApiConfig, BeechClientError, type ApiClient } from '@beechcms/api-client'
 import { CliError } from './d1-context.js'
 
@@ -32,6 +32,10 @@ export interface McpPlan {
   blockedReasons: string[]
   /** Exactly the DDL apply will run. Displayed, never parsed. */
   statements: string[]
+  /** False ⇒ the stored definition already equals the candidate: applying it changes nothing. The pending criterion. */
+  definitionChanged: boolean
+  /** Aliases of branches that are new or whose definition differs from the stored one (no DDL needed for most). */
+  changedBranches: string[]
   ftsRebuildNeeded: boolean
   expectedVersion: number
   issues: Array<{ fatal: boolean; messages: string[] }>
@@ -53,8 +57,8 @@ export interface ControlPlaneOptions {
 }
 
 export interface ControlPlane {
-  plan(slug: string, candidate: Seed): Promise<McpPlan>
-  apply(input: { slug: string; candidate: Seed; expectedVersion: number; planId: string }): Promise<McpApplyResult>
+  plan(slug: string, candidate: ManifestSeed): Promise<McpPlan>
+  apply(input: { slug: string; candidate: ManifestSeed; expectedVersion: number; planId: string }): Promise<McpApplyResult>
   readonly baseUrl: string
 }
 

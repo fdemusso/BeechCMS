@@ -249,10 +249,6 @@ export function DraftsListPage() {
     [seeds]
   )
 
-  const seedLabelOptions = React.useMemo(
-    () => Array.from(new Set((data ?? []).map((d) => d.seedLabel))).sort((a, b) => a.localeCompare(b)),
-    [data]
-  )
 
   const virtualSeed = React.useMemo<Seed>(() => ({
     slug: "__drafts__",
@@ -264,7 +260,6 @@ export function DraftsListPage() {
         alias: "seedLabel",
         label: t("drafts.columns.seed"),
         type: "text",
-        options: seedLabelOptions,
         policies: { sort: true, filter: true },
       },
       {
@@ -291,7 +286,7 @@ export function DraftsListPage() {
       },
     ],
     displayNameAlias: "title",
-  }), [t, seedLabelOptions])
+  }), [t])
 
   const views = React.useMemo<UserViewInstance[]>(() => [{
     id: "table",

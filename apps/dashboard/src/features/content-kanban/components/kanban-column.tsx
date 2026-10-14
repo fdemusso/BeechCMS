@@ -10,12 +10,16 @@ import { KanbanColumnVirtualizer } from './kanban-column-virtualizer'
 interface KanbanColumnProps {
   colValue: string | null
   label: string
+  /** Option color of a tags-axis column; no dot when absent. */
+  color?: string
   fetchState: KanbanColumnFetchState
   cards: KanbanCardDisplayModel[]
   collapsed: boolean
   canEdit: boolean
   canCreate: boolean
   sortActive: boolean
+  /** False on a fallback column: cards can leave it but never be dropped into it. */
+  acceptsDrops?: boolean
   onToggleCollapse: () => void
   onEdit: (id: string) => void
   onCreateEntry?: () => void
@@ -33,18 +37,20 @@ function SkeletonCard() {
 export const KanbanColumn = React.memo(function KanbanColumn({
   colValue,
   label,
+  color,
   fetchState,
   cards,
   collapsed,
   canEdit,
   canCreate,
   sortActive,
+  acceptsDrops = true,
   onToggleCollapse,
   onEdit,
   onCreateEntry,
 }: KanbanColumnProps) {
   const droppableId = `col:${colValue ?? '__null__'}`
-  const { isOver, setNodeRef } = useDroppable({ id: droppableId, data: { colValue } })
+  const { isOver, setNodeRef } = useDroppable({ id: droppableId, data: { colValue }, disabled: !acceptsDrops })
 
   const { total, hasNextPage, isLoading, isFetching, fetchNextPage } = fetchState
   const loaded = cards.length
@@ -69,6 +75,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({
           aria-expanded={!collapsed}
         >
           {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {color && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />}
           <span className="truncate max-w-[140px]">{label}</span>
         </button>
         <div className="flex items-center gap-1.5 shrink-0">

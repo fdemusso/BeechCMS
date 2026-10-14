@@ -15,6 +15,8 @@ const mockSeed: Seed = {
     { id: 'br_price', alias: 'price', type: 'number', label: 'Price' },
     { id: 'br_tags', alias: 'tags', type: 'tags', label: 'Tags' },
     { id: 'br_cover', alias: 'cover', type: 'file', label: 'Cover' },
+    { id: 'br_priority', alias: 'priority', type: 'tags', multiple: false, label: 'Priority', options: [{ value: 'low', color: '#64748b' }, { value: 'high', color: '#ef4444' }] },
+    { id: 'br_topic', alias: 'topic', type: 'tags', multiple: false, label: 'Topic' },
   ]
 }
 
@@ -275,6 +277,132 @@ describe('Query', () => {
       expect(query.bindings).toEqual(['tech', 'a', 'b'])
     })
 
+    describe('tags membership needles', () => {
+      const tagsFilter = (op: FilterOperator, value: string | string[]) => ({
+        filters: [{ column: 'tags', type: 'tags' as const, conditions: [{ op, value }] }],
+      })
+
+      it('binds the normalized form of a needle, so a decomposed é finds the stored composed one', () => {
+        const query = buildSelectQuery(mockSeed, tagsFilter('has_tag', 'cafe\u0301  '))
+
+        expect(query.bindings).toEqual(['caf\u00E9'])
+      })
+
+      it('binds a needle once when the same value is requested twice in different forms', () => {
+        const query = buildSelectQuery(mockSeed, tagsFilter('has_any_tag', ['a', 'a\u200B', ' a']))
+
+        expect(query.bindings).toEqual(['a'])
+      })
+
+      it('matches nothing for a blank or over-long needle instead of widening the result set', () => {
+        const queries = ['\u200B', 'x'.repeat(26)].map((needle) => buildSelectQuery(mockSeed, tagsFilter('has_tag', needle)))
+
+        expect(queries.map((query) => query.sql.includes('json_each'))).toEqual([false, false])
+        expect(queries.map((query) => query.bindings)).toEqual([[], []])
+      })
+
+      it('makes has_all_tags unsatisfiable when one required tag can never exist', () => {
+        const query = buildSelectQuery(mockSeed, tagsFilter('has_all_tags', ['ok', 'x'.repeat(26)]))
+
+        expect(query.sql).not.toContain('json_each')
+        expect(query.bindings).toEqual([])
+      })
+
+      it('keeps has_any_tag satisfiable by the needles that can exist', () => {
+        const query = buildSelectQuery(mockSeed, tagsFilter('has_any_tag', ['ok', 'x'.repeat(26)]))
+
+        expect(query.bindings).toEqual(['ok'])
+      })
+
+      it('negates a needle that can never exist into "no constraint", not into "no rows"', () => {
+        const query = buildSelectQuery(mockSeed, tagsFilter('neq', 'x'.repeat(26)))
+
+        expect(query.sql).toContain('NOT (0)')
+        expect(query.bindings).toEqual([])
+      })
+
+      // D1 caps bound parameters per statement at 100; 51 distinct needles is already past any real use.
+      it('ignores a membership set of 51 distinct tags rather than binding them all', () => {
+        const needles = Array.from({ length: 51 }, (_, i) => `t${i}`)
+
+        const query = buildSelectQuery(mockSeed, tagsFilter('has_any_tag', needles))
+
+        expect(query.bindings).toEqual([])
+      })
+
+      it('accepts a membership set of exactly 50 distinct tags', () => {
+        const needles = Array.from({ length: 50 }, (_, i) => `t${i}`)
+
+        const query = buildSelectQuery(mockSeed, tagsFilter('has_any_tag', needles))
+
+        expect(query.bindings).toEqual(needles)
+      })
+
+      it('leaves a json-typed column needle untouched, since object keys are not normalized tags', () => {
+        const jsonSeed: Seed = { ...mockSeed, branches: [...mockSeed.branches, { id: 'br_meta', alias: 'meta', type: 'json', label: 'Meta' }] }
+
+        const query = buildSelectQuery(jsonSeed, {
+          filters: [{ column: 'meta', type: 'json', conditions: [{ op: 'has_tag', value: 'a  b' }] }],
+        })
+
+        expect(query.bindings).toEqual(['a  b'])
+      })
+    })
+
+    it('orders a single-choice tags branch by option position with empty values last', () => {
+      const query = buildSelectQuery(mockSeed, {
+        orderBy: { column: 'priority', dir: 'ASC' },
+        pagination: { limit: 10, offset: 0 },
+      })
+
+      expect(query.sql).toContain('CASE')
+      expect(query.sql).toContain('IS NULL) ASC')
+      expect(query.bindings).toEqual(['low', 'high', 10, 0])
+    })
+
+    it('orders a free single-choice tags branch by its first value with empty values last', () => {
+      const query = buildSelectQuery(mockSeed, { orderBy: { column: 'topic', dir: 'DESC' } })
+
+      expect(query.sql).toContain("json_extract(topic, '$[0]')")
+      expect(query.sql).toContain('IS NULL) ASC')
+      expect(query.sql).toMatch(/END\) DESC$/)
+      expect(query.bindings).toEqual([])
+    })
+
+    it('ignores orderBy on a multiple-choice tags branch and falls back to created_at DESC', () => {
+      const query = buildSelectQuery(mockSeed, { orderBy: { column: 'tags', dir: 'ASC' } })
+
+      expect(query.sql).toContain('ORDER BY content_articles.created_at DESC')
+    })
+
+    it('turns eq and contains on a tags column into membership', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'priority', type: 'tags', conditions: [{ op: 'eq', value: 'high' }] },
+          { column: 'tags', type: 'tags', conditions: [{ op: 'contains', value: 'tech' }] },
+        ],
+      })
+
+      expect(query.sql).toContain('json_each(priority)')
+      expect(query.sql).toContain('json_each(tags)')
+      expect(query.sql).not.toContain('priority = ?')
+      expect(query.sql).not.toContain('LIKE')
+      expect(query.bindings).toEqual(['high', 'tech'])
+    })
+
+    it('turns neq and not_in on a tags column into negated membership', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'priority', type: 'tags', conditions: [{ op: 'neq', value: 'high' }] },
+          { column: 'tags', type: 'tags', conditions: [{ op: 'not_in', value: ['a', 'b'] }] },
+        ],
+      })
+
+      expect(query.sql).toContain('NOT (EXISTS (SELECT 1 FROM json_each(priority)')
+      expect(query.sql).toContain('NOT (EXISTS (SELECT 1 FROM json_each(tags)')
+      expect(query.bindings).toEqual(['high', 'a', 'b'])
+    })
+
     it('handles eq and neq conditions', () => {
       const query = buildSelectQuery(mockSeed, {
         filters: [
@@ -423,6 +551,14 @@ describe('Query', () => {
   })
 
   describe('findUnappliedFilters', () => {
+    it('lists a tags eq condition with a null value as unapplied', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [
+        { column: 'priority', type: 'tags', conditions: [{ op: 'eq', value: null }] },
+      ])
+
+      expect(unapplied).toHaveLength(1)
+    })
+
     const group = (column: string, type: 'text' | 'number' | 'date', op: FilterOperator, value: unknown) =>
       ({ column, type, conditions: [{ op, value }] }) as never
 

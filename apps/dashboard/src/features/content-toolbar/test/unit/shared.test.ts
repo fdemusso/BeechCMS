@@ -5,6 +5,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, expect, it, vi } from "vitest"
+import { CANONICAL_SEEDS } from "@beechcms/testing"
+import type { Seed } from "@beechcms/core"
 
 import {
   CONDITIONAL_TONE_OPTIONS,
@@ -105,7 +107,7 @@ describe("content-toolbar/shared", () => {
       branches: [
         { alias: "isLive", label: "Live", type: "boolean" },
         { alias: "publishedAt", label: "Data", type: "date" },
-        { alias: "category", label: "Categoria", type: "text", options: ["a"] },
+        { alias: "category", label: "Categoria", type: "text" },
         { alias: "title", label: "Titolo", type: "text" },
         { alias: "views", label: "Visualizzazioni", type: "number" },
         { alias: "meta", label: "Meta", type: "json" },
@@ -124,14 +126,21 @@ describe("content-toolbar/shared", () => {
     expect(withFewStatus.some((c) => c.columnId === "publishedAt" && c.branchType === "date")).toBe(
       true
     )
-    expect(withFewStatus.some((c) => c.columnId === "category" && c.section === "recommended")).toBe(
-      true
-    )
+    expect(withFewStatus.some((c) => c.columnId === "category" && c.section === "other")).toBe(true)
     expect(withFewStatus.some((c) => c.columnId === "title" && c.section === "other")).toBe(true)
     expect(withFewStatus.some((c) => c.columnId === "views" && c.section === "other")).toBe(true)
 
     const withManyStatus = getGroupableColumns(seed, Array.from({ length: 9 }, (_, i) => `s${i}`))
     expect(withManyStatus[0].section).toBe("other")
+  })
+
+  it("getGroupableColumns lists a single-choice tags branch as recommended and omits a multiple-choice one", () => {
+    const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts") as Seed
+
+    const columns = getGroupableColumns(posts)
+
+    expect(columns).toContainEqual({ columnId: "priority", label: "Priority", section: "recommended", branchType: "tags" })
+    expect(columns.some((column) => column.columnId === "tags")).toBe(false)
   })
 })
 

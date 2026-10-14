@@ -31,9 +31,11 @@ describe("content-list helper functions", () => {
       expect(normalizeCellFilterValue("date", "2026-09-11T10:00:00Z")).toBe("2026-09-11")
     })
 
-    it("normalizza tag estraendo il primo nome", () => {
-      expect(normalizeCellFilterValue("tags", JSON.stringify([{ name: "react" }, { name: "ts" }]))).toBe("react")
+    it("normalizza tag estraendo il primo valore", () => {
+      expect(normalizeCellFilterValue("tags", ["react", "ts"])).toBe("react")
+      expect(normalizeCellFilterValue("tags", JSON.stringify(["react", "ts"]))).toBe("react")
       expect(normalizeCellFilterValue("tags", [])).toBeNull()
+      expect(normalizeCellFilterValue("tags", [{ name: "react" }])).toBeNull()
     })
   })
 })

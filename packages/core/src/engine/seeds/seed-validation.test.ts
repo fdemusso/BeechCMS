@@ -745,4 +745,40 @@ describe('validateSeedDefinitions', () => {
     const second = validateSeedDefinitions(seeds)
     expect(first).toEqual(second)
   })
+
+  // ── Fatal 18: tags options ──────────────────────────────────────────────────
+
+  it('fatal: options on a text branch names tags as the replacement', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text', options: [{ value: 'a', color: '#64748b' }] },
+        ],
+      }),
+    ]
+
+    const issues = validateSeedDefinitions(seeds)
+
+    expect(issues).toHaveLength(1)
+    expect(issues[0].fatal).toBe(true)
+    expect(issues[0].messages[0]).toContain("Use type 'tags'")
+  })
+
+  it('reports fatal only for the seed with malformed options', () => {
+    const seeds = [
+      makeSeed({ slug: 'good' }),
+      makeSeed({
+        slug: 'bad',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'kind', label: 'Kind', type: 'tags', options: [] },
+        ],
+      }),
+    ]
+
+    const issues = validateSeedDefinitions(seeds)
+
+    expect(issues.map(issue => issue.slug)).toEqual(['bad'])
+  })
 })

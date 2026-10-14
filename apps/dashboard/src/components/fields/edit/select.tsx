@@ -3,16 +3,16 @@
 // See LICENSE in the repository root for license terms.
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { FieldEditProps } from "../types"
+import type { FieldEditProps, MetaSelectBranch } from "../types"
 
 const NONE = "__none__"
 
 /**
- * Editor for single-value `options` dropdown fields:
+ * Editor for the seed-builder meta-seed `select` fields (plain vocabularies, never `tags`):
  * Expands to full container width (`w-full`) to match input fields, with text truncation.
  */
 export function SelectEdit({ branch, value, onChange }: FieldEditProps) {
-  const options = branch.options ?? []
+  const options = (branch as MetaSelectBranch).selectOptions ?? []
   const selected = (value as string) || NONE
 
   return (

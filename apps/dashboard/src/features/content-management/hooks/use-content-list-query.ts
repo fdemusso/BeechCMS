@@ -15,7 +15,7 @@ import {
   defaultOperatorForType,
   generateConditionId,
 } from "@/features/content-toolbar"
-import { extractTagNames } from "@/lib/tags-utils"
+import { extractTagNames, tagFilterValues } from "@/lib/tags-utils"
 import { normalizeDateToYmd, getEntryValueForColumn, type FilterGroupType } from "@/lib/filter-dsl"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { useContentList } from "./use-content-list"
@@ -140,23 +140,19 @@ export function useContentListQuery(
 
   const availableTagsByColumnIdFromData = React.useMemo(() => {
     if (!seed) return {}
-    const tagBranches = seed.branches.filter(
-      (b: Seed["branches"][number]) => b.type === "json" && b.alias.toLowerCase().includes("tag")
-    )
+    const tagBranches = seed.branches.filter((b: Seed["branches"][number]) => b.type === "tags")
     if (tagBranches.length === 0) return {}
 
     const result: Record<string, string[]> = {}
     for (const branch of tagBranches) {
-      const set = new Set<string>(branch.options ?? [])
+      const set = new Set<string>()
 
       for (const row of data) {
         for (const tag of extractTagNames(row.data[branch.alias])) {
           set.add(tag)
         }
       }
-      result[branch.alias] = Array.from(set).sort((a, b) =>
-        a.localeCompare(b, "it")
-      )
+      result[branch.alias] = Array.from(set)
     }
     return result
   }, [data, seed])
@@ -168,14 +164,14 @@ export function useContentListQuery(
     ])
     const result: Record<string, string[]> = {}
     for (const alias of aliases) {
-      const set = new Set<string>([
+      const branch = seed?.branches.find((b: Seed["branches"][number]) => b.alias === alias)
+      result[alias] = tagFilterValues(branch ?? {}, [
         ...(availableTagsByColumnIdFromData[alias] ?? []),
         ...(facetsData?.tagsByColumnId?.[alias] ?? []),
       ])
-      result[alias] = Array.from(set).sort((a, b) => a.localeCompare(b, "it"))
     }
     return result
-  }, [availableTagsByColumnIdFromData, facetsData?.tagsByColumnId])
+  }, [availableTagsByColumnIdFromData, facetsData?.tagsByColumnId, seed])
 
   const effectiveStatusOptions = React.useMemo(() => {
     if (facetsData?.statuses && facetsData.statuses.length > 0) return facetsData.statuses

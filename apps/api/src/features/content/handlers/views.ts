@@ -14,6 +14,7 @@ import {
   resolveAuthorizedViews,
   updateContentViewInputSchema,
   validateViewConfigAgainstSeed,
+  viewConfigChoiceIssues,
   type ContentViewRecord,
   type Seed,
 } from '@beechcms/core'
@@ -88,13 +89,17 @@ export async function createViewHandler(context: Context<AppEnv>) {
     return publicProblem(context, { type: 'content-view-type-not-authorized', title: 'Unprocessable Entity', status: 422, detail: CONTENT_ERRORS.VIEW_TYPE_NOT_AUTHORIZED })
   }
 
+  const config = parsed.data.config ?? emptyViewConfig()
+  const choiceIssues = viewConfigChoiceIssues(config, seed)
+  if (choiceIssues.length > 0) return invalidView(context, choiceIssues[0])
+
   await loadOrBootstrap(context, slug, seed)
   const record = await context.get('contentViewRepository').create(
     {
       seedSlug: slug,
       type,
       title: parsed.data.title ?? null,
-      config: validateViewConfigAgainstSeed(parsed.data.config ?? emptyViewConfig(), seed, type),
+      config: validateViewConfigAgainstSeed(config, seed, type),
     },
     context.get('jwtPayload').sub,
   )
@@ -119,6 +124,11 @@ export async function updateViewHandler(context: Context<AppEnv>) {
   if (!body.ok) return body.response
   const parsed = updateContentViewInputSchema.safeParse(body.value)
   if (!parsed.success) return invalidView(context, parsed.error.issues[0]?.message)
+
+  if (parsed.data.config) {
+    const choiceIssues = viewConfigChoiceIssues(parsed.data.config, seed)
+    if (choiceIssues.length > 0) return invalidView(context, choiceIssues[0])
+  }
 
   const updated = await repository.update(
     slug,

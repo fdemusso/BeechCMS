@@ -46,7 +46,7 @@ export function ContentTableRenderer({ seed, slug, query, layout, formatElement,
     <ContentTableView
       seed={seed}
       slug={slug}
-      data={query.data}
+      data={tableConfig.rows}
       columns={tableConfig.columns}
       tableKey={tableConfig.tableKey}
       initialHiddenColumns={tableConfig.initialHiddenColumns}

@@ -5,20 +5,60 @@
 import * as React from "react"
 import type { VariantProps } from "class-variance-authority"
 
+import { useTranslation } from "react-i18next"
+
 import { Badge, badgeVariants } from "@/components/ui/badge"
+import type { TagChipData } from "@/lib/tags-utils"
 import { cn } from "@/lib/utils"
 
 type BadgeVariant = VariantProps<typeof badgeVariants>["variant"]
 
-type TagChip = {
-  readonly label: string
-  readonly color?: string
+export interface TagChipProps {
+  readonly chip: TagChipData
+  /** Badge variant for "free" chips; "option" chips are filled with their color, "obsolete" chips are always outline. */
+  readonly variant?: BadgeVariant
+  readonly className?: string
 }
 
-type TagValue = string | TagChip
+/**
+ * A single tag chip drawn by tone: filled with the option color, neutral for free tags,
+ * dashed outline for values no longer among the options.
+ */
+export function TagChip({ chip, variant = "secondary", className }: TagChipProps) {
+  const { t } = useTranslation()
+
+  if (chip.tone === "obsolete") {
+    const notInOptions = t("fields.tags.notInOptions", { value: chip.label })
+    return (
+      <Badge
+        variant="outline"
+        className={cn("min-w-0 max-w-full border-dashed text-muted-foreground", className)}
+        title={notInOptions}
+        aria-label={notInOptions}
+      >
+        <span className="block min-w-0 max-w-[260px] truncate" title={chip.label}>{chip.label}</span>
+      </Badge>
+    )
+  }
+
+  return (
+    <Badge
+      variant={variant}
+      className={cn("min-w-0 max-w-full", className)}
+      title={chip.label}
+      style={
+        chip.tone === "option" && chip.color
+          ? { backgroundColor: chip.color, color: "#fff", borderColor: chip.color }
+          : undefined
+      }
+    >
+      <span className="block min-w-0 max-w-[260px] truncate" title={chip.label}>{chip.label}</span>
+    </Badge>
+  )
+}
 
 interface TagChipsProps {
-  readonly tags: readonly TagValue[]
+  readonly tags: readonly TagChipData[]
   readonly className?: string
   readonly chipClassName?: string
   readonly chipVariant?: BadgeVariant
@@ -37,17 +77,6 @@ interface TagChipsProps {
   ) => React.ReactNode
 }
 
-function normalizeTags(tags: readonly TagValue[]): TagChip[] {
-  return tags
-    .map((tag) => {
-      if (typeof tag === "string") {
-        return { label: tag.trim() }
-      }
-      return { label: tag.label.trim(), color: tag.color }
-    })
-    .filter((tag) => tag.label.length > 0)
-}
-
 export function TagChips({
   tags,
   className,
@@ -64,7 +93,7 @@ export function TagChips({
   emptyState = <div className="text-muted-foreground">-</div>,
   renderMoreTrigger,
 }: TagChipsProps) {
-  const normalizedTags = React.useMemo(() => normalizeTags(tags), [tags])
+  const normalizedTags = tags
   const safeMaxVisible = Math.max(1, maxVisible ?? normalizedTags.length)
   const hasOverflow = normalizedTags.length > safeMaxVisible
 
@@ -93,24 +122,13 @@ export function TagChips({
 
   return (
     <div className={cn("flex min-w-0 max-w-full flex-wrap items-center gap-1.5", className)}>
-      {visibleTags.map((tag) => (
-        <Badge
-          key={`${tag.label}-${tag.color ?? ""}`}
+      {visibleTags.map((tag, index) => (
+        <TagChip
+          key={`${tag.label}-${index}`}
+          chip={tag}
           variant={chipVariant}
-          className={cn("min-w-0 max-w-full", chipClassName)}
-          title={tag.label}
-          style={
-            tag.color
-              ? {
-                  backgroundColor: tag.color,
-                  color: "#fff",
-                  borderColor: tag.color,
-                }
-              : undefined
-          }
-        >
-          <span className="block min-w-0 max-w-[260px] truncate" title={tag.label}>{tag.label}</span>
-        </Badge>
+          className={chipClassName}
+        />
       ))}
 
       {hasOverflow && !isExpanded && (

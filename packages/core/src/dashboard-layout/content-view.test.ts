@@ -10,6 +10,7 @@ import {
   viewTitleSchema,
   updateContentViewInputSchema,
   validateViewConfigAgainstSeed,
+  viewConfigChoiceIssues,
   projectContentViews,
   mergeContentViewOrder,
   type ContentViewConfig,
@@ -17,7 +18,7 @@ import {
 } from './content-view.js'
 
 // @beechcms/testing depends on @beechcms/core, so core suites cannot import the canonical
-// seeds; this seed carries exactly the branch types the cleanup rules distinguish.
+// seeds; this seed carries exactly the branch types (and tags modes) the cleanup rules distinguish.
 const ARTICLES = defineSeed({
   slug: 'articles',
   label: 'Article',
@@ -25,8 +26,10 @@ const ARTICLES = defineSeed({
   branches: [
     { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
     { id: 'br_02', alias: 'published_on', label: 'Published on', type: 'date' },
-    { id: 'br_03', alias: 'stage', label: 'Stage', type: 'text', options: ['todo', 'done'] },
+    { id: 'br_03', alias: 'stage', label: 'Stage', type: 'tags', multiple: false, options: [{ value: 'todo', color: '#64748b' }, { value: 'done', color: '#10b981' }] },
     { id: 'br_04', alias: 'summary', label: 'Summary', type: 'richtext' },
+    { id: 'br_05', alias: 'labels', label: 'Labels', type: 'tags' },
+    { id: 'br_06', alias: 'topic', label: 'Topic', type: 'tags', multiple: false },
   ],
   dashboard: { views: ['table', 'gallery'] },
 })
@@ -256,6 +259,94 @@ describe('validateViewConfigAgainstSeed', () => {
     const result = validateViewConfigAgainstSeed(config, ARTICLES, 'kanban')
 
     expect(result.kanban?.axisBranchId).toBe('br_03')
+  })
+
+  it('drops sort and groupBy that reference a multiple-choice tags branch', () => {
+    const config: ContentViewConfig = {
+      ...emptyConfig(),
+      sort: { columnRef: 'br_05', desc: false },
+      groupBy: { columnRef: 'br_05' },
+    }
+
+    const result = validateViewConfigAgainstSeed(config, ARTICLES, 'table')
+
+    expect(result.sort).toBeNull()
+    expect(result.groupBy).toBeNull()
+  })
+
+  it('keeps sort and groupBy on a free single-choice tags branch', () => {
+    const config: ContentViewConfig = {
+      ...emptyConfig(),
+      sort: { columnRef: 'br_06', desc: true },
+      groupBy: { columnRef: 'br_06' },
+    }
+
+    const result = validateViewConfigAgainstSeed(config, ARTICLES, 'table')
+
+    expect(result.sort).toEqual({ columnRef: 'br_06', desc: true })
+    expect(result.groupBy).toEqual({ columnRef: 'br_06' })
+  })
+})
+
+describe('viewConfigChoiceIssues', () => {
+  it('returns no issues for sort, groupBy and kanban axis on a single-choice tags branch with options', () => {
+    const config: ContentViewConfig = {
+      ...emptyConfig(),
+      sort: { columnRef: 'br_03', desc: false },
+      groupBy: { columnRef: 'br_03' },
+      kanban: { axisBranchId: 'br_03', sort: { branchId: 'br_03', dir: 'ASC' } },
+    }
+
+    const issues = viewConfigChoiceIssues(config, ARTICLES)
+
+    expect(issues).toEqual([])
+  })
+
+  it('reports sort and groupBy on a multiple-choice tags branch, one issue each', () => {
+    const config: ContentViewConfig = {
+      ...emptyConfig(),
+      sort: { columnRef: 'br_05', desc: false },
+      groupBy: { columnRef: 'br_05' },
+    }
+
+    const issues = viewConfigChoiceIssues(config, ARTICLES)
+
+    expect(issues).toHaveLength(2)
+  })
+
+  it('reports a kanban axis on a single-choice tags branch without options', () => {
+    const config: ContentViewConfig = {
+      ...emptyConfig(),
+      kanban: { axisBranchId: 'br_06', sort: null },
+    }
+
+    const issues = viewConfigChoiceIssues(config, ARTICLES)
+
+    expect(issues).toHaveLength(1)
+  })
+
+  it('reports a kanban card sort on a multiple-choice tags branch', () => {
+    const config: ContentViewConfig = {
+      ...emptyConfig(),
+      kanban: { axisBranchId: null, sort: { branchId: 'br_05', dir: 'ASC' } },
+    }
+
+    const issues = viewConfigChoiceIssues(config, ARTICLES)
+
+    expect(issues).toHaveLength(1)
+  })
+
+  it('ignores references to missing branches and to non-tags branches', () => {
+    const config: ContentViewConfig = {
+      ...emptyConfig(),
+      sort: { columnRef: 'br_99', desc: false },
+      groupBy: { columnRef: 'br_01' },
+      kanban: { axisBranchId: 'br_01', sort: { branchId: 'br_99', dir: 'ASC' } },
+    }
+
+    const issues = viewConfigChoiceIssues(config, ARTICLES)
+
+    expect(issues).toEqual([])
   })
 })
 

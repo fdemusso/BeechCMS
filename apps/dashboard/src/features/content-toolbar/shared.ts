@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { arrayMove } from "@dnd-kit/sortable"
-import type { DashboardView, Seed } from "@beechcms/core"
+import { isSingleChoiceTags, type DashboardView, type Seed } from "@beechcms/core"
 import type {
   ConditionalFormatRule,
   ConditionalFormatTarget,
@@ -219,12 +219,17 @@ export function getGroupableColumns(
         section: "recommended",
         branchType: "date",
       })
-    } else if (branch.type === "text" && branch.options && branch.options.length > 0) {
-      result.push({ columnId: branch.alias, label: branch.label, section: "recommended" })
     } else if (branch.type === "text") {
       result.push({ columnId: branch.alias, label: branch.label, section: "other" })
     } else if (branch.type === "number") {
       result.push({ columnId: branch.alias, label: branch.label, section: "other" })
+    } else if (isSingleChoiceTags(branch)) {
+      result.push({
+        columnId: branch.alias,
+        label: branch.label,
+        section: "recommended",
+        branchType: "tags",
+      })
     }
   }
 

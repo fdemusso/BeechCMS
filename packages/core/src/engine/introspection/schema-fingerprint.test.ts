@@ -96,10 +96,10 @@ describe('projectSchemaContract', () => {
 })
 
 describe('computeSchemaFingerprint', () => {
-  it('returns the v1 prefix followed by 32 lowercase hex characters', async () => {
+  it('returns the v2 prefix followed by 32 lowercase hex characters', async () => {
     const fingerprint = await computeSchemaFingerprint([baseSeed()])
 
-    expect(fingerprint).toMatch(/^v1:[0-9a-f]{32}$/)
+    expect(fingerprint).toMatch(/^v2:[0-9a-f]{32}$/)
   })
 
   it('is stable across seed ordering and across key insertion order', async () => {
@@ -149,5 +149,37 @@ describe('computeSchemaFingerprint', () => {
     const localized = await computeSchemaFingerprint([baseSeed({ branches: [textBranch({ localized: true })] })])
 
     expect(localized).not.toBe(baseline)
+  })
+})
+
+describe('computeSchemaFingerprint — tags options', () => {
+  const option = (value: string, color = '#64748b') => ({ value, color })
+  const fingerprintOf = (branch: Partial<Branch>) =>
+    computeSchemaFingerprint([baseSeed({ branches: [{ id: 'br_07', alias: 'priority', label: 'Priority', type: 'tags', ...branch }] })])
+
+  it('does not change when an option color changes', async () => {
+    const before = await fingerprintOf({ options: [option('a', '#64748b'), option('b')] })
+    const after = await fingerprintOf({ options: [option('a', '#ef4444'), option('b')] })
+
+    expect(after).toBe(before)
+  })
+
+  it('changes when an option value is added, removed or reordered', async () => {
+    const base = await fingerprintOf({ options: [option('a'), option('b')] })
+
+    const added = await fingerprintOf({ options: [option('a'), option('b'), option('c')] })
+    const removed = await fingerprintOf({ options: [option('a')] })
+    const reordered = await fingerprintOf({ options: [option('b'), option('a')] })
+
+    expect(new Set([base, added, removed, reordered]).size).toBe(4)
+  })
+
+  it('changes from multiple to single choice; omitted and true hash the same', async () => {
+    const omitted = await fingerprintOf({})
+    const explicitTrue = await fingerprintOf({ multiple: true })
+    const single = await fingerprintOf({ multiple: false })
+
+    expect(explicitTrue).toBe(omitted)
+    expect(single).not.toBe(omitted)
   })
 })

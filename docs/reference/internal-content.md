@@ -23,10 +23,11 @@ Authorization: Bearer eyJ...
 |---|---|---|---|
 | `page` | `number` | `1` | Page number |
 | `limit` | `number` | `25` | Items per page (clamped 1–100) |
-| `sortBy` | `string` | `created_at` | Field alias or system column (`created_at`, `updated_at`, `slug`) |
+| `sortBy` | `string` | `created_at` | Field alias or system column (`created_at`, `updated_at`, `slug`). A single-choice `tags` field sorts by option order (alphabetical without options), empty values last; a multiple-choice `tags` field is ignored. |
 | `sortDir` | `asc \| desc` | `asc` | Sort direction |
 | `search` | `string` | — | Full-text search across content fields and slug |
 | `filters` | `string` | — | Serialized JSON string of `QueryFilterGroup[]` |
+| `kanbanAxis` | `string` | — | Branch id (`br_XX`) of a kanban axis. Orders rows by their stored board position and switches `filters` to the engine `FilterGroup[]` format. See [Kanban Board](#kanban-board). |
 
 **Response `200 OK` (with query parameters):**
 
@@ -303,6 +304,59 @@ Content-Type: application/json
   "success": true
 }
 ```
+
+---
+
+## Kanban Board {#kanban-board}
+
+A seed supports a kanban board when it has no drafts (`allowDrafts` off) and at least one axis candidate: a `boolean` branch, or a single-choice `tags` branch (`multiple: false`) with `options`. Localized branches are never candidates. `resolveKanbanConfig(seed)` in `@beechcms/core` returns the candidates; `resolveKanbanColumns(branch)` returns the columns.
+
+| Axis | Columns, in order |
+|---|---|
+| `tags` | One per option, in declared order, carrying the option `color`; then the empty column. |
+| `boolean` | `false`, `true`; then the empty column. |
+
+**Reading one column.** Each column is one `GET /api/content/:seed?kanbanAxis=<branchId>&filters=<json>` request, where `filters` is `[kanbanColumnFilter(branch, columnValue)]`, serialized. An axis id that is not a candidate answers `400 content-invalid-kanban-axis`. On a `tags` axis the empty column (`columnValue: null`) selects every entry holding none of the option values: empty entries and entries whose stored value was later removed or renamed in the seed, so no entry falls outside every column.
+
+**Required axis.** When the axis branch has `requiredOnCreate` or `requiredOnUpdate`, the empty column carries `fallback: true`. No valid entry belongs there, so the dashboard shows it only while it holds entries (missing or obsolete values) and never moves or creates an entry into it; `kanban-move` refuses it too.
+
+All write routes below require `content:update` on the seed and answer `{ "success": true }`.
+
+### Move a Card — `PATCH /api/content/:seed/:id/kanban-move`
+
+Writes the card's board position and, for a cross-column move, its axis value in one atomic update.
+
+```http
+PATCH /api/content/tickets/550e8400-e29b-41d4-a716-446655440000/kanban-move
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "axisBranchId": "br_02",
+  "position": "a0V",
+  "axis": { "value": "done" }
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `axisBranchId` | `string` | **Required.** Axis branch id. |
+| `position` | `string` | **Required.** Fractional-index key of the card in the destination column. |
+| `axis` | `{ value: string \| null }` | Cross-column moves only; omit it for a reorder inside one column. `value` is the destination column value, `null` for the empty column. |
+
+The server converts the column value into the entry value (`kanbanColumnEntryValue`): on a `tags` axis `"done"` becomes `["done"]` and `null` becomes `[]`; on a `boolean` axis `"true"`/`"false"` become booleans. The value then goes through the normal update validation.
+
+| Status | `type` | When |
+|---|---|---|
+| `400` | `content-invalid-body` | `position` or `axisBranchId` missing, or `axis.value` neither a string nor `null`. |
+| `400` | `content-invalid-kanban-axis` | `axisBranchId` is not a kanban candidate of this seed. |
+| `404` | `content-not-found` | The entry does not exist. |
+| `409` | `content-update-conflict` | The entry changed between read and write. |
+| `422` | `content-validation-error` | The new axis value fails validation (for example, a value that is not an option), or `axis.value` is `null` on a required axis. |
+
+### Reorder a Card — `PATCH /api/content/:seed/:id/kanban-position`
+
+Stores only the board position (`{ "axisBranchId": "br_02", "position": "a0V" }`) and never touches the entry. Same `400` and `404` errors as `kanban-move`.
 
 ---
 

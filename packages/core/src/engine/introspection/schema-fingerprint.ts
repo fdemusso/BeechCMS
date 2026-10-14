@@ -19,13 +19,14 @@
 import { canonicalStringify } from '../../common/canonical-json.js'
 import { resolvePolicies } from '../privacy/policies.js'
 import type { Branch, Seed } from '../types.js'
+import { isSingleChoiceTags, tagOptionValues } from '../seeds/tag-options.js'
 
 /**
  * Bumped ONLY when the projection below or the canonical byte format changes — i.e. when
  * fingerprints computed by two builds are no longer comparable. It is carried in the fingerprint
  * string itself so a version skew reads as a mismatch instead of as an accidental match.
  */
-export const SCHEMA_FINGERPRINT_VERSION = 1
+export const SCHEMA_FINGERPRINT_VERSION = 2
 
 /** The response-shape-bearing subset of a `Branch`. */
 export interface ContractBranch {
@@ -72,9 +73,12 @@ function projectBranch(branch: Branch): ContractBranch {
     alias: branch.alias,
     type: branch.type,
     ...(branch.format !== undefined ? { format: branch.format } : {}),
-    ...(branch.multiple !== undefined ? { multiple: branch.multiple } : {}),
+    // `tags` always carry the resolved mode, so an omitted `multiple` hashes like `true`.
+    ...(branch.type === 'tags'
+      ? { multiple: !isSingleChoiceTags(branch) }
+      : branch.multiple !== undefined ? { multiple: branch.multiple } : {}),
     // Option order is the contract: it is the order a select renders and a union type lists.
-    ...(branch.options !== undefined ? { options: [...branch.options] } : {}),
+    ...(branch.options !== undefined ? { options: tagOptionValues(branch) } : {}),
     requiredOnCreate: branch.requiredOnCreate ?? false,
     requiredOnUpdate: branch.requiredOnUpdate ?? false,
     ...(branch.targetSeed !== undefined ? { targetSeed: branch.targetSeed } : {}),
@@ -100,6 +104,7 @@ function projectBranch(branch: Branch): ContractBranch {
  *   `policies.classification|privacy` — behaviour and storage concerns that leave the response
  *   shape identical. (`privacy` DOES change a stored value's encoding, but the API type stays
  *   `string`; drift there is a data concern, not a type concern.)
+ * - option `color` — presentation only; a color edit cannot change a response byte.
  * - anything physical (column order, index names) — see the VETO Audit.
  *
  * Seeds are sorted by slug; BRANCH ORDER IS PRESERVED, because it is the declared field order the

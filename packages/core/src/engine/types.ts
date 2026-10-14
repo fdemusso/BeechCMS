@@ -73,6 +73,17 @@ export interface ActorContext {
   role?: string
 }
 
+/** One entry of a `tags` branch's closed vocabulary. Array order is significant (menu, kanban columns, sort). */
+export interface TagOption {
+  /**
+   * Stored value and identity. Unique within the branch; compared exactly (case-sensitive, never trimmed).
+   * Must already be in canonical form (`normalizeTagValue(value).value === value`) and at most `TAG_MAX_LENGTH` characters.
+   */
+  value: string
+  /** Presentation-only color, `#RRGGBB`. Lives in the seed only — never persisted in entries. */
+  color: string
+}
+
 /** Branch: definition of a single field. `alias` is the SQL column name. */
 export interface Branch {
   /**
@@ -99,16 +110,19 @@ export interface Branch {
    */
   format?: 'plain' | 'markdown' | 'html' | 'date' | 'datetime' | 'asset-list'
   /**
-   * Optional cardinality for media fields:
-   * - false/undefined: single asset (string URL)
-   * - true: asset list (string[] URL)
+   * Cardinality:
+   * - `file`: false/undefined → single URL; true → URL list.
+   * - `relation`: false/undefined → FK column; true → junction table.
+   * - `tags`: undefined/true → multiple choice (default); false → at most one value. The value is always an array.
    */
   multiple?: boolean
   /**
-   * Predefined vocabulary for tag/select/multiselect fields.
-   * Static list defined in the Seed (not persisted to the DB).
+   * Closed vocabulary — valid ONLY on `tags` (any other type is a fatal seed error).
+   * When present: non-empty, at most `TAG_OPTIONS_MAX_COUNT` entries, unique canonical values, `#RRGGBB` colors;
+   * written values must be one of the option values.
+   * Static seed metadata, never persisted in entries.
    */
-  options?: string[]
+  options?: TagOption[]
   /** Required on create — generates NOT NULL in generateCreateTable. */
   requiredOnCreate?: boolean
   /** Required on update. */

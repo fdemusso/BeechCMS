@@ -158,7 +158,7 @@ BeechCMS dynamically builds the form based on the Seed:
 
 - **Required Fields (`*`)**: Must be completed before saving (e.g., Title, Slug, Status).
 - **Text & Number Fields**: Type directly. Number fields may format currencies (e.g., `€ 1.250,00`) automatically.
-- **Dropdowns & Selectors**: Choose from predefined options (e.g., `free`, `pro`, `enterprise`).
+- **Dropdowns & Selectors**: Choose from predefined options (e.g., `free`, `pro`, `enterprise`) in a menu where each option has a colored dot. A single-choice field replaces the value; a multiple-choice field adds a chip per pick. A gray dashed chip marks a stored value that is no longer among the options: remove or replace it before saving, otherwise the save is rejected.
 - **Date Pickers**: Select specific dates and times with a visual calendar.
 - **Relations**: If a Fruit links to another Seed (for example, linking a Support Ticket or Subscription to a specific *Cliente*), search and select the related record from the autocomplete dropdown.
 

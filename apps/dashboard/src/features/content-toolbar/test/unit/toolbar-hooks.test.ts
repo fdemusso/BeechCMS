@@ -4,6 +4,8 @@
 
 import { describe, it, expect, vi } from "vitest"
 import { renderHook, act } from "@testing-library/react"
+import { CANONICAL_SEEDS } from "@beechcms/testing"
+import type { Seed } from "@beechcms/core"
 
 import { useToolbarMenusState } from "@/features/content-toolbar/toolbar-hooks/use-toolbar-menus-state"
 import { useViewName } from "@/features/content-toolbar/toolbar-hooks/use-view-name"
@@ -68,6 +70,18 @@ describe("toolbar hooks", () => {
     expect(result.current.filteredSortableColumns).toHaveLength(1)
     act(() => result.current.handleToggleSortDirection())
     expect(onSortChange).toHaveBeenCalledWith({ columnId: "title", desc: false })
+  })
+
+  it("useToolbarSort omits multiple-choice tags branches from the sortable columns", () => {
+    const posts = CANONICAL_SEEDS.find((candidate) => candidate.slug === "posts") as Seed
+
+    const { result } = renderHook(() =>
+      useToolbarSort({ seed: posts, sortColumnSearchTerm: "", sortState: undefined, onSortChange: vi.fn() })
+    )
+
+    const sortableAliases = result.current.filteredSortableColumns.map((branch) => branch.alias)
+    expect(sortableAliases).toContain("priority")
+    expect(sortableAliases).not.toContain("tags")
   })
 
   it("useToolbarGroupBy espone sezioni e precisione data", () => {

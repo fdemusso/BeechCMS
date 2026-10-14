@@ -91,7 +91,7 @@ describe('content slice — export integration (real D1)', () => {
       expect(response.status).toBe(400)
       const body = await response.json<{ type: string; errors: Array<{ field: string }> }>()
       expect(body.type).toBe('https://beechcms.dev/problems/content-csv-requires-flat-seed')
-      expect(new Set(body.errors.map((e) => e.field))).toEqual(new Set(['body', 'tags', 'author_id', 'category_id', 'related_posts']))
+      expect(new Set(body.errors.map((e) => e.field))).toEqual(new Set(['body', 'tags', 'author_id', 'category_id', 'related_posts', 'priority']))
     })
 
     it('refuses CSV export for a seed with a localized branch', async () => {

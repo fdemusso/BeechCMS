@@ -13,6 +13,7 @@ import { NumberDisplay } from './display/number'
 import { BooleanDisplay } from './display/boolean'
 import { DateDisplay } from './display/date'
 import { JsonDisplay } from './display/json'
+import { TagsDisplay } from './display/tags'
 import { RichtextDisplay } from './display/richtext'
 import { MediaDisplay } from './display/media'
 import { RelationDisplay } from './display/relation'
@@ -22,6 +23,7 @@ import { NumberEdit } from './edit/number'
 import { BooleanEdit } from './edit/boolean'
 import { DateEdit } from './edit/date'
 import { JsonEdit } from './edit/json'
+import { TagsEdit } from './edit/tags'
 import { RichtextEdit } from './edit/richtext'
 import { MediaEdit } from './edit/media'
 import { RelationEdit } from './edit/relation'
@@ -41,7 +43,7 @@ fieldRegistry.registerDisplay('number', NumberDisplay)
 fieldRegistry.registerDisplay('boolean', BooleanDisplay)
 fieldRegistry.registerDisplay('date', DateDisplay)
 fieldRegistry.registerDisplay('json', JsonDisplay)
-fieldRegistry.registerDisplay('tags', JsonDisplay)
+fieldRegistry.registerDisplay('tags', TagsDisplay)
 fieldRegistry.registerDisplay('richtext', RichtextDisplay)
 fieldRegistry.registerDisplay('file', MediaDisplay)
 fieldRegistry.registerDisplay('relation', RelationDisplay)
@@ -52,7 +54,7 @@ fieldRegistry.registerEdit('number', NumberEdit)
 fieldRegistry.registerEdit('boolean', BooleanEdit)
 fieldRegistry.registerEdit('date', DateEdit)
 fieldRegistry.registerEdit('json', JsonEdit)
-fieldRegistry.registerEdit('tags', JsonEdit)
+fieldRegistry.registerEdit('tags', TagsEdit)
 fieldRegistry.registerEdit('richtext', RichtextEdit)
 fieldRegistry.registerEdit('file', MediaEdit)
 fieldRegistry.registerEdit('relation', RelationEdit)

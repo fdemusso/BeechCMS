@@ -38,7 +38,10 @@ export interface FormBranchSchema {
   label?: string
   placeholder?: string
   required?: boolean
-  options?: Array<{ label: string; value: string | number }>
+  /** Choice list for select-like branches. `color` (`#RRGGBB`) is set on `tags` options. */
+  options?: Array<{ label: string; value: string | number; color?: string }>
+  /** True for `tags` branches: the value is submitted as `string[]`. */
+  arrayValue?: boolean
   defaultValue?: unknown
   dependsOn?: ConditionalRule | ConditionalRule[]
   accept?: string

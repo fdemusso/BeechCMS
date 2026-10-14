@@ -9,6 +9,8 @@ import { extensionFromUrl, isExtensionAccepted } from '../../media/file-types.js
 import { isLocalizedWriteDictionary, toLocalizedPatch, type LocaleConfig, type LocalizedPatch } from '../localization/localization.js'
 import { cleanString, stripControlChars, byteLength, isPlainObject, exceedsMaxDepth } from './primitives.js'
 import { isEffectivelyEmpty } from './emptiness.js'
+import { isSingleChoiceTags, tagOptionValues } from '../seeds/tag-options.js'
+import { normalizeTagValue, TAG_MAX_COUNT, TAG_MAX_LENGTH, TAG_RAW_MAX_COUNT } from '../seeds/tag-value.js'
 import { sanitizeRichtext } from './richtext-sanitizer.js'
 import { resolveFileOptions, isAssetListBranch, collectAssetListItems, extractFileCandidate } from './file-branch.js'
 
@@ -199,8 +201,6 @@ function dateSchema(allowNull: boolean): z.ZodTypeAny {
 
 /** Max nesting depth accepted when walking a `json` branch value. */
 const JSON_MAX_DEPTH = 50
-/** Max number of items accepted in a `tags` branch array. */
-const MAX_TAGS_COUNT = 100
 
 /**
  * Recursively strips control characters from string leaves while enforcing a
@@ -270,27 +270,59 @@ function jsonSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny 
 }
 
 /**
- * Compiles a Zod validation schema for a `tags` branch, constraining it to a
- * bounded array of cleaned strings (fixes #183: previously any array/object
- * shape passed, breaking callers like the kanban swap that cast to `string[]`).
+ * Compiles a Zod validation schema for a `tags` branch: a small array of short labels.
+ * Free values go through {@link normalizeTagValue} (invisible/control characters removed, whitespace
+ * collapsed, NFC) and may not exceed {@link TAG_MAX_LENGTH} characters; at most {@link TAG_MAX_COUNT} survive.
+ * With `options` the array is a closed vocabulary (exact, case-sensitive match after NFC, no trimming);
+ * without, values are normalized and those that clean to nothing are dropped. Duplicates are rejected, never merged,
+ * and a single-choice branch (`multiple: false`) accepts at most one value. The first violated
+ * rule emits one issue for the whole array.
  *
- * @param options - The resolved validation options.
+ * @param branch - The tags branch definition.
  * @param allowNull - Whether null values are allowed.
  * @returns The compiled tags schema.
  */
-function tagsSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny {
-  const tagSchema = z
-    .string()
-    .transform((value) => cleanString(value))
-    .refine((value) => byteLength(value) <= options.maxTextLength, {
-      message: `Expected string(max:${options.maxTextLength})`,
-    })
+function tagsSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
+  const allowedValues = tagOptionValues(branch)
+  const isClosedVocabulary = allowedValues.length > 0
   const base = z
-    .array(tagSchema)
-    .max(MAX_TAGS_COUNT, {
-      message: `Expected tags(max:${MAX_TAGS_COUNT})`,
+    .array(z.string())
+    // Coarse guard so a huge payload is not scanned; the real cap applies after blanks are dropped.
+    .max(TAG_RAW_MAX_COUNT, { message: `Expected tags(max:${TAG_MAX_COUNT})` })
+    .transform((tags, ctx) => {
+      const values: string[] = []
+      for (const tag of tags) {
+        if (isClosedVocabulary) {
+          // Exact match: only NFC is applied, so a padded or invisible-char variant of an option is rejected.
+          values.push(tag.normalize('NFC'))
+          continue
+        }
+        const normalized = normalizeTagValue(tag)
+        if (!normalized.ok) {
+          const expected = normalized.reason === 'too-long' ? `tags(item-max:${TAG_MAX_LENGTH})` : 'tags(valid-text)'
+          ctx.addIssue({ code: 'custom', message: `Expected ${expected}` })
+          return z.NEVER
+        }
+        if (normalized.value.length > 0) values.push(normalized.value)
+      }
+      if (isClosedVocabulary && values.some((tag) => !allowedValues.includes(tag))) {
+        ctx.addIssue({ code: 'custom', message: `Expected tags(one-of:${allowedValues.join('|')})` })
+        return z.NEVER
+      }
+      if (values.length > TAG_MAX_COUNT) {
+        ctx.addIssue({ code: 'custom', message: `Expected tags(max:${TAG_MAX_COUNT})` })
+        return z.NEVER
+      }
+      if (new Set(values).size !== values.length) {
+        ctx.addIssue({ code: 'custom', message: 'Expected tags(unique)' })
+        return z.NEVER
+      }
+      if (isSingleChoiceTags(branch) && values.length > 1) {
+        ctx.addIssue({ code: 'custom', message: 'Expected tags(max:1)' })
+        return z.NEVER
+      }
+      return values
     })
-    .transform((tags) => Array.from(new Set(tags.filter((t) => t.length > 0))))
   return withEmptyPreprocessing(base, allowNull)
 }
 
@@ -441,7 +473,7 @@ const BRANCH_SCHEMA_BUILDERS: Record<string, (branch: Branch, options: ResolvedO
   boolean: (_branch, options) => booleanSchema(options.allowNull),
   date: (_branch, options) => dateSchema(options.allowNull),
   json: (_branch, options) => jsonSchema(options, options.allowNull),
-  tags: (_branch, options) => tagsSchema(options, options.allowNull),
+  tags: (branch, options) => tagsSchema(branch, options.allowNull),
   file: (branch, options) => fileSchema(branch, options.allowNull),
   relation: (branch, options) => relationSchema(branch, options),
   repeater: (branch, options) => repeaterSchema(branch, options),

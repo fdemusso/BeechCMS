@@ -57,12 +57,11 @@ function makeEntry(id: string, schema_slug: string, data: Record<string, unknown
 }
 
 describe("dynamic-columns - computeMaxLengths", () => {
-  it("calcola max con troncamento (min 20) e ignora campi json 'tag'", () => {
+  it("calcola max con troncamento (min 20) anche per json con alias 'tag'", () => {
     const seed = makeSeed({
       branches: [
         { id: "b1", alias: "title", label: "Title", type: "text" as const },
         { id: "b2", alias: "body", label: "Body", type: "json" as const },
-        // alias contiene 'tag' => computeMaxJsonLength ritorna null (nessun maxLength)
         { id: "b3", alias: "tagsImages", label: "Tags", type: "json" as const },
         { id: "b4", alias: "otherField", label: "Other", type: "unknown" as any },
       ] as any,
@@ -84,12 +83,11 @@ describe("dynamic-columns - computeMaxLengths", () => {
     ]
 
     const max = computeMaxLengths(data, seed, 10)
-    // text e json non-tag: almeno MIN_TRUNCATE_LENGTH
+    // text e json: almeno MIN_TRUNCATE_LENGTH, l'alias non conta
     expect(max.title).toBeGreaterThanOrEqual(20)
     expect(max.body).toBeGreaterThanOrEqual(20)
     expect(max.otherField).toBeGreaterThanOrEqual(20)
-    // tags: non viene aggiunta a result
-    expect(max).not.toHaveProperty("tagsImages")
+    expect(max.tagsImages).toBeGreaterThanOrEqual(20)
   })
 
   it("applica un tetto massimo al troncamento per testi molto lunghi", () => {
@@ -522,6 +520,31 @@ describe("generateColumns - default order", () => {
     expect(ids[0]).toBe("select")
     expect(ids.slice(-2)).toEqual(["updated_at", "actions"])
     expect(ids.indexOf("created_at")).toBeLessThan(ids.indexOf(posts.branches[0].alias))
+  })
+})
+
+describe("generateColumns - tags columns", () => {
+  const columnOf = (alias: string) =>
+    generateColumns(posts, vi.fn(), vi.fn()).find((c) => c.id === alias) as {
+      enableSorting?: boolean
+      getGroupingValue?: (row: { data: Record<string, unknown> }) => string
+    }
+
+  it("disables sorting on a multiple-choice tags column and keeps it on a single-choice one", () => {
+    const multiple = columnOf("tags")
+    const single = columnOf("priority")
+
+    expect(multiple.enableSorting).toBe(false)
+    expect(single.enableSorting).toBeUndefined()
+  })
+
+  it("groups a single-choice tags column by its first value", () => {
+    const column = columnOf("priority")
+
+    const filled = column.getGroupingValue?.({ data: { priority: ["high"] } })
+    const empty = column.getGroupingValue?.({ data: { priority: [] } })
+
+    expect([filled, empty]).toEqual(["high", ""])
   })
 })
 

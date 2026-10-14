@@ -90,7 +90,14 @@ describe('Clienti Seed Form Integration E2E Test', () => {
             branches: [
               { alias: 'name', type: 'text', label: 'Company / Contact Name', requiredOnCreate: true },
               { alias: 'email', type: 'text', label: 'Contact Email', requiredOnCreate: true },
-              { alias: 'tier', type: 'text', label: 'Plan', requiredOnCreate: true, options: ['free', 'pro', 'enterprise'] },
+              {
+                alias: 'tier', type: 'tags', multiple: false, label: 'Plan', requiredOnCreate: true,
+                options: [
+                  { label: 'free', value: 'free', color: '#64748b' },
+                  { label: 'pro', value: 'pro', color: '#3b82f6' },
+                  { label: 'enterprise', value: 'enterprise', color: '#8b5cf6' },
+                ],
+              },
               { alias: 'internal_audit', type: 'text', label: 'Internal Audit', requiredOnCreate: false },
             ],
           }),

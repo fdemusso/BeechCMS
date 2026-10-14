@@ -14,7 +14,7 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import type { Branch, KanbanMoveBody } from '@beechcms/core'
+import { isKanbanAxisRequired, type Branch, type KanbanMoveBody } from '@beechcms/core'
 import { moveKanbanCard } from '@/lib/content-api'
 import type { ContentListWithMeta } from '@/lib/content-api'
 import { positionBetween } from './fractional'
@@ -31,6 +31,11 @@ interface UseKanbanDragOptions {
   canEdit: boolean
   activeSort: boolean
   dispatch: (action: KanbanBoardAction) => void
+}
+
+/** A cross-column drop on the null column of a required axis would empty a required field (the server answers 422). */
+export function isBlockedKanbanDrop(axisBranch: Branch, destColValue: string | null, isSameColumn: boolean): boolean {
+  return !isSameColumn && destColValue === null && isKanbanAxisRequired(axisBranch)
 }
 
 function getCardsFromCache(
@@ -158,6 +163,7 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
       // KB-U22b: same-column reorder disabled while sort is active — bail before
       // sending DRAG_OPTIMISTIC so the card never enters pending state.
       if (isSameColumn && activeSort) return
+      if (isBlockedKanbanDrop(axisBranch, overColValue, isSameColumn)) return
 
       const srcCards = getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, snapshot.sourceColValue)
       const destCards = isSameColumn ? srcCards : getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, overColValue)
@@ -230,7 +236,7 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
     // KB-U22b: same-column reorder disabled while sort is active.
     // Rollback instead of bare return — prevents the card from freezing in
     // pending state if the settle timer fired before the drag ended.
-    if (isSameColumn && activeSort) {
+    if ((isSameColumn && activeSort) || isBlockedKanbanDrop(axisBranch, destColValue, isSameColumn)) {
       dispatch({ type: 'DRAG_ROLLBACK', entryId })
       return
     }
@@ -278,10 +284,7 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
     if (isSameColumn) {
       body = { axisBranchId, position: newPosition }
     } else {
-      const axis = axisBranch.type === 'tags'
-        ? { kind: 'tags' as const, oldValue: card?.axisValue ?? null, newValue: destColValue }
-        : { kind: 'scalar' as const, value: destColValue }
-      body = { axisBranchId, position: newPosition, axis }
+      body = { axisBranchId, position: newPosition, axis: { value: destColValue } }
     }
 
     // Find entry in cache before patching so we can insert it in dest

@@ -46,8 +46,7 @@ export function buildFilterableColumns(
     if (branch.type === "number") columns.push({ columnId: alias, label: branch.label, type: "number" })
     else if (branch.type === "date") columns.push({ columnId: alias, label: branch.label, type: "date" })
     else if (branch.type === "boolean") columns.push({ columnId: alias, label: branch.label, type: "boolean" })
-    else if (branch.type === "json" && alias.toLowerCase().includes("tag"))
-      columns.push({ columnId: alias, label: branch.label, type: "tags" })
+    else if (branch.type === "tags") columns.push({ columnId: alias, label: branch.label, type: "tags" })
     else columns.push({ columnId: alias, label: branch.label, type: "text" })
   }
   return columns

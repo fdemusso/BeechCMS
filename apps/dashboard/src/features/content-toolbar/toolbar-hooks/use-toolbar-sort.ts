@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useMemo } from "react"
-import { resolvePolicies } from "@beechcms/core"
+import { isSingleChoiceTags, resolvePolicies } from "@beechcms/core"
 import type { Seed } from "@beechcms/core"
 
 interface SortState {
@@ -28,7 +28,7 @@ export function useToolbarSort({
     () =>
       seed.branches.filter(
         (branch) =>
-          ["text", "number", "date", "tags"].includes(branch.type as string) &&
+          (["text", "number", "date"].includes(branch.type as string) || isSingleChoiceTags(branch)) &&
           resolvePolicies(branch).sort,
       ),
     [seed.branches]

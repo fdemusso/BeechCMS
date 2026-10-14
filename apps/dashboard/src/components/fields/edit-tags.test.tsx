@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
 import { FieldEdit } from "@/components/fields/FieldEdit"
 import { TagChips } from "@/components/ui/tag-chips"
-import { JsonEdit } from "@/components/fields/edit/json"
+import { TagsEdit } from "@/components/fields/edit/tags"
 import type { Branch } from "@beechcms/core"
 
 describe("Tags max-width and truncation (#301)", () => {
@@ -17,12 +17,15 @@ describe("Tags max-width and truncation (#301)", () => {
     alias: "tags",
     label: "Tags Field",
     type: "tags",
-    options: [longTagText, "normal-tag"],
+    options: [
+      { value: longTagText, color: "#64748b" },
+      { value: "normal-tag", color: "#3b82f6" },
+    ],
     policies: [],
   } as unknown as Branch
 
   it("TagChips applica max-w-[260px], truncate e title con il testo completo", () => {
-    render(<TagChips tags={[longTagText]} />)
+    render(<TagChips tags={[{ label: longTagText, tone: "free" }]} />)
 
     const span = screen.getByText(longTagText)
     expect(span).toHaveClass("truncate")
@@ -34,10 +37,9 @@ describe("Tags max-width and truncation (#301)", () => {
     expect(badge).toBeInTheDocument()
   })
 
-  it("JsonEdit per type 'tags' tronca i tag lunghi e imposta max-width e title", () => {
-    const initialValue = { [longTagText]: "#3b82f6" }
+  it("TagsEdit tronca i tag lunghi e imposta max-width e title", () => {
     const { container } = render(
-      <JsonEdit branch={tagsBranch} value={initialValue} onChange={vi.fn()} />
+      <TagsEdit branch={tagsBranch} value={[longTagText]} onChange={vi.fn()} />
     )
 
     const button = container.querySelector("button[title]")
@@ -49,21 +51,6 @@ describe("Tags max-width and truncation (#301)", () => {
     expect(span).toHaveClass("max-w-[260px]")
     expect(span).toHaveClass("min-w-0")
   })
-
-  it("JsonEdit per type 'tags' non soccombe a chiavi con nomi di prototipo (constructor, toString)", () => {
-    const onChange = vi.fn()
-    // Obietto contenente sia chiavi lecite che proprietà ereditate dal prototype
-    const mockValue = Object.assign(Object.create({ constructor: "exploited" }), {
-      "Legitimate Tag": "#10b981",
-    })
-
-    render(
-      <JsonEdit branch={tagsBranch} value={mockValue} onChange={onChange} />
-    )
-
-    expect(screen.getByText("Legitimate Tag")).toBeInTheDocument()
-    expect(screen.queryByText("exploited")).not.toBeInTheDocument()
-  })
 })
 
 describe("FieldEdit routing for tags with options", () => {
@@ -72,7 +59,11 @@ describe("FieldEdit routing for tags with options", () => {
     alias: "tier",
     label: "Plan",
     type: "tags",
-    options: ["free", "pro"],
+    multiple: false,
+    options: [
+      { value: "free", color: "#64748b" },
+      { value: "pro", color: "#3b82f6" },
+    ],
   } as unknown as Branch
 
   it("mostra i tag salvati come chip e non usa il select a valore singolo", () => {
@@ -86,7 +77,7 @@ describe("FieldEdit routing for tags with options", () => {
     const onChange = vi.fn()
     render(<FieldEdit branch={tierBranch} value={["pro"]} onChange={onChange} />)
 
-    fireEvent.click(screen.getByLabelText("Remove tag pro"))
+    fireEvent.click(screen.getByLabelText("Remove pro"))
 
     expect(onChange).toHaveBeenCalledWith([])
   })

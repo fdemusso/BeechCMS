@@ -29,7 +29,7 @@ committato prima dell'avvio dello Sprint 1.
 
 ---
 
-## 1. `TagOptionsContract` — **NEXT**
+## 1. `TagOptionsContract` — **DONE** (review PASS, archivio `docs/Sprints/TagOptionsContract/`)
 
 - **Goal:** `Branch.options` diventa `TagOption[]` (`{ value, color }`) valido solo sui `tags`; seed malformati
   rifiutati al boot; valori fuori elenco, duplicati e cardinalità violata rifiutati in scrittura con 400.
@@ -42,19 +42,23 @@ committato prima dell'avvio dello Sprint 1.
   dashboard (nessuna nuova UX); docs + `CHANGELOG.md` con nota di rottura.
 - **Depends on:** commit dell'hotfix in working tree (vedi precondizione).
 
-## 2. `SchemaPlanDefinitionDiff`
+## 2. `SchemaPlanDefinitionDiff` — **DONE** (review PASS, archivio `docs/Sprints/SchemaPlanDefinitionDiff/`)
 
 - **Goal:** `beech schema plan|apply` e `beech_schema_plan|apply` (MCP) vedono e applicano un cambio di sola
   definizione (forma/ordine/colore delle opzioni, `multiple`) anche quando non produce DDL.
-- **Deliverables summary:** funzione pura core che elenca gli alias dei branch la cui definizione canonica differisce
-  (id esclusi); campo `changedBranches` nella risposta di `POST /api/seeds/:slug/mcp-plan`; `McpPlan`
-  (`packages/cli/src/lib/control-plane.ts`, `packages/mcp/src/plans.ts`) esteso; `schema-plan` / `schema-apply`
-  considerano "pendente" un seed con DDL **o** branch cambiati (oggi filtrano su `statements.length > 0`, quindi un
-  cambio di opzioni stampa "(no change)" e non viene applicato); `manifest-compare.ts` normalizza `multiple` dei
-  `tags` (omesso ≡ `true`, oggi omesso ≡ `false`).
-- **Depends on:** Sprint 1 (forma `TagOption`, `isSingleChoiceTags`).
+- **Deliverables summary:** modulo core `engine/seeds/seed-definition-diff.ts` (`normalizeSeedDefinition`,
+  `normalizeBranchDefinition`, `diffSeedDefinition`: id esclusi, flag omessi ≡ `false`, `multiple` dei `tags` omesso
+  ≡ `true`); campi `definitionChanged` + `changedBranches` nella risposta di `POST /api/seeds/:slug/mcp-plan` e
+  `changedBranches` nell'audit di `mcp-apply`; `McpPlan` (CLI) e `McpPlanResponse` (MCP) estesi; `schema-plan` /
+  `schema-apply` decidono su `definitionChanged`; `manifest-compare.ts` delega la normalizzazione al core.
+- **Correzione della diagnosi (pianificazione 2026-10-12):** `statements` non è mai vuoto per un seed esistente
+  (`planExtendSeed` riemette sempre `CREATE INDEX IF NOT EXISTS`), quindi oggi un cambio di opzioni **viene** scritto
+  ma non viene mai mostrato, e ogni `apply` riscrive ogni seed. Il criterio "pendente" diventa `definitionChanged`
+  (deciso dal server), non "DDL o branch cambiati". `packages/mcp/src/plans.ts` non cambia (l'apply MCP non filtra
+  su `statements`).
+- **Depends on:** Sprint 1 (forma `TagOption`, `isSingleChoiceTags`) **committato**.
 
-## 3. `TagChoiceEditing`
+## 3. `TagChoiceEditing` — **DONE** (review PASS, archivio `docs/Sprints/TagChoiceEditing/`)
 
 - **Goal:** l'editor sceglie da un menu a tendina con pallino colore (singola: un valore, multipla: più chip); i tag
   appaiono come chip colorati ovunque; il seed builder definisce opzioni, colori e modalità.
@@ -63,9 +67,13 @@ committato prima dell'avvio dello Sprint 1.
   nelle opzioni" per valori obsoleti; tag liberi con chip neutro (eliminata l'interpretazione colore/hex nei valori
   di `extractTagChips`); seed builder: editor righe opzione (valore + colore `#RRGGBB`), interruttore
   singolo/multiplo, errori presi da `tagOptionsIssues` (stesse regole del boot, nessuna regola propria).
-- **Depends on:** Sprint 1.
+- **Pianificazione 2026-10-13:** l'editor nuovo è un renderer `tags` dedicato (`edit/tags.tsx`, `display/tags.tsx`);
+  `JsonEdit` / `JsonDisplay` tornano solo-JSON (anche l'euristica "alias contiene `tag`" sparisce); la gallery
+  deduce lo slot tag dal primo branch `tags` (oggi cerca un `json` con alias `tag`); i tag liberi restano editati col
+  code editor JSON (il brief non chiede altro).
+- **Depends on:** Sprint 1. Precondizione: lavoro dello Sprint 2 committato (working tree pulito).
 
-## 4. `TagChoiceViews`
+## 4. `TagChoiceViews` — **NEXT** (piano: `stages/01_sprint_planning/output/TagChoiceViews.md`)
 
 - **Goal:** kanban, ordinamento e raggruppamento funzionano solo sui tag a scelta singola, nell'ordine delle opzioni;
   config di vista su un tag multiplo è un errore di validazione; regole e automazioni hanno parità funzionale col
@@ -79,8 +87,19 @@ committato prima dell'avvio dello Sprint 1.
   formattazione condizionale e
   `when-evaluator` delle automazioni con semantica array (`eq`/`neq`/`in`/`notin`/`isempty` su `string[]`);
   `automation-value-input` con valori opzione.
+- **Pianificazione 2026-10-13:** asse kanban = `tags` a scelta singola **con opzioni** (+ boolean): senza opzioni
+  non ci sono colonne; `KanbanMoveBody.axis` diventa `{ value }` e il valore scritto viene da una funzione core
+  (`kanbanColumnEntryValue`) usata anche dal prefill "nuova voce in colonna" e dall'update ottimistico della board
+  (oggi scrivono una stringa nuda su un `tags`); i filtri `eq`/`neq`/`contains`/`in`/`not_in` sul tipo `tags`
+  diventano appartenenza in `buildFilterCondition` (oggi `col = ?` / `LIKE` sul testo JSON: il filtro toolbar,
+  il pushdown cron delle automazioni e `set_variable` non trovano mai una entry); `buildFilterableColumns` riconosce
+  i branch `tags` (oggi solo `json` con alias `tag`), quindi filtri e formattazione condizionale tornano in parità;
+  `automation-value-input` è già a posto (Sprint 1); le cartelle gallery seguono l'ordine opzioni e il prefill
+  della cartella scrive un array; `sortBy` su un tag multiplo viene ignorato come una colonna sconosciuta; le viste
+  salvate che referenziano un tag multiplo sono rifiutate in scrittura (422) e ripulite in lettura.
 - **Depends on:** Sprint 1. Indipendente dallo Sprint 3; ordinato dopo per evitare conflitti su
-  `components/fields` e `content-kanban`.
+  `components/fields` e `content-kanban`. Precondizione: lavoro dello Sprint 3 committato (oggi è tutto nel working
+  tree di `feature/tag-choice-editing`).
 
 ---
 
