@@ -176,6 +176,19 @@ export class D1UserRepository implements IUserRepository {
     }))
   }
 
+  async isLastGlobalAdmin(userId: string): Promise<boolean> {
+    const row = await this.db
+      .prepare(
+        `SELECT 1 AS refused FROM users
+         WHERE id = ?
+           AND ${holdsGlobalManageUsers('users.id')}
+           AND NOT ${otherAdminWithoutUser('users.id')}`
+      )
+      .bind(userId)
+      .first()
+    return row !== null
+  }
+
   /**
    * Deactivation is one statement that skips the row when the account holds the global
    * `manage_users` authority and no OTHER active account does. Reactivation is unguarded.

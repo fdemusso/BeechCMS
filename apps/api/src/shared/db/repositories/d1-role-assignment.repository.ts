@@ -107,6 +107,20 @@ export class D1RoleAssignmentRepository implements IRoleAssignmentRepository {
     return (await this.findById(assignmentId)) ? 'last-global-admin' : 'not-found'
   }
 
+  async isLastGlobalAdminAssignment(assignmentId: string): Promise<boolean> {
+    const row = await this.db
+      .prepare(
+        `SELECT 1 AS refused FROM user_role_assignments
+         WHERE id = ?
+           AND scope = '${GLOBAL_SCOPE}'
+           AND ${roleCarriesManageUsers('user_role_assignments.role_id')}
+           AND NOT ${otherAdminWithoutAssignment('user_role_assignments.id')}`
+      )
+      .bind(assignmentId)
+      .first()
+    return row !== null
+  }
+
   async findById(assignmentId: string): Promise<PermissionAssignment | null> {
     const row = await this.db
       .prepare(`SELECT id, user_id, role_id, scope FROM user_role_assignments WHERE id = ? LIMIT 1`)

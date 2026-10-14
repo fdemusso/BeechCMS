@@ -125,6 +125,8 @@ export const deleteAssignmentHandler = async (context: AppContext) => {
     if (role?.name === SUPER_ADMIN_ROLE_NAME) {
       const owner = await context.get('userRepository').findById(assignment.userId)
       if (owner?.role === 'admin') {
+        // The Developer is usually also the sole administrator; that is the more fundamental refusal.
+        if (await assignmentRepository.isLastGlobalAdminAssignment(assignmentId)) return lastAdminProblem(context)
         return rbacProblem(
           context,
           RBAC_ERRORS.DEVELOPER_PROTECTED,
@@ -140,14 +142,16 @@ export const deleteAssignmentHandler = async (context: AppContext) => {
   // count read beforehand, so concurrent deletions cannot both pass it.
   const result = await assignmentRepository.delete(assignmentId)
   if (result === 'not-found') return notFound()
-  if (result === 'last-global-admin') {
-    return rbacProblem(
-      context,
-      RBAC_ERRORS.LAST_GLOBAL_ADMIN,
-      409,
-      'Conflict',
-      'This assignment carries the last active global administrator and cannot be removed.',
-    )
-  }
+  if (result === 'last-global-admin') return lastAdminProblem(context)
   return context.body(null, 204)
+}
+
+function lastAdminProblem(context: AppContext) {
+  return rbacProblem(
+    context,
+    RBAC_ERRORS.LAST_GLOBAL_ADMIN,
+    409,
+    'Conflict',
+    'This assignment carries the last active global administrator and cannot be removed.',
+  )
 }

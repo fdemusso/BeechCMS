@@ -154,6 +154,25 @@ Retrieves a user by their unique identifier, or null if not found.
 
 ***
 
+### isLastGlobalAdmin()
+
+> **isLastGlobalAdmin**(`userId`): `Promise`&lt;`boolean`&gt;
+
+Read-only twin of the deactivation guard in [setActive](#setactive): is this account the last
+active global administrator? ADVISORY — see `IRoleAssignmentRepository.isLastGlobalAdminAssignment`.
+
+#### Parameters
+
+##### userId
+
+`string`
+
+#### Returns
+
+`Promise`&lt;`boolean`&gt;
+
+***
+
 ### listAccounts()
 
 > **listAccounts**(): `Promise`&lt;[`AccountSummary`](AccountSummary.md)[]&gt;

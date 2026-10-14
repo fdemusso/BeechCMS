@@ -168,6 +168,8 @@ export const setUserActiveHandler = async (context: AppContext) => {
   if (!canAdministerAccount(actor, assignments)) return notFound()
 
   if (!parsed.data.isActive && target.role === 'admin') {
+    // The Developer is usually also the sole administrator; that is the more fundamental refusal.
+    if (await userRepository.isLastGlobalAdmin(userId)) return lastAdminProblem(context)
     return rbacProblem(
       context,
       RBAC_ERRORS.DEVELOPER_PROTECTED,
@@ -182,19 +184,21 @@ export const setUserActiveHandler = async (context: AppContext) => {
   // deactivations of different administrators both pass.
   const result = await userRepository.setActive(userId, parsed.data.isActive)
   if (result === 'not-found') return notFound()
-  if (result === 'last-global-admin') {
-    return rbacProblem(
-      context,
-      RBAC_ERRORS.LAST_GLOBAL_ADMIN,
-      409,
-      'Conflict',
-      'This is the last active account able to administer the platform; it cannot be deactivated.',
-    )
-  }
+  if (result === 'last-global-admin') return lastAdminProblem(context)
 
   if (!parsed.data.isActive) {
     await context.get('sessionRepository').revokeAllForUser(userId, context.get('clock').nowSeconds())
   }
 
   return context.json({ id: userId, isActive: parsed.data.isActive })
+}
+
+function lastAdminProblem(context: AppContext) {
+  return rbacProblem(
+    context,
+    RBAC_ERRORS.LAST_GLOBAL_ADMIN,
+    409,
+    'Conflict',
+    'This is the last active account able to administer the platform; it cannot be deactivated.',
+  )
 }
