@@ -20,6 +20,8 @@ interface StorageBody {
 
 const ORPHAN_KEY = 'reviewed-orphan.png'
 const DRAFT_KEY = 'draft-only.png'
+const AVATAR_KEY = 'avatar-user.png'
+const RICHTEXT_KEY = 'richtext-img.png'
 
 describe('settings slice — storage (real D1)', () => {
   let harness: TestHarness
@@ -38,6 +40,19 @@ describe('settings slice — storage (real D1)', () => {
     const { id } = await created.json<{ id: string }>()
     const draft = await admin.put(`/api/content/posts/${id}/draft`, { image: `http://localhost/api/media/${key}` })
     if (draft.status !== 200) throw new Error(`draft save returned ${draft.status}: ${await draft.text()}`)
+  }
+
+  async function referenceFromRichtextBody(key: string): Promise<void> {
+    const created = await admin.post('/api/content/posts', {
+      title: 'Richtext owner',
+      body: `<p><img src="http://localhost/api/media/${key}"></p>`,
+    })
+    if (created.status !== 201) throw new Error(`content create returned ${created.status}: ${await created.text()}`)
+  }
+
+  async function referenceFromAvatar(key: string): Promise<void> {
+    const avatar = await admin.put('/api/settings/avatar', { avatarUrl: `http://localhost/api/media/${key}` })
+    if (avatar.status !== 200) throw new Error(`avatar save returned ${avatar.status}: ${await avatar.text()}`)
   }
 
   async function countTracked(keys: string[]): Promise<number> {
@@ -61,7 +76,8 @@ describe('settings slice — storage (real D1)', () => {
     })
     admin = await harness.asUser('admin')
     await harness.db.prepare('DELETE FROM media_objects').run()
-    await env.MEDIA_BUCKET.delete([ORPHAN_KEY, DRAFT_KEY])
+    await env.MEDIA_BUCKET.delete([ORPHAN_KEY, DRAFT_KEY, AVATAR_KEY, RICHTEXT_KEY])
+    await harness.db.prepare('UPDATE users SET avatar_url = NULL').run()
     await harness.db.prepare("UPDATE system_stats SET value = '1000' WHERE id = 'total_storage_bytes'").run()
     // The 51st upload lies beyond the old fixed 50-row scan.
     for (let index = 0; index < 51; index++) {
@@ -134,6 +150,30 @@ describe('settings slice — storage (real D1)', () => {
       const body = await response.json<{ type: string }>()
       expect(body.type).toBe('settings-storage-invalid-pagination')
     })
+
+    it('excludes an image embedded in a published post richtext body from the orphans (#736)', async () => {
+      await trackMedia(RICHTEXT_KEY, 9)
+      await referenceFromRichtextBody(RICHTEXT_KEY)
+
+      const response = await admin.get('/api/settings/storage')
+
+      expect(response.status).toBe(200)
+      const body = await response.json<StorageBody>()
+      expect(body.orphanTotal).toBe(51)
+      expect(body.orphans.map(file => file.key)).not.toContain(RICHTEXT_KEY)
+    })
+
+    it("excludes a user's active avatar from the orphans (#736)", async () => {
+      await trackMedia(AVATAR_KEY, 5)
+      await referenceFromAvatar(AVATAR_KEY)
+
+      const response = await admin.get('/api/settings/storage')
+
+      expect(response.status).toBe(200)
+      const body = await response.json<StorageBody>()
+      expect(body.orphanTotal).toBe(51)
+      expect(body.orphans.map(file => file.key)).not.toContain(AVATAR_KEY)
+    })
   })
 
   describe('POST /api/settings/storage/orphans/delete', () => {
@@ -163,6 +203,34 @@ describe('settings slice — storage (real D1)', () => {
       expect(await env.MEDIA_BUCKET.head(ORPHAN_KEY)).not.toBeNull()
       expect(await env.MEDIA_BUCKET.head(DRAFT_KEY)).not.toBeNull()
       expect(await countTracked([ORPHAN_KEY, DRAFT_KEY])).toBe(2)
+      expect(await storageCounter()).toBe(1000)
+    })
+
+    it("refuses to delete a key that is a user's active avatar (#736)", async () => {
+      await trackMedia(AVATAR_KEY, 5)
+      await referenceFromAvatar(AVATAR_KEY)
+
+      const response = await admin.post('/api/settings/storage/orphans/delete', { keys: [AVATAR_KEY] })
+
+      expect(response.status).toBe(409)
+      const body = await response.json<{ type: string; keys: string[] }>()
+      expect(body).toEqual({ type: 'settings-storage-orphan-referenced', keys: [AVATAR_KEY] })
+      expect(await env.MEDIA_BUCKET.head(AVATAR_KEY)).not.toBeNull()
+      expect(await countTracked([AVATAR_KEY])).toBe(1)
+      expect(await storageCounter()).toBe(1000)
+    })
+
+    it('refuses to delete a key embedded in a published richtext body (#736)', async () => {
+      await trackMedia(RICHTEXT_KEY, 9)
+      await referenceFromRichtextBody(RICHTEXT_KEY)
+
+      const response = await admin.post('/api/settings/storage/orphans/delete', { keys: [RICHTEXT_KEY] })
+
+      expect(response.status).toBe(409)
+      const body = await response.json<{ type: string; keys: string[] }>()
+      expect(body).toEqual({ type: 'settings-storage-orphan-referenced', keys: [RICHTEXT_KEY] })
+      expect(await env.MEDIA_BUCKET.head(RICHTEXT_KEY)).not.toBeNull()
+      expect(await countTracked([RICHTEXT_KEY])).toBe(1)
       expect(await storageCounter()).toBe(1000)
     })
 

@@ -13,19 +13,28 @@ function makeMockDb(allResults: unknown[] = []) {
   return { db: { prepare: prepareMock } as any, prepareMock, allMock }
 }
 
+function makeMockDbPerQuery(resultsBySql: Record<string, unknown[]>) {
+  const prepareMock = vi.fn((sql: string) => ({
+    all: vi.fn().mockResolvedValue({ results: resultsBySql[sql] ?? [] }),
+  }))
+  return { db: { prepare: prepareMock } as any, prepareMock }
+}
+
 describe('D1ContentScanRepository', () => {
-  it('returns empty set if seeds list is empty', async () => {
+  it('returns no seed-table keys for an empty seed list, but still scans users for avatars', async () => {
     const { db, prepareMock } = makeMockDb()
     const repo = new D1ContentScanRepository(db)
     const result = await repo.getReferencedMediaKeys([])
     expect(result.size).toBe(0)
-    expect(prepareMock).not.toHaveBeenCalled()
+    // `users` has no seed representation, so it is scanned unconditionally (#736).
+    expect(prepareMock).toHaveBeenCalledWith('SELECT avatar_url FROM users')
+    expect(prepareMock).toHaveBeenCalledTimes(1)
   })
 
-  it('skips seeds with no file branches', async () => {
+  it('skips seeds with no media-bearing branches, but still scans users for avatars', async () => {
     const { db, prepareMock } = makeMockDb()
     const repo = new D1ContentScanRepository(db)
-    const seedWithoutFile: Seed = {
+    const seedWithoutMedia: Seed = {
       slug: 'posts',
       label: 'Post',
       displayNameAlias: 'title',
@@ -33,9 +42,10 @@ describe('D1ContentScanRepository', () => {
         { id: 'br_01', alias: 'title', type: 'text', label: 'Title' },
       ],
     }
-    const result = await repo.getReferencedMediaKeys([seedWithoutFile])
+    const result = await repo.getReferencedMediaKeys([seedWithoutMedia])
     expect(result.size).toBe(0)
-    expect(prepareMock).not.toHaveBeenCalled()
+    expect(prepareMock).toHaveBeenCalledWith('SELECT avatar_url FROM users')
+    expect(prepareMock).toHaveBeenCalledTimes(1)
   })
 
   it('extracts referenced media keys from file columns', async () => {
@@ -146,5 +156,46 @@ describe('D1ContentScanRepository', () => {
 
     const result = await repo.getReferencedMediaKeys([seedWithFiles])
     expect(result).toEqual(new Set(['valid.jpg', 'another-valid.png']))
+  })
+
+  it('extracts referenced media keys embedded in richtext and json columns, not just file columns', async () => {
+    const { db, prepareMock } = makeMockDbPerQuery({
+      'SELECT cover, body, meta FROM content_articles': [
+        {
+          cover: '/api/media/cover.jpg',
+          body: '<p><img src="/api/media/embedded-richtext.png"></p>',
+          meta: '{"gallery":["/api/media/embedded-json.png"]}',
+        },
+      ],
+      'SELECT avatar_url FROM users': [],
+    })
+    const repo = new D1ContentScanRepository(db)
+    const seedWithMixedBranches: Seed = {
+      slug: 'articles',
+      label: 'Article',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'cover', type: 'file', label: 'Cover' },
+        { id: 'br_02', alias: 'body', type: 'richtext', label: 'Body' },
+        { id: 'br_03', alias: 'meta', type: 'json', label: 'Meta' },
+      ],
+    }
+
+    const result = await repo.getReferencedMediaKeys([seedWithMixedBranches])
+
+    expect(prepareMock).toHaveBeenCalledWith('SELECT cover, body, meta FROM content_articles')
+    expect(result).toEqual(new Set(['cover.jpg', 'embedded-richtext.png', 'embedded-json.png']))
+  })
+
+  it('protects an active user avatar from being reported as an orphan (#736)', async () => {
+    const { db, prepareMock } = makeMockDbPerQuery({
+      'SELECT avatar_url FROM users': [{ avatar_url: '/api/media/avatar-user.png' }, { avatar_url: null }],
+    })
+    const repo = new D1ContentScanRepository(db)
+
+    const result = await repo.getReferencedMediaKeys([])
+
+    expect(prepareMock).toHaveBeenCalledWith('SELECT avatar_url FROM users')
+    expect(result).toEqual(new Set(['avatar-user.png']))
   })
 })
