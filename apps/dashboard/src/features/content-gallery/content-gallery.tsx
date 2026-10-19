@@ -22,6 +22,14 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/small-cta"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 import type { FolderStyle } from "@beechcms/core"
 import type { GalleryCardDisplayModel } from "./gallery-card-display"
 import { GalleryCard } from "./gallery-components/gallery-card"
@@ -115,6 +123,62 @@ function GalleryPathBar({
   )
 }
 
+/**
+ * Page nav per il fetch server paginato (`query.pageIndex`/`pageCount`). Sempre visibile, anche con
+ * una sola pagina (freccia disabilitata), per coerenza con `DataTablePagination` della vista tabella.
+ */
+function GalleryPagination({
+  pageIndex,
+  pageCount,
+  onPageIndexChange,
+}: {
+  readonly pageIndex: number
+  readonly pageCount: number
+  readonly onPageIndexChange?: (index: number) => void
+}) {
+  const { t } = useTranslation()
+  const canPrevious = pageIndex > 0
+  const canNext = pageIndex < pageCount - 1
+  return (
+    <Pagination className="mt-4 ml-auto justify-end">
+      <PaginationContent>
+        <PaginationItem>
+          <PaginationPrevious
+            text={t("common.previous")}
+            href="#"
+            onClick={(e) => {
+              e.preventDefault()
+              if (canPrevious) onPageIndexChange?.(pageIndex - 1)
+            }}
+            className={canPrevious ? undefined : "pointer-events-none opacity-50"}
+          />
+        </PaginationItem>
+        <PaginationItem>
+          <PaginationLink
+            href="#"
+            isActive
+            onClick={(e) => e.preventDefault()}
+            className="pointer-events-none select-none tabular-nums"
+          >
+            {pageIndex + 1}
+          </PaginationLink>
+        </PaginationItem>
+        <PaginationItem>
+          <PaginationNext
+            text={t("common.next")}
+            href="#"
+            onClick={(e) => {
+              e.preventDefault()
+              if (canNext) onPageIndexChange?.(pageIndex + 1)
+            }}
+            className={canNext ? undefined : "pointer-events-none opacity-50"}
+          />
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
+  )
+}
+
 export function ContentGallery({
   seed,
   data,
@@ -125,6 +189,9 @@ export function ContentGallery({
   card,
   folders,
   onFoldersChange,
+  pageIndex = 0,
+  pageCount = 1,
+  onPageIndexChange,
 }: ContentGalleryProps) {
   const { t } = useTranslation()
   const { cardModels, categoryGroups, categoryAlias } = useContentGallery(seed, data, groupBy, formatElement, card)
@@ -189,7 +256,12 @@ export function ContentGallery({
         </Empty>
       )
     }
-    return <GalleryGrid models={cardModels} onOpen={onEdit} />
+    return (
+      <>
+        <GalleryGrid models={cardModels} onOpen={onEdit} />
+        <GalleryPagination pageIndex={pageIndex} pageCount={pageCount} onPageIndexChange={onPageIndexChange} />
+      </>
+    )
   }
 
   return (
@@ -239,6 +311,7 @@ export function ContentGallery({
           )}
         </section>
       )}
+      <GalleryPagination pageIndex={pageIndex} pageCount={pageCount} onPageIndexChange={onPageIndexChange} />
       {editingGroup && editingKey && (
         <FolderEditDialog
           open

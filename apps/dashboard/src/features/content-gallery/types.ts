@@ -23,4 +23,9 @@ export interface ContentGalleryProps {
   readonly folders?: Record<string, FolderStyle>
   /** Se presente le cartelle mostrano la matita di modifica. */
   readonly onFoldersChange?: (next: Record<string, FolderStyle> | undefined) => void
+  /** Pagina corrente lato server (0-based), da query.pageIndex. */
+  readonly pageIndex?: number
+  /** Totale pagine lato server, da query.pageCount. */
+  readonly pageCount?: number
+  readonly onPageIndexChange?: (index: number) => void
 }
