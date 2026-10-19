@@ -178,7 +178,9 @@ Stop at the first failure, fix it, and re-run from step 1.
    node "$MAIN/scripts/cpu-slot.mjs" -- pnpm turbo run type-check lint "--filter=...[origin/devs]" --concurrency=2
    ```
 3. **Test placement**: `node scripts/check-test-placement.mjs`.
-4. Dashboard changes: follow `_config/tooling_react_doctor.md` for the touched components.
+4. Dashboard changes: check the touched components yourself against the rules in `_config/tooling_react_doctor.md`, and apply any fix as part of your own edit, to the files you already touched, through the normal Edit flow.
+   **NEVER run `scripts/react-doctor-loop.mjs`, its `--full` variant, or the "Interactive Agent Prompt" option from that file, and never delegate this step to a spawned subagent.** That loop scans the whole changed set (not just your fix), fetches rules from an external URL, and spawns one independent Claude Code CLI subprocess per flagged file to edit it unattended. Observed on #748: it rewrote ~10 files with no relation to the issue (`tags.tsx`, `data-table-body.tsx`, `use-data-table-state.ts`, …) and created new files inside the worktree, entirely outside the invocation's scope, and had to be killed and reverted by hand.
+   If the manual read of `tooling_react_doctor.md` flags a real defect in a file you did NOT already touch for this fix, that is out of scope (ABSOLUTE RULE 8): leave it and file a follow-up issue (PHASE 5.4) instead of fixing it here.
 
 ### PHASE 7: COMMIT, PR, CI GATE
 1. Rebase onto the latest `devs`, then re-run PHASE 4.3 and PHASE 6.1 if the rebase touched your files:
