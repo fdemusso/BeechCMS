@@ -236,7 +236,7 @@ export function validateDashboardLayout(
         ...col,
         widgets: (col.widgets ?? []).filter((w) => {
           const seedSlug = (w.config ?? {})['seedSlug']
-          if (typeof seedSlug === 'string' && !ctx.seedSlugs.has(seedSlug)) {
+          if (typeof seedSlug === 'string' && seedSlug !== '' && !ctx.seedSlugs.has(seedSlug)) {
             warnings.push(
               `Widget '${w.type}' (id=${w.id}) removed: seed '${seedSlug}' is not registered.`,
             )
