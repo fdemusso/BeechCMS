@@ -117,4 +117,23 @@ describe("GalleryViewRenderer", () => {
     expect(handleEdit).toHaveBeenCalledWith(entry.id)
     expect(screen.queryByRole("dialog")).toBeNull()
   })
+
+  // Regression guard for #748: GalleryViewRenderer must wire query.pageIndex/pageCount/
+  // setPageIndex through to the gallery, otherwise entries past the fetched page are
+  // never reachable from this view.
+  it("wires query.pageIndex/pageCount/setPageIndex so Next advances the server page", () => {
+    const setPageIndex = vi.fn()
+    const props = makeProps({ query: makeQuery({ pageIndex: 1, pageCount: 3, setPageIndex }) })
+
+    render(
+      <MemoryRouter>
+        <GalleryViewRenderer {...props} />
+      </MemoryRouter>
+    )
+
+    screen.getByRole("link", { name: /Go to next page/i }).click()
+
+    expect(setPageIndex).toHaveBeenCalledTimes(1)
+    expect(setPageIndex).toHaveBeenCalledWith(2)
+  })
 })

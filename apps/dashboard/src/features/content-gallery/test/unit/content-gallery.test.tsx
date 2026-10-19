@@ -214,4 +214,87 @@ describe("ContentGallery", () => {
     expect(onEdit).toHaveBeenCalledTimes(1)
     expect(onEdit).toHaveBeenCalledWith("3")
   })
+
+  // Regression guard for #748: with no pagination control, entries past the fetched
+  // page were never reachable (pageCount > 1 means the server holds more rows than
+  // this `data` page carries).
+  it("con più pagine lato server mostra Next abilitato e lo chiama con l'indice successivo", () => {
+    const onPageIndexChange = vi.fn()
+    const data = [makeEntry("e1"), makeEntry("e2")]
+    renderGallery(
+      <ContentGallery
+        seed={seed}
+        data={data}
+        onEdit={vi.fn()}
+        groupBy={null}
+        pageIndex={0}
+        pageCount={5}
+        onPageIndexChange={onPageIndexChange}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("link", { name: /Go to next page/i }))
+
+    expect(onPageIndexChange).toHaveBeenCalledTimes(1)
+    expect(onPageIndexChange).toHaveBeenCalledWith(1)
+  })
+
+  it("sull'ultima pagina Next è disabilitato e il click non chiama onPageIndexChange", () => {
+    const onPageIndexChange = vi.fn()
+    const data = [makeEntry("e1")]
+    renderGallery(
+      <ContentGallery
+        seed={seed}
+        data={data}
+        onEdit={vi.fn()}
+        groupBy={null}
+        pageIndex={4}
+        pageCount={5}
+        onPageIndexChange={onPageIndexChange}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("link", { name: /Go to next page/i }))
+
+    expect(onPageIndexChange).not.toHaveBeenCalled()
+  })
+
+  it("sulla prima pagina Previous è disabilitato e il click non chiama onPageIndexChange", () => {
+    const onPageIndexChange = vi.fn()
+    const data = [makeEntry("e1")]
+    renderGallery(
+      <ContentGallery
+        seed={seed}
+        data={data}
+        onEdit={vi.fn()}
+        groupBy={null}
+        pageIndex={0}
+        pageCount={5}
+        onPageIndexChange={onPageIndexChange}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("link", { name: /Go to previous page/i }))
+
+    expect(onPageIndexChange).not.toHaveBeenCalled()
+  })
+
+  it("con categorie e più pagine lato server mostra comunque i controlli di paginazione", () => {
+    const onPageIndexChange = vi.fn()
+    renderGallery(
+      <ContentGallery
+        seed={seedWithCategory}
+        data={categorized}
+        onEdit={vi.fn()}
+        groupBy="categoria"
+        pageIndex={0}
+        pageCount={3}
+        onPageIndexChange={onPageIndexChange}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("link", { name: /Go to next page/i }))
+
+    expect(onPageIndexChange).toHaveBeenCalledWith(1)
+  })
 })
