@@ -85,7 +85,16 @@ describe("deleteContentView", () => {
 })
 
 describe("viewProblemType", () => {
-  it("returns the problem type of an Axios error", () => {
+  it("extracts the problem slug from a full RFC 9457 URI", () => {
+    const error = {
+      isAxiosError: true,
+      response: { data: { type: "https://beechcms.dev/problems/content-view-last-table" } },
+    }
+
+    expect(viewProblemType(error)).toBe("content-view-last-table")
+  })
+
+  it("returns the problem slug unchanged when raw", () => {
     const error = { isAxiosError: true, response: { data: { type: "content-view-last-table" } } }
 
     expect(viewProblemType(error)).toBe("content-view-last-table")
@@ -93,5 +102,11 @@ describe("viewProblemType", () => {
 
   it("returns null for a non-Axios error", () => {
     expect(viewProblemType(new Error("boom"))).toBeNull()
+  })
+
+  it("returns null when the response body is not a problem object", () => {
+    expect(viewProblemType({ isAxiosError: true, response: { data: null } })).toBeNull()
+    expect(viewProblemType({ isAxiosError: true, response: { data: {} } })).toBeNull()
+    expect(viewProblemType({ isAxiosError: true, response: { data: { type: 123 } } })).toBeNull()
   })
 })

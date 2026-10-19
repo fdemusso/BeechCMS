@@ -51,5 +51,5 @@ export function viewProblemType(error: unknown): string | null {
   if (!isAxiosError(error)) return null
   const data: unknown = error.response?.data
   if (typeof data !== "object" || data === null || !("type" in data)) return null
-  return typeof data.type === "string" ? data.type : null
+  return typeof data.type === "string" ? data.type.split("/").pop() ?? null : null
 }
