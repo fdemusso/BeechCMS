@@ -14,7 +14,7 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { isKanbanAxisRequired, type Branch, type KanbanMoveBody } from '@beechcms/core'
+import { isKanbanAxisRequired, kanbanColumnFilter, type Branch, type FilterGroup, type KanbanConfig, type KanbanMoveBody } from '@beechcms/core'
 import { moveKanbanCard } from '@/lib/content-api'
 import type { ContentListWithMeta } from '@/lib/content-api'
 import { positionBetween } from './fractional'
@@ -30,6 +30,9 @@ interface UseKanbanDragOptions {
   axisBranch: Branch
   canEdit: boolean
   activeSort: boolean
+  activeFilters: FilterGroup[]
+  search: string
+  sort: KanbanConfig['sort']
   dispatch: (action: KanbanBoardAction) => void
 }
 
@@ -38,16 +41,37 @@ export function isBlockedKanbanDrop(axisBranch: Branch, destColValue: string | n
   return !isSameColumn && destColValue === null && isKanbanAxisRequired(axisBranch)
 }
 
-function getCardsFromCache(
+/**
+ * Mirrors the queryKey useKanbanColumnQuery assigns a column's useInfiniteQuery
+ * cache entry. Must stay byte-identical to that key shape — a key that is only a
+ * prefix of it matches every stale cache entry left behind by a changed search or
+ * filter, not just the one the board is currently rendering (#753).
+ */
+function kanbanQueryKey(
+  seedSlug: string,
+  axisBranchId: string,
+  axisBranch: Branch,
+  colValue: string | null,
+  activeFilters: FilterGroup[],
+  search: string,
+  sort: KanbanConfig['sort'],
+): unknown[] {
+  const allFilters: FilterGroup[] = [kanbanColumnFilter(axisBranch, colValue), ...activeFilters]
+  return ['kanban', seedSlug, axisBranchId, colValue, allFilters, search, sort]
+}
+
+export function getCardsFromCache(
   queryClient: QueryClient,
   seedSlug: string,
   axisBranchId: string,
   axisBranch: Branch,
   colValue: string | null,
+  activeFilters: FilterGroup[],
+  search: string,
+  sort: KanbanConfig['sort'],
 ): KanbanCardDisplayModel[] {
-  const cached = queryClient.getQueriesData<InfiniteData<ContentListWithMeta>>({
-    queryKey: ['kanban', seedSlug, axisBranchId, colValue],
-  })
+  const queryKey = kanbanQueryKey(seedSlug, axisBranchId, axisBranch, colValue, activeFilters, search, sort)
+  const cached = queryClient.getQueriesData<InfiniteData<ContentListWithMeta>>({ queryKey })
   const cards: KanbanCardDisplayModel[] = []
   for (const [, data] of cached) {
     if (!data) continue
@@ -63,7 +87,7 @@ function getCardsFromCache(
 
   if (cacheUpdated) {
     queryClient.setQueriesData<InfiniteData<ContentListWithMeta>>(
-      { queryKey: ['kanban', seedSlug, axisBranchId, colValue] },
+      { queryKey },
       (old) => {
         if (!old) return old
         return {
@@ -116,7 +140,7 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
   }
 
   const onDragStart = useCallback((event: DragStartEvent) => {
-    const { canEdit, dispatch, seedSlug, axisBranchId, axisBranch } = optsRef.current
+    const { canEdit, dispatch, seedSlug, axisBranchId, axisBranch, activeFilters, search, sort } = optsRef.current
     if (!canEdit) return
     const entryId = String(event.active.id)
     activeIdRef.current = entryId
@@ -124,7 +148,7 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
     const activeData = event.active.data.current as Record<string, unknown> | undefined
     const srcColValue: string | null = (activeData?.colValue as string | null | undefined) ?? null
 
-    const cards = getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, srcColValue)
+    const cards = getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, srcColValue, activeFilters, search, sort)
     const card = cards.find(c => c.entryId === entryId)
 
     const snapshot: DragSnapshot = {
@@ -157,7 +181,7 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
       const snapshot = snapshotRef.current
       if (!entryId || !snapshot) return
 
-      const { seedSlug, axisBranchId, axisBranch, activeSort, dispatch } = optsRef.current
+      const { seedSlug, axisBranchId, axisBranch, activeSort, activeFilters, search, sort, dispatch } = optsRef.current
       const isSameColumn = overColValue === snapshot.sourceColValue
 
       // KB-U22b: same-column reorder disabled while sort is active — bail before
@@ -165,8 +189,8 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
       if (isSameColumn && activeSort) return
       if (isBlockedKanbanDrop(axisBranch, overColValue, isSameColumn)) return
 
-      const srcCards = getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, snapshot.sourceColValue)
-      const destCards = isSameColumn ? srcCards : getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, overColValue)
+      const srcCards = getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, snapshot.sourceColValue, activeFilters, search, sort)
+      const destCards = isSameColumn ? srcCards : getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, overColValue, activeFilters, search, sort)
 
       let before: string | null = null
       let after: string | null = null
@@ -202,7 +226,7 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
   }, [queryClient])
 
   const onDragEnd = useCallback(async (event: DragEndEvent) => {
-    const { seedSlug, axisBranchId, axisBranch, activeSort, dispatch } = optsRef.current
+    const { seedSlug, axisBranchId, axisBranch, activeSort, activeFilters, search, sort, dispatch } = optsRef.current
 
     const entryId = activeIdRef.current
     const snapshot = snapshotRef.current
@@ -241,8 +265,8 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
       return
     }
 
-    const srcCards = getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, srcColValue)
-    const destCards = isSameColumn ? srcCards : getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, destColValue)
+    const srcCards = getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, srcColValue, activeFilters, search, sort)
+    const destCards = isSameColumn ? srcCards : getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, destColValue, activeFilters, search, sort)
 
     // If the user drops on the ghost (over.id === entryId), the ghost isn't in the
     // cache yet — fall back to savedCommittedOverId (the real card the ghost appeared
