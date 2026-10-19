@@ -8,6 +8,7 @@ import { ContentKanban } from "./content-kanban"
 import { CardConfigDialog } from "./card-config-dialog"
 import { KanbanSettingsSection } from "./kanban-settings-section"
 import { useKanbanEntrySync } from "../hooks/use-kanban-entry-sync"
+import { toActiveFilters } from "../utils/kanban-filter-mapping"
 
 /** The Kanban View Type's renderer: hosts the board, its card-layout dialog and the entry-editor save sync. */
 export function KanbanViewRenderer({ seed, slug, query, layout, formatElement, entries, isSaving, configDialog }: ViewRendererProps) {
@@ -23,6 +24,11 @@ export function KanbanViewRenderer({ seed, slug, query, layout, formatElement, e
     [entries.subscribeSaved]
   )
 
+  const activeFilters = React.useMemo(
+    () => toActiveFilters(query.columnFilters, (query as { toolbarFilters?: Record<string, unknown> }).toolbarFilters),
+    [query.columnFilters, (query as { toolbarFilters?: Record<string, unknown> }).toolbarFilters]
+  )
+
   return (
     <>
       <ContentKanban
@@ -32,6 +38,7 @@ export function KanbanViewRenderer({ seed, slug, query, layout, formatElement, e
         onEdit={entries.handleEdit}
         onCreateEntry={entries.handleCreate}
         search={query.debouncedSearch.trim() || undefined}
+        activeFilters={activeFilters}
         kanbanConfig={layout.kanban}
         setKanbanConfig={layout.setKanban}
         cardConfig={layout.card}

@@ -2,21 +2,45 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { CANONICAL_SEEDS } from "@beechcms/testing"
+import type { Seed } from "@beechcms/core"
 import type { ViewEntryActions, ViewLayout, ViewQueryState, ViewRendererProps } from "@/features/shared"
 import { NO_ELEMENT_FORMATTER } from "@/lib/conditional-format"
-import { KanbanViewRenderer } from "../../components/kanban-view-renderer"
+
+vi.mock("@/lib/content-api", () => ({
+  fetchKanbanColumn: vi.fn(async () => ({ items: [], total: 0, page: 1, limit: 25 })),
+  moveKanbanCard: vi.fn(),
+}))
 
 vi.mock("@/features/shared/hooks/use-permissions", () => ({
   usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }),
 }))
 
+vi.mock("@/features/shared", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/shared")>()
+  return {
+    ...actual,
+    useLocalizeEntryData: () => (_seed: unknown, data: Record<string, unknown>) => data,
+  }
+})
+
+import { fetchKanbanColumn } from "@/lib/content-api"
+import { KanbanViewRenderer } from "../../components/kanban-view-renderer"
+
 // Canonical posts has allowDrafts: true, which is kanban-incompatible: ContentKanban renders its
 // notice and fetches nothing, so the renderer can be exercised without a live column query.
 const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts")!
+
+const requiredAxisPosts: Seed = {
+  ...posts,
+  allowDrafts: false,
+  branches: posts.branches.map((branch) =>
+    branch.id === "br_11" ? { ...branch, requiredOnUpdate: true } : branch
+  ),
+}
 
 function makeQuery(overrides: Partial<ViewQueryState> = {}): ViewQueryState {
   return {
@@ -80,7 +104,7 @@ function makeEntries(overrides: Partial<ViewEntryActions> = {}): ViewEntryAction
 }
 
 function renderWithClient(props: ViewRendererProps) {
-  const queryClient = new QueryClient()
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
       <KanbanViewRenderer {...props} />
@@ -103,6 +127,8 @@ function makeProps(overrides: Partial<ViewRendererProps> = {}): ViewRendererProp
 }
 
 describe("KanbanViewRenderer", () => {
+  beforeEach(() => vi.clearAllMocks())
+
   it("with configDialog.open true, renders the card-layout dialog; closing it calls configDialog.onOpenChange(false)", () => {
     const onOpenChange = vi.fn()
     renderWithClient(makeProps({ configDialog: { open: true, onOpenChange } }))
@@ -142,4 +168,39 @@ describe("KanbanViewRenderer", () => {
 
     expect(unsubscribe).toHaveBeenCalled()
   })
+
+  it("propagates activeFilters mapped from query.columnFilters to column queries", () => {
+    const props = makeProps({
+      seed: requiredAxisPosts,
+      layout: makeLayout({ kanban: { axisBranchId: "br_11", sort: null } }),
+      query: makeQuery({
+        columnFilters: [
+          {
+            id: "status",
+            value: {
+              columnId: "status",
+              type: "select",
+              conditions: [{ id: "c1", op: "eq", value: "published" }],
+            },
+          },
+        ],
+      }),
+    })
+
+    renderWithClient(props)
+
+    expect(fetchKanbanColumn).toHaveBeenCalledWith(
+      "posts",
+      expect.objectContaining({
+        filters: expect.arrayContaining([
+          expect.objectContaining({
+            column: "status",
+            type: "select",
+            conditions: expect.arrayContaining([{ op: "eq", value: "published" }]),
+          }),
+        ]),
+      })
+    )
+  })
 })
+
