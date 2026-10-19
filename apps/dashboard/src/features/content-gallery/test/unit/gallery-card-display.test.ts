@@ -11,6 +11,7 @@ import { CANONICAL_SEEDS } from "@beechcms/testing"
 import {
   getStatusBadgeVariant,
   resolveImageUrl,
+  toPlainText,
   buildGalleryCardDisplayModel,
 } from "@/features/content-gallery/gallery-card-display"
 import type { ResolvedCardFields } from "@/features/content-gallery/resolve-card-fields"
@@ -305,6 +306,121 @@ describe("buildGalleryCardDisplayModel", () => {
     expect(model.excerpt).not.toContain("<p>")
     expect(model.excerpt).toContain("Hello")
     expect(model.excerpt).toContain("world")
+  })
+
+  it("estrae testo pulito da TipTap AST nell'excerpt senza residui di chiavi o nodi AST (#747)", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("body", "richtext"),
+    }
+    const tiptapDoc = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Welcome to our blog." }],
+        },
+      ],
+    }
+    const entry = makeEntry({ data: { body: tiptapDoc } })
+    const model = buildModel(entry, branches)
+
+    expect(model.excerpt).toBe("Welcome to our blog.")
+    expect(model.excerpt).not.toContain("doc")
+    expect(model.excerpt).not.toContain("paragraph")
+    expect(model.excerpt).not.toContain("text")
+  })
+
+  it("estrae testo da TipTap AST con marks e attributi ignorando formattazione (#747)", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("body", "richtext"),
+    }
+    const tiptapDoc = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          attrs: { textAlign: "center" },
+          content: [
+            {
+              type: "text",
+              marks: [{ type: "bold" }],
+              text: "Welcome to our blog.",
+            },
+          ],
+        },
+      ],
+    }
+    const entry = makeEntry({ data: { body: tiptapDoc } })
+    const model = buildModel(entry, branches)
+
+    expect(model.excerpt).toBe("Welcome to our blog.")
+    expect(model.excerpt).not.toContain("center")
+    expect(model.excerpt).not.toContain("bold")
+  })
+
+  it("restituisce stringa vuota per TipTap AST vuoto (#747)", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("body", "richtext"),
+    }
+    const emptyDoc = { type: "doc", content: [] }
+    const emptyParagraphDoc = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [] }],
+    }
+
+    expect(buildModel(makeEntry({ data: { body: emptyDoc } }), branches).excerpt).toBe("")
+    expect(buildModel(makeEntry({ data: { body: emptyParagraphDoc } }), branches).excerpt).toBe("")
+  })
+
+  it("popola title da titleBranch contenente TipTap AST (#747)", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      titleBranch: makeBranch("title", "richtext"),
+    }
+    const tiptapDoc = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "My TipTap Title" }],
+        },
+      ],
+    }
+    const entry = makeEntry({ data: { title: tiptapDoc } })
+    const model = buildModel(entry, branches)
+
+    expect(model.title).toBe("My TipTap Title")
+    expect(model.ariaLabel).toContain("My TipTap Title")
+  })
+
+  it("toPlainText supporta TipTap envelope v1 e JSON string (#747)", () => {
+    const envelope = {
+      schemaVersion: 1,
+      doc: {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "Envelope text" }],
+          },
+        ],
+      },
+    }
+    expect(toPlainText(envelope)).toBe("Envelope text")
+
+    const json = JSON.stringify({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "JSON string text" }],
+        },
+      ],
+    })
+    expect(toPlainText(json)).toBe("JSON string text")
   })
 
   it("legge la categoria dal categoryBranch, stringa vuota se assente", () => {

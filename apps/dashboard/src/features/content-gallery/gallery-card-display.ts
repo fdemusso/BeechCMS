@@ -9,6 +9,7 @@ import type { ContentEntry } from "@/lib/dynamic-columns"
 import { shouldShowPendingDraftBadge } from "@/lib/pending-draft"
 import { resolveTagChips, type TagChipData } from "@/lib/tags-utils"
 import { NO_ELEMENT_FORMAT, type ElementFormat, type ElementStyle } from "@/lib/conditional-format"
+import { extractTextFromTiptap, isTipTapDoc } from "@/components/fields/display/richtext-plain"
 
 import type { ResolvedCardFields } from "./resolve-card-fields"
 
@@ -80,6 +81,9 @@ export function resolveImageUrl(value: unknown): string | null {
 }
 
 export function toPlainText(value: unknown): string {
+  if (isTipTapDoc(value)) {
+    return extractTextFromTiptap(value)
+  }
   if (typeof value === "string") {
     return value.replaceAll(/<[^>]*>/g, " ").replaceAll(/\s+/g, " ").trim()
   }
