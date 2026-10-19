@@ -14,7 +14,7 @@ interface KanbanCardProps {
   /** Display data model containing mapped slot fields and metadata. */
   model: KanbanCardDisplayModel
   /** Determines if the card details can be edited. */
-  canEdit: boolean
+  canEdit?: boolean
   /** Active status indicating if drag-and-drop sorting is currently occurring. */
   sortActive: boolean
   /** Callback fired when the card is clicked to edit. */
@@ -56,7 +56,7 @@ function SlotCell({ slot, maxLength, compact }: SlotCellProps) {
  */
 export const KanbanCard = React.memo(function KanbanCard({
   model,
-  canEdit,
+  canEdit: _canEdit,
   sortActive: _sortActive,
   onEdit,
   isDragging = false,
@@ -67,8 +67,8 @@ export const KanbanCard = React.memo(function KanbanCard({
     <button
       type="button"
       aria-label={model.title || model.entryId}
-      aria-disabled={(!canEdit || model.isPending) || undefined}
-      disabled={!canEdit || model.isPending}
+      aria-disabled={model.isPending || undefined}
+      disabled={model.isPending}
       className={cn(
         'flex h-full w-full flex-col gap-1.5 rounded-md border bg-card p-3 shadow-sm transition-all select-none text-left hover:shadow-md',
         model.isPending && 'opacity-60',

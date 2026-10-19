@@ -33,6 +33,17 @@ describe('KanbanCard — legacy render (no slots)', () => {
     expect(onEdit).toHaveBeenCalledWith('e-1')
   })
 
+  it('calls onEdit when clicked in read-only mode (canEdit=false)', () => {
+    const onEdit = vi.fn()
+    render(
+      <KanbanCard model={baseModel} canEdit={false} sortActive={false} onEdit={onEdit} />,
+    )
+    const button = screen.getByRole('button', { name: 'Test card' })
+    expect(button).not.toBeDisabled()
+    fireEvent.click(button)
+    expect(onEdit).toHaveBeenCalledWith('e-1')
+  })
+
   it('does not call onEdit when isDragging', () => {
     const onEdit = vi.fn()
     render(
@@ -50,12 +61,18 @@ describe('KanbanCard — legacy render (no slots)', () => {
     expect(screen.getByText('draft')).toBeTruthy()
   })
 
-  it('applies opacity class when isPending', () => {
+  it('disables button and applies opacity class when isPending', () => {
+    const onEdit = vi.fn()
     const model = { ...baseModel, isPending: true }
     const { container } = render(
-      <KanbanCard model={model} canEdit sortActive={false} onEdit={vi.fn()} />,
+      <KanbanCard model={model} canEdit sortActive={false} onEdit={onEdit} />,
     )
-    expect(container.querySelector('button')?.className).toContain('opacity-60')
+    const button = container.querySelector('button')
+    expect(button?.className).toContain('opacity-60')
+    expect(button).toBeDisabled()
+    expect(button?.getAttribute('aria-disabled')).toBe('true')
+    if (button) fireEvent.click(button)
+    expect(onEdit).not.toHaveBeenCalled()
   })
 
   it("puts the tone's card border class on the button when elementStyle is set", () => {
