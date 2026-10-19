@@ -30,9 +30,11 @@ interface SeedFormDialogProps {
 }
 
 // Adapter: SchemaFormShell is a controlled dialog driven by a view-model.
-// The hook must always run (stable hook order) â€” `open` only gates the shell.
+// The hook must always run (stable hook order) â€” `open` gates the shell AND
+// the hook's own dirty-guard/reset, since this component stays permanently
+// mounted (see useSeedEditorDialog).
 function SeedFormDialog({ open, editRecord, activeSeedsForRelation, onClose }: SeedFormDialogProps) {
-  const vm = useSeedEditorDialog({ editRecord, activeSeedsForRelation, onClose })
+  const vm = useSeedEditorDialog({ editRecord, activeSeedsForRelation, onClose, open })
   return <SchemaFormShell vm={vm} open={open} />
 }
 

@@ -19,6 +19,7 @@ export interface UseSeedEditorDialogProps {
   editRecord: SeedRecordDTO | null
   activeSeedsForRelation: Seed[]
   onClose: () => void
+  open: boolean
 }
 
 const NOOP = () => {}
@@ -27,6 +28,7 @@ export function useSeedEditorDialog({
   editRecord,
   activeSeedsForRelation,
   onClose,
+  open,
 }: UseSeedEditorDialogProps): SchemaFormViewModel {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -51,6 +53,20 @@ export function useSeedEditorDialog({
     setPrevEditRecord(editRecord)
     setFormData(seedToFormData(editRecord))
     setIsDirty(false)
+  }
+
+  // The create dialog stays permanently mounted (stable hook order — see
+  // SeedBuilderPage's SeedFormDialog adapter), so `editRecord` never changes
+  // identity across opens: the reset above never fires for it. Closing must
+  // reset on its own, keyed off `open`, or a dirty create form stays dirty
+  // forever and keeps tripping the navigation blocker after Cancel.
+  const [prevOpen, setPrevOpen] = React.useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (!open) {
+      setFormData(seedToFormData(editRecord))
+      setIsDirty(false)
+    }
   }
 
   const branchAliasOptions = React.useMemo(
@@ -81,7 +97,7 @@ export function useSeedEditorDialog({
     setIsDirty(true)
   }, [])
 
-  const blocker = useBlocker(() => isDirty)
+  const blocker = useBlocker(() => open && isDirty)
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
