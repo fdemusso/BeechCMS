@@ -25,6 +25,9 @@ export function GalleryViewRenderer({ seed, query, entries, layout, formatElemen
       card={layout.card}
       folders={layout.folders}
       onFoldersChange={layout.setFolders}
+      pageIndex={query.pageIndex}
+      pageCount={query.pageCount}
+      onPageIndexChange={query.setPageIndex}
     />
     <CardConfigDialog
       open={configDialog.open}
