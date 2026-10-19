@@ -1,162 +1,81 @@
 ![beechLogoDark.png](../docs/public/images/beechLogoDark.png)
 
-**BeechCMS** is a precision-engineered, solo-developer headless CMS built for developers who deliver high-performance websites for clients with **zero infrastructure overhead**.
+# BeechCMS
 
-The pitch is simple: you build the site, you hand it over, and your client can manage their own content forever — with **zero hosting costs**. No monthly subscriptions, no server bills, no maintenance contract needed just to keep the lights on.
+**A headless CMS your client can run for $0 a month.**
 
-This is possible because BeechCMS runs entirely on **Cloudflare's free tier** — Workers for the API, D1 (SQLite at the edge) for the database, and R2 for media storage. A Cloudflare account is all the infrastructure a client ever needs.
+You build the site. You hand it over. Your client edits their own content for as long as they like, on their own Cloudflare account, with no hosting bill and no maintenance contract.
 
----
+BeechCMS runs entirely on Cloudflare: Workers for the API, D1 (SQLite at the edge) for the database, R2 for media. For most content sites that fits inside the free tier.
+
+**See it running:** [a construction company's website](https://impresa-edile-web.demusso1617.workers.dev). Its blog, photos and content are all managed through BeechCMS, on the free tier. A read-only guest login for the dashboard is in progress, so you will be able to look around the back office too.
 
 > [!WARNING]
->
-> **BeechCMS is currently in Beta** and is undergoing its initial phases of review and case-study testing. 
-> 
-> * **Known Risks:** The software contains known security vulnerabilities, risks of data loss, and is completely **untested in production environments**.
-> * **Liability:** We accept absolutely no responsibility or liability for any damages or data loss. The software has not yet reached the security and stability standards required for production use.
-> * **Intended Use:** Use is strictly recommended for **evaluation and MVP (Minimum Viable Product) testing purposes only**.
-> 
-> **CRITICAL REQUIREMENT:** If you still choose to deploy or use BeechCMS, you **MUST** keep the software constantly updated to the latest commit/release to mitigate emerging risks.
-
-## Why Beech?
-
-### Zero running costs for your clients
-
-Cloudflare's free tier covers D1, R2, and Workers for the vast majority of real-world content sites. You deliver a fully self-managed product — dashboard, API, media uploads — and the client pays nothing to keep it running. That's a compelling offer.
-
-### Native SQL Performance
-Unlike other "flexible" CMSs that store data in slow JSON blobs, Beech generates **dedicated SQL tables** for every content type. Enjoy native B-Tree indexing, `REAL` and `INTEGER` types for mathematical operations, and ultra-fast queries.
-
-### Schema-as-Code & Runtime Definitions
-Define your content model dynamically via the dashboard UI or in code (TypeScript). The **Botanical Engine** compiles your definitions into deterministic SQL DDL at runtime. Initialize your database system tables using `npx beech onboard` or `npx beech init --db`, then manage your content models dynamically via the dashboard or REST API—with real-time updates and zero server downtime.
-
-### Works as a dependency, not a boilerplate
-
-Your project is lightweight and focused purely on configuration. The BeechCMS engine, dashboard, and API live inside `@beechcms/api`. Update effortlessly with `npx beech update`.
-
----
-
-## Getting Started
-
-Scaffold a new project in seconds using the interactive wizard:
+> **Beta.** BeechCMS runs one live client site today, but it is still in Beta. 1.0 is almost here, and I want it to be perfect. Until then, known security vulnerabilities and data-loss risks are still open, and there is no warranty or liability. The recommended use is evaluation and MVPs. Pin a version, keep a D1 export, and update to the latest release to pick up fixes. Found a security problem? Report it privately through the Security tab of this repository.
+## Quick start
 
 ```bash
 npx @beechcms/cms my-app
 ```
 
-Or scaffold non-interactively with the starter template:
+The wizard scaffolds the project. Add `--yes` to skip it and use the starter template.
+
+Then create the database tables:
 
 ```bash
-npx @beechcms/cms my-app --yes
+npx beech onboard
 ```
 
-For everything from configuration to deployment, see the **[Developer Guide](https://fdemusso.github.io/BeechCMS/guide)**.
+`npx beech init --db` does the same job. From there, the [docs](https://fdemusso.github.io/BeechCMS/start/) take you through configuration and deployment.
 
----
+## Why Beech
 
-## Live Showcase
+### Your client pays nothing to keep it running
 
-Want to see BeechCMS in action?
+Cloudflare's free tier covers Workers, D1 and R2 for most content sites. The client gets a dashboard, an API and media uploads, all self-managed. The only account they need is a Cloudflare one.
 
-We are currently working on granular account permissions (read-only / guest access) so you'll soon be able to log directly into the BeechCMS dashboard as a guest and explore the backoffice safely without making changes. 
+### Real SQL tables, not JSON blobs
 
-In the meantime, you can explore the live frontend site whose content, blog, and media are completely managed through BeechCMS:
+Most flexible CMSs store content as JSON blobs. BeechCMS compiles every content type into its own D1 table. You get native B-Tree indexes, REAL and INTEGER columns you can do math on, CHECK constraints for data integrity, and FTS5 full-text search.
 
-👉 **[Live Showcase: Construction Company Website](https://impresa-edile-web.demusso1617.workers.dev)**
+### Define your models in the dashboard or in TypeScript
 
-*(Running 100% on Cloudflare's free tier — Workers + D1 + R2 — with zero monthly infrastructure costs)*
+Content types are seeds, fields are branches, entries are fruit. Create them in the dashboard or write them in TypeScript. The Botanical Engine, our schema compiler, turns either one into SQL at runtime, so you never write that SQL by hand.
 
----
+### A dependency, not a boilerplate
 
-## The Botanical Engine
+Your project holds configuration and nothing else. The engine, the dashboard and the API live in `@beechcms/api`, and updating is one command: `npx beech update`.
 
-The heart of BeechCMS is the **Botanical Engine**, a high-performance **Schema Compiler** that bridges the gap between TypeScript definitions and SQL infrastructure.
+## Built with
 
-Instead of generic document storage, the Engine analyzes your **Seeds** (content types) and compiles them into **dedicated SQL tables** within Cloudflare D1. Every field you define becomes a native, type-safe SQL column, allowing for:
+Cloudflare Workers (V8 isolates), Hono v4, D1, R2, React 19 with Vite 7, Tailwind CSS v4 with shadcn/ui, TanStack Query v5, TipTap v3, Zod v4, `jose` JWT with bcryptjs for auth, Turborepo v2 and Vitest v3. The shared engine, types and validation live in `@beechcms/core`.
 
-- **Native Performance**: Real B-Tree indices and FTS5 virtual tables for ultra-fast filtering and full-text search.
-- **Data Integrity**: Native SQL types (REAL, INTEGER, TEXT) with CHECK constraints for robust data handling.
-- **Zero-Manual SQL**: Deterministic DDL generation—defined in code or via the UI, and the Engine handles the database synchronization at runtime.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Edge runtime | Cloudflare Workers (V8 Isolates) |
-| API framework | Hono v4 |
-| Database | Cloudflare D1 (SQLite at the edge) |
-| Object storage | Cloudflare R2 (zero egress cost) |
-| Shared logic | `@beechcms/core` — Botanical Engine, types, validation |
-| Dashboard | React 19 + Vite 7 |
-| UI | Tailwind CSS v4 + Shadcn/ui |
-| Server state | TanStack Query v5 |
-| Rich text | TipTap v3 + KaTeX |
-| Auth | `jose` JWT + bcryptjs |
-| Validation | Zod v4 |
-| Testing | Vitest v3 |
-| Build orchestration | Turborepo v2 |
-
-
----
 ## Documentation
 
-**Full Documentation & Guides**: **[https://fdemusso.github.io/BeechCMS/](https://fdemusso.github.io/BeechCMS/)**
+Full docs: https://fdemusso.github.io/BeechCMS/
 
-| Guide | Description |
-|---|---|
-| [Getting Started](https://fdemusso.github.io/BeechCMS/guide) | End-to-end guide: installation, setup, seeds, and deployment |
-| [First Project](https://fdemusso.github.io/BeechCMS/first-project) | Step-by-step tutorial to create and deploy your first project |
-| [Architecture](https://fdemusso.github.io/BeechCMS/architecture) | Monorepo topology, Botanical Engine data flow, and D1 SQL model |
-| [Content API & SDK](https://fdemusso.github.io/BeechCMS/content-api) | Public REST API, query filtering DSL, and TypeScript SDK |
-| [Custom Widgets](https://fdemusso.github.io/BeechCMS/custom-widgets) | Authoring and registering custom dashboard widgets |
-| [Automations](https://fdemusso.github.io/BeechCMS/automations) | Triggers, webhooks, Resend email workflows, and template grammar |
-| [REST API Reference](https://fdemusso.github.io/BeechCMS/api-reference) | Complete REST API endpoint reference |
-| [System Map](../_config/SYSTEM_MAP.md) | Internal folder structure, dependency stack, and non-negotiable constraints |
+- [Start with BeechCMS](https://fdemusso.github.io/BeechCMS/start/): installation and core concepts.
+- [Your first project](https://fdemusso.github.io/BeechCMS/start/first-project.html): a step-by-step tutorial.
+- [Features](https://fdemusso.github.io/BeechCMS/features/): what the engine does.
+- [Reference](https://fdemusso.github.io/BeechCMS/reference/): API and configuration details.
+- [System map](https://github.com/fdemusso/BeechCMS/blob/master/_config/SYSTEM_MAP.md): folder structure, dependencies and the rules the codebase keeps.
 
----
-# Faq about BeechCMS
-## Why "Beech"?
+## Why I built this
 
-One afternoon I was staring at half a CMS with no name. I'd spent weeks building my desk setup — monitors, peripherals, the works — and the last thing I added was a beech wood desktop. I cut it, shaped it, sanded it, finished it until it was exactly right.
+In 2025 I lost a €2,000 contract for a React website for a construction company. They needed a blog with photos of new builds and a contact form. WordPress had already burned them once, and every other option meant a dedicated backend, hosting and a managed database. The running costs pushed my quote above what a bigger agency with its own tooling could offer.
 
-I was sitting at that desk trying to think of a name, looked to the side, and saw the wood. Beech. And then it clicked — seeds, branches, the forest, the fruit. The whole metaphor was already there in the project: content types are seeds, fields are branches, the data that grows from them is the fruit. The name took about three seconds.
+So I built the CMS I needed. Workers, D1 and R2 on Cloudflare's free tier made the whole backend free to run. BeechCMS is my first serverless project: I learned Workers and D1 by building it, and it is heading toward a public 1.0.
 
-Sometimes the best names aren't invented. They're found.
-
-## Why I Built This
-
-In 2025 I lost a €2,000 contract for a React showcase site for a construction company. The client needed two things beyond a static site: a blog where they could post photos of new builds, and a contact form. Simple requests — but they turned the project into a problem.
-
-The tools that existed were either too heavy (WordPress, which the client had already had a bad experience with), too expensive once you added hosting and a managed database, or simply not designed to work alongside a modern React frontend without standing up a dedicated backend. The monthly running costs pushed my quote above what a larger agency — one that already had its own internal tooling — could offer. I lost the contract.
-
-That was the moment I understood the real gap. Small agencies and freelancers don't lose on talent or quality. They lose because they don't have the same leverage as larger competitors who've already amortized the cost of building their own CMS. I decided to build mine.
-
-**Why Cloudflare?** I was already looking for an alternative to Vercel that didn't require a paid plan for commercial projects. When I discovered that Cloudflare's free tier included not just Workers but also D1 (a relational database at the edge) and R2 (S3-compatible object storage), the whole architecture became clear. A full CMS backend — API, database, media storage, auth — with zero monthly cost for the client.
-
-**Why the Botanical Engine?** I built the Botanical Engine as a high-performance **Schema Compiler**. It bridges the gap between the flexibility of a CMS and the power of a relational database. Instead of storing data in generic blobs, it compiles TypeScript definitions into native SQL tables and columns. This ensures rigid data integrity (crucial for things like financial records) and unlocks massive performance gains by leveraging native D1 indexing. This true relational model maintains the simplicity of "Schema-as-Code" while allowing for advanced features like cross-seed relations and complex aggregations.
-
-**What I learned building it.** BeechCMS is my first serious serverless project. I had no prior experience with Cloudflare Workers, edge computing, or D1. Everything I know about this stack I learned by building this — reading documentation, hitting limits, understanding why they exist, and finding the right abstractions. The project is currently in active development toward a public 1.0 release and is already available on [Npm](https://www.npmjs.com/org/beechcms).
-
----
-
-_BeechCMS — Precision-engineered content infrastructure for the edge._
-
+The name came from the beech wood desktop I had just finished building, while I was staring at a CMS with no name. Then the model fell into place: seeds, branches, fruit.
 
 ## Licensing
 
 | Package | License | Details |
 |---|---|---|
 | `@beechcms/core` | MIT | Free for any use, including commercial |
-| `apps/api` | BUSL-1.1 | Free for self-hosting; see Additional Use Grant |
-| `apps/dashboard` | BUSL-1.1 | Free for self-hosting; see Additional Use Grant |
+| `apps/api` | BUSL-1.1 | Free for self-hosting; see the Additional Use Grant |
+| `apps/dashboard` | BUSL-1.1 | Free for self-hosting; see the Additional Use Grant |
 
-**Self-hosting is always free.**  
-The BUSL-1.1 only restricts offering BeechCMS as a managed SaaS service
-in direct competition with BeechCMS Cloud.  
-After 2030-05-26, these components convert automatically to GPL v2+.
+Self-hosting is always free. The BUSL-1.1 only restricts offering BeechCMS as a managed SaaS service in direct competition with BeechCMS Cloud. After 2030-05-26, these components convert automatically to GPL v2+.
 
-For commercial licensing inquiries: demusso1617@gmail.com
-
-For more detailed information, see our [Licensing Guide](../docs/LICENSING.md).
+More detail in the [licensing guide](https://github.com/fdemusso/BeechCMS/blob/master/docs/LICENSING.md). For commercial licensing inquiries: demusso1617@gmail.com
