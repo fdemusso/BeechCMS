@@ -10,10 +10,11 @@ import type { MetaSelectBranch } from "@/components/fields/types"
 
 const mockNavigate = vi.fn()
 const mockBlocker = { state: "unblocked" as const, reset: vi.fn(), proceed: vi.fn() }
+const mockUseBlocker = vi.fn((_shouldBlock: () => boolean) => mockBlocker)
 
 vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
-  useBlocker: () => mockBlocker,
+  useBlocker: (shouldBlock: () => boolean) => mockUseBlocker(shouldBlock),
 }))
 
 const mockToastSuccess = vi.fn()
@@ -69,6 +70,7 @@ describe("useSeedEditorDialog", () => {
       editRecord: null,
       activeSeedsForRelation: [],
       onClose: vi.fn(),
+      open: true,
     }))
 
     expect(result.current.isCreate).toBe(true)
@@ -85,6 +87,7 @@ describe("useSeedEditorDialog", () => {
       editRecord,
       activeSeedsForRelation: [],
       onClose: vi.fn(),
+      open: true,
     }))
 
     expect(result.current.isCreate).toBe(false)
@@ -98,6 +101,7 @@ describe("useSeedEditorDialog", () => {
       editRecord,
       activeSeedsForRelation: [],
       onClose: vi.fn(),
+      open: true,
     }))
 
     expect((result.current.branchById[META.displayNameAlias] as MetaSelectBranch | undefined)?.selectOptions).toEqual(["title", "body"])
@@ -109,6 +113,7 @@ describe("useSeedEditorDialog", () => {
       editRecord: null,
       activeSeedsForRelation: [],
       onClose,
+      open: true,
     }))
 
     act(() => {
@@ -138,6 +143,7 @@ describe("useSeedEditorDialog", () => {
       editRecord,
       activeSeedsForRelation: [],
       onClose,
+      open: true,
     }))
 
     act(() => {
@@ -163,6 +169,7 @@ describe("useSeedEditorDialog", () => {
       editRecord,
       activeSeedsForRelation: [],
       onClose,
+      open: true,
     }))
 
     act(() => {
@@ -189,6 +196,7 @@ describe("useSeedEditorDialog", () => {
       editRecord: null,
       activeSeedsForRelation: [],
       onClose,
+      open: true,
     }))
 
     act(() => {
@@ -205,5 +213,43 @@ describe("useSeedEditorDialog", () => {
     // must not pile a second, generic toast on top, and must keep the dialog open.
     expect(mockToastSuccess).not.toHaveBeenCalled()
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it("gates the blocker by `open` and clears dirty state when the create dialog closes (#771)", () => {
+    const onClose = vi.fn()
+    const { result, rerender } = renderHook(
+      (props: { open: boolean }) => useSeedEditorDialog({
+        editRecord: null,
+        activeSeedsForRelation: [],
+        onClose,
+        open: props.open,
+      }),
+      { initialProps: { open: true } }
+    )
+
+    act(() => {
+      result.current.handleInputChange("label", "Blog")
+    })
+
+    const shouldBlockWhileOpen = mockUseBlocker.mock.calls.at(-1)?.[0] as () => boolean
+    expect(shouldBlockWhileOpen()).toBe(true)
+
+    // SeedBuilderPage keeps SeedFormDialog permanently mounted for stable hook
+    // order (sprint 09) — Cancel only flips `open` to false. Without gating the
+    // blocker on `open` and resetting on close, the dirty flag survives forever
+    // and traps every later navigation (#771).
+    rerender({ open: false })
+
+    const shouldBlockAfterClose = mockUseBlocker.mock.calls.at(-1)?.[0] as () => boolean
+    expect(shouldBlockAfterClose()).toBe(false)
+    expect(result.current.formData.label).toBe("")
+
+    // Re-opening "+ New content type" must start from a clean form, not the
+    // stale input from the cancelled attempt.
+    rerender({ open: true })
+
+    expect(result.current.formData.label).toBe("")
+    const shouldBlockOnReopen = mockUseBlocker.mock.calls.at(-1)?.[0] as () => boolean
+    expect(shouldBlockOnReopen()).toBe(false)
   })
 })
