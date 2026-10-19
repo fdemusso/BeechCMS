@@ -51,7 +51,11 @@ export function QuickDraftWidget({
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  const selectedSeedOption = seeds.find(s => s.slug === selectedSeed)
+  const effectiveSeed = (selectedSeed && seeds.some(s => s.slug === selectedSeed))
+    ? selectedSeed
+    : (seeds[0]?.slug ?? "")
+
+  const selectedSeedOption = seeds.find(s => s.slug === effectiveSeed)
   const nameAlias = selectedSeedOption?.displayNameAlias ?? "title"
   const nameLabel = t(`dashboard.widgets.quickDraft.fieldLabels.${nameAlias}`, {
     defaultValue: selectedSeedOption?.displayNameLabel ?? nameAlias,
@@ -59,11 +63,11 @@ export function QuickDraftWidget({
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
-      const res = await api.post<{ id: string }>(`/content/${selectedSeed}`, {
+      const res = await api.post<{ id: string }>(`/content/${effectiveSeed}`, {
         status: "draft",
         [nameAlias]: title,
       })
-      return { id: res.data.id, seedSlug: selectedSeed }
+      return { id: res.data.id, seedSlug: effectiveSeed }
     },
     onSuccess: ({ id, seedSlug }) => {
       queryClient.invalidateQueries({ queryKey: ["content"] })
@@ -85,7 +89,7 @@ export function QuickDraftWidget({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setErrorMsg(null)
-    if (!title.trim() || !selectedSeed) return
+    if (!title.trim() || !effectiveSeed) return
     mutate()
   }
 
@@ -138,9 +142,9 @@ export function QuickDraftWidget({
               variant === "expanded" ? "w-full space-y-1" : "flex-1 min-w-0 sm:w-28 sm:shrink-0 sm:flex-none"
             )}>
               {variant === "expanded" && <label className="text-xs text-muted-foreground">{t("dashboard.widgets.quickDraft.type")}</label>}
-              <Select value={selectedSeed} onValueChange={setSelectedSeed}>
+              <Select value={effectiveSeed} onValueChange={setSelectedSeed}>
                 <SelectTrigger className="h-8 text-sm w-full overflow-hidden">
-                  <span className="truncate block">{seeds.find(s => s.slug === selectedSeed)?.label ?? t("dashboard.widgets.quickDraft.type")}</span>
+                  <span className="truncate block">{selectedSeedOption?.label ?? t("dashboard.widgets.quickDraft.type")}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {seeds.map((s) => (
@@ -150,14 +154,14 @@ export function QuickDraftWidget({
               </Select>
             </div>
             {variant === "minimal" && (
-              <Button type="submit" size="sm" disabled={isPending || !title.trim()} className="shrink-0 h-8">
+              <Button type="submit" size="sm" disabled={isPending || !title.trim() || !effectiveSeed} className="shrink-0 h-8">
                 {isPending ? "…" : t("dashboard.widgets.quickDraft.create")}
               </Button>
             )}
           </div>
         </div>
         {variant === "expanded" && (
-          <Button type="submit" size="sm" disabled={isPending || !title.trim()} className="w-full h-8">
+          <Button type="submit" size="sm" disabled={isPending || !title.trim() || !effectiveSeed} className="w-full h-8">
             {isPending ? t("dashboard.widgets.quickDraft.creating") : t("dashboard.widgets.quickDraft.createDraft")}
           </Button>
         )}
