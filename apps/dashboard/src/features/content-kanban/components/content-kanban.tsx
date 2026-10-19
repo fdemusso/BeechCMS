@@ -223,6 +223,9 @@ export function ContentKanban({
     axisBranch: axisBranch!,
     canEdit: DEFAULT_CAN_EDIT,
     activeSort,
+    activeFilters,
+    search,
+    sort: kanbanConfig.sort,
     dispatch,
   })
 
