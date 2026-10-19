@@ -86,27 +86,42 @@ describe("deleteContentView", () => {
 
 describe("viewProblemType", () => {
   it("extracts the problem slug from a full RFC 9457 URI", () => {
+    // Regression guard: BeechCMS API wraps problem types via normalizeProblemType into full URIs
+    // (e.g. https://beechcms.dev/problems/content-view-last-table), while dashboard call sites
+    // compare against bare problem slugs.
     const error = {
       isAxiosError: true,
       response: { data: { type: "https://beechcms.dev/problems/content-view-last-table" } },
     }
 
-    expect(viewProblemType(error)).toBe("content-view-last-table")
+    const result = viewProblemType(error)
+
+    expect(result).toBe("content-view-last-table")
   })
 
-  it("returns the problem slug unchanged when raw", () => {
+  it("returns the problem slug unchanged when given a bare slug", () => {
     const error = { isAxiosError: true, response: { data: { type: "content-view-last-table" } } }
 
-    expect(viewProblemType(error)).toBe("content-view-last-table")
+    const result = viewProblemType(error)
+
+    expect(result).toBe("content-view-last-table")
   })
 
   it("returns null for a non-Axios error", () => {
-    expect(viewProblemType(new Error("boom"))).toBeNull()
+    const error = new Error("boom")
+
+    const result = viewProblemType(error)
+
+    expect(result).toBeNull()
   })
 
-  it("returns null when the response body is not a problem object", () => {
-    expect(viewProblemType({ isAxiosError: true, response: { data: null } })).toBeNull()
-    expect(viewProblemType({ isAxiosError: true, response: { data: {} } })).toBeNull()
-    expect(viewProblemType({ isAxiosError: true, response: { data: { type: 123 } } })).toBeNull()
+  it.each([
+    ["null response data", { isAxiosError: true, response: { data: null } }],
+    ["empty response object", { isAxiosError: true, response: { data: {} } }],
+    ["non-string problem type", { isAxiosError: true, response: { data: { type: 123 } } }],
+  ])("returns null when the response body is %s", (_, error) => {
+    const result = viewProblemType(error)
+
+    expect(result).toBeNull()
   })
 })

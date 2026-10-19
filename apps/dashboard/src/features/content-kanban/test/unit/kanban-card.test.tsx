@@ -29,18 +29,24 @@ describe('KanbanCard — legacy render (no slots)', () => {
     render(
       <KanbanCard model={baseModel} canEdit sortActive={false} onEdit={onEdit} />,
     )
+
     fireEvent.click(screen.getByRole('button', { name: 'Test card' }))
+
     expect(onEdit).toHaveBeenCalledWith('e-1')
   })
 
-  it('calls onEdit when clicked in read-only mode (canEdit=false)', () => {
+  // Regression guard: read-only users (lacking content:update) must still inspect entries.
+  // The card button must not be disabled by canEdit=false.
+  it('calls onEdit when clicked while canEdit is false', () => {
     const onEdit = vi.fn()
     render(
       <KanbanCard model={baseModel} canEdit={false} sortActive={false} onEdit={onEdit} />,
     )
     const button = screen.getByRole('button', { name: 'Test card' })
-    expect(button).not.toBeDisabled()
+
     fireEvent.click(button)
+
+    expect(button).not.toBeDisabled()
     expect(onEdit).toHaveBeenCalledWith('e-1')
   })
 
@@ -49,7 +55,9 @@ describe('KanbanCard — legacy render (no slots)', () => {
     render(
       <KanbanCard model={baseModel} canEdit sortActive={false} onEdit={onEdit} isDragging />,
     )
+
     fireEvent.click(screen.getByRole('button', { name: 'Test card' }))
+
     expect(onEdit).not.toHaveBeenCalled()
   })
 
@@ -58,20 +66,31 @@ describe('KanbanCard — legacy render (no slots)', () => {
     render(
       <KanbanCard model={model} canEdit sortActive={false} onEdit={vi.fn()} />,
     )
+
     expect(screen.getByText('draft')).toBeTruthy()
   })
 
-  it('disables button and applies opacity class when isPending', () => {
-    const onEdit = vi.fn()
+  it('applies opacity class when isPending', () => {
     const model = { ...baseModel, isPending: true }
     const { container } = render(
+      <KanbanCard model={model} canEdit sortActive={false} onEdit={vi.fn()} />,
+    )
+
+    expect(container.querySelector('button')?.className).toContain('opacity-60')
+  })
+
+  it('disables the button and ignores clicks when isPending is true', () => {
+    const onEdit = vi.fn()
+    const model = { ...baseModel, isPending: true }
+    render(
       <KanbanCard model={model} canEdit sortActive={false} onEdit={onEdit} />,
     )
-    const button = container.querySelector('button')
-    expect(button?.className).toContain('opacity-60')
+    const button = screen.getByRole('button', { name: 'Test card' })
+
+    fireEvent.click(button)
+
     expect(button).toBeDisabled()
-    expect(button?.getAttribute('aria-disabled')).toBe('true')
-    if (button) fireEvent.click(button)
+    expect(button.getAttribute('aria-disabled')).toBe('true')
     expect(onEdit).not.toHaveBeenCalled()
   })
 
