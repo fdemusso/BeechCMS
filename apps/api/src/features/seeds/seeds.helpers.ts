@@ -425,10 +425,17 @@ export function validateIncomingBranches(incomingBranches: Branch[], storedBranc
  * id would let a new definition inherit the physical column of a dropped one).
  */
 export function assignMissingBranchIds(branches: Branch[], storedBranches: Branch[] = []): void {
+  const storedByAlias = new Map(storedBranches.map(branch => [branch.alias, branch]))
   const taken = [...storedBranches, ...branches.filter(branch => branch.id)]
   for (const branch of branches) {
-    if (branch.id) continue
-    branch.id = nextBranchId({ branches: taken })
-    taken.push(branch)
+    if (!branch.id) {
+      const match = storedByAlias.get(branch.alias)
+      branch.id = match?.id || nextBranchId({ branches: taken })
+      taken.push(branch)
+    }
+    if (Array.isArray(branch.fields)) {
+      const match = storedByAlias.get(branch.alias)
+      assignMissingBranchIds(branch.fields, match?.fields ?? [])
+    }
   }
 }

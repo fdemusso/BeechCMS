@@ -309,7 +309,7 @@ export type FilterOperator =
   | 'has_all_tags'
 
 /** Declared value type of a filtered column, used to normalize/coerce filter values before binding. */
-export type FilterType = 'text' | 'number' | 'date' | 'boolean' | 'tags' | 'select' | 'system' | 'json'
+export type FilterType = 'text' | 'number' | 'date' | 'boolean' | 'tags' | 'select' | 'system' | 'json' | 'repeater'
 
 /** A single operator + value pair applied to a FilterGroup's column. */
 export interface FilterCondition {
