@@ -195,6 +195,19 @@ describe('validateDashboardLayout', () => {
     expect(allWidgets(res.cleaned).map((w) => w.id)).toEqual(['w-1', 'w-2'])
   })
 
+  it('keeps a freshly added widget whose seedSlug is still an empty placeholder', () => {
+    const layout = singleSectionLayout([
+      [widget('w-1', 'core/site-status', { variant: 'badge' })],
+      [widget('w-2', 'core/recent-content', { seedSlug: '', variant: 'list' })],
+    ])
+
+    const res = validateDashboardLayout(layout, ctx)
+
+    expect(res.ok).toBe(true)
+    expect(res.warnings).toHaveLength(0)
+    expect(allWidgets(res.cleaned).map((w) => w.id)).toEqual(['w-1', 'w-2'])
+  })
+
   it('rejects duplicate widget ids', () => {
     const layout = singleSectionLayout([
       [widget('w-1', 'core/site-status')],
