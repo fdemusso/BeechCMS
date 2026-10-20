@@ -11,6 +11,7 @@ export const DOCS_BASE_PATH = process.env.DOCS_BASE_PATH || '/BeechCMS/'
 export default defineConfig({
   title: "BeechCMS",
   base: DOCS_BASE_PATH,
+  sitemap: { hostname: DOCS_BASE_URL },
   description: "Edge-native headless CMS",
   lang: 'en-US',
   srcExclude: ['Sprints/**', 'personal/**', 'examples/**', 'ci/**'],
