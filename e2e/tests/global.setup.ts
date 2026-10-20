@@ -41,7 +41,7 @@ async function ensureMinioRunning(): Promise<void> {
 
   // cwd when Playwright runs is e2e/ — the compose file lives at the repo root's docker/.
   const composeRoot = resolve(process.cwd(), '../docker')
-  execSync('docker compose up -d minio minio-init', { cwd: composeRoot, stdio: 'inherit' })
+  execSync('docker compose up -d minio', { cwd: composeRoot, stdio: 'inherit' })
 
   for (let attempt = 0; attempt < 30; attempt++) {
     if (await isMinioReady()) return

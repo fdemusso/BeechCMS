@@ -19,7 +19,7 @@ This recreates a throwaway database (`e2e/.wrangler-e2e/`, wiped on every run), 
 
 and then runs the `setup` project (provisioning) followed by the `chromium` project (the specs).
 The `setup` project also ensures the Docker MinIO container is up before provisioning — starting
-it (`docker compose up -d minio minio-init`) if it isn't already, exactly as
+it (`docker compose up -d minio`) if it isn't already, exactly as
 `apps/api/test/docker-precheck.runner.ts` does for the flow tier. It is left running afterwards;
 this suite does not own its lifecycle, only ensures it is ready.
 
