@@ -215,6 +215,48 @@ describe("useSeedEditorDialog", () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
+  it("re-aligns branches with the refetched record after a Danger Zone drop/rename, keeping unsaved edits (#774)", async () => {
+    const withLegacy: SeedRecordDTO = {
+      ...editRecord,
+      definition: {
+        ...editRecord.definition,
+        branches: [...branches, { id: "br_03", alias: "legacy_field", label: "Legacy", type: "text" } as Branch],
+      } as Seed,
+    }
+    const { result, rerender } = renderHook(
+      (props: { record: SeedRecordDTO }) => useSeedEditorDialog({
+        editRecord: props.record,
+        activeSeedsForRelation: [],
+        onClose: vi.fn(),
+        open: true,
+      }),
+      { initialProps: { record: withLegacy } }
+    )
+
+    act(() => {
+      result.current.handleInputChange("label", "Article (renamed)")
+    })
+
+    // Danger Zone dropped legacy_field and renamed title -> headline; the
+    // ["seeds"] refetch hands the dialog a fresher record for the same slug.
+    const refetched: SeedRecordDTO = {
+      ...editRecord,
+      definition: {
+        ...editRecord.definition,
+        branches: [{ ...branches[0], alias: "headline" }, branches[1]],
+      } as Seed,
+    }
+    rerender({ record: refetched })
+
+    await act(async () => {
+      await result.current.handleSubmit(submitEvent())
+    })
+
+    const seed = mockUpdateMutateAsync.mock.calls[0][0].seed as Seed
+    expect(seed.label).toBe("Article (renamed)")
+    expect(seed.branches.map((b) => b.alias)).toEqual(["headline", "body"])
+  })
+
   it("gates the blocker by `open` and clears dirty state when the create dialog closes (#771)", () => {
     const onClose = vi.fn()
     const { result, rerender } = renderHook(

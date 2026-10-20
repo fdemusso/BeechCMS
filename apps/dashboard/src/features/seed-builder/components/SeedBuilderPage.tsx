@@ -48,7 +48,10 @@ export function SeedBuilderPage() {
 
   const [showDeleted, setShowDeleted] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
-  const [editRecord, setEditRecord] = useState<SeedRecordDTO | null>(null)
+  // Track the slug, not a record snapshot: the live record must follow the
+  // ["seeds"] refetch triggered by Danger Zone mutations.
+  const [editSlug, setEditSlug] = useState<string | null>(null)
+  const editRecord = editSlug ? records.find(r => r.slug === editSlug) ?? null : null
   const [deleteRecord, setDeleteRecord] = useState<SeedRecordDTO | null>(null)
 
   const visible = showDeleted ? records : records.filter(r => r.status !== "deleted")
@@ -148,7 +151,7 @@ export function SeedBuilderPage() {
                             <Button
                               variant="ghost"
                               size="icon-sm"
-                              onClick={() => setEditRecord(record)}
+                              onClick={() => setEditSlug(record.slug)}
                               disabled={record.status === "deleted"}
                               aria-label={t("common.edit")}
                               data-testid="edit-seed-btn"
@@ -190,7 +193,7 @@ export function SeedBuilderPage() {
         open={!!editRecord}
         editRecord={editRecord}
         activeSeedsForRelation={activeSeeds as Seed[]}
-        onClose={() => setEditRecord(null)}
+        onClose={() => setEditSlug(null)}
       />
 
       <DeleteSeedDialog
