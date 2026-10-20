@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -520,17 +521,14 @@ function ColumnPicker({ columns, onSelect, compact = false }: ColumnPickerProps)
           ) : (
             <div className="flex flex-col gap-1 py-1">
               {columns.map((col) => (
-                <Button
+                <DropdownMenuItem
                   key={col.columnId}
-                  type="button"
-                  variant="ghost"
-                  size="sm"
                   className="h-8 justify-between px-2 text-xs"
-                  onClick={() => onSelect(col.columnId)}
+                  onSelect={() => onSelect(col.columnId)}
                 >
                   <span className="truncate">{col.label}</span>
                   <span className="text-[10px] text-muted-foreground uppercase">{col.type}</span>
-                </Button>
+                </DropdownMenuItem>
               ))}
             </div>
           )}
