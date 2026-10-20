@@ -1553,6 +1553,11 @@
       "updateFailed": "Failed to update content type",
       "deleteFailed": "Failed to delete content type"
     },
+    "purge": {
+      "button": "Purge permanently",
+      "title": "Permanently delete {{label}}",
+      "description": "This content type was soft-deleted. Purging removes its tables and media for good."
+    },
     "dangerZone": {
       "title": "Danger Zone",
       "subtitle": "These operations are irreversible and may cause permanent data loss.",
