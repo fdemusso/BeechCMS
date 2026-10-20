@@ -60,6 +60,9 @@ export interface E2eFixture {
 }
 
 setup('provisions the canonical world and stores an authenticated state', async ({ page, request }) => {
+  // The first run on a cold runner pulls the MinIO image inside this test. Provisioning is not
+  // idempotent (the retry finds `needsSetup` already false), so a timeout here must not happen.
+  setup.setTimeout(180_000)
   await ensureMinioRunning()
 
   const status = await request.get(`${API}/auth/setup`)

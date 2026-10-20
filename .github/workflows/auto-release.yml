@@ -157,6 +157,8 @@ jobs:
           set -euo pipefail
           failed=0
           for t in $TAGS; do
+            # One GitHub Release per version (the root v* tag): the per-package tags stay plain tags.
+            case "$t" in v*) ;; *) continue ;; esac
             if gh release view "$t" > /dev/null 2>&1; then echo "exists $t"; continue; fi
             created=false
             for attempt in 1 2 3; do
