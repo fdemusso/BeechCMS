@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, expect, it, vi } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 
 import { GalleryCard } from "@/features/content-gallery/gallery-components/gallery-card"
 import type { GalleryCardDisplayModel } from "@/features/content-gallery/gallery-card-display"
@@ -29,6 +29,18 @@ function makeModel(overrides: Partial<GalleryCardDisplayModel> = {}): GalleryCar
 }
 
 describe("GalleryCard", () => {
+  it("retries the image when the URL changes after a load error", () => {
+    const { rerender } = render(
+      <GalleryCard model={makeModel({ imageUrl: "https://cdn.test/broken.jpg" })} onOpen={vi.fn()} />
+    )
+    fireEvent.error(screen.getByRole("img"))
+    expect(screen.queryByRole("img")).not.toBeInTheDocument()
+
+    rerender(<GalleryCard model={makeModel({ imageUrl: "https://cdn.test/fixed.jpg" })} onOpen={vi.fn()} />)
+
+    expect(screen.getByRole("img")).toHaveAttribute("src", "https://cdn.test/fixed.jpg")
+  })
+
   it("hides the status and pending-draft badges when the seed does not support drafts", () => {
     render(
       <GalleryCard

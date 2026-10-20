@@ -32,7 +32,9 @@ function statusBadgeClass(status: string): string {
 
 export function GalleryCard({ model, onOpen }: GalleryCardProps) {
   const { t } = useTranslation()
-  const [imgError, setImgError] = useState(false)
+  // Remember which URL failed, so a new URL gets a fresh attempt without an effect reset.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  const imgError = failedUrl !== null && failedUrl === model.imageUrl
   const showImage = !!model.imageUrl && !imgError
 
   return (
@@ -53,7 +55,7 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
             alt={model.title || t("gallery.preview")}
             className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]"
             loading="lazy"
-            onError={() => setImgError(true)}
+            onError={() => setFailedUrl(model.imageUrl)}
           />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2">
