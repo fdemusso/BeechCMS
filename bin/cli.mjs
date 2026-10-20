@@ -23,6 +23,7 @@ const COMMANDS = {
   'seed:create':    cmdSeedCreate,
   'schema:diff':    cmdSchemaDiff,
   'schema:audit':   cmdSchemaAudit,
+  'schema:migrate': cmdSchemaMigrate,
   'schema:export':  cmdSchemaExport,
   'schema:plan':    cmdSchemaPlan,
   'schema:apply':   cmdSchemaApply,
@@ -95,7 +96,11 @@ function help() {
     ${pc.cyan('schema diff')}     Compare beech.schema.ts against the deployed schema
       --manifest <f>  Manifest path (default: beech.schema.ts)
       Exits 1 when drift is detected.
-    ${pc.cyan('schema audit')}    Report relation storage that no longer matches its definition (read-only)
+    ${pc.cyan('schema audit')}    Report relation storage and legacy tag definitions that need repair (read-only)
+      --remote        Target remote D1 instead of local (default: local)
+      --db <name>     Override D1 database name
+    ${pc.cyan('schema migrate')}  Migrate pre-0.9 tag/choice seeds to the closed-vocabulary tags contract
+      --apply         Write the changes (default: dry run, exits 1 while work is pending)
       --remote        Target remote D1 instead of local (default: local)
       --db <name>     Override D1 database name
     ${pc.cyan('schema plan')}     Show what applying beech.schema.ts would change (writes nothing)
@@ -224,6 +229,15 @@ async function cmdSchemaAudit(args) {
   const db     = dbIdx !== -1 ? args[dbIdx + 1] : undefined
   const { schemaAudit } = await import('@beechcms/cli')
   await schemaAudit({ local: !remote, db })
+}
+
+async function cmdSchemaMigrate(args) {
+  const remote = args.includes('--remote')
+  const apply  = args.includes('--apply')
+  const dbIdx  = args.indexOf('--db')
+  const db     = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+  const { schemaMigrate } = await import('@beechcms/cli')
+  await schemaMigrate({ apply, local: !remote, db })
 }
 
 async function cmdSchemaExport(args) {

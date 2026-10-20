@@ -3,12 +3,13 @@
 // See LICENSE in the repository root for license terms.
 
 import { createBeechApp } from './factory'
-import { SeedRegistry, SystemClock, SystemIdGenerator } from '@beechcms/core'
+import { createTolerantSeedRegistry, SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { JobHandler, QueueMessage } from '@beechcms/core'
 import { runCronAutomations } from './features/automations/engine/cron-runner'
 import { D1AutomationRepository } from './shared/db/repositories/automations.repository.d1'
 import { D1ContentRepository } from './shared/db/repositories/content.repository.d1'
 import { D1SeedRepository } from './shared/db/repositories/seed.repository.d1'
+import { warnQuarantinedSeeds } from './shared/services/cache/seed-registry-cache'
 import { D1SeedMediaPurgeRepository } from './shared/db/repositories/seed-media-purge.repository.d1'
 import { dispatchQueueBatch } from './shared/jobs/queue-consumer'
 import { createBucketProvider } from './shared/storage/factory'
@@ -103,7 +104,8 @@ export default {
     const contentRepository = new D1ContentRepository(env.DB)
     const seedRepository = new D1SeedRepository(env.DB)
     const seeds = await seedRepository.listActive()
-    const registry = new SeedRegistry(seeds)
+    const { registry, quarantined } = createTolerantSeedRegistry(seeds)
+    warnQuarantinedSeeds(quarantined)
     const getSeed = (slug: string) => registry.get(slug) ?? null
 
     const purgeRepository = new D1SeedMediaPurgeRepository(env.DB)

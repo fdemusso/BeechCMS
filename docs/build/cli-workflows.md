@@ -28,6 +28,7 @@ Commands are categorized by operational scope:
 | `npx beech schema export` (`beech schema:export`) | Consumer | Writes `beech.schema.ts` — a reviewable snapshot of the live D1 schema. | `--out <file>`, `--stdout`, `--remote`, `--db <name>` |
 | `npx beech schema diff` (`beech schema:diff`) | Consumer | Compares `beech.schema.ts` against the deployed schema and reports drift. Exits 1 when drift is detected. | `--manifest <file>`, `--remote`, `--db <name>` |
 | `npx beech schema audit` (`beech schema:audit`) | Consumer | Read-only audit of relation storage: compares each relation branch (`multiple`, `targetSeed`, `onDelete`) with the physical FK column, `rel_<slug>_<alias>` junction (and drafts junction) and FK policy. Reports stranded value counts, never changes data. Exits 1 on any mismatch. | `--remote`, `--db <name>` |
+| `npx beech schema migrate` (`beech schema:migrate`) | Consumer | Moves seeds saved before 0.9 to the closed-vocabulary `tags` contract: `text` + `options` becomes single-choice `tags` (stored strings wrapped into arrays), string `options` become `{ value, color }`. Dry run by default (exits 1 while work is pending); `--apply` writes. Idempotent. | `--apply`, `--remote`, `--db <name>` |
 | `npx beech schema plan` (`beech schema:plan`) | Consumer | Shows the DDL and the definition-only changes applying `beech.schema.ts` would make; unchanged seeds print `(no change)`. Writes nothing. Exits 1 when a seed cannot be applied. | `--manifest <file>`, `--api-url <url>` |
 | `npx beech schema apply` (`beech schema:apply`) | Consumer | Applies `beech.schema.ts` through the control plane (`mcp-plan` / `mcp-apply`). Additive only. Skips seeds whose definition already matches. | `--manifest <file>`, `--api-url <url>`, `-y`/`--yes` |
 | `npx beech forms` | Consumer | Interactive wizard generating React, Vue, Svelte, or Web Component forms. | `--seed <slug>`, `--framework <name>`, `--mode <create\|edit>`, `--out <path>`, `--yes`, `--json` (aliases: `form`, `forms:add`) |
@@ -134,6 +135,37 @@ junction. The command is read-only, never deletes anything, and exits 1 on any f
 
 Stale-data window: until a repair is applied, affected relations return empty or partial values for
 entries written before the edit. A reviewed repair workflow is tracked in issue #664.
+
+#### Migrating pre-0.9 tag and choice fields
+
+Before 0.9 a choice field was `text` + `options`, or `tags` + `options: string[]`. Since 0.9 `options`
+exists only on `tags`, as `{ value, color }[]`, and every stored value is a JSON array. A database still
+holding the old shapes does **not** stop the API: the affected seed is disabled (its routes answer 404),
+every other seed keeps serving, and the Worker log carries one warning per seed:
+
+```
+[BeechCMS] Seed "tickets" is disabled until its definition is fixed: ... Run "beech schema migrate" ...
+```
+
+`schema audit` lists those seeds, and `schema migrate` repairs them:
+
+```bash
+npx beech schema migrate              # dry run: prints the plan, writes nothing, exits 1 while work is pending
+npx beech schema migrate --apply      # local D1
+npx beech schema migrate --apply --remote   # production D1
+```
+
+What `--apply` does, in order: wraps stored strings into arrays (live table, and the drafts table when
+drafts are on), rewrites the seed definitions, then bumps the registry version so running Workers
+rebuild their cached registry. Colors for options that never had one come from a fixed palette, in
+declaration order. The statements are idempotent, so re-running after an interruption finishes the job.
+
+What it deliberately does not do:
+- Stored values that are not in the new vocabulary are **reported and left in place**; add the option or fix the rows.
+- A seed with a branch it cannot convert safely (options on a non-`text`/`tags` type, a localized branch,
+  a repeater sub-field) is **not rewritten at all** and is listed as a manual step: edit the seed, then re-run.
+
+After migrating, regenerate client types (`npx beech types generate`): `X-Schema-Revision` is `v2:`.
 
 ### 4. Interactive Form Generation
 

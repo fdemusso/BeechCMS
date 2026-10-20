@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] — changes since v0.8.1
+## [0.9.0] — changes since v0.8.1
 
 Covers `v0.8.1..HEAD` (2026-09-30 → 2026-10-20, ~270 commits).
 

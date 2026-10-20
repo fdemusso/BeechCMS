@@ -84,6 +84,22 @@ describe('schemaAudit', () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining('4 stranded value(s)'))
   })
 
+  it('flags a seed still holding the pre-0.9 text + options shape and exits 1 pointing at the migration', async () => {
+    const legacy: Seed = {
+      slug: 'posts',
+      label: 'Posts',
+      displayNameAlias: 'title',
+      branches: [{ id: 'br_01', alias: 'status', label: 'Status', type: 'text', options: ['open'] }] as unknown as Seed['branches'],
+    }
+    arrange({ ...contentPosts(['id']) })
+    vi.mocked(loadLiveSeeds).mockResolvedValue([legacy])
+
+    await schemaAudit({ local: true })
+
+    expect(exit).toHaveBeenCalledWith(1)
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('beech schema migrate'))
+  })
+
   it('routes an unreadable database to the shared error renderer', async () => {
     vi.mocked(createD1Context).mockImplementation(() => { throw new Error('no D1') })
 

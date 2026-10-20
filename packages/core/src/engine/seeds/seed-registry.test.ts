@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
-import { SeedRegistry, InMemorySeedRegistry, sortSeedsByDependencies, findBranchById, nextBranchId } from './seed-registry.js'
+import { SeedRegistry, InMemorySeedRegistry, createTolerantSeedRegistry, sortSeedsByDependencies, findBranchById, nextBranchId } from './seed-registry.js'
 import type { Seed, Branch } from '../types.js'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -441,5 +441,26 @@ describe('nextBranchId', () => {
       type: 'text' as const,
     }))
     expect(nextBranchId({ branches })).toBe('br_101')
+  })
+})
+
+describe('createTolerantSeedRegistry', () => {
+  const legacy = makeSeed({
+    slug: 'legacy',
+    branches: [{ id: 'br_01', alias: 'status', label: 'Status', type: 'text', options: ['open'] } as unknown as Branch],
+  })
+
+  it('serves the valid seeds and quarantines the one with a legacy tag definition instead of throwing', () => {
+    const result = createTolerantSeedRegistry([seedArticles, legacy, seedProjects])
+
+    expect(result.registry.all().map(seed => seed.slug)).toEqual(['articles', 'projects'])
+    expect(result.registry.get('legacy')).toBeNull()
+    expect(result.quarantined).toMatchObject([{ slug: 'legacy' }])
+  })
+
+  it('quarantines nothing when every seed is valid', () => {
+    const result = createTolerantSeedRegistry([seedArticles, seedProjects])
+
+    expect(result.quarantined).toEqual([])
   })
 })
