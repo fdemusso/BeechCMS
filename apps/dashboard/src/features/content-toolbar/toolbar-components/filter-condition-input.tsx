@@ -6,9 +6,11 @@ import { useTranslation } from "react-i18next"
 import { SortV as ArrowUpDown } from 'reicon-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -113,16 +115,13 @@ export function FilterConditionInput({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48 p-1">
             {selectOptions.map((opt) => (
-              <Button
+              <DropdownMenuItem
                 key={opt}
-                type="button"
-                variant={value === opt ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8 w-full justify-start px-2 text-xs"
-                onClick={() => onChange(opt)}
+                className={cn("h-8 px-2 text-xs", value === opt && "bg-secondary")}
+                onSelect={() => onChange(opt)}
               >
                 {opt}
-              </Button>
+              </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -146,16 +145,13 @@ export function FilterConditionInput({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-56 w-56 overflow-y-auto p-1">
             {availableTags.map((tag) => (
-              <Button
+              <DropdownMenuItem
                 key={tag}
-                type="button"
-                variant={value === tag ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8 w-full justify-start px-2 text-xs"
-                onClick={() => onChange(tag)}
+                className={cn("h-8 px-2 text-xs", value === tag && "bg-secondary")}
+                onSelect={() => onChange(tag)}
               >
                 {tag}
-              </Button>
+              </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
