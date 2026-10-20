@@ -106,4 +106,56 @@ describe('CardConfigDialog', () => {
     fireEvent.click(screen.getByText('Save'))
     expect(onSave.mock.calls[0][0].header).toEqual({ branchId: 'br_03' })
   })
+
+  describe('a branch occupies at most one slot', () => {
+    const SUBTITLE_PICKER = 2 // comboboxes render in order: media, header, subtitle
+
+    function openSubtitleOptions() {
+      fireEvent.click(screen.getAllByRole('combobox')[SUBTITLE_PICKER]!)
+      return screen.getAllByRole('option').map(o => o.textContent)
+    }
+
+    it('does not offer a branch already used as header in the subtitle picker', () => {
+      render(
+        <CardConfigDialog
+          open onClose={vi.fn()} seed={seed} onSave={vi.fn()}
+          config={{ version: 1, header: { branchId: 'br_01' }, metadata: [] }}
+        />,
+      )
+      const options = openSubtitleOptions()
+      expect(options).not.toContain('Title')
+      expect(options).toContain('Category')
+    })
+
+    it('keeps the subtitle own selection selectable', () => {
+      render(
+        <CardConfigDialog
+          open onClose={vi.fn()} seed={seed} onSave={vi.fn()}
+          config={{ version: 1, subtitle: { branchId: 'br_03' }, metadata: [] }}
+        />,
+      )
+      expect(openSubtitleOptions()).toContain('Category')
+    })
+
+    it('disables the metadata toggle of a branch placed in a single slot', () => {
+      render(
+        <CardConfigDialog
+          open onClose={vi.fn()} seed={seed} onSave={vi.fn()}
+          config={{ version: 1, header: { branchId: 'br_01' }, metadata: [] }}
+        />,
+      )
+      const titleToggle = screen.getAllByRole('button').find(b => b.textContent === 'Title')!
+      expect(titleToggle).toBeDisabled()
+    })
+
+    it('does not offer a metadata branch in the single-slot pickers', () => {
+      render(
+        <CardConfigDialog
+          open onClose={vi.fn()} seed={seed} onSave={vi.fn()}
+          config={{ version: 1, metadata: [{ branchId: 'br_04' }] }}
+        />,
+      )
+      expect(openSubtitleOptions()).not.toContain('Tags')
+    })
+  })
 })
