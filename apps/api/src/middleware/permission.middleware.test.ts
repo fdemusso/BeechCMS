@@ -138,6 +138,45 @@ describe('permissionMiddleware', () => {
     expect(res.status).toBe(403)
     expect(await res.json()).toMatchObject({ error: 'forbidden' })
   })
+
+  it('self-service activity: a content:read-only account gets 200 with only its own entries on GET /api/settings/activity', async () => {
+    const READER = { id: 'user_act_reader', email: 'act-reader@beechcms.io' }
+    const OTHER = { id: 'user_act_other', email: 'act-other@beechcms.io' }
+    const bcrypt = await import('bcryptjs')
+    const passwordHash = await bcrypt.hash('password123', 10)
+    await seedTestUsers(db, [
+      { ...READER, password_hash: passwordHash, grantSuperAdmin: false },
+      { ...OTHER, password_hash: passwordHash, grantSuperAdmin: false },
+    ])
+
+    await db
+      .prepare(`INSERT INTO roles (id, name, description, is_system) VALUES ('role_act_reader', 'ActReader', NULL, 0)`)
+      .run()
+    await db.prepare(`INSERT INTO role_permissions (role_id, permission) VALUES ('role_act_reader', 'content:read')`).run()
+    await db
+      .prepare(
+        `INSERT INTO user_role_assignments (id, user_id, role_id, scope) VALUES ('ura_act_reader', ?, 'role_act_reader', 'posts')`,
+      )
+      .bind(READER.id)
+      .run()
+
+    const insertLog = db.prepare(
+      `INSERT INTO activity_logs (id, user_id, user_email, action, entity_type, entity_id) VALUES (?, ?, ?, 'update', 'entry', 'e1')`,
+    )
+    await insertLog.bind('log_own', READER.id, READER.email).run()
+    await insertLog.bind('log_other', OTHER.id, OTHER.email).run()
+
+    const token = await login(READER.email)
+    expect(token).toBeTruthy()
+
+    const res = await app.request('/api/settings/activity', {
+      headers: { Authorization: `Bearer ${token}` },
+    }, { ...TEST_ENV, DB: db })
+    expect(res.status).toBe(200)
+    const entries = await res.json<Array<{ id: string }>>()
+    expect(entries.map(entry => entry.id)).toContain('log_own')
+    expect(entries.map(entry => entry.id)).not.toContain('log_other')
+  })
 })
 
 describe('requireActiveAccount', () => {

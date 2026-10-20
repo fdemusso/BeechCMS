@@ -59,14 +59,15 @@ describe('Flow: RBAC enforcement', () => {
     }, { ...TEST_ENV, DB: db })
   }
 
-  it('scoped editor: 200 on own seed, 403 on missing permission/wrong scope/no analytics', async () => {
+  it('scoped editor: 200 on own seed and own activity, 403 on missing permission/wrong scope/no analytics', async () => {
     const token = await login()
     expect(token).toBeTruthy()
 
     expect((await authed('/api/content/posts', 'GET', token)).status).toBe(200)
     expect((await authed('/api/content/posts/nonexistent-id', 'DELETE', token)).status).toBe(403)
     expect((await authed('/api/content/pages', 'GET', token)).status).toBe(403)
-    expect((await authed('/api/settings/activity', 'GET', token)).status).toBe(403)
+    expect((await authed('/api/settings/storage', 'GET', token)).status).toBe(403)
+    expect((await authed('/api/settings/activity', 'GET', token)).status).toBe(200)
     expect((await authed('/api/settings/me', 'GET', token)).status).toBe(200)
   })
 
