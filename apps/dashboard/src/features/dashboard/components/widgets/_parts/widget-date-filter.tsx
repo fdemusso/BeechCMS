@@ -35,7 +35,7 @@ function endOfDay(date: Date): Date {
 function thisMonthRange(): DateRange {
   const now = new Date()
   const from = new Date(now.getFullYear(), now.getMonth(), 1)
-  return { from: toUnixSeconds(startOfDay(from)), to: toUnixSeconds(now) }
+  return { from: toUnixSeconds(startOfDay(from)), to: toUnixSeconds(endOfDay(now)) }
 }
 
 function lastMonthRange(): DateRange {
@@ -48,7 +48,7 @@ function lastMonthRange(): DateRange {
 function thisYearRange(): DateRange {
   const now = new Date()
   const from = new Date(now.getFullYear(), 0, 1)
-  return { from: toUnixSeconds(startOfDay(from)), to: toUnixSeconds(now) }
+  return { from: toUnixSeconds(startOfDay(from)), to: toUnixSeconds(endOfDay(now)) }
 }
 
 /** Resolves the current selection to a preset key, falling back to "custom" for unmatched ranges. */
