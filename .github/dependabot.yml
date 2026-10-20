@@ -3,43 +3,51 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-    # A single pnpm lockfile serves the whole workspace, so a wide batch of PRs fails together on a
-    # stale lockfile. Keep the batch small and let the grouped PRs land one at a time.
-    open-pull-requests-limit: 5
-    # A brand-new release is the likeliest to be yanked or compromised: wait three days before
-    # proposing it. Security updates ignore the cooldown.
-    cooldown:
-      default-days: 3
+      interval: "monthly"
+    # Few PRs, few releases: version updates are one monthly batch, security updates are one batch
+    # as soon as they exist. Every merged batch ends in a patch release of the packages it touches.
+    open-pull-requests-limit: 3
     rebase-strategy: "auto"
     labels:
       - "dependencies"
     commit-message:
       prefix: "chore(deps)"
+    # A brand-new release is the likeliest to be yanked or compromised: wait three days before
+    # proposing it. Security updates ignore the cooldown.
+    cooldown:
+      default-days: 3
     ignore:
       # Workspace packages are versioned by scripts/release.mjs, never by Dependabot.
       - dependency-name: "@beechcms/*"
+      # A major bump is a migration, not maintenance: do it on purpose. This only silences routine
+      # version updates; a security update that needs a major still opens a PR.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
-      # Minor and patch updates are grouped; a major update gets its own PR so a breaking change
-      # cannot take a whole batch down with it.
-      dev-dependencies:
+      # Everything routine in one PR.
+      routine:
         applies-to: version-updates
-        dependency-type: "development"
+        patterns: ["*"]
         update-types: ["minor", "patch"]
-      production-dependencies:
-        applies-to: version-updates
-        dependency-type: "production"
-        update-types: ["minor", "patch"]
+      # Every security fix in one PR instead of one PR per package and directory.
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
+    open-pull-requests-limit: 2
     rebase-strategy: "auto"
     labels:
       - "dependencies"
       - "ci"
     commit-message:
       prefix: "chore(ci)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      actions:
+        patterns: ["*"]
