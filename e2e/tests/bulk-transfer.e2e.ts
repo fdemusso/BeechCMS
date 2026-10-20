@@ -24,8 +24,15 @@ import { ADMIN_STATE, API_PORT } from '../playwright.config'
 const API = `http://127.0.0.1:${API_PORT}`
 const admin = CANONICAL_USERS.admin
 
+// The refresh token single-use-rotates on restore (see auth.e2e.ts), so every test's rotated cookie
+// is written back to the shared state file in afterEach: it runs even when an assertion failed, so
+// one failing test cannot starve the restore of every test after it.
+test.afterEach(async ({ page }) => {
+  await page.context().storageState({ path: ADMIN_STATE })
+})
+
 const POSTS_CSV_DISABLED_TEXT =
-  'CSV disabled: body, tags, author_id, category_id, related_posts cannot be represented as flat columns'
+  'CSV disabled: body, tags, author_id, category_id, related_posts, priority cannot be represented as flat columns'
 
 test.describe('bulk transfer — export', () => {
   test('exporting the categories seed as NDJSON downloads a real file from the export endpoint', async ({ page }) => {
@@ -38,10 +45,6 @@ test.describe('bulk transfer — export', () => {
     const download = await downloadPromise
 
     expect(download.suggestedFilename()).toBe('categories.ndjson')
-
-    // See auth.e2e.ts: the refresh token single-use-rotates on restore, so the next test's fresh
-    // context needs this test's rotated cookie written back to the shared state file.
-    await page.context().storageState({ path: ADMIN_STATE })
   })
 
   test('CSV export is disabled for a seed with non-flat branches, naming every offending branch', async ({ page }) => {
@@ -52,8 +55,6 @@ test.describe('bulk transfer — export', () => {
 
     await expect(page.getByRole('menuitem', { name: 'CSV' })).toHaveAttribute('aria-disabled', 'true')
     await expect(page.getByText(POSTS_CSV_DISABLED_TEXT)).toBeVisible()
-
-    await page.context().storageState({ path: ADMIN_STATE })
   })
 })
 
@@ -71,8 +72,6 @@ test.describe('bulk transfer — import wizard', () => {
     await expect(page.locator('#import-format-csv')).toBeDisabled()
     await expect(page.locator('#import-format-ndjson')).toBeChecked()
     await expect(page.getByText(POSTS_CSV_DISABLED_TEXT)).toBeVisible()
-
-    await page.context().storageState({ path: ADMIN_STATE })
   })
 
   test('a 1000-row import against the complex posts seed spans two real chunk continuations and reports its 20 failures, with the successful rows readable back through the API', async ({
@@ -136,8 +135,6 @@ test.describe('bulk transfer — import wizard', () => {
     await expect(dialog.locator('tbody tr')).toHaveCount(expectedFailures)
     await expect(dialog.getByRole('cell', { name: 'validation_failed' }).first()).toBeVisible()
 
-    await page.context().storageState({ path: ADMIN_STATE })
-
     const login = await request.post(`${API}/auth/login`, {
       data: { email: admin.email, password: admin.password },
     })
@@ -145,31 +142,40 @@ test.describe('bulk transfer — import wizard', () => {
     // `search` forces the {items, total, ...} envelope (list.ts's hasQueryParams branch); `total`
     // reflects every matching row, unlike `items`, which list.ts caps at 100 regardless of `limit`
     // — with 980 matches, counting `items` directly would undercount.
-    const list = await request.get(`${API}/api/content/posts`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params: { search: 'E2E', limit: 1 },
-    })
-    expect(list.status()).toBe(200)
-    const body = await list.json() as { items: Array<{ title: string }>; total: number }
-    expect(body.total).toBe(expectedInserted)
-    expect(body.items[0]?.title.startsWith(titlePrefix)).toBe(true)
-
-    // Clean up: this run's rows would otherwise sit in `posts` and push the canonical fixture
-    // entry ("Canonical Post", asserted by content-id-contract.e2e.ts) off the default list
-    // page for every spec that runs after this one against the same shared D1. There is no bulk
-    // delete route (only PATCH /:slug/bulk for edits), so each row is removed individually.
     const authHeaders = { Authorization: `Bearer ${token}` }
-    const idsToDelete: string[] = []
-    for (let page = 1; idsToDelete.length < expectedInserted; page++) {
-      const pageResponse = await request.get(`${API}/api/content/posts`, {
+    try {
+      const list = await request.get(`${API}/api/content/posts`, {
         headers: authHeaders,
-        params: { search: 'E2E', limit: 100, page },
+        params: { search: 'E2E', limit: 1 },
       })
-      const pageBody = await pageResponse.json() as { items: Array<{ id: string }> }
-      if (pageBody.items.length === 0) break
-      idsToDelete.push(...pageBody.items.map((item) => item.id))
+      expect(list.status()).toBe(200)
+      const body = await list.json() as { items: Array<{ data: { title: string } }>; total: number }
+      expect(body.total).toBe(expectedInserted)
+      expect(body.items[0]?.data.title.startsWith(titlePrefix)).toBe(true)
+    } finally {
+      // Clean up: this run's rows would otherwise sit in `posts` and push the canonical fixture
+      // entry ("Canonical Post", asserted by content-id-contract.e2e.ts) off the default list
+      // page for every spec that runs after this one against the same shared D1. There is no bulk
+      // delete route (only PATCH /:slug/bulk for edits), so each row is removed individually.
+      const idsToDelete: string[] = []
+      for (let page = 1; idsToDelete.length < expectedInserted; page++) {
+        const pageResponse = await request.get(`${API}/api/content/posts`, {
+          headers: authHeaders,
+          params: { search: 'E2E', limit: 100, page },
+        })
+        const pageBody = await pageResponse.json() as { items: Array<{ id: string }> }
+        if (pageBody.items.length === 0) break
+        idsToDelete.push(...pageBody.items.map((item) => item.id))
+      }
+      expect(idsToDelete).toHaveLength(expectedInserted)
+      const statuses = new Set<number>()
+      for (let i = 0; i < idsToDelete.length; i += 20) {
+        const batch = await Promise.all(
+          idsToDelete.slice(i, i + 20).map((id) => request.delete(`${API}/api/content/posts/${id}`, { headers: authHeaders })),
+        )
+        for (const res of batch) statuses.add(res.status())
+      }
+      expect([...statuses]).toEqual([200])
     }
-    expect(idsToDelete).toHaveLength(expectedInserted)
-    await Promise.all(idsToDelete.map((id) => request.delete(`${API}/api/content/posts/${id}`, { headers: authHeaders })))
   })
 })

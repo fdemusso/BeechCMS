@@ -19,6 +19,13 @@ import type { E2eFixture } from './global.setup'
 // FIXTURE_FILE) has run. Reading it here, at module scope, would throw during collection itself.
 let fixture: E2eFixture
 
+// The refresh token single-use-rotates on restore (see auth.e2e.ts), so every test's rotated cookie
+// is written back to the shared state file in afterEach: it runs even when an assertion failed, so
+// one failing test cannot starve the restore of every test after it.
+test.afterEach(async ({ page }) => {
+  await page.context().storageState({ path: ADMIN_STATE })
+})
+
 test.beforeAll(() => {
   fixture = JSON.parse(readFileSync(FIXTURE_FILE, 'utf8')) as E2eFixture
 })
@@ -33,10 +40,6 @@ test.describe('content entry id contract', () => {
 
     expect(response?.status()).toBe(200)
     await expect(page.getByText(fixture.entryTitle)).toBeVisible()
-
-    // See auth.e2e.ts: the refresh token single-use-rotates on restore, so the next test's fresh
-    // context needs this test's rotated cookie written back to the shared state file.
-    await page.context().storageState({ path: ADMIN_STATE })
   })
 
   test('the detail route resolves an API-minted id without a client-side rewrite', async ({ page }) => {
