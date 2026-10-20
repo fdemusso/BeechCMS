@@ -70,4 +70,28 @@ describe("useViewLayoutState", () => {
 
     expect(result.current.dateGroupPrecision).toEqual(DEFAULT_DATE_GROUP_PRECISION)
   })
+
+  it.each(["created_at", "updated_at"])(
+    "keeps the persisted day precision when mounted grouped by the %s system date column",
+    (systemDateColumn) => {
+      const dayPrecision = { year: false, month: false, day: true }
+      const initial = baseState({ groupBy: systemDateColumn, dateGroupPrecision: dayPrecision })
+
+      const { result } = renderHook(() => useViewLayoutState(initial, posts))
+
+      // System date columns have no seed branch; the reset must not mistake them for a non-date column,
+      // or autosave overwrites the saved view config with the default precision.
+      expect(result.current.dateGroupPrecision).toEqual(dayPrecision)
+    }
+  )
+
+  it("grouping by a system date column after a day-precision state keeps dateGroupPrecision", () => {
+    const dayPrecision = { year: false, month: false, day: true }
+    const initial = baseState({ groupBy: null, dateGroupPrecision: dayPrecision })
+    const { result } = renderHook(() => useViewLayoutState(initial, posts))
+
+    act(() => result.current.setGroupBy("created_at"))
+
+    expect(result.current.dateGroupPrecision).toEqual(dayPrecision)
+  })
 })
