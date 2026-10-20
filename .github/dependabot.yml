@@ -8,6 +8,10 @@ updates:
     # A single pnpm lockfile serves the whole workspace, so a wide batch of PRs fails together on a
     # stale lockfile. Keep the batch small and let the grouped PRs land one at a time.
     open-pull-requests-limit: 5
+    # A brand-new release is the likeliest to be yanked or compromised: wait three days before
+    # proposing it. Security updates ignore the cooldown.
+    cooldown:
+      default-days: 3
     rebase-strategy: "auto"
     labels:
       - "dependencies"

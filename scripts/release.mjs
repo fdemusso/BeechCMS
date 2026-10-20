@@ -192,6 +192,36 @@ function getPackageBaseRef(pkg, customSince) {
   return null
 }
 
+// A manifest change only matters to consumers when a field that reaches them changed. The version
+// is rewritten by the release itself, and devDependencies/scripts never ship: bumping a test
+// library must not publish a new version of every package that lists it.
+const CONSUMER_IRRELEVANT_FIELDS = ['version', 'devDependencies', 'scripts']
+
+function consumerManifest(json) {
+  const copy = { ...json }
+  for (const field of CONSUMER_IRRELEVANT_FIELDS) delete copy[field]
+  return JSON.stringify(copy)
+}
+
+function readManifestAt(ref, file) {
+  try {
+    const raw = ref
+      ? execSync(`git show "${ref}:${file}"`, { cwd: ROOT, stdio: 'pipe' }).toString()
+      : readRaw(resolve(ROOT, file))
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+/** True when `file` (a package.json) differs between two refs in a way consumers can see. null ref = working tree. */
+function manifestChangedForConsumers(file, fromRef, toRef) {
+  const before = readManifestAt(fromRef, file)
+  const after = readManifestAt(toRef, file)
+  if (!before || !after) return true // a new, removed or unreadable manifest is a change
+  return consumerManifest(before) !== consumerManifest(after)
+}
+
 function detectPackageChanges(pkg, customSince) {
   const baseRef = getPackageBaseRef(pkg, customSince)
   
@@ -212,18 +242,7 @@ function detectPackageChanges(pkg, customSince) {
       for (const f of out.split('\n')) {
         if (f.endsWith('.DS_Store')) continue
         if (f.endsWith('package.json')) {
-          try {
-            const diff = execSync(`git diff -U0 "${baseRef}..HEAD" -- "${resolve(ROOT, f)}"`, { cwd: ROOT, stdio: 'pipe' }).toString()
-            const meaningful = diff.split('\n').filter(l =>
-              (l.startsWith('+') || l.startsWith('-')) &&
-              !l.startsWith('+++') &&
-              !l.startsWith('---') &&
-              !l.includes('"version":')
-            )
-            if (meaningful.length > 0) changedFiles.push(f)
-          } catch {
-            changedFiles.push(f)
-          }
+          if (manifestChangedForConsumers(f, baseRef, 'HEAD')) changedFiles.push(f)
         } else {
           changedFiles.push(f)
         }
@@ -245,18 +264,7 @@ function detectPackageChanges(pkg, customSince) {
         const f = l.slice(3).trim()
         if (f.endsWith('.DS_Store')) continue
         if (f.endsWith('package.json')) {
-          try {
-            const diff = execSync(`git diff -U0 HEAD -- "${resolve(ROOT, f)}"`, { cwd: ROOT, stdio: 'pipe' }).toString()
-            const meaningful = diff.split('\n').filter(l =>
-              (l.startsWith('+') || l.startsWith('-')) &&
-              !l.startsWith('+++') &&
-              !l.startsWith('---') &&
-              !l.includes('"version":')
-            )
-            if (meaningful.length > 0) changedFiles.push(f)
-          } catch {
-            changedFiles.push(f)
-          }
+          if (manifestChangedForConsumers(f, 'HEAD', null)) changedFiles.push(f)
         } else {
           changedFiles.push(f)
         }
