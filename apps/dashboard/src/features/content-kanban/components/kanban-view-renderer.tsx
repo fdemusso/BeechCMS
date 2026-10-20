@@ -3,9 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
-import type { ViewDefinition, ViewRendererProps } from "@/features/shared"
+import { CardConfigDialog, type ViewDefinition, type ViewRendererProps } from "@/features/shared"
 import { ContentKanban } from "./content-kanban"
-import { CardConfigDialog } from "./card-config-dialog"
 import { KanbanSettingsSection } from "./kanban-settings-section"
 import { useKanbanEntrySync } from "../hooks/use-kanban-entry-sync"
 import { toActiveFilters } from "../utils/kanban-filter-mapping"
