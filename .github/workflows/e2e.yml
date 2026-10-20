@@ -24,6 +24,8 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: pnpm build
       - name: Install Playwright browser
         run: pnpm --filter @beechcms/e2e exec playwright install --with-deps chromium
       # No Docker: the e2e tier uses wrangler dev + miniflare D1 and touches no MinIO, Mailpit or
