@@ -24,6 +24,18 @@ export interface UseSeedEditorDialogProps {
 
 const NOOP = () => {}
 
+// Server branches are the source of truth for existence, alias and type (the
+// only things Danger Zone changes); the form keeps its unsaved edits on the rest.
+function reconcileBranches(formBranches: Branch[], serverBranches: Branch[]): Branch[] {
+  const formById = new Map(formBranches.map((b) => [b.id, b]))
+  const kept = serverBranches.map((sb) => {
+    const fb = formById.get(sb.id)
+    return fb ? { ...fb, alias: sb.alias, type: sb.type } : sb
+  })
+  const unsavedNew = formBranches.filter((b) => b.id?.startsWith("br_new_"))
+  return [...kept, ...unsavedNew]
+}
+
 export function useSeedEditorDialog({
   editRecord,
   activeSeedsForRelation,
@@ -51,8 +63,18 @@ export function useSeedEditorDialog({
   const [prevEditRecord, setPrevEditRecord] = React.useState(editRecord)
   if (editRecord !== prevEditRecord) {
     setPrevEditRecord(editRecord)
-    setFormData(seedToFormData(editRecord))
-    setIsDirty(false)
+    if (editRecord && prevEditRecord?.slug === editRecord.slug) {
+      // Same seed, fresher server copy (Danger Zone drop/rename/retype refetch):
+      // keep unsaved edits but re-align branches, or Save would resurrect a
+      // dropped column or submit a stale alias.
+      setFormData((prev) => ({
+        ...prev,
+        branches: reconcileBranches((prev.branches as Branch[] | undefined) ?? [], editRecord.definition.branches),
+      }))
+    } else {
+      setFormData(seedToFormData(editRecord))
+      setIsDirty(false)
+    }
   }
 
   // The create dialog stays permanently mounted (stable hook order — see
