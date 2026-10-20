@@ -15,13 +15,18 @@ export function useToolbarSearch({
   onSearchChange,
   onSubmitSearch,
 }: UseToolbarSearchProps) {
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(() => Boolean(searchValue))
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Focus il campo di ricerca dopo che il render lo ha reso visibile nel DOM.
   useEffect(() => {
     if (isSearchOpen) searchInputRef.current?.focus()
   }, [isSearchOpen])
+
+  // A query set from outside (router state, restored draft) must be visible, not hidden behind the icon.
+  useEffect(() => {
+    if (searchValue) setIsSearchOpen(true)
+  }, [searchValue])
 
   const handleSearchOpen = () => setIsSearchOpen(true)
 
