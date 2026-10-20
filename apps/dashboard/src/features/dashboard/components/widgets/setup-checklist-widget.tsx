@@ -90,7 +90,7 @@ export function SetupChecklistWidget({ variant = "full" }: SetupChecklistWidgetP
       done: data.hasContent,
       label: t("dashboard.setupChecklist.firstContent"),
       action: !data.hasContent && data.firstSeedSlug
-        ? { label: t("dashboard.setupChecklist.firstContentAction"), href: `/content/${data.firstSeedSlug}/new` }
+        ? { label: t("dashboard.setupChecklist.firstContentAction"), href: `/content/${data.firstSeedSlug}/create` }
         : undefined,
     },
   ]
