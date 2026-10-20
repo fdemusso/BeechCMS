@@ -8,6 +8,8 @@ import { describe, it, expect } from 'vitest'
 import { buildKanbanCardDisplayModel } from '@/features/content-kanban/utils/kanban-card-display'
 import type { ElementFormat } from '@/lib/conditional-format'
 import type { Branch } from '@beechcms/core'
+import { computeReorderBounds, resequenceCards } from '@/features/content-kanban/utils/kanban-reorder'
+import { positionBetween } from '@/features/content-kanban/utils/fractional'
 
 const axisBranch = { id: 'br_01', alias: 'status', type: 'text', label: 'Status' } as Branch
 
@@ -27,6 +29,20 @@ const baseEntry = {
   status: 'published',
   data: { title: 'Task one', status: 'open', due: '2026-01-01' },
 } as any
+
+describe('buildKanbanCardDisplayModel — blank position', () => {
+  it('lets a drag next to an imported card with an empty position compute a valid key', () => {
+    const cards = [
+      buildKanbanCardDisplayModel({ ...baseEntry, id: 'blank', position: '' }, axisBranch, 'open'),
+      buildKanbanCardDisplayModel({ ...baseEntry, id: 'placed', position: 'a0' }, axisBranch, 'open'),
+    ]
+
+    const { cards: resequenced } = resequenceCards(cards)
+    const { before, after } = computeReorderBounds(resequenced, 'placed', 'blank')
+
+    expect(() => positionBetween(before, after)).not.toThrow()
+  })
+})
 
 describe('buildKanbanCardDisplayModel — legacy heuristic (no card config)', () => {
   it('sets entryId from entry.id', () => {
