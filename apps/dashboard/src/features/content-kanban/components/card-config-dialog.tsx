@@ -43,6 +43,10 @@ export function CardConfigDialog({ open, onClose, seed, config, onSave, mediaBra
 
   const metadataIdSet = React.useMemo(() => new Set(metadataIds), [metadataIds])
 
+  // Core drops a branch placed in more than one slot, so a branch may occupy only one.
+  const singleSlotIds = [mediaId, headerId, subtitleId].filter(id => id !== NONE)
+  const takenBy = (own: string) => new Set([...singleSlotIds.filter(id => id !== own), ...metadataIds])
+
   React.useEffect(() => {
     if (open) {
       setMediaId(shown?.media?.branchId ?? NONE)
@@ -83,18 +87,21 @@ export function CardConfigDialog({ open, onClose, seed, config, onSave, mediaBra
             value={mediaId}
             onChange={setMediaId}
             branches={mediaBranches}
+            excludedIds={takenBy(mediaId)}
           />
           <SlotPicker
             label={t('kanban.cardConfig.headerSlot', 'Header')}
             value={headerId}
             onChange={setHeaderId}
             branches={eligible}
+            excludedIds={takenBy(headerId)}
           />
           <SlotPicker
             label={t('kanban.cardConfig.subtitleSlot', 'Subtitle')}
             value={subtitleId}
             onChange={setSubtitleId}
             branches={eligible}
+            excludedIds={takenBy(subtitleId)}
           />
           <div>
             <p className="text-sm font-medium mb-1.5">
@@ -104,7 +111,7 @@ export function CardConfigDialog({ open, onClose, seed, config, onSave, mediaBra
             <div className="flex flex-wrap gap-1.5">
               {eligible.map(b => {
                 const active = metadataIdSet.has(b.id)
-                const disabled = !active && metadataIds.length >= METADATA_SLOT_CAP
+                const disabled = !active && (metadataIds.length >= METADATA_SLOT_CAP || singleSlotIds.includes(b.id))
                 return (
                   <button
                     key={b.id}
@@ -136,9 +143,11 @@ interface SlotPickerProps {
   value: string
   onChange: (id: string) => void
   branches: import('@beechcms/core').Branch[]
+  /** Branches already placed in another slot; the current value stays selectable. */
+  excludedIds: ReadonlySet<string>
 }
 
-function SlotPicker({ label, value, onChange, branches }: SlotPickerProps) {
+function SlotPicker({ label, value, onChange, branches, excludedIds }: SlotPickerProps) {
   const { t } = useTranslation()
   return (
     <div>
@@ -149,7 +158,7 @@ function SlotPicker({ label, value, onChange, branches }: SlotPickerProps) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={NONE}>{t('kanban.cardConfig.noField', 'No field')}</SelectItem>
-          {branches.map(b => (
+          {branches.filter(b => !excludedIds.has(b.id)).map(b => (
             <SelectItem key={b.id} value={b.id}>{b.label}</SelectItem>
           ))}
         </SelectContent>
