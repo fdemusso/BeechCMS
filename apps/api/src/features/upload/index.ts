@@ -78,8 +78,15 @@ function isActiveMimeType(mime: string): boolean {
 
 export const uploadRoutes = new Hono<AppEnv>()
 
-/** POST /upload — Direct proxied upload fallback (used when presigning is unconfigured). */
+/**
+ * POST /upload — Dev-only proxied upload fallback (used when presigning is unconfigured).
+ * Refused in production before the body is read: the Worker must never parse upload bytes there.
+ */
 uploadRoutes.post('/upload', async (c) => {
+  if (c.env.ENV === 'production') {
+    return c.json({ error: 'presigned_urls_required' }, 501)
+  }
+
   const { bucket, mediaRepository: mediaRepo } = c.var
 
   let body: FormData
