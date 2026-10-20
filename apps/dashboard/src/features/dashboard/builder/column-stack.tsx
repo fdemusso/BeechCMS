@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
 import { useTranslation } from 'react-i18next'
+import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus } from 'reicon-react'
 import type { DashboardColumn, DashboardPageLayout } from '@beechcms/core'
@@ -34,9 +35,15 @@ export function ColumnStack({
 }: ColumnStackProps) {
   const { t } = useTranslation()
   const dragIds = column.widgets.map((w) => `widget:${pageId}:${sectionId}:${column.id}:${w.id}`)
+  // An empty column has no chip to drop onto, so the container itself is the drop target.
+  const { setNodeRef } = useDroppable({
+    id: `column:${pageId}:${sectionId}:${column.id}`,
+    disabled: column.widgets.length > 0,
+  })
 
   return (
     <div
+      ref={setNodeRef}
       className="flex flex-col gap-1.5 rounded-md border border-dashed p-2 min-h-[64px]"
       style={span ? { gridColumn: `span ${span} / span ${span}` } : undefined}
     >
