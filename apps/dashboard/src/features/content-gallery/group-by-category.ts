@@ -12,9 +12,12 @@ export interface GalleryCategoryGroup {
   models: GalleryCardDisplayModel[]
 }
 
-/** Chiave di confronto di una categoria: ignora maiuscole e spazi ai bordi. */
+/** Limite delle chiavi di `folders`, specchio di contentViewConfigSchema (core): oltre, il PATCH della vista fallisce. */
+const MAX_FOLDER_KEY_LENGTH = 100
+
+/** Chiave di confronto di una categoria: ignora maiuscole e spazi ai bordi, troncata al limite delle chiavi di cartella. */
 export function categoryKey(label: string): string {
-  return label.trim().toLocaleLowerCase("it")
+  return label.trim().toLocaleLowerCase("it").slice(0, MAX_FOLDER_KEY_LENGTH)
 }
 
 /**

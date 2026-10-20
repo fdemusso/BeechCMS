@@ -7,11 +7,20 @@
 import { describe, it, expect } from "vitest"
 
 import type { GalleryCardDisplayModel } from "@/features/content-gallery/gallery-card-display"
-import { groupByCategory } from "@/features/content-gallery/group-by-category"
+import { categoryKey, groupByCategory } from "@/features/content-gallery/group-by-category"
 
 function model(entryId: string, category: string): GalleryCardDisplayModel {
   return { entryId, category } as GalleryCardDisplayModel
 }
+
+describe("categoryKey", () => {
+  // `folders` keys are validated server-side with max(100); a longer key makes the view autosave fail.
+  it("non supera i 100 caratteri accettati come chiave di cartella", () => {
+    const key = categoryKey(`  ${"A".repeat(110)}  `)
+
+    expect(key).toBe("a".repeat(100))
+  })
+})
 
 describe("groupByCategory", () => {
   it("restituisce un array vuoto senza card", () => {
