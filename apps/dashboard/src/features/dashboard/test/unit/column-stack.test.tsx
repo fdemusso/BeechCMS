@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { DndContext } from "@dnd-kit/core"
+import { DndContext, useDndContext } from "@dnd-kit/core"
 import type { DashboardColumn, DashboardPageLayout } from "@beechcms/core"
 import { ColumnStack } from "@/features/dashboard/builder/column-stack"
 
@@ -99,5 +99,35 @@ describe("ColumnStack", () => {
     )
     const root = container.firstChild as HTMLElement
     expect(root.style.gridColumn).toBe("")
+  })
+})
+
+function DroppableIds() {
+  const { droppableContainers } = useDndContext()
+  return <output data-testid="droppables">{Array.from(droppableContainers.keys()).join(",")}</output>
+}
+
+describe("ColumnStack drop target", () => {
+  const renderWithProbe = (column: DashboardColumn) =>
+    render(
+      <DndContext onDragEnd={() => {}}>
+        <ColumnStack
+          pageId="page-1"
+          sectionId="section-1"
+          column={column}
+          otherPages={[]}
+          onAddWidget={vi.fn()}
+          onConfigureWidget={vi.fn()}
+          onRemoveWidget={vi.fn()}
+          onMoveWidgetToPage={vi.fn()}
+        />
+        <DroppableIds />
+      </DndContext>,
+    )
+
+  it("registers an empty column as a drop target", () => {
+    renderWithProbe({ id: "col-1", widgets: [] })
+
+    expect(screen.getByTestId("droppables").textContent).toContain("column:page-1:section-1:col-1")
   })
 })
