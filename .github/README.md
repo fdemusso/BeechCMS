@@ -108,7 +108,13 @@ npx beech schema diff     # Check drift between manifest and database
 npx beech schema plan     # Dry-run and preview SQL DDL changes
 npx beech schema apply    # Safely apply changes (strictly additive migrations)
 npx beech types generate  # Generate end-to-end TypeScript types
+npx beech types check     # CI drift guard: fail if generated types are stale
+npx beech schema audit    # Report stranded relation storage and legacy tag definitions
+npx beech schema migrate  # Migrate pre-0.9 tag/choice seeds to closed-vocabulary tags
 ```
+
+> [!NOTE]
+> **Upgrading from 0.8.x?** Run `npx beech schema audit` first, then `npx beech schema migrate` if it reports legacy tag or choice seeds. See the [changelog](../CHANGELOG.md).
 
 ### Type-Safe Querying with the Fluent Client SDK
 
@@ -130,7 +136,10 @@ const posts = await client
 
 ### Full-Featured Edge Content Platform
 
-- **Flexible Editorial Views:** Switch effortlessly between Table, drag-and-drop Kanban, and Gallery views.
+- **Flexible Editorial Views:** Switch effortlessly between Table, drag-and-drop Kanban, and Gallery views, and save them as reusable Saved Views with closed-vocabulary tags.
+- **Bulk Import & Export:** Streamed exports and async chunked import jobs from the dashboard.
+- **Edge Media Presets:** On-the-fly image transformations through preset URL builders.
+- **Optimistic Concurrency:** `If-Match` guards on content updates and draft publish prevent lost edits.
 - **Field-Level Localization:** Multilingual content per branch without DDL complexity or duplicate tables.
 - **Trash & Soft Delete:** Reversible deletions with automated GDPR retention and cleanup.
 - **Granular RBAC:** Custom roles, permission evaluation, and secure invitation workflows.

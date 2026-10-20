@@ -11,7 +11,7 @@ Covers `v0.8.1..HEAD` (2026-09-30 → 2026-10-20, ~270 commits).
 - **Field-Level Localization** — localized fields, locale switcher in the entry editor (#437).
 - **Soft delete & Trash** — soft delete backend, dashboard Trash, GDPR purge.
 - **Bulk data transfer** — export streams, bulk-transfer codecs, async chunked import jobs, transfer dashboard.
-- **Schema manifest tooling** — `beech.schema.ts` DSL, schema introspection fingerprint, `beech schema plan/apply`, `beech types check`, `beech schema audit` for stranded relation storage (#664).
+- **Schema manifest tooling** — `beech.schema.ts` DSL, schema introspection fingerprint, `beech schema plan/apply`, `beech types check`, `beech schema audit` for stranded relation storage (#664) and legacy tag definitions, `beech schema migrate` for pre-0.9 tag/choice seeds.
 - **Client SDK** — fluent query builder with sorting, pagination, search and relation subqueries; public API relation expansion.
 - **Edge media presets** — preset transformations and URL builders (#436).
 - **Large security/hardening pass** — ~100 fixes from audit issues (see Security).
@@ -33,6 +33,10 @@ Covers `v0.8.1..HEAD` (2026-09-30 → 2026-10-20, ~270 commits).
 - **CI/Release**: Dependabot auto-merge and release pipeline (#424).
 - **Dashboard**: "not implemented" toast for templates, scheduled and create-new.
 - **Docs**: query system, `beech.schema.ts`, RBAC, Trash/soft delete/GDPR purge, field localization, media presets, `@beechcms/testing` harness; ultra-wide responsive docs layout.
+
+### Upgrade notes
+
+- Coming from 0.8.x: run `beech schema audit`, then `beech schema migrate` if it reports legacy tag/choice seeds. The seed registry now tolerates (quarantines) seeds that fail validation instead of failing to load.
 
 ### Changed
 
@@ -86,7 +90,3 @@ Covers `v0.8.1..HEAD` (2026-09-30 → 2026-10-20, ~270 commits).
 - Uploads: proxied multipart fallback refused in production (#594); atomic upload registration (#592).
 - `sanitizeHtml`, `media()` host check, prototype-pollution lookups, DoS pre-check depth, layout size caps (#519, #520, #576, #605, #443).
 - Dependency patches for audit findings (#733–#735; axios, hono, sharp, fast-uri, MCP SDK, follow-redirects).
-
-### In progress (uncommitted in working tree)
-
-- `beech schema migrate` command and seed tag migration (`tag-migration`), with tests and a `schema audit` update.
