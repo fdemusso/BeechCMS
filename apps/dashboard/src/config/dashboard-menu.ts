@@ -20,6 +20,9 @@ export interface NavItem {
   disabled?: boolean
   /** Tooltip shown on a disabled item; must name the missing authority. */
   disabledReason?: string
+  /** Feature not built yet: the item stays visible but, instead of navigating, the sidebar
+   *  shows a "not implemented" toast. Remove the flag when the page is implemented. */
+  notImplemented?: boolean
 }
 
 /**
@@ -77,9 +80,12 @@ export function getContentCategoryMenu(t: (key: string) => string, gates: MenuGa
       // greyed rather than removed (the demo/read-only persona, brief §3).
       disabled: !gates.createContent,
       disabledReason: gates.createContent ? undefined : t("sidebar.disabled.createContent"),
+      // Placeholder page only: notify instead of navigating until the feature exists.
+      notImplemented: true,
     },
     { title: t("sidebar.drafts"), url: "/drafts", icon: PenLine },
-    { title: t("sidebar.scheduled"), url: "/scheduled", icon: Calendar },
+    // Placeholder page only: notify instead of navigating until the feature exists.
+    { title: t("sidebar.scheduled"), url: "/scheduled", icon: Calendar, notImplemented: true },
   ]
 }
 

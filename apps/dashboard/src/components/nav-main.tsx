@@ -8,6 +8,7 @@ import type { IconComponent } from '@/lib/icon-registry'
 import { useRef } from "react"
 import { ChevronRight } from 'reicon-react'
 import { Link, useLocation } from "react-router-dom"
+import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
 import {
@@ -40,6 +41,7 @@ type NavMainItem = {
   readonly items?: ReadonlyArray<NavMainSubItem>
   readonly disabled?: boolean
   readonly disabledReason?: string
+  readonly notImplemented?: boolean
 }
 
 type NavMainProps = {
@@ -115,6 +117,20 @@ function NavMainMenuItem({
           aria-disabled="true"
           tooltip={item.disabledReason ?? item.title}
           className="cursor-not-allowed opacity-50"
+        >
+          <item.icon />
+          <span>{item.title}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+  }
+
+  if (item.notImplemented) {
+    return (
+      <SidebarMenuItem ref={itemRef}>
+        <SidebarMenuButton
+          tooltip={item.title}
+          onClick={() => toast.info("This feature is not implemented yet.")}
         >
           <item.icon />
           <span>{item.title}</span>

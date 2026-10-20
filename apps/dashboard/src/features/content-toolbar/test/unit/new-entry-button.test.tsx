@@ -5,8 +5,12 @@
 import { describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
 
+import { toast } from "sonner"
+
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { NewEntryButton } from "@/features/content-toolbar/toolbar-components/new-entry-button"
+
+vi.mock("sonner", () => ({ toast: { info: vi.fn() } }))
 
 describe("NewEntryButton", () => {
   it("creates an entry when the user clicks New", () => {
@@ -35,7 +39,7 @@ describe("NewEntryButton", () => {
     expect(screen.getByRole("menuitem", { name: /new template/i })).toBeInTheDocument()
   })
 
-  it("shows the New template item disabled and creates nothing when clicked", async () => {
+  it("notifies that templates are not implemented and creates nothing when New template is clicked", async () => {
     const onCreate = vi.fn()
     render(
       <TooltipProvider>
@@ -45,9 +49,10 @@ describe("NewEntryButton", () => {
 
     fireEvent.pointerDown(screen.getByRole("button", { name: /templates/i }))
     const item = await screen.findByRole("menuitem", { name: /new template/i })
-    expect(item).toHaveAttribute("aria-disabled", "true")
 
     fireEvent.click(item)
+
+    expect(toast.info).toHaveBeenCalledWith("Templates are not implemented yet.")
     expect(onCreate).not.toHaveBeenCalled()
   })
 

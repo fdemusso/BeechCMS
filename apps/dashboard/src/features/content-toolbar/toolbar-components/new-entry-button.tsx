@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 import { Plus, ChevronDown } from "reicon-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -49,8 +50,8 @@ export function NewEntryButton({ canCreate, onCreate, seedLabel }: NewEntryButto
             {t("toolbar.newEntry.templatesDescription")}
           </p>
           <DropdownMenuSeparator />
-          {/* Templates are not implemented yet: keep the entry visible but inert. */}
-          <DropdownMenuItem disabled>
+          {/* Templates are not implemented yet: the entry stays visible and only notifies the user. */}
+          <DropdownMenuItem onSelect={() => toast.info("Templates are not implemented yet.")}>
             <Plus className="size-4" />
             {t("toolbar.newEntry.newTemplate")}
           </DropdownMenuItem>

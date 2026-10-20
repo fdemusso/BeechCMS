@@ -2,14 +2,17 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi } from "vitest"
 import { createElement } from "react"
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
+import { toast } from "sonner"
 import { MemoryRouter } from "react-router-dom"
 import { getStaticMenu, getContentCategoryMenu, type MenuGates } from "@/config/dashboard-menu"
 import { NavMain } from "@/components/nav-main"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
+
+vi.mock("sonner", () => ({ toast: { info: vi.fn() } }))
 
 const t = (key: string) => key
 
@@ -69,5 +72,30 @@ describe("NavMain disabled rendering", () => {
     expect(screen.queryByRole("link", { name: /sidebar.createNew/i })).toBeNull()
     const disabledButton = screen.getByText("sidebar.createNew").closest("button")
     expect(disabledButton).toHaveAttribute("aria-disabled", "true")
+  })
+})
+
+describe("NavMain not-implemented rendering", () => {
+  it("Scheduled and Create New show a toast instead of linking", () => {
+    const items = getContentCategoryMenu(t, gates({ readContent: true, createContent: true }))
+    render(
+      createElement(
+        MemoryRouter,
+        null,
+        createElement(
+          TooltipProvider,
+          null,
+          createElement(SidebarProvider, null, createElement(NavMain, { items })),
+        ),
+      ),
+    )
+    expect(screen.queryByRole("link", { name: /sidebar.scheduled/i })).toBeNull()
+    expect(screen.queryByRole("link", { name: /sidebar.createNew/i })).toBeNull()
+
+    fireEvent.click(screen.getByText("sidebar.scheduled"))
+    fireEvent.click(screen.getByText("sidebar.createNew"))
+
+    expect(toast.info).toHaveBeenCalledTimes(2)
+    expect(toast.info).toHaveBeenCalledWith("This feature is not implemented yet.")
   })
 })
