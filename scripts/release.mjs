@@ -156,12 +156,15 @@ function getPackageBaseRef(pkg, customSince) {
       .trim()
       .split('\n')
       .filter(Boolean)
+    // The diff below compares trees, so the tag does not have to be an ancestor of HEAD. Requiring
+    // ancestry broke after a squash merge (the release tags sit on commits that are no longer
+    // reachable from master): detection fell back to an older tag and flagged every package.
     for (const t of tags) {
       try {
-        execSync(`git merge-base --is-ancestor "${t}" HEAD`, { cwd: ROOT, stdio: 'pipe' })
+        execSync(`git rev-parse --verify --quiet "${t}^{commit}"`, { cwd: ROOT, stdio: 'pipe' })
         return t
       } catch {
-        // Tag is not an ancestor of HEAD
+        // Tag does not resolve to a commit
       }
     }
   } catch {
@@ -753,13 +756,54 @@ try {
 log('')
 log(`3/4  Publishing ${packagesToPublish.length} package(s) to npm (tag: ${npmTag})...`)
 
-for (const pkg of packagesToPublish) {
-  log(`     publishing ${pkg.name}@${pkg.nextVersion}...`)
+function isOnNpm(name, version) {
   try {
-    run(`pnpm publish --access public --no-git-checks --tag ${npmTag}`, { cwd: resolve(pkg.path, '..'), isDryRun })
+    const out = execSync(`npm view ${name}@${version} version`, { cwd: ROOT, stdio: 'pipe' }).toString().trim()
+    return out === version
   } catch {
-    rollback(`Publish failed for ${pkg.name}.\n  Note: previously published packages in this run are NOT rolled back on npm — bump manually if needed.`)
+    return false
   }
+}
+
+const publishedNow = []
+
+for (const pkg of packagesToPublish) {
+  const version = isCurrent ? pkg.currentVersion : pkg.nextVersion
+  log(`     publishing ${pkg.name}@${version}...`)
+
+  // A previous run may have published this version before failing at the git step: publishing it
+  // again would abort the whole run on a 403, so treat it as done.
+  if (!isDryRun && isOnNpm(pkg.name, version)) {
+    log(`     ${pkg.name}@${version} is already on npm, skipping.`)
+    publishedNow.push({ name: pkg.name, version })
+    continue
+  }
+
+  let published = false
+  for (let attempt = 1; attempt <= 3 && !published; attempt++) {
+    try {
+      run(`pnpm publish --access public --no-git-checks --tag ${npmTag}`, { cwd: resolve(pkg.path, '..'), isDryRun })
+      published = true
+    } catch {
+      if (!isDryRun && isOnNpm(pkg.name, version)) {
+        published = true // the registry accepted it despite the client error
+      } else if (attempt < 3 && !isDryRun) {
+        log(`     publish attempt ${attempt} failed, retrying in ${attempt * 5}s...`)
+        execSync(`node -e "setTimeout(()=>{},${attempt * 5000})"`)
+      }
+    }
+  }
+
+  if (!published) {
+    // Files are rolled back, but whatever was already published stays on npm: say exactly which.
+    const done = publishedNow.map(p => `${p.name}@${p.version}`).join(', ') || 'none'
+    const pending = packagesToPublish.filter(p => !publishedNow.some(d => d.name === p.name)).map(p => p.name).join(', ')
+    rollback(`Publish failed for ${pkg.name}.
+  Already published in this run: ${done}
+  Not published: ${pending}
+  Published packages are NOT rolled back on npm — resolve manually (npm deprecate / bump) before re-running.`)
+  }
+  publishedNow.push({ name: pkg.name, version })
 }
 
 // ── Step 4: Git commit + tags ─────────────────────────────────────────────────
@@ -785,7 +829,7 @@ if (isCurrent) {
 
   try {
     for (const tag of tagList) {
-      run(`git tag ${tag}`, { isDryRun })
+      run(`git tag -a ${tag} -m "${tag}"`, { isDryRun })
     }
   } catch {
     console.error('  ✗ Git tag step failed. Packages were published on npm but tags may be incomplete.')
@@ -818,7 +862,7 @@ if (isCurrent) {
     if (packagesToBumpForTag.length > 0) {
       run(`git commit -m "${commitMsg}"`, { isDryRun })
       for (const tag of tagList) {
-        run(`git tag ${tag}`, { isDryRun })
+        run(`git tag -a ${tag} -m "${tag}"`, { isDryRun })
       }
     }
   } catch {
@@ -826,6 +870,12 @@ if (isCurrent) {
     console.error(`  Run manually: git add -A && git commit -m "${commitMsg}"`)
     process.exit(1)
   }
+}
+
+// Machine-readable result for CI: which packages are really on npm (private ones are tagged but
+// never published) and which tags the run created.
+if (!isDryRun && process.env.RELEASE_MANIFEST) {
+  writeFileSync(process.env.RELEASE_MANIFEST, JSON.stringify({ published: publishedNow, tags: tagList }, null, 2) + '\n')
 }
 
 log('')

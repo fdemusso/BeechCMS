@@ -13,6 +13,7 @@ jobs:
   release:
     name: Release & Sync
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: >-
       (startsWith(github.event.head_commit.message, 'chore(deps') ||
        startsWith(github.event.head_commit.message, 'chore(ci') ||
@@ -23,6 +24,10 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      issues: write
+
+    outputs:
+      released: ${{ steps.push.outputs.released }}
 
     steps:
       - name: Checkout repository
@@ -30,6 +35,7 @@ jobs:
         with:
           token: ${{ secrets.RELEASE_PAT }}
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -51,42 +57,204 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+      # Fail before anything is bumped or published: a missing secret discovered after the npm
+      # publish leaves packages on the registry with no release commit and no tags.
+      - name: Preflight (secrets and credentials)
+        run: |
+          set -euo pipefail
+          [ -n "${RELEASE_PAT}" ] || { echo "::error::RELEASE_PAT secret is empty"; exit 1; }
+          [ -n "${NPM_TOKEN}" ] || { echo "::error::NPM_TOKEN secret is empty"; exit 1; }
+          npm whoami --registry https://registry.npmjs.org \
+            || { echo "::error::NPM_TOKEN is not valid for registry.npmjs.org"; exit 1; }
+          git ls-remote --exit-code origin master > /dev/null \
+            || { echo "::error::RELEASE_PAT cannot read the repository"; exit 1; }
+        env:
+          RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Run Release Pipeline (Patch)
         id: release
         run: |
+          set -euo pipefail
           echo "Executing release pipeline for modified packages..."
-          node scripts/release.mjs patch
+          RELEASE_MANIFEST="$RUNNER_TEMP/release-manifest.json" node scripts/release.mjs patch
 
+      # Only the release commit and its tags matter from here on. Everything below runs only when
+      # the pipeline actually produced a "chore: release" commit.
       - name: Push release commit and tags
+        id: push
         run: |
-          if git log -1 --pretty=%B | grep -q "chore: release"; then
-            echo "Pushing release commit and tags to master..."
-            git push origin master --follow-tags
-
-            echo "Generating GitHub Release Notes for new tags..."
-            NEW_TAGS=$(git tag --points-at HEAD)
-            for TAG in $NEW_TAGS; do
-              echo "Creating GitHub Release for $TAG..."
-              gh release create "$TAG" --generate-notes --title "$TAG" || true
-            done
-          else
+          set -euo pipefail
+          if ! git log -1 --pretty=%s | grep -q '^chore: release'; then
             echo "No packages were bumped or published."
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+
+          TAGS=$(git tag --points-at HEAD)
+          [ -n "$TAGS" ] || { echo "::error::Release commit has no tags"; exit 1; }
+
+          pushed=false
+          for attempt in 1 2 3; do
+            git fetch origin master
+            if ! git merge-base --is-ancestor origin/master HEAD; then
+              # master moved while the release was running: replay the release commit on top of it
+              # and re-point the tags, otherwise the push is rejected as non-fast-forward.
+              echo "master moved during the release, rebasing (attempt $attempt)..."
+              git rebase origin/master || { git rebase --abort; echo "::error::Could not replay the release commit on the new master"; exit 1; }
+              for t in $TAGS; do git tag -f -a "$t" -m "$t"; done
+            fi
+            if git push origin HEAD:master; then pushed=true; break; fi
+            sleep $((attempt * 5))
+          done
+          $pushed || { echo "::error::Could not push the release commit to master"; exit 1; }
+
+          # --follow-tags only pushes annotated tags that point at pushed commits; push every tag
+          # explicitly and verify them on the remote instead of trusting it.
+          for t in $TAGS; do git push origin "refs/tags/$t"; done
+          for t in $TAGS; do
+            git ls-remote --exit-code --tags origin "refs/tags/$t" > /dev/null \
+              || { echo "::error::Tag $t is missing on the remote"; exit 1; }
+          done
+
+          echo "released=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "tags<<EOF"
+            echo "$TAGS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
 
-      - name: Sync master into devs (Back-Merge)
+      - name: Verify packages on npm
+        if: steps.push.outputs.released == 'true'
         run: |
-          echo "Checking out devs branch to back-merge master updates..."
-          git fetch origin devs:devs
-          git checkout devs
-          git merge master --no-edit -m "chore: sync master into devs after dependency release [skip ci]" || {
-            echo "::warning::Merge conflict encountered while syncing master into devs. Manual resolution required."
-            exit 0
-          }
-          git push origin devs
+          set -euo pipefail
+          # The release script records what it really published: private workspace packages are
+          # tagged but never published, so the tag list alone cannot be checked against npm.
+          MANIFEST="$RUNNER_TEMP/release-manifest.json"
+          [ -f "$MANIFEST" ] || { echo "::error::Release manifest is missing"; exit 1; }
+          PUBLISHED=$(node -e "
+            for (const p of JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).published) console.log(p.name + '@' + p.version)
+          " "$MANIFEST")
+          missing=0
+          for t in $PUBLISHED; do
+            ok=false
+            for i in $(seq 1 12); do
+              if [ "$(npm view "$t" version 2>/dev/null)" = "${t##*@}" ]; then ok=true; break; fi
+              sleep 10
+            done
+            if $ok; then echo "ok   $t"; else echo "::error::$t is not visible on npm"; missing=1; fi
+          done
+          exit $missing
+
+      - name: Create GitHub Releases
+        if: steps.push.outputs.released == 'true'
+        run: |
+          set -euo pipefail
+          failed=0
+          for t in $TAGS; do
+            if gh release view "$t" > /dev/null 2>&1; then echo "exists $t"; continue; fi
+            created=false
+            for attempt in 1 2 3; do
+              if gh release create "$t" --verify-tag --generate-notes --title "$t"; then created=true; break; fi
+              sleep $((attempt * 5))
+            done
+            $created || { echo "::error::Could not create the GitHub Release for $t"; failed=1; }
+          done
+          exit $failed
+        env:
+          TAGS: ${{ steps.push.outputs.tags }}
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+
+      - name: Summary
+        if: steps.push.outputs.released == 'true'
+        run: |
+          {
+            echo "### Released"
+            echo ""
+            for t in $TAGS; do echo "- \`$t\`"; done
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          TAGS: ${{ steps.push.outputs.tags }}
+
+      # A failure after the npm publish needs a human: leave a trace that does not depend on
+      # someone noticing a red run.
+      - name: Open an issue on failure
+        if: failure()
+        run: |
+          gh issue create \
+            --title "Auto release failed for ${GITHUB_SHA::7}" \
+            --body "The auto-release workflow failed.
+
+          Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          Commit: ${GITHUB_SHA}
+
+          Packages may already be published on npm without a release commit or tags. Check the run log before re-running." \
+            || echo "::warning::Could not open the failure issue"
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+
+  sync-devs:
+    name: Sync master into devs
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout devs
+        uses: actions/checkout@v7
+        with:
+          ref: devs
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 0
+
+      - name: Configure Git Author
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      # A merge conflict is not a silent warning: devs would keep stale versions and the next
+      # release would be computed from them. Open a master -> devs pull request (GitHub shows the
+      # conflicts there) and fail the job so the run is red.
+      - name: Merge master into devs
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            git fetch origin master devs
+            git reset --hard origin/devs
+
+            if git merge-base --is-ancestor origin/master HEAD; then
+              echo "devs already contains master."
+              exit 0
+            fi
+
+            if ! git merge origin/master --no-edit -m "chore: sync master into devs after dependency release [skip ci]"; then
+              git merge --abort
+              if [ "$(gh pr list --base devs --head master --state open --json number --jq length)" = "0" ]; then
+                gh pr create --base devs --head master \
+                  --title "chore: sync master into devs" \
+                  --body "Automatic back-merge after a dependency release failed with conflicts. Resolve them here, then merge (merge commit)."
+              fi
+              echo "::error::Merging master into devs conflicts. A pull request was opened for manual resolution."
+              exit 1
+            fi
+
+            if git push origin devs; then
+              echo "devs is in sync with master."
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not push the sync merge to devs"
+          exit 1
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
