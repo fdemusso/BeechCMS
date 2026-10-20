@@ -77,7 +77,7 @@ const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'DELETE', pattern: /^\/api\/settings\/sessions\/[^/]+$/,       requirement: AUTHED },
   { method: 'GET',    pattern: /^\/api\/settings\/notifications$/,         requirement: AUTHED },
   { method: 'PUT',    pattern: /^\/api\/settings\/notifications$/,         requirement: AUTHED },
-  { method: 'GET',    pattern: /^\/api\/settings\/activity$/,              requirement: perm('view_analytics', 'global') },
+  { method: 'GET',    pattern: /^\/api\/settings\/activity$/,              requirement: AUTHED },
   { method: 'GET',    pattern: /^\/api\/settings\/storage$/,               requirement: perm('view_analytics', 'global') },
   // Same gate as DELETE /api/upload/:key; the handler adds the owner-or-admin check.
   { method: 'POST',   pattern: /^\/api\/settings\/storage\/orphans\/delete$/, requirement: perm('content:delete', 'global') },
