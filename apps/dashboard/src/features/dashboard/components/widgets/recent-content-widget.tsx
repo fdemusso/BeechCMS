@@ -80,6 +80,7 @@ export function RecentContentWidget({ seedSlug, variant = "list", title }: Recen
       const d = res.data
       return Array.isArray(d) ? d : d.items
     },
+    enabled: !!seedSlug,
     staleTime: 3 * 60 * 1000,
   })
 
