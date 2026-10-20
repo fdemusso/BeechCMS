@@ -31,8 +31,18 @@ export function useViewConfigAutosave({ slug, viewId, config, enabled }: UseView
   const flush = React.useCallback(() => {
     const latest = latestRef.current
     if (!latest.enabled || latest.serialized === savedRef.current) return
+    const previous = savedRef.current
     savedRef.current = latest.serialized
-    mutate({ viewId, body: { config: latest.config } })
+    mutate(
+      { viewId, body: { config: latest.config } },
+      {
+        // A failed save is not a saved config: restore the baseline so the unmount flush and the
+        // next change retry it. Skipped when a newer flush already moved the baseline.
+        onError: () => {
+          if (savedRef.current === latest.serialized) savedRef.current = previous
+        },
+      }
+    )
   }, [mutate, viewId])
 
   React.useEffect(() => {
