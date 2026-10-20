@@ -7,7 +7,7 @@ import type { Seed } from "@beechcms/core"
 import type { ViewLayout } from "@/features/shared"
 import { defaultHiddenColumns, DEFAULT_DATE_GROUP_PRECISION } from "@/lib/dynamic-columns"
 import { DEFAULT_DENSITY } from "@/lib/density"
-import type { ViewToolbarState } from "../lib/view-config-mapping"
+import { DATE_SYSTEM_COLUMNS, type ViewToolbarState } from "../lib/view-config-mapping"
 
 /** Hydrates one view instance's layout state from its persisted ViewToolbarState, filling in the table's defaults. */
 export function useViewLayoutState(initial: ViewToolbarState, seed: Seed): ViewLayout {
@@ -23,10 +23,10 @@ export function useViewLayoutState(initial: ViewToolbarState, seed: Seed): ViewL
   const [card, setCard] = React.useState(initial.card)
   const [folders, setFolders] = React.useState(initial.folders)
 
-  // Resets precision when grouping moves off a date branch. Also resets on the created_at/updated_at
-  // system date columns (they have no branch) — a known quirk, out of scope for this move (SECTION 7).
+  // Resets precision when grouping moves off a date column. The created_at/updated_at system columns
+  // are date columns without a seed branch, so they must not be mistaken for a non-date one.
   React.useEffect(() => {
-    if (!groupBy) return
+    if (!groupBy || DATE_SYSTEM_COLUMNS.has(groupBy)) return
     const branch = seed.branches.find((b) => b.alias === groupBy)
     if (branch?.type !== "date") {
       setDateGroupPrecision(DEFAULT_DATE_GROUP_PRECISION)

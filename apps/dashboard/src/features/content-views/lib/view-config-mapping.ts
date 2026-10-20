@@ -56,7 +56,7 @@ const HYDRATION_STATUS_OPTIONS = ["draft", "published"]
 const ALWAYS_HIDDEN_COLUMN = "id"
 
 const SYSTEM_COLUMNS = new Set<string>(VIEW_SYSTEM_COLUMNS)
-const DATE_SYSTEM_COLUMNS = new Set<string>(["created_at", "updated_at"])
+export const DATE_SYSTEM_COLUMNS = new Set<string>(["created_at", "updated_at"])
 
 function columnIdToRef(seed: Seed, columnId: string): ViewColumnRef | null {
   const ref = SYSTEM_COLUMNS.has(columnId)
