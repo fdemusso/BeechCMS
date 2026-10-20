@@ -28,6 +28,8 @@ jobs:
         run: pnpm build
       - name: Install Playwright browser
         run: pnpm --filter @beechcms/e2e exec playwright install --with-deps chromium
+      - name: Pre-pull MinIO image
+        run: docker compose -f docker/docker-compose.yml pull minio
       # No Docker: the e2e tier uses wrangler dev + miniflare D1 and touches no MinIO, Mailpit or
       # webhook-tester. It is not the flow tier.
       - name: Run e2e tier

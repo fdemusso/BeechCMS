@@ -1,5 +1,13 @@
 name: Dependabot Auto-Merge
 
+# Dependabot PRs are merged without a human only when they are boring:
+#   - they touch nothing but manifests, the lockfile and workflow files
+#   - the lockfile is regenerated here when Dependabot left it stale
+#   - no dependency range goes down (a grouped update applies one target version everywhere,
+#     which downgrades packages that were already ahead) and no dependency jumps a major version
+# Anything else is labelled and left open; the weekly watchdog (dependabot-maintenance.yml) lists it.
+# The required status checks (unit, integration, flow, e2e) still gate every merge.
+
 on:
   pull_request_target:
     types:
@@ -9,27 +17,169 @@ on:
       - ready_for_review
 
 permissions:
+  contents: read
   pull-requests: write
-  contents: write
+
+concurrency:
+  group: dependabot-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   automerge:
     name: Enable Auto-Merge
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]' && github.event.pull_request.base.ref == 'master'
+    timeout-minutes: 15
+    # The PR author, not the actor: the lockfile repair below pushes with a PAT, so the follow-up
+    # synchronize event is triggered by a human account and must still be handled.
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.base.ref == 'master'
+
+    env:
+      GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
+
     steps:
+      # Trusted code: the base branch. Nothing from the PR is executed outside the sandboxed
+      # `pnpm install --ignore-scripts` below.
+      - name: Checkout base (trusted scripts)
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Checkout pull request head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Self-test the guard
+        run: node --test scripts/lib/dependabot-guard.test.mjs
+
       - name: Dependabot metadata
         id: metadata
+        continue-on-error: true
         uses: dependabot/fetch-metadata@v3
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Approve and Enable Auto-Merge
+      - name: Inspect the change set
+        id: scope
+        working-directory: pr
         run: |
-          echo "Approving Dependabot PR #${{ github.event.pull_request.number }}..."
+          set -euo pipefail
+          git fetch --quiet origin master
+          BASE=$(git merge-base origin/master HEAD)
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+
+          # Only the PR's own commits: a branch that was updated from master contains master's changes too.
+          FILES=$(git diff --name-only "$BASE" HEAD)
+          echo "Changed files:"; echo "$FILES"
+          unexpected=$(echo "$FILES" | grep -vE '(^|/)package\.json$|^pnpm-lock\.yaml$|^\.github/workflows/[^/]+\.ya?ml$' || true)
+          if [ -n "$unexpected" ]; then
+            echo "unexpected<<EOF" >> "$GITHUB_OUTPUT"; echo "$unexpected" >> "$GITHUB_OUTPUT"; echo "EOF" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup pnpm
+        if: steps.scope.outputs.unexpected == ''
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        if: steps.scope.outputs.unexpected == ''
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      # Dependabot sometimes edits package.json and leaves pnpm-lock.yaml behind, which turns every
+      # check red at `pnpm install --frozen-lockfile`. Regenerate it without running any script.
+      - name: Regenerate the lockfile
+        id: lock
+        if: steps.scope.outputs.unexpected == ''
+        working-directory: pr
+        run: |
+          set -uo pipefail
+          if ! pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile; then
+            echo "failed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push the refreshed lockfile
+        id: push
+        if: steps.lock.outputs.changed == 'true'
+        working-directory: pr
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "chore(deps): refresh pnpm-lock.yaml"
+          # The push triggers a new run of this workflow and of the CI on the new head.
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${HEAD_REF}"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+
+      - name: Guard (downgrades and major bumps)
+        id: guard
+        if: steps.scope.outputs.unexpected == '' && steps.push.outputs.pushed != 'true'
+        working-directory: pr
+        run: |
+          set -euo pipefail
+          node "$GITHUB_WORKSPACE/scripts/lib/dependabot-guard.mjs" "${{ steps.scope.outputs.base }}" HEAD > "$RUNNER_TEMP/guard.json"
+          cat "$RUNNER_TEMP/guard.json"
+          echo "downgrades=$(jq '.downgrades | length' "$RUNNER_TEMP/guard.json")" >> "$GITHUB_OUTPUT"
+          echo "majors=$(jq '.majors | length' "$RUNNER_TEMP/guard.json")" >> "$GITHUB_OUTPUT"
+
+      - name: Decide
+        if: steps.push.outputs.pushed != 'true'
+        env:
+          UNEXPECTED: ${{ steps.scope.outputs.unexpected }}
+          LOCK_FAILED: ${{ steps.lock.outputs.failed }}
+          DOWNGRADES: ${{ steps.guard.outputs.downgrades }}
+          MAJORS: ${{ steps.guard.outputs.majors }}
+          UPDATED_DEPENDENCIES: ${{ steps.metadata.outputs.updated-dependencies-json }}
+        run: |
+          set -euo pipefail
+          gh label create needs-review --color D93F0B --description "Dependabot PR that needs a human" 2>/dev/null || true
+          gh label create auto-merge --color 0E8A16 --description "Dependabot PR merged automatically once checks pass" 2>/dev/null || true
+
+          # Dependabot's own view of the update type also covers the workflow-file PRs, which the
+          # manifest guard does not read.
+          META_MAJORS=0
+          if [ -n "${UPDATED_DEPENDENCIES:-}" ]; then
+            META_MAJORS=$(echo "$UPDATED_DEPENDENCIES" | jq '[.[] | select(.updateType == "version-update:semver-major")] | length' 2>/dev/null || echo 0)
+          fi
+
+          reason=""
+          if [ -n "${UNEXPECTED:-}" ]; then
+            reason="it changes files other than manifests, the lockfile and workflows:\n\n$(echo "$UNEXPECTED" | sed 's/^/- /')"
+          elif [ "${LOCK_FAILED:-}" = "true" ]; then
+            reason="\`pnpm install --lockfile-only\` could not regenerate the lockfile."
+          elif [ "${DOWNGRADES:-0}" != "0" ]; then
+            reason="it lowers a dependency range:\n\n$(jq -r '.downgrades[] | "- `\(.name)` in `\(.file)`: \(.from) -> \(.to)"' "$RUNNER_TEMP/guard.json")"
+          elif [ "${MAJORS:-0}" != "0" ] || [ "$META_MAJORS" != "0" ]; then
+            reason="it bumps a major version."
+          fi
+
+          if [ -n "$reason" ]; then
+            echo "Not auto-merging: $reason"
+            gh pr edit "$PR_NUMBER" --add-label needs-review
+            gh pr merge --disable-auto "$PR_URL" 2>/dev/null || true
+            if [ "$(gh pr view "$PR_NUMBER" --json comments --jq '[.comments[].body | select(contains("<!-- dependabot-guard -->"))] | length')" = "0" ]; then
+              gh pr comment "$PR_NUMBER" --body "$(printf '<!-- dependabot-guard -->\nAuto-merge is off for this PR: %b\n\nReview it by hand; the weekly watchdog keeps it on the list.' "$reason")"
+            fi
+            exit 0
+          fi
+
+          gh pr edit "$PR_NUMBER" --remove-label needs-review 2>/dev/null || true
+          gh pr edit "$PR_NUMBER" --add-label auto-merge
+          echo "Approving Dependabot PR #$PR_NUMBER..."
           gh pr review --approve "$PR_URL" || true
           echo "Enabling auto-merge (squash)..."
-          gh pr merge --auto --squash "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          gh pr merge --auto --squash "$PR_URL" || gh pr merge --squash "$PR_URL"
