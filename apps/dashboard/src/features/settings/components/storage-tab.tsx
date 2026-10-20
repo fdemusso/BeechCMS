@@ -183,7 +183,7 @@ export function StorageTab() {
               </AlertDialog>
             </div>
           )}
-          {stats && stats.orphanTotal > stats.orphanLimit && (
+          {stats && (stats.orphanTotal > stats.orphanLimit || offset > 0) && (
             <div className="flex items-center justify-between gap-3 pt-4">
               <Button type="button" variant="outline" disabled={offset === 0} onClick={() => goToOffset(Math.max(0, offset - stats.orphanLimit))}>
                 {t('common.previous')}
