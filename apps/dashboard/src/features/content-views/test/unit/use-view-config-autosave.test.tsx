@@ -3,9 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 /**
- * The debounce delay itself is deliberately not exercised here (Rule 3.11 forbids fake timers).
- * Every test drives the flush through unmount(), which is the path that proves a change still
- * inside the debounce window is flushed, not dropped, when the caller switches views.
+ * The debounce delay is never faked (Rule 3.11 forbids fake timers). Most tests drive the flush
+ * through unmount(), which proves a change still inside the debounce window is flushed, not
+ * dropped, when the caller switches views. The retry test lets the real debounce timer fire once.
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -64,6 +64,23 @@ describe("useViewConfigAutosave", () => {
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(1))
     expect(api.patch).toHaveBeenCalledWith("/content/posts/views/v1", { config: CONFIG_C })
+  })
+
+  it("retries a config whose save failed instead of treating it as saved", async () => {
+    vi.mocked(api.patch).mockRejectedValueOnce(new Error("network down"))
+    const { result, rerender, unmount } = renderHook(
+      ({ config }) => useViewConfigAutosave({ slug: "posts", viewId: "v1", config, enabled: true }),
+      { wrapper: wrapper(queryClient), initialProps: { config: CONFIG_A } }
+    )
+
+    // Debounced save fires on the real timer and is rejected by the network.
+    rerender({ config: CONFIG_B })
+    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(1), { timeout: 3000 })
+    await waitFor(() => expect(result.current.isSaving).toBe(false))
+    unmount()
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(2))
+    expect(api.patch).toHaveBeenLastCalledWith("/content/posts/views/v1", { config: CONFIG_B })
   })
 
   it("never writes when disabled for a user without content:update", () => {
