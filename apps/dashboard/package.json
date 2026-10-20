@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/dashboard",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "type": "module",
   "files": [
     "dist/admin"
@@ -16,8 +16,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.8.1",
-    "@beechcms/widget-sdk": "workspace:^0.8.0",
+    "@beechcms/core": "workspace:^0.9.0",
+    "@beechcms/widget-sdk": "workspace:^0.9.0",
     "@codemirror/lang-json": "^6.0.1",
     "@codemirror/language": "^6.10.8",
     "@codemirror/lint": "^6.8.4",
