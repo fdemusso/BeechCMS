@@ -18,12 +18,14 @@ export async function executeWebhook(
   context: ResolvedContext,
   env: Record<string, string | undefined>,
 ): Promise<void> {
-  const body = interpolate(action.body_template ?? '{}', context, { escape: 'json' })
+  // Fetch forbids a body on GET, so a GET webhook carries none and signs the empty payload.
+  const isGet = action.method === 'GET'
+  const body = isGet ? undefined : interpolate(action.body_template ?? '{}', context, { escape: 'json' })
 
   const secret = env.WEBHOOK_SECRET
   let signatureHeader: Record<string, string> = {}
   if (secret) {
-    signatureHeader = { 'X-BeechCMS-Signature': await signWebhookBody(body, secret) }
+    signatureHeader = { 'X-BeechCMS-Signature': await signWebhookBody(body ?? '', secret) }
   } else if (!warnedNoSecret) {
     warnedNoSecret = true
     console.warn('[webhook] WEBHOOK_SECRET not set — outgoing webhooks are unsigned')
@@ -33,11 +35,11 @@ export async function executeWebhook(
     const response = await fetch(action.url, {
       method: action.method ?? 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        ...(isGet ? {} : { 'Content-Type': 'application/json' }),
         ...(action.headers ?? {}),
         ...signatureHeader,
       },
-      body,
+      ...(body === undefined ? {} : { body }),
       signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS),
     })
 
