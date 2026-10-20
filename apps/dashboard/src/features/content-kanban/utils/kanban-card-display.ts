@@ -40,7 +40,8 @@ export function buildKanbanCardDisplayModel(
   const data = entry.data as Record<string, unknown>
 
   const pos = (entry as unknown as Record<string, unknown>).position
-  const position = typeof pos === 'string' ? pos : null
+  // A blank key is not a valid fractional index; treat it as unpositioned so resequencing assigns one.
+  const position = typeof pos === 'string' && pos.trim() !== '' ? pos : null
 
   // Legacy heuristic (backwards compat when no card config)
   const titleBranch = Object.keys(data).find(k => !SYSTEM_KEYS.has(k) && typeof data[k] === 'string' && data[k] !== '')
