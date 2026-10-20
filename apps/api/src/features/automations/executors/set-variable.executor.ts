@@ -106,7 +106,19 @@ export function materializeCollection(
   }
 
   Object.defineProperty(out, '_items', { value: items, enumerable: false })
+  // Kept so a filtered subset can be rematerialized with the same stats shape.
+  Object.defineProperty(out, '_seed', { value: seed, enumerable: false })
+  Object.defineProperty(out, '_pinned', { value: pinned, enumerable: false })
   return out
+}
+
+/** Rebuilds a collection over a subset of items, keeping the seed and pinned column of the source. */
+export function rematerializeSubset(
+  source: unknown,
+  items: Array<Record<string, unknown>>,
+): Record<string, unknown> {
+  const { _seed, _pinned } = (source ?? {}) as { _seed?: Seed; _pinned?: string | null }
+  return materializeCollection(_seed ?? ({ branches: [] } as unknown as Seed), items, _pinned ?? null)
 }
 
 function formatPluckValues(items: Array<Record<string, unknown>>, key: string): string {

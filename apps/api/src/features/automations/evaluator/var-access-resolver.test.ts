@@ -43,6 +43,49 @@ describe('resolveVarAccess — inherited object keys', () => {
   })
 })
 
+describe('resolveVarAccess — filtered aggregates keep the collection definition', () => {
+  const ORDERS_SEED = {
+    slug: 'orders',
+    label: 'Orders',
+    branches: [
+      { id: 'br_01', alias: 'amount', label: 'Amount', type: 'number' },
+      { id: 'br_02', alias: 'status', label: 'Status', type: 'text' },
+    ],
+  } as unknown as Seed
+
+  const ITEMS = [
+    { id: '1', amount: 100, status: 'paid', created_at: 1 },
+    { id: '2', amount: 50, status: 'open', created_at: 2 },
+    { id: '3', amount: 200, status: 'paid', created_at: 3 },
+  ]
+
+  const variables = (pinned: string | null = null): Record<string, unknown> => ({
+    orders: materializeCollection(ORDERS_SEED, ITEMS, pinned),
+  })
+
+  it('sum with an inline condition totals only the matching records', () => {
+    expect(resolve('orders.sum.amount.(status=paid)', variables())).toBe(300)
+  })
+
+  it('avg, min and max with an inline condition use only the matching records', () => {
+    expect(resolve('orders.avg.amount.(status=paid)', variables())).toBe(150)
+    expect(resolve('orders.min.amount.(status=paid)', variables())).toBe(100)
+    expect(resolve('orders.max.amount.(status=paid)', variables())).toBe(200)
+  })
+
+  it('pluck with an inline condition lists only the matching records', () => {
+    expect(resolve('orders.pluck.status.(status=paid)', variables())).toBe('paid, paid')
+  })
+
+  it('sum over an array selector totals only the selected records', () => {
+    expect(resolve('orders.array[1,3].sum.amount.(id!=none)', variables())).toBe(300)
+  })
+
+  it('a pinned collection stays pinned after filtering', () => {
+    expect(resolve('orders.sum.(status=paid)', variables('amount'))).toBe(300)
+  })
+})
+
 describe('resolveVarAccess — inline conditions over missing values', () => {
   // Number(null) is 0, which made `total<5` select a record that has no total at all.
   it('a numeric condition does not match a record whose field is null', () => {
