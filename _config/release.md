@@ -205,7 +205,9 @@ Dependabot keeps dependencies (security patches included) current and the releas
 |---|---|---|
 | `dependabot-automerge.yml` | Dependabot PR to `master` | Regenerates a stale `pnpm-lock.yaml`, runs the guard, approves and enables auto-merge. The required checks (unit, integration, flow, e2e) still gate the merge. |
 | `dependabot-maintenance.yml` | push to `master`, daily, manual | `keep-fresh` updates approved PRs that fell behind `master` (the ruleset requires up-to-date branches); `watchdog` (Mondays) opens one issue listing the PRs that will not merge by themselves. |
-| `auto-release.yml` | push to `master` of a `chore(deps…)` / `chore(ci…)` / `fix(deps…)` commit | Bumps and publishes the changed packages, pushes the release commit and tags, creates the `v*` GitHub Release and merges `master` back into `devs`. |
+| `auto-release.yml` | daily 05:00 UTC, manual | Bumps and publishes the packages that changed since their last tag (nothing to do on most days), pushes the release commit and tags, creates the `v*` GitHub Release and merges `master` back into `devs`. Batching by day means several merged Dependabot PRs produce one patch bump, not one each. |
+
+**Few PRs, few releases.** Dependabot opens version updates monthly, in one grouped PR (minor and patch only), and security updates as soon as they exist, also in one grouped PR. Routine major bumps are ignored on purpose (a major is a migration: do it by hand); a security update that needs a major still opens a PR and lands on the watchdog list. Release now instead of waiting for the daily run: `gh workflow run auto-release.yml`.
 
 **The guard** (`scripts/lib/dependabot-guard.mjs`) refuses auto-merge, labels the PR `needs-review` and comments once when the PR:
 - changes anything but `package.json`, `pnpm-lock.yaml` or workflow files;
