@@ -3,9 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
-import type { ViewDefinition, ViewRendererProps } from "@/features/shared"
+import { CardConfigDialog, type ViewDefinition, type ViewRendererProps } from "@/features/shared"
 import { isImageMediaBranch } from "@beechcms/core"
-import { CardConfigDialog } from "@/features/content-kanban"
 import { ContentGallery } from "./content-gallery"
 import { defaultCardConfig } from "./resolve-card-fields"
 
