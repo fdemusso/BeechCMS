@@ -2,9 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { Seed } from '@beechcms/core'
 import type { ParsedKey, InlineCondition } from './template-grammar'
-import { materializeCollection } from '../executors/set-variable.executor'
+import { rematerializeSubset } from '../executors/set-variable.executor'
 import { getOwn } from '../engine/automation-runner.utils'
 import { numericValue } from './numeric'
 
@@ -61,8 +60,6 @@ function getItems(value: unknown): Array<Record<string, unknown>> | null {
   return Array.isArray(items) ? items : null
 }
 
-const EMPTY_SEED = { branches: [] } as unknown as Seed
-
 export function resolveVarAccess(
   parsed: VarAccessParsed,
   variables: Record<string, unknown>,
@@ -87,7 +84,7 @@ export function resolveVarAccess(
       const subset = items.filter((r) => idSet.has(String(r['id'] ?? '')))
       // Apply conditions to the subset before building the collection
       const filtered = filterItems(subset, conditions)
-      current = materializeCollection(EMPTY_SEED, filtered, null)
+      current = rematerializeSubset(current, filtered)
       // Conditions consumed — no post-filter needed
       continue
     }
@@ -110,7 +107,7 @@ export function resolveVarAccess(
       const items = getItems(current)
       if (items !== null) {
         const filtered = filterItems(items, conditions)
-        current = materializeCollection(EMPTY_SEED, filtered, null)
+        current = rematerializeSubset(current, filtered)
       }
       if (step.op === 'count') {
         current = (current as any)?.['count']
