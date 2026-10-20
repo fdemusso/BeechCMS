@@ -5,6 +5,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { renderHook, act } from "@testing-library/react"
 
+import type { ConditionalFormatRule } from "@/lib/conditional-format"
 import { useConditionalFormats } from "@/features/content-toolbar/toolbar-hooks/use-conditional-formats"
 
 const columns = [{ columnId: "status", label: "Stato", type: "select", selectOptions: ["draft"] }] as any
@@ -45,7 +46,7 @@ describe("useConditionalFormats", () => {
     expect(committed.length).toBe(0)
   })
 
-  it("gestisce reorder e rimozione condizioni fino a drop regola", () => {
+  it("gestisce reorder e rimozione condizioni senza drop regola", () => {
     let committed: any[] = [
       {
         id: "r1",
@@ -108,6 +109,64 @@ describe("useConditionalFormats", () => {
 
     act(() => result.current.removeConditionalCondition("r1", "c2"))
     rerender()
-    expect(committed.find((r) => r.id === "r1")).toBeUndefined()
+    expect(committed.find((r) => r.id === "r1")?.group.conditions).toHaveLength(1)
+  })
+
+  it("removing the sole condition of a rule keeps the rule and its styling", () => {
+    let committed: ConditionalFormatRule[] = [
+      {
+        id: "r1",
+        enabled: true,
+        priority: 0,
+        label: "Stato",
+        columnId: "status",
+        group: {
+          columnId: "status",
+          label: "Stato",
+          type: "select",
+          selectOptions: ["draft"],
+          conditions: [{ id: "c1", op: "eq", value: "draft" }],
+        },
+        tone: "danger",
+        target: "element",
+        textStyles: ["bold"],
+      },
+      {
+        id: "r2",
+        enabled: true,
+        priority: 1,
+        label: "Stato2",
+        columnId: "status",
+        group: {
+          columnId: "status",
+          label: "Stato",
+          type: "select",
+          selectOptions: ["draft"],
+          conditions: [{ id: "c2", op: "eq", value: "draft" }],
+        },
+        tone: "info",
+        target: "element",
+        textStyles: [],
+      },
+    ]
+    const onConditionalFormatsChange = vi.fn((_viewId: string, next: ConditionalFormatRule[]) => {
+      committed = next
+    })
+    const { result, rerender } = renderHook(() =>
+      useConditionalFormats({
+        viewId: "table",
+        conditionalFormatsInput: committed,
+        formattableColumns: columns,
+        onConditionalFormatsChange,
+      })
+    )
+
+    act(() => result.current.removeConditionalCondition("r1", "c1"))
+    rerender()
+
+    // Dropping the rule here silently deleted its tone/styles and re-pointed the open editor at r2.
+    expect(committed.map((r) => r.id)).toEqual(["r1", "r2"])
+    expect(committed[0]).toMatchObject({ tone: "danger", textStyles: ["bold"] })
+    expect(committed[0].group.conditions).toHaveLength(1)
   })
 })

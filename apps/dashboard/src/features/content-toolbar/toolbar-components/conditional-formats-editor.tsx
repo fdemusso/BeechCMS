@@ -314,6 +314,7 @@ function ConditionalRuleEditor({
                 size="icon-xs"
                 className="h-8 w-8"
                 aria-label={t("toolbar.conditionalFormats.removeCondition")}
+                disabled={activeConditionalRule.group.conditions.length <= 1}
                 onClick={() => removeConditionalCondition(activeConditionalRule.id, cond.id)}
               >
                 <X className="size-3.5" />
