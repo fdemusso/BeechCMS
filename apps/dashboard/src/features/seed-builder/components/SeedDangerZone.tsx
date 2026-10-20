@@ -29,7 +29,7 @@ const BRANCH_TYPES: BranchType[] = [
 
 // ─── Sub-section: Hard delete ─────────────────────────────────────────────────
 
-function HardDeleteSection({ record, onDeleted }: { record: SeedRecordDTO; onDeleted: () => void }) {
+export function HardDeleteSection({ record, onDeleted }: { record: SeedRecordDTO; onDeleted: () => void }) {
   const { t } = useTranslation()
   const [confirm, setConfirm] = React.useState("")
   const hardDelete = useHardDeleteSeed()

@@ -18,6 +18,7 @@ import { ROW_HEIGHT_PX } from "@/components/ui/data-table"
 import { useSeeds } from "../hooks/use-seeds"
 import { useSeedEditorDialog } from "../hooks/use-seed-editor-dialog"
 import { DeleteSeedDialog } from "./DeleteSeedDialog"
+import { PurgeSeedDialog } from "./PurgeSeedDialog"
 import { SchemaFormShell } from "@/features/entry-editor"
 import type { SeedRecordDTO } from "../api/seeds.api"
 import type { Seed } from "@beechcms/core"
@@ -53,6 +54,7 @@ export function SeedBuilderPage() {
   const [editSlug, setEditSlug] = useState<string | null>(null)
   const editRecord = editSlug ? records.find(r => r.slug === editSlug) ?? null : null
   const [deleteRecord, setDeleteRecord] = useState<SeedRecordDTO | null>(null)
+  const [purgeRecord, setPurgeRecord] = useState<SeedRecordDTO | null>(null)
 
   const visible = showDeleted ? records : records.filter(r => r.status !== "deleted")
 
@@ -158,17 +160,29 @@ export function SeedBuilderPage() {
                             >
                               <Pencil className="size-3.5" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => setDeleteRecord(record)}
-                              disabled={record.status === "deleted"}
-                              aria-label={t("common.delete")}
-                              data-testid="delete-seed-btn"
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </Button>
+                            {record.status === "deleted" ? (
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => setPurgeRecord(record)}
+                                aria-label={t("seedBuilder.purge.button")}
+                                data-testid="purge-seed-btn"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => setDeleteRecord(record)}
+                                aria-label={t("common.delete")}
+                                data-testid="delete-seed-btn"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       )}
@@ -194,6 +208,12 @@ export function SeedBuilderPage() {
         editRecord={editRecord}
         activeSeedsForRelation={activeSeeds as Seed[]}
         onClose={() => setEditSlug(null)}
+      />
+
+      <PurgeSeedDialog
+        seed={purgeRecord}
+        open={!!purgeRecord}
+        onOpenChange={open => { if (!open) setPurgeRecord(null) }}
       />
 
       <DeleteSeedDialog

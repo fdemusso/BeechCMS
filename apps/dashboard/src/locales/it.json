@@ -1553,6 +1553,11 @@
       "updateFailed": "Errore nell'aggiornamento del tipo di contenuto",
       "deleteFailed": "Errore nell'eliminazione del tipo di contenuto"
     },
+    "purge": {
+      "button": "Elimina definitivamente",
+      "title": "Elimina definitivamente {{label}}",
+      "description": "Questo tipo di contenuto è stato eliminato. L'eliminazione definitiva ne rimuove tabelle e media."
+    },
     "dangerZone": {
       "title": "Zona pericolosa",
       "subtitle": "Queste operazioni sono irreversibili e possono causare perdita permanente di dati.",
