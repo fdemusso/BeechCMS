@@ -57,6 +57,22 @@ describe("toolbar hooks", () => {
     expect(onSearchChange).toHaveBeenCalledWith("")
   })
 
+  it("useToolbarSearch parte aperto con una query attiva e si apre se la query arriva dopo", () => {
+    const { result } = renderHook(
+      ({ searchValue }) => useToolbarSearch({ searchValue }),
+      { initialProps: { searchValue: "shoes" } },
+    )
+    expect(result.current.isSearchOpen).toBe(true)
+
+    const closed = renderHook(
+      ({ searchValue }) => useToolbarSearch({ searchValue }),
+      { initialProps: { searchValue: "" } },
+    )
+    expect(closed.result.current.isSearchOpen).toBe(false)
+    closed.rerender({ searchValue: "boots" })
+    expect(closed.result.current.isSearchOpen).toBe(true)
+  })
+
   it("useToolbarSort filtra colonne e toggla ordinamento", () => {
     const onSortChange = vi.fn()
     const { result } = renderHook(() =>
