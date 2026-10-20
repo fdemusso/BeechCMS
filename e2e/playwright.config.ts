@@ -75,7 +75,10 @@ export default defineConfig({
       stderr: 'pipe',
     },
     {
-      command: `pnpm --filter @beechcms/dashboard exec vite --port ${DASHBOARD_PORT} --strictPort`,
+      // The built dashboard (turbo builds it through `^build`), not the dev server: a cold `vite dev`
+      // re-optimises its dependencies on the first request and, on a fresh CI runner, left the login
+      // page blank for minutes. `vite preview` proxies /api, /auth and /oauth through server.proxy.
+      command: `pnpm --filter @beechcms/dashboard exec vite preview --port ${DASHBOARD_PORT} --strictPort`,
       url: `${BASE_URL}/admin/login`,
       reuseExistingServer: false,
       timeout: 120_000,
