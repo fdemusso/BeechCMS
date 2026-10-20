@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs'
 /**
  * GLOBAL TEST CONFIGURATION
  */
-export const TEST_JWT_SECRET = 'beech_cms_super_secret_test_key_2024_!@#'
+const TEST_JWT_SECRET = 'beech_cms_super_secret_test_key_2024_!@#'
 export const TEST_PUBLIC_READ_KEY = 'pk_read_live_6f8g9h0j1k2l'
 export const TEST_PUBLIC_WRITE_KEY = 'pk_write_live_9a8b7c6d5e4f'
 
@@ -30,8 +30,8 @@ export const TEST_ENV = {
   ENV: 'development',
   EMAIL_PROVIDER: 'smtp',
   SMTP_HOST: 'localhost',
-  // Dynamic: BEECH_MAILPIT_SMTP_PORT controls host port in docker-compose.
-  SMTP_PORT: process.env.BEECH_MAILPIT_SMTP_PORT ?? '1025',
+  // Dynamic: SMTP_PORT controls host port (Mailpit HTTP API is 8025).
+  SMTP_PORT: process.env.SMTP_PORT ?? process.env.BEECH_MAILPIT_SMTP_PORT ?? '8025',
   EMAIL_FROM: 'Test <test@beech.local>',
   // Dynamic: BEECH_WEBHOOK_TESTER_PORT controls host port in docker-compose.
   WEBHOOK_TESTER_URL: process.env.WEBHOOK_TESTER_URL ?? `http://localhost:${process.env.BEECH_WEBHOOK_TESTER_PORT ?? '8084'}`,

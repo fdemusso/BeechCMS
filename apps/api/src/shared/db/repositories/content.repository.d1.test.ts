@@ -4,8 +4,9 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { D1ContentRepository } from './content.repository.d1'
-import { EntryNotFoundError, SlugConflictError, RelationTargetNotFoundError } from '@beechcms/core'
-import type { Seed } from '@beechcms/core'
+import { EntryNotFoundError, SlugConflictError, RelationTargetNotFoundError, DraftConflictError, EntryConflictError, DraftSaveConflictError } from '@beechcms/core'
+import type { Seed, IDeletionLedger } from '@beechcms/core'
+import { FixedClock } from '@beechcms/testing'
 
 const SEED = {
   slug: 'posts',
@@ -260,6 +261,13 @@ describe('D1ContentRepository', () => {
       expect(calls.some(sql => sql.includes('INSERT INTO content_posts'))).toBe(true)
     })
 
+    it('stamps created_at and updated_at from the injected clock', async () => {
+      const { db, bindMock } = makeMockDb({ firstResult: null })
+      await new D1ContentRepository(db, undefined, undefined, undefined, undefined, new FixedClock(7_000_000)).create(SEED, 'new-id', 'my-slug', 'draft', { title: 'Hello' })
+      const insertBinds = bindMock.mock.calls.map(c => c as unknown[]).find(args => args.includes('new-id'))
+      expect(insertBinds?.slice(-2)).toEqual([7000, 7000])
+    })
+
     it('throws SlugConflictError when the slug already exists', async () => {
       const { db } = makeMockDb({ firstResult: { 1: 1 } }) // existsSlug → found
       await expect(
@@ -309,6 +317,78 @@ describe('D1ContentRepository', () => {
       const updateCalls = prepareMock.mock.calls.filter(c => (c[0] as string).includes('UPDATE content_posts'))
       expect(updateCalls).toHaveLength(0)
     })
+
+    it('adds an updated_at equality guard to the WHERE clause when ifMatch is set', async () => {
+      const { db, prepareMock } = makeMockDb({ runChanges: 1 })
+      await new D1ContentRepository(db).update(SEED, 'e1', { title: 'New' }, 'published', { ifMatch: 1000 })
+      const updateSql = prepareMock.mock.calls
+        .map(c => c[0] as string)
+        .find(sql => sql.includes('UPDATE content_posts'))!
+      expect(updateSql).toContain('WHERE id = ? AND updated_at = ?')
+    })
+
+    it('throws EntryConflictError when ifMatch no longer matches the live row and leaves it untouched', async () => {
+      // firstResult backs both the pre-write findById() and the post-failure conflict check;
+      // the live row exists with a different updated_at than the caller expected.
+      const { db } = makeMockDb({ runChanges: 0, firstResult: { id: 'e1', slug: 'p', status: 'published', title: 'Live', updated_at: 2000 } })
+      const error = await new D1ContentRepository(db)
+        .update(SEED, 'e1', { title: 'Stale write' }, 'published', { ifMatch: 1000 })
+        .catch(e => e)
+      expect(error).toBeInstanceOf(EntryConflictError)
+      expect((error as EntryConflictError).expectedUpdatedAt).toBe(1000)
+      expect((error as EntryConflictError).actualUpdatedAt).toBe(2000)
+    })
+
+    it('throws EntryNotFoundError, not EntryConflictError, when ifMatch is set but the row does not exist', async () => {
+      const { db } = makeMockDb({ runChanges: 0, firstResult: null })
+      await expect(
+        new D1ContentRepository(db).update(SEED, 'ghost', { title: 'X' }, 'published', { ifMatch: 1000 }),
+      ).rejects.toBeInstanceOf(EntryNotFoundError)
+    })
+  })
+
+  // ─── updateWithKanbanPosition ──────────────────────────────────────────────
+
+  describe('updateWithKanbanPosition', () => {
+    it('adds an updated_at equality guard to the axis-patch UPDATE when ctx.ifMatch is set', async () => {
+      const { db, prepareMock, batchMock } = makeMockDb()
+      batchMock.mockResolvedValueOnce([{ meta: { changes: 1 } }, { meta: { changes: 1 } }])
+      await new D1ContentRepository(db).updateWithKanbanPosition(
+        TAGS_SEED, 'e1', { labels: ['a', 'b'] }, 'a0', 'br_02', { actor: 'user-1', ifMatch: 1000 },
+      )
+      const updateSql = prepareMock.mock.calls
+        .map(c => c[0] as string)
+        .find(sql => sql.includes('UPDATE content_posts'))!
+      expect(updateSql).toContain('WHERE id = ? AND updated_at = ?')
+    })
+
+    it('throws EntryConflictError, leaving the caller\'s result unresolved as success, when two concurrent tag swaps race: the second writer\'s ifMatch no longer matches the live row', async () => {
+      // Simulates two clients reading the same `current` snapshot and racing to write their own
+      // tag swap: the second writer's main-row UPDATE matches zero rows because the first writer
+      // already advanced updated_at. firstResult backs the post-failure conflict check.
+      const { db, batchMock, firstMock } = makeMockDb()
+      batchMock.mockResolvedValueOnce([{ meta: { changes: 0 } }, { meta: { changes: 1 } }])
+      firstMock.mockResolvedValueOnce({ updated_at: 2000 })
+
+      const error = await new D1ContentRepository(db)
+        .updateWithKanbanPosition(TAGS_SEED, 'e1', { labels: ['b', 'c'] }, 'a1', 'br_02', { actor: 'user-2', ifMatch: 1000 })
+        .catch(e => e)
+
+      expect(error).toBeInstanceOf(EntryConflictError)
+      expect((error as EntryConflictError).expectedUpdatedAt).toBe(1000)
+      expect((error as EntryConflictError).actualUpdatedAt).toBe(2000)
+    })
+
+    it('does not require ctx.ifMatch when patch is null (position-only reorder)', async () => {
+      const { db, batchMock, prepareMock } = makeMockDb()
+      batchMock.mockResolvedValueOnce([{ meta: { changes: 1 } }])
+      const result = await new D1ContentRepository(db).updateWithKanbanPosition(
+        TAGS_SEED, 'e1', null, 'a2', 'br_02', { actor: 'user-1' },
+      )
+      expect(result).toEqual({ success: true })
+      const updateCalls = prepareMock.mock.calls.filter(c => (c[0] as string).includes('UPDATE content_posts'))
+      expect(updateCalls).toHaveLength(0)
+    })
   })
 
   // ─── delete ─────────────────────────────────────────────────────────────────
@@ -326,6 +406,57 @@ describe('D1ContentRepository', () => {
     it('throws EntryNotFoundError when the entry does not exist', async () => {
       const { db } = makeMockDb({ firstResult: null })
       await expect(new D1ContentRepository(db).delete(SEED, 'missing')).rejects.toBeInstanceOf(EntryNotFoundError)
+    })
+  })
+
+  // ─── purge ────────────────────────────────────────────────────────────────────
+
+  describe('purge', () => {
+    it('appends the ledger event, using the injected clock, before issuing DELETE', async () => {
+      const row = { id: 'e1', slug: 'p', status: 'published', title: 'T', body: null }
+      const { db, prepareMock } = makeMockDb({ firstResult: row })
+      const appendOrder: string[] = []
+      const ledger: IDeletionLedger = {
+        append: vi.fn(async () => { appendOrder.push('append') }),
+        list: vi.fn(),
+      }
+      const clock = new FixedClock(5000)
+
+      const result = await new D1ContentRepository(db, undefined, undefined, undefined, ledger, clock).purge(SEED, 'e1')
+
+      expect(result.ledgerWritten).toBe(true)
+      expect(ledger.append).toHaveBeenCalledWith(expect.objectContaining({ entryId: 'e1', purgedAt: clock.nowSeconds() }))
+      const sqls = prepareMock.mock.calls.map(c => c[0] as string)
+      const deleteIndex = sqls.findIndex(s => s.includes('DELETE FROM content_posts'))
+      expect(deleteIndex).toBeGreaterThan(-1)
+      // The ledger append (recorded via appendOrder) must precede the DELETE statement:
+      // a ledger failure must leave the row intact rather than erase data no restore
+      // could undo (#470).
+      expect(appendOrder).toEqual(['append'])
+    })
+
+    // Regression guard for #470: purge() used to DELETE the row before writing the GDPR
+    // deletion ledger, so a ledger failure after a successful delete left an un-erasure
+    // that no restore could ever surface. The ledger write must happen first.
+    it('leaves the row undeleted when the deletion ledger write fails', async () => {
+      const row = { id: 'e1', slug: 'p', status: 'published', title: 'T', body: null }
+      const { db, prepareMock } = makeMockDb({ firstResult: row })
+      const ledger: IDeletionLedger = {
+        append: vi.fn().mockRejectedValue(new Error('R2 quota exceeded')),
+        list: vi.fn(),
+      }
+
+      await expect(
+        new D1ContentRepository(db, undefined, undefined, undefined, ledger).purge(SEED, 'e1'),
+      ).rejects.toThrow('R2 quota exceeded')
+
+      const sqls = prepareMock.mock.calls.map(c => c[0] as string)
+      expect(sqls.some(s => s.includes('DELETE FROM content_posts'))).toBe(false)
+    })
+
+    it('throws EntryNotFoundError when the entry does not exist', async () => {
+      const { db } = makeMockDb({ firstResult: null })
+      await expect(new D1ContentRepository(db).purge(SEED, 'missing')).rejects.toBeInstanceOf(EntryNotFoundError)
     })
   })
 
@@ -359,6 +490,49 @@ describe('D1ContentRepository', () => {
       expect(upsertSql).toContain('json_each(COALESCE(_touched_fields')
       expect(upsertSql).toContain("json_each(excluded._touched_fields)")
     })
+
+    it('writes live_snapshot_at only on insert, preserving it across autosaves', async () => {
+      const { db, prepareMock } = makeMockDb()
+
+      await new D1ContentRepository(db).saveDraft(SEED, 'e1', { title: 'T' })
+
+      const sql: string = prepareMock.mock.calls[0][0]
+      expect(sql).toContain('(SELECT updated_at FROM content_posts WHERE id = ?)')
+      expect(sql).toContain('live_snapshot_at = COALESCE(live_snapshot_at, excluded.live_snapshot_at)')
+    })
+
+    it('adds an updated_at equality guard to the ON CONFLICT DO UPDATE clause when ifMatch is set', async () => {
+      const { db, prepareMock } = makeMockDb({ runChanges: 1 })
+      await new D1ContentRepository(db).saveDraft(SEED, 'e1', { title: 'New' }, { ifMatch: 1000 })
+      const upsertSql = prepareMock.mock.calls.map(c => c[0] as string).find(sql => sql.includes('ON CONFLICT(entry_id)'))!
+      expect(upsertSql).toMatch(/DO UPDATE SET .* WHERE updated_at = \?/s)
+    })
+
+    it('omits the WHERE guard entirely when no ifMatch is given', async () => {
+      const { db, prepareMock } = makeMockDb({ runChanges: 1 })
+      await new D1ContentRepository(db).saveDraft(SEED, 'e1', { title: 'New' })
+      const upsertSql = prepareMock.mock.calls.map(c => c[0] as string).find(sql => sql.includes('ON CONFLICT(entry_id)'))!
+      expect(upsertSql).not.toContain('WHERE updated_at')
+    })
+
+    it('throws DraftSaveConflictError when ifMatch no longer matches the pending draft and leaves it untouched', async () => {
+      // firstResult backs the post-failure conflict check: the draft row exists with a different
+      // updated_at than the caller expected.
+      const { db } = makeMockDb({ runChanges: 0, firstResult: { entry_id: 'e1', updated_at: 2000 } })
+      const error = await new D1ContentRepository(db)
+        .saveDraft(SEED, 'e1', { title: 'Stale write' }, { ifMatch: 1000 })
+        .catch(e => e)
+      expect(error).toBeInstanceOf(DraftSaveConflictError)
+      expect((error as DraftSaveConflictError).expectedUpdatedAt).toBe(1000)
+      expect((error as DraftSaveConflictError).actualUpdatedAt).toBe(2000)
+    })
+
+    it('does not throw when ifMatch is set and the write applies (no conflict)', async () => {
+      const { db } = makeMockDb({ runChanges: 1 })
+      await expect(
+        new D1ContentRepository(db).saveDraft(SEED, 'e1', { title: 'Fresh write' }, { ifMatch: 1000 }),
+      ).resolves.toBeUndefined()
+    })
   })
 
   // ─── getDraft ────────────────────────────────────────────────────────────────
@@ -381,6 +555,25 @@ describe('D1ContentRepository', () => {
       expect(result).not.toBeNull()
       expect(result!.title).toBe('Draft T')
       expect(result).not.toHaveProperty('body') // null branch values are omitted
+    })
+  })
+
+  // ─── getDraftUpdatedAt ──────────────────────────────────────────────────────
+
+  describe('getDraftUpdatedAt', () => {
+    it('returns null when seed does not allow drafts', async () => {
+      const { db } = makeMockDb()
+      expect(await new D1ContentRepository(db).getDraftUpdatedAt(NO_DRAFT_SEED, 'e1')).toBeNull()
+    })
+
+    it('returns null when no draft row exists', async () => {
+      const { db } = makeMockDb({ firstResult: null })
+      expect(await new D1ContentRepository(db).getDraftUpdatedAt(SEED, 'e1')).toBeNull()
+    })
+
+    it("returns the draft row's updated_at", async () => {
+      const { db } = makeMockDb({ firstResult: { updated_at: 12345 } })
+      expect(await new D1ContentRepository(db).getDraftUpdatedAt(SEED, 'e1')).toBe(12345)
     })
   })
 
@@ -437,6 +630,46 @@ describe('D1ContentRepository', () => {
       const batchArgs: any[] = batchMock.mock.calls[0][0]
       expect(batchArgs).toHaveLength(2)
     })
+
+    it('throws DraftConflictError when the guarded claim matches no row', async () => {
+      const draftRow = { entry_id: 'e1', title: 'Draft', body: null, live_snapshot_at: 1000 }
+      const { db, firstMock, batchMock } = makeMockDb({ runChanges: 0 })
+      firstMock
+        .mockResolvedValueOnce(draftRow)
+        .mockResolvedValueOnce({ updated_at: 2000 })
+
+      const publish = new D1ContentRepository(db).publishDraft(SEED, 'e1')
+
+      await expect(publish).rejects.toBeInstanceOf(DraftConflictError)
+      // The regression guard: a zero-row claim must abort BEFORE the batch, or the draft row is
+      // deleted while the live row keeps the other writer's content.
+      expect(batchMock).not.toHaveBeenCalled()
+    })
+
+    it('binds the snapshot into the claim WHERE clause rather than comparing in application code', async () => {
+      const draftRow = { entry_id: 'e1', title: 'Draft', body: null, live_snapshot_at: 1000 }
+      const { db, firstMock, prepareMock, batchMock } = makeMockDb()
+      firstMock.mockResolvedValueOnce(draftRow)
+      batchMock.mockResolvedValueOnce([{}, {}])
+
+      await new D1ContentRepository(db).publishDraft(SEED, 'e1')
+
+      const claimSql: string | undefined = prepareMock.mock.calls
+        .map((c: unknown[]) => c[0] as string)
+        .find((s: string) => s.includes('MAX(unixepoch()'))
+      expect(claimSql).toContain('WHERE id = ? AND (? IS NULL OR updated_at = ?)')
+    })
+
+    it('publishes a legacy draft whose live_snapshot_at is null', async () => {
+      const draftRow = { entry_id: 'e1', title: 'Draft', body: null }
+      const { db, firstMock, batchMock } = makeMockDb({ runChanges: 1 })
+      firstMock.mockResolvedValueOnce(draftRow)
+      batchMock.mockResolvedValueOnce([{}, {}])
+
+      await new D1ContentRepository(db).publishDraft(SEED, 'e1')
+
+      expect(batchMock).toHaveBeenCalledTimes(1)
+    })
   })
 
   // ─── deleteDraft ─────────────────────────────────────────────────────────────
@@ -465,6 +698,35 @@ describe('D1ContentRepository', () => {
   })
 
   // ─── many-to-many (Sprint 5) ──────────────────────────────────────────────────
+
+  describe('findParentIdsByRelation', () => {
+    it('returns distinct parent ids from the junction table for a multi-relation branch', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb({ allResults: [{ parent_id: 'p1' }, { parent_id: 'p2' }] })
+
+      const result = await new D1ContentRepository(db).findParentIdsByRelation(M2M_SEED, 'tags', ['tag-1'], 500)
+
+      expect(result).toEqual(['p1', 'p2'])
+      const sql = prepareMock.mock.calls[0][0] as string
+      expect(sql).toContain('rel_articles_tags')
+      expect(bindMock).toHaveBeenCalledWith('tag-1', 500)
+    })
+
+    it('returns an empty array without querying when targetIds is empty', async () => {
+      const { db, prepareMock } = makeMockDb()
+
+      const result = await new D1ContentRepository(db).findParentIdsByRelation(M2M_SEED, 'tags', [], 500)
+
+      expect(result).toEqual([])
+      expect(prepareMock).not.toHaveBeenCalled()
+    })
+
+    it('throws RepositoryError when branchAlias is not a multi-relation branch of the seed', async () => {
+      const { db } = makeMockDb()
+
+      await expect(new D1ContentRepository(db).findParentIdsByRelation(M2M_SEED, 'title', ['x'], 500))
+        .rejects.toThrow("'title' is not a multi-relation branch")
+    })
+  })
 
   describe('many-to-many relations', () => {
     it('create: multi-relation values go to junction table, not main INSERT', async () => {

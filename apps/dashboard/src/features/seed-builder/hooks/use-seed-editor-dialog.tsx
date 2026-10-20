@@ -19,14 +19,28 @@ export interface UseSeedEditorDialogProps {
   editRecord: SeedRecordDTO | null
   activeSeedsForRelation: Seed[]
   onClose: () => void
+  open: boolean
 }
 
 const NOOP = () => {}
+
+// Server branches are the source of truth for existence, alias and type (the
+// only things Danger Zone changes); the form keeps its unsaved edits on the rest.
+function reconcileBranches(formBranches: Branch[], serverBranches: Branch[]): Branch[] {
+  const formById = new Map(formBranches.map((b) => [b.id, b]))
+  const kept = serverBranches.map((sb) => {
+    const fb = formById.get(sb.id)
+    return fb ? { ...fb, alias: sb.alias, type: sb.type } : sb
+  })
+  const unsavedNew = formBranches.filter((b) => b.id?.startsWith("br_new_"))
+  return [...kept, ...unsavedNew]
+}
 
 export function useSeedEditorDialog({
   editRecord,
   activeSeedsForRelation,
   onClose,
+  open,
 }: UseSeedEditorDialogProps): SchemaFormViewModel {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -49,8 +63,32 @@ export function useSeedEditorDialog({
   const [prevEditRecord, setPrevEditRecord] = React.useState(editRecord)
   if (editRecord !== prevEditRecord) {
     setPrevEditRecord(editRecord)
-    setFormData(seedToFormData(editRecord))
-    setIsDirty(false)
+    if (editRecord && prevEditRecord?.slug === editRecord.slug) {
+      // Same seed, fresher server copy (Danger Zone drop/rename/retype refetch):
+      // keep unsaved edits but re-align branches, or Save would resurrect a
+      // dropped column or submit a stale alias.
+      setFormData((prev) => ({
+        ...prev,
+        branches: reconcileBranches((prev.branches as Branch[] | undefined) ?? [], editRecord.definition.branches),
+      }))
+    } else {
+      setFormData(seedToFormData(editRecord))
+      setIsDirty(false)
+    }
+  }
+
+  // The create dialog stays permanently mounted (stable hook order — see
+  // SeedBuilderPage's SeedFormDialog adapter), so `editRecord` never changes
+  // identity across opens: the reset above never fires for it. Closing must
+  // reset on its own, keyed off `open`, or a dirty create form stays dirty
+  // forever and keeps tripping the navigation blocker after Cancel.
+  const [prevOpen, setPrevOpen] = React.useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (!open) {
+      setFormData(seedToFormData(editRecord))
+      setIsDirty(false)
+    }
   }
 
   const branchAliasOptions = React.useMemo(
@@ -81,7 +119,7 @@ export function useSeedEditorDialog({
     setIsDirty(true)
   }, [])
 
-  const blocker = useBlocker(() => isDirty)
+  const blocker = useBlocker(() => open && isDirty)
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()

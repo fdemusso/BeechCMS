@@ -50,6 +50,21 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
     handleSubmit,
   } = useLoginForm()
 
+  const emailRef = React.useRef<HTMLInputElement>(null)
+  const passwordRef = React.useRef<HTMLInputElement>(null)
+
+  // Enter jumps to the other field while it is still empty. When both are
+  // filled the event is left alone, so the native form submit (and therefore
+  // handleSubmit with all its validation) runs exactly as before.
+  const focusEmptyFieldOnEnter =
+    (target: React.RefObject<HTMLInputElement | null>, targetValue: string) =>
+    (event: React.KeyboardEvent<HTMLInputElement>): void => {
+      if (event.key !== "Enter" || event.nativeEvent.isComposing) return
+      if (targetValue.trim().length > 0) return
+      event.preventDefault()
+      target.current?.focus()
+    }
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...divProps}>
       <Card className="overflow-hidden p-0 shadow-md">
@@ -93,6 +108,8 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
                     value={emailValue}
                     className={cn(emailError ? "border-destructive" : "")}
                     onChange={handleEmailChange}
+                    ref={emailRef}
+                    onKeyDown={focusEmptyFieldOnEnter(passwordRef, passwordValue)}
                   />
                 </Field>
                 <Field>
@@ -119,6 +136,8 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
                         passwordError && "border-destructive"
                       )}
                       onChange={handlePasswordChange}
+                      ref={passwordRef}
+                      onKeyDown={focusEmptyFieldOnEnter(emailRef, emailValue)}
                     />
                     <Button
                       type="button"

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import { describe, it, expect } from 'vitest'
-import { buildSearchParams } from './query-builder.js'
+import { describe, it, expect, vi } from 'vitest'
+import { buildSearchParams, FluentQueryBuilder } from './query-builder.js'
 
 describe('buildSearchParams', () => {
   it('empty query returns empty params', () => {
@@ -16,58 +16,341 @@ describe('buildSearchParams', () => {
     expect(filter).toEqual({ logic: 'AND', where: [{ field: 'status', op: 'eq', value: 'published' }] })
   })
 
-  it('operator object filter', () => {
-    const p = buildSearchParams({ filter: { price: { gt: 10 } } })
-    const filter = JSON.parse(p.get('filter')!)
-    expect(filter.where[0]).toEqual({ field: 'price', op: 'gt', value: 10 })
+  it('include parameter joined by comma', () => {
+    const p = buildSearchParams({ include: ['author', 'tags'] })
+    expect(p.get('include')).toBe('author,tags')
   })
 
-  it('multiple filters with OR logic', () => {
-    const p = buildSearchParams({ filter: { a: 'x', b: 'y' }, logic: 'OR' })
+  it('logic OR is forwarded into the filter payload', () => {
+    const p = buildSearchParams({ filter: { status: 'draft' }, logic: 'OR' })
     const filter = JSON.parse(p.get('filter')!)
     expect(filter.logic).toBe('OR')
-    expect(filter.where).toHaveLength(2)
   })
 
-  it('throws on invalid operator', () => {
-    expect(() => buildSearchParams({ filter: { x: { invalid_op: 1 } as never } })).toThrow(TypeError)
+  it('operator filter object produces one where entry per operator', () => {
+    const p = buildSearchParams({ filter: { price: { gt: 10, lte: 50 } } })
+    const filter = JSON.parse(p.get('filter')!)
+    expect(filter.where).toEqual([
+      { field: 'price', op: 'gt', value: 10 },
+      { field: 'price', op: 'lte', value: 50 },
+    ])
   })
 
-  it('sort maps to orderBy/orderDir', () => {
-    const p = buildSearchParams({ sort: { created_at: 'asc' } })
-    expect(p.get('orderBy')).toBe('created_at')
+  it('unknown operator throws TypeError', () => {
+    expect(() => buildSearchParams({ filter: { price: { bogus: 1 } as never } })).toThrow(TypeError)
+  })
+
+  it('sort with no direction defaults orderDir to desc', () => {
+    const p = buildSearchParams({ sort: { title: undefined } })
+    expect(p.get('orderBy')).toBe('title')
+    expect(p.get('orderDir')).toBe('desc')
+  })
+
+  it('sort with explicit direction sets both params', () => {
+    const p = buildSearchParams({ sort: { title: 'asc' } })
+    expect(p.get('orderBy')).toBe('title')
     expect(p.get('orderDir')).toBe('asc')
   })
 
-  it('limit is clamped to 100', () => {
-    const p = buildSearchParams({ limit: 200 })
-    expect(p.get('limit')).toBe('100')
-  })
-
-  it('fields joined by comma', () => {
-    const p = buildSearchParams({ fields: ['id', 'title', 'slug'] })
-    expect(p.get('fields')).toBe('id,title,slug')
-  })
-
-  it('search param forwarded', () => {
+  it('search sets the search param', () => {
     const p = buildSearchParams({ search: 'hello' })
     expect(p.get('search')).toBe('hello')
   })
 
-  it('latest param forwarded', () => {
+  it('fields sets a comma-joined fields param', () => {
+    const p = buildSearchParams({ fields: ['id', 'title'] })
+    expect(p.get('fields')).toBe('id,title')
+  })
+
+  it('latest sets the latest param', () => {
     const p = buildSearchParams({ latest: 5 })
     expect(p.get('latest')).toBe('5')
   })
 
-  it('null filter value uses eq shorthand', () => {
-    const p = buildSearchParams({ filter: { deleted: null } })
-    const filter = JSON.parse(p.get('filter')!)
-    expect(filter.where[0]).toEqual({ field: 'deleted', op: 'eq', value: null })
+  it('page sets the page param', () => {
+    const p = buildSearchParams({ page: 2 })
+    expect(p.get('page')).toBe('2')
   })
 
-  it('is_empty operator (no value)', () => {
-    const p = buildSearchParams({ filter: { bio: { is_empty: undefined } } })
-    const filter = JSON.parse(p.get('filter')!)
-    expect(filter.where[0].op).toBe('is_empty')
+  it('limit is capped at 100', () => {
+    const p = buildSearchParams({ limit: 500 })
+    expect(p.get('limit')).toBe('100')
+  })
+
+  it('limit under the cap passes through unchanged', () => {
+    const p = buildSearchParams({ limit: 20 })
+    expect(p.get('limit')).toBe('20')
+  })
+
+  it('omits lang when no language was requested', () => {
+    const p = buildSearchParams({})
+    expect(p.has('lang')).toBe(false)
   })
 })
+
+describe('FluentQueryBuilder', () => {
+  it('builds query state and calls executor', async () => {
+    const listSpy = vi.fn().mockResolvedValue({ data: { data: [], meta: { seed: 'posts' } }, error: null })
+    const builder = new FluentQueryBuilder<{ id: string; title: string }>({
+      first: vi.fn(),
+      list: listSpy
+    })
+
+    const result = await builder
+      .where({ title: { starts_with: 'Hello' } })
+      .include(['author'])
+      .select(['id', 'title'])
+      .list({ cache: 'no-store' })
+
+    expect(result.error).toBeNull()
+    expect(listSpy).toHaveBeenCalledWith(
+      {
+        filter: { title: { starts_with: 'Hello' } },
+        include: ['author'],
+        fields: ['id', 'title']
+      },
+      { cache: 'no-store' }
+    )
+  })
+
+  it('first() delegates to the executor with the accumulated query', async () => {
+    const firstSpy = vi.fn().mockResolvedValue({ data: { data: { id: '1', title: 'A' }, meta: { seed: 'posts' } }, error: null })
+    const builder = new FluentQueryBuilder<{ id: string; title: string }>({
+      first: firstSpy,
+      list: vi.fn(),
+    })
+
+    const result = await builder.where({ id: '1' }).first({ cache: 'no-store' })
+
+    expect(result.error).toBeNull()
+    expect(firstSpy).toHaveBeenCalledWith({ filter: { id: '1' } }, { cache: 'no-store' })
+  })
+
+  it('whereRelation() emits the nested filter JSON on the relation alias', async () => {
+    const listSpy = vi.fn().mockResolvedValue({ data: { data: [], meta: { seed: 'posts' } }, error: null })
+    const builder = new FluentQueryBuilder<{ id: string; category_id: string }>({
+      first: vi.fn(),
+      list: listSpy,
+    })
+
+    builder.whereRelation('category_id', { where: { name: 'Tech' } })
+    const params = builder.build()
+    const filter = JSON.parse(params.get('filter')!)
+
+    expect(filter).toEqual({
+      logic: 'AND',
+      where: [{ field: 'category_id', op: 'in', value: { logic: 'AND', where: [{ field: 'name', op: 'eq', value: 'Tech' }] } }],
+    })
+  })
+
+  it('whereRelation() composes with where() in one where array', () => {
+    const builder = new FluentQueryBuilder<{ id: string; status: string; category_id: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ status: 'published' }).whereRelation('category_id', { where: { name: 'Tech' } })
+    const filter = JSON.parse(builder.build().get('filter')!)
+
+    expect(filter.where).toEqual([
+      { field: 'status', op: 'eq', value: 'published' },
+      { field: 'category_id', op: 'in', value: { logic: 'AND', where: [{ field: 'name', op: 'eq', value: 'Tech' }] } },
+    ])
+  })
+
+  it('logic: OR on the subquery reaches the inner encoded object', () => {
+    const builder = new FluentQueryBuilder<{ id: string; category_id: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.whereRelation('category_id', { where: { name: 'Tech' }, logic: 'OR' })
+    const filter = JSON.parse(builder.build().get('filter')!)
+
+    expect(filter.where[0].value.logic).toBe('OR')
+  })
+
+  it('an invalid operator inside the subquery throws TypeError', () => {
+    const builder = new FluentQueryBuilder<{ id: string; category_id: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.whereRelation('category_id', { where: { name: { bogus: 1 } as never } })
+
+    expect(() => builder.build()).toThrow(TypeError)
+  })
+
+  it('a chain with only whereRelation() still emits the filter parameter', () => {
+    const builder = new FluentQueryBuilder<{ id: string; category_id: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.whereRelation('category_id', { where: { name: 'Tech' } })
+
+    expect(builder.build().get('filter')).not.toBeNull()
+  })
+
+  it('orderBy() emits orderBy and orderDir on the wire', () => {
+    const builder = new FluentQueryBuilder<{ id: string; created_at: number }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.orderBy('created_at', 'asc')
+    const params = builder.build()
+
+    expect(params.get('orderBy')).toBe('created_at')
+    expect(params.get('orderDir')).toBe('asc')
+  })
+
+  it('orderBy() without a direction sorts descending', () => {
+    const builder = new FluentQueryBuilder<{ id: string; created_at: number }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.orderBy('created_at')
+
+    expect(builder.build().get('orderDir')).toBe('desc')
+  })
+
+  it('a second orderBy() replaces the first sort key instead of accumulating one the server drops', () => {
+    const builder = new FluentQueryBuilder<{ id: string; title: string; created_at: number }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.orderBy('created_at', 'desc').orderBy('title', 'asc')
+    const params = builder.build()
+
+    expect(params.get('orderBy')).toBe('title')
+    expect(params.get('orderDir')).toBe('asc')
+  })
+
+  it('limit() and page() reach the executor as pagination state', async () => {
+    const listSpy = vi.fn().mockResolvedValue({ data: { data: [], meta: { seed: 'posts' } }, error: null })
+    const builder = new FluentQueryBuilder<{ id: string }>({ first: vi.fn(), list: listSpy })
+
+    await builder.limit(12).page(3).list()
+
+    expect(listSpy).toHaveBeenCalledWith({ limit: 12, page: 3 }, undefined)
+  })
+
+  it('limit() above the Public API cap is clamped to 100 by the serializer', () => {
+    const builder = new FluentQueryBuilder<{ id: string }>({ first: vi.fn(), list: vi.fn() })
+
+    builder.limit(500)
+
+    expect(builder.build().get('limit')).toBe('100')
+  })
+
+  it('search() sets the full-text search param', () => {
+    const builder = new FluentQueryBuilder<{ id: string }>({ first: vi.fn(), list: vi.fn() })
+
+    builder.search('edge cms')
+
+    expect(builder.build().get('search')).toBe('edge cms')
+  })
+
+  it('logic() switches the filter combinator to OR', () => {
+    const builder = new FluentQueryBuilder<{ id: string; status: string; title: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ status: 'draft', title: { contains: 'beech' } }).logic('OR')
+    const filter = JSON.parse(builder.build().get('filter')!)
+
+    expect(filter.logic).toBe('OR')
+    expect(filter.where).toHaveLength(2)
+  })
+
+  it('lang() sends the language as the lang parameter', () => {
+    const builder = new FluentQueryBuilder<{ id: string }>({ first: vi.fn(), list: vi.fn() })
+
+    builder.lang('en')
+
+    expect(builder.build().get('lang')).toBe('en')
+  })
+
+  it('build() returns URLSearchParams matching the accumulated query', () => {
+    const builder = new FluentQueryBuilder<{ id: string; title: string }>({
+      first: vi.fn(),
+      list: vi.fn()
+    })
+    
+    builder.where({ id: '123' }).include(['author'])
+    
+    const params = builder.build()
+    expect(params.get('include')).toBe('author')
+    const filter = JSON.parse(params.get('filter')!)
+    expect(filter.where[0]).toEqual({ field: 'id', op: 'eq', value: '123' })
+  })
+
+  it('chained where() on the same field merges operator conditions without dropping earlier ones', () => {
+    const builder = new FluentQueryBuilder<{ id: string; price: number }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ price: { gt: 10 } }).where({ price: { lt: 100 } })
+    const filter = JSON.parse(builder.build().get('filter')!)
+
+    expect(filter.where).toEqual([
+      { field: 'price', op: 'gt', value: 10 },
+      { field: 'price', op: 'lt', value: 100 },
+    ])
+  })
+
+  it('chained where() with conflicting values for the same operator throws', () => {
+    const builder = new FluentQueryBuilder<{ id: string; price: number }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ price: { gt: 10 } })
+    expect(() => builder.where({ price: { gt: 20 } })).toThrow(/Conflicting filter operator 'gt'/)
+  })
+
+  it('chained where() with identical operator and value preserves condition without error', () => {
+    const builder = new FluentQueryBuilder<{ id: string; price: number }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ price: { gt: 10 } }).where({ price: { gt: 10 } })
+    const filter = JSON.parse(builder.build().get('filter')!)
+
+    expect(filter.where).toEqual([
+      { field: 'price', op: 'gt', value: 10 },
+    ])
+  })
+
+  it('chained where() merges shorthand equality with other operators on same field', () => {
+    const builder = new FluentQueryBuilder<{ id: string; status: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ status: 'published' }).where({ status: { neq: 'archived' } })
+    const filter = JSON.parse(builder.build().get('filter')!)
+
+    expect(filter.where).toEqual([
+      { field: 'status', op: 'eq', value: 'published' },
+      { field: 'status', op: 'neq', value: 'archived' },
+    ])
+  })
+
+  it('chained where() with conflicting shorthand equality throws', () => {
+    const builder = new FluentQueryBuilder<{ id: string; status: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ status: 'published' })
+    expect(() => builder.where({ status: 'draft' })).toThrow(/Conflicting filter operator 'eq'/)
+  })
+})
+

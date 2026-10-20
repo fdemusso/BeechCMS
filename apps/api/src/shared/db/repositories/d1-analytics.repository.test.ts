@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { D1AnalyticsRepository } from './d1-analytics.repository'
-import { FixedClock } from '../../services/clock/fixed-clock'
+import { FixedClock } from '@beechcms/testing'
 
 const FIXED_NOW_MS = 1700000000_000
 const EXPECTED_DAY_BUCKET = Math.floor(FIXED_NOW_MS / 1000 / 86400) * 86400

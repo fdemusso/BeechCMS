@@ -5,7 +5,7 @@ import pc from 'picocolors'
 
 let [,, command, ...args] = process.argv
 
-if (command && args[0] && !args[0].startsWith('-') && ['db', 'seed', 'schema', 'dev', 'generate', 'mailpit'].includes(command)) {
+if (command && args[0] && !args[0].startsWith('-') && ['db', 'seed', 'schema', 'types', 'dev', 'generate', 'mailpit'].includes(command)) {
   command = `${command}:${args.shift()}`
 }
 
@@ -22,6 +22,13 @@ const COMMANDS = {
   'seed:load':      cmdSeedLoad,
   'seed:create':    cmdSeedCreate,
   'schema:diff':    cmdSchemaDiff,
+  'schema:audit':   cmdSchemaAudit,
+  'schema:migrate': cmdSchemaMigrate,
+  'schema:export':  cmdSchemaExport,
+  'schema:plan':    cmdSchemaPlan,
+  'schema:apply':   cmdSchemaApply,
+  'types:generate': cmdGenerateTypes,
+  'types:check':    cmdTypesCheck,
   'init':           cmdInit,
   'validate':       cmdValidate,
   'deploy':         cmdDeploy,
@@ -72,12 +79,39 @@ function help() {
     ${pc.cyan('db:reset')}        Remove local Wrangler state and re-bootstrap database
 
   ${pc.bold('3. Database & Types Management')}
-    ${pc.cyan('gen types typescript')} (alias: ${pc.cyan('gen-types')})
-      Generate TypeScript interfaces from active D1 database
-      --local         Target local D1 SQLite state (default)
-      --remote        Target remote Cloudflare D1
+    ${pc.cyan('types generate')} (aliases: ${pc.cyan('gen-types')}, ${pc.cyan('gen types typescript')})
+      Generate TypeScript interfaces + schema fingerprint from live D1
+      --local / --remote   Target local SQLite state (default) or remote D1
+      --db <name>          Override D1 database name
+      -o, --output <file>  Output path (default: beech.generated.ts; aliases print to stdout)
+    ${pc.cyan('types check')}     Diff committed generated types against live D1 (writes nothing)
+      --local / --remote   Target local SQLite state (default) or remote D1
+      --db <name>          Override D1 database name
+      -o, --output <file>  File to check (default: beech.generated.ts)
+      Exits 1 when the file is missing or stale.
+    ${pc.cyan('schema export')}   Write beech.schema.ts from live D1 state
+      --out <file>    Destination (default: beech.schema.ts)
+      --stdout        Print instead of writing
+      --remote        Target remote D1
+    ${pc.cyan('schema diff')}     Compare beech.schema.ts against the deployed schema
+      --manifest <f>  Manifest path (default: beech.schema.ts)
+      Exits 1 when drift is detected.
+    ${pc.cyan('schema audit')}    Report relation storage and legacy tag definitions that need repair (read-only)
+      --remote        Target remote D1 instead of local (default: local)
       --db <name>     Override D1 database name
-      -o, --output    Output file path (default: standard output)
+    ${pc.cyan('schema migrate')}  Migrate pre-0.9 tag/choice seeds to the closed-vocabulary tags contract
+      --apply         Write the changes (default: dry run, exits 1 while work is pending)
+      --remote        Target remote D1 instead of local (default: local)
+      --db <name>     Override D1 database name
+    ${pc.cyan('schema plan')}     Show what applying beech.schema.ts would change (writes nothing)
+      --manifest <f>  Manifest path (default: beech.schema.ts)
+      --api-url <url> API origin (default: BEECH_API_URL or http://localhost:8789)
+      Exits 1 when a seed cannot be applied.
+    ${pc.cyan('schema apply')}    Apply beech.schema.ts through the control plane
+      --manifest <f>  Manifest path (default: beech.schema.ts)
+      --api-url <url> API origin
+      -y, --yes       Skip the confirmation prompt
+      Additive only. Authorizes in the browser on first use.
     ${pc.cyan('validate')}        Validate runtime schema status
 
   ${pc.bold('4. Forms & Frontend Generation')}
@@ -102,6 +136,8 @@ function help() {
     ${pc.cyan('test')}            Run the test suite via Turborepo / Vitest
       --coverage      Generate coverage reports
       --diff          Run test coverage only for files modified on the branch
+      --tier <list>   Run one or more tiers: unit, flow, integration, e2e (comma-separated)
+                      e2e is Playwright-driven and is never selected by --diff
     ${pc.cyan('lint')}            Run ESLint quality checks
     ${pc.cyan('setup:cloudflare')} (alias: ${pc.cyan('setup:cf')})
       Interactive 1-step Cloudflare provisioning (D1, R2, Presigned S3 secrets)
@@ -131,17 +167,17 @@ async function cmdInit(args) {
   await init({ initDb, local: !remote, db, nonInteractive: yes })
 }
 
-async function cmdSeedLoad(_args) {
+async function cmdSeedLoad() {
   const { seedLoad } = await import('@beechcms/cli')
   await seedLoad({})
 }
 
-async function cmdValidate(_args) {
+async function cmdValidate() {
   const { validate } = await import('@beechcms/cli')
   await validate({})
 }
 
-async function cmdSeedCreate(_args) {
+async function cmdSeedCreate() {
   const { seedCreate } = await import('@beechcms/cli')
   await seedCreate({})
 }
@@ -153,7 +189,7 @@ async function cmdDeploy(args) {
   await deploy({ skipSeed, skipCheck })
 }
 
-async function cmdUpdate(_args) {
+async function cmdUpdate() {
   const { update } = await import('@beechcms/cli')
   await update({})
 }
@@ -178,14 +214,64 @@ async function cmdReset(args) {
 }
 
 async function cmdSchemaDiff(args) {
-  const remote  = args.includes('--remote')
-  const write   = args.includes('--write')
-  const nameIdx = args.indexOf('--name')
-  const name    = nameIdx !== -1 ? args[nameIdx + 1] : undefined
-  const dbIdx   = args.indexOf('--db')
-  const db      = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+  const remote      = args.includes('--remote')
+  const manifestIdx = args.indexOf('--manifest')
+  const manifest    = manifestIdx !== -1 ? args[manifestIdx + 1] : undefined
+  const dbIdx       = args.indexOf('--db')
+  const db          = dbIdx !== -1 ? args[dbIdx + 1] : undefined
   const { schemaDiff } = await import('@beechcms/cli')
-  await schemaDiff({ local: !remote, write, name, db })
+  await schemaDiff({ local: !remote, manifest, db })
+}
+
+async function cmdSchemaAudit(args) {
+  const remote = args.includes('--remote')
+  const dbIdx  = args.indexOf('--db')
+  const db     = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+  const { schemaAudit } = await import('@beechcms/cli')
+  await schemaAudit({ local: !remote, db })
+}
+
+async function cmdSchemaMigrate(args) {
+  const remote = args.includes('--remote')
+  const apply  = args.includes('--apply')
+  const dbIdx  = args.indexOf('--db')
+  const db     = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+  const { schemaMigrate } = await import('@beechcms/cli')
+  await schemaMigrate({ apply, local: !remote, db })
+}
+
+async function cmdSchemaExport(args) {
+  const remote  = args.includes('--remote')
+  const stdout  = args.includes('--stdout')
+  const outIdx  = args.indexOf('--out')
+  const oIdx    = args.indexOf('-o')
+  const out     = stdout ? null
+    : outIdx !== -1 ? args[outIdx + 1]
+    : oIdx !== -1 ? args[oIdx + 1]
+    : undefined
+  const dbIdx = args.indexOf('--db')
+  const db    = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+  const { schemaExport } = await import('@beechcms/cli')
+  await schemaExport({ out, local: !remote, db })
+}
+
+async function cmdSchemaPlan(args) {
+  const manifestIdx = args.indexOf('--manifest')
+  const manifest    = manifestIdx !== -1 ? args[manifestIdx + 1] : undefined
+  const apiIdx      = args.indexOf('--api-url')
+  const apiUrl      = apiIdx !== -1 ? args[apiIdx + 1] : undefined
+  const { schemaPlan } = await import('@beechcms/cli')
+  await schemaPlan({ manifest, apiUrl })
+}
+
+async function cmdSchemaApply(args) {
+  const manifestIdx = args.indexOf('--manifest')
+  const manifest    = manifestIdx !== -1 ? args[manifestIdx + 1] : undefined
+  const apiIdx      = args.indexOf('--api-url')
+  const apiUrl      = apiIdx !== -1 ? args[apiIdx + 1] : undefined
+  const yes         = args.includes('--yes') || args.includes('-y')
+  const { schemaApply } = await import('@beechcms/cli')
+  await schemaApply({ manifest, apiUrl, yes })
 }
 
 async function cmdGenerateTypes(args) {
@@ -196,7 +282,7 @@ async function cmdGenerateTypes(args) {
   const outIdx = args.indexOf('--out')
   const outputIdx = args.indexOf('--output')
   const oIdx = args.indexOf('-o')
-  
+
   if (outIdx !== -1 && args[outIdx + 1]) out = args[outIdx + 1]
   else if (outputIdx !== -1 && args[outputIdx + 1]) out = args[outputIdx + 1]
   else if (oIdx !== -1 && args[oIdx + 1]) out = args[oIdx + 1]
@@ -204,8 +290,33 @@ async function cmdGenerateTypes(args) {
   const dbIdx = args.indexOf('--db')
   const db = dbIdx !== -1 ? args[dbIdx + 1] : undefined
 
+  // `beech types generate` writes beech.generated.ts; the historical `gen-types` aliases keep
+  // their stdout default, so no existing script changes behaviour.
+  const isTypesGenerate = command === 'types:generate'
+  const destination = out ?? (isTypesGenerate ? undefined : null)
+
   const { generateTypes } = await import('@beechcms/cli')
-  await generateTypes({ out, local, db })
+  await generateTypes({ out: destination, local, db })
+}
+
+async function cmdTypesCheck(args) {
+  const remote = args.includes('--remote')
+  const local = !remote
+
+  let out
+  const outIdx = args.indexOf('--out')
+  const outputIdx = args.indexOf('--output')
+  const oIdx = args.indexOf('-o')
+
+  if (outIdx !== -1 && args[outIdx + 1]) out = args[outIdx + 1]
+  else if (outputIdx !== -1 && args[outputIdx + 1]) out = args[outputIdx + 1]
+  else if (oIdx !== -1 && args[oIdx + 1]) out = args[oIdx + 1]
+
+  const dbIdx = args.indexOf('--db')
+  const db = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+
+  const { typesCheck } = await import('@beechcms/cli')
+  await typesCheck({ out, local, db })
 }
 
 async function cmdForms(args) {
@@ -225,12 +336,12 @@ async function cmdForms(args) {
 }
 
 // New unified command wrappers:
-async function cmdDbMigrate(args) {
+async function cmdDbMigrate() {
   const { dbMigrate } = await import('@beechcms/cli')
   await dbMigrate({})
 }
 
-async function cmdDbReset(args) {
+async function cmdDbReset() {
   const { dbReset } = await import('@beechcms/cli')
   await dbReset({})
 }
@@ -241,22 +352,22 @@ async function cmdDev(args) {
   await dev({ plain })
 }
 
-async function cmdDevStop(args) {
+async function cmdDevStop() {
   const { devStop } = await import('@beechcms/cli')
   await devStop()
 }
 
-async function cmdDevReset(args) {
+async function cmdDevReset() {
   const { devReset } = await import('@beechcms/cli')
   await devReset()
 }
 
-async function cmdDevTunnel(args) {
+async function cmdDevTunnel() {
   const { devTunnel } = await import('@beechcms/cli')
   await devTunnel()
 }
 
-async function cmdMailpitClear(args) {
+async function cmdMailpitClear() {
   const { mailpitClear } = await import('@beechcms/cli')
   await mailpitClear()
 }
@@ -270,16 +381,20 @@ async function cmdLogs(args) {
 async function cmdTest(args) {
   const coverage = args.includes('--coverage')
   const diff     = args.includes('--diff')
+  const tierIdx  = args.indexOf('--tier')
+  const tier     = tierIdx !== -1 && args[tierIdx + 1] && !args[tierIdx + 1].startsWith('--')
+    ? args[tierIdx + 1]
+    : undefined
   const { test } = await import('@beechcms/cli')
-  await test({ coverage, diff })
+  await test({ coverage, diff, tier })
 }
 
-async function cmdLint(args) {
+async function cmdLint() {
   const { lint } = await import('@beechcms/cli')
   await lint()
 }
 
-async function cmdDoctor(args) {
+async function cmdDoctor() {
   const { doctor } = await import('@beechcms/cli')
   await doctor()
 }

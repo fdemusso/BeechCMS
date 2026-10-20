@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { resolveEdgeCache, withCachedResponse } from '../src/public/cache-utils'
+import { resolveEdgeCache, withCachedResponse } from '../src/public/utils/cache-utils'
 import type { Context } from 'hono'
 
 describe('cache-utils', () => {

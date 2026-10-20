@@ -11,8 +11,9 @@ const FIXTURE_CONTENT = '# Example\n\nFixture content.\n'
 vi.mock('node:fs', () => ({
   statSync: vi.fn(() => ({ mtimeMs: 1000 })),
   readFileSync: vi.fn((path: string) => {
-    if (path.endsWith('manifest.json')) return JSON.stringify(FIXTURE_MANIFEST)
-    if (path.endsWith('reference/example.md')) return FIXTURE_CONTENT
+    const normalized = path.replace(/\\/g, '/')
+    if (normalized.endsWith('manifest.json')) return JSON.stringify(FIXTURE_MANIFEST)
+    if (normalized.endsWith('reference/example.md')) return FIXTURE_CONTENT
     throw new Error(`unexpected readFileSync path in test: ${path}`)
   }),
 }))
@@ -50,5 +51,23 @@ describe('resources', () => {
     expect(() => readResource('beechcms-docs://does/not-exist.md')).toThrow(
       "Unknown resource URI 'beechcms-docs://does/not-exist.md'.",
     )
+  })
+
+  it('returns empty array and zero count when manifest.json does not exist (#496)', async () => {
+    const fs = await import('node:fs')
+    vi.mocked(fs.statSync).mockImplementation(() => {
+      const err = new Error('ENOENT: no such file or directory') as NodeJS.ErrnoException
+      err.code = 'ENOENT'
+      throw err
+    })
+    vi.mocked(fs.readFileSync).mockImplementation(() => {
+      const err = new Error('ENOENT: no such file or directory') as NodeJS.ErrnoException
+      err.code = 'ENOENT'
+      throw err
+    })
+
+    const { listResources, getResourceCount } = await import('./resources.js')
+    expect(listResources()).toEqual([])
+    expect(getResourceCount()).toBe(0)
   })
 })

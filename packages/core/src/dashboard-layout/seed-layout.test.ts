@@ -2,13 +2,18 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
+import { defineSeed } from '../engine/seeds/define-seed.js'
 import {
-  seedViewConfigSchema,
   kanbanViewConfigSchema,
+  kanbanCardConfigSchema,
   validateLayoutAgainstSeed,
   validateCardConfigAgainstSeed,
+  isImageMediaBranch,
   generateDefaultLayout,
+  formLayoutSchema,
+  reconcileLayoutWithSeed,
   METADATA_SLOT_CAP,
+  type LayoutField,
 } from './seed-layout.js'
 
 describe('kanbanViewConfigSchema', () => {
@@ -50,51 +55,20 @@ describe('kanbanViewConfigSchema', () => {
   })
 })
 
-describe('seedViewConfigSchema', () => {
-  it('accepts a full seed view config', () => {
-    const result = seedViewConfigSchema.safeParse({
-      kanban: { axisBranchId: 'br_01', sort: null },
+describe('kanbanCardConfigSchema', () => {
+  it('accepts a card whose slots reference Branch IDs', () => {
+    const result = kanbanCardConfigSchema.safeParse({
+      version: 1, header: { branchId: 'br_01' }, subtitle: { branchId: 'br_02' }, metadata: [],
     })
+
     expect(result.success).toBe(true)
   })
 
-  it('accepts empty object (no view configured)', () => {
-    expect(seedViewConfigSchema.safeParse({}).success).toBe(true)
-  })
-
-  it('accepts additional unknown keys (passthrough)', () => {
-    const result = seedViewConfigSchema.safeParse({ kanban: { axisBranchId: null, sort: null }, future: 42 })
-    expect(result.success).toBe(true)
-    if (result.success) expect((result.data as Record<string, unknown>).future).toBe(42)
-  })
-
-  it('rejects invalid kanban sub-object', () => {
-    const result = seedViewConfigSchema.safeParse({ kanban: { axisBranchId: 123, sort: null } })
-    expect(result.success).toBe(false)
-  })
-})
-
-describe('seedViewConfigSchema — card extension', () => {
-  it('accepts card config alongside kanban', () => {
-    const result = seedViewConfigSchema.safeParse({
-      kanban: { axisBranchId: 'br_01', sort: null },
-      card: { version: 1, header: { branchId: 'br_01' }, subtitle: { branchId: 'br_02' }, metadata: [] },
+  it('rejects a slot that references an alias instead of a Branch ID', () => {
+    const result = kanbanCardConfigSchema.safeParse({
+      version: 1, header: { branchId: 'not-a-branch-id' }, metadata: [],
     })
-    expect(result.success).toBe(true)
-    if (result.success) {
-      expect(result.data.kanban?.axisBranchId).toBe('br_01')
-      expect(result.data.card?.header?.branchId).toBe('br_01')
-    }
-  })
 
-  it('accepts omitted card key', () => {
-    expect(seedViewConfigSchema.safeParse({ kanban: { axisBranchId: null, sort: null } }).success).toBe(true)
-  })
-
-  it('rejects card with invalid branchId format', () => {
-    const result = seedViewConfigSchema.safeParse({
-      card: { version: 1, header: { branchId: 'not-a-branch-id' }, metadata: [] },
-    })
     expect(result.success).toBe(false)
   })
 })
@@ -116,6 +90,43 @@ describe('validateCardConfigAgainstSeed', () => {
       { id: 'br_09', alias: 'file', type: 'file', label: 'File' },
     ],
   } as any
+
+  describe('mediaImageOnly', () => {
+    const mediaSeed = {
+      ...mockSeed,
+      branches: [
+        ...mockSeed.branches,
+        { id: 'br_10', alias: 'cover', type: 'file', label: 'Cover', fileOptions: { accept: 'image' } },
+        { id: 'br_11', alias: 'photos', type: 'file', label: 'Photos', multiple: true, fileOptions: { accept: 'image' } },
+        { id: 'br_12', alias: 'pdf', type: 'file', label: 'PDF', fileOptions: { accept: 'document' } },
+      ],
+    } as any
+
+    it('keeps a single image file as media', () => {
+      const result = validateCardConfigAgainstSeed(
+        { version: 1, media: { branchId: 'br_10' }, metadata: [] }, mediaSeed, { mediaImageOnly: true },
+      )
+      expect(result.cleaned.media?.branchId).toBe('br_10')
+    })
+
+    it.each(['br_01', 'br_09', 'br_11', 'br_12'])('drops %s as media', (branchId) => {
+      const result = validateCardConfigAgainstSeed(
+        { version: 1, media: { branchId }, metadata: [] }, mediaSeed, { mediaImageOnly: true },
+      )
+      expect(result.cleaned.media).toBeNull()
+    })
+
+    it('does not restrict media without the option (kanban)', () => {
+      const result = validateCardConfigAgainstSeed(
+        { version: 1, media: { branchId: 'br_01' }, metadata: [] }, mediaSeed,
+      )
+      expect(result.cleaned.media?.branchId).toBe('br_01')
+    })
+
+    it('isImageMediaBranch matches only a single image file', () => {
+      expect(mediaSeed.branches.filter(isImageMediaBranch).map((b: any) => b.id)).toEqual(['br_10'])
+    })
+  })
 
   it('strips a branchId absent from seed', () => {
     const result = validateCardConfigAgainstSeed(
@@ -381,6 +392,29 @@ describe('validateLayoutAgainstSeed', () => {
   })
 })
 
+// @beechcms/testing depends on @beechcms/core, so core suites cannot import the canonical
+// seeds; this seed mirrors canonical `posts`' branch types for the cover-image rule.
+const COVER_SEED = defineSeed({
+  slug: 'posts',
+  label: 'Post',
+  displayNameAlias: 'title',
+  branches: [
+    { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+    { id: 'br_02', alias: 'body', label: 'Body', type: 'richtext' },
+    { id: 'br_03', alias: 'views', label: 'Views', type: 'number' },
+    { id: 'br_04', alias: 'image', label: 'Image', type: 'file', fileOptions: { accept: 'image' } },
+  ],
+})
+
+function makeIdCounter(): () => string {
+  let n = 0
+  return () => `id-${++n}`
+}
+
+function flattenFieldIds(sections: { columns: { fields: LayoutField[] }[] }[]): string[] {
+  return sections.flatMap((s) => s.columns.flatMap((c) => c.fields.map((f) => f.branchId)))
+}
+
 describe('generateDefaultLayout', () => {
   it('generates a dedicated single-column full-width section for json branches', () => {
     const seedWithJson = {
@@ -407,5 +441,202 @@ describe('generateDefaultLayout', () => {
     expect(jsonSection?.columns[0].fields).toHaveLength(1)
     expect(jsonSection?.columns[0].fields[0].branchId).toBe('br_02')
   })
+
+  it('places a single image file branch alone in the first section of the Data tab', () => {
+    const layout = generateDefaultLayout(COVER_SEED, { newId: makeIdCounter() })
+    const dataTab = layout.tabs[0]
+    const coverSection = dataTab.sections[0]
+
+    expect(coverSection.columns).toHaveLength(1)
+    expect(coverSection.columns[0].fields).toHaveLength(1)
+    expect(coverSection.columns[0].fields[0].branchId).toBe('br_04')
+    expect(coverSection.hideLabel).toBe(true)
+  })
+
+  it('keeps every other main branch after the cover section, in seed order', () => {
+    const layout = generateDefaultLayout(COVER_SEED, { newId: makeIdCounter() })
+    const dataTab = layout.tabs[0]
+
+    expect(flattenFieldIds(dataTab.sections.slice(1))).toEqual(['br_01', 'br_02', 'br_03'])
+  })
+
+  it('does not lift a file branch without accept \'image\'', () => {
+    const seed = {
+      ...COVER_SEED,
+      branches: COVER_SEED.branches.map((b) => (b.id === 'br_04' ? { ...b, fileOptions: undefined } : b)),
+    }
+
+    const layout = generateDefaultLayout(seed, { newId: makeIdCounter() })
+    const dataTab = layout.tabs[0]
+
+    expect(dataTab.sections[0].columns.flatMap((c) => c.fields.map((f) => f.branchId))).not.toContain('br_04')
+    const imageSection = dataTab.sections.find((s) => s.columns.some((c) => c.fields.some((f) => f.branchId === 'br_04')))
+    expect(imageSection?.columns.length).toBeGreaterThan(1)
+  })
+
+  it('leaves the layout unchanged when two image file branches exist', () => {
+    const seed = {
+      ...COVER_SEED,
+      branches: [
+        ...COVER_SEED.branches,
+        { id: 'br_05', alias: 'image2', label: 'Image 2', type: 'file', fileOptions: { accept: 'image' } },
+      ],
+    }
+
+    const layout = generateDefaultLayout(seed, { newId: makeIdCounter() })
+    const dataTab = layout.tabs[0]
+
+    expect(dataTab.sections[0].columns.flatMap((c) => c.fields.map((f) => f.branchId))).not.toContain('br_04')
+    const packedSection = dataTab.sections.find((s) => s.columns.some((c) => c.fields.some((f) => f.branchId === 'br_04')))
+    expect(packedSection?.columns.some((c) => c.fields.some((f) => f.branchId === 'br_05'))).toBe(true)
+  })
+
+  it('does not treat a gallery file branch as a cover', () => {
+    const seed = {
+      ...COVER_SEED,
+      branches: COVER_SEED.branches.map((b) => (b.id === 'br_04' ? { ...b, multiple: true } : b)),
+    }
+
+    const layout = generateDefaultLayout(seed, { newId: makeIdCounter() })
+    const dataTab = layout.tabs[0]
+
+    expect(dataTab.sections[0].columns.flatMap((c) => c.fields.map((f) => f.branchId))).not.toContain('br_04')
+    const gallerySection = dataTab.sections.find((s) => s.columns.some((c) => c.fields.some((f) => f.branchId === 'br_04')))
+    expect(gallerySection?.columns).toHaveLength(1)
+    expect(gallerySection?.hideLabel).toBe(true)
+  })
+
+  it('does not add an empty placeholder section when the cover is the only main branch', () => {
+    const seed = {
+      ...COVER_SEED,
+      branches: COVER_SEED.branches.filter((b) => b.id === 'br_04'),
+    }
+
+    const layout = generateDefaultLayout(seed, { newId: makeIdCounter() })
+
+    expect(layout.tabs[0].sections).toHaveLength(1)
+  })
+
+  it('leaves an SEO image branch in the SEO tab', () => {
+    const seed = {
+      ...COVER_SEED,
+      branches: COVER_SEED.branches.map((b) => (b.id === 'br_04' ? { ...b, alias: 'meta_image' } : b)),
+    }
+
+    const layout = generateDefaultLayout(seed, { newId: makeIdCounter() })
+    const [dataTab, seoTab] = layout.tabs
+
+    expect(flattenFieldIds(dataTab.sections)).not.toContain('br_04')
+    expect(flattenFieldIds(seoTab.sections)).toContain('br_04')
+  })
+
+  it('produces a layout that validateLayoutAgainstSeed accepts', () => {
+    const layout = generateDefaultLayout(COVER_SEED, { newId: makeIdCounter() })
+
+    expect(validateLayoutAgainstSeed(layout, COVER_SEED).ok).toBe(true)
+  })
+
+  it('is deterministic for the same seed and id sequence', () => {
+    const first = generateDefaultLayout(COVER_SEED, { newId: makeIdCounter() })
+    const second = generateDefaultLayout(COVER_SEED, { newId: makeIdCounter() })
+
+    expect(first).toEqual(second)
+  })
 })
 
+
+describe('formLayoutSchema bounds', () => {
+  const section = (id: string) => ({ id, columns: [{ id: `${id}-c`, fields: [] }] })
+  const layoutWith = (sections: unknown[], tabId = 'tab') => ({
+    version: 1,
+    tabs: [{ id: tabId, label: 'Data', sections }],
+  })
+
+  it('accepts a layout at the per-tab section cap', () => {
+    const sections = Array.from({ length: 50 }, (_, i) => section(`s${i}`))
+
+    expect(formLayoutSchema.safeParse(layoutWith(sections)).success).toBe(true)
+  })
+
+  it('rejects more sections per tab than the cap', () => {
+    const sections = Array.from({ length: 51 }, (_, i) => section(`s${i}`))
+
+    expect(formLayoutSchema.safeParse(layoutWith(sections)).success).toBe(false)
+  })
+
+  it('rejects more fields per column than the cap', () => {
+    const fields = Array.from({ length: 101 }, (_, i) => ({ branchId: `br_${i}` }))
+    const sections = [{ id: 's', columns: [{ id: 'c', fields }] }]
+
+    expect(formLayoutSchema.safeParse(layoutWith(sections)).success).toBe(false)
+  })
+
+  it('rejects an id longer than the cap', () => {
+    expect(formLayoutSchema.safeParse(layoutWith([section('s')], 'x'.repeat(65))).success).toBe(false)
+  })
+
+  it('rejects a section label longer than the cap', () => {
+    const sections = [{ ...section('s'), label: 'x'.repeat(121) }]
+
+    expect(formLayoutSchema.safeParse(layoutWith(sections)).success).toBe(false)
+  })
+})
+
+describe('reconcileLayoutWithSeed', () => {
+  const seed = defineSeed({
+    slug: 'posts',
+    label: 'Post',
+    labelPlural: 'Posts',
+    displayNameAlias: 'title',
+    branches: [
+      { id: 'br_1', alias: 'title', label: 'Title', type: 'text' },
+      { id: 'br_2', alias: 'body', label: 'Body', type: 'richtext' },
+      { id: 'br_3', alias: 'subtitle', label: 'Subtitle', type: 'text' },
+    ],
+  })
+  const field = (branchId: string): LayoutField => ({ branchId })
+  const placedIds = (layout: ReturnType<typeof generateDefaultLayout>): string[] =>
+    layout.tabs.flatMap((t) => t.sections.flatMap((s) => s.columns.flatMap((c) => c.fields.map((f) => f.branchId))))
+
+  it('returns a valid complete layout unchanged', () => {
+    const layout = generateDefaultLayout(seed)
+
+    expect(reconcileLayoutWithSeed(layout, seed)).toEqual(layout)
+  })
+
+  it('appends unplaced layoutable branches as trailing sections of the first tab', () => {
+    const stored = {
+      version: 1 as const,
+      tabs: [
+        { id: 't1', label: 'Data', sections: [{ id: 's1', columns: [{ id: 'c1', fields: [field('br_1')] }] }] },
+        { id: 't2', label: 'Other', sections: [{ id: 's2', columns: [{ id: 'c2', fields: [] }] }] },
+      ],
+    }
+
+    const result = reconcileLayoutWithSeed(stored, seed)
+
+    expect(placedIds(result).sort()).toEqual(['br_1', 'br_2', 'br_3'])
+    expect(result.tabs[0].sections[0]).toEqual(stored.tabs[0].sections[0])
+    expect(result.tabs[1]).toEqual(stored.tabs[1])
+    expect(validateLayoutAgainstSeed(result, seed).ok).toBe(true)
+  })
+
+  it('falls back to the default layout when the stored one breaks the full-width rules', () => {
+    const stored = {
+      version: 1 as const,
+      tabs: [
+        {
+          id: 't1',
+          label: 'Data',
+          sections: [{ id: 's1', columns: [{ id: 'c1', fields: [field('br_1')] }, { id: 'c2', fields: [field('br_2')] }] }],
+        },
+      ],
+    }
+
+    const result = reconcileLayoutWithSeed(stored, seed)
+
+    expect(validateLayoutAgainstSeed(result, seed).ok).toBe(true)
+    expect(placedIds(result).sort()).toEqual(['br_1', 'br_2', 'br_3'])
+
+  })
+})

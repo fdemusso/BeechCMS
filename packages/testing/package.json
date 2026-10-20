@@ -1,0 +1,33 @@
+{
+  "name": "@beechcms/testing",
+  "version": "0.8.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "!dist/.tsbuildinfo"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint .",
+    "type-check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@beechcms/core": "workspace:^0.8.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260213.0",
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  },
+  "license": "BUSL-1.1"
+}

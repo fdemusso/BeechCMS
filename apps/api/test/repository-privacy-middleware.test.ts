@@ -78,4 +78,46 @@ describe('repositoryMiddleware — Privacy Integration', () => {
     expect(typeof ssnArg).toBe('string')
     expect(ssnArg).toMatch(/^v1:[A-Za-z0-9+/=]+:[A-Za-z0-9+/=]+$/)
   })
+  describe.each([
+    ['missing', undefined],
+    ['empty', ''],
+  ])('with %s PRIVACY_MASTER_KEY', (_label, key) => {
+    function buildApp(handler: (c: any) => Promise<Response>) {
+      const app = new Hono<AppEnv>()
+      const mock = makeMockDb()
+      app.use('*', async (c, next) => {
+        c.env = { DB: mock.db, PRIVACY_MASTER_KEY: key, JWT_SECRET: 'secret' } as any
+        await next()
+      })
+      app.use('*', repositoryMiddleware())
+      app.get('/test', handler)
+      return { app, mock }
+    }
+
+    it('rejects writing an encrypted field instead of storing plaintext', async () => {
+      const { app, mock } = buildApp(async (c) => {
+        await c.get('repository').create(PRIVACY_SEED, 'id_1', 'user-1', 'published', {
+          name: 'John Doe',
+          ssn: 'my-ssn-1234',
+        })
+        return c.json({ ok: true })
+      })
+
+      const res = await app.request('/test')
+      expect(res.status).toBe(500)
+      const leaked = mock.bindMock.mock.calls.some((call) => call.includes('my-ssn-1234'))
+      expect(leaked).toBe(false)
+    })
+
+    it('still writes plain-only fields', async () => {
+      const { app, mock } = buildApp(async (c) => {
+        await c.get('repository').create(PRIVACY_SEED, 'id_1', 'user-1', 'published', { name: 'John Doe' })
+        return c.json({ ok: true })
+      })
+
+      const res = await app.request('/test')
+      expect(res.status).toBe(200)
+      expect(mock.bindMock.mock.calls.some((call) => call.includes('John Doe'))).toBe(true)
+    })
+  })
 })

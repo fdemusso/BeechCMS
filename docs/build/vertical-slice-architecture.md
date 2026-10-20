@@ -31,7 +31,7 @@ apps/api/src/features/content/
     ├── update.ts
     ├── delete.ts
     ├── helpers.ts        # Shared validation/serialization for this slice
-    └── …                 # bulk, facets, kanban-move, kanban-position, view-config
+    └── …                 # bulk, facets, kanban-move, view-config
 ```
 
 ### 1. The Thin Handler Pattern
@@ -129,6 +129,25 @@ import { SeedBuilderPage, useSeeds } from '@/features/seed-builder'
 import { DeleteSeedDialog } from '@/features/seed-builder/components/DeleteSeedDialog'
 ```
 
+### 1. The Thin Page Orchestrator Pattern (`apps/dashboard/src/pages/`)
+
+Mirroring the backend Thin Handler Pattern, route-level pages in `apps/dashboard/src/pages/` are strictly **composition roots**:
+- Extract router parameters and query strings (`useParams`, `useSearchParams`).
+- Render the outermost shell layout (`SidebarProvider`, `SiteHeader`, `AppSidebar`, `SidebarInset`).
+- Delegate domain logic, UI state, and views to feature-scoped hooks and components.
+- **Rule**: Page files must remain thin (< 150 lines) and avoid inlining complex filtering algorithms, table computations, or inline dialog trees.
+
+### 2. Controller Hooks & Headless State Separation
+
+To maintain clear separation between business logic and visual presentation:
+- **Zero algorithmic logic in JSX**: Data normalizations, DSL filtering, conditional formatting calculations, and multi-step mutations belong in dedicated custom hooks (`use*`) under `features/<slice>/hooks/`.
+- **Target 2–3 focused hooks per complex view**:
+  1. *Query & Filter Hook*: handles search, URL synchronization, facet extraction, and TanStack Query fetching.
+  2. *View/Table Configuration Hook*: handles column definitions, density, sorting, grouping, and styling rules.
+  3. *Action & Modal Hook*: handles selections, batch mutations, and open/close state for slice dialogs.
+- **Dedicated Sub-components & Modal Orchestrators**: Complex view layouts (e.g., Table vs Kanban vs Gallery) and modal suites must be decomposed into dedicated components under `features/<slice>/components/`.
+
+
 ---
 
 ## Dependency Boundaries Matrix
@@ -153,6 +172,19 @@ import { DeleteSeedDialog } from '@/features/seed-builder/components/DeleteSeedD
 1. **Direct SQL / D1 Queries in Handlers**: Bypasses Botanical Engine serialization (`apiToDb` / `dbToApi`) and breaks column security policies.
 2. **Cross-Slice Imports**: Feature A (`features/content/`) must never import from Feature B (`features/auth/`). Shared contracts belong in `@beechcms/core` or `shared/`.
 3. **Synchronous Side-Effects**: Do not trigger long-running email delivery or remote webhooks synchronously inside request handlers; use `c.executionCtx.waitUntil()` or queues.
+4. **Nested Barrels ("Barrel-inside-Barrel")**: Creating chains of pass-through barrels (`index.ts` in every internal subfolder) obscures source definitions, degrades tree-shaking, and complicates IDE navigation.
+
+---
+
+## Internal Slice Organization: Thematic Clustering vs. Nested Sub-Slices
+
+When an architectural slice or core module (such as `packages/core/src/engine/` or `apps/api/src/public/`) contains numerous cohesive files, internal subdirectories are organized by **thematic clustering of files** (e.g., `seeds/`, `privacy/`, `ddl/`, `query/`, `introspection/`, `localization/`, `middleware/`, `handlers/`, `relations/`, `errors/`, `validation/`, `utils/`) rather than being treated as autonomous nested sub-slices with redundant internal `index.ts` barrels.
+
+### Guidelines for Thematic Clustering:
+1. **AI & Human Bounded Context**: The primary objective is to group related files so that AI assistants and engineers can operate within a tightly focused context window (e.g., viewing only `engine/privacy/` when dealing with data classification and encryption, or `public/relations/` when resolving nested relation filters, without loading unrelated handlers or DDL).
+2. **No Intermediate Barrels**: Avoid generating intermediate `index.ts` barrels inside thematic subfolders. Root modules and barrels export directly from the concrete domain files (e.g., `export * from './engine/seeds/define-seed.js'` or `export { publicRoutes } from './handlers/public-routes.js'`).
+3. **Direct Navigation**: TypeScript language servers and IDEs jump directly to the target implementation file rather than through multiple layers of re-export shims.
+
 
 ---
 

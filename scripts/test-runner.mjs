@@ -4,78 +4,35 @@
 
 import fs from "node:fs"
 import path from "node:path"
-import os from "node:os"
 import { fileURLToPath } from "node:url"
 import { execa } from "execa"
 
 import { execSync } from "node:child_process"
 import crypto from "node:crypto"
+import { resolveTestResources, testResourceEnv, lowerProcessPriority, describeTestResources } from "./lib/test-resources.mjs"
+import { acquireCpuSlot, releaseOnExit, HELD_ENV, EXIT_SLOT_TIMEOUT } from "./lib/cpu-slot.mjs"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, "..")
 const CACHE_DIR = path.resolve(__dirname, "../node_modules/.cache/beech-test-runner")
-const LOCK_DIR = path.resolve(__dirname, "../node_modules/.cache")
-const LOCK_FILE = path.join(LOCK_DIR, "beech-test-runner.lock")
 
-function acquireLock() {
+// Machine-wide, shared by every worktree. The full suite includes the Docker-bound flow tier
+// and uses the whole local budget, so it claims every slot. It queues behind other runs
+// instead of skipping: a skipped run exiting 0 reads as a green suite.
+async function acquireLock() {
   if (process.env.BEECH_FORCE_TEST === "1") {
     return () => {}
   }
 
-  if (!fs.existsSync(LOCK_DIR)) {
-    fs.mkdirSync(LOCK_DIR, { recursive: true })
+  try {
+    const release = await acquireCpuSlot({ exclusive: true, label: "pnpm test (full suite)" })
+    releaseOnExit(release)
+    return release
+  } catch (err) {
+    if (err.code !== "SLOT_TIMEOUT") throw err
+    console.error(`\n\x1b[33m⚠️  [Thermal Protection] ${err.message} The suite did NOT run.\x1b[0m\n`)
+    process.exit(EXIT_SLOT_TIMEOUT)
   }
-
-  if (fs.existsSync(LOCK_FILE)) {
-    try {
-      const lockData = JSON.parse(fs.readFileSync(LOCK_FILE, "utf8"))
-      const existingPid = lockData.pid
-      const startTime = lockData.startTime ? new Date(lockData.startTime).toLocaleTimeString() : "earlier"
-
-      let isAlive = false
-      try {
-        process.kill(existingPid, 0)
-        isAlive = true
-      } catch {
-        isAlive = false
-      }
-
-      if (isAlive) {
-        console.log(`\n\x1b[33m⚠️  [Thermal Protection] Test suite is already running in another process (PID: ${existingPid}, started at ${startTime}).\x1b[0m`)
-        console.log(`\x1b[33m    Skipping duplicate test execution to protect PC CPU from thermal throttling.\x1b[0m\n`)
-        process.exit(0)
-      } else {
-        // Remove stale lock
-        fs.unlinkSync(LOCK_FILE)
-      }
-    } catch {
-      try { fs.unlinkSync(LOCK_FILE) } catch {}
-    }
-  }
-
-  const lockData = {
-    pid: process.pid,
-    startTime: new Date().toISOString()
-  }
-  fs.writeFileSync(LOCK_FILE, JSON.stringify(lockData), "utf8")
-
-  const cleanup = () => {
-    try {
-      if (fs.existsSync(LOCK_FILE)) {
-        const data = JSON.parse(fs.readFileSync(LOCK_FILE, "utf8"))
-        if (data.pid === process.pid) {
-          fs.unlinkSync(LOCK_FILE)
-        }
-      }
-    } catch {}
-  }
-
-  process.on("exit", cleanup)
-  process.on("SIGINT", () => { cleanup(); process.exit(130) })
-  process.on("SIGTERM", () => { cleanup(); process.exit(143) })
-  process.on("uncaughtException", (err) => { cleanup(); console.error(err); process.exit(1) })
-
-  return cleanup
 }
 
 function computeRepoFingerprint() {
@@ -161,15 +118,20 @@ function computeRepoFingerprint() {
   }
 }
 
-const releaseLock = acquireLock()
-
 const isCoverage = process.argv.includes("--coverage")
+const isNoCache = Boolean(
+  process.env.BEECH_NO_CACHE === "1" ||
+  process.argv.includes("--nocache") ||
+  process.argv.includes("--no-cache") ||
+  process.argv.includes("--force") ||
+  process.argv.includes("-f")
+)
 const taskName = isCoverage ? "test:coverage" : "test"
 const sanitizedTaskName = taskName.replace(/[^a-zA-Z0-9_-]/g, "_")
 const CACHE_FILE = path.join(CACHE_DIR, `cache-${sanitizedTaskName}.json`)
 
 function readCache(currentFingerprint) {
-  if (process.env.BEECH_NO_CACHE === "1" || process.argv.includes("--no-cache") || process.argv.includes("--force")) {
+  if (isNoCache) {
     return null
   }
   if (!fs.existsSync(CACHE_FILE)) {
@@ -180,7 +142,9 @@ function readCache(currentFingerprint) {
     if (data.fingerprint === currentFingerprint && data.taskName === taskName) {
       return data
     }
-  } catch {}
+  } catch {
+    // Swallow: corrupt or unreadable cache file
+  }
   return null
 }
 
@@ -200,7 +164,9 @@ function clearCache() {
     if (fs.existsSync(CACHE_FILE)) {
       fs.unlinkSync(CACHE_FILE)
     }
-  } catch {}
+  } catch {
+    // Swallow: best-effort cache cleanup
+  }
 }
 
 const { fingerprint, fileCount } = computeRepoFingerprint()
@@ -216,39 +182,36 @@ if (cachedResult) {
   printConsolidatedSummary(cachedResult.output)
 
   console.log(`\x1b[32m⚡ [Test Cache] Instant replay from cache completed. All ${fileCount} files match snapshot.\x1b[0m\n`)
-  releaseLock()
   process.exit(cachedResult.exitCode ?? 0)
 }
 
-if (fs.existsSync(CACHE_FILE)) {
+// A cache replay needs no CPU, so the slot is taken only for a real run.
+const releaseLock = await acquireLock()
+
+if (isNoCache) {
+  clearCache()
+  console.log(`\n\x1b[33m🔄 [Test Cache] Cache invalidated via flag (--nocache). Running fresh test suite (${fileCount} files, fingerprint: ${fingerprint.slice(0, 12)})...\x1b[0m`)
+} else if (fs.existsSync(CACHE_FILE)) {
   clearCache()
   console.log(`\x1b[33m🔄 [Test Cache] Repository snapshot changed (${fileCount} files, fingerprint: ${fingerprint.slice(0, 12)}). Cache invalidated.\x1b[0m`)
 } else {
   console.log(`\x1b[36m⚡ [Test Cache] Calculating snapshot for ${fileCount} files (fingerprint: ${fingerprint.slice(0, 12)})...\x1b[0m`)
 }
 
-// Auto hardware profiling for Thermal & Memory Protection
-const totalCores = os.cpus().length || 4
-const totalMemGb = Math.round(os.totalmem() / (1024 * 1024 * 1024)) || 8
+// Thermal & Memory Protection (local only — see scripts/lib/test-resources.mjs)
+const resources = resolveTestResources()
+if (resources) lowerProcessPriority()
+const concurrencyArgs = resources ? [`--concurrency=${resources.turboConcurrency}`] : []
 
-// For MacBook Air (8 Cores: 4P+4E, 8GB RAM, Fanless):
-// Limit Turbo concurrency to 2 packages & Vitest worker threads to 2 per package.
-// Total active workers = 4 threads (perfect fit for the 4 Performance cores without memory swap thrashing).
-const defaultTurboConcurrency = totalMemGb <= 8 ? "2" : Math.min(4, Math.max(2, Math.floor(totalCores / 2))).toString()
-const defaultVitestThreads = totalMemGb <= 8 ? "2" : Math.min(4, Math.max(2, Math.floor(totalCores / 2))).toString()
-
-const concurrency = process.env.TURBO_CONCURRENCY || process.env.BEECH_MAX_CONCURRENCY || defaultTurboConcurrency
-const maxThreads = process.env.VITEST_MAX_THREADS || defaultVitestThreads
-
-console.log(`\x1b[36mRunning BeechCMS tests via Turbo [Hardware Profile: ${totalCores} CPUs, ${totalMemGb}GB RAM | Concurrency=${concurrency}, VitestThreads=${maxThreads}]...\x1b[0m`)
+console.log(`\x1b[36mRunning BeechCMS tests via Turbo [${describeTestResources(resources)}]...\x1b[0m`)
 
 try {
-  const child = execa("pnpm", ["turbo", "run", taskName, `--concurrency=${concurrency}`, "--log-order=grouped"], {
+  const child = execa("pnpm", ["turbo", "run", taskName, ...concurrencyArgs, "--log-order=grouped"], {
     all: true,
     env: {
       FORCE_COLOR: "1",
-      VITEST_MAX_THREADS: maxThreads,
-      VITEST_MIN_THREADS: "1",
+      [HELD_ENV]: "1",
+      ...testResourceEnv(resources),
       UV_THREADPOOL_SIZE: process.env.UV_THREADPOOL_SIZE || "4"
     }
   })
@@ -295,7 +258,7 @@ function printConsolidatedSummary(output) {
     
     const match = cleanLine.match(/^(\S+):test(?::coverage)?:\s+(Test Files|Tests|Duration|Start at)\s+(.+)$/i)
     if (match) {
-      const [_, pkg, type, value] = match
+      const [, pkg, type, value] = match
       const cleanPkg = pkg.replace(/:test(:coverage)?$/, "")
       if (!summaries[cleanPkg]) {
         summaries[cleanPkg] = {}

@@ -1,0 +1,177 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
+import * as React from "react"
+import { flexRender, type Row } from "@tanstack/react-table"
+import { cn } from "@/lib/utils"
+import { TableCell, TableRow } from "@/components/ui/table"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
+import type { DataTableSelection } from "../hooks/use-data-table-selection"
+import type { DataTableProps } from "../types"
+import { CELL_CLICK_DELAY_MS } from "../types"
+
+const HIT_TOLERANCE_PX = 2
+const VISUAL_CONTENT_SELECTOR = "img, svg, canvas, [data-slot='badge']"
+
+function containsPoint(rect: DOMRect, x: number, y: number) {
+  return (
+    x >= rect.left - HIT_TOLERANCE_PX &&
+    x <= rect.right + HIT_TOLERANCE_PX &&
+    y >= rect.top - HIT_TOLERANCE_PX &&
+    y <= rect.bottom + HIT_TOLERANCE_PX
+  )
+}
+
+/**
+ * True when the click landed on what the cell actually shows (text, icon, badge) rather than on its
+ * padding or on the blank part of a block element stretching across the cell.
+ */
+function isClickOnCellContent(cell: HTMLElement, x: number, y: number): boolean {
+  const range = document.createRange()
+  // jsdom has no layout: fall back to "anything but the bare cell".
+  if (typeof range.getClientRects !== "function") return true
+
+  const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT)
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!node.textContent?.trim()) continue
+    range.selectNodeContents(node)
+    for (const rect of Array.from(range.getClientRects())) {
+      if (containsPoint(rect, x, y)) return true
+    }
+  }
+  for (const el of Array.from(cell.querySelectorAll(VISUAL_CONTENT_SELECTOR))) {
+    if (containsPoint(el.getBoundingClientRect(), x, y)) return true
+  }
+  return false
+}
+
+export interface DataTableRowProps<TData, TValue> {
+  row: Row<TData>
+  rowHeight: number
+  cellPadding: string
+  props: Readonly<DataTableProps<TData, TValue>>
+  selection: DataTableSelection
+}
+
+function DataTableRowInner<TData, TValue>({
+  row,
+  rowHeight,
+  cellPadding,
+  props,
+  selection,
+}: DataTableRowProps<TData, TValue>) {
+  const {
+    getRowStyles,
+    getRowClassName,
+    getCellClassName,
+    onRowDoubleClick,
+    onCellActivate,
+    cellActivateExcludedColumnIds,
+    renderRowContextMenuContent,
+    rowContextMenuExcludedColumnIds,
+    enableColumnResizing,
+  } = props
+
+  const cellClickTimerRef = React.useRef<number | null>(null)
+  
+  React.useEffect(() => {
+    return () => {
+      if (cellClickTimerRef.current) window.clearTimeout(cellClickTimerRef.current)
+    }
+  }, [])
+
+  const cellActivateExcludedColumnIdSet = React.useMemo(
+    () => new Set(cellActivateExcludedColumnIds ?? []),
+    [cellActivateExcludedColumnIds]
+  )
+
+  const excludedContextMenuColumnIds = React.useMemo(() => {
+    return new Set(rowContextMenuExcludedColumnIds ?? ["select", "actions"])
+  }, [rowContextMenuExcludedColumnIds])
+
+  const rowStyles = getRowStyles?.(row.original)
+
+  return (
+    <TableRow
+      key={row.id}
+      data-state={row.getIsSelected() && "selected"}
+      data-row-id={row.id}
+      data-focused={selection.focusedRowId === row.id || undefined}
+      className={cn(
+        "transition-colors group-focus-within/dt:data-[focused]:outline group-focus-within/dt:data-[focused]:-outline-offset-2 group-focus-within/dt:data-[focused]:outline-1 group-focus-within/dt:data-[focused]:outline-ring",
+        onRowDoubleClick && "cursor-pointer select-none",
+        rowStyles?.rowClassName ?? getRowClassName?.(row.original)
+      )}
+      style={{ height: rowHeight }}
+      onMouseDown={selection.handleRowMouseDown}
+      onClickCapture={(e) => {
+        if (selection.handleRowClickCapture(row.id, e) && cellClickTimerRef.current) {
+          window.clearTimeout(cellClickTimerRef.current)
+        }
+      }}
+      onClick={(e) => selection.handleRowClick(row.id, e)}
+      onDoubleClick={() => {
+        if (cellClickTimerRef.current) window.clearTimeout(cellClickTimerRef.current)
+        onRowDoubleClick?.(row.original)
+      }}
+    >
+      {row.getVisibleCells().map((cell) => {
+        const cellInner = flexRender(cell.column.columnDef.cell, cell.getContext())
+        const canActivateCell = !!onCellActivate && !cellActivateExcludedColumnIdSet.has(cell.column.id)
+        const cellClassName = cn(
+          cellPadding,
+          rowStyles?.cellClassNameByColumnId?.[cell.column.id] ?? getCellClassName?.(row.original, cell.column.id),
+          canActivateCell && "cursor-pointer"
+        )
+        const cellStyle = enableColumnResizing ? { width: cell.column.getSize() } : undefined
+
+        const handleCellClick = (e: React.MouseEvent<HTMLTableCellElement>) => {
+          if (!canActivateCell) return
+          // Selected rows are being worked on: a single click must not trigger click-to-filter.
+          if (row.getIsSelected()) return
+          if (e.target === e.currentTarget || !isClickOnCellContent(e.currentTarget, e.clientX, e.clientY)) return
+          if ((e.target as HTMLElement).closest("button, a, input, [role='button'], [data-no-cell-filter]")) return
+          if (cellClickTimerRef.current) window.clearTimeout(cellClickTimerRef.current)
+          cellClickTimerRef.current = window.setTimeout(() => {
+            onCellActivate?.(cell.column.id, row.original)
+          }, CELL_CLICK_DELAY_MS)
+        }
+
+        const shouldWrapWithContextMenu = !!renderRowContextMenuContent && !excludedContextMenuColumnIds.has(cell.column.id)
+
+        if (!shouldWrapWithContextMenu) {
+          return (
+            <TableCell key={cell.id} className={cellClassName} style={cellStyle} onClick={handleCellClick}>
+              {cellInner}
+            </TableCell>
+          )
+        }
+
+        return (
+          <ContextMenu key={cell.id}>
+            <ContextMenuTrigger asChild>
+              <TableCell
+                data-context-menu=""
+                className={cellClassName}
+                style={cellStyle}
+                onClick={handleCellClick}
+              >
+                {cellInner}
+              </TableCell>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              {renderRowContextMenuContent(row.original)}
+            </ContextMenuContent>
+          </ContextMenu>
+        )
+      })}
+    </TableRow>
+  )
+}
+
+export const DataTableRow = React.memo(DataTableRowInner) as typeof DataTableRowInner

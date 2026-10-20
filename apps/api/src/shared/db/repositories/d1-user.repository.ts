@@ -3,7 +3,30 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { IUserRepository, UserRecord, NewUserInput } from '@beechcms/core'
+import type { AdminGuardedResult, PageRequest, IUserRepository, UserRecord, NewUserInput, AccountSummary, InitialRoleGrant } from '@beechcms/core'
+import { holdsGlobalManageUsers, otherAdminWithoutUser } from './global-admin-sql'
+
+type AccountRow = {
+  id: string
+  email: string
+  name: string | null
+  surname: string | null
+  role: string
+  is_active: number
+  created_at: number
+}
+
+function accountFromRow(row: AccountRow): AccountSummary {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    surname: row.surname,
+    role: row.role,
+    isActive: row.is_active === 1,
+    createdAt: row.created_at,
+  }
+}
 
 type UserRow = {
   id: string
@@ -14,6 +37,7 @@ type UserRow = {
   role: string
   avatar_url: string | null
   notification_prefs: string
+  is_active: number
 }
 
 function rowToRecord(row: UserRow): UserRecord {
@@ -26,6 +50,7 @@ function rowToRecord(row: UserRow): UserRecord {
     role: row.role,
     avatarUrl: row.avatar_url,
     notificationPreferences: row.notification_prefs,
+    isActive: row.is_active === 1,
   }
 }
 
@@ -41,7 +66,7 @@ export class D1UserRepository implements IUserRepository {
 
   async findById(userId: string): Promise<UserRecord | null> {
     const row = await this.db
-      .prepare('SELECT id, email, name, surname, password_hash, role, avatar_url, notification_prefs FROM users WHERE id = ? LIMIT 1')
+      .prepare('SELECT id, email, name, surname, password_hash, role, avatar_url, notification_prefs, is_active FROM users WHERE id = ? LIMIT 1')
       .bind(userId)
       .first<UserRow>()
     return row ? rowToRecord(row) : null
@@ -49,7 +74,7 @@ export class D1UserRepository implements IUserRepository {
 
   async findByEmail(email: string): Promise<UserRecord | null> {
     const row = await this.db
-      .prepare('SELECT id, email, name, surname, password_hash, role, avatar_url, notification_prefs FROM users WHERE email = ? LIMIT 1')
+      .prepare('SELECT id, email, name, surname, password_hash, role, avatar_url, notification_prefs, is_active FROM users WHERE email = ? LIMIT 1')
       .bind(email)
       .first<UserRow>()
     return row ? rowToRecord(row) : null
@@ -62,13 +87,16 @@ export class D1UserRepository implements IUserRepository {
       .run()
   }
 
-  async createInitialAdmin(user: NewUserInput): Promise<boolean> {
+  async createInitialAdmin(user: NewUserInput, roleGrant: InitialRoleGrant): Promise<boolean> {
     try {
       await this.db.batch([
         this.db.prepare('INSERT INTO setup_completed (id) VALUES (1)'),
         this.db
           .prepare('INSERT INTO users (id, email, password_hash, role, name, surname) VALUES (?, ?, ?, ?, ?, ?)')
           .bind(user.id, user.email, user.passwordHash, user.role, user.name, user.surname),
+        this.db
+          .prepare('INSERT INTO user_role_assignments (id, user_id, role_id, scope) VALUES (?, ?, ?, ?)')
+          .bind(roleGrant.id, user.id, roleGrant.roleId, roleGrant.scope),
       ])
       return true
     } catch (err) {
@@ -110,6 +138,15 @@ export class D1UserRepository implements IUserRepository {
       .run()
   }
 
+  async changePasswordAndRevokeSessions(userId: string, newPasswordHash: string, nowTimestamp: number): Promise<void> {
+    await this.db.batch([
+      this.db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(newPasswordHash, userId),
+      this.db
+        .prepare('UPDATE refresh_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL')
+        .bind(nowTimestamp, userId),
+    ])
+  }
+
   async updateAvatarUrl(userId: string, avatarUrl: string | null): Promise<void> {
     await this.db
       .prepare('UPDATE users SET avatar_url = ? WHERE id = ?')
@@ -130,5 +167,66 @@ export class D1UserRepository implements IUserRepository {
       .bind(email, currentUserId)
       .first()
     return row !== null
+  }
+
+  async listAccounts(page: PageRequest): Promise<AccountSummary[]> {
+    const rows = await this.db
+      .prepare(
+        `SELECT id, email, name, surname, role, is_active, created_at
+         FROM users ORDER BY created_at ASC, id ASC LIMIT ? OFFSET ?`
+      )
+      .bind(page.limit, page.offset)
+      .all<AccountRow>()
+
+    return (rows.results ?? []).map(accountFromRow)
+  }
+
+  async findAccountById(userId: string): Promise<AccountSummary | null> {
+    const row = await this.db
+      .prepare(
+        `SELECT id, email, name, surname, role, is_active, created_at
+         FROM users WHERE id = ?`
+      )
+      .bind(userId)
+      .first<AccountRow>()
+
+    return row ? accountFromRow(row) : null
+  }
+
+  async isLastGlobalAdmin(userId: string): Promise<boolean> {
+    const row = await this.db
+      .prepare(
+        `SELECT 1 AS refused FROM users
+         WHERE id = ?
+           AND ${holdsGlobalManageUsers('users.id')}
+           AND NOT ${otherAdminWithoutUser('users.id')}`
+      )
+      .bind(userId)
+      .first()
+    return row !== null
+  }
+
+  /**
+   * Deactivation is one statement that skips the row when the account holds the global
+   * `manage_users` authority and no OTHER active account does. Reactivation is unguarded.
+   */
+  async setActive(userId: string, isActive: boolean): Promise<AdminGuardedResult> {
+    const result = await this.db
+      .prepare(
+        isActive
+          ? 'UPDATE users SET is_active = 1 WHERE id = ?'
+          : `UPDATE users SET is_active = 0
+             WHERE id = ?
+               AND NOT (
+                 ${holdsGlobalManageUsers('users.id')}
+                 AND NOT ${otherAdminWithoutUser('users.id')}
+               )`
+      )
+      .bind(userId)
+      .run()
+    if ((result.meta.changes ?? 0) > 0) return 'applied'
+
+    const row = await this.db.prepare('SELECT id FROM users WHERE id = ?').bind(userId).first()
+    return row ? 'last-global-admin' : 'not-found'
   }
 }

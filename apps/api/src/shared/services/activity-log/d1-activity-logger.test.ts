@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { D1ActivityLogger } from './d1-activity-logger'
 import type { ActivityLogEntry } from '@beechcms/core'
-import { FixedClock } from '../clock/fixed-clock'
+import { FixedClock } from '@beechcms/testing'
 import { SequentialIdGenerator } from '../id-generator/sequential-id-generator'
 
 const clock = new FixedClock(1700000000_000)

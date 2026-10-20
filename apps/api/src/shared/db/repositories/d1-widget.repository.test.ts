@@ -24,6 +24,8 @@ const seed: Seed = {
   ],
 }
 
+const staleSeed: Seed = { ...seed, displayNameAlias: 'removed_branch' }
+
 describe('D1WidgetRepository', () => {
   describe('aggregate', () => {
     it('returns 0 when no rows match', async () => {
@@ -53,6 +55,22 @@ describe('D1WidgetRepository', () => {
       const { db, prepareMock } = makeMockDb([], { computed_value: 42 })
       await new D1WidgetRepository(db).aggregate(seed, { op: 'sum', column: 'price' }, 'all')
       expect(prepareMock.mock.calls[0]![0] as string).toMatch(/SUM\(CAST\(price AS REAL\)\)/)
+    })
+
+    it('counts a tag held in a tags column with json_each and a bound parameter', async () => {
+      const tagsSeed: Seed = {
+        ...seed,
+        branches: [...seed.branches, { id: 'br_03', alias: 'priority', type: 'tags', label: 'Priority' }],
+      }
+      const { db, prepareMock, bindMock } = makeMockDb([], { computed_value: 2 })
+      const value = await new D1WidgetRepository(db).aggregate(
+        tagsSeed,
+        { op: 'countWhere', column: 'priority', value: 'high' },
+        'all',
+      )
+      expect(value).toBe(2)
+      expect(prepareMock.mock.calls[0]![0] as string).toMatch(/json_each\(priority\) WHERE value = \?/)
+      expect(bindMock).toHaveBeenCalledWith('high')
     })
 
     it('builds countWhere using bound parameters for boolean, number, string, and null', async () => {
@@ -150,6 +168,17 @@ describe('D1WidgetRepository', () => {
       })
       expect(entry).toEqual({ id: 'x', label: 'x', score: 1 })
     })
+
+    it('selects id as label when displayNameAlias is stale', async () => {
+      const { db, prepareMock } = makeMockDb([{ id: 'x', label: 'x', score: 1 }])
+      const [entry] = await new D1WidgetRepository(db).leaderboard(staleSeed, {
+        scoreColumn: 'price',
+        limit: 1,
+        orderDirection: 'DESC',
+      })
+      expect(entry).toEqual({ id: 'x', label: 'x', score: 1 })
+      expect(prepareMock.mock.calls[0]![0] as string).toMatch(/SELECT id, id as label/)
+    })
   })
 
   describe('list', () => {
@@ -170,6 +199,14 @@ describe('D1WidgetRepository', () => {
       await new D1WidgetRepository(db).list(seed, { limit: 5, offset: 0, search: 'hello' })
       const sql = (prepareMock.mock.calls[1]?.[0] ?? prepareMock.mock.calls[0]![0]) as string
       expect(sql).toMatch(/title LIKE \? ESCAPE '\\'/)
+      expect(bindMock).toHaveBeenCalledWith('%hello%', 5, 0)
+    })
+
+    it('searches id column when displayNameAlias is stale', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb([], { total: 0 })
+      await new D1WidgetRepository(db).list(staleSeed, { limit: 5, offset: 0, search: 'hello' })
+      const sql = (prepareMock.mock.calls[1]?.[0] ?? prepareMock.mock.calls[0]![0]) as string
+      expect(sql).toMatch(/id LIKE \? ESCAPE '\\'/)
       expect(bindMock).toHaveBeenCalledWith('%hello%', 5, 0)
     })
 
@@ -276,6 +313,19 @@ describe('D1WidgetRepository', () => {
       expect(sql).toMatch(/GROUP BY title/)
       expect(sql).toMatch(/ORDER BY value DESC/)
       expect(bindMock).toHaveBeenCalledWith(8)
+    })
+
+    it('explodes a tags column with json_each, one slice per tag', async () => {
+      const tagsSeed: Seed = {
+        ...seed,
+        branches: [...seed.branches, { id: 'br_03', alias: 'tier', type: 'tags', label: 'Tier' }],
+      }
+      const { db, prepareMock } = makeMockDb([{ label: 'pro', value: 4 }])
+      const slices = await new D1WidgetRepository(db).distribution(tagsSeed, 'tier', 'all', 8)
+      expect(slices).toEqual([{ label: 'pro', value: 4 }])
+      const sql = prepareMock.mock.calls[0]![0] as string
+      expect(sql).toMatch(/json_each\(CASE WHEN json_valid\(tier\)/)
+      expect(sql).toMatch(/GROUP BY tag\.value/)
     })
 
     it('labels NULL values as ∅', async () => {

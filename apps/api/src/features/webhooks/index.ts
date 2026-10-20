@@ -57,11 +57,15 @@ webhooksApp.post('/qstash', async (context) => {
     const input = result.data
     
     const notificationRepository = context.get('notificationRepository')
-    
+
+    // QStash retries a message under the same id, so it keys the notification for deduplication.
+    const messageId = context.req.header('Upstash-Message-Id')
+
     await notificationRepository.create({
       title: input.title,
       message: input.message,
       type: input.type ?? 'info',
+      ...(messageId ? { dedupeKey: messageId } : {}),
     })
 
     return context.text('OK', 200)

@@ -5,6 +5,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { D1ContentRepository } from '../src/shared/db/repositories/content.repository.d1'
 import { PrivacyService, type Seed } from '@beechcms/core'
+import { applyPrivacy } from '../src/shared/policies/apply-policies'
 
 const PRIVACY_SEED: Seed = {
   slug: 'users',
@@ -47,6 +48,17 @@ describe('D1ContentRepository — Privacy & ALE Integration', () => {
     expect(boundArgs[3]).toBe('John Doe')
     expect(boundArgs[4]).toMatch(/^v1:[A-Za-z0-9+/=]+:[A-Za-z0-9+/=]+$/)
     expect(boundArgs[5]).toHaveLength(64)
+  })
+
+  it('persists the keyed HMAC for hash fields after applyPrivacy (#521)', async () => {
+    const { db, bindMock } = makeMockDb()
+    const repo = new D1ContentRepository(db, undefined, privacyService)
+
+    const data = await applyPrivacy({ name: 'John Doe', email_hash: 'john@example.com' }, PRIVACY_SEED)
+    await repo.create(PRIVACY_SEED, 'id_1', 'user-1', 'published', data)
+
+    const boundArgs = bindMock.mock.calls.find((call) => call[0] === 'id_1')!
+    expect(boundArgs[4]).toBe(await privacyService.hash('john@example.com'))
   })
 
   it('decrypts encrypted fields on read (findById)', async () => {

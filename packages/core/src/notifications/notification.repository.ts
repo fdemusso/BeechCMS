@@ -22,6 +22,15 @@ export interface NotificationRecord {
   createdAt: number
 }
 
+/** Input of {@link INotificationRepository.create}. */
+export type CreateNotificationRecord = Omit<NotificationRecord, 'id' | 'createdAt' | 'isRead'> & {
+  /**
+   * Stable identifier of the upstream event (e.g. a QStash message id). Creating twice with the
+   * same key stores one notification, so at-least-once delivery cannot inflate the inbox.
+   */
+  dedupeKey?: string
+}
+
 export interface NotificationStats {
   totalCount: number
   latestCreatedAt: number
@@ -49,9 +58,10 @@ export interface INotificationRepository {
   /**
    * Insert a new notification and return its generated id so callers (e.g.
    * the public form submission flow) can correlate the notification with the
-   * triggering request.
+   * triggering request. With `dedupeKey`, a repeated key stores nothing and returns the id of the
+   * notification the first call created.
    */
-  create(record: Omit<NotificationRecord, 'id' | 'createdAt' | 'isRead'>): Promise<string>
+  create(record: CreateNotificationRecord): Promise<string>
 
   markRead(notificationId: string): Promise<void>
   markUnread(notificationId: string): Promise<void>

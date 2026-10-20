@@ -54,8 +54,10 @@ Search Client: @beechcms/search-client
 Key Architecture Guidelines:
 - Edge Native: Sub-millisecond latency on Cloudflare edge.
 - Client SDK: Use createBeechBrowserClient / createBeechServerClient from '@beechcms/client/browser' or '@beechcms/client/server' with baseUrl and apiKey.
-- Content Querying: Use beech.content('seedSlug').list({ sort: { created_at: 'desc' }, limit: 10 }) or beech.content('seedSlug').get({ slug }).
-- Result Unwrapping: Extract records from result.data.data and handle errors via result.error.
+- Content Querying: Every read starts at beech.collection('seedSlug') and returns a fluent query builder. Chain .where({ field: value }) or .where({ field: { gte: 10 } }), .logic('AND' | 'OR'), .orderBy('created_at', 'desc'), .search(term), .select([...]), .include([...]), .limit(n), .page(n), then terminate with .list() or .first(). Example: beech.collection('seedSlug').orderBy('created_at', 'desc').limit(10).list(), or beech.collection('seedSlug').where({ slug }).first().
+- Relations: .include(['author']) expands related entries in the same request under entry._includes.author (depth 1, max 3 branches). .whereRelation('author', { where: { name: 'Jane' } }) filters through the relation target server-side. Never issue N+1 follow-up requests.
+- Result Unwrapping: Extract records from result.data.data and handle errors via result.error. .first() returns a 404 BeechProblem when nothing matches — it does not return null.
+- Types: Generate the seed registry with 'npx beech types generate' and pass it as the client generic: createBeechBrowserClient<BeechDatabase>({ ... }).
 - RichText: Render TipTap body AST via renderRichText(post.body) from '@beechcms/client/richtext'.
 - Content Models: Seeds define schemas, Branches define fields, Fruits represent content items.
 - Dual-Table Mirror Staging: Drafts stay isolated in draft staging tables and promote atomically to production.

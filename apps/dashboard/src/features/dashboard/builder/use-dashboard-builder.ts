@@ -12,7 +12,7 @@ import type {
 } from '@beechcms/core'
 import { getWidgetDefinition } from '../registry/widget-registry'
 
-export type DashboardColumnCount = 1 | 2 | 3 | 4
+type DashboardColumnCount = 1 | 2 | 3 | 4
 
 export interface UseDashboardBuilderArgs {
   initialLayout: DashboardLayout

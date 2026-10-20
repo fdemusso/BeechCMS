@@ -31,6 +31,11 @@
   //   MEDIA_CDN_URL (opzionale)
   //   MAX_UPLOAD_BYTES (opzionale, default 50MB)
 
+  // Cloudflare Images — abilita le trasformazioni a preset su GET /api/media/:key?preset=…
+  // Senza binding l'endpoint serve l'originale con X-Beech-Media-Transform: passthrough-unsupported.
+  // Catalogo preset e lato massimo: MEDIA_PRESETS / MEDIA_MAX_DIMENSION (vedi .dev.vars.example).
+  // "images": { "binding": "IMAGES" },
+
   // Rate limiting (Wrangler 4.36+)
   "ratelimits": [
     {

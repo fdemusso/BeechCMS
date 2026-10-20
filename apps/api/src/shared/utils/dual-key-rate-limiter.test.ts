@@ -69,16 +69,50 @@ describe('checkDualKeyRateLimit', () => {
     expect(result.retryAfterSeconds).toBe(8)
   })
 
-  it('rejects with blockedBy=both when both buckets are exhausted', async () => {
+  it('rejects with blockedBy=ip and never calls the account limiter when both buckets are exhausted', async () => {
+    const accountCalls: string[] = []
+    const accountLimiter: IRateLimiter = {
+      checkLimit: async (key) => {
+        accountCalls.push(key)
+        return { isAllowed: false, retryAfterSeconds: 7 }
+      },
+    }
+
     const result = await checkDualKeyRateLimit({
       ipLimiter: makeBlockedLimiter(3),
-      accountLimiter: makeBlockedLimiter(7),
+      accountLimiter,
       clientIp: '1.2.3.4',
       accountKey: 'user@example.com',
     })
+
     expect(result.isAllowed).toBe(false)
-    expect(result.blockedBy).toBe('both')
-    expect(result.retryAfterSeconds).toBe(7) // max of 3, 7
+    expect(result.blockedBy).toBe('ip')
+    expect(result.retryAfterSeconds).toBe(3)
+    // Regression guard for #458: an IP-blocked request must not touch the account limiter,
+    // otherwise a flood from one throttled IP with random account keys can evict and reset
+    // a victim's exhausted account bucket.
+    expect(accountCalls).toEqual([])
+  })
+
+  it('skips the account limiter entirely once the IP limiter rejects the request', async () => {
+    let accountLimiterCalled = false
+    const accountLimiter: IRateLimiter = {
+      checkLimit: async () => {
+        accountLimiterCalled = true
+        return { isAllowed: true }
+      },
+    }
+
+    const result = await checkDualKeyRateLimit({
+      ipLimiter: makeBlockedLimiter(5),
+      accountLimiter,
+      clientIp: '6.6.6.6',
+      accountKey: 'victim@example.com',
+    })
+
+    expect(result.isAllowed).toBe(false)
+    expect(result.blockedBy).toBe('ip')
+    expect(accountLimiterCalled).toBe(false)
   })
 
   it('retryAfterSeconds is at least 1 even when limiter returns 0', async () => {

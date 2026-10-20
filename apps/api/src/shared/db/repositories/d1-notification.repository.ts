@@ -4,6 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type {
+  CreateNotificationRecord,
   INotificationRepository,
   NotificationRecord,
   NotificationStats,
@@ -68,15 +69,17 @@ export class D1NotificationRepository implements INotificationRepository {
     }
   }
 
-  async create(record: Omit<NotificationRecord, 'id' | 'createdAt' | 'isRead'>): Promise<string> {
-    const generatedId = this.idGenerator.uuid()
+  async create(record: CreateNotificationRecord): Promise<string> {
+    // A deterministic id lets the primary key reject a repeated event atomically.
+    const generatedId = record.dedupeKey ? `dedupe:${record.dedupeKey}` : this.idGenerator.uuid()
     const safeType = Object.hasOwn(record, 'type') && record.type ? record.type : 'info'
     const safeTitle = Object.hasOwn(record, 'title') && typeof record.title === 'string' ? record.title : ''
     const safeMessage = Object.hasOwn(record, 'message') && typeof record.message === 'string' ? record.message : ''
     await this.database
       .prepare(
         `INSERT INTO notifications (id, title, message, type)
-         VALUES (?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(id) DO NOTHING`
       )
       .bind(generatedId, safeTitle, safeMessage, safeType)
       .run()

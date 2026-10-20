@@ -1,19 +1,21 @@
 import * as React from 'react'
 import { DndContext, DragOverlay } from '@dnd-kit/core'
-import { resolveKanbanConfig } from '@beechcms/core'
+import { kanbanColumnEntryValue, resolveKanbanConfig } from '@beechcms/core'
 import type { Branch, KanbanColumnDescriptor, FilterGroup } from '@beechcms/core'
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useKanbanColumns } from '../hooks/use-kanban-columns'
-import { useKanbanColumnQuery } from '../hooks/use-kanban-column-query'
 import { KanbanColumn } from './kanban-column'
 import { KanbanCard } from './kanban-card'
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
+import { useKanbanColumnQuery } from '../hooks/use-kanban-column-query'
 import { useKanbanBoard } from '../utils/use-kanban-board'
 import { useKanbanDrag } from '../utils/use-kanban-drag'
 import { buildKanbanCardDisplayModel } from '../utils/kanban-card-display'
 import { KANBAN_COLUMN_WIDTH_PX, KANBAN_CARD_HEIGHT_PX, KANBAN_COLUMN_PADDING_PX } from '../constants'
 import type { ContentKanbanProps, KanbanBoardConfig, KanbanCardDisplayModel } from '../types'
 import type { ContentListWithMeta } from '@/lib/content-api'
+import { NO_ELEMENT_FORMATTER, type ElementFormatter } from '@/lib/conditional-format'
 
 // For now canEdit defaults to true; integrate with permission system when available
 const DEFAULT_CAN_EDIT = true
@@ -28,9 +30,11 @@ interface ColumnProps {
   search: string
   collapsed: boolean
   canEdit: boolean
+  canCreate: boolean
   sortActive: boolean
   pendingCards: Map<string, { destColValue: string | null; position: string; axisValue: string | null }>
   cardConfig?: import('@beechcms/core').KanbanCardConfig
+  formatElement: ElementFormatter
   onToggleCollapse: () => void
   onEdit: (id: string) => void
   onCreateEntry?: () => void
@@ -38,10 +42,10 @@ interface ColumnProps {
 
 function KanbanColumnConnected({
   seedSlug, seed, axisBranch, col, config, activeFilters, search, collapsed,
-  canEdit, sortActive, pendingCards, cardConfig,
+  canEdit, canCreate, sortActive, pendingCards, cardConfig, formatElement,
   onToggleCollapse, onEdit, onCreateEntry,
 }: ColumnProps) {
-  const fetchState = useKanbanColumnQuery(seedSlug, axisBranch, col, config, activeFilters, search, seed, cardConfig)
+  const fetchState = useKanbanColumnQuery(seedSlug, axisBranch, col, config, activeFilters, search, seed, cardConfig, formatElement)
   const queryClient = useQueryClient()
 
   // Apply optimistic overlay: swap out/in cards based on pending moves
@@ -72,10 +76,17 @@ function KanbanColumnConnected({
                 ...item,
                 data: {
                   ...(item.data ?? {}),
-                  [axisBranch.alias]: p.axisValue,
+                  [axisBranch.alias]: kanbanColumnEntryValue(axisBranch, p.axisValue),
                 },
               }
-              displayModel = buildKanbanCardDisplayModel(patchedItem, axisBranch, p.axisValue, seed, cardConfig)
+              displayModel = buildKanbanCardDisplayModel(
+                patchedItem,
+                axisBranch,
+                p.axisValue,
+                seed,
+                cardConfig,
+                formatElement(patchedItem),
+              )
               break outer
             }
           }
@@ -104,9 +115,10 @@ function KanbanColumnConnected({
       if (!p) return c
       let slots = c.slots
       if (slots) {
-        const updatedHeader = slots.header?.branch.id === axisBranch.id ? { ...slots.header, value: p.axisValue } : slots.header
-        const updatedSubtitle = slots.subtitle?.branch.id === axisBranch.id ? { ...slots.subtitle, value: p.axisValue } : slots.subtitle
-        const updatedMetadata = slots.metadata.map(m => m.branch.id === axisBranch.id ? { ...m, value: p.axisValue } : m)
+        const entryValue = kanbanColumnEntryValue(axisBranch, p.axisValue)
+        const updatedHeader = slots.header?.branch.id === axisBranch.id ? { ...slots.header, value: entryValue } : slots.header
+        const updatedSubtitle = slots.subtitle?.branch.id === axisBranch.id ? { ...slots.subtitle, value: entryValue } : slots.subtitle
+        const updatedMetadata = slots.metadata.map(m => m.branch.id === axisBranch.id ? { ...m, value: entryValue } : m)
         slots = { ...slots, header: updatedHeader, subtitle: updatedSubtitle, metadata: updatedMetadata }
       }
       return {
@@ -139,20 +151,26 @@ function KanbanColumnConnected({
     // }).catch(() => {})
 
     return sorted
-  }, [fetchState.cards, pendingCards, col.value])
+  }, [fetchState.cards, pendingCards, col.value, formatElement, queryClient, seedSlug, config.axisBranchId, axisBranch, seed, cardConfig])
+
+  // A fallback column only surfaces entries that would otherwise fit no column; empty, it is noise.
+  if (col.fallback && fetchState.total === 0 && cards.length === 0) return null
 
   return (
     <KanbanColumn
       colValue={col.value}
       label={col.label}
+      color={col.color}
       fetchState={fetchState}
       cards={cards}
       collapsed={collapsed}
       canEdit={canEdit}
+      canCreate={canCreate}
       sortActive={sortActive}
+      acceptsDrops={!col.fallback}
       onToggleCollapse={onToggleCollapse}
       onEdit={onEdit}
-      onCreateEntry={onCreateEntry}
+      onCreateEntry={col.fallback ? undefined : onCreateEntry}
     />
   )
 }
@@ -167,8 +185,10 @@ export function ContentKanban({
   search = '',
   kanbanConfig,
   cardConfig,
+  formatElement = NO_ELEMENT_FORMATTER,
 }: ContentKanbanProps) {
   const { t } = useTranslation()
+  const { can } = usePermissions()
   const compat = React.useMemo(() => resolveKanbanConfig(seed), [seed])
 
   const axisBranch = React.useMemo(
@@ -203,6 +223,9 @@ export function ContentKanban({
     axisBranch: axisBranch!,
     canEdit: DEFAULT_CAN_EDIT,
     activeSort,
+    activeFilters,
+    search,
+    sort: kanbanConfig.sort,
     dispatch,
   })
 
@@ -280,18 +303,20 @@ export function ContentKanban({
                 seed={seed}
                 axisBranch={axisBranch}
                 cardConfig={cardConfig}
+                formatElement={formatElement}
                 col={col}
                 config={kanbanConfig}
                 activeFilters={activeFilters}
                 search={search}
                 collapsed={collapsed.has(colKey)}
-                canEdit={DEFAULT_CAN_EDIT}
+                canEdit={can('content:update', seedSlug)}
+                canCreate={can('content:create', seedSlug)}
                 sortActive={activeSort}
                 pendingCards={boardState.pending}
                 onToggleCollapse={() => toggleCollapse(col.value)}
                 onEdit={onEdit}
                 onCreateEntry={onCreateEntry
-                  ? () => onCreateEntry(col.value != null ? { [axisBranch.alias]: col.value } : {})
+                  ? () => onCreateEntry(col.value != null ? { [axisBranch.alias]: kanbanColumnEntryValue(axisBranch, col.value) } : {})
                   : undefined}
               />
             )

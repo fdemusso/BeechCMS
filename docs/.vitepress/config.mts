@@ -94,6 +94,7 @@ export default defineConfig({
           text: 'Content Modeling',
           items: [
             { text: 'Schema Modeling', link: '/build/schema-modeling' },
+            { text: 'Schema Manifest (beech.schema.ts)', link: '/build/schema-manifest' },
             { text: 'Field Policies & Encryption', link: '/build/field-policies' }
           ]
         },
@@ -122,9 +123,11 @@ export default defineConfig({
           text: 'Content & Media Engine',
           items: [
             { text: 'Drafts & Publishing', link: '/features/drafts' },
+            { text: 'Trash & Soft Delete', link: '/features/trash' },
             { text: 'Direct-to-R2 Media', link: '/features/media-engine' },
             { text: 'Relationships & Backrefs', link: '/features/backrefs' },
-            { text: 'TipTap Rich Text', link: '/features/richtext-editor' }
+            { text: 'TipTap Rich Text', link: '/features/richtext-editor' },
+            { text: 'Field-Level Localization', link: '/features/localization' }
           ]
         },
         {
@@ -154,6 +157,7 @@ export default defineConfig({
           items: [
             { text: 'Overview', link: '/manage/' },
             { text: 'Content Editor', link: '/manage/content-editor' },
+            { text: 'Roles & Permissions', link: '/manage/roles-permissions' },
             { text: 'Environments', link: '/manage/environments' }
           ]
         }
@@ -172,6 +176,7 @@ export default defineConfig({
           text: 'API Endpoints',
           items: [
             { text: 'Auth Endpoints', link: '/reference/auth-endpoints' },
+            { text: 'RBAC Administration', link: '/reference/rbac-api' },
             { text: 'Internal Content', link: '/reference/internal-content' },
             { text: 'Public API', link: '/reference/public-api' },
             { text: 'Media Engine', link: '/reference/media-engine' },

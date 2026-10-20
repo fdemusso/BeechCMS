@@ -7,7 +7,7 @@
 # Interface: KanbanConfig
 
 Per-seed, dashboard-side kanban view preferences. Persisted in
- seed_layouts.view_config (KB-S02). NOT part of FormLayout.
+ seed_views.config.kanban (one per Kanban view instance). NOT part of FormLayout.
 
 ## Properties
 

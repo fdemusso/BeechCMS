@@ -20,9 +20,21 @@
 
 ***
 
+### maxBuckets?
+
+> `optional` **maxBuckets?**: `number`
+
+***
+
 ### maxIdleTimeSeconds?
 
 > `optional` **maxIdleTimeSeconds?**: `number`
+
+***
+
+### pruneIntervalSeconds?
+
+> `optional` **pruneIntervalSeconds?**: `number`
 
 ***
 

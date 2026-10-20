@@ -160,4 +160,167 @@ describe('TokenBucketRateLimiter', () => {
     // key-0 was pruned so it was re-created with full capacity and then consumed once
     expect(result.remaining).toBe(4)
   })
+
+  it('evicts the oldest bucket once it has idled back up to full capacity', async () => {
+    const clock = new MutableClock(1000000)
+    const limiter = new TokenBucketRateLimiter({ capacity: 5, refillRatePerSecond: 1, clock, maxBuckets: 3 })
+    await limiter.checkLimit('key-1')
+    await limiter.checkLimit('key-2')
+    await limiter.checkLimit('key-3')
+    // Let every bucket refill back to full capacity (5s at rate 1/s) before overflowing.
+    clock.advanceSeconds(5)
+
+    await limiter.checkLimit('key-4')
+    const result = await limiter.checkLimit('key-1')
+
+    // key-1 was the oldest and had refilled to capacity, so it was eligible for eviction;
+    // checking it now creates a fresh bucket with capacity 5 minus 1.
+    expect(result.remaining).toBe(4)
+  })
+
+  it('denies admission of a new key, without growing past maxBuckets, when no bucket has refilled to capacity', async () => {
+    const clock = new MutableClock(1000000)
+    const limiter = new TokenBucketRateLimiter({ capacity: 5, refillRatePerSecond: 0, clock, maxBuckets: 3 })
+    await limiter.checkLimit('key-1')
+    await limiter.checkLimit('key-2')
+    await limiter.checkLimit('key-3')
+
+    // No refill (rate 0), so none of the existing buckets are eligible for eviction: a
+    // never-seen key must be denied rather than admitted as unbounded new state (#634).
+    const overflowResult = await limiter.checkLimit('key-4')
+    expect(overflowResult.isAllowed).toBe(false)
+    expect((limiter as unknown as { buckets: Map<string, unknown> }).buckets.size).toBe(3)
+
+    const result = await limiter.checkLimit('key-1')
+
+    // key-1 survived the overflow: its consumed token is still gone, not reset to capacity - 1.
+    expect(result.remaining).toBe(3)
+  })
+
+  it('#634: stays bounded at maxBuckets under a sustained distinct-key flood at production refill rates', async () => {
+    const clock = new MutableClock(1000000)
+    // Mirrors the production `login` limiter: capacity 10, 1 token/5s, maxBuckets 5000.
+    const limiter = new TokenBucketRateLimiter({ capacity: 10, refillRatePerSecond: 0.2, clock, maxBuckets: 5000 })
+
+    // Exhaust 32 distinct keys at time zero, matching the eviction scan window exactly.
+    for (let i = 0; i < 32; i++) {
+      for (let j = 0; j < 10; j++) {
+        await limiter.checkLimit(`exhausted-${i}`)
+      }
+    }
+
+    // Flood with far more unique keys than maxBuckets over 10 simulated seconds, well inside
+    // the 50s it takes the exhausted buckets to refill to capacity.
+    for (let i = 0; i < 20000; i++) {
+      await limiter.checkLimit(`flood-${i}`)
+      clock.advanceMs(0.5)
+    }
+
+    const size = (limiter as unknown as { buckets: Map<string, unknown> }).buckets.size
+    expect(size).toBeLessThanOrEqual(5000)
+
+    // The pre-existing exhausted bucket was never evicted and reset to full capacity by the
+    // flood; its only change after 10s is the natural refill of 10s * 0.2/s = 2 tokens.
+    const victim = await limiter.checkLimit('exhausted-0')
+    expect(victim.isAllowed).toBe(true)
+    expect(victim.remaining).toBe(1)
+  })
+
+  it('regression #458: an exhausted bucket stays blocked after maxBuckets is overflowed by unique keys', async () => {
+    const clock = new MutableClock(1000000)
+    const limiter = new TokenBucketRateLimiter({ capacity: 1, refillRatePerSecond: 0, clock, maxBuckets: 5 })
+
+    // Exhaust the victim's bucket.
+    await limiter.checkLimit('victim')
+    const victimBeforeFlood = await limiter.checkLimit('victim')
+    expect(victimBeforeFlood.isAllowed).toBe(false)
+
+    // Flood with far more unique keys than maxBuckets. With rate 0, no bucket ever refills,
+    // so eviction never finds an eligible candidate and none of these calls can reset 'victim'.
+    for (let i = 0; i < 50; i++) {
+      await limiter.checkLimit(`flood-${i}`)
+    }
+
+    const victimAfterFlood = await limiter.checkLimit('victim')
+
+    expect(victimAfterFlood.isAllowed).toBe(false)
+  })
+
+  it('skips pruning idle buckets when called within pruneIntervalSeconds', async () => {
+    const clock = new MutableClock(1000000)
+    const limiter = new TokenBucketRateLimiter({
+      capacity: 5,
+      refillRatePerSecond: 0,
+      clock,
+      maxIdleTimeSeconds: 1,
+      pruneIntervalSeconds: 60,
+    })
+    for (let i = 0; i < 501; i++) {
+      await limiter.checkLimit(`key-${i}`)
+    }
+    // Deplete key-0 completely
+    for (let i = 0; i < 4; i++) {
+      await limiter.checkLimit('key-0')
+    }
+    clock.advanceSeconds(5)
+    await limiter.checkLimit('trigger-key')
+
+    const result = await limiter.checkLimit('key-0')
+
+    // Prune was throttled (< 60s), so key-0 was not reset and remains exhausted
+    expect(result.isAllowed).toBe(false)
+  })
+
+  it('prunes idle buckets once pruneIntervalSeconds has elapsed', async () => {
+    const clock = new MutableClock(1000000)
+    const limiter = new TokenBucketRateLimiter({
+      capacity: 5,
+      refillRatePerSecond: 0,
+      clock,
+      maxIdleTimeSeconds: 1,
+      pruneIntervalSeconds: 60,
+    })
+    for (let i = 0; i < 501; i++) {
+      await limiter.checkLimit(`key-${i}`)
+    }
+    // Deplete key-0 completely
+    for (let i = 0; i < 4; i++) {
+      await limiter.checkLimit('key-0')
+    }
+    clock.advanceSeconds(65)
+    await limiter.checkLimit('trigger-key')
+
+    const result = await limiter.checkLimit('key-0')
+
+    // Prune ran after 65s (> 60s), so key-0 was evicted and recreated fresh
+    expect(result.isAllowed).toBe(true)
+    expect(result.remaining).toBe(4)
+  })
+
+  it('stops pruning early as soon as the first active bucket is encountered', async () => {
+    const clock = new MutableClock(1000000)
+    const limiter = new TokenBucketRateLimiter({
+      capacity: 5,
+      refillRatePerSecond: 0,
+      clock,
+      maxIdleTimeSeconds: 10,
+      pruneIntervalSeconds: 0,
+    })
+    for (let i = 0; i < 500; i++) {
+      await limiter.checkLimit(`filler-${i}`)
+    }
+    // key-old added at t=1000000
+    await limiter.checkLimit('key-old')
+    // Advance 8s (t=1000008), key-recent added
+    clock.advanceSeconds(8)
+    await limiter.checkLimit('key-recent')
+    // Advance 4s (t=1000012). key-old is idle for 12s (> 10s TTL), key-recent is idle for 4s (< 10s TTL)
+    clock.advanceSeconds(4)
+    await limiter.checkLimit('trigger-prune')
+
+    const result = await limiter.checkLimit('key-recent')
+
+    // key-recent was not pruned because loop stopped early upon encountering it; consumes 2nd token
+    expect(result.remaining).toBe(3)
+  })
 })

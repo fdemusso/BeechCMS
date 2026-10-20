@@ -20,9 +20,12 @@ export interface QueryGroupResult {
 export class D1BackrefRepository {
   constructor(private readonly db: D1Database) {}
 
-  async entryExists(slug: string, id: string): Promise<boolean> {
+  async entryExists(seedOrSlug: Seed | string, id: string): Promise<boolean> {
+    const slug = typeof seedOrSlug === 'string' ? seedOrSlug : seedOrSlug.slug
+    const softDelete = typeof seedOrSlug === 'string' ? false : !!seedOrSlug.softDelete
+    const clause = softDelete ? ' AND deleted_at IS NULL' : ''
     const row = await this.db
-      .prepare(`SELECT id FROM content_${slug} WHERE id = ? LIMIT 1`)
+      .prepare(`SELECT id FROM content_${slug} WHERE id = ?${clause} LIMIT 1`)
       .bind(id)
       .first<{ id: string }>()
     return row !== null
@@ -38,12 +41,13 @@ export class D1BackrefRepository {
     const displayCol = sourceSeed.displayNameAlias
 
     if (source.relationship === 'single') {
+      const softDeleteClause = sourceSeed.softDelete ? ' AND deleted_at IS NULL' : ''
       const [rowsResult, countResult] = await Promise.all([
         this.db
           .prepare(
             `SELECT id, status, updated_at, ${displayCol} AS displayName
                FROM content_${source.sourceSlug}
-              WHERE ${source.branchAlias} = ?
+              WHERE ${source.branchAlias} = ?${softDeleteClause}
               ORDER BY updated_at DESC
               LIMIT ? OFFSET ?`,
           )
@@ -51,7 +55,7 @@ export class D1BackrefRepository {
           .all<BackrefItem>(),
         this.db
           .prepare(
-            `SELECT COUNT(*) AS total FROM content_${source.sourceSlug} WHERE ${source.branchAlias} = ?`,
+            `SELECT COUNT(*) AS total FROM content_${source.sourceSlug} WHERE ${source.branchAlias} = ?${softDeleteClause}`,
           )
           .bind(targetId)
           .first<{ total: number }>(),
@@ -60,22 +64,25 @@ export class D1BackrefRepository {
     }
 
     const joinTable = `rel_${source.sourceSlug}_${source.branchAlias}`
+    const softDeleteClause = sourceSeed.softDelete ? ' AND c.deleted_at IS NULL' : ''
+    const countSql = sourceSeed.softDelete
+      ? `SELECT COUNT(DISTINCT r.parent_id) AS total FROM ${joinTable} r JOIN content_${source.sourceSlug} c ON r.parent_id = c.id WHERE r.target_id = ? AND c.deleted_at IS NULL`
+      : `SELECT COUNT(DISTINCT parent_id) AS total FROM ${joinTable} WHERE target_id = ?`
+
     const [rowsResult, countResult] = await Promise.all([
       this.db
         .prepare(
           `SELECT c.id, c.status, c.updated_at, c.${displayCol} AS displayName
              FROM content_${source.sourceSlug} c
              JOIN ${joinTable} r ON r.parent_id = c.id
-            WHERE r.target_id = ?
+            WHERE r.target_id = ?${softDeleteClause}
             ORDER BY c.updated_at DESC
             LIMIT ? OFFSET ?`,
         )
         .bind(targetId, limit, offset)
         .all<BackrefItem>(),
       this.db
-        .prepare(
-          `SELECT COUNT(DISTINCT parent_id) AS total FROM ${joinTable} WHERE target_id = ?`,
-        )
+        .prepare(countSql)
         .bind(targetId)
         .first<{ total: number }>(),
     ])

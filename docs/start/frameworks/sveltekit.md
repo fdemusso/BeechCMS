@@ -83,10 +83,11 @@ import { beech } from '$lib/server/beech'
 import type { PageServerLoad } from './$types'
 
 export const load: PageServerLoad = async () => {
-  const result = await beech.content('articles').list({
-    sort: { created_at: 'desc' },
-    limit: 10
-  })
+  const result = await beech
+    .collection('articles')
+    .orderBy('created_at', 'desc')
+    .limit(10)
+    .list()
 
   return {
     articles: result.data ? result.data.data : []

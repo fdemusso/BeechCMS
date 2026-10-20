@@ -4,18 +4,24 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { sha256hex, type SiteSettings } from '@beechcms/core'
+import { isValidAccountEmail, isLocaleCode, resolveLocaleConfig, sha256hex, type SiteSettings } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
+import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
+import { manageableScopes, serializeEffectivePermissions } from '../../shared/rbac/scoped-projection'
+import { deleteR2Objects } from '../../shared/storage/upload'
 
 const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
-const EMAIL_VALIDATION_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 128
 /** bcrypt hasha solo i primi 72 byte UTF-8; oltre viene ignorato silenziosamente */
 const MAX_PASSWORD_BYTES = 72
 const SESSION_LIST_LIMIT = 20
 const ACTIVITY_LOG_LIMIT = 30
+const STORAGE_ORPHAN_PAGE_LIMIT = 50
+const STORAGE_MEDIA_SCAN_BATCH = 200
+/** Upper bound on content locales: each localized value holds one validated value per locale. */
+const MAX_LOCALES = 50
 
 /**
  * GET /api/settings
@@ -23,10 +29,13 @@ const ACTIVITY_LOG_LIMIT = 30
  */
 settingsApp.get('/', async (context) => {
   const s = await context.get('siteSettingsRepository').getAll()
+  const localeConfig = resolveLocaleConfig(s)
   return context.json({
     siteTitle: s.siteTitle,
     siteLogo: '/beechLogoDark.svg',
     defaultLanguage: s.defaultLanguage,
+    locales: localeConfig.locales,
+    defaultLocale: localeConfig.defaultLocale,
     timezone: s.timezone,
     currency: s.currency,
     company: {
@@ -91,6 +100,29 @@ settingsApp.put('/', async (context) => {
     }
   }
 
+  const hasLocales = payload.locales !== undefined
+  const hasDefaultLocale = payload.defaultLocale !== undefined
+  let nextLocales: string[] | undefined
+  let nextDefaultLocale: string | undefined
+  if (hasLocales || hasDefaultLocale) {
+    const localesInput = payload.locales
+    if (hasLocales && (
+      !Array.isArray(localesInput) || localesInput.length === 0 || localesInput.length > MAX_LOCALES ||
+      !localesInput.every(isLocaleCode) || new Set(localesInput).size !== localesInput.length
+    )) {
+      return context.json({ type: 'settings-invalid-locales', title: 'Bad Request', status: 400, detail: `locales must be 1–${MAX_LOCALES} distinct locale codes (e.g. "it", "pt-BR")` }, 400)
+    }
+    if (hasDefaultLocale && !isLocaleCode(payload.defaultLocale)) {
+      return context.json({ type: 'settings-invalid-default-locale', title: 'Bad Request', status: 400, detail: 'defaultLocale must be a locale code (e.g. "it", "pt-BR")' }, 400)
+    }
+    const current = resolveLocaleConfig(await context.get('siteSettingsRepository').getAll())
+    nextLocales = hasLocales ? (localesInput as string[]) : [...current.locales]
+    nextDefaultLocale = hasDefaultLocale ? (payload.defaultLocale as string) : current.defaultLocale
+    if (!nextLocales.includes(nextDefaultLocale)) {
+      return context.json({ type: 'settings-default-locale-not-in-locales', title: 'Bad Request', status: 400, detail: `defaultLocale '${nextDefaultLocale}' must be one of locales` }, 400)
+    }
+  }
+
   const fieldsToUpdate: Partial<SiteSettings> = {}
   if (siteTitle !== undefined) fieldsToUpdate.siteTitle = siteTitle
   if (defaultLanguage !== undefined) fieldsToUpdate.defaultLanguage = defaultLanguage
@@ -103,6 +135,14 @@ settingsApp.put('/', async (context) => {
   // If companyName is updated and siteTitle isn't specified, sync siteTitle
   if (companyName && siteTitle === undefined) {
     fieldsToUpdate.siteTitle = companyName
+  }
+
+  // Both keys are persisted together so, once configured, content locales no longer follow the dashboard
+  // UI language (defaultLanguage). Removing a locale only rewrites this setting: stored translations in
+  // that locale stay in their dictionaries (brief §2, no data loss).
+  if (nextLocales !== undefined && nextDefaultLocale !== undefined) {
+    fieldsToUpdate.locales = nextLocales
+    fieldsToUpdate.defaultLocale = nextDefaultLocale
   }
 
   await context.get('siteSettingsRepository').setMany(fieldsToUpdate)
@@ -134,6 +174,9 @@ settingsApp.get('/me', async (context) => {
     avatarUrl = `https://gravatar.com/avatar/${emailHash}?d=mp`
   }
 
+  const effective = await resolveEffectivePermissions(context)
+  const seedRegistry = context.get('seedRegistry')
+
   return context.json({
     id: currentUser.id,
     email: currentUser.email,
@@ -146,6 +189,17 @@ settingsApp.get('/me', async (context) => {
       contentDelete: notificationPreferences.contentDelete ?? true,
       mediaUpload: notificationPreferences.mediaUpload ?? false,
     },
+    /** The caller's raw RBAC authority. Sprint 6 derives every UI visibility rule from
+     *  this and from nothing else. */
+    permissions: serializeEffectivePermissions(effective),
+    /** Developer/owner axis (`users.role === 'admin'`), orthogonal to RBAC and NOT a
+     *  permission: `manage_seeds` does not exist and must never exist (brief §2). Gates
+     *  the Seed Builder surface only. */
+    isDeveloper: currentUser.role === 'admin',
+    /** Scopes this caller may ASSIGN on (`'*'` + slugs for a global `manage_users`
+     *  holder; own scopes for a scoped one; `[]` otherwise). NOT derivable from
+     *  `GET /api/schema`, which is filtered by `content:read`. */
+    manageableScopes: manageableScopes(effective, seedRegistry.all()),
   })
 })
 
@@ -167,7 +221,7 @@ settingsApp.put('/profile', async (context) => {
   const surnameInput = typeof payload.surname === 'string' ? payload.surname.trim() : null
   const emailInput = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : null
 
-  if (emailInput !== null && !EMAIL_VALIDATION_REGEX.test(emailInput)) {
+  if (emailInput !== null && !isValidAccountEmail(emailInput)) {
     return context.json({ type: 'bad-request', title: 'Bad Request', status: 400, detail: 'Invalid email format' }, 400)
   }
 
@@ -242,7 +296,7 @@ settingsApp.put('/password', async (context) => {
   }
 
   const hashedNewPassword = await hashProvider.hash(newPassword)
-  await context.get('userRepository').updatePasswordHash(userId, hashedNewPassword)
+  await context.get('userRepository').changePasswordAndRevokeSessions(userId, hashedNewPassword, context.get('clock').nowSeconds())
   return context.json({ success: true })
 })
 
@@ -273,7 +327,13 @@ settingsApp.get('/sessions', async (context) => {
   const { sub: userId } = context.get('jwtPayload')
   const nowTimestamp = Math.floor(Date.now() / 1000)
   const sessions = await context.get('sessionRepository').listActiveForUser(userId, nowTimestamp, SESSION_LIST_LIMIT)
-  return context.json(sessions)
+
+  // Dashboard Session contract is snake_case, same as the activity endpoint below.
+  return context.json(sessions.map((session) => ({
+    id: session.id,
+    created_at: session.createdAt,
+    expires_at: session.expiresAt,
+  })))
 })
 
 /**
@@ -323,6 +383,15 @@ settingsApp.get('/activity', async (context) => {
  * Calculates storage usage and identifies orphaned media files.
  */
 settingsApp.get('/storage', async (context) => {
+  const requestedLimit = context.req.query('limit') ?? String(STORAGE_ORPHAN_PAGE_LIMIT)
+  const requestedOffset = context.req.query('offset') ?? '0'
+  const limit = Number(requestedLimit)
+  const offset = Number(requestedOffset)
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > STORAGE_ORPHAN_PAGE_LIMIT ||
+      !Number.isSafeInteger(offset) || offset < 0) {
+    return context.json({ type: 'settings-storage-invalid-pagination' }, 400)
+  }
+
   const mediaRepo = context.get('mediaRepository')
   const statsRepo = context.get('systemStatsRepository')
 
@@ -332,13 +401,77 @@ settingsApp.get('/storage', async (context) => {
   const registeredSeeds = context.get('seedRegistry').all()
   const referencedMediaKeys = await context.get('contentScanRepository').getReferencedMediaKeys(registeredSeeds)
 
-  const { items: allMediaRows } = await mediaRepo.list({ limit: 50, offset: 0 })
-  const orphanedMediaFiles = allMediaRows.filter(mediaFile => !referencedMediaKeys.has(mediaFile.key))
+  const orphans: Awaited<ReturnType<typeof mediaRepo.list>>['items'] = []
+  let orphanTotal = 0
+  let orphanBytes = 0
+  for (let mediaOffset = 0; mediaOffset < totalFileCount; mediaOffset += STORAGE_MEDIA_SCAN_BATCH) {
+    const { items } = await mediaRepo.list({ limit: STORAGE_MEDIA_SCAN_BATCH, offset: mediaOffset })
+    for (const mediaFile of items) {
+      if (referencedMediaKeys.has(mediaFile.key)) continue
+      if (orphanTotal >= offset && orphans.length < limit) orphans.push(mediaFile)
+      orphanTotal++
+      orphanBytes += mediaFile.size_bytes
+    }
+    if (items.length < STORAGE_MEDIA_SCAN_BATCH) break
+  }
 
   return context.json({
     totalBytes: totalStorageUsedBytes,
     fileCount: totalFileCount,
-    orphans: orphanedMediaFiles,
+    orphans,
+    orphanTotal,
+    orphanBytes,
+    orphanOffset: offset,
+    orphanLimit: limit,
+  })
+})
+
+/**
+ * POST /api/settings/storage/orphans/delete
+ * Deletes orphans a reviewer selected from the storage report. Every key is re-checked first:
+ * one that is untracked, referenced again, or not the caller's to delete refuses the whole selection.
+ */
+settingsApp.post('/storage/orphans/delete', async (context) => {
+  let payload: unknown
+  try {
+    payload = await context.req.json()
+  } catch {
+    payload = null
+  }
+  const keys = (payload as { keys?: unknown } | null)?.keys
+  if (!Array.isArray(keys) || keys.length === 0 || keys.length > STORAGE_ORPHAN_PAGE_LIMIT ||
+      !keys.every(key => typeof key === 'string' && key.length > 0) || new Set(keys).size !== keys.length) {
+    return context.json({ type: 'settings-storage-invalid-orphan-keys' }, 400)
+  }
+  const selectedKeys = keys as string[]
+
+  const mediaRepo = context.get('mediaRepository')
+  const mediaFiles = await Promise.all(selectedKeys.map(key => mediaRepo.getByKey(key)))
+  const untrackedKeys = selectedKeys.filter((_, index) => !mediaFiles[index])
+  if (untrackedKeys.length > 0) {
+    return context.json({ type: 'settings-storage-orphan-not-found', keys: untrackedKeys }, 404)
+  }
+
+  // Same owner-or-admin rule as DELETE /api/upload/:key.
+  const { sub: userId, role } = context.get('jwtPayload')
+  const foreignKeys = role === 'admin' ? [] : selectedKeys.filter((_, index) => mediaFiles[index]?.uploaded_by !== userId)
+  if (foreignKeys.length > 0) {
+    return context.json({ type: 'settings-storage-orphan-forbidden', keys: foreignKeys }, 403)
+  }
+
+  const referencedMediaKeys = await context.get('contentScanRepository').getReferencedMediaKeys(context.get('seedRegistry').all())
+  const referencedKeys = selectedKeys.filter(key => referencedMediaKeys.has(key))
+  if (referencedKeys.length > 0) {
+    return context.json({ type: 'settings-storage-orphan-referenced', keys: referencedKeys }, 409)
+  }
+
+  // Decrements the storage counter by each deleted file's tracked size.
+  await deleteR2Objects(context, selectedKeys)
+
+  return context.json({
+    deleted: selectedKeys,
+    totalBytes: await context.get('systemStatsRepository').getStorageUsage(),
+    fileCount: await mediaRepo.count(),
   })
 })
 

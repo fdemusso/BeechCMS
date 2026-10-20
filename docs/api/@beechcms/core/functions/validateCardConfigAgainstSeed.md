@@ -6,7 +6,7 @@
 
 # Function: validateCardConfigAgainstSeed()
 
-> **validateCardConfigAgainstSeed**(`config`, `seed`): [`ValidateCardConfigResult`](../type-aliases/ValidateCardConfigResult.md)
+> **validateCardConfigAgainstSeed**(`config`, `seed`, `options?`): [`ValidateCardConfigResult`](../type-aliases/ValidateCardConfigResult.md)
 
 ## Parameters
 
@@ -43,6 +43,10 @@ Full-width secondary line. Max 1.
 ### seed
 
 [`Seed`](../interfaces/Seed.md)
+
+### options?
+
+[`ValidateCardConfigOptions`](../interfaces/ValidateCardConfigOptions.md) = `{}`
 
 ## Returns
 

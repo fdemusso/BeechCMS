@@ -12,13 +12,13 @@ Server Client Interface.
 
 ### TRegistry
 
-`TRegistry` = `Record`&lt;`string`, `unknown`&gt;
+`TRegistry` = `SeedRegistryTypes`
 
 ## Methods
 
-### content()
+### collection()
 
-> **content**&lt;`K`&gt;(`seed`): [`ServerContentResource`](ServerContentResource.md)&lt;`TRegistry`\[`K`\]&gt;
+> **collection**&lt;`K`&gt;(`seed`): [`FluentQuery`](FluentQuery.md)&lt;`TRegistry`\[`K`\]&gt; & `object`
 
 #### Type Parameters
 
@@ -34,4 +34,4 @@ Server Client Interface.
 
 #### Returns
 
-[`ServerContentResource`](ServerContentResource.md)&lt;`TRegistry`\[`K`\]&gt;
+[`FluentQuery`](FluentQuery.md)&lt;`TRegistry`\[`K`\]&gt; & `object`

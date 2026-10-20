@@ -28,7 +28,7 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
 import type { Seed } from '@beechcms/core'
-import { nextBranchId, validateSeedDefinitions } from '@beechcms/core'
+import { resolveCandidateIds, validateSeedDefinitions } from '@beechcms/core'
 import { request, BeechClientError } from './client.js'
 import { savePlan, takePlan } from './plans.js'
 import { listResources, readResource, clearResourceCache, getResourceCount, searchResources } from './resources.js'
@@ -84,6 +84,10 @@ interface McpPlanResponse {
   blockedReasons: string[]
   /** Array of raw SQL DDL statements that will be run against D1 SQLite. */
   statements: string[]
+  /** False ⇒ the stored definition already equals the candidate: applying it changes nothing. */
+  definitionChanged: boolean
+  /** Aliases of branches that are new or whose definition differs from the stored one (no DDL needed for most). */
+  changedBranches: string[]
   /** Whether the full-text search (FTS) virtual table index must be rebuilt. */
   ftsRebuildNeeded: boolean
   /** The schema version expected at the time the plan was calculated, for concurrency validation. */
@@ -128,7 +132,7 @@ const TOOLS = [
   },
   {
     name: 'beech_schema_plan',
-    description: 'Server-computes the exact DDL and safety classification for a candidate seed change. Always call before beech_schema_apply. Destructive changes (dropping/renaming/retyping a branch, deleting a seed) are classified but never applicable via MCP — those require the BeechCMS dashboard UI. Unsure about a field type or branch policy? Check the beechcms-docs:// resources before building the candidate.',
+    description: 'Server-computes the exact DDL and safety classification for a candidate seed change. Always call before beech_schema_apply. Destructive changes (dropping/renaming/retyping a branch, deleting a seed) are classified but never applicable via MCP — those require the BeechCMS dashboard UI. A definition-only change (tag options, option colors, multiple) produces no DDL: it is reported as definitionChanged: true with the affected aliases in changedBranches, and beech_schema_apply persists it. definitionChanged: false means applying changes nothing. Unsure about a field type or branch policy? Check the beechcms-docs:// resources before building the candidate.',
     inputSchema: {
       type: 'object',
       properties: { slug: { type: 'string' }, candidate: { type: 'object' } },
@@ -245,25 +249,7 @@ async function handleTool(name: string, args: Record<string, unknown>) {
       const { data: activeSeeds } = await request<Seed[]>('GET', '/api/schema')
       const stored = activeSeeds.find(s => s.slug === rawCandidate.slug)
 
-      const candidate: Seed = {
-        ...rawCandidate,
-        branches: Array.isArray(rawCandidate.branches) ? rawCandidate.branches.map(b => ({ ...b })) : [],
-      }
-
-      const storedByAlias = new Map((stored?.branches ?? []).map(b => [b.alias, b]))
-      const accSeed: Pick<Seed, 'branches'> = { branches: [] }
-
-      for (const branch of candidate.branches) {
-        if (!branch.id) {
-          const matched = storedByAlias.get(branch.alias)
-          if (matched?.id) {
-            branch.id = matched.id
-          } else {
-            branch.id = nextBranchId(accSeed)
-          }
-        }
-        accSeed.branches.push(branch)
-      }
+      const candidate: Seed = resolveCandidateIds(rawCandidate, stored ?? null)
 
       if (!candidate.displayNameAlias) {
         if (stored?.displayNameAlias) {

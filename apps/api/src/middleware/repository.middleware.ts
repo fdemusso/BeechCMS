@@ -21,21 +21,27 @@ import { D1SiteSettingsRepository } from '../shared/db/repositories/site-setting
 import { D1DemoDataRepository } from '../shared/db/repositories/demo-data.repository.d1'
 import { D1SetupChecklistRepository } from '../shared/db/repositories/d1-setup-checklist.repository'
 import { D1SeedLayoutRepository } from '../shared/db/repositories/seed-layout.repository.d1'
+import { D1ContentViewRepository } from '../shared/db/repositories/content-view.repository.d1'
 import { D1DashboardLayoutRepository } from '../shared/db/repositories/dashboard-layout.repository.d1'
 import { D1SeedRepository } from '../shared/db/repositories/seed.repository.d1'
+import { D1SeedMediaPurgeRepository } from '../shared/db/repositories/seed-media-purge.repository.d1'
 import { D1SchemaMutator } from '../shared/db/migrations/schema-mutator.d1'
-import { D1KanbanPositionRepository } from '../shared/db/repositories/kanban-position.repository.d1'
 import { D1TimeTrapTokenRepository } from '../shared/db/repositories/time-trap-token.repository.d1'
 import { D1OAuthClientRepository } from '../shared/db/repositories/d1-oauth-client.repository'
 import { D1OAuthAuthorizationCodeRepository } from '../shared/db/repositories/d1-oauth-authorization-code.repository'
 import { D1OAuthTokenRepository } from '../shared/db/repositories/d1-oauth-token.repository'
 import { D1OAuthConsentRepository } from '../shared/db/repositories/d1-oauth-consent.repository'
-import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService, AllowAllRoleGuard } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard } from '@beechcms/core'
+import { D1RoleRepository } from '../shared/db/repositories/d1-role.repository'
+import { D1RoleAssignmentRepository } from '../shared/db/repositories/d1-role-assignment.repository'
+import { D1InvitationRepository } from '../shared/db/repositories/d1-invitation.repository'
+import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService, UnconfiguredPrivacyService, PermissionRoleGuard } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISeedMediaPurgeRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, IRoleRepository, IRoleAssignmentRepository, IInvitationRepository, IDeletionLedger, IContentViewRepository, BeechBucket } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations/engine/automation-runner'
 import { D1AutomationRepository } from '../shared/db/repositories/automations.repository.d1'
 import { ExecutionContextScheduler } from '../shared/services/scheduler/execution-context-scheduler'
+import { createBucketProvider } from '../shared/storage/factory'
+import { R2DeletionLedger } from '../shared/storage/deletion-ledger'
 import type { Env, Variables } from '../types'
 
 interface RepositoryOverrides {
@@ -60,10 +66,11 @@ interface RepositoryOverrides {
   siteSettingsRepository?: ISiteSettingsRepository
   demoDataRepository?: IDemoDataRepository
   seedLayoutRepository?: ISeedLayoutRepository
+  contentViewRepository?: IContentViewRepository
   seedRepository?: ISeedRepository
+  seedMediaPurgeRepository?: ISeedMediaPurgeRepository
   schemaMutator?: ISchemaMutator
   dashboardLayoutRepository?: IDashboardLayoutRepository
-  kanbanPositionRepository?: IKanbanPositionRepository
   antivirusProvider?: IAntivirusProvider
   timeTrapTokenRepository?: ITimeTrapTokenRepository
   oauthClientRepository?: IOAuthClientRepository
@@ -71,8 +78,14 @@ interface RepositoryOverrides {
   oauthTokenRepository?: IOAuthTokenRepository
   oauthConsentRepository?: IOAuthConsentRepository
   roleGuard?: IRoleGuard
+  roleRepository?: IRoleRepository
+  roleAssignmentRepository?: IRoleAssignmentRepository
+  invitationRepository?: IInvitationRepository
   hooks?: BeechHooks
   privacyService?: IPrivacyService
+  deletionLedger?: IDeletionLedger
+  /** Custom bucket from BeechAppConfig; the default deletion ledger writes here instead of the env-derived provider. */
+  bucket?: BeechBucket
 }
 
 function buildScheduler(context: Context): IScheduler {
@@ -83,22 +96,23 @@ function buildScheduler(context: Context): IScheduler {
   }
 }
 
-class NoOpPrivacyService implements IPrivacyService {
-  async encrypt(plaintext: string): Promise<string> { return plaintext }
-  async decrypt(ciphertext: string): Promise<string> { return ciphertext }
-  async hash(plaintext: string): Promise<string> { return plaintext }
-}
-
 export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
   return createMiddleware<{ Bindings: Env; Variables: Variables }>(async (context, next) => {
     const resolvedClock = overrides?.clock ?? SystemClock
     const resolvedIdGenerator = overrides?.idGenerator ?? SystemIdGenerator
     const database = context.env.DB
 
-    const privacyService = overrides?.privacyService ?? (context.env.PRIVACY_MASTER_KEY ? new PrivacyService(context.env.PRIVACY_MASTER_KEY) : new NoOpPrivacyService())
+    const privacyService = overrides?.privacyService ?? (context.env.PRIVACY_MASTER_KEY ? new PrivacyService(context.env.PRIVACY_MASTER_KEY) : new UnconfiguredPrivacyService())
     context.set('privacyService', privacyService)
 
-    context.set('repository', overrides?.repository ?? new D1ContentRepository(database, overrides?.hooks, privacyService))
+    // Built here rather than read from context.get('bucket'): storageMiddleware runs AFTER
+    // this middleware in factory.ts, and reordering it would rewire every other repository
+    // consumer. Mirrors storage.middleware.ts's own bucket resolution: config.bucket wins.
+    const baseUrl = context.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '') || new URL(context.req.url).origin
+    const deletionLedger = overrides?.deletionLedger ?? new R2DeletionLedger(overrides?.bucket ?? createBucketProvider(context.env, baseUrl))
+    context.set('deletionLedger', deletionLedger)
+
+    context.set('repository', overrides?.repository ?? new D1ContentRepository(database, overrides?.hooks, privacyService, undefined, deletionLedger, resolvedClock))
     context.set('idempotencyRepository', overrides?.idempotencyRepository ?? new D1IdempotencyRepository(database))
     context.set('mediaRepository', overrides?.mediaRepository ?? new D1MediaRepository(database))
     context.set('systemStatsRepository', overrides?.systemStatsRepository ?? new D1SystemStatsRepository(database))
@@ -134,17 +148,21 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('demoDataRepository', overrides?.demoDataRepository ?? new D1DemoDataRepository(database))
     context.set('setupChecklistRepository', new D1SetupChecklistRepository(database))
     context.set('seedLayoutRepository', overrides?.seedLayoutRepository ?? new D1SeedLayoutRepository(database))
+    context.set('contentViewRepository', overrides?.contentViewRepository ?? new D1ContentViewRepository(database, resolvedIdGenerator, resolvedClock))
     context.set('seedRepository', overrides?.seedRepository ?? new D1SeedRepository(database))
+    context.set('seedMediaPurgeRepository', overrides?.seedMediaPurgeRepository ?? new D1SeedMediaPurgeRepository(database))
     context.set('schemaMutator', overrides?.schemaMutator ?? new D1SchemaMutator(database))
     context.set('dashboardLayoutRepository', overrides?.dashboardLayoutRepository ?? new D1DashboardLayoutRepository(database))
-    context.set('kanbanPositionRepository', overrides?.kanbanPositionRepository ?? new D1KanbanPositionRepository(database))
     context.set('antivirusProvider', overrides?.antivirusProvider ?? new VirusTotalAntivirusProvider(context.env.VIRUSTOTAL_API_KEY))
     context.set('timeTrapTokenRepository', overrides?.timeTrapTokenRepository ?? new D1TimeTrapTokenRepository(database))
     context.set('oauthClientRepository', overrides?.oauthClientRepository ?? new D1OAuthClientRepository(database))
     context.set('oauthAuthorizationCodeRepository', overrides?.oauthAuthorizationCodeRepository ?? new D1OAuthAuthorizationCodeRepository(database, resolvedClock))
     context.set('oauthTokenRepository', overrides?.oauthTokenRepository ?? new D1OAuthTokenRepository(database, resolvedClock))
     context.set('oauthConsentRepository', overrides?.oauthConsentRepository ?? new D1OAuthConsentRepository(database, resolvedIdGenerator))
-    context.set('roleGuard', overrides?.roleGuard ?? new AllowAllRoleGuard())
+    context.set('roleGuard', overrides?.roleGuard ?? new PermissionRoleGuard())
+    context.set('roleRepository', overrides?.roleRepository ?? new D1RoleRepository(database, resolvedIdGenerator))
+    context.set('roleAssignmentRepository', overrides?.roleAssignmentRepository ?? new D1RoleAssignmentRepository(database, resolvedIdGenerator))
+    context.set('invitationRepository', overrides?.invitationRepository ?? new D1InvitationRepository(database, resolvedIdGenerator))
     await next()
   })
 }

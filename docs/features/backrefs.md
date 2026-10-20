@@ -204,39 +204,53 @@ Because BeechCMS uses an edge-native relational data model (Cloudflare D1) rathe
 import { createBeechClient } from '@beechcms/client/server' // or @beechcms/client/browser
 
 const client = createBeechClient({
-  baseUrl: 'https://cms.example.com/api/v1/public',
+  baseUrl: 'https://cms.example.com', // the SDK appends /api/v1/public itself
   apiKey: 'beech_pub_...',
 })
 
 // 1. Fetch an author entry
-const { data: author } = await client.content('authors').get({
-  id: 'auth_123',
-})
+const { data: author } = await client.collection('authors').where({ id: 'auth_123' }).first()
 
 // 2. Query articles referencing this author (reverse lookup)
-const { data: articles } = await client.content('articles').list({
-  filter: {
-    author: 'auth_123',
-  },
-  sort: {
-    created_at: 'desc',
-  },
-  limit: 10,
-})
+const { data: articles } = await client
+  .collection('articles')
+  .where({ author: 'auth_123' })
+  .orderBy('created_at', 'desc')
+  .limit(10)
+  .list()
 ```
 
-For direct relation lookups (resolving a foreign key from article to author):
+### Forward lookups without N+1
+
+A foreign key can be resolved in the **same** request with `.include()` instead of a second round trip:
 
 ```typescript
-// Fetch article by ID
-const { data: article } = await client.content('articles').get({
-  id: 'art_01',
-})
+const result = await client
+  .collection('articles')
+  .where({ id: 'art_01' })
+  .include(['author'])
+  .first()
 
-// Resolve the related author using the foreign key
-if (article?.data?.author) {
-  const { data: author } = await client.content('authors').get({
-    id: article.data.author,
-  })
+if (!result.error) {
+  const article = result.data.data as Article & { _includes?: { author?: Author } }
+  article.author              // the raw foreign key, unchanged
+  article._includes?.author   // the expanded author entry
 }
 ```
+
+Expansion is depth 1, capped at 3 branches per request, and honours the target seed's `allowPublicRead` and field policies. See [Relation Expansion](/reference/public-api#relation-expansion-include).
+
+### Filtering by a property of the related entry
+
+When the id is unknown, `.whereRelation()` pushes the condition to the relation target server-side — no client-side pre-query:
+
+```typescript
+// Articles whose author is named Jane, in one request
+const result = await client
+  .collection('articles')
+  .whereRelation('author', { where: { name: { contains: 'Jane' } } })
+  .orderBy('created_at', 'desc')
+  .list()
+```
+
+Limits and error codes: [Relation Subquery Filters](/reference/public-api#relation-subquery-filters).

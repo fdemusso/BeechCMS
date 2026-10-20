@@ -15,6 +15,7 @@ import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import { authApp } from './auth'
 import { authMiddleware } from './middleware/auth.middleware'
 import { oauthScopeMiddleware } from './middleware/oauth-scope.middleware'
+import { permissionMiddleware, requireActiveAccount } from './middleware/permission.middleware'
 import contentFeature from './features/content'
 import { widgetApp } from './features/widget/widget'
 import { rotateFieldApp } from './features/rotate-field'
@@ -25,18 +26,23 @@ import { settingsApp } from './features/settings/settings.handler'
 import { schemaApp } from './features/schema/schema.handler'
 import { dashboardLayoutApp } from './features/dashboard-layout'
 import { seedsApp } from './features/seeds'
+import { rbacApp } from './features/rbac'
+import { rbacPublicApp } from './features/rbac/public'
 import { notificationsApp } from './features/notifications'
 import { automationsApp } from './features/automations/api/automations.handler'
 import { statsApp } from './features/stats'
 import { backrefsApp } from './features/backrefs'
 import { webhooksApp } from './features/webhooks'
 import { uploadRoutes, serveMediaHandler } from './features/upload'
-import { publicRoutes } from './public/public-routes'
-import { apiKeyMiddleware } from './public/api-key-middleware'
-import { publicRateLimitMiddleware } from './public/rate-limit-middleware'
+import {
+  publicRoutes,
+  apiKeyMiddleware,
+  publicRateLimitMiddleware,
+  schemaRevisionMiddleware,
+} from './public'
 import { searchRouter } from './features/search'
 import { oauthApp } from './features/oauth'
-import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository, IRoleGuard } from '@beechcms/core'
+import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository, IRoleGuard, IAntivirusProvider, IScheduler } from '@beechcms/core'
 import { repositoryMiddleware } from './middleware/repository.middleware'
 import { seedRegistryMiddleware } from './middleware/seed-registry.middleware'
 import { storageMiddleware } from './middleware/storage.middleware'
@@ -45,6 +51,7 @@ import { authProvidersMiddleware } from './middleware/auth-providers.middleware'
 import { rateLimiterMiddleware } from './middleware/rate-limit.middleware'
 import { observabilityMiddleware } from './middleware/observability.middleware'
 import { queueMiddleware } from './middleware/queue.middleware'
+import type { AuthProviderOverrides } from './middleware/auth-providers.middleware'
 
 export interface BeechConfig {
   seeds: Seed[] | Record<string, Seed>
@@ -90,6 +97,16 @@ export interface BeechConfig {
    * every requested scope; inject a restrictive guard to exercise the denial path.
    */
   roleGuard?: IRoleGuard
+  /**
+   * Overrides for the auth provider seam (`IHashProvider`, `ITokenService`, `IClock`).
+   * Intended for `@beechcms/testing`: the integration harness fakes the clock and the token
+   * service and nothing else. Omitted in production — `apps/api/src/index.ts` never sets it.
+   */
+  authProviders?: AuthProviderOverrides
+  /** Test seam: replaces the VirusTotal provider. */
+  antivirusProvider?: IAntivirusProvider
+  /** Test seam: replaces the waitUntil-backed scheduler. */
+  scheduler?: IScheduler
 }
 
 // --- Costanti e helper ---
@@ -126,6 +143,10 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
     automationRunner: config.automationRunner,
     hooks: config.hooks,
     roleGuard: config.roleGuard,
+    antivirusProvider: config.antivirusProvider,
+    scheduler: config.scheduler,
+    bucket: config.bucket,
+    clock: config.authProviders?.clock,
   }))
 
   // 2. Seed Registry Hydration (D1-backed, version-token-cached per isolate)
@@ -138,7 +159,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
   app.use('*', queueMiddleware(config.jobs ?? {}))
 
-  app.use('*', authProvidersMiddleware())
+  app.use('*', authProvidersMiddleware(config.authProviders))
   app.use('*', rateLimiterMiddleware(config.rateLimiterRegistry ? { registry: config.rateLimiterRegistry } : undefined))
   app.use('*', observabilityMiddleware())
 
@@ -219,6 +240,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   app.route('/', authApp)
   app.route('/', setupApp)
   app.route('/', passwordResetApp)
+  app.route('/', rbacPublicApp)   // unauthenticated invite preview + redeem
   app.route('/', oauthApp)
 
   // 4. Protected CMS API
@@ -228,11 +250,16 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   // Fail-closed: an OAuth token reaches only the routes listed in OAUTH_SCOPE_ROUTES.
   // Must stay immediately after authMiddleware — it consumes the `oauthGrant` it sets.
   apiProtected.use('*', oauthScopeMiddleware())
+  // Fail-closed RBAC gate. Runs last of the three: authentication has produced a
+  // subject, the OAuth scope allowlist has already refused off-limits tokens, and this
+  // decides what the subject may do on the scope named by the route.
+  apiProtected.use('*', permissionMiddleware())
 
   apiProtected.route('/settings', settingsApp)
   apiProtected.route('/schema', schemaApp)
   apiProtected.route('/dashboard-layout', dashboardLayoutApp)
   apiProtected.route('/seeds', seedsApp)
+  apiProtected.route('/rbac', rbacApp)
   apiProtected.route('/content', notificationsApp)
   apiProtected.route('/content', statsApp)
   apiProtected.route('/content', rotateFieldApp)
@@ -246,6 +273,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   
   // 5. Public API (must be registered before apiProtected to avoid auth middleware interception)
   const apiPublic = new Hono<{ Bindings: Env; Variables: Variables }>()
+  apiPublic.use('*', schemaRevisionMiddleware())
   apiPublic.use('*', publicRateLimitMiddleware())
   apiPublic.use('*', apiKeyMiddleware())
   apiPublic.route('/', publicRoutes)
@@ -265,6 +293,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
     const protectedRouter = new Hono<AppEnv>()
 
     protectedRouter.use('*', authMiddleware())
+    protectedRouter.use('*', requireActiveAccount())
 
     config.customRoutes({ publicRouter, protectedRouter })
 

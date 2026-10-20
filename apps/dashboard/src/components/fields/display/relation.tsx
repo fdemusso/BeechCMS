@@ -6,6 +6,7 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { useFieldsConfig } from "../context"
+import { useRelationLabel } from "../relation-label"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -51,6 +52,7 @@ interface RelationChipProps {
  */
 function RelationChip({ targetSlug, targetId, labelAlias, onClick }: RelationChipProps) {
   const { fetchById, queryKeys } = useFieldsConfig()
+  const labelOf = useRelationLabel(targetSlug)
   const { data: entry, isLoading } = useQuery({
     queryKey: queryKeys.detail(targetSlug, targetId),
     queryFn: () => fetchById(targetSlug, targetId),
@@ -60,7 +62,7 @@ function RelationChip({ targetSlug, targetId, labelAlias, onClick }: RelationChi
 
   if (isLoading) return <Badge variant="secondary" className="opacity-50">…</Badge>
 
-  const rawLabel = entry?.data?.[labelAlias]
+  const rawLabel = labelOf(entry?.data, labelAlias)
 
   let label = targetId
   if (typeof rawLabel === "string") {
@@ -118,6 +120,7 @@ interface SingleRelationProps {
 function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationProps) {
   const { t: translate } = useTranslation()
   const { fetchById, queryKeys } = useFieldsConfig()
+  const labelOf = useRelationLabel(targetSlug)
   const { data: entry, isLoading } = useQuery({
     queryKey: queryKeys.detail(targetSlug, id ?? ""),
     queryFn: () => fetchById(targetSlug, id!),
@@ -128,7 +131,7 @@ function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationP
   if (!id) return <span className="text-muted-foreground">—</span>
   if (isLoading) return <span className="text-muted-foreground">{translate("common.loading")}</span>
 
-  const rawLabel = entry?.data?.[labelAlias]
+  const rawLabel = labelOf(entry?.data, labelAlias)
   
   let label = id
   if (typeof rawLabel === "string") {

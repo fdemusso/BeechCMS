@@ -4,15 +4,39 @@
 
 import { defineConfig } from 'vitest/config'
 
+// Slice-local suites that cross an I/O boundary (real Mailpit + webhook-tester) and therefore
+// belong to the Docker-bound flow tier, wherever they live on disk. Pinning them by path keeps
+// the unit tier Docker-free without moving a file out of its owning slice (VSA) and without
+// losing its coverage: the root-level coverage block below aggregates both projects.
+const DOCKER_BOUND_SUITES = ['src/features/automations/executors/action-executors.test.ts']
+
+const SHARED_EXCLUDE = ['**/node_modules/**', '**/dist/**']
+
 export default defineConfig({
   test: {
-    pool: 'forks',
-    globalSetup: ['./test/docker-precheck.runner.ts', './test/global-setup.ts'],
-    // Flow tests in test/ + unit tests colocated in src/
-    include: ['test/**/*.test.ts', 'src/**/*.test.ts'],
-    /** Show console/stderr only for failing tests */
-    silent: 'passed-only',
     reporters: ['verbose'],
+    silent: true,
+    projects: [
+      {
+        test: {
+          name: 'unit',
+          pool: 'forks',
+          include: ['src/**/*.test.ts'],
+          // Integration tier is owned by vitest.workers.config.ts (real D1 via workerd).
+          exclude: [...SHARED_EXCLUDE, 'src/**/test/integration/**', 'src/**/test/scale/**', ...DOCKER_BOUND_SUITES],
+        },
+      },
+      {
+        test: {
+          name: 'flow',
+          pool: 'forks',
+          // test/ = cross-slice HTTP flow suites + Docker-backed suites (Sprint 2 layout).
+          include: ['test/**/*.test.ts', ...DOCKER_BOUND_SUITES],
+          exclude: [...SHARED_EXCLUDE],
+          globalSetup: ['./test/docker-precheck.runner.ts', './test/global-setup.ts'],
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
@@ -33,7 +57,6 @@ export default defineConfig({
         // Demo data TS fixtures definition
         'src/shared/db/fixtures/demo-data.fixtures.ts',
         // Test doubles and helpers used in test suites but not in production
-        'src/shared/services/clock/fixed-clock.ts',
         'src/shared/services/id-generator/sequential-id-generator.ts',
         'src/shared/services/activity-log/in-memory-activity-logger.ts',
         'src/shared/services/notification/in-memory-notification-service.ts',
@@ -66,7 +89,7 @@ export default defineConfig({
         'src/shared/db/repositories/demo-data.repository.d1.ts',
         // External orchestrators or empty wrappers
         'src/shared/services/scheduler/execution-context-scheduler.ts',
-        'src/public/slug-utils.ts',
+        'src/public/utils/slug-utils.ts',
         // Pure barrel export files
         'src/**/index.ts',
       ],

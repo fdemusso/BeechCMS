@@ -90,10 +90,11 @@ const error = ref<string | null>(null)
 onMounted(async () => {
   try {
     loading.value = true
-    const result = await beech.content('articles').list({
-      sort: { created_at: 'desc' },
-      limit: 10
-    })
+    const result = await beech
+      .collection('articles')
+      .orderBy('created_at', 'desc')
+      .limit(10)
+      .list()
 
     if (result.error) {
       error.value = result.error.detail || 'Failed to load articles'

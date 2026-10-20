@@ -7,9 +7,13 @@ import {
   EntryNotFoundError,
   RepositoryError,
   SlugConflictError,
+  DraftSaveConflictError,
   type BulkFieldUpdate,
   type BatchWrite,
   type RepositoryOptions,
+  type PurgeResult,
+  type BulkDeleteResult,
+  type TrashedMode,
   Seed,
   SelectOptions,
   DraftSummary,
@@ -119,16 +123,42 @@ export class StaticContentRepository implements ContentRepository {
     return { items, total }
   }
 
-  async findById(seed: Seed, id: string): Promise<Entry> {
-    const entry = this.getTable(seed.slug).find((e) => e.id === id)
+  async findById(seed: Seed, id: string, options?: { trashed?: TrashedMode }): Promise<Entry> {
+    const trashed = options?.trashed ?? 'active'
+    const entry = this.getTable(seed.slug).find((e) => e.id === id && this.matchesTrashed(seed, e, trashed))
     if (!entry) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
     return { ...entry }
+  }
+
+  private matchesTrashed(seed: Seed, entry: Entry, mode: TrashedMode): boolean {
+    if (!seed.softDelete || mode === 'any') return true
+    return mode === 'trashed' ? entry.deleted_at != null : entry.deleted_at == null
   }
 
   async findBySlug(seed: Seed, slug: string): Promise<Entry> {
     const entry = this.getTable(seed.slug).find((e) => e.slug === slug)
     if (!entry) throw new EntryNotFoundError(`Entry with slug "${slug}" not found in ${seed.slug}`)
     return { ...entry }
+  }
+
+  async findParentIdsByRelation(
+    seed: Seed,
+    branchAlias: string,
+    targetIds: string[],
+    limit: number,
+  ): Promise<string[]> {
+    if (targetIds.length === 0 || limit <= 0) return []
+    const wanted = new Set(targetIds)
+    const parents: string[] = []
+    for (const entry of this.getTable(seed.slug)) {
+      const value = Object.hasOwn(entry, branchAlias) ? entry[branchAlias] : undefined
+      if (!Array.isArray(value)) continue
+      if (value.some((v) => typeof v === 'string' && wanted.has(v))) {
+        parents.push(entry.id as string)
+        if (parents.length >= limit) break
+      }
+    }
+    return parents
   }
 
   async getFacets(seed: Seed): Promise<{ statuses: Record<string, number>; tagsByColumn: Record<string, string[]> }> {
@@ -184,6 +214,76 @@ export class StaticContentRepository implements ContentRepository {
     return { row }
   }
 
+  async softDelete(seed: Seed, id: string, _options?: RepositoryOptions): Promise<{ row: Entry }> {
+    if (!seed.softDelete) throw new RepositoryError(`softDelete(${seed.slug}): seed has no softDelete enabled`)
+    const table = this.getTable(seed.slug)
+    const idx = table.findIndex((e) => e.id === id && e.deleted_at == null)
+    if (idx === -1) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
+    table[idx] = { ...table[idx], deleted_at: Math.floor(Date.now() / 1000) }
+    return { row: { ...table[idx] } }
+  }
+
+  async restore(seed: Seed, id: string, _options?: RepositoryOptions): Promise<{ row: Entry }> {
+    if (!seed.softDelete) throw new RepositoryError(`restore(${seed.slug}): seed has no softDelete enabled`)
+    const table = this.getTable(seed.slug)
+    const idx = table.findIndex((e) => e.id === id && e.deleted_at != null)
+    if (idx === -1) throw new EntryNotFoundError(`Trashed entry ${id} not found in ${seed.slug}`)
+
+    let slug = table[idx].slug as string
+    if (table.some((e) => e.id !== id && e.slug === slug && e.deleted_at == null)) {
+      slug = `${slug}-restored-${id.slice(0, 8)}`
+    }
+    table[idx] = { ...table[idx], deleted_at: null, slug, updated_at: Math.floor(Date.now() / 1000) }
+    return { row: { ...table[idx] } }
+  }
+
+  async purge(seed: Seed, id: string, _options?: RepositoryOptions): Promise<PurgeResult> {
+    const table = this.getTable(seed.slug)
+    const idx = table.findIndex((e) => e.id === id)
+    if (idx === -1) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
+    const [row] = table.splice(idx, 1)
+    return { row, ledgerWritten: false }
+  }
+
+  async bulkRestore(seed: Seed, ids: string[], options?: RepositoryOptions): Promise<BulkDeleteResult> {
+    const succeeded: string[] = []
+    const failed: Array<{ id: string; reason: string }> = []
+    for (const id of ids) {
+      try {
+        await this.restore(seed, id, options)
+        succeeded.push(id)
+      } catch (error) {
+        failed.push({ id, reason: error instanceof EntryNotFoundError ? 'not-found' : String((error as Error).message) })
+      }
+    }
+    return { succeeded, failed }
+  }
+
+  async bulkPurge(seed: Seed, ids: string[], options?: RepositoryOptions): Promise<BulkDeleteResult & { rows: Entry[] }> {
+    const succeeded: string[] = []
+    const failed: Array<{ id: string; reason: string }> = []
+    const rows: Entry[] = []
+    for (const id of ids) {
+      try {
+        const { row } = await this.purge(seed, id, options)
+        succeeded.push(id)
+        rows.push(row)
+      } catch (error) {
+        failed.push({ id, reason: error instanceof EntryNotFoundError ? 'not-found' : String((error as Error).message) })
+      }
+    }
+    return { succeeded, failed, rows }
+  }
+
+  async findExpiredByRetention(seed: Seed, now: number, limit: number): Promise<string[]> {
+    if (!seed.softDelete || !seed.retentionDays) return []
+    const cutoff = now - seed.retentionDays * 86400
+    return this.getTable(seed.slug)
+      .filter((e) => e.deleted_at != null && e.deleted_at <= cutoff)
+      .slice(0, limit)
+      .map((e) => e.id as string)
+  }
+
   async mutateField(
     seed: Seed,
     id: string,
@@ -221,7 +321,7 @@ export class StaticContentRepository implements ContentRepository {
     patch: Record<string, unknown> | null,
     _position: string,
     _axisBranchId: string,
-    _ctx: { actor: string },
+    _ctx: { actor: string; ifMatch?: number },
   ): Promise<{ success: boolean }> {
     if (patch) await this.update(seed, id, patch as Record<string, any>)
     return { success: true }
@@ -239,14 +339,29 @@ export class StaticContentRepository implements ContentRepository {
     }
   }
 
-  async saveDraft(seed: Seed, entryId: string, data: Record<string, any>): Promise<void> {
+  async saveDraft(seed: Seed, entryId: string, data: Record<string, any>, options?: RepositoryOptions): Promise<void> {
     if (!seed.allowDrafts) throw new RepositoryError(`Drafts not allowed for ${seed.slug}`)
-    this.drafts.get(seed.slug)!.set(entryId, { ...data, updated_at: Math.floor(Date.now() / 1000) })
+    const draftMap = this.drafts.get(seed.slug)!
+    const existing = draftMap.get(entryId)
+    if (options?.ifMatch !== undefined && existing !== undefined && existing.updated_at !== options.ifMatch) {
+      throw new DraftSaveConflictError({
+        seedSlug: seed.slug,
+        entryId,
+        expectedUpdatedAt: options.ifMatch,
+        actualUpdatedAt: existing.updated_at,
+      })
+    }
+    draftMap.set(entryId, { ...data, updated_at: Math.floor(Date.now() / 1000) })
   }
 
   async getDraft(seed: Seed, entryId: string): Promise<Entry | null> {
     if (!seed.allowDrafts) return null
     return this.drafts.get(seed.slug)?.get(entryId) ?? null
+  }
+
+  async getDraftUpdatedAt(seed: Seed, entryId: string): Promise<number | null> {
+    if (!seed.allowDrafts) return null
+    return this.drafts.get(seed.slug)?.get(entryId)?.updated_at ?? null
   }
 
   async hasDraft(seed: Seed, entryId: string): Promise<boolean> {

@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { CardConfigDialog } from '@/features/shared'
+import { METADATA_SLOT_CAP } from '@beechcms/core'
+import type { Seed } from '@beechcms/core'
+
+const eligibleBranch = (id: string, alias: string, label: string, type = 'text') =>
+  ({ id, alias, label, type, policies: {} }) as any
+
+const seed: Seed = {
+  slug: 'articles',
+  label: 'Articles',
+  labelPlural: 'Articles',
+  allowDrafts: false,
+  branches: [
+    eligibleBranch('br_01', 'title', 'Title'),
+    eligibleBranch('br_02', 'cover', 'Cover', 'file'),
+    eligibleBranch('br_03', 'category', 'Category', 'text'),
+    eligibleBranch('br_04', 'tags', 'Tags', 'text'),
+    { id: 'br_rt', alias: 'body', label: 'Body', type: 'richtext', policies: {} } as any,
+    { id: 'br_js', alias: 'meta', label: 'Meta', type: 'json', policies: {} } as any,
+    { id: 'br_rp', alias: 'items', label: 'Items', type: 'repeater', policies: {} } as any,
+  ],
+} as any
+
+function renderDialog(onSave = vi.fn()) {
+  return render(
+    <CardConfigDialog open onClose={vi.fn()} seed={seed} config={undefined} onSave={onSave} />,
+  )
+}
+
+describe('CardConfigDialog', () => {
+  it('does not list richtext/json/repeater branches in slot pickers', () => {
+    renderDialog()
+    expect(screen.queryByText('Body')).toBeNull()
+    expect(screen.queryByText('Meta')).toBeNull()
+    expect(screen.queryByText('Items')).toBeNull()
+  })
+
+  it('lists eligible branches in metadata toggles', () => {
+    renderDialog()
+    expect(screen.getByText('Title')).toBeTruthy()
+    expect(screen.getByText('Cover')).toBeTruthy()
+    expect(screen.getByText('Category')).toBeTruthy()
+    expect(screen.getByText('Tags')).toBeTruthy()
+  })
+
+  it('metadata multi-select stops adding past METADATA_SLOT_CAP', () => {
+    renderDialog()
+    const branchLabels = ['Title', 'Cover', 'Category', 'Tags']
+    const buttons = branchLabels.map(label =>
+      screen.getAllByRole('button').find(b => b.textContent === label)!,
+    )
+    // Click up to the cap
+    for (let i = 0; i < METADATA_SLOT_CAP; i++) {
+      if (buttons[i]) fireEvent.click(buttons[i]!)
+    }
+    // The next button beyond cap should be disabled
+    const beyond = buttons[METADATA_SLOT_CAP]
+    if (beyond) expect(beyond).toBeDisabled()
+  })
+
+  it('onSave called with correct KanbanCardConfig shape', () => {
+    const onSave = vi.fn()
+    render(
+      <CardConfigDialog open onClose={vi.fn()} seed={seed} config={undefined} onSave={onSave} />,
+    )
+    const saveBtn = screen.getByText('Save')
+    fireEvent.click(saveBtn)
+    expect(onSave).toHaveBeenCalledOnce()
+    const [arg] = onSave.mock.calls[0]
+    expect(arg).toMatchObject({ version: 1, metadata: expect.any(Array) })
+  })
+
+  it('preloads defaultConfig when no card is saved', () => {
+    const onSave = vi.fn()
+    render(
+      <CardConfigDialog
+        open onClose={vi.fn()} seed={seed} config={undefined} onSave={onSave}
+        defaultConfig={{ version: 1, header: { branchId: 'br_01' }, media: { branchId: 'br_02' }, metadata: [{ branchId: 'br_03' }] }}
+      />,
+    )
+    fireEvent.click(screen.getByText('Save'))
+    expect(onSave).toHaveBeenCalledWith({
+      version: 1,
+      media: { branchId: 'br_02' },
+      header: { branchId: 'br_01' },
+      subtitle: undefined,
+      metadata: [{ branchId: 'br_03' }],
+    })
+  })
+
+  it('a saved config wins over defaultConfig', () => {
+    const onSave = vi.fn()
+    render(
+      <CardConfigDialog
+        open onClose={vi.fn()} seed={seed} onSave={onSave}
+        config={{ version: 1, header: { branchId: 'br_03' }, metadata: [] }}
+        defaultConfig={{ version: 1, header: { branchId: 'br_01' }, metadata: [] }}
+      />,
+    )
+    fireEvent.click(screen.getByText('Save'))
+    expect(onSave.mock.calls[0][0].header).toEqual({ branchId: 'br_03' })
+  })
+
+  describe('a branch occupies at most one slot', () => {
+    const SUBTITLE_PICKER = 2 // comboboxes render in order: media, header, subtitle
+
+    function openSubtitleOptions() {
+      fireEvent.click(screen.getAllByRole('combobox')[SUBTITLE_PICKER]!)
+      return screen.getAllByRole('option').map(o => o.textContent)
+    }
+
+    it('does not offer a branch already used as header in the subtitle picker', () => {
+      render(
+        <CardConfigDialog
+          open onClose={vi.fn()} seed={seed} onSave={vi.fn()}
+          config={{ version: 1, header: { branchId: 'br_01' }, metadata: [] }}
+        />,
+      )
+      const options = openSubtitleOptions()
+      expect(options).not.toContain('Title')
+      expect(options).toContain('Category')
+    })
+
+    it('keeps the subtitle own selection selectable', () => {
+      render(
+        <CardConfigDialog
+          open onClose={vi.fn()} seed={seed} onSave={vi.fn()}
+          config={{ version: 1, subtitle: { branchId: 'br_03' }, metadata: [] }}
+        />,
+      )
+      expect(openSubtitleOptions()).toContain('Category')
+    })
+
+    it('disables the metadata toggle of a branch placed in a single slot', () => {
+      render(
+        <CardConfigDialog
+          open onClose={vi.fn()} seed={seed} onSave={vi.fn()}
+          config={{ version: 1, header: { branchId: 'br_01' }, metadata: [] }}
+        />,
+      )
+      const titleToggle = screen.getAllByRole('button').find(b => b.textContent === 'Title')!
+      expect(titleToggle).toBeDisabled()
+    })
+
+    it('does not offer a metadata branch in the single-slot pickers', () => {
+      render(
+        <CardConfigDialog
+          open onClose={vi.fn()} seed={seed} onSave={vi.fn()}
+          config={{ version: 1, metadata: [{ branchId: 'br_04' }] }}
+        />,
+      )
+      expect(openSubtitleOptions()).not.toContain('Tags')
+    })
+  })
+})

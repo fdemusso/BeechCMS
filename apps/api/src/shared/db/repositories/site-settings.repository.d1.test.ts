@@ -30,6 +30,8 @@ describe('D1SiteSettingsRepository', () => {
         companyName: null,
         companyWebsite: null,
         companyAbbreviation: null,
+        locales: null,
+        defaultLocale: null,
       })
     })
 
@@ -47,6 +49,28 @@ describe('D1SiteSettingsRepository', () => {
       expect(settings.defaultLanguage).toBe('it')
       expect(settings.companyName).toBe('Acme Corp')
       expect(settings.companyWebsite).toBeNull()
+    })
+
+    it('parses the stored locales array and defaultLocale', async () => {
+      const { db } = makeMockDb([
+        { key: 'locales', value: '["it","en"]' },
+        { key: 'defaultLocale', value: 'en' },
+      ])
+      const repo = new D1SiteSettingsRepository(db)
+
+      const settings = await repo.getAll()
+
+      expect(settings.locales).toEqual(['it', 'en'])
+      expect(settings.defaultLocale).toBe('en')
+    })
+
+    it('reads a malformed locales value as null', async () => {
+      const { db } = makeMockDb([{ key: 'locales', value: 'not-json' }])
+      const repo = new D1SiteSettingsRepository(db)
+
+      const settings = await repo.getAll()
+
+      expect(settings.locales).toBeNull()
     })
   })
 
@@ -77,6 +101,15 @@ describe('D1SiteSettingsRepository', () => {
       await repo.setMany({})
 
       expect(batchMock).not.toHaveBeenCalled()
+    })
+
+    it('JSON-encodes the locales array on write', async () => {
+      const { db, bindMock } = makeMockDb([])
+      const repo = new D1SiteSettingsRepository(db)
+
+      await repo.setMany({ locales: ['it', 'en'] })
+
+      expect(bindMock).toHaveBeenCalledWith('locales', '["it","en"]')
     })
   })
 })

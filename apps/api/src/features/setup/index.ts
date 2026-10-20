@@ -4,10 +4,12 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
+import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME, isValidAccountEmail } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { sortSeedsByDependencies, planCreateSeed, planExtendSeed } from '@beechcms/core'
-import { publicProblem } from '../../public/problem-details'
-import { DEMO_SEEDS } from '../../shared/db/fixtures/demo-seeds.fixtures'
+import { publicProblem } from '../../public/errors/problem-details'
+import { DEMO_SEED_DEFINITIONS } from '../../shared/db/fixtures/demo-seeds'
+import { validateAndApplySeedDef } from '../seeds/seeds.helpers'
 import { getHydratedRegistry } from '../../shared/services/cache/seed-registry-cache'
 
 const setupApp = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -79,7 +81,7 @@ setupApp.post('/auth/setup', async (context) => {
   const p = payload as Record<string, unknown>
   const { email, password, name, surname, settings, track, company, loadDemoData } = p
 
-  if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+  if (typeof email !== 'string' || !isValidAccountEmail(email)) {
     return publicProblem(context, {
       type: 'validation-error',
       title: 'Valid email required',
@@ -185,19 +187,68 @@ setupApp.post('/auth/setup', async (context) => {
     }
   }
 
+  if (track === 'developer' && loadDemoData === true) {
+    // Provision the canonical demo seeds (table + registry row) before creating the
+    // admin account, so a DDL/validation failure never leaves setup half-done.
+    const seedRepository = context.get('seedRepository')
+    for (const seedDef of DEMO_SEED_DEFINITIONS) {
+      const existing = await seedRepository.get(seedDef.slug)
+      if (existing?.status === 'active') continue
+
+      const error = await validateAndApplySeedDef(context, seedDef.slug, seedDef, 'create', {
+        slug: seedDef.slug,
+        source: 'demo-seed',
+      })
+      if (error) return error
+    }
+
+    // Rehydrate the registry in-request: getSeed() was captured by seedRegistryMiddleware
+    // before the seeds above existed, so it must be refreshed before loadDemoData() runs.
+    const { registry } = await getHydratedRegistry(seedRepository)
+    context.set('seedRegistry', registry)
+    context.set('getSeed', (slug: string) => registry.get(slug))
+  }
+
+  // LOCKOUT GUARD. `user_role_assignments` ships empty, so without this grant the account
+  // about to be created would hold nothing and every `/api/*` route would 403 it. Resolved
+  // BEFORE any write: `createInitialAdmin` below commits the admin and this grant in one
+  // D1 batch, so a missing role aborts setup with nothing persisted instead of leaving a
+  // stranded admin that `countAll() > 0` then makes unrecoverable. The role id is minted
+  // per-database by `0000_v040_base.sql`, so it is resolved BY NAME, never hardcoded.
+  const superAdminRole = (await context.get('roleRepository').listAll())
+    .find(role => role.name === SUPER_ADMIN_ROLE_NAME)
+
+  if (!superAdminRole) {
+    return publicProblem(context, {
+      type: 'rbac-not-provisioned',
+      title: 'RBAC not provisioned',
+      status: 500,
+      detail: `The '${SUPER_ADMIN_ROLE_NAME}' system role is missing. Run \`pnpm beech db:reset\`.`,
+    })
+  }
+
   const passwordHash = await context.get('hashProvider').hash(password)
   const normalizedEmail = email.trim().toLowerCase()
   const normalizedName = typeof name === 'string' ? name.trim() : null
   const normalizedSurname = typeof surname === 'string' ? surname.trim() : null
 
-  const created = await context.get('userRepository').createInitialAdmin({
-    id: context.get('idGenerator').uuid(),
-    email: normalizedEmail,
-    passwordHash,
-    role: 'admin',
-    name: normalizedName,
-    surname: normalizedSurname,
-  })
+  const adminUserId = context.get('idGenerator').uuid()
+  const roleAssignmentId = context.get('idGenerator').uuid()
+  const created = await context.get('userRepository').createInitialAdmin(
+    {
+      id: adminUserId,
+      email: normalizedEmail,
+      passwordHash,
+      role: 'admin',
+      name: normalizedName,
+      surname: normalizedSurname,
+    },
+    {
+      id: roleAssignmentId,
+      roleId: superAdminRole.id,
+      scope: GLOBAL_SCOPE,
+    },
+  )
 
   if (!created) {
     return publicProblem(context, {
@@ -213,7 +264,7 @@ setupApp.post('/auth/setup', async (context) => {
       const seedRepo = context.get('seedRepository')
       const schemaMutator = context.get('schemaMutator')
 
-      const sortedSeeds = sortSeedsByDependencies(DEMO_SEEDS)
+      const sortedSeeds = sortSeedsByDependencies(DEMO_SEED_DEFINITIONS)
       for (const seed of sortedSeeds) {
         const existingCols = await schemaMutator.getColumns(`content_${seed.slug}`)
         const stmts = existingCols === null

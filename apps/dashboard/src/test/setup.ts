@@ -2,8 +2,6 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { vi } from "vitest"
-import * as React from "react"
 import i18n from "i18next"
 import { initReactI18next } from "react-i18next"
 
@@ -11,17 +9,6 @@ if (typeof window !== "undefined") {
   await import("@testing-library/jest-dom/vitest")
 }
 
-vi.mock("lucide-react", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("lucide-react")>()
-  return new Proxy(actual, {
-    get: (target, prop) => {
-      if (typeof prop === "string" && /^[A-Z]/.test(prop)) {
-        return () => React.createElement("svg", { "data-testid": `icon-${prop}` })
-      }
-      return target[prop as keyof typeof target]
-    },
-  })
-})
 
 if (!i18n.isInitialized) {
   const itTranslations = await import("@/locales/it.json")

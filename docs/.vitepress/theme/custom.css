@@ -643,4 +643,187 @@ html.dark .VPHomeHero .image-src.light {
   max-width: 100% !important;
 }
 
+/* ==========================================================================
+   Ultra-Wide & High-Resolution Display Support (>=1440px, >=1680px, >=1920px, >=2560px, >=3440px)
+   Adapts layout to large and ultra-wide screens by enlarging the central content body
+   and decreasing lateral margins and side column overhead.
+   ========================================================================== */
+
+/* 1. Large Desktop (>= 1440px) */
+@media (min-width: 1440px) {
+  :root {
+    --vp-layout-max-width: 1536px;
+    --vp-sidebar-width: 268px;
+  }
+
+  .VPDoc.has-aside .content-container {
+    max-width: 780px !important;
+  }
+
+  .VPDoc:not(.has-aside) .content-container {
+    max-width: 1080px !important;
+  }
+
+  .VPDoc:not(.has-sidebar) .content {
+    max-width: 860px !important;
+  }
+
+  .VPDoc:not(.has-sidebar) .container {
+    max-width: 1200px !important;
+  }
+}
+
+/* 2. Wide Desktop (>= 1680px) */
+@media (min-width: 1680px) {
+  :root {
+    --vp-layout-max-width: 1680px;
+    --vp-sidebar-width: 260px;
+  }
+
+  .VPDoc.has-aside .content-container {
+    max-width: 920px !important;
+  }
+
+  .VPDoc:not(.has-aside) .content-container {
+    max-width: 1220px !important;
+  }
+
+  .VPDoc:not(.has-sidebar) .content {
+    max-width: 1020px !important;
+  }
+
+  .VPDoc:not(.has-sidebar) .container {
+    max-width: 1360px !important;
+  }
+
+  .VPHome .vp-doc.container {
+    max-width: 1640px !important;
+  }
+
+  .features-bento-layout .content-container,
+  .features-bento-layout .VPDoc:not(.has-aside) .content-container {
+    max-width: 1380px !important;
+  }
+
+  .VPDoc .aside {
+    max-width: 240px !important;
+    padding-left: 24px !important;
+  }
+}
+
+/* 3. Full HD / Standard Wide (>= 1920px) */
+@media (min-width: 1920px) {
+  :root {
+    --vp-layout-max-width: 1880px;
+    --vp-sidebar-width: 260px;
+  }
+
+  .VPDoc.has-aside .content-container {
+    max-width: 1100px !important;
+  }
+
+  .VPDoc:not(.has-aside) .content-container {
+    max-width: 1420px !important;
+  }
+
+  .VPDoc:not(.has-sidebar) .content {
+    max-width: 1200px !important;
+  }
+
+  .VPDoc:not(.has-sidebar) .container {
+    max-width: 1560px !important;
+  }
+
+  .VPHome .vp-doc.container {
+    max-width: 1800px !important;
+  }
+
+  .features-bento-layout .content-container,
+  .features-bento-layout .VPDoc:not(.has-aside) .content-container {
+    max-width: 1560px !important;
+  }
+
+  .VPDoc .aside {
+    max-width: 240px !important;
+    padding-left: 24px !important;
+  }
+}
+
+/* 4. 2K / 1440p Ultra-Wide (>= 2560px) */
+@media (min-width: 2560px) {
+  :root {
+    --vp-layout-max-width: 2400px;
+    --vp-sidebar-width: 260px;
+  }
+
+  .VPDoc.has-aside .content-container {
+    max-width: 1380px !important;
+  }
+
+  .VPDoc:not(.has-aside) .content-container {
+    max-width: 1740px !important;
+  }
+
+  .VPDoc:not(.has-sidebar) .content {
+    max-width: 1440px !important;
+  }
+
+  .VPDoc:not(.has-sidebar) .container {
+    max-width: 1840px !important;
+  }
+
+  .VPHome .vp-doc.container {
+    max-width: 2200px !important;
+  }
+
+  .features-bento-layout .content-container,
+  .features-bento-layout .VPDoc:not(.has-aside) .content-container {
+    max-width: 1880px !important;
+  }
+
+  .VPDoc .aside {
+    max-width: 240px !important;
+    padding-left: 24px !important;
+  }
+}
+
+/* 5. 21:9 & 32:9 Super Ultra-Wide (>= 3440px) */
+@media (min-width: 3440px) {
+  :root {
+    --vp-layout-max-width: 3000px;
+    --vp-sidebar-width: 260px;
+  }
+
+  .VPDoc.has-aside .content-container {
+    max-width: 1680px !important;
+  }
+
+  .VPDoc:not(.has-aside) .content-container {
+    max-width: 2100px !important;
+  }
+
+  .VPDoc:not(.has-sidebar) .content {
+    max-width: 1720px !important;
+  }
+
+  .VPDoc:not(.has-sidebar) .container {
+    max-width: 2200px !important;
+  }
+
+  .VPHome .vp-doc.container {
+    max-width: 2600px !important;
+  }
+
+  .features-bento-layout .content-container,
+  .features-bento-layout .VPDoc:not(.has-aside) .content-container {
+    max-width: 2200px !important;
+  }
+
+  .VPDoc .aside {
+    max-width: 250px !important;
+    padding-left: 24px !important;
+  }
+}
+
+
 

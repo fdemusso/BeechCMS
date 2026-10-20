@@ -17,9 +17,9 @@ export async function executeSendMail(
   const missingFields: string[] = []
   const logMissing = (field: string) => missingFields.push(field)
 
-  const to = interpolate(action.to, context, '[missing]', logMissing)
-  const subject = interpolate(action.subject_template, context, '[missing]', logMissing)
-  const body = interpolate(action.body_template, context, '[missing]', logMissing)
+  const to = interpolate(action.to, context, { escape: 'none', defaultValue: '[missing]', onMissing: logMissing })
+  const subject = interpolate(action.subject_template, context, { escape: 'none', defaultValue: '[missing]', onMissing: logMissing })
+  const body = interpolate(action.body_template, context, { escape: 'html', defaultValue: '[missing]', onMissing: logMissing })
 
   if (missingFields.length > 0) {
     console.warn('[automations:send_mail] placeholders evaluated to default value due to missing concrete data:', missingFields)

@@ -230,4 +230,49 @@ describe('D1SeedRepository', () => {
       expect(bindMock).toHaveBeenCalled()
     })
   })
+
+  describe('applyDestructiveAtomic', () => {
+    it('batches the guard, destructive DDL, definition update and version bump', async () => {
+      const { db, batchMock } = makeMockDb()
+
+      const result = await new D1SeedRepository(db).applyDestructiveAtomic({
+        slug: 'posts',
+        ddl: ['ALTER TABLE content_posts DROP COLUMN old_field'],
+        expectedVersion: 3,
+        operation: 'update',
+        definition: mockSeed,
+      })
+
+      expect(result).toEqual({ applied: true, version: 4 })
+      expect(batchMock).toHaveBeenCalledTimes(1)
+      const statements = batchMock.mock.calls[0]![0] as { sql: string }[]
+      expect(statements.map(statement => statement.sql)).toEqual([
+        expect.stringContaining('INSERT INTO seed_meta'),
+        'ALTER TABLE content_posts DROP COLUMN old_field',
+        expect.stringContaining('INSERT INTO seeds'),
+        expect.stringContaining('UPDATE seed_meta'),
+      ])
+    })
+
+    it('batches the guard, table drop, seed-row deletion and version bump', async () => {
+      const { db, batchMock } = makeMockDb()
+
+      const result = await new D1SeedRepository(db).applyDestructiveAtomic({
+        slug: 'posts',
+        ddl: ['DROP TABLE content_posts'],
+        expectedVersion: 3,
+        operation: 'delete',
+      })
+
+      expect(result).toEqual({ applied: true, version: 4 })
+      expect(batchMock).toHaveBeenCalledTimes(1)
+      const statements = batchMock.mock.calls[0]![0] as { sql: string }[]
+      expect(statements.map(statement => statement.sql)).toEqual([
+        expect.stringContaining('INSERT INTO seed_meta'),
+        'DROP TABLE content_posts',
+        expect.stringContaining('DELETE FROM seeds'),
+        expect.stringContaining('UPDATE seed_meta'),
+      ])
+    })
+  })
 })

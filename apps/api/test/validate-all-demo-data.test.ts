@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 import { describe, it, expect } from 'vitest'
-import { validateAndSanitizeSeedPayload, SystemIdGenerator } from '@beechcms/core'
+import { validateAndSanitizeSeedPayload, validateSeedDefinitions, SystemIdGenerator } from '@beechcms/core'
+import type { Seed } from '@beechcms/core'
 import { DEMO_FIXTURES_BY_SEED_SLUG } from '../src/shared/db/fixtures/demo-data.fixtures'
-import { DEMO_SEEDS_BY_SLUG } from '../src/shared/db/fixtures/demo-seeds.fixtures'
+import { DEMO_SEED_DEFINITIONS } from '../src/shared/db/fixtures/demo-seeds'
 
-const seedsMap = DEMO_SEEDS_BY_SLUG
+const seedsMap: Record<string, Seed> = Object.fromEntries(DEMO_SEED_DEFINITIONS.map((seed) => [seed.slug, seed]))
 
 describe('Demo Fixtures vs Seed Validation Engine', () => {
   it('validates every demo fixture in DEMO_FIXTURES_BY_SEED_SLUG without validation errors', () => {
@@ -26,5 +27,11 @@ describe('Demo Fixtures vs Seed Validation Engine', () => {
         expect(res.details, `Fixture [${slug}:${entry.id}] failed validation`).toEqual([])
       }
     }
+  })
+
+  it('every demo seed passes validateSeedDefinitions without fatal issues', () => {
+    const fatalIssues = validateSeedDefinitions(DEMO_SEED_DEFINITIONS).filter((issue) => issue.fatal)
+
+    expect(fatalIssues).toEqual([])
   })
 })

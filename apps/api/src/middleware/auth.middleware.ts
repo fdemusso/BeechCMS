@@ -102,7 +102,7 @@ export function authMiddleware(options: AuthMiddlewareOptions = {}) {
       // request must therefore present the SAME shape as a JWT request: the resource owner's
       // own claims, never elevated ones. If the account is gone, the grant is dead with it.
       const user = await c.get('userRepository').findById(record.userId)
-      if (!user) {
+      if (!user || !user.isActive) {
         throw new HTTPException(401, { res: invalidTokenResponse() })
       }
 

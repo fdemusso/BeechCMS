@@ -10,7 +10,7 @@
  */
 
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, OAuthScope } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedMediaPurgeRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, OAuthScope, IRoleRepository, IRoleAssignmentRepository, EffectivePermissions, IInvitationRepository, IDeletionLedger, IImageTransformer, IContentViewRepository } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import type { ISetupChecklistRepository } from './shared/db/repositories/d1-setup-checklist.repository'
 
@@ -65,6 +65,35 @@ export interface Env {
   MEDIA_CDN_URL?: string
   /** Maximum accepted upload size, in bytes. */
   MAX_UPLOAD_BYTES?: string
+  /**
+   * Cloudflare Images binding. When present, `GET /api/media/:key?preset=…` transforms at the edge;
+   * when absent the route serves the original with `X-Beech-Media-Transform: passthrough-unsupported`.
+   */
+  IMAGES?: ImagesBinding
+  /**
+   * JSON object merged by name over DEFAULT_MEDIA_PRESETS from @beechcms/core; `null` removes a preset.
+   * Deliberately absent from wrangler.jsonc `vars`: unset must mean "defaults", exactly like MAX_UPLOAD_BYTES.
+   */
+  MEDIA_PRESETS?: string
+  /** Ceiling in pixels on either side of a derived variant. Unset → DEFAULT_MEDIA_MAX_DIMENSION; capped at ABSOLUTE_MAX_MEDIA_DIMENSION. */
+  MEDIA_MAX_DIMENSION?: string
+  /**
+   * Maximum rows a single synchronous export may stream. Optional; falls back to
+   * `DEFAULT_EXPORT_MAX_ROWS` from @beechcms/core. Deliberately absent from
+   * wrangler.jsonc `vars`, exactly like MAX_UPLOAD_BYTES: an operator sets it per
+   * deployment, and an unset binding must mean "use the default", not "no limit".
+   */
+  EXPORT_MAX_ROWS?: string
+  /**
+   * Ceiling in bytes on an import file. Unset falls back to DEFAULT_IMPORT_MAX_BYTES.
+   * Deliberately absent from wrangler.jsonc `vars`, exactly like MAX_UPLOAD_BYTES.
+   */
+  IMPORT_MAX_BYTES?: string
+  /**
+   * Rows one queue invocation processes before persisting its cursor and re-enqueuing.
+   * Unset falls back to DEFAULT_IMPORT_CHUNK_ROWS from @beechcms/core.
+   */
+  IMPORT_CHUNK_ROWS?: string
   /** API key for the Resend transactional email provider. */
   RESEND_API_KEY?: string
   /** Generic email provider API key, used when `EMAIL_PROVIDER` is not Resend/SMTP-specific. */
@@ -147,6 +176,8 @@ export interface Variables {
   oauthGrant: OAuthGrantContext | null
   /** Application-level privacy and encryption service. */
   privacyService: IPrivacyService
+  /** Append-only GDPR erasure log, stored outside D1 so a restore cannot rewind it. */
+  deletionLedger: IDeletionLedger
   /** Looks up a Seed definition by slug from the loaded schema. */
   getSeed: (slug: string) => Seed | null
   /** Registry of all loaded Seed definitions. */
@@ -157,6 +188,8 @@ export interface Variables {
   idempotencyRepository: IdempotencyRepository
   /** Media storage bucket abstraction (R2-backed). */
   bucket: BeechBucket
+  /** Edge image transformer; `null` when the runtime has no `IMAGES` binding. Set by `storageMiddleware`. */
+  imageTransformer: IImageTransformer | null
   /** Repository for media asset metadata. */
   mediaRepository: MediaRepository
   /** Repository for aggregate system/dashboard statistics. */
@@ -211,14 +244,15 @@ export interface Variables {
   setupChecklistRepository: ISetupChecklistRepository
   /** Repository for per-seed layout configuration (form/list layouts). */
   seedLayoutRepository: ISeedLayoutRepository
+  /** Repository for shared, ordered dashboard view instances (`seed_views`). */
+  contentViewRepository: IContentViewRepository
   /** Repository for Seed (content type) definitions themselves. */
   seedRepository: ISeedRepository
+  seedMediaPurgeRepository: ISeedMediaPurgeRepository
   /** Applies schema mutations (create/alter/drop) to the database. */
   schemaMutator: ISchemaMutator
   /** Repository for dashboard layout configuration. */
   dashboardLayoutRepository: IDashboardLayoutRepository
-  /** Repository for Kanban card position/ordering state. */
-  kanbanPositionRepository: IKanbanPositionRepository
   /** Antivirus scanning provider. */
   antivirusProvider: IAntivirusProvider
   /** Repository for single-use time-trap token deduplication. */
@@ -233,6 +267,17 @@ export interface Variables {
   oauthConsentRepository: IOAuthConsentRepository
   /** Arbitrates which requested scopes a user's role may grant. Sole role-authorization seam in the OAuth flow. */
   roleGuard: IRoleGuard
+  /** Storage for roles and their permission bundles. Read by RBAC enforcement from the next sprint on. */
+  roleRepository: IRoleRepository
+  /** Storage for (user, role, scope) assignments, decay-filtered on read. */
+  roleAssignmentRepository: IRoleAssignmentRepository
+  /** Repository for single-use onboarding invitations (hash-only). */
+  invitationRepository: IInvitationRepository
+  /**
+   * The caller's folded authority, memoized by `resolveEffectivePermissions()`.
+   * Absent until something on the request path asks for it.
+   */
+  effectivePermissions?: EffectivePermissions
 }
 
 /** Combined Hono generic type (`Bindings` + `Variables`) used to type every app/router in the API. */

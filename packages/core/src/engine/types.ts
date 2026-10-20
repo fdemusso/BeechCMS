@@ -10,6 +10,7 @@
 
 import type { FileAccept } from '../media/file-types.js'
 import type { DashboardView } from '../dashboard-layout/view-authorization.js'
+import type { LocaleConfig } from './localization/localization.js'
 
 /** All supported field value types for a Branch. */
 export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags' | 'relation' | 'repeater'
@@ -72,6 +73,17 @@ export interface ActorContext {
   role?: string
 }
 
+/** One entry of a `tags` branch's closed vocabulary. Array order is significant (menu, kanban columns, sort). */
+export interface TagOption {
+  /**
+   * Stored value and identity. Unique within the branch; compared exactly (case-sensitive, never trimmed).
+   * Must already be in canonical form (`normalizeTagValue(value).value === value`) and at most `TAG_MAX_LENGTH` characters.
+   */
+  value: string
+  /** Presentation-only color, `#RRGGBB`. Lives in the seed only — never persisted in entries. */
+  color: string
+}
+
 /** Branch: definition of a single field. `alias` is the SQL column name. */
 export interface Branch {
   /**
@@ -98,16 +110,19 @@ export interface Branch {
    */
   format?: 'plain' | 'markdown' | 'html' | 'date' | 'datetime' | 'asset-list'
   /**
-   * Optional cardinality for media fields:
-   * - false/undefined: single asset (string URL)
-   * - true: asset list (string[] URL)
+   * Cardinality:
+   * - `file`: false/undefined → single URL; true → URL list.
+   * - `relation`: false/undefined → FK column; true → junction table.
+   * - `tags`: undefined/true → multiple choice (default); false → at most one value. The value is always an array.
    */
   multiple?: boolean
   /**
-   * Predefined vocabulary for tag/select/multiselect fields.
-   * Static list defined in the Seed (not persisted to the DB).
+   * Closed vocabulary — valid ONLY on `tags` (any other type is a fatal seed error).
+   * When present: non-empty, at most `TAG_OPTIONS_MAX_COUNT` entries, unique canonical values, `#RRGGBB` colors;
+   * written values must be one of the option values.
+   * Static seed metadata, never persisted in entries.
    */
-  options?: string[]
+  options?: TagOption[]
   /** Required on create — generates NOT NULL in generateCreateTable. */
   requiredOnCreate?: boolean
   /** Required on update. */
@@ -138,6 +153,15 @@ export interface Branch {
   numberOptions?: NumberFieldOptions
   /** Advanced options for file fields. Ignored if type !== 'file'. */
   fileOptions?: FileFieldOptions
+  /**
+   * Field-level localization. When true, the branch's existing column stores a locale dictionary
+   * (`{"it": "Scarpa", "en": "Shoe"}`) instead of a single value. Metadata-only: toggling it never
+   * emits DDL and never rewrites rows — values written before the toggle stay readable as-is.
+   * Valid only on top-level `text | richtext | json` branches with `plain` storage (not
+   * `confidential` / `restricted`); never on repeater sub-fields. Enforced by seed-validation.ts
+   * (Fatal 17). Default: false.
+   */
+  localized?: boolean
 
   /**
    * Slug of the referenced Seed (without the `content_` prefix).
@@ -236,6 +260,13 @@ export interface Seed {
    */
   allowDrafts?: boolean
   /**
+   * Enables the Trash for this content type. When true, `content_{slug}` carries a
+   * `deleted_at INTEGER NULL` column, `DELETE` becomes a reversible soft delete, and every
+   * read excludes trashed rows unless the caller opts in via `SelectOptions.trashed`.
+   * Default: false.
+   */
+  softDelete?: boolean
+  /**
    * Alias of the branch used as the entry's human-readable name (e.g. "title", "name", "author").
    * Required — UIs use it for display without heuristics.
    */
@@ -278,7 +309,7 @@ export type FilterOperator =
   | 'has_all_tags'
 
 /** Declared value type of a filtered column, used to normalize/coerce filter values before binding. */
-export type FilterType = 'text' | 'number' | 'date' | 'boolean' | 'tags' | 'select' | 'system' | 'json'
+export type FilterType = 'text' | 'number' | 'date' | 'boolean' | 'tags' | 'select' | 'system' | 'json' | 'repeater'
 
 /** A single operator + value pair applied to a FilterGroup's column. */
 export interface FilterCondition {
@@ -297,6 +328,22 @@ export interface FilterGroup {
   conditions: FilterCondition[]
 }
 
+/**
+ * Soft-delete visibility for a read.
+ *  - 'active'  (default) — only rows with `deleted_at IS NULL`
+ *  - 'trashed'           — only rows with `deleted_at IS NOT NULL` (the Trash view)
+ *  - 'any'               — no predicate (restore/purge lookups, reconciliation)
+ * Ignored entirely for seeds without `softDelete: true`.
+ */
+export type TrashedMode = 'active' | 'trashed' | 'any'
+
+/** The language a read resolves localized branches to (consumed by `buildSelectQuery`). */
+export interface SelectLocale {
+  /** Locale that filters and ORDER BY compare in. Must match `LOCALE_CODE_RE`; the builder throws otherwise. */
+  readonly code: string
+  readonly config: LocaleConfig
+}
+
 export interface SelectOptions {
   /** Filter groups. Joined by `filterLogic` (default AND); conditions within a group are always ANDed. */
   filters?: FilterGroup[]
@@ -308,6 +355,8 @@ export interface SelectOptions {
   pagination?: { limit: number; offset: number }
   /** Filters by status. null = no status filter. */
   status?: string | null
+  /** Soft-delete visibility. Defaults to 'active': omitting it can never leak a trashed row. */
+  trashed?: TrashedMode
   /** Full-text search — uses FTS5 if the seed has indexable richtext/text branches. */
   search?: string
   /** Column projection. Empty = SELECT *. */
@@ -321,6 +370,12 @@ export interface SelectOptions {
    * while keeping the join/where clauses intact for accurate counts.
    */
   isCount?: boolean
+  /**
+   * When set, filters and ORDER BY on localized branches compare the value resolved to `locale.code`
+   * (requested → default → first stored translation → legacy raw value) instead of the stored JSON.
+   * Absent: every column is compared raw, exactly as before localization existed.
+   */
+  locale?: SelectLocale
 }
 
 /** SQL string paired with its ordered parameter bindings, ready for a D1 `.bind(...)` call. */

@@ -4,7 +4,7 @@
 
 import { useTranslation } from "react-i18next"
 import type { DashboardWidgetInstance } from "@beechcms/core"
-import { getWidgetDefinition } from "../registry/widget-registry"
+import { getWidgetDefinition, isWidgetDisabled } from "../registry/widget-registry"
 import { WidgetErrorBoundary } from "../components/widget-error-boundary"
 
 export interface DashboardWidgetHostProps {
@@ -18,6 +18,16 @@ export interface DashboardWidgetHostProps {
 export function DashboardWidgetHost({ instance }: DashboardWidgetHostProps) {
   const { t } = useTranslation()
   const definition = getWidgetDefinition(instance.type)
+
+  if (isWidgetDisabled(instance.type)) {
+    return (
+      <div className="flex h-full min-h-[80px] items-center justify-center rounded-xl border-2 border-dashed border-muted p-4">
+        <p className="text-sm text-muted-foreground">
+          {t("dashboard.widgetRegistry.disabled")}
+        </p>
+      </div>
+    )
+  }
 
   if (!definition) {
     return (

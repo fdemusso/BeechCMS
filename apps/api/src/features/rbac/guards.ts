@@ -1,0 +1,107 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
+/// <reference types="@cloudflare/workers-types" />
+import type { Context } from 'hono'
+import type { EffectivePermissions, PageRequest, Permission, PermissionAssignment } from '@beechcms/core'
+import { MAX_PAGE_SIZE, canGrant, hasPermission, permissionsHeldAnywhere } from '@beechcms/core'
+import { publicProblem } from '../../public/errors/problem-details'
+import type { Env, Variables } from '../../types'
+import { RBAC_ERRORS, type RbacErrorCode } from './constants'
+import { pageQuerySchema } from './rbac.schema'
+
+export type AppContext = Context<{ Bindings: Env; Variables: Variables }>
+
+/** Single RFC 7807 emitter for the slice, so every refusal has the same shape. */
+export function rbacProblem(
+  context: AppContext,
+  type: RbacErrorCode,
+  status: 400 | 403 | 404 | 409 | 422 | 429,
+  title: string,
+  detail: string,
+  headers?: Record<string, string>,
+) {
+  return publicProblem(context, { type, title, status, detail, headers })
+}
+
+/**
+ * May the actor administer this account?
+ *
+ * A global `manage_users` holder may administer anyone. A scoped holder may administer
+ * an account only when they hold `manage_users` on EVERY scope that account is assigned
+ * to — administration (deactivation above all) is total, so partial authority over a
+ * target must never be enough. An account with no assignment at all is administrable
+ * only by a global holder, which keeps zero-trust accounts out of a scoped manager's
+ * reach until they are deliberately assigned into that scope.
+ */
+export function canAdministerAccount(
+  actor: EffectivePermissions,
+  targetAssignments: readonly PermissionAssignment[],
+): boolean {
+  if (actor.global.has('manage_users')) return true
+  if (targetAssignments.length === 0) return false
+  return targetAssignments.every(assignment =>
+    hasPermission(actor, 'manage_users', assignment.scope),
+  )
+}
+
+/**
+ * Whether the actor personally holds every listed permission somewhere.
+ *
+ * Gates role AUTHORING (a role is a global object, so it has no scope of its own):
+ * an actor may never mint or edit a role carrying authority they do not hold. The
+ * scope-precise anti-escalation rule stays `canGrant()`, applied at assignment time.
+ */
+export function holdsAll(actor: EffectivePermissions, permissions: readonly Permission[]): boolean {
+  const held = permissionsHeldAnywhere(actor)
+  return permissions.every(permission => held.has(permission))
+}
+
+/**
+ * May the actor edit (or delete) a role, given everywhere it is assigned?
+ *
+ * A role's effect is per-assignment, so mutating it rewrites authority at every scope
+ * it is assigned on. The actor must hold `manage_roles` on EVERY such scope and pass
+ * `canGrant()` there for both the current and the incoming permissions. `revokes`
+ * (deletion) additionally needs `manage_users` per scope, since the cascade drops
+ * those assignments. A role with no assignment grants nothing yet, so it falls back
+ * to {@link holdsAll}.
+ */
+export function canMutateRole(
+  actor: EffectivePermissions,
+  assignments: readonly PermissionAssignment[],
+  currentPermissions: readonly Permission[],
+  nextPermissions: readonly Permission[],
+  revokes = false,
+): boolean {
+  if (assignments.length === 0) {
+    return holdsAll(actor, currentPermissions) && holdsAll(actor, nextPermissions)
+  }
+  const touched = [...currentPermissions, ...nextPermissions]
+  return assignments.every(({ scope }) =>
+    hasPermission(actor, 'manage_roles', scope)
+    && (!revokes || hasPermission(actor, 'manage_users', scope))
+    && canGrant(actor, scope, touched),
+  )
+}
+
+/** Reads a JSON body, returning `undefined` when it is unparseable. */
+export async function readJson(context: AppContext): Promise<unknown | undefined> {
+  try {
+    return await context.req.json()
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Reads `?limit&offset` of a paged administration listing. A client that sends neither gets
+ * the first {@link MAX_PAGE_SIZE} rows; `undefined` means a malformed value, which the caller
+ * answers with 422.
+ */
+export function readPage(context: AppContext): PageRequest | undefined {
+  const parsed = pageQuerySchema.safeParse(context.req.query())
+  if (!parsed.success) return undefined
+  return { limit: parsed.data.limit ?? MAX_PAGE_SIZE, offset: parsed.data.offset ?? 0 }
+}

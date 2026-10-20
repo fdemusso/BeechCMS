@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next"
 import { Check, SortV as ChevronsUpDown, X } from 'reicon-react'
 
 import { useFieldsConfig } from "../../context"
+import { useRelationLabel } from "../../relation-label"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Button } from "@/components/ui/button"
 import {
@@ -84,6 +85,7 @@ export function SingleRelationEdit({
   const { data: seeds } = useSchema()
   const targetSeed = seeds?.find((schemaSeed) => schemaSeed.slug === targetSlug)
   const labelAlias = targetSeed?.displayNameAlias ?? "title"
+  const labelOf = useRelationLabel(targetSlug)
 
   const isRequired = isCreate
     ? branch.requiredOnCreate === true
@@ -98,7 +100,7 @@ export function SingleRelationEdit({
   })
 
   const selectedLabel = selectedEntry
-    ? String(selectedEntry?.data?.[labelAlias] ?? selectedId)
+    ? String(labelOf(selectedEntry?.data, labelAlias) ?? selectedId)
     : selectedId ?? ""
 
   const { data: entriesData, isFetching: isListFetching } = useQuery({
@@ -116,7 +118,7 @@ export function SingleRelationEdit({
   const entries = entriesData ?? []
 
   const resolveLabel = (item: (typeof entries)[0]): string => {
-    const raw = item.data?.[labelAlias]
+    const raw = labelOf(item.data, labelAlias)
     if (raw != null && raw !== "") return String(raw)
     const slug = (item as { slug?: unknown }).slug
     return typeof slug === "string" ? slug : item.id

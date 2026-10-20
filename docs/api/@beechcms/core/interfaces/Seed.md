@@ -109,3 +109,14 @@ Must be a positive integer (\>= 1) when specified.
 > **slug**: `string`
 
 Identifying slug — also the table name: `content_{slug}`.
+
+***
+
+### softDelete?
+
+> `optional` **softDelete?**: `boolean`
+
+Enables the Trash for this content type. When true, `content_{slug}` carries a
+`deleted_at INTEGER NULL` column, `DELETE` becomes a reversible soft delete, and every
+read excludes trashed rows unless the caller opts in via `SelectOptions.trashed`.
+Default: false.

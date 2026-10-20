@@ -2,10 +2,13 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { findUnappliedFilters } from '@beechcms/core'
 import type { AutomationAction, ContentRepository, Seed } from '@beechcms/core'
 import type { ResolvedContext } from '../evaluator/context-resolver'
 import { conditionToFilterGroup } from '../filters/filter-translation'
 import { interpolate } from '../engine/automation-runner.utils'
+import { findAllEntries } from '../engine/entry-pages'
+import { numericValue } from '../evaluator/numeric'
 
 type SetVariableAction = Extract<AutomationAction, { type: 'set_variable' }>
 
@@ -38,7 +41,7 @@ export async function executeSetVariable(
   }
 
   if (effectiveFixedId !== undefined) {
-    const resolvedId = interpolate(effectiveFixedId, ctx.context)
+    const resolvedId = interpolate(effectiveFixedId, ctx.context, { escape: 'none' })
     const { items } = await ctx.repository.findMany(targetSeed, {
       filters: [{ column: 'id', type: 'system', conditions: [{ op: 'eq', value: resolvedId }] }],
       status: null,
@@ -55,15 +58,23 @@ export async function executeSetVariable(
   }
 
   const resolvedFilters = (action.filters ?? []).map((f) => {
-    const value = typeof f.value === 'string' ? interpolate(f.value, ctx.context) : f.value
+    const value = typeof f.value === 'string' ? interpolate(f.value, ctx.context, { escape: 'none' }) : f.value
     return conditionToFilterGroup({ ...f, value }, targetSeed)
   })
 
+  // The query builder drops a filter it cannot bind, which would widen the read to unrelated rows.
+  const unapplied = findUnappliedFilters(targetSeed, resolvedFilters)
+  if (unapplied.length > 0) {
+    const columns = unapplied.map((g) => g.column).join(', ')
+    console.warn(`[set_variable] "${action.name}": filter on ${columns} cannot be applied; collection is empty`)
+    ctx.variables[action.name] = materializeCollection(targetSeed, [], action.column ?? null)
+    return
+  }
+
   const orderDir: 'ASC' | 'DESC' = action.order === 'asc' ? 'ASC' : 'DESC'
-  const { items } = await ctx.repository.findMany(targetSeed, {
+  const items = await findAllEntries(ctx.repository, targetSeed, {
     filters: resolvedFilters,
     status: null,
-    pagination: { limit: 1000, offset: 0 },
     orderBy: action.order_by ? { column: action.order_by, dir: orderDir } : undefined,
   })
 
@@ -95,7 +106,19 @@ export function materializeCollection(
   }
 
   Object.defineProperty(out, '_items', { value: items, enumerable: false })
+  // Kept so a filtered subset can be rematerialized with the same stats shape.
+  Object.defineProperty(out, '_seed', { value: seed, enumerable: false })
+  Object.defineProperty(out, '_pinned', { value: pinned, enumerable: false })
   return out
+}
+
+/** Rebuilds a collection over a subset of items, keeping the seed and pinned column of the source. */
+export function rematerializeSubset(
+  source: unknown,
+  items: Array<Record<string, unknown>>,
+): Record<string, unknown> {
+  const { _seed, _pinned } = (source ?? {}) as { _seed?: Seed; _pinned?: string | null }
+  return materializeCollection(_seed ?? ({ branches: [] } as unknown as Seed), items, _pinned ?? null)
 }
 
 function formatPluckValues(items: Array<Record<string, unknown>>, key: string): string {
@@ -105,8 +128,7 @@ function formatPluckValues(items: Array<Record<string, unknown>>, key: string): 
 
 function calculatePinnedStats(items: Array<Record<string, unknown>>, pinned: string): Record<string, unknown> {
   const nonNull = items.filter((r) => r[pinned] != null)
-  const nums = nonNull.map((r) => Number(r[pinned]))
-  const validNums = nums.filter((n) => !Number.isNaN(n))
+  const validNums = items.flatMap((r) => numericValue(r[pinned]) ?? [])
   const total = validNums.reduce((a, n) => a + n, 0)
   const pluck = formatPluckValues(items, pinned)
 
@@ -121,18 +143,16 @@ function calculatePinnedStats(items: Array<Record<string, unknown>>, pinned: str
 }
 
 function extractValidNumbers(items: Array<Record<string, unknown>>, key: string): number[] {
-  return items
-    .map((r) => {
-      const v = r[key]
-      const n = Number(v)
-      if (!Number.isNaN(n)) return n
-      if (typeof v === 'string') {
-        const d = Date.parse(v)
-        return Number.isNaN(d) ? Number.NaN : d / 1000
-      }
-      return Number.NaN
-    })
-    .filter((n) => !Number.isNaN(n))
+  return items.flatMap((r) => {
+    const v = r[key]
+    const n = numericValue(v)
+    if (n !== null) return n
+    if (typeof v === 'string') {
+      const d = Date.parse(v)
+      if (!Number.isNaN(d)) return d / 1000
+    }
+    return []
+  })
 }
 
 function calculateGeneralStats(seed: Seed, items: Array<Record<string, unknown>>): Record<string, unknown> {
@@ -147,7 +167,7 @@ function calculateGeneralStats(seed: Seed, items: Array<Record<string, unknown>>
       const nums = extractValidNumbers(items, branch.alias)
       const total = nums.reduce((a, n) => a + n, 0)
       sum[branch.alias] = total
-      avg[branch.alias] = items.length > 0 ? total / items.length : 0
+      avg[branch.alias] = nums.length > 0 ? total / nums.length : 0
       min[branch.alias] = nums.length > 0 ? Math.min(...nums) : 0
       max[branch.alias] = nums.length > 0 ? Math.max(...nums) : 0
     } else {

@@ -165,6 +165,47 @@ describe('evaluateWhen — predicates', () => {
 // AND / OR groups with short-circuit
 // ---------------------------------------------------------------------------
 
+describe('evaluateWhen — tags arrays', () => {
+  const tagsCtx = makeContext({ priority: ['high'], labels: [] })
+  const predicate = (key: string, op: string, right?: unknown): WhenNode => ({
+    kind: 'predicate',
+    left: { kind: 'ref', key },
+    op,
+    ...(right === undefined ? {} : { right: { kind: 'literal', value: right } }),
+  } as WhenNode)
+
+  it('eq on a tags array matches a member and neq is its negation', () => {
+    const eqMember = evaluateWhen(predicate('this.priority', 'eq', 'high'), tagsCtx)
+    const neqMember = evaluateWhen(predicate('this.priority', 'neq', 'high'), tagsCtx)
+    const eqOther = evaluateWhen(predicate('this.priority', 'eq', 'low'), tagsCtx)
+
+    expect([eqMember, neqMember, eqOther]).toEqual([true, false, false])
+  })
+
+  it('contains on a tags array matches an exact member only', () => {
+    const exact = evaluateWhen(predicate('this.priority', 'contains', 'high'), tagsCtx)
+    const prefix = evaluateWhen(predicate('this.priority', 'contains', 'hi'), tagsCtx)
+
+    expect([exact, prefix]).toEqual([true, false])
+  })
+
+  it('in and notin on a tags array test overlap with the right-hand list', () => {
+    const overlapping = evaluateWhen(predicate('this.priority', 'in', ['low', 'high']), tagsCtx)
+    const disjoint = evaluateWhen(predicate('this.priority', 'in', ['low']), tagsCtx)
+    const notOverlapping = evaluateWhen(predicate('this.priority', 'notin', ['low']), tagsCtx)
+
+    expect([overlapping, disjoint, notOverlapping]).toEqual([true, false, true])
+  })
+
+  it('isempty treats an empty tags array as empty', () => {
+    const emptyArray = evaluateWhen(predicate('this.labels', 'isempty'), tagsCtx)
+    const filledArray = evaluateWhen(predicate('this.priority', 'isempty'), tagsCtx)
+    const notEmptyArray = evaluateWhen(predicate('this.labels', 'isnotempty'), tagsCtx)
+
+    expect([emptyArray, filledArray, notEmptyArray]).toEqual([true, false, false])
+  })
+})
+
 describe('evaluateWhen — groups', () => {
   it('AND group — all true', () => {
     const node: WhenNode = {
@@ -272,3 +313,65 @@ describe('evaluateWhen — null operands', () => {
   })
 })
 
+
+// ---------------------------------------------------------------------------
+// Missing values are not numbers
+// ---------------------------------------------------------------------------
+
+describe('evaluateWhen — missing values in numeric comparisons', () => {
+  const numeric = (op: 'gt' | 'gte' | 'lt' | 'lte', limit: number): WhenNode => ({
+    kind: 'predicate',
+    left: { kind: 'ref', key: 'this.price' },
+    op,
+    right: { kind: 'literal', value: limit },
+  })
+
+  // Number(null) and Number('') are both 0, which made a missing price satisfy `price < 10`.
+  it.each([
+    ['lt', 10],
+    ['lte', 0],
+    ['gte', 0],
+    ['gt', -1],
+  ] as const)('%s %d is false when the field is null', (op, limit) => {
+    expect(evaluateWhen(numeric(op, limit), makeContext({ price: null }))).toBe(false)
+  })
+
+  it.each([
+    ['lt', 10],
+    ['lte', 0],
+    ['gte', 0],
+    ['gt', -1],
+  ] as const)('%s %d is false when the field is an empty string', (op, limit) => {
+    expect(evaluateWhen(numeric(op, limit), makeContext({ price: '' }))).toBe(false)
+  })
+
+  it('lt is false when the field is absent from the entry', () => {
+    expect(evaluateWhen(numeric('lt', 10), makeContext({}))).toBe(false)
+  })
+
+  it('lt stays true for a real number below the limit, including zero', () => {
+    expect(evaluateWhen(numeric('lt', 10), makeContext({ price: 0 }))).toBe(true)
+  })
+
+  it('eq does not treat 0 as equal to an empty string', () => {
+    const node: WhenNode = {
+      kind: 'predicate',
+      left: { kind: 'ref', key: 'this.price' },
+      op: 'eq',
+      right: { kind: 'literal', value: '' },
+    }
+
+    expect(evaluateWhen(node, makeContext({ price: 0 }))).toBe(false)
+  })
+
+  it('neq treats 0 as different from an empty string', () => {
+    const node: WhenNode = {
+      kind: 'predicate',
+      left: { kind: 'ref', key: 'this.price' },
+      op: 'neq',
+      right: { kind: 'literal', value: '' },
+    }
+
+    expect(evaluateWhen(node, makeContext({ price: 0 }))).toBe(true)
+  })
+})

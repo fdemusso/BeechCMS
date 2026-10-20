@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useMemo } from "react"
+import { useTranslation } from "react-i18next"
 import { useToolbarSearch } from "./toolbar-hooks/use-toolbar-search"
 import { useToolbarMenusState } from "./toolbar-hooks/use-toolbar-menus-state"
 import { useViewName } from "./toolbar-hooks/use-view-name"
@@ -36,6 +37,7 @@ export function useContentToolbar({
   onDateGroupPrecisionChange,
   onConditionalFormatsChange,
 }: ContentToolbarProps) {
+  const { t } = useTranslation()
   const activeView = views.find((v: any) => v.id === activeViewId)
 
   const {
@@ -116,14 +118,17 @@ export function useContentToolbar({
   const tableColumns = useMemo(
     () =>
       [
+        { id: "id", label: "ID" },
         { id: "slug", label: "Slug" },
         { id: "status", label: "Stato" },
         ...seed.branches.map((branch: any) => ({
           id: branch.alias,
           label: branch.label,
         })),
+        { id: "updated_at", label: t("content.table.updated") },
+        { id: "created_at", label: t("content.table.created") },
       ] as Array<{ id: string; label: string }>,
-    [seed.branches]
+    [seed.branches, t]
   )
 
   const visibleFilterColumns = useMemo(() => {

@@ -2,6 +2,7 @@ import * as React from 'react'
 import { ChevronDown, ChevronRight, Plus } from 'reicon-react'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { KANBAN_CARD_HEIGHT_PX, KANBAN_COLUMN_WIDTH_PX } from '../constants'
 import type { KanbanCardDisplayModel, KanbanColumnFetchState } from '../types'
 import { KanbanColumnVirtualizer } from './kanban-column-virtualizer'
@@ -9,11 +10,16 @@ import { KanbanColumnVirtualizer } from './kanban-column-virtualizer'
 interface KanbanColumnProps {
   colValue: string | null
   label: string
+  /** Option color of a tags-axis column; no dot when absent. */
+  color?: string
   fetchState: KanbanColumnFetchState
   cards: KanbanCardDisplayModel[]
   collapsed: boolean
   canEdit: boolean
+  canCreate: boolean
   sortActive: boolean
+  /** False on a fallback column: cards can leave it but never be dropped into it. */
+  acceptsDrops?: boolean
   onToggleCollapse: () => void
   onEdit: (id: string) => void
   onCreateEntry?: () => void
@@ -31,17 +37,20 @@ function SkeletonCard() {
 export const KanbanColumn = React.memo(function KanbanColumn({
   colValue,
   label,
+  color,
   fetchState,
   cards,
   collapsed,
   canEdit,
+  canCreate,
   sortActive,
+  acceptsDrops = true,
   onToggleCollapse,
   onEdit,
   onCreateEntry,
 }: KanbanColumnProps) {
   const droppableId = `col:${colValue ?? '__null__'}`
-  const { isOver, setNodeRef } = useDroppable({ id: droppableId, data: { colValue } })
+  const { isOver, setNodeRef } = useDroppable({ id: droppableId, data: { colValue }, disabled: !acceptsDrops })
 
   const { total, hasNextPage, isLoading, isFetching, fetchNextPage } = fetchState
   const loaded = cards.length
@@ -66,6 +75,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({
           aria-expanded={!collapsed}
         >
           {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {color && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />}
           <span className="truncate max-w-[140px]">{label}</span>
         </button>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -74,9 +84,24 @@ export const KanbanColumn = React.memo(function KanbanColumn({
             {hasUnloaded && <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" aria-hidden="true" />}
           </span>
           {onCreateEntry && (
-            <button type="button" onClick={onCreateEntry} className="rounded p-0.5 hover:bg-muted" aria-label={`Nuova voce in ${label}`}>
-              <Plus className="h-3.5 w-3.5" />
-            </button>
+            canCreate ? (
+              <button type="button" onClick={onCreateEntry} className="rounded p-0.5 hover:bg-muted" aria-label={`Nuova voce in ${label}`}>
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <button type="button" disabled className="rounded p-0.5 opacity-50 cursor-not-allowed" aria-label={`Nuova voce in ${label}`}>
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Manca il permesso 'content:create'
+                </TooltipContent>
+              </Tooltip>
+            )
           )}
         </div>
       </div>
@@ -100,9 +125,24 @@ export const KanbanColumn = React.memo(function KanbanColumn({
                 <div className="flex flex-col items-center justify-center gap-2 flex-grow h-full p-4 text-center">
                   <p className="text-xs text-muted-foreground">Nessuna voce</p>
                   {onCreateEntry && (
-                    <button type="button" onClick={onCreateEntry} className="text-xs text-primary hover:opacity-80 transition-opacity">
-                      + Nuova entry
-                    </button>
+                    canCreate ? (
+                      <button type="button" onClick={onCreateEntry} className="text-xs text-primary hover:opacity-80 transition-opacity">
+                        + Nuova entry
+                      </button>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <button type="button" disabled className="text-xs text-muted-foreground opacity-50 cursor-not-allowed">
+                              + Nuova entry
+                            </button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          Manca il permesso 'content:create'
+                        </TooltipContent>
+                      </Tooltip>
+                    )
                   )}
                 </div>
               ) : (

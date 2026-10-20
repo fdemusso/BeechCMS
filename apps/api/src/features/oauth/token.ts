@@ -17,7 +17,7 @@ type OAuthContext = Context<{ Bindings: Env; Variables: Variables }>
 /**
  * Successful token response body adhering to RFC 6749 §5.1.
  */
-export interface TokenResponseBody {
+interface TokenResponseBody {
   /** The issued access token string. */
   access_token: string
   /** Fixed Bearer token type identifier. */
@@ -107,13 +107,18 @@ async function handleAuthorizationCodeGrant(context: OAuthContext, body: Record<
   const nowSeconds = context.get('clock').nowSeconds()
   const codeHash = await sha256hex(code)
   const codeRepository = context.get('oauthAuthorizationCodeRepository')
-  const record = await codeRepository.findByHash(codeHash, nowSeconds)
+  const record = await codeRepository.findByHash(codeHash)
   if (!record) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'unknown or expired authorization code')
 
+  // Replay must be detected even after the code's 60s TTL has passed: the tokens it minted
+  // on first redemption live for up to 30 days, so an expiry filter here would let a replay
+  // past this point go uncaught (RFC 6749 §4.1.2 SHOULD revoke on replay).
   if (record.consumedAt !== null) {
     await context.get('oauthTokenRepository').revokeByAuthorizationCode(codeHash, nowSeconds)
     return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'authorization code already redeemed')
   }
+
+  if (record.expiresAt <= nowSeconds) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'unknown or expired authorization code')
 
   if (record.clientId !== clientId) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'client_id does not match the authorization code')
   if (record.redirectUri !== redirectUri) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'redirect_uri does not match the authorization code')
@@ -154,8 +159,12 @@ async function handleAuthorizationCodeGrant(context: OAuthContext, body: Record<
  *    refresh token is returned alongside the new access token.
  * 2. **Scope Narrowing**: Allows the client to request an equal or smaller subset of the originally
  *    granted scopes. If omitted, retains the previous scope set.
- * 3. **Atomic rollback**: If revoking the previous refresh token fails (e.g. concurrent race condition),
+ * 3. **Reuse detection**: Replaying an already-rotated (revoked) refresh token revokes the whole
+ *    token family via its authorization code hash (OAuth 2.1 §4.3.1).
+ * 4. **Atomic rollback**: If revoking the previous refresh token fails (e.g. concurrent race condition),
  *    the newly created token pair is immediately invalidated.
+ * 5. **Live grant**: the resource owner must still be active and the client consent unrevoked,
+ *    otherwise the exchange fails with `invalid_grant`.
  *
  * @param context - Hono request context.
  * @param body - The parsed form body.
@@ -177,8 +186,23 @@ async function handleRefreshTokenGrant(context: OAuthContext, body: Record<strin
   const oldHash = await sha256hex(refreshToken)
   const tokenRepository = context.get('oauthTokenRepository')
   const old = await tokenRepository.findActiveByHash(oldHash, 'refresh', nowSeconds)
-  if (!old) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'unknown, expired or revoked refresh token')
+  if (!old) {
+    const stale = await tokenRepository.findByHash(oldHash, 'refresh')
+    if (stale?.revokedAt != null && stale.clientId === clientId) {
+      await tokenRepository.revokeByAuthorizationCode(stale.authorizationCodeHash, nowSeconds)
+    }
+    return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'unknown, expired or revoked refresh token')
+  }
   if (old.clientId !== clientId) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'client_id does not match the refresh token')
+
+  // Mirrors the live-grant checks of `authMiddleware` and the consent step: a refresh token
+  // must not outlive the account or the user's consent for this client.
+  const user = await context.get('userRepository').findById(old.userId)
+  if (!user || !user.isActive) {
+    return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'the resource owner is no longer active')
+  }
+  const consent = await context.get('oauthConsentRepository').findActive(clientId, old.userId)
+  if (!consent) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'consent for this client was revoked')
 
   let resolvedScopes: OAuthScope[]
   if (!requestedScope) {
@@ -189,6 +213,12 @@ async function handleRefreshTokenGrant(context: OAuthContext, body: Record<strin
       return tokenError(context, OAUTH_ERRORS.INVALID_SCOPE, 'requested scope exceeds the scope originally granted')
     }
     resolvedScopes = parsed
+  }
+
+  // The client's allowlist can narrow after the token was issued (admin action). Re-check it
+  // on every rotation so a client never keeps rotating into a scope it is no longer allowed.
+  if (!isScopeSubset(resolvedScopes, client.allowedScopes)) {
+    return tokenError(context, OAUTH_ERRORS.INVALID_SCOPE, 'granted scope is no longer allowed for this client')
   }
 
   const pair = await issueTokenPair({
@@ -230,7 +260,7 @@ async function handleRefreshTokenGrant(context: OAuthContext, body: Record<strin
  * authenticated by the grant parameters themselves (authorization code + PKCE verifier, or refresh token).
  *
  * Protections:
- * - Dual-key rate limiting (per client IP and per `client_id` account key).
+ * - Dual-key rate limiting (per client IP and per presented credential hash).
  * - Supported grants: `authorization_code` and `refresh_token`.
  * - Strictly sets `Cache-Control: no-store, Pragma: no-cache`.
  *
@@ -240,14 +270,15 @@ async function handleRefreshTokenGrant(context: OAuthContext, body: Record<strin
 export async function tokenHandler(context: OAuthContext): Promise<Response> {
   try {
     const body = (await context.req.parseBody()) as Record<string, string | File>
-    const rawClientId = readFormField(body, 'client_id')
-
     const clientIp = getClientIp(context.req)
+    // Keyed on the presented credential, never on the public `client_id`: a shared per-client bucket
+    // lets any anonymous caller drain it and lock out every legitimate user of that client (#587).
+    const credential = readFormField(body, 'code') ?? readFormField(body, 'refresh_token')
     const rateLimit = await checkDualKeyRateLimit({
       ipLimiter: context.get('rateLimiters').getLimiter('oauthToken'),
       accountLimiter: context.get('rateLimiters').getLimiter('oauthTokenAccount'),
       clientIp,
-      accountKey: rawClientId || 'unknown',
+      accountKey: credential ? await sha256hex(credential) : clientIp,
     })
     if (!rateLimit.isAllowed) {
       return context.json(

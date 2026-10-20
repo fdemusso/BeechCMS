@@ -23,7 +23,14 @@ Commands are categorized by operational scope:
 | `npx beech db:migrate` | Consumer | Applies local D1 database migrations. | Runs `npm run db:migrate:local` or `beech init --db` |
 | `npx beech db:reset` | Consumer | Clears local Wrangler state and re-bootstraps fresh database. | Runs `npm run db:reset:local` or purges `.wrangler/state` |
 | `npx beech reset` | Monorepo | Comprehensive environment reset. | `--db`, `--docker`, `--all`, `--yes` |
-| `npx beech gen types typescript` | Consumer | Generates typed TypeScript interfaces from active D1 Seeds. | `--remote` (local D1 is the default), `-o`/`--out`/`--output <file>`, `--db <name>` (aliases: `gen-types`, `gen:types`, `generate:types`) |
+| `npx beech types generate` (`beech types:generate`) | Consumer | Generates `beech.generated.ts` (`SeedRegistryTypes` + `SCHEMA_FINGERPRINT`) from live D1. | `--remote`, `-o`/`--output <file>`, `--db <name>` (aliases: `beech gen types typescript`, `beech gen-types`, `beech gen:types`, `beech generate:types` — these print to stdout by default) |
+| `npx beech types check` (`beech types:check`) | Consumer | Diffs the committed generated types against live D1 in memory. Writes nothing. Exits 1 when the file is missing or stale. | `--remote`, `-o`/`--output <file>`, `--db <name>` |
+| `npx beech schema export` (`beech schema:export`) | Consumer | Writes `beech.schema.ts` — a reviewable snapshot of the live D1 schema. | `--out <file>`, `--stdout`, `--remote`, `--db <name>` |
+| `npx beech schema diff` (`beech schema:diff`) | Consumer | Compares `beech.schema.ts` against the deployed schema and reports drift. Exits 1 when drift is detected. | `--manifest <file>`, `--remote`, `--db <name>` |
+| `npx beech schema audit` (`beech schema:audit`) | Consumer | Read-only audit of relation storage: compares each relation branch (`multiple`, `targetSeed`, `onDelete`) with the physical FK column, `rel_<slug>_<alias>` junction (and drafts junction) and FK policy. Reports stranded value counts, never changes data. Exits 1 on any mismatch. | `--remote`, `--db <name>` |
+| `npx beech schema migrate` (`beech schema:migrate`) | Consumer | Moves seeds saved before 0.9 to the closed-vocabulary `tags` contract: `text` + `options` becomes single-choice `tags` (stored strings wrapped into arrays), string `options` become `{ value, color }`. Dry run by default (exits 1 while work is pending); `--apply` writes. Idempotent. | `--apply`, `--remote`, `--db <name>` |
+| `npx beech schema plan` (`beech schema:plan`) | Consumer | Shows the DDL and the definition-only changes applying `beech.schema.ts` would make; unchanged seeds print `(no change)`. Writes nothing. Exits 1 when a seed cannot be applied. | `--manifest <file>`, `--api-url <url>` |
+| `npx beech schema apply` (`beech schema:apply`) | Consumer | Applies `beech.schema.ts` through the control plane (`mcp-plan` / `mcp-apply`). Additive only. Skips seeds whose definition already matches. | `--manifest <file>`, `--api-url <url>`, `-y`/`--yes` |
 | `npx beech forms` | Consumer | Interactive wizard generating React, Vue, Svelte, or Web Component forms. | `--seed <slug>`, `--framework <name>`, `--mode <create\|edit>`, `--out <path>`, `--yes`, `--json` (aliases: `form`, `forms:add`) |
 | `npx beech setup:cloudflare` | Consumer | 1-step Cloudflare edge provisioning (D1, R2, S3 secrets). | `--name <name>`, `--yes` (alias: `setup:cf`) |
 | `npx beech deploy` | Consumer | Deploys Worker and embedded admin dashboard to Cloudflare. | `--skip-check`, `--skip-seed` |
@@ -37,10 +44,10 @@ Commands are categorized by operational scope:
 | `npx beech dev:tunnel` | Monorepo | Displays active Cloudflare quick tunnel public URL from container logs. | None |
 | `npx beech mailpit:clear` | Monorepo | Clears local Mailpit development inbox. | None |
 | `npx beech logs <service>` | Monorepo | Streams logs from Docker services. | Services: `mailpit`, `sqlite` (`db`), `tunnel`, `minio` (`storage`) |
-| `npx beech schema:diff` | **Deprecated** | Prints a deprecation notice and exits. D1 is the canonical schema authority; the Botanical Engine applies runtime mutations automatically. | Flags accepted but ignored |
+| `npx beech schema diff` (`beech schema:diff`) | Consumer | Reports manifest-vs-deployed drift and definition-vs-physical-table drift. Exits 1 on drift. | `--manifest <file>`, `--remote`, `--db <name>` |
 | `npx beech seed:load` | **Deprecated** | Prints a deprecation notice and exits. Static `seeds.ts` files are no longer synchronized to the database. | Flags accepted but ignored |
 | `npx beech seed:create` | **Deprecated** | Prints a deprecation notice and exits. Create content types in the dashboard (`/admin`) or via `POST /api/seeds`. | Flags accepted but ignored |
-| `npx beech test` | Monorepo | Executes Turborepo test runner. | `--coverage`, `--diff` |
+| `npx beech test` | Monorepo | Executes Turborepo test runner. | `--coverage`, `--diff`, `--tier <unit\|flow\|integration\|e2e>` |
 | `npx beech lint` | Monorepo | Executes project linter checks via Turborepo. | None |
 
 ---
@@ -81,15 +88,84 @@ npx beech db:reset
 
 ### 3. TypeScript Type Generation
 
-BeechCMS generates typed TypeScript interfaces directly from your live Seed schemas stored in D1:
+BeechCMS generates typed TypeScript interfaces directly from your live Seed schemas stored in D1.
+`npx beech types generate` writes `beech.generated.ts`, containing `SeedRegistryTypes` **and** a
+`SCHEMA_FINGERPRINT` constant — the value a future `@beechcms/client` compares against the API's
+`X-Schema-Revision` response header to detect a stale build:
 
 ```bash
-# Generate types for all seeds to src/types/beech.ts
-npx beech gen types typescript -o src/types/beech.ts
+# Generate types + fingerprint for all seeds to beech.generated.ts
+npx beech types generate
 
-# Generate types from remote production database
-npx beech gen types typescript --remote -o src/types/beech.ts
+# Generate types from remote production database, to a custom path
+npx beech types generate --remote -o src/types/beech.ts
 ```
+
+The historical aliases (`gen-types`, `gen:types`, `generate:types`, `gen types typescript`) still
+work and keep printing to stdout by default, so no existing script changes behaviour.
+
+`npx beech types check` closes the CI gap: it regenerates types from live D1 in memory and diffs
+them against the committed file, without writing anything on a clean run. It replaces the older
+`types generate` + `git diff --exit-code` two-step, and exits 1 the same way `schema diff` does so
+both can gate a pipeline:
+
+```bash
+# Fail if beech.generated.ts is missing or out of sync with live D1
+npx beech types check
+
+npx beech types check --remote -o src/types/beech.ts
+```
+
+#### Auditing stranded relation data
+
+Releases before the additive relation gate (`relation-change-not-supported`) could save a changed
+`multiple`, `targetSeed` or `onDelete` without migrating the physical storage. The API then reads the
+new shape while the values still sit in the old one. `schema audit` identifies those databases:
+
+```bash
+npx beech schema audit            # local D1
+npx beech schema audit --remote   # production D1
+```
+
+Each finding names the seed, the branch and one of: `wrong_storage` (data in the other shape: FK
+column vs `rel_<slug>_<alias>` junction, including the `_drafts` junction), `missing_storage`,
+`fk_target_mismatch`, `fk_on_delete_mismatch`. `strandedRows` counts values in storage the definition
+no longer reads. These are invisible to the API but still present: **do not drop** that column or
+junction. The command is read-only, never deletes anything, and exits 1 on any finding.
+
+Stale-data window: until a repair is applied, affected relations return empty or partial values for
+entries written before the edit. A reviewed repair workflow is tracked in issue #664.
+
+#### Migrating pre-0.9 tag and choice fields
+
+Before 0.9 a choice field was `text` + `options`, or `tags` + `options: string[]`. Since 0.9 `options`
+exists only on `tags`, as `{ value, color }[]`, and every stored value is a JSON array. A database still
+holding the old shapes does **not** stop the API: the affected seed is disabled (its routes answer 404),
+every other seed keeps serving, and the Worker log carries one warning per seed:
+
+```
+[BeechCMS] Seed "tickets" is disabled until its definition is fixed: ... Run "beech schema migrate" ...
+```
+
+`schema audit` lists those seeds, and `schema migrate` repairs them:
+
+```bash
+npx beech schema migrate              # dry run: prints the plan, writes nothing, exits 1 while work is pending
+npx beech schema migrate --apply      # local D1
+npx beech schema migrate --apply --remote   # production D1
+```
+
+What `--apply` does, in order: wraps stored strings into arrays (live table, and the drafts table when
+drafts are on), rewrites the seed definitions, then bumps the registry version so running Workers
+rebuild their cached registry. Colors for options that never had one come from a fixed palette, in
+declaration order. The statements are idempotent, so re-running after an interruption finishes the job.
+
+What it deliberately does not do:
+- Stored values that are not in the new vocabulary are **reported and left in place**; add the option or fix the rows.
+- A seed with a branch it cannot convert safely (options on a non-`text`/`tags` type, a localized branch,
+  a repeater sub-field) is **not rewritten at all** and is listed as a manual step: edit the seed, then re-run.
+
+After migrating, regenerate client types (`npx beech types generate`): `X-Schema-Revision` is `v2:`.
 
 ### 4. Interactive Form Generation
 
@@ -111,8 +187,11 @@ npx beech deploy
 
 ### 6. Schema Evolution & GitOps Migrations
 
-> [!IMPORTANT]
-> `beech schema:diff`, `beech seed:load`, and `beech seed:create` are **deprecated** and now only print a notice. There are no static `seeds.ts` blueprints to diff against: Cloudflare D1 is the canonical schema authority, and the Botanical Engine compiles and applies content-table DDL at runtime when a Seed is saved through the dashboard or `POST /api/seeds`. AI agents can drive the same path through the [MCP plan/apply tools](/reference/mcp-server).
+> [!NOTE]
+> **The manifest loop is closed.** `export` → review in Git → `diff` → `plan` → `apply` → `types generate`. The CLI never executes SQL and never opens D1 directly; every write goes through `POST /api/seeds/:slug/mcp-*`.
+> Authoring reference for the manifest file itself (`defineSchema`, `defineSeed`, `defineField`, `defineGroup`): [Schema Manifest](/build/schema-manifest).
+> The first `plan` or `apply` opens the browser once to authorize the `beech-mcp-cli` OAuth client. The grant is cached in `~/.beechcms/mcp-tokens.json` and revocable from Settings → Connected apps.
+> `apply` never deletes a seed absent from the manifest and never performs a drop, rename, or retype — the server refuses destructive intent and names the endpoint that can perform it.
 
 The versioned SQL files in `apps/api/migrations/` cover the **system** schema (`seeds`, `users`, `sessions`, `api_keys`, `media`, OAuth clients), not per-Seed content tables. Apply them with Wrangler.
 

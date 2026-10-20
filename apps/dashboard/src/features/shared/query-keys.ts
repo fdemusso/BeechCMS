@@ -13,6 +13,12 @@ export const BACKREF_QUERY_KEY = 'backrefs' as const
 
 export const GLOBAL_DRAFTS_QUERY_KEY = ["global-drafts"] as const
 
+/**
+ * `GET /api/settings`. The settings slice owns the fetcher and invalidates the key on save;
+ * `useLocaleConfig` observes the same entry so a language change reaches every surface.
+ */
+export const GENERAL_SETTINGS_QUERY_KEY = ["settings", "general"] as const
+
 export const DASHBOARD_QUERY_KEYS = {
   all: ["dashboard"] as const,
   stats: () => [...DASHBOARD_QUERY_KEYS.all, "stats"] as const,

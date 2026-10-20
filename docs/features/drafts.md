@@ -21,6 +21,7 @@ Drafting is enabled per Botanical Seed. When active, edits do not mutate the liv
 - **Unified Drafts Inbox**: A global view (`/drafts` route in the dashboard and `GET /api/content/drafts`) aggregates all pending work across every draft-enabled Seed.
 - **Partial Updates & Lenient Validation**: Drafts allow saving incomplete forms without failing strict `required` constraints, while still validating field types and sanitizing dangerous markup (XSS). Only modified fields (`_touched_fields`) are tracked and applied on publication.
 - **Referential Guard**: Attempting to publish a draft that references a deleted record fails atomically with a `422 Unprocessable Entity` (`relation-target-not-found`).
+- **Conflict Guard (Optimistic Concurrency)**: A draft that would overwrite a live record changed after the draft was created is refused with a `409 Conflict` (`draft-publish-conflict`) instead of silently winning. See [Publish Conflicts](#publish-conflicts).
 - **Audit Trails**: Draft creation, updates, and promotions trigger non-blocking audit events captured by the Activity Logger (`draft saved` and `draft published`).
 
 ---
@@ -168,9 +169,50 @@ If a referenced relation was deleted in the meantime, the API guarantees consist
 
 ---
 
+## Publish Conflicts
+
+A draft is a snapshot of intent taken at a point in time. Between the moment it is created and the moment it is published, the live record may be rewritten by someone else — a second editor, an API integration, a bulk update, or an import job. Publishing blindly would overwrite that work with no error and no recovery, because the draft row is deleted in the same operation.
+
+BeechCMS prevents this with **optimistic concurrency control**:
+
+1. When a draft is created, the mirror row records the live record's `updated_at` in the `live_snapshot_at` system column. Subsequent autosaves **never** re-base that value — the snapshot always reflects the version the editor actually started from.
+2. On publish, the engine performs an atomic compare-and-set against the live row (`WHERE id = ? AND updated_at = <snapshot>`), evaluated by SQLite itself rather than by application code, so two concurrent publishes cannot both pass the check.
+3. If the predicate matches no row, the publish aborts **before** any write of the promotion batch. The live record keeps the other writer's content and the draft survives intact.
+
+```json
+{
+  "type": "https://beechcms.dev/problems/draft-publish-conflict",
+  "title": "Conflict",
+  "status": 409,
+  "detail": "The live entry was modified after this draft was created. Discard the draft and re-open the entry to start from the current version.",
+  "instance": "/api/content/articles/art_01HXYZ/draft/publish"
+}
+```
+
+The conflict is enforced in the storage layer, so every caller of `publishDraft` inherits it — the REST route, the dashboard, and the queue consumer alike. Resolution is intentionally manual: there is no rebase, no merge, and no automatic retry. The editor discards the stale draft and starts from the current live version.
+
+> [!NOTE]
+> **Backward compatible by construction.** `live_snapshot_at` is nullable with no default. A draft created before the column existed carries `NULL`, which disables the predicate and publishes exactly as it did before. Enabling the feature can never block an in-flight draft.
+
+### Schema provisioning
+
+`live_snapshot_at` is a **system column** of `content_{slug}_drafts`, in the same class as `_touched_fields` and `updated_at`. It is emitted exclusively by the Botanical Engine, never by a hand-written migration, and it never appears in an API payload or in generated types.
+
+- Seeds created from now on are **born protected**: `planCreateSeed()` routes through the draft-table generator.
+- Draft tables provisioned earlier are repaired through the additive-evolution path (`planExtendSeed`), which emits the `ALTER` only when the table was introspected and lacks the column:
+
+```sql
+ALTER TABLE content_articles_drafts ADD COLUMN live_snapshot_at INTEGER;
+```
+
+Run `beech schema:apply` (or save the Seed from the dashboard) to apply it to an existing database.
+
+---
+
 ## Draft Guard & Sensitive Fields
 
 To ensure security and data consistency:
 - **Sensitive Fields Restriction**: Fields governed by `privacy: 'hash'` or `privacy: 'encrypt'` (or non-plain classification policies) cannot be modified via draft staging (`422 content-sensitive-field-edit`). Sensitive fields must be edited directly through authorized, immediate mutations.
 - **Seed Guard**: Requests to draft endpoints on a Seed with `allowDrafts: false` (or not set) return `405 Method Not Allowed` with problem type `https://beechcms.dev/problems/draft-not-allowed` (`This content type does not support pending drafts. Set allowDrafts: true on the Seed to enable.`).
 - **Parent Entry Guard**: Attempting to draft or publish changes for a record that does not exist in the live table returns `404 Not Found` (`https://beechcms.dev/problems/content-not-found`).
+- **Conflict Guard**: Publishing a draft whose live record moved on returns `409 Conflict` (`https://beechcms.dev/problems/draft-publish-conflict`). See [Publish Conflicts](#publish-conflicts).

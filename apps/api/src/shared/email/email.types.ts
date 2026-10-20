@@ -47,7 +47,7 @@ export function resolveEmailLocale(raw: unknown): EmailLocale {
  * Specific functions extend this type with the additional fields
  * required for their respective templates.
  */
-export interface BaseEmailParams {
+interface BaseEmailParams {
   /** Main recipient address. */
   to: string
   /** Email body language. Use `resolveEmailLocale()` before passing it here. */
@@ -85,6 +85,18 @@ export interface PasswordResetEmailParams extends BaseEmailParams {
 
 /** Parameters for the "password changed" notification. No additional fields. */
 export interface PasswordChangedEmailParams extends BaseEmailParams {
+  provider?: 'smtp' | 'resend'
+  smtpBaseUrl?: string
+}
+
+/** Parameters for the invitation email — adds the activation URL and what it grants. */
+export interface InvitationEmailParams extends BaseEmailParams {
+  /** Complete activation URL, `?token=<opaque hex>`. */
+  inviteUrl: string
+  /** `roles.name` of the pre-assigned role. */
+  roleName: string
+  /** Seed slug, or the localized label for the global scope. */
+  scopeLabel: string
   provider?: 'smtp' | 'resend'
   smtpBaseUrl?: string
 }

@@ -11,6 +11,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { usePermissions } from '@/features/shared/hooks/use-permissions'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { Branch } from '@beechcms/core'
@@ -38,6 +40,9 @@ export function AutomationPanel({
   seedBranches,
 }: AutomationPanelProps) {
   const { t } = useTranslation()
+  const { can } = usePermissions()
+  const canUpdateGlobal = can('content:update', '*')
+
   const { data: automations = [], isLoading } = useAutomations(open ? seedSlug : undefined)
   const toggleMutation = useToggleAutomation(seedSlug)
   const deleteMutation = useDeleteAutomation(seedSlug)
@@ -49,10 +54,26 @@ export function AutomationPanel({
         <SheetContent side="right" className="w-96 p-0 flex flex-col">
           <SheetHeader className="pl-6 pr-12 py-4 border-b flex flex-row items-center justify-between">
             <SheetTitle>{t('automations.panel.title')}</SheetTitle>
-            <Button size="sm" onClick={openNew}>
-              <Plus className="size-4 mr-1" />
-              {t('automations.panel.newButton')}
-            </Button>
+            {canUpdateGlobal ? (
+              <Button size="sm" onClick={openNew}>
+                <Plus className="size-4 mr-1" />
+                {t('automations.panel.newButton')}
+              </Button>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button size="sm" disabled>
+                      <Plus className="size-4 mr-1" />
+                      {t('automations.panel.newButton')}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Manca il permesso 'content:update' globale
+                </TooltipContent>
+              </Tooltip>
+            )}
           </SheetHeader>
 
           <ScrollArea className="flex-1">

@@ -530,6 +530,53 @@ describe('#184 — repeater sub-fields respect enforceRequiredFields (#5)', () =
   })
 })
 
+describe('#444 — repeater required sub-fields reject value-level emptiness', () => {
+  const REPEATER_VALUE_EMPTINESS_SEED: Seed = {
+    slug: 'rep',
+    label: 'Rep',
+    displayNameAlias: 'title',
+    branches: [
+      { id: 'br_title', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+      {
+        id: 'br_items', alias: 'items', label: 'Items', type: 'repeater',
+        fields: [
+          { id: 'br_item_title', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+          { id: 'br_price', alias: 'price', label: 'Price', type: 'number', requiredOnCreate: true },
+        ],
+      },
+    ],
+  }
+
+  function validate(items: unknown) {
+    return validateAndSanitizeSeedPayload(
+      REPEATER_VALUE_EMPTINESS_SEED,
+      { title: 'T', items },
+      { operation: 'create' },
+    )
+  }
+
+  it('rejects a whitespace-only value for a required text sub-field', () => {
+    const r = validate([{ title: '   ', price: 1 }])
+
+    expect(r.details.some(d => d.field === 'items[0].title')).toBe(true)
+    expect(r.data).not.toHaveProperty('items')
+  })
+
+  it('rejects an empty string for a required number sub-field instead of silently dropping the key', () => {
+    const r = validate([{ title: 'Widget', price: '' }])
+
+    expect(r.details.some(d => d.field === 'items[0].price')).toBe(true)
+    expect(r.data).not.toHaveProperty('items')
+  })
+
+  it('accepts a fully populated item unaffected by the emptiness check', () => {
+    const r = validate([{ title: 'Widget', price: 9.99 }])
+
+    expect(r.details).toEqual([])
+    expect(r.data.items).toEqual([{ title: 'Widget', price: 9.99 }])
+  })
+})
+
 // Regression: https://github.com/ (issue #152) — empty string on a nullable field
 // must resolve to `null`, not be rejected by the `withNullable` union.
 describe('empty string on nullable fields (issue #152)', () => {
@@ -600,6 +647,32 @@ describe('empty string on nullable fields (issue #152)', () => {
       { operation: 'update', allowNull: false, requireAtLeastOneValidField: false },
     )
     expect(r.data.price).toBeUndefined()
+  })
+})
+
+// Regression: issue #443 — JSON.stringify (recursive) ran BEFORE the depth guard as a
+// fail-fast size pre-check, so a `json` branch payload nested past a few thousand
+// levels threw an uncaught RangeError from inside the Zod transform instead of
+// failing validation with a normal issue.
+describe('json branch: deep nesting past JSON_MAX_DEPTH (issue #443)', () => {
+  it('rejects a json payload nested by orders of magnitude past the depth cap without a RangeError', () => {
+    let deep: Record<string, unknown> = { leaf: true }
+    for (let i = 0; i < 5000; i++) {
+      deep = { child: deep }
+    }
+
+    expect(() => validateAndSanitizeSeedPayload(
+      CHAOS_SEED,
+      { title: 'Valid Title', qty: 1, meta: deep },
+      { operation: 'update', requireAtLeastOneValidField: false },
+    )).not.toThrow()
+
+    const r = validateAndSanitizeSeedPayload(
+      CHAOS_SEED,
+      { title: 'Valid Title', qty: 1, meta: deep },
+      { operation: 'update', requireAtLeastOneValidField: false },
+    )
+    expect(r.details.some(d => d.field === 'meta' && d.expected.includes('maxDepth'))).toBe(true)
   })
 })
 

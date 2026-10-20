@@ -17,7 +17,7 @@ import { WidgetError } from "./_parts/widget-error"
 
 export type TimeseriesChartKind = "line" | "bar" | "area"
 
-export interface TimeseriesChartConfig {
+interface TimeseriesChartConfig {
   seedSlug: string
   formula?: AggregateFormula
   window?: TimeWindow

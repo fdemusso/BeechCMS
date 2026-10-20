@@ -4,10 +4,15 @@
 
 import { describe, expect, it } from 'vitest'
 import { isValidContentStatus, validateAndSanitizeSeedPayload } from '@beechcms/core'
-import { sanitizePublicPayload } from '../src/public/sanitize'
-import { generateEntrySlug, slugify } from '../src/public/slug-utils'
-import { parseLatestCount, parsePublicPagination } from '../src/public/query-builder'
-import { buildPublicListMeta, buildPublicSingleMeta } from '../src/public/response-builder'
+import {
+  sanitizePublicPayload,
+  generateEntrySlug,
+  slugify,
+  parseLatestCount,
+  parsePublicPagination,
+  buildPublicListMeta,
+  buildPublicSingleMeta,
+} from '../src/public'
 import { TEST_SEEDS } from './fixtures'
 
 const articoliSeed = TEST_SEEDS[0] // posts in fixtures

@@ -84,10 +84,11 @@ import { beech } from '~/lib/beech.server'
 import { renderRichText } from '@beechcms/client/richtext'
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const result = await beech.content('articles').list({
-    sort: { created_at: 'desc' },
-    limit: 10
-  })
+  const result = await beech
+    .collection('articles')
+    .orderBy('created_at', 'desc')
+    .limit(10)
+    .list()
 
   return json({
     articles: result.data ? result.data.data : []

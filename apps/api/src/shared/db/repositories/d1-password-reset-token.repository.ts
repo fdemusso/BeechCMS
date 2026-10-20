@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { IPasswordResetTokenRepository, NewPasswordResetToken, ValidatedResetToken, IIdGenerator } from '@beechcms/core'
+import type { IPasswordResetTokenRepository, NewPasswordResetToken, RedeemPasswordResetInput, ValidatedResetToken, IIdGenerator } from '@beechcms/core'
 
 type ValidatedResetTokenRow = {
   id: string
@@ -38,7 +38,7 @@ export class D1PasswordResetTokenRepository implements IPasswordResetTokenReposi
         `SELECT prt.id, prt.user_id, u.email
          FROM password_reset_tokens prt
          JOIN users u ON u.id = prt.user_id
-         WHERE prt.token_hash = ? AND prt.expires_at > ? AND prt.used_at IS NULL`
+         WHERE prt.token_hash = ? AND prt.expires_at > ? AND prt.used_at IS NULL AND u.is_active = 1`
       )
       .bind(tokenHash, nowTimestamp)
       .first<ValidatedResetTokenRow>()
@@ -47,10 +47,22 @@ export class D1PasswordResetTokenRepository implements IPasswordResetTokenReposi
     return { id: row.id, userId: row.user_id, email: row.email }
   }
 
-  async markUsed(tokenId: string, nowTimestamp: number): Promise<void> {
-    await this.db
-      .prepare('UPDATE password_reset_tokens SET used_at = ? WHERE id = ?')
-      .bind(nowTimestamp, tokenId)
-      .run()
+  async redeem(input: RedeemPasswordResetInput): Promise<boolean> {
+    const { tokenId, userId, newPasswordHash, nowTimestamp } = input
+    const tokenStillUnused = 'EXISTS (SELECT 1 FROM password_reset_tokens WHERE id = ? AND used_at IS NULL)'
+    // db.batch runs as one implicit transaction. The token is burned last so the two guarded
+    // writes still see it unused; a concurrent redeem then finds it used and writes nothing.
+    const [, , burnToken] = await this.db.batch([
+      this.db
+        .prepare(`UPDATE users SET password_hash = ? WHERE id = ? AND ${tokenStillUnused}`)
+        .bind(newPasswordHash, userId, tokenId),
+      this.db
+        .prepare(`UPDATE refresh_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND ${tokenStillUnused}`)
+        .bind(nowTimestamp, userId, tokenId),
+      this.db
+        .prepare('UPDATE password_reset_tokens SET used_at = ? WHERE id = ? AND used_at IS NULL')
+        .bind(nowTimestamp, tokenId),
+    ])
+    return burnToken.meta.changes === 1
   }
 }

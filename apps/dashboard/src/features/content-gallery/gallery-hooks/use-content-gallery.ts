@@ -3,46 +3,59 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
-import type { Seed } from "@beechcms/core"
+import { useTranslation } from "react-i18next"
+import { isSingleChoiceTags, type KanbanCardConfig, type Seed } from "@beechcms/core"
 
 import type { ContentEntry } from "@/lib/dynamic-columns"
+import { NO_ELEMENT_FORMATTER, type ElementFormatter } from "@/lib/conditional-format"
+import { compareTagChoice } from "@/lib/tags-utils"
 
 import { buildGalleryCardDisplayModel } from "../gallery-card-display"
 import type { GalleryCardDisplayModel } from "../gallery-card-display"
+import { groupByCategory, type GalleryCategoryGroup } from "../group-by-category"
 import { resolveCardFields } from "../resolve-card-fields"
 
 export interface UseContentGalleryResult {
-  peekId: string | null
-  setPeekId: React.Dispatch<React.SetStateAction<string | null>>
-  peekEntry: ContentEntry | null
   cardModels: GalleryCardDisplayModel[]
+  /** Gruppi per categoria; vuoto se non c'è un "Raggruppa per" attivo (vista piatta). */
+  categoryGroups: GalleryCategoryGroup[]
+  /** Alias del campo scelto come "Raggruppa per", `null` se nessuno. */
+  categoryAlias: string | null
 }
 
-export function useContentGallery(seed: Seed, data: ContentEntry[]): UseContentGalleryResult {
-  const [peekId, setPeekId] = React.useState<string | null>(null)
+/**
+ * `groupBy` è lo stesso stato del "Raggruppa per" del toolbar della tabella
+ * (`tableConfig.groupBy`): le cartelle della gallery non indovinano il campo
+ * categoria dal nome, usano la scelta esplicita dell'utente.
+ */
+export function useContentGallery(
+  seed: Seed,
+  data: ContentEntry[],
+  groupBy: string | null,
+  formatElement: ElementFormatter = NO_ELEMENT_FORMATTER,
+  card?: KanbanCardConfig
+): UseContentGalleryResult {
+  const { t, i18n } = useTranslation()
 
-  const peekEntry = React.useMemo(
-    () => data.find((entry) => entry.id === peekId) ?? null,
-    [data, peekId]
-  )
-
-  React.useEffect(() => {
-    if (!peekId) return
-    if (data.some((entry) => entry.id === peekId)) return
-    setPeekId(null)
-  }, [data, peekId])
-
-  const cardFields = React.useMemo(() => resolveCardFields(seed), [seed])
+  const cardFields = React.useMemo(() => resolveCardFields(seed, groupBy, card), [seed, groupBy, card])
 
   const cardModels = React.useMemo(
-    () => data.map((entry) => buildGalleryCardDisplayModel(entry, cardFields)),
-    [data, cardFields]
+    () => data.map((entry) => buildGalleryCardDisplayModel(entry, cardFields, t, i18n.language, formatElement(entry), !!seed.allowDrafts)),
+    [data, cardFields, t, i18n.language, formatElement, seed.allowDrafts]
   )
 
+  const categoryAlias = cardFields.categoryBranch?.alias ?? null
+
+  const categoryBranch = cardFields.categoryBranch
+  const categoryGroups = React.useMemo(() => {
+    if (!categoryAlias) return []
+    if (!categoryBranch || !isSingleChoiceTags(categoryBranch)) return groupByCategory(cardModels)
+    return groupByCategory(cardModels, (a, b) => compareTagChoice(categoryBranch, a, b))
+  }, [cardModels, categoryAlias, categoryBranch])
+
   return {
-    peekId,
-    setPeekId,
-    peekEntry,
     cardModels,
+    categoryGroups,
+    categoryAlias,
   }
 }

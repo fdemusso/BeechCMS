@@ -11,7 +11,17 @@
         "!**/test/**",
         "!**/*.md"
       ],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", "resources/**"]
+    },
+    "@beechcms/mcp#build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.test.ts",
+        "!**/*.test.tsx",
+        "!**/test/**"
+      ],
+      "outputs": ["dist/**", "resources/**"]
     },
     "type-check": {
       "dependsOn": ["^build"]
@@ -22,6 +32,26 @@
     "deploy": { "dependsOn": ["build"] },
     "@beechcms/api#deploy": { "dependsOn": ["@beechcms/dashboard#build", "build"] },
     "test": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
+    "test:unit": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
+    "test:flow": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
+    "test:integration": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
+    "test:e2e": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
+    "test:scale": {
       "cache": false,
       "dependsOn": ["^build"]
     },

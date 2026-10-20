@@ -6,6 +6,7 @@ import { createMiddleware } from 'hono/factory'
 import { BeechBucket } from '@beechcms/core'
 import { AppEnv } from '../types'
 import { createBucketProvider } from '../shared/storage/factory'
+import { CloudflareImagesTransformer } from '../shared/media/cloudflare-images.transformer'
 
 interface StorageOverrides {
   bucket?: BeechBucket
@@ -20,6 +21,7 @@ export const storageMiddleware = (overrides?: StorageOverrides) => {
       const baseUrl = context.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '') || new URL(context.req.url).origin
       context.set('bucket', createBucketProvider(context.env, baseUrl))
     }
+    context.set('imageTransformer', context.env.IMAGES ? new CloudflareImagesTransformer(context.env.IMAGES) : null)
     await next()
   })
 }

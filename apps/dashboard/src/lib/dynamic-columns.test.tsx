@@ -1,0 +1,578 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import { render, screen, fireEvent, waitFor } from "@testing-library/react"
+
+// Mock toast: serve per coprire il ramo "Copia fallita" e "ID copiato"
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}))
+
+import { toast } from "sonner"
+
+import type { Seed } from "@beechcms/core"
+import { CANONICAL_SEEDS } from "@beechcms/testing"
+import { DataTable } from "@/components/ui/data-table"
+import { generateColumns, computeMaxLengths, defaultHiddenColumns } from "@/lib/dynamic-columns"
+import type { ContentEntry } from "@/lib/dynamic-columns"
+
+const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts")!
+
+vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }) }))
+
+function makeSeed({
+  branches,
+  slug = "items",
+  label = "Item",
+  labelPlural = "Items",
+}: {
+  branches: Seed["branches"]
+  slug?: string
+  label?: string
+  labelPlural?: string
+}): Seed {
+  return {
+    slug,
+    label,
+    labelPlural,
+    branches,
+  } as Seed
+}
+
+function makeEntry(id: string, schema_slug: string, data: Record<string, unknown>): ContentEntry {
+  return {
+    id,
+    schema_slug,
+    slug: "slug-" + id,
+    status: "published",
+    data,
+    created_at: null,
+    updated_at: null,
+  } as ContentEntry
+}
+
+describe("dynamic-columns - computeMaxLengths", () => {
+  it("calcola max con troncamento (min 20) anche per json con alias 'tag'", () => {
+    const seed = makeSeed({
+      branches: [
+        { id: "b1", alias: "title", label: "Title", type: "text" as const },
+        { id: "b2", alias: "body", label: "Body", type: "json" as const },
+        { id: "b3", alias: "tagsImages", label: "Tags", type: "json" as const },
+        { id: "b4", alias: "otherField", label: "Other", type: "unknown" as any },
+      ] as any,
+    })
+
+    const data: ContentEntry[] = [
+      makeEntry("1", "items", {
+        title: "short",
+        body: '{"a":"b"}',
+        tagsImages: '{"react":"#111"}',
+        otherField: "hello",
+      }),
+      makeEntry("2", "items", {
+        title: "a bit longer than short",
+        body: '{"a":"a","b":"b"}',
+        tagsImages: '{"react":"#111","cms":"#222"}',
+        otherField: "x",
+      }),
+    ]
+
+    const max = computeMaxLengths(data, seed, 10)
+    // text e json: almeno MIN_TRUNCATE_LENGTH, l'alias non conta
+    expect(max.title).toBeGreaterThanOrEqual(20)
+    expect(max.body).toBeGreaterThanOrEqual(20)
+    expect(max.otherField).toBeGreaterThanOrEqual(20)
+    expect(max.tagsImages).toBeGreaterThanOrEqual(20)
+  })
+
+  it("applica un tetto massimo al troncamento per testi molto lunghi", () => {
+    const seed = makeSeed({
+      branches: [
+        { id: "b1", alias: "body", label: "Body", type: "text" as const },
+      ] as any,
+    })
+
+    const veryLong = "x".repeat(5000)
+    const data: ContentEntry[] = [
+      makeEntry("1", "items", { body: veryLong }),
+    ]
+
+    const max = computeMaxLengths(data, seed, 10)
+    expect(max.body).toBe(60)
+  })
+})
+
+describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
+  const baseSeed = makeSeed({
+    branches: [
+      { id: "d1", alias: "publishedAt", label: "Published At", type: "date" as const },
+      { id: "b1", alias: "active", label: "Active", type: "boolean" as const },
+      { id: "n1", alias: "price", label: "Price", type: "number" as const },
+      { id: "t1", alias: "title", label: "Title", type: "text" as const },
+    ] as any,
+  })
+
+  it("date: getGroupingValue rispetta la precisione year-only e aggregatedCell gestisce voce/voci", () => {
+    const cols = generateColumns(
+      baseSeed,
+      vi.fn(),
+      vi.fn(),
+      undefined,
+      [],
+      undefined,
+      { year: true, month: false, day: false },
+      (k) => (k === "content.table.items" ? "entries" : k)
+    )
+
+    const dateCol = cols.find((c) => c.id === "publishedAt") as any
+    expect(dateCol).toBeTruthy()
+
+    const groupingValue = dateCol.getGroupingValue({ data: { publishedAt: "2026-01-03" } })
+    expect(groupingValue).toBe("2026")
+
+    const el1 = dateCol.aggregatedCell({
+      getValue: () => "2026",
+      row: { subRows: [{}, {}] },
+    })
+    render(el1)
+    expect(screen.getByText(/2026 · 2 entries/i)).toBeInTheDocument()
+  })
+
+  it("boolean: booleanAggFn conta true/false e aggregatedCell formatta ✓/✗", () => {
+    const cols = generateColumns(baseSeed, vi.fn(), vi.fn())
+    const boolCol = cols.find((c) => c.id === "active") as any
+
+    const aggResult = boolCol.aggregationFn(
+      "active",
+      [
+        { getValue: () => true },
+        { getValue: () => false },
+        { getValue: () => undefined },
+      ] as any
+    )
+
+    expect(aggResult).toEqual({ trueCount: 1, falseCount: 1 })
+
+    const el = boolCol.aggregatedCell({
+      getValue: () => aggResult,
+      row: { subRows: [{}] },
+    })
+    render(el)
+    expect(screen.getByText(/✓ 1 \/ ✗ 1/)).toBeInTheDocument()
+  })
+
+  it("number: formatSum usa Σ quando value è number e fallback su NaN", () => {
+    const cols = generateColumns(baseSeed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, (k) => (k === "content.table.items" ? "entries" : k))
+    const numCol = cols.find((c) => c.id === "price") as any
+
+    const el = numCol.aggregatedCell({
+      getValue: () => 10,
+      row: { subRows: [{}, {}] },
+    })
+    const utils1 = render(el)
+    expect(utils1.getByText(/Σ/)).toBeInTheDocument()
+    expect(utils1.getByText(/2 entries/i)).toBeInTheDocument()
+    utils1.unmount()
+
+    const elNaN = numCol.aggregatedCell({
+      getValue: () => Number.NaN,
+      row: { subRows: [{}, {}] },
+    })
+    const utils2 = render(elNaN)
+    expect(utils2.getByText(/2 entries/i)).toBeInTheDocument()
+  })
+
+  it("default/text: aggregatedCell rende 'entry' quando count=1 e 'entries' quando count>1", () => {
+    const cols = generateColumns(baseSeed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, (k) => {
+      if (k === "content.table.item") return "entry"
+      if (k === "content.table.items") return "entries"
+      return k
+    })
+    const textCol = cols.find((c) => c.id === "title") as any
+
+    const elSingle = textCol.aggregatedCell({
+      row: { subRows: [{}] },
+    })
+    const utils1 = render(elSingle)
+    expect(utils1.getByText(/1 entry/i)).toBeInTheDocument()
+    utils1.unmount()
+
+    const elMany = textCol.aggregatedCell({
+      row: { subRows: [{}, {}] },
+    })
+    const utils2 = render(elMany)
+    expect(utils2.getByText(/2 entries/i)).toBeInTheDocument()
+  })
+
+  it("status: mostra il badge bozza in sospeso quando has_pending_draft è true", async () => {
+    const seed = makeSeed({ branches: [] })
+    const entry = {
+      ...makeEntry("id-1", "items", {}),
+      status: "published",
+      has_pending_draft: true,
+    } as ContentEntry
+    const t = (k: string) => {
+      if (k === "content.table.pendingDraft") return "Pending draft"
+      return k
+    }
+    const cols = generateColumns(seed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, t)
+
+    render(<DataTable columns={cols} data={[entry]} />)
+
+    expect(await screen.findByText("published")).toBeInTheDocument()
+    expect(await screen.findByText("Pending draft")).toBeInTheDocument()
+  })
+
+  it("status: non mostra il badge bozza in sospeso per entry archived", async () => {
+    const seed = makeSeed({ branches: [] })
+    const entry = {
+      ...makeEntry("id-1", "items", {}),
+      status: "archived",
+      has_pending_draft: true,
+    } as ContentEntry
+    const t = (k: string) => {
+      if (k === "content.table.pendingDraft") return "Pending draft"
+      return k
+    }
+    const cols = generateColumns(seed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, t)
+
+    render(<DataTable columns={cols} data={[entry]} />)
+
+    expect(await screen.findByText("archived")).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByText("Pending draft")).not.toBeInTheDocument()
+    })
+  })
+
+  it("status: non mostra il badge bozza in sospeso per entry draft", async () => {
+    const seed = makeSeed({ branches: [] })
+    const entry = {
+      ...makeEntry("id-1", "items", {}),
+      status: "draft",
+      has_pending_draft: true,
+    } as ContentEntry
+    const t = (k: string) => {
+      if (k === "content.table.pendingDraft") return "Pending draft"
+      return k
+    }
+    const cols = generateColumns(seed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, t)
+
+    render(<DataTable columns={cols} data={[entry]} />)
+
+    expect(await screen.findByText("draft")).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByText("Pending draft")).not.toBeInTheDocument()
+    })
+  })
+
+  describe("azioni column", () => {
+    beforeEach(() => {
+      ;(toast.success as any).mockClear?.()
+      ;(toast.error as any).mockClear?.()
+
+      Object.defineProperty(navigator, "clipboard", {
+        value: {
+          writeText: vi.fn().mockResolvedValue(undefined),
+        },
+        configurable: true,
+        writable: true,
+      })
+    })
+
+    it("selectedIds vuoto: Copia ID (success) + Modifica + Elimina chiamano le callback", async () => {
+      const onEdit = vi.fn()
+      const onDelete = vi.fn()
+      const onBulkDelete = vi.fn()
+
+      const seed = makeSeed({ branches: [] })
+      const entry = makeEntry("id-1", "items", {})
+      const t = (k: string) => {
+        const m: any = {
+          "common.openMenu": "Open menu",
+          "content.actions.label": "Actions",
+          "common.delete": "Delete",
+          "common.edit": "Edit",
+          "content.actions.copyId": "Copy ID",
+          "common.copied": "ID copied"
+        }
+        return m[k] || k
+      }
+      const cols = generateColumns(seed, onEdit, onDelete, undefined, [], onBulkDelete, undefined, t)
+
+      render(<DataTable columns={cols} data={[entry]} />)
+
+      fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
+
+      expect(await screen.findByText("Copy ID")).toBeInTheDocument()
+      fireEvent.click(screen.getByText("Edit"))
+      expect(onEdit).toHaveBeenCalledWith("id-1")
+
+      fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
+      fireEvent.click(screen.getByText("Delete"))
+      expect(onDelete).toHaveBeenCalledWith("id-1")
+
+      fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
+      fireEvent.click(screen.getByText("Copy ID"))
+
+      await waitFor(() => {
+        expect((navigator as any).clipboard.writeText).toHaveBeenCalledWith("id-1")
+        expect(toast.success).toHaveBeenCalledWith("ID copied")
+      })
+    })
+
+    it("clipboard error: Copia ID chiama toast.error", async () => {
+      Object.defineProperty(navigator, "clipboard", {
+        value: {
+          writeText: vi.fn().mockRejectedValue(new Error("fail")),
+        },
+        configurable: true,
+        writable: true,
+      })
+
+      const onEdit = vi.fn()
+      const onDelete = vi.fn()
+
+      const seed = makeSeed({ branches: [] })
+      const entry = makeEntry("id-1", "items", {})
+      const t = (k: string) => {
+        const m: any = {
+          "common.openMenu": "Open menu",
+          "content.actions.copyId": "Copy ID",
+          "common.copyFailed": "Copy failed"
+        }
+        return m[k] || k
+      }
+      const cols = generateColumns(seed, onEdit, onDelete, undefined, [], undefined, undefined, t)
+
+      render(<DataTable columns={cols} data={[entry]} />)
+      fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
+      fireEvent.click(screen.getByText("Copy ID"))
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith("Copy failed")
+      })
+    })
+
+    it("selectedIds > 1: mostra solo Elimina e usa onBulkDelete", async () => {
+      const onDelete = vi.fn()
+      const onBulkDelete = vi.fn()
+
+      const seed = makeSeed({ branches: [] })
+      const entry = makeEntry("id-1", "items", {})
+      const t = (k: string) => (k === "common.delete" || k === "common.openMenu") ? (k === "common.delete" ? "Delete" : "Open menu") : k
+      const cols = generateColumns(seed, vi.fn(), onDelete, undefined, ["id-1", "id-2"], onBulkDelete, undefined, t)
+
+      render(<DataTable columns={cols} data={[entry]} />)
+      fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
+
+      expect(await screen.findByText("Delete")).toBeInTheDocument()
+      expect(screen.queryByText("Copy ID")).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByText("Delete"))
+      expect(onBulkDelete).toHaveBeenCalledWith(["id-1", "id-2"])
+    })
+
+    it("selectedIds > 1: mostra Modifica di gruppo e chiama onBulkEdit", async () => {
+      const onBulkDelete = vi.fn()
+      const onBulkEdit = vi.fn()
+
+      const seed = makeSeed({ branches: [] })
+      const entry = makeEntry("id-1", "items", {})
+      const t = (k: string) => {
+        if (k === "common.openMenu") return "Open menu"
+        if (k === "bulkEdit.trigger") return "Bulk edit"
+        return k
+      }
+      const cols = generateColumns(seed, vi.fn(), vi.fn(), undefined, ["id-1", "id-2"], onBulkDelete, undefined, t, onBulkEdit)
+
+      render(<DataTable columns={cols} data={[entry]} />)
+      fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
+
+      expect(await screen.findByText("Bulk edit")).toBeInTheDocument()
+      fireEvent.click(screen.getByText("Bulk edit"))
+      expect(onBulkEdit).toHaveBeenCalledWith(["id-1", "id-2"])
+    })
+  })
+
+  describe("column size metadata", () => {
+    it("dynamic columns carry size/minSize/maxSize", () => {
+      const seed = makeSeed({
+        branches: [{ id: "t1", alias: "title", label: "Title", type: "text" as const }] as any,
+      })
+      const cols = generateColumns(seed, vi.fn(), vi.fn())
+      const titleCol = cols.find((c) => c.id === "title") as any
+      expect(titleCol.size).toBe(200)
+      expect(titleCol.minSize).toBe(80)
+      expect(titleCol.maxSize).toBe(600)
+    })
+
+    it("select and actions have enableResizing === false", () => {
+      const seed = makeSeed({ branches: [] })
+      const cols = generateColumns(seed, vi.fn(), vi.fn())
+      const selectCol = cols.find((c) => c.id === "select") as any
+      const actionsCol = cols.find((c) => c.id === "actions") as any
+      expect(selectCol.enableResizing).toBe(false)
+      expect(actionsCol.enableResizing).toBe(false)
+    })
+  })
+
+  describe("date and status edge cases", () => {
+    it("getDateGroupValue gestisce precisione day", () => {
+      const seed = makeSeed({
+        branches: [{ id: "d1", alias: "publishedAt", label: "Published At", type: "date" as const }] as any,
+      })
+      const cols = generateColumns(
+        seed,
+        vi.fn(),
+        vi.fn(),
+        undefined,
+        [],
+        undefined,
+        { year: false, month: false, day: true }
+      )
+      const dateCol = cols.find((c) => c.id === "publishedAt") as any
+      const groupingValue = dateCol.getGroupingValue({ data: { publishedAt: "2026-06-04" } })
+      // "04" o "4" a seconda del locale, ma conterrà "June" e "2026"
+      expect(groupingValue).toContain("June")
+      expect(groupingValue).toContain("2026")
+    })
+
+    it("getStatusBadgeVariant calcola varianti per status custom", async () => {
+      const seed = makeSeed({ branches: [] })
+      // "custom" non appartiene alle parole chiave speciali, quindi scatena l'hashing loop
+      const entry1 = { ...makeEntry("id-1", "items", {}), status: "customstatusa" } as ContentEntry
+      const entry2 = { ...makeEntry("id-2", "items", {}), status: "customstatusb" } as ContentEntry
+
+      const cols = generateColumns(seed, vi.fn(), vi.fn())
+      const { unmount } = render(<DataTable columns={cols} data={[entry1, entry2]} />)
+
+      expect(await screen.findByText("customstatusa")).toBeInTheDocument()
+      expect(await screen.findByText("customstatusb")).toBeInTheDocument()
+      unmount()
+    })
+  })
+})
+
+describe("dynamic-columns - number decimals", () => {
+  const seed = makeSeed({
+    branches: [{ id: "n1", alias: "price", label: "Price", type: "number" as const }] as any,
+  })
+
+  it("computeMaxLengths returns the fraction digits for number branches, capped at 2", () => {
+    const rows = (...prices: unknown[]) => prices.map((p, i) => makeEntry(String(i), "items", { price: p }))
+
+    expect(computeMaxLengths(rows(12, 3.5, 7.25), seed, 10).price).toBe(2)
+    expect(computeMaxLengths(rows(12, 3.5), seed, 10).price).toBe(1)
+    expect(computeMaxLengths(rows(12, 3), seed, 10).price).toBe(0)
+    expect(computeMaxLengths(rows(1.23456, null, ""), seed, 10).price).toBe(2)
+  })
+
+  it("renders every value of a plain number column with the same decimals", () => {
+    const cols = generateColumns(seed, vi.fn(), vi.fn(), { price: 2 })
+    const priceCol = cols.find((c) => c.id === "price") as any
+
+    render(<div>{priceCol.cell({ row: { original: makeEntry("1", "items", { price: 12 }) } })}</div>)
+
+    expect(screen.getByText("12,00")).toBeInTheDocument()
+  })
+})
+
+describe("dynamic-columns - alignment by data type", () => {
+  const seed = makeSeed({
+    branches: [
+      { id: "n1", alias: "price", label: "Price", type: "number" as const },
+      { id: "n2", alias: "stars", label: "Stars", type: "number" as const, numberOptions: { control: "rating" } },
+      { id: "b1", alias: "active", label: "Active", type: "boolean" as const },
+      { id: "d1", alias: "when", label: "When", type: "date" as const },
+      { id: "t1", alias: "title", label: "Title", type: "text" as const },
+    ] as any,
+  })
+
+  const align = (header: unknown) => {
+    const { container } = render(<>{(header as () => React.ReactNode)()}</>)
+    const el = container.firstElementChild as HTMLElement
+    return el.classList.contains("justify-end") ? "right" : el.classList.contains("justify-center") ? "center" : "left"
+  }
+
+  it("aligns numbers right, booleans/ratings/status/id center, text and dates left", () => {
+    const cols = generateColumns(seed, vi.fn(), vi.fn())
+    const header = (id: string) => (cols.find((c) => c.id === id) as any).header
+
+    expect(align(header("price"))).toBe("right")
+    expect(align(header("stars"))).toBe("center")
+    expect(align(header("active"))).toBe("center")
+    expect(align(header("status"))).toBe("center")
+    expect(align(header("id"))).toBe("center")
+    expect(align(header("when"))).toBe("left")
+    expect(align(header("title"))).toBe("left")
+  })
+})
+
+describe("generateColumns - default order", () => {
+  it("puts the last modified column after the seed branches, right before actions", () => {
+    const ids = generateColumns(posts, vi.fn(), vi.fn()).map((c) => c.id ?? (c as { accessorKey?: string }).accessorKey)
+
+    expect(ids[0]).toBe("select")
+    expect(ids.slice(-2)).toEqual(["updated_at", "actions"])
+    expect(ids.indexOf("created_at")).toBeLessThan(ids.indexOf(posts.branches[0].alias))
+  })
+})
+
+describe("generateColumns - tags columns", () => {
+  const columnOf = (alias: string) =>
+    generateColumns(posts, vi.fn(), vi.fn()).find((c) => c.id === alias) as {
+      enableSorting?: boolean
+      getGroupingValue?: (row: { data: Record<string, unknown> }) => string
+    }
+
+  it("disables sorting on a multiple-choice tags column and keeps it on a single-choice one", () => {
+    const multiple = columnOf("tags")
+    const single = columnOf("priority")
+
+    expect(multiple.enableSorting).toBe(false)
+    expect(single.enableSorting).toBeUndefined()
+  })
+
+  it("groups a single-choice tags column by its first value", () => {
+    const column = columnOf("priority")
+
+    const filled = column.getGroupingValue?.({ data: { priority: ["high"] } })
+    const empty = column.getGroupingValue?.({ data: { priority: [] } })
+
+    expect([filled, empty]).toEqual(["high", ""])
+  })
+})
+
+describe("defaultHiddenColumns", () => {
+  it("hides id, slug and created_at for the canonical posts seed", () => {
+    const hidden = defaultHiddenColumns(posts)
+
+    expect(hidden).toEqual(["id", "slug", "created_at"])
+  })
+
+  it("also hides status when the seed has no drafts, and shows it when drafts are on", () => {
+    const withoutDrafts: Seed = { ...posts, allowDrafts: false }
+    const withDrafts: Seed = { ...posts, allowDrafts: true }
+
+    expect(defaultHiddenColumns(withoutDrafts)).toEqual(["id", "slug", "created_at", "status"])
+    expect(defaultHiddenColumns(withDrafts)).not.toContain("status")
+  })
+
+  it("appends a json branch whose alias contains metadata after the system columns", () => {
+    // The canonical set has no json branch, so one is added here to exercise the metadata heuristic.
+    const seedWithMetadata: Seed = {
+      ...posts,
+      branches: [...posts.branches, { id: "br_11", alias: "metadata", label: "Metadata", type: "json" }],
+    }
+
+    const hidden = defaultHiddenColumns(seedWithMetadata)
+
+    expect(hidden).toEqual(["id", "slug", "created_at", "metadata"])
+  })
+})
+

@@ -3,8 +3,15 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { resolvePolicies, type BulkFieldUpdate } from '@beechcms/core'
-import { publicProblem } from '../../../public/problem-details'
+import {
+  isEffectivelyEmpty,
+  isLocalizedBranch,
+  resolvePolicies,
+  validateAndSanitizeSeedPayload,
+  type BulkFieldUpdate,
+} from '@beechcms/core'
+import { publicProblem } from '../../../public/errors/problem-details'
+import { contentValidationProblem } from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 
@@ -123,6 +130,16 @@ export async function bulkHandler(context: Context<AppEnv>) {
       })
     }
 
+    // Bulk writes are blind per-row UPDATEs: a value here would replace every stored translation.
+    if (isLocalizedBranch(branch)) {
+      return publicProblem(context, {
+        type: 'field-not-bulk-editable',
+        title: 'Bad Request',
+        status: 400,
+        detail: `Field '${alias}' is localized and cannot be bulk-edited`,
+      })
+    }
+
     // Multi-relation branches accept a { mode, value } wrapper or a plain array (treated as replace)
     const branchAny = branch as { type: string; multiple?: boolean }
     if (branchAny.type === 'relation' && branchAny.multiple === true) {
@@ -145,6 +162,47 @@ export async function bulkHandler(context: Context<AppEnv>) {
       }
     } else {
       resolvedFields[alias] = { kind: 'set', value: rawValue }
+    }
+  }
+
+  // ── Validate + sanitize 'set' values (same gate as PUT /:slug/:id) ───────────
+  const setPayload: Record<string, unknown> = {}
+  for (const [alias, update] of Object.entries(resolvedFields)) {
+    if (update.kind === 'set') setPayload[alias] = update.value
+  }
+
+  if (Object.keys(setPayload).length > 0) {
+    const validation = validateAndSanitizeSeedPayload(seed, setPayload, {
+      operation: 'update',
+      allowNull: true,
+      requireAtLeastOneValidField: true,
+      enforceRequiredFields: false,
+      idGenerator: context.get('idGenerator'),
+    })
+
+    if (validation.dangerousFields.length > 0) {
+      return publicProblem(context, {
+        type: 'content-dangerous-content',
+        title: 'Unprocessable Entity',
+        status: 422,
+        detail: `Content rejected: dangerous markup detected in field '${validation.dangerousFields[0]}'`,
+      })
+    }
+
+    const requiredCleared = seed.branches
+      .filter((b) => b.requiredOnUpdate && Object.hasOwn(setPayload, b.alias))
+      .filter((b) => isEffectivelyEmpty(validation.data[b.alias], b.type))
+      .map((b) => ({
+        field: b.alias,
+        expected: 'required-field',
+        received: 'empty',
+        message: `Field '${b.alias}' cannot be empty for update`,
+      }))
+    const details = [...validation.details, ...requiredCleared]
+    if (details.length > 0) return contentValidationProblem(context, details)
+
+    for (const [alias, value] of Object.entries(validation.data)) {
+      resolvedFields[alias] = { kind: 'set', value }
     }
   }
 

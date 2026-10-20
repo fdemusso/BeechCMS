@@ -37,6 +37,28 @@ export function isPlainObject(input: unknown): input is Record<string, unknown> 
   return proto === Object.prototype || proto === null
 }
 
+/**
+ * Checks whether a JSON-like value nests deeper than `maxDepth`, without ever recursing
+ * past that bound. Safe to call on adversarial input BEFORE any operation (like
+ * `JSON.stringify`, which recurses unboundedly) that would otherwise overflow the call
+ * stack on a few thousand levels of nesting.
+ *
+ * @param value - The value to inspect.
+ * @param maxDepth - The maximum nesting depth allowed.
+ * @param depth - Current recursion depth (internal).
+ * @returns True if the value nests deeper than `maxDepth`.
+ */
+export function exceedsMaxDepth(value: unknown, maxDepth: number, depth = 0): boolean {
+  if (depth > maxDepth) return true
+  if (Array.isArray(value)) {
+    return value.some((item) => exceedsMaxDepth(item, maxDepth, depth + 1))
+  }
+  if (isPlainObject(value)) {
+    return Object.values(value).some((item) => exceedsMaxDepth(item, maxDepth, depth + 1))
+  }
+  return false
+}
+
 const byteLengthEncoder = new TextEncoder()
 
 /**

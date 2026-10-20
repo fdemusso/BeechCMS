@@ -11,7 +11,6 @@ import { AUTOMATION_RESERVED_WORDS, isPrivateHost } from '@beechcms/core'
 export { AUTOMATION_RESERVED_WORDS }
 
 export const TRIGGER_OPS = ['eq', 'neq', 'contains', 'gt', 'lt', 'isempty', 'isnotempty'] as const
-export type TriggerOp = typeof TRIGGER_OPS[number]
 
 const WHEN_OPS = [
   'eq', 'neq',
@@ -31,7 +30,7 @@ export type TriggerForm = {
 }
 export const ACTION_TYPES = ['set_variable', 'webhook', 'send_mail', 'edit_field', 'create_entry'] as const
 
-export type HeaderPair = { key: string; value: string }
+type HeaderPair = { key: string; value: string }
 export type FieldMapPair = { targetAlias: string; sourceAlias: string }
 
 // Flat action shape for RHF (all fields present, validated by type via superRefine)
@@ -58,7 +57,7 @@ export type ActionFormItem = {
   field_map: FieldMapPair[]
 }
 
-export type TriggerConditionForm = {
+type TriggerConditionForm = {
   field: string
   op: TriggerCondition['op']
   value: string

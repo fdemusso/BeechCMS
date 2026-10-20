@@ -101,10 +101,11 @@ Add JSON and HTML endpoints consuming BeechCMS content:
 app.get('/api/articles', async (c) => {
   const beech = c.get('beech')
 
-  const result = await beech.content('articles').list({
-    sort: { created_at: 'desc' },
-    limit: 10
-  })
+  const result = await beech
+    .collection('articles')
+    .orderBy('created_at', 'desc')
+    .limit(10)
+    .list()
 
   if (result.error) {
     return c.json({ error: result.error.detail }, 500)
@@ -120,10 +121,11 @@ app.get('/api/articles', async (c) => {
 app.get('/', async (c) => {
   const beech = c.get('beech')
 
-  const result = await beech.content('articles').list({
-    sort: { created_at: 'desc' },
-    limit: 10
-  })
+  const result = await beech
+    .collection('articles')
+    .orderBy('created_at', 'desc')
+    .limit(10)
+    .list()
 
   const articles = result.data ? result.data.data : []
 

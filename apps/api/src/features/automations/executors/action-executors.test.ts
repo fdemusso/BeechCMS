@@ -190,13 +190,25 @@ describe('send_mail executor', () => {
 
 describe('edit_field executor', () => {
   it('calls repository.update with interpolated string value', async () => {
-    const ctx = makeCtx({ entry: { id: 'entry-1', title: 'Old Title' } })
+    const ctx = makeCtx({
+      entry: { id: 'entry-1', title: 'Old Title' },
+      seed: {
+        slug: 'posts',
+        branches: [{ id: 'br_summary', alias: 'summary', label: 'Summary', type: 'text' }],
+      } as unknown as Seed,
+    })
     await executeAction({ type: 'edit_field', field: 'summary', value: 'Based on {{title}}' }, ctx)
     expect(ctx.repository.update).toHaveBeenCalledWith(ctx.seed, 'entry-1', { summary: 'Based on Old Title' })
   })
 
   it('calls repository.update with raw non-string value', async () => {
-    const ctx = makeCtx({ entry: { id: 'entry-1', title: 'T' } })
+    const ctx = makeCtx({
+      entry: { id: 'entry-1', title: 'T' },
+      seed: {
+        slug: 'posts',
+        branches: [{ id: 'br_count', alias: 'count', label: 'Count', type: 'number' }],
+      } as unknown as Seed,
+    })
     await executeAction({ type: 'edit_field', field: 'count', value: 42 }, ctx)
     expect(ctx.repository.update).toHaveBeenCalledWith(ctx.seed, 'entry-1', { count: 42 })
   })
@@ -205,13 +217,66 @@ describe('edit_field executor', () => {
     const ctx = makeCtx({ entry: { title: 'No ID' } })
     await expect(executeAction({ type: 'edit_field', field: 'x', value: 'y' }, ctx)).rejects.toThrow('entry.id missing')
   })
+
+  it('rejects a localized target and never writes', async () => {
+    const ctx = makeCtx({
+      entry: { id: 'entry-1', title: 'Old Title' },
+      seed: { slug: 'posts', branches: [{ id: 'br_title', alias: 'title', label: 'Title', type: 'text', localized: true }] } as unknown as Seed,
+    })
+
+    await expect(executeAction({ type: 'edit_field', field: 'title', value: 'x' }, ctx)).rejects.toThrow(/localized/)
+    expect(ctx.repository.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects dangerous richtext content instead of writing it raw', async () => {
+    const ctx = makeCtx({
+      entry: { id: 'entry-1' },
+      seed: {
+        slug: 'posts',
+        branches: [{ id: 'br_body', alias: 'body', label: 'Body', type: 'richtext' }],
+      } as unknown as Seed,
+    })
+
+    await expect(
+      executeAction({ type: 'edit_field', field: 'body', value: '<script>alert(1)</script>' }, ctx),
+    ).rejects.toThrow(/dangerous/i)
+    expect(ctx.repository.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects a value that does not match the field type', async () => {
+    const ctx = makeCtx({
+      entry: { id: 'entry-1', title: 'not-a-number' },
+      seed: {
+        slug: 'posts',
+        branches: [{ id: 'br_count', alias: 'count', label: 'Count', type: 'number' }],
+      } as unknown as Seed,
+    })
+
+    await expect(
+      executeAction({ type: 'edit_field', field: 'count', value: '{{title}}' }, ctx),
+    ).rejects.toThrow()
+    expect(ctx.repository.update).not.toHaveBeenCalled()
+  })
 })
 
 // ── create_entry ──────────────────────────────────────────────────────────────
 
+// The executor validates against the target seed, so unmapped aliases would be stripped.
+const commentsSeed = {
+  slug: 'comments',
+  branches: [
+    { id: 'br_writer', alias: 'writer', label: 'Writer', type: 'text' },
+    { id: 'br_fixed', alias: 'fixed', label: 'Fixed', type: 'text' },
+    { id: 'br_tag', alias: 'tag', label: 'Tag', type: 'text' },
+  ],
+} as unknown as Seed
+
 describe('create_entry executor', () => {
   it('creates a new entry with field_map values from trigger entry', async () => {
-    const ctx = makeCtx({ entry: { id: 'e1', author: 'Alice' } })
+    const ctx = makeCtx({
+      entry: { id: 'e1', author: 'Alice' },
+      getSeed: vi.fn().mockReturnValue(commentsSeed),
+    })
     await executeAction(
       { type: 'create_entry', seed_slug: 'comments', field_map: { writer: 'author', fixed: 'literal-value' } },
       ctx,
@@ -227,7 +292,7 @@ describe('create_entry executor', () => {
   })
 
   it('uses literal string when source field is not in entry', async () => {
-    const ctx = makeCtx({ entry: { id: 'e1' } })
+    const ctx = makeCtx({ entry: { id: 'e1' }, getSeed: vi.fn().mockReturnValue(commentsSeed) })
     await executeAction(
       { type: 'create_entry', seed_slug: 'comments', field_map: { tag: 'missing-field' } },
       ctx,

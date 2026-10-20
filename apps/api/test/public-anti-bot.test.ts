@@ -120,6 +120,36 @@ describe('Public Form Security & Anti-Bot Defense', () => {
       const body = await secondRes.json<{ type: string; detail: string }>()
       expect(body.type).toContain('time-trap-replayed')
     })
+
+    it('allows only one of two concurrent submissions sharing the same Time-Trap token', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken(SECRET, t0)
+
+      const makeRequest = (slug: string) => app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: { title: `Concurrent Post ${slug}`, body: 'Racing submission' },
+          slug,
+          _timeTrapToken: token,
+        }),
+      }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
+
+      const [resA, resB] = await Promise.all([makeRequest('race-a'), makeRequest('race-b')])
+      const statuses = [resA.status, resB.status].sort()
+
+      expect(statuses).toEqual([201, 422])
+
+      const rejected = resA.status === 422 ? resA : resB
+      const rejectedBody = await rejected.json<{ type: string }>()
+      expect(rejectedBody.type).toContain('time-trap-replayed')
+
+      const { items } = await repo.findMany(TEST_SEEDS[0], {})
+      const racedEntries = items.filter((e: any) => e.slug === 'race-a' || e.slug === 'race-b')
+      expect(racedEntries.length).toBe(1)
+    })
   })
 
   describe('Backend-Driven Status Enforcement', () => {

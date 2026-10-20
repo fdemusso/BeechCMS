@@ -65,4 +65,41 @@ describe('InMemorySeedRepository', () => {
       expect(await repo.getRegistryVersion()).toBe(2)
     })
   })
+
+  describe('applyDestructiveAtomic', () => {
+    it('leaves the definition and version unchanged on a stale registry version', async () => {
+      const repo = new InMemorySeedRepository([mockSeed])
+      const changed = { ...mockSeed, label: 'Changed' }
+
+      const result = await repo.applyDestructiveAtomic({
+        slug: 'posts', ddl: [], expectedVersion: 99, operation: 'update', definition: changed,
+      })
+
+      expect(result).toEqual({ applied: false, version: 1 })
+      expect((await repo.get('posts'))?.definition.label).toBe('Posts')
+    })
+
+    it('updates the definition and registry version together', async () => {
+      const repo = new InMemorySeedRepository([mockSeed])
+      const changed = { ...mockSeed, label: 'Changed' }
+
+      const result = await repo.applyDestructiveAtomic({
+        slug: 'posts', ddl: [], expectedVersion: 1, operation: 'update', definition: changed,
+      })
+
+      expect(result).toEqual({ applied: true, version: 2 })
+      expect((await repo.get('posts'))?.definition.label).toBe('Changed')
+    })
+
+    it('deletes the seed and increments the registry version together', async () => {
+      const repo = new InMemorySeedRepository([mockSeed])
+
+      const result = await repo.applyDestructiveAtomic({
+        slug: 'posts', ddl: [], expectedVersion: 1, operation: 'delete',
+      })
+
+      expect(result).toEqual({ applied: true, version: 2 })
+      expect(await repo.get('posts')).toBeNull()
+    })
+  })
 })

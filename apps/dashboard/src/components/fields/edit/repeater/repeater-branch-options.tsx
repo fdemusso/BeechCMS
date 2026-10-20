@@ -2,13 +2,17 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { resolvePolicies, type Branch, type DataClassification, type Seed } from "@beechcms/core"
+import { LOCALIZABLE_BRANCH_TYPES, isSingleChoiceTags, resolvePolicies, tagOptionsIssues, TAG_OPTIONS_MAX_COUNT, type Branch, type DataClassification, type Seed } from "@beechcms/core"
+import { ChevronDown, ChevronUp, Trash2 } from "reicon-react"
+import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FieldEditRepeater } from "./repeater"
+import { localizationBlocker, type LocalizationBlocker } from "./repeater-localization"
 
 /**
  * Properties for the {@link RelationOptionsForm} component.
@@ -192,6 +196,137 @@ export function FileOptionsForm({ branch, onChange }: FileOptionsFormProps) {
   )
 }
 
+/** Color preset for a newly added option row; the author changes it with the color picker. */
+export const DEFAULT_TAG_OPTION_COLOR = "#64748b"
+
+/**
+ * Properties for the {@link TagOptionsForm} component.
+ */
+export interface TagOptionsFormProps {
+  /** The current `tags` branch definition. */
+  branch: Branch
+  /** Callback triggered when the options list or the choice mode changes. */
+  onChange: (updated: Branch) => void
+}
+
+/**
+ * Form fragment for editing a `tags` branch: choice mode and the ordered list of `{ value, color }` options.
+ * An empty list drops the `options` key (free tags). Issues come from the core; saving is never blocked here.
+ */
+export function TagOptionsForm({ branch, onChange }: TagOptionsFormProps) {
+  const { t } = useTranslation()
+  const options = branch.options ?? []
+  const issues = tagOptionsIssues(branch)
+
+  function setMultiple(multiple: boolean) {
+    const next: Branch = { ...branch }
+    if (multiple) delete next.multiple
+    else next.multiple = false
+    onChange(next)
+  }
+
+  function setOptions(nextOptions: NonNullable<Branch["options"]>) {
+    const next: Branch = { ...branch }
+    if (nextOptions.length === 0) delete next.options
+    else next.options = nextOptions
+    onChange(next)
+  }
+
+  function updateOption(index: number, patch: Partial<NonNullable<Branch["options"]>[number]>) {
+    setOptions(options.map((option, i) => (i === index ? { ...option, ...patch } : option)))
+  }
+
+  function moveOption(index: number, offset: -1 | 1) {
+    const reordered = [...options]
+    const [moved] = reordered.splice(index, 1)
+    reordered.splice(index + offset, 0, moved)
+    setOptions(reordered)
+  }
+
+  return (
+    <div className="space-y-2 rounded-md border p-2">
+      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.options")}</p>
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id={`tags-multiple-${branch.id}`}
+          checked={!isSingleChoiceTags(branch)}
+          onCheckedChange={v => setMultiple(!!v)}
+        />
+        <Label htmlFor={`tags-multiple-${branch.id}`} className="text-xs">{t("seedBuilder.branchEditor.multiple")}</Label>
+      </div>
+
+      {options.length === 0 && (
+        <p className="text-xs text-muted-foreground">{t("seedBuilder.branchEditor.freeTagsHint")}</p>
+      )}
+
+      {options.map((option, index) => (
+        <div key={index} className="flex items-center gap-1">
+          <Input
+            value={option.value}
+            aria-label={t("seedBuilder.branchEditor.optionValue")}
+            onChange={e => updateOption(index, { value: e.target.value })}
+          />
+          <Input
+            type="color"
+            value={option.color}
+            aria-label={t("seedBuilder.branchEditor.optionColor")}
+            className="w-12 shrink-0 p-1"
+            onChange={e => updateOption(index, { color: e.target.value })}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0"
+            aria-label={t("seedBuilder.branchEditor.moveOptionUp")}
+            disabled={index === 0}
+            onClick={() => moveOption(index, -1)}
+          >
+            <ChevronUp className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0"
+            aria-label={t("seedBuilder.branchEditor.moveOptionDown")}
+            disabled={index === options.length - 1}
+            onClick={() => moveOption(index, 1)}
+          >
+            <ChevronDown className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0"
+            aria-label={t("seedBuilder.branchEditor.removeOption")}
+            onClick={() => setOptions(options.filter((_, i) => i !== index))}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
+      ))}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={options.length >= TAG_OPTIONS_MAX_COUNT}
+        onClick={() => setOptions([...options, { value: "", color: DEFAULT_TAG_OPTION_COLOR }])}
+      >
+        {t("seedBuilder.branchEditor.addOption")}
+      </Button>
+
+      {issues.length > 0 && (
+        <ul className="space-y-0.5 text-xs text-destructive">
+          {issues.map(issue => <li key={issue}>{issue}</li>)}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 /**
  * Properties for the {@link RepeaterOptionsForm} component.
  */
@@ -254,39 +389,6 @@ export function RepeaterOptionsForm({ branch, onChange, subField }: RepeaterOpti
         value={branch.fields ?? []}
         onChange={(fields) => set("fields", fields as Branch[])}
       />
-    </div>
-  )
-}
-
-/**
- * Properties for the {@link TagsOptionsForm} component.
- */
-export interface TagsOptionsFormProps {
-  /** The current branch definition containing tags or predefined JSON options. */
-  branch: Branch
-  /** Callback triggered when options array changes. */
-  onChange: (updated: Branch) => void
-}
-
-/**
- * Form fragment for configuring preset values on tags or json fields.
- */
-export function TagsOptionsForm({ branch, onChange }: TagsOptionsFormProps) {
-  const { t } = useTranslation()
-
-  function set<K extends keyof Branch>(key: K, value: Branch[K]) {
-    onChange({ ...branch, [key]: value })
-  }
-
-  return (
-    <div className="space-y-1">
-      <Label className="text-xs">{t("seedBuilder.branchEditor.options")}</Label>
-      <Input
-        value={(branch.options ?? []).join(",")}
-        onChange={e => set("options", e.target.value ? e.target.value.split(",").map(s => s.trim()) : [])}
-        placeholder={t("seedBuilder.branchEditor.optionsPlaceholder")}
-      />
-      <p className="text-xs text-muted-foreground">{t("seedBuilder.branchEditor.optionsHint")}</p>
     </div>
   )
 }
@@ -477,6 +579,76 @@ export function PoliciesOptionsForm({
           )
         })}
       </div>
+    </div>
+  )
+}
+
+/** Why a text / richtext / json branch cannot be localized; mirrors seed-validation Fatal 17. */
+export type { LocalizationBlocker }
+
+/** Properties for the {@link LocalizedOptionsForm} component. */
+export interface LocalizedOptionsFormProps {
+  /** The branch being edited. */
+  branch: Branch
+  /** Fired with the updated branch. */
+  onChange: (updated: Branch) => void
+  /** True for a repeater sub-field (never localizable). */
+  subField?: boolean
+  /** True when the branch is already persisted (its column exists). */
+  isExisting: boolean
+  /** False when the seed's table already has entries. */
+  tableEmpty?: boolean
+}
+
+/**
+ * The "Localized" toggle. Shown only for text, richtext and json branches; disabled, with the reason, on repeater
+ * sub-fields and on confidential / restricted fields. Turning it off is metadata-only (translations stay stored), so
+ * unchecking a persisted branch of a table with entries warns that the field shows raw text until re-enabled.
+ */
+export function LocalizedOptionsForm({
+  branch,
+  onChange,
+  subField = false,
+  isExisting,
+  tableEmpty = true,
+}: LocalizedOptionsFormProps) {
+  const { t } = useTranslation()
+  const [showDisableWarning, setShowDisableWarning] = useState(false)
+
+  if (!LOCALIZABLE_BRANCH_TYPES.has(branch.type)) return null
+
+  const blocker = localizationBlocker(branch, subField)
+  const checkboxId = `localized-${branch.id}`
+
+  function handleToggle(checked: boolean) {
+    setShowDisableWarning(!checked && isExisting && !tableEmpty)
+    const next: Branch = { ...branch }
+    if (checked) next.localized = true
+    else delete next.localized
+    onChange(next)
+  }
+
+  let hint = t("seedBuilder.branchEditor.localizedHint")
+  if (blocker === "sub-field") hint = t("seedBuilder.branchEditor.localizedBlockedSubField")
+  if (blocker === "classification") hint = t("seedBuilder.branchEditor.localizedBlockedClassification")
+
+  return (
+    <div className="space-y-1 rounded-md border p-2">
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id={checkboxId}
+          checked={branch.localized === true}
+          disabled={blocker !== null}
+          onCheckedChange={(value) => handleToggle(value === true)}
+        />
+        <Label htmlFor={checkboxId} className="text-xs">{t("seedBuilder.branchEditor.localized")}</Label>
+      </div>
+      <p className="text-[11px] text-muted-foreground">{hint}</p>
+      {showDisableWarning && (
+        <p role="status" className="text-[11px] text-amber-600 dark:text-amber-400">
+          {t("seedBuilder.branchEditor.localizedDisableWarning")}
+        </p>
+      )}
     </div>
   )
 }

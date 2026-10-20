@@ -12,7 +12,7 @@
 
 > `optional` **db?**: `string`
 
-Override D1 database name.
+Override the D1 database name.
 
 ***
 
@@ -28,4 +28,4 @@ Target local D1 SQLite state (default: true). Set false for remote D1.
 
 > `optional` **out?**: `string` \| `null`
 
-Output file destination. If omitted or null, output is written to standard output.
+Output destination. `null` writes to standard output. Default: `beech.generated.ts`.

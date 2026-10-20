@@ -1,15 +1,48 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
+import type { AdminGuardedResult, PageRequest } from '../rbac/types.js'
+
 export interface UserRecord {
   id: string
   email: string
   name: string | null
   surname: string | null
   passwordHash: string
+  /**
+   * System-level account type ('admin' | 'editor').
+   * - 'admin': Developer / instance owner with full system access and Seed Builder control.
+   * - 'editor': Generic Beech CMS user whose permissions are managed via RBAC assignments.
+   *   (Note: 'editor' is retained as technical debt for DB CHECK constraint and backwards compatibility).
+   */
   role: string
   avatarUrl: string | null
   notificationPreferences: string
+  /**
+   * Reversible deactivation (`users.is_active`). A deactivated account keeps its rows,
+   * its assignments and its refresh tokens, but is refused at every authorization
+   * boundary — which is what makes revocation instant despite 15-minute access JWTs.
+   */
+  isActive: boolean
+}
+
+/**
+ * Administrative projection of an account. Deliberately carries NO `passwordHash`:
+ * account listings must never put credential material on the wire.
+ */
+export interface AccountSummary {
+  id: string
+  email: string
+  name: string | null
+  surname: string | null
+  /**
+   * Developer/owner axis ('admin' | 'editor'), orthogonal to RBAC permissions.
+   * - 'admin' = Developer / Owner
+   * - 'editor' = Generic Beech user (RBAC-gated)
+   */
+  role: string
+  isActive: boolean
+  createdAt: number
 }
 
 export interface NewUserInput {
@@ -19,6 +52,16 @@ export interface NewUserInput {
   role: string
   name: string | null
   surname: string | null
+}
+
+/**
+ * The (role, scope) grant `createInitialAdmin` writes in the same transaction as the
+ * account itself, so the first administrator can never exist without one.
+ */
+export interface InitialRoleGrant {
+  id: string
+  roleId: string
+  scope: string
 }
 
 export interface IUserRepository {
@@ -38,17 +81,27 @@ export interface IUserRepository {
   create(user: NewUserInput): Promise<void>
 
   /**
-   * Atomically creates the first administrator account, guarded by a
-   * setup-completed marker row inserted in the same transaction. Returns
-   * false instead of throwing when setup was already completed concurrently.
+   * Atomically creates the first administrator account AND its `roleGrant`,
+   * guarded by a setup-completed marker row inserted in the same transaction.
+   * The account can never exist without its role: callers must resolve the
+   * grant before calling this, so a missing or unresolvable role aborts setup
+   * with nothing written instead of leaving a stranded, unrecoverable admin.
+   * Returns false instead of throwing when setup was already completed
+   * concurrently.
    */
-  createInitialAdmin(user: NewUserInput): Promise<boolean>
+  createInitialAdmin(user: NewUserInput, roleGrant: InitialRoleGrant): Promise<boolean>
 
   /** Updates the user's display name, surname, and/or email address. */
   updateProfile(userId: string, fields: { name?: string; surname?: string; email?: string }): Promise<void>
 
   /** Replaces the user's stored password hash after a successful password change. */
   updatePasswordHash(userId: string, newPasswordHash: string): Promise<void>
+
+  /**
+   * Replaces the password hash and revokes every active refresh token of the user in one
+   * atomic write, so a password change can never leave old sessions valid.
+   */
+  changePasswordAndRevokeSessions(userId: string, newPasswordHash: string, nowTimestamp: number): Promise<void>
 
   /** Sets or clears the user's avatar URL. */
   updateAvatarUrl(userId: string, avatarUrl: string | null): Promise<void>
@@ -62,4 +115,24 @@ export interface IUserRepository {
    * an unrelated account exists.
    */
   emailBelongsToAnotherUser(email: string, currentUserId: string): Promise<boolean>
+
+  /** One page of accounts, oldest first, without credential material. */
+  listAccounts(page: PageRequest): Promise<AccountSummary[]>
+
+  /** One account by id, without credential material. Null when absent. */
+  findAccountById(userId: string): Promise<AccountSummary | null>
+
+  /**
+   * Flips `users.is_active`. `not-found` when the user does not exist.
+   * Reversible by design (brief §4): rows, assignments and tokens are all preserved.
+   * Deactivation returns `last-global-admin` and changes nothing when the account is the
+   * last active global administrator.
+   */
+  setActive(userId: string, isActive: boolean): Promise<AdminGuardedResult>
+
+  /**
+   * Read-only twin of the deactivation guard in {@link setActive}: is this account the last
+   * active global administrator? ADVISORY — see `IRoleAssignmentRepository.isLastGlobalAdminAssignment`.
+   */
+  isLastGlobalAdmin(userId: string): Promise<boolean>
 }

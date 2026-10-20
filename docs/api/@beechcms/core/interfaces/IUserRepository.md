@@ -8,6 +8,33 @@
 
 ## Methods
 
+### changePasswordAndRevokeSessions()
+
+> **changePasswordAndRevokeSessions**(`userId`, `newPasswordHash`, `nowTimestamp`): `Promise`&lt;`void`&gt;
+
+Replaces the password hash and revokes every active refresh token of the user in one
+atomic write, so a password change can never leave old sessions valid.
+
+#### Parameters
+
+##### userId
+
+`string`
+
+##### newPasswordHash
+
+`string`
+
+##### nowTimestamp
+
+`number`
+
+#### Returns
+
+`Promise`&lt;`void`&gt;
+
+***
+
 ### countAll()
 
 > **countAll**(): `Promise`&lt;`number`&gt;
@@ -41,17 +68,25 @@ Inserts a new user record.
 
 ### createInitialAdmin()
 
-> **createInitialAdmin**(`user`): `Promise`&lt;`boolean`&gt;
+> **createInitialAdmin**(`user`, `roleGrant`): `Promise`&lt;`boolean`&gt;
 
-Atomically creates the first administrator account, guarded by a
-setup-completed marker row inserted in the same transaction. Returns
-false instead of throwing when setup was already completed concurrently.
+Atomically creates the first administrator account AND its `roleGrant`,
+guarded by a setup-completed marker row inserted in the same transaction.
+The account can never exist without its role: callers must resolve the
+grant before calling this, so a missing or unresolvable role aborts setup
+with nothing written instead of leaving a stranded, unrecoverable admin.
+Returns false instead of throwing when setup was already completed
+concurrently.
 
 #### Parameters
 
 ##### user
 
 [`NewUserInput`](NewUserInput.md)
+
+##### roleGrant
+
+[`InitialRoleGrant`](InitialRoleGrant.md)
 
 #### Returns
 
@@ -80,6 +115,24 @@ an unrelated account exists.
 #### Returns
 
 `Promise`&lt;`boolean`&gt;
+
+***
+
+### findAccountById()
+
+> **findAccountById**(`userId`): `Promise`&lt;[`AccountSummary`](AccountSummary.md) \| `null`&gt;
+
+One account by id, without credential material. Null when absent.
+
+#### Parameters
+
+##### userId
+
+`string`
+
+#### Returns
+
+`Promise`&lt;[`AccountSummary`](AccountSummary.md) \| `null`&gt;
 
 ***
 
@@ -116,6 +169,68 @@ Retrieves a user by their unique identifier, or null if not found.
 #### Returns
 
 `Promise`&lt;[`UserRecord`](UserRecord.md) \| `null`&gt;
+
+***
+
+### isLastGlobalAdmin()
+
+> **isLastGlobalAdmin**(`userId`): `Promise`&lt;`boolean`&gt;
+
+Read-only twin of the deactivation guard in [setActive](#setactive): is this account the last
+active global administrator? ADVISORY — see `IRoleAssignmentRepository.isLastGlobalAdminAssignment`.
+
+#### Parameters
+
+##### userId
+
+`string`
+
+#### Returns
+
+`Promise`&lt;`boolean`&gt;
+
+***
+
+### listAccounts()
+
+> **listAccounts**(`page`): `Promise`&lt;[`AccountSummary`](AccountSummary.md)[]&gt;
+
+One page of accounts, oldest first, without credential material.
+
+#### Parameters
+
+##### page
+
+[`PageRequest`](PageRequest.md)
+
+#### Returns
+
+`Promise`&lt;[`AccountSummary`](AccountSummary.md)[]&gt;
+
+***
+
+### setActive()
+
+> **setActive**(`userId`, `isActive`): `Promise`&lt;[`AdminGuardedResult`](../type-aliases/AdminGuardedResult.md)&gt;
+
+Flips `users.is_active`. `not-found` when the user does not exist.
+Reversible by design (brief §4): rows, assignments and tokens are all preserved.
+Deactivation returns `last-global-admin` and changes nothing when the account is the
+last active global administrator.
+
+#### Parameters
+
+##### userId
+
+`string`
+
+##### isActive
+
+`boolean`
+
+#### Returns
+
+`Promise`&lt;[`AdminGuardedResult`](../type-aliases/AdminGuardedResult.md)&gt;
 
 ***
 

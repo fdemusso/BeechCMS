@@ -13,6 +13,13 @@ export interface ValidatedResetToken {
   email: string
 }
 
+export interface RedeemPasswordResetInput {
+  tokenId: string
+  userId: string
+  newPasswordHash: string
+  nowTimestamp: number
+}
+
 export interface IPasswordResetTokenRepository {
   /**
    * Marks all pending (unused) tokens for the user as consumed before issuing a new one.
@@ -30,6 +37,11 @@ export interface IPasswordResetTokenRepository {
    */
   findValidByHashWithEmail(tokenHash: string, nowTimestamp: number): Promise<ValidatedResetToken | null>
 
-  /** Marks a token as consumed so it cannot be used again. */
-  markUsed(tokenId: string, nowTimestamp: number): Promise<void>
+  /**
+   * Redeems a token in one atomic unit: burns it, replaces the user's password hash and revokes
+   * every refresh token. Either all three land or none do.
+   * Returns `true` for the single caller that burned the token, `false` (writing nothing) when it
+   * was already redeemed by a concurrent request.
+   */
+  redeem(input: RedeemPasswordResetInput): Promise<boolean>
 }

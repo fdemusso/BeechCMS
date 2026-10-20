@@ -4,8 +4,8 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { resolvePolicies, verifyHashField, sha256hex, validateAndSanitizeSeedPayload, EntryNotFoundError } from '@beechcms/core'
-import { publicProblem } from '../../public/problem-details'
+import { resolvePolicies, timingSafeEqual, validateAndSanitizeSeedPayload, EntryNotFoundError, EntryConflictError } from '@beechcms/core'
+import { publicProblem } from '../../public/errors/problem-details'
 import { rotateFieldRequestSchema } from './rotate-field.schema'
 import type { Env, Variables } from '../../types'
 
@@ -61,11 +61,31 @@ rotateFieldApp.post('/:slug/:id/rotate-field', async (context) => {
 
   const { privacy } = resolvePolicies(targetFieldBranch)
   if (privacy !== 'hash') {
-    return publicProblem(context, { 
-      type: 'rotate-field-not-hashable', 
-      title: 'Unprocessable Entity', 
-      status: 422, 
-      detail: `Field '${fieldAlias}' does not use hash privacy and cannot be rotated with this endpoint` 
+    return publicProblem(context, {
+      type: 'rotate-field-not-hashable',
+      title: 'Unprocessable Entity',
+      status: 422,
+      detail: `Field '${fieldAlias}' does not use hash privacy and cannot be rotated with this endpoint`
+    })
+  }
+
+  // Every attempt consumes a token, success or failure, so the current-value check below
+  // (a distinguishable 403-vs-200 oracle) cannot be brute-forced by a caller who already
+  // holds content:update on the seed.
+  const actorId = context.get('jwtPayload')?.sub ?? ''
+  const attemptKey = `${actorId}:${seedSlug}:${entryId}:${fieldAlias}`
+  const attemptLimit = await context.get('rateLimiters').getLimiter('rotateFieldAttempt').checkLimit(attemptKey)
+  if (!attemptLimit.isAllowed) {
+    const headers: Record<string, string> = {}
+    if (attemptLimit.retryAfterSeconds !== undefined) {
+      headers['Retry-After'] = String(attemptLimit.retryAfterSeconds)
+    }
+    return publicProblem(context, {
+      type: 'rotate-field-rate-limited',
+      title: 'Too Many Requests',
+      status: 429,
+      detail: 'Too many rotation attempts for this field. Try again later.',
+      headers,
     })
   }
 
@@ -95,7 +115,9 @@ rotateFieldApp.post('/:slug/:id/rotate-field', async (context) => {
     })
   }
 
-  const isCurrentValueValid = await verifyHashField(storedFieldValueHash, currentValue)
+  // Stored `hash` fields are keyed HMAC-SHA256 (repository write path), never a bare SHA-256.
+  const privacyService = context.get('privacyService')
+  const isCurrentValueValid = timingSafeEqual(storedFieldValueHash, await privacyService.hash(currentValue))
   if (!isCurrentValueValid) {
     return publicProblem(context, { 
       type: 'rotate-field-current-mismatch', 
@@ -111,18 +133,48 @@ rotateFieldApp.post('/:slug/:id/rotate-field', async (context) => {
     { operation: 'update', allowNull: false, requireAtLeastOneValidField: true, enforceRequiredFields: false }
   )
 
-  if (fieldValidationResult.details.length > 0) {
-    return publicProblem(context, { 
-      type: 'rotate-field-invalid-next', 
-      title: 'Bad Request', 
-      status: 400, 
-      detail: `Invalid value for field '${fieldAlias}': ${fieldValidationResult.details[0]?.message ?? 'validation failed'}` 
+  if (fieldValidationResult.dangerousFields.length > 0) {
+    return publicProblem(context, {
+      type: 'rotate-field-dangerous-content',
+      title: 'Unprocessable Entity',
+      status: 422,
+      detail: `Content rejected: dangerous markup detected in field '${fieldAlias}'`
     })
   }
 
-  const newFieldValueHash = await sha256hex(nextValue)
+  if (fieldValidationResult.details.length > 0) {
+    return publicProblem(context, {
+      type: 'rotate-field-invalid-next',
+      title: 'Bad Request',
+      status: 400,
+      detail: `Invalid value for field '${fieldAlias}': ${fieldValidationResult.details[0]?.message ?? 'validation failed'}`
+    })
+  }
 
-  await context.get('repository').update(seed, entryId, { [targetFieldBranch.alias]: newFieldValueHash })
+  // Hash the sanitized output, not the raw request value: every other write path stores the
+  // value validateAndSanitizeSeedPayload produces, so hashing `nextValue` directly would let a
+  // rotated field's digest diverge from what create/update would have stored for the same input.
+  const newFieldValueHash = await privacyService.hash(fieldValidationResult.data[fieldAlias] as string)
+
+  try {
+    await context.get('repository').update(
+      seed,
+      entryId,
+      { [targetFieldBranch.alias]: newFieldValueHash },
+      undefined,
+      { ifMatch: contentRecord.updated_at as number },
+    )
+  } catch (error) {
+    if (error instanceof EntryConflictError) {
+      return publicProblem(context, {
+        type: 'rotate-field-conflict',
+        title: 'Conflict',
+        status: 409,
+        detail: `Entry '${entryId}' was modified concurrently. Re-read it and retry.`
+      })
+    }
+    throw error
+  }
 
   return context.json({ success: true })
 })

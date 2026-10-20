@@ -98,10 +98,10 @@ Content-Type: application/json
 ```
 
 **Behaviour:**
-- If the email does not match any user, the response is still `200` — user existence is never revealed.
+- If the email does not match any user, or matches a deactivated account, the response is still `200` and no token or email is issued — user existence and account status are never revealed.
 - Any existing pending reset tokens for the same user are invalidated before issuing a new one.
 - The reset token has a **30-minute TTL** and is stored as a SHA-256 hash in D1 (`password_reset_tokens`).
-- Email delivery is sent via Resend (production) or Mailpit (local dev) using `sendPasswordResetEmail` in a non-blocking `waitUntil` task.
+- Email delivery is sent via Resend (production) or Mailpit (local dev) using `sendPasswordResetEmail`. Token issuance and email delivery both run in a non-blocking `waitUntil` task, so a known and an unknown email answer with the same latency.
 - The reset link is `${APP_URL}/admin/reset-password?token=<plaintext_token>`.
 - The `locale` field selects the email language: `'en'` (default) or `'it'`.
 - Rate limited via Dual-Key Token Bucket: IP capacity 5 (refill 0.05/s) and Account capacity 3 (refill 0.02/s).
@@ -120,7 +120,7 @@ Content-Type: application/json
 | Status | Condition | Body |
 |---|---|---|
 | `200` | Always (email sent or email not found) | `{ "success": true }` |
-| `400` | Missing or invalid email format | `{ "error": "Invalid request" }` |
+| `400` | Body is not a JSON object, or `email` is missing, empty, or longer than 254 characters | `{ "error": "Invalid request" }` (or `"Invalid request body"`) |
 | `429` | Rate limit exceeded | `{ "error": "Too many requests" }` |
 | `503` | Neither SMTP nor Resend configured | `{ "error": "Service not available" }` |
 
@@ -144,7 +144,7 @@ Content-Type: application/json
 ```
 
 **Behaviour:**
-- Looks up the SHA-256 digest of `token` in `password_reset_tokens`. Token must be unused (`used_at IS NULL`) and not expired.
+- Looks up the SHA-256 digest of `token` in `password_reset_tokens`. Token must be unused (`used_at IS NULL`), not expired, and belong to an active account (`users.is_active = 1`).
 - On success, performs three sequential operations:
   1. Marks the reset token as used (`passwordResetTokenRepository.markUsed`).
   2. Updates `users.password_hash` with a fresh bcrypt hash.
@@ -158,7 +158,7 @@ Content-Type: application/json
 | Status | Condition | Body |
 |---|---|---|
 | `200` | Password updated successfully | `{ "success": true }` |
-| `400` | Invalid/expired/used token, or password out of range / > 72 bytes | `{ "error": "..." }` |
+| `400` | Body is not a JSON object, invalid/expired/used token (or token of a deactivated account), or password out of range / > 72 bytes | `{ "error": "..." }` |
 | `429` | Rate limit exceeded | `{ "error": "Too many requests" }` |
 | `503` | Neither SMTP nor Resend configured | `{ "error": "Service not available" }` |
 

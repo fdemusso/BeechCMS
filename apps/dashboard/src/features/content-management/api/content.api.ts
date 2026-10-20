@@ -7,7 +7,7 @@ import type { ContentEntry } from "@/lib/dynamic-columns"
 
 export type BulkMultiRelMode = "replace" | "add" | "remove"
 
-export interface BulkMultiRelValue {
+interface BulkMultiRelValue {
   mode: BulkMultiRelMode
   value: string[]
 }
@@ -19,7 +19,7 @@ export interface BulkUpdateBody {
   fields: Record<string, BulkFieldValue>
 }
 
-export interface BulkUpdateFailedItem {
+interface BulkUpdateFailedItem {
   id: string
   problem: { status: number; type: string; detail: string }
 }
@@ -105,22 +105,35 @@ export const contentApi = {
   },
 
   /**
-   * Update existing content entry
+   * Update existing content entry.
+   * `ifMatch`, when given, is sent as `If-Match` so the API's optimistic-concurrency guard
+   * (`resolveIfMatch`) can detect a concurrent edit and reject with `content-update-conflict`.
    */
   update: async (
     slug: string,
     id: string,
-    data: Record<string, unknown>
+    data: Record<string, unknown>,
+    ifMatch?: string
   ): Promise<{ success: boolean }> => {
-    const response = await api.put<{ success: boolean }>(`/content/${slug}/${id}`, data)
+    const response = await api.put<{ success: boolean }>(`/content/${slug}/${id}`, data, {
+      headers: ifMatch !== undefined ? { "If-Match": ifMatch } : undefined,
+    })
     return response.data
   },
 
   /**
-   * Delete content entry
+   * Delete a content entry.
+   * On a `softDelete: true` seed this moves the entry to the Trash; `options.purge` forces the
+   * irreversible path (row + junction + drafts + R2 + ledger event).
    */
-  delete: async (slug: string, id: string): Promise<{ success: boolean }> => {
-    const response = await api.delete<{ success: boolean }>(`/content/${slug}/${id}`)
+  delete: async (
+    slug: string,
+    id: string,
+    options?: { purge?: boolean }
+  ): Promise<{ success: boolean; softDeleted?: boolean }> => {
+    const response = await api.delete<{ success: boolean; softDeleted?: boolean }>(
+      `/content/${slug}/${id}${options?.purge ? "?purge=true" : ""}`
+    )
     return response.data
   },
 

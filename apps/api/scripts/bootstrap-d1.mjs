@@ -10,13 +10,21 @@
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const API_DIR = join(__dirname, '..')
-const D1_DIR = join(API_DIR, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject')
+
+// Non-default persist root (the e2e tier points this at a throwaway directory so a run never
+// touches a developer's local dev database). Absent → today's wrangler default, unchanged.
+const PERSIST_ROOT = process.env.BEECH_D1_PERSIST_DIR
+  ? resolve(process.env.BEECH_D1_PERSIST_DIR)
+  : join(API_DIR, '.wrangler/state')
+const PERSIST_FLAG = process.env.BEECH_D1_PERSIST_DIR ? ` --persist-to "${PERSIST_ROOT}"` : ''
+
+const D1_DIR = join(PERSIST_ROOT, 'v3/d1/miniflare-D1DatabaseObject')
 const MIGRATIONS_DIR = join(API_DIR, 'migrations')
 
 function getSqliteFilePath() {
@@ -31,7 +39,7 @@ function ensureWranglerD1Initialized() {
   if (!filePath) {
     try {
       execSync(
-        `npx wrangler d1 execute beech-db --local --command "SELECT 1"`,
+        `npx wrangler d1 execute beech-db --local --command "SELECT 1"${PERSIST_FLAG}`,
         { cwd: API_DIR, stdio: ['ignore', 'ignore', 'ignore'], env: { ...process.env, WRANGLER_SEND_METRICS: 'false' } }
       )
     } catch {
@@ -60,7 +68,7 @@ function hasBaseSchema() {
 
   try {
     const out = execSync(
-      `npx wrangler d1 execute beech-db --local --command "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"`,
+      `npx wrangler d1 execute beech-db --local --command "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"${PERSIST_FLAG}`,
       { cwd: API_DIR, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: { ...process.env, WRANGLER_SEND_METRICS: 'false' } }
     )
     return out.includes('users')
@@ -103,7 +111,7 @@ function applyMigrationsInOrder() {
     try {
       console.log(`[bootstrap-d1] applying ${f}`)
       execSync(
-        `npx wrangler d1 execute beech-db --local --file=./migrations/${f}`,
+        `npx wrangler d1 execute beech-db --local --file=./migrations/${f}${PERSIST_FLAG}`,
         { cwd: API_DIR, stdio: 'inherit', env: { ...process.env, WRANGLER_SEND_METRICS: 'false' } }
       )
       applied++

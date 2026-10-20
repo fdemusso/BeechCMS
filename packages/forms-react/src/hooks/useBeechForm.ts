@@ -10,6 +10,13 @@ import { evaluateCondition } from '../core/conditional-logic.js'
 import { fileToAttachment } from '../core/file-uploader.js'
 import { getTranslations } from '../i18n/translations.js'
 
+/** Normalizes a form value to the `string[]` a `tags` branch is written as. */
+function toTagsArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value
+  if (value === undefined || value === null || value === '') return []
+  return [value]
+}
+
 export function useBeechForm<TValues extends Record<string, unknown> = Record<string, unknown>>(
   options: UseBeechFormOptions<TValues>
 ): UseBeechFormReturn<TValues> {
@@ -115,6 +122,7 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
                 required: Boolean(b.requiredOnCreate ?? b.required),
                 placeholder: typeof b.placeholder === 'string' ? b.placeholder : undefined,
                 options: optionsList,
+                arrayValue: typeStr === 'tags',
                 helpText: typeof b.helpText === 'string' ? b.helpText : undefined,
                 accept: typeof b.accept === 'string' ? b.accept : undefined,
               }
@@ -366,7 +374,8 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
         const payloadData: Record<string, unknown> = {}
         for (const [k, v] of Object.entries(values)) {
           if (isFieldVisible(k)) {
-            payloadData[k] = v
+            const isArrayBranch = schema?.branches.find((b) => b.alias === k)?.arrayValue === true
+            payloadData[k] = isArrayBranch ? toTagsArray(v) : v
           }
         }
 
@@ -420,6 +429,7 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
     },
     [
       validate,
+      schema,
       honeypotValue,
       translations,
       disableAntiBot,

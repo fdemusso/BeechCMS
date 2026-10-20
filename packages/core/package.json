@@ -1,17 +1,22 @@
 {
   "name": "@beechcms/core",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "!dist/.tsbuildinfo"
   ],
   "exports": {
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./schema": {
+      "import": "./dist/schema/index.js",
+      "types": "./dist/schema/index.d.ts"
     },
     "./richtext-render": {
       "import": "./dist/content/richtext/richtext-render.js",
@@ -28,6 +33,7 @@
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
+    "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
@@ -48,7 +54,6 @@
     "@tiptap/extension-table": "^3.31.3",
     "@tiptap/extension-text-align": "^3.31.3",
     "@tiptap/extension-text-style": "^3.31.3",
-    "@tiptap/extension-underline": "^3.31.3",
     "@tiptap/html": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
     "katex": "^0.16.11",

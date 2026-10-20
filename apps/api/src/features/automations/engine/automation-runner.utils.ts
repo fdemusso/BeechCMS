@@ -5,11 +5,20 @@
 import type { ResolvedContext } from '../evaluator/context-resolver'
 import { parseTemplateKey } from '../evaluator/template-grammar'
 
+/** `html` for mail markup; `json` for webhook string values; `none` for plain-text and data sinks. */
+type InterpolateEscape = 'html' | 'json' | 'none'
+
+export interface InterpolateOptions {
+  /** Required so every sink states its escaping explicitly; no single default is safe for all sinks. */
+  escape: InterpolateEscape
+  defaultValue?: string
+  onMissing?: (field: string) => void
+}
+
 export function interpolate(
   template: string,
   context: ResolvedContext,
-  defaultValue = '',
-  onMissing?: (field: string) => void,
+  { escape, defaultValue = '', onMissing }: InterpolateOptions,
 ): string {
   if (!template) return ''
 
@@ -24,7 +33,10 @@ export function interpolate(
     if (val == null || val === '') {
       return defaultValue
     }
-    return escapeHtml(String(val))
+    const value = String(val)
+    if (escape === 'html') return escapeHtml(value)
+    if (escape === 'json') return JSON.stringify(value).slice(1, -1)
+    return value
   }
 
   return template.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, replacer)
@@ -40,18 +52,20 @@ function escapeHtml(input: string): string {
     .replace(/'/g, '&#39;')
 }
 
+/** Reads an own property only, so inherited members such as `constructor` or `toString` never resolve. */
+export function getOwn(source: unknown, key: string): unknown {
+  if (typeof source !== 'object' || source === null || !Object.hasOwn(source, key)) return undefined
+  return (source as Record<string, unknown>)[key]
+}
+
 export function resolvePath(obj: Record<string, unknown>, path: string): unknown {
-  if (path in obj && obj[path] !== undefined) {
-    return obj[path]
-  }
-  const parts = path.split('.')
+  const direct = getOwn(obj, path)
+  if (direct !== undefined) return direct
+
   let current: unknown = obj
-  for (const part of parts) {
-    if (current && typeof current === 'object') {
-      current = (current as Record<string, unknown>)[part]
-    } else {
-      return undefined
-    }
+  for (const part of path.split('.')) {
+    current = getOwn(current, part)
+    if (current === undefined) return undefined
   }
   return current
 }

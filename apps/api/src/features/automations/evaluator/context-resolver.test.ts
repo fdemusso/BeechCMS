@@ -124,3 +124,25 @@ describe('deriveEntryContext', () => {
     expect(derived.lookup(parseTemplateKey('batch:all:count')!)).toBe(2)
   })
 })
+
+describe('resolveAutomationContext — batch aggregates over missing values', () => {
+  const rows = [{ total: 10 }, { total: null }, { total: '' }]
+
+  async function aggregate(op: string): Promise<unknown> {
+    const ctx = await resolveAutomationContext(makeAutomation(), rows[0], rows)
+    return ctx.lookup(parseTemplateKey(`batch:all:${op}:total`)!)
+  }
+
+  it('avg divides by the rows that hold a number', async () => {
+    expect(await aggregate('avg')).toBe(10)
+  })
+
+  // Number(null) and Number('') are 0, which pulled min to 0 and counted the empty rows into avg.
+  it('min ignores rows without a number', async () => {
+    expect(await aggregate('min')).toBe(10)
+  })
+
+  it('sum is unchanged by rows without a number', async () => {
+    expect(await aggregate('sum')).toBe(10)
+  })
+})

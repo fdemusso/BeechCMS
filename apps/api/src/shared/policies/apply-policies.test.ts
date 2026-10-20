@@ -19,26 +19,10 @@ describe('applyPrivacy', () => {
     expect(result.title).toBe('Hello')
   })
 
-  it('hashes the value when branch privacy is "hash"', async () => {
+  it('passes "hash" privacy values through so the repository applies the keyed HMAC', async () => {
     const seed = makeSeed([{ id: 'br_01', alias: 'email', type: 'text', policies: { privacy: 'hash' } }])
     const result = await applyPrivacy({ email: 'user@test.com' }, seed)
-    // sha256 produces a 64-char hex string
-    expect(typeof result.email).toBe('string')
-    expect((result.email as string).length).toBe(64)
-    expect(result.email).not.toBe('user@test.com')
-  })
-
-  it('produces distinct hashes for distinct json objects (no [object Object] collision)', async () => {
-    const seed = makeSeed([{ id: 'br_01', alias: 'answers', type: 'json', policies: { privacy: 'hash' } }])
-    const result1 = await applyPrivacy({ answers: { userId: 1 } }, seed)
-    const result2 = await applyPrivacy({ answers: { userId: 2 } }, seed)
-    expect(result1.answers).not.toBe(result2.answers)
-  })
-
-  it('leaves null/undefined values unhashed even when privacy is "hash"', async () => {
-    const seed = makeSeed([{ id: 'br_01', alias: 'email', type: 'text', policies: { privacy: 'hash' } }])
-    const result = await applyPrivacy({ email: null }, seed)
-    expect(result.email).toBeNull()
+    expect(result.email).toBe('user@test.com')
   })
 
   it('passes through "encrypt" privacy fields so repository can encrypt them', async () => {

@@ -44,7 +44,7 @@ apps/api/.wrangler/
 apps/api/coverage/
 apps/dashboard/dist/
 packages/core/dist/
-packages/core/tsconfig.tsbuildinfo
+**/*.tsbuildinfo
 
 # --- Incremental migrations (only 0000_v040_base.sql is needed) ---------
 apps/api/migrations/_archive/

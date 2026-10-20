@@ -183,6 +183,9 @@ export default defineConfig({
         "src/**/types/**",
         "src/**/consts/**",
         "src/**/index.ts",
+
+        // ─── Type/interface-only despite the filename — no executable statements ──
+        "src/features/shared/view-registry.ts",
       ],
       // Thresholds calibrated to the actually testable surface of this project
       thresholds: {

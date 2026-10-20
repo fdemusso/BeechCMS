@@ -30,7 +30,7 @@ Database migration statements cannot be planned accurately from abstract schema 
 To prevent race conditions between concurrent agents or dashboard administrators, schema mutations are guarded by **Optimistic Concurrency Control (OCC)**. Every plan records an `expectedVersion`. When applying, the API executes a single atomic SQLite batch (`db.batch()`) containing a compare-and-swap guard against `seed_meta.registry_version`. If another writer modified the schema in the interim, the guard trips, rolls back the entire batch, and returns `409 Conflict`.
 
 ### 4. Strictly Additive Safety Gate
-The MCP apply endpoint (`mcp-apply`) is **strictly additive**. Any candidate schema that omits existing branch IDs, renames aliases, or alters field data types is detected as destructive intent, rejected with HTTP `422`, and referred to dedicated danger-zone endpoints.
+The MCP apply endpoint (`mcp-apply`) is **strictly additive**. Any candidate schema that omits existing branch IDs, renames aliases, alters field data types, or changes an existing relation's `multiple`, `targetSeed`, or effective `onDelete` rule is detected as destructive intent and rejected with HTTP `422`. Relation storage or FK policy changes require a separate data migration; the plan reports them as blocked and emits no DDL.
 
 ---
 
@@ -179,6 +179,8 @@ Computes a dry-run migration plan on the server against the physical D1 table st
       "CREATE TABLE IF NOT EXISTS content_products (...);",
       "CREATE INDEX IF NOT EXISTS idx_products_sku ON content_products (sku);"
     ],
+    "definitionChanged": true,
+    "changedBranches": [],
     "ftsRebuildNeeded": false,
     "expectedVersion": 4,
     "expiresInSeconds": 600,
@@ -188,7 +190,7 @@ Computes a dry-run migration plan on the server against the physical D1 table st
 
 #### Safety Classifications:
 - **`create`**: The table does not exist; provisions new tables and indexes.
-- **`additive`**: Only new branches or harmless metadata changes were added.
+- **`additive`**: Only new branches or harmless metadata changes were added. Definition-only changes (tag options, option colors, `multiple`) produce no DDL and are listed in `changedBranches`; `definitionChanged: false` means applying changes nothing.
 - **`destructive`**: Dropped branches, alias renames, or type alterations detected. `applicable` is set to `false` and `blockedReasons` explains what was blocked.
 
 ---

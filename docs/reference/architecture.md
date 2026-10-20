@@ -32,6 +32,23 @@ Handlers are "thin" and focus strictly on request validation, context injection,
 
 Media cleanup during entry deletion is coordinated by the content delete handler using data returned by the repository. When an entry row is removed from D1, its associated uploaded files in Cloudflare R2 are deleted on a best-effort basis without rolling back the committed database transaction.
 
+The repository never calls R2 itself: it returns the row as it existed immediately before erasure, and the handler extracts the media keys from it. A **soft** delete does not touch the bucket at all — a trashed entry must stay restorable with its media attached.
+
+---
+
+## Deletion Semantics & the Erasure Ledger
+
+On a Seed with `softDelete: true` (see [Trash, Soft Delete & GDPR Purge](/features/trash)), deletion splits into two verbs on the repository:
+
+- `softDelete` / `restore` / `bulkRestore` — reversible, row-level (`deleted_at`).
+- `purge` / `bulkPurge` — irreversible, plus one **deletion-ledger** event.
+
+Three properties are enforced at this layer rather than in handlers:
+
+1. **One chokepoint.** The `deleted_at IS NULL` predicate is compiled by `buildSelectQuery` in `@beechcms/core`, so the dashboard list, the Public API, relation expansion, and relation subqueries are filtered by the same code path. `SelectOptions.trashed` (`'active' | 'trashed' | 'any'`) defaults to `'active'`: a caller that forgets it cannot leak a trashed row. The repository's non-compiled reads (`findById`, `findBySlug`, `existsSlug`, `getFacets`, `bulkUpdate`, `findParentIdsByRelation`) carry the equivalent guard.
+2. **Hook symmetry.** `softDelete` and `purge` both run `beforeDelete` / `afterDelete`, and the bulk variants loop per entry so a hook-based integration never silently desynchronizes. `restore` runs no delete hooks — it is not a deletion.
+3. **The ledger outlives D1.** `IDeletionLedger` is a port declared in `@beechcms/core`; its implementation (`R2DeletionLedger`) writes one immutable object per erasure to Cloudflare R2 under `_deletion-ledger/{seedSlug}/{entryId}.json`. It lives outside the database on purpose: a D1 Time Travel restore rewinds every table it wrote, including any ledger stored there. The ledger write is awaited and never swallowed — a purge that reported success without a durable record is the exact failure the feature exists to prevent. `POST /api/content/:seed/trash/reconcile` replays it and re-erases anything a restore resurrected.
+
 ---
 
 ## Programmatic Lifecycle Hooks

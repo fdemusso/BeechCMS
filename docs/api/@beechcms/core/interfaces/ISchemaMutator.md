@@ -157,3 +157,22 @@ Column names currently on a table, or null if the table does not exist.
 #### Returns
 
 `Promise`&lt;`void`&gt;
+
+***
+
+### sumCounts()
+
+> **sumCounts**(`statements`): `Promise`&lt;`number`&gt;
+
+Runs read-only `SELECT COUNT(*) AS count` statements as one batch and returns the summed count.
+ Used to pre-check data compatibility before a lossy destructive operation.
+
+#### Parameters
+
+##### statements
+
+`string`[]
+
+#### Returns
+
+`Promise`&lt;`number`&gt;

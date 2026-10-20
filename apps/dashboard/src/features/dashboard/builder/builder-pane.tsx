@@ -112,6 +112,16 @@ export function BuilderPane({ ops, isSaving, onSave, onReset, onClose }: Builder
     }
   }
 
+  function handleWidgetDropOnColumn(activeId: string, overId: string) {
+    const [, aPageId, aSectionId, aColumnId, aWidgetId] = activeId.split(':')
+    const [, oPageId, oSectionId, oColumnId] = overId.split(':')
+    if (aPageId === oPageId && aSectionId === oSectionId && aColumnId === oColumnId) return
+    ops.moveWidget({
+      from: { pageId: aPageId, sectionId: aSectionId, columnId: aColumnId, widgetId: aWidgetId },
+      to: { pageId: oPageId, sectionId: oSectionId, columnId: oColumnId },
+    })
+  }
+
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -124,6 +134,8 @@ export function BuilderPane({ ops, isSaving, onSave, onReset, onClose }: Builder
       handleSectionDrag(activeId, overId)
     } else if (activeId.startsWith('widget:') && overId.startsWith('widget:')) {
       handleWidgetDrag(activeId, overId)
+    } else if (activeId.startsWith('widget:') && overId.startsWith('column:')) {
+      handleWidgetDropOnColumn(activeId, overId)
     }
   }
 

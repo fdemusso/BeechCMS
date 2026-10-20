@@ -6,11 +6,11 @@
 
 # Class: AllowAllRoleGuard
 
-Stub guard for the pre-roles world: grants every requested scope to every role.
+Stub guard: grants every requested scope to every caller.
 
-This permissiveness is EXPLICIT and directly tested, not an accidental default.
-When the roles feature lands, replace this binding with a real adapter; the
-behaviour change will then be visible as a failing test here, by design.
+Retained as the explicit, directly-tested permissive baseline and as the test
+double for suites that are not exercising arbitration. It is NO LONGER the
+production binding — `repositoryMiddleware` binds [PermissionRoleGuard](PermissionRoleGuard.md).
 
 ## Implements
 
@@ -30,13 +30,13 @@ behaviour change will then be visible as a failing test here, by design.
 
 ### arbitrate()
 
-> **arbitrate**(`_role`, `requestedScopes`): `Promise`&lt;[`ScopeGrantDecision`](../interfaces/ScopeGrantDecision.md)&gt;
+> **arbitrate**(`_effective`, `requestedScopes`): `Promise`&lt;[`ScopeGrantDecision`](../interfaces/ScopeGrantDecision.md)&gt;
 
 #### Parameters
 
-##### \_role
+##### \_effective
 
-`string` \| `undefined`
+[`EffectivePermissions`](../interfaces/EffectivePermissions.md)
 
 ##### requestedScopes
 

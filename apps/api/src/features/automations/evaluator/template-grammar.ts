@@ -15,6 +15,7 @@
  *
  * Scopes: this | batch | <seedSlug> | <contextKey>
  * Selectors: lastone | firstone | all | byid(<id>) | where(<alias>=<value>)
+ *   byid/where take literal values: nested {{...}} inside the parentheses is not parsed.
  * Fields: branch alias, system column, or aggregate (count/sum/avg/min/max/pluck)
  *
  * Sugar:
@@ -52,7 +53,7 @@ export type AutomationContextSelector =
   | { kind: 'byid'; id: string }
   | { kind: 'where'; alias: string; value: string }
 
-export type AggregateOp = 'count' | 'sum' | 'avg' | 'min' | 'max' | 'pluck'
+type AggregateOp = 'count' | 'sum' | 'avg' | 'min' | 'max' | 'pluck'
 
 export type ParsedKey =
   | { kind: 'simple'; path: string }

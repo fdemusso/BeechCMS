@@ -5,7 +5,9 @@ import { z } from 'zod'
 import type { Branch, BranchType, Seed, NumberFieldOptions, FileFieldOptions } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
 import type { ResolvedOptions } from './index.js'
-import { schemaForBranch } from './schema-builders.js'
+import { isSingleChoiceTags, tagOptionValues } from '../seeds/tag-options.js'
+import { isLocalizedBranch } from '../localization/localization.js'
+import { schemaForBranch, localizedSchema } from './schema-builders.js'
 
 type CompiledSchema = z.ZodObject<Record<string, z.ZodTypeAny>>
 
@@ -64,8 +66,10 @@ interface BranchFingerprint {
   t: BranchType
   /** The branch format option, or null. */
   f: string | null
-  /** Whether the branch accepts multiple values. */
+  /** Whether the branch accepts multiple values (resolved: `tags` default to multiple). */
   m: boolean
+  /** Option values in declared order, or null. */
+  o: string[] | null
   /** Whether the branch is required on creation. */
   rc: boolean
   /** Whether the branch is required on update. */
@@ -80,6 +84,8 @@ interface BranchFingerprint {
   ma: number | null
   /** Nested sub-branches fingerprints (for repeaters), or null. */
   sub: BranchFingerprint[] | null
+  /** Whether the branch is localized. */
+  lo: boolean
 }
 
 /**
@@ -93,7 +99,8 @@ function buildBranchFingerprint(branch: Branch): BranchFingerprint {
     a: branch.alias,
     t: branch.type,
     f: branch.format ?? null,
-    m: branch.multiple === true,
+    m: branch.type === 'tags' ? !isSingleChoiceTags(branch) : branch.multiple === true,
+    o: branch.options ? tagOptionValues(branch) : null,
     rc: branch.requiredOnCreate === true,
     ru: branch.requiredOnUpdate === true,
     n: branch.numberOptions ?? null,
@@ -101,6 +108,7 @@ function buildBranchFingerprint(branch: Branch): BranchFingerprint {
     mi: branch.minItems ?? null,
     ma: branch.maxItems ?? null,
     sub: branch.fields?.map(buildBranchFingerprint) ?? null,
+    lo: branch.localized === true,
   }
 }
 
@@ -129,6 +137,9 @@ function buildCacheKey(seed: Seed, options: ResolvedOptions): string {
     options.allowNull ? '1' : '0',
     options.enforceRequiredFields ? '1' : '0',
     String(options.maxTextLength),
+    options.localeConfig
+      ? `${options.localeConfig.defaultLocale}>${options.localeConfig.locales.join(',')}`
+      : '-',
   ].join('|')
 }
 
@@ -168,8 +179,17 @@ export function compileSeedSchema(seed: Seed, options: ResolvedOptions): z.ZodOb
   const requiredFlag = options.operation === 'create' ? 'requiredOnCreate' : 'requiredOnUpdate'
   const shape: Record<string, z.ZodTypeAny> = {}
   for (const branch of seed.branches) {
-    const branchSchema = schemaForBranch(branch, options)
-    const isRequired = branch[requiredFlag] && options.enforceRequiredFields
+    const branchLocaleConfig = options.localeConfig && isLocalizedBranch(branch) ? options.localeConfig : undefined
+    const branchSchema = branchLocaleConfig
+      ? localizedSchema(branch, options, branchLocaleConfig)
+      : schemaForBranch(branch, options)
+    // A localized branch uses patch semantics on update (buildLocalizedPatch omits it entirely when no
+    // locale was touched), so the object schema must accept the key being absent even when required —
+    // detectMissingRequired() checks the *value* (default-locale presence/emptiness) with full patch
+    // awareness; a non-optional key here would fail the whole payload's parse and silently drop every
+    // other submitted field with it.
+    const isPatchExempt = branchLocaleConfig != null && options.operation === 'update'
+    const isRequired = branch[requiredFlag] && options.enforceRequiredFields && !isPatchExempt
     shape[branch.alias] = isRequired ? branchSchema : branchSchema.optional()
   }
   const compiled = z.object(shape).strict()

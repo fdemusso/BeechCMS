@@ -3,9 +3,11 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { Automation, IAutomationRepository, ContentRepository, Seed, IIdGenerator } from '@beechcms/core'
+import type { Automation, AutomationAction, IAutomationRepository, ContentRepository, Seed, SelectOptions, IIdGenerator } from '@beechcms/core'
 import { runCronAutomations } from './cron-runner'
 import type { CronRunnerDeps } from './cron-runner'
+import { interpolate } from './automation-runner.utils'
+import type { ActionContext } from '../executors/index'
 
 vi.mock('../executors', () => ({
   executeAction: vi.fn().mockResolvedValue(undefined),
@@ -264,5 +266,111 @@ describe('runCronAutomations', () => {
     await runCronAutomations(deps, TICK)
 
     expect(executeActionMock).not.toHaveBeenCalled()
+  })
+
+  it('does not fire a batch action (webhook) when a non-pushdown OR condition matches no fetched entry', async () => {
+    const auto = makeAutomation({
+      trigger_conditions: {
+        kind: 'group',
+        op: 'OR',
+        children: [
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.title' }, op: 'eq', right: { kind: 'literal', value: 'zzz' } },
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.title' }, op: 'eq', right: { kind: 'literal', value: 'yyy' } },
+        ],
+      },
+    })
+    const entries = [{ id: 'e1', title: 'A' }, { id: 'e2', title: 'B' }]
+    const deps = makeDeps()
+    deps.findActiveSpy.mockResolvedValue([auto])
+    // OR root is not pushdown-able, so SQL returns everything unfiltered.
+    deps.listSpy.mockResolvedValue({ items: entries, total: 2 })
+
+    await runCronAutomations(deps, TICK)
+
+    expect(executeActionMock).not.toHaveBeenCalled()
+  })
+
+  it('still fires a batch action when a non-pushdown OR condition matches at least one fetched entry', async () => {
+    const auto = makeAutomation({
+      trigger_conditions: {
+        kind: 'group',
+        op: 'OR',
+        children: [
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.title' }, op: 'eq', right: { kind: 'literal', value: 'zzz' } },
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.title' }, op: 'eq', right: { kind: 'literal', value: 'A' } },
+        ],
+      },
+    })
+    const entries = [{ id: 'e1', title: 'A' }, { id: 'e2', title: 'B' }]
+    const deps = makeDeps()
+    deps.findActiveSpy.mockResolvedValue([auto])
+    deps.listSpy.mockResolvedValue({ items: entries, total: 2 })
+
+    await runCronAutomations(deps, TICK)
+
+    expect(executeActionMock).toHaveBeenCalledTimes(1)
+    const [, ctx] = executeActionMock.mock.calls[0]
+    expect(ctx.entry).toMatchObject({ id: 'e1', title: 'A' })
+  })
+
+  it('a batch action renders a variable stored by a preceding set_variable next to batch aggregates', async () => {
+    const entries = [{ id: 'e1', title: 'A' }, { id: 'e2', title: 'B' }]
+    const deps = makeDeps()
+    deps.findActiveSpy.mockResolvedValue([makeAutomation({
+      actions: [
+        { type: 'set_variable', name: 'v', seed_slug: 'posts', filters: [] },
+        { type: 'webhook', url: 'https://example.com/hook', body_template: '{"open":"{{v.count}}","batch":"{{batch:count}}"}' },
+      ],
+    })])
+    deps.listSpy.mockResolvedValue({ items: entries, total: 2 })
+    // Stand-in for the set_variable executor's only effect: it writes into the shared variables map.
+    const rendered: string[] = []
+    executeActionMock.mockImplementation(async (action: AutomationAction, ctx: ActionContext) => {
+      if (action.type === 'set_variable') ctx.variables[action.name] = { count: 7 }
+      if (action.type === 'webhook') rendered.push(interpolate(action.body_template ?? '', ctx.context, { escape: 'none' }))
+    })
+
+    await runCronAutomations(deps, TICK)
+
+    // Regression guard: the batch context once skipped the variables map, so `{{v.count}}` rendered empty.
+    expect(rendered).toEqual(['{"open":"7","batch":"2"}'])
+  })
+})
+
+describe('runCronAutomations — large seeds', () => {
+  beforeEach(() => {
+    executeActionMock.mockReset()
+    executeActionMock.mockResolvedValue(undefined)
+  })
+
+  const editField: AutomationAction = { type: 'edit_field', field: 'title', value: 'x' }
+
+  function pagedRepository(total: number): ContentRepository {
+    const rows = Array.from({ length: total }, (_, index) => ({ id: `e${index}` }))
+    const findMany = vi.fn(async (_seed: Seed, options: SelectOptions) => {
+      const { limit, offset } = options.pagination ?? { limit: rows.length, offset: 0 }
+      return { items: rows.slice(offset, offset + limit), total }
+    })
+    return { findMany } as unknown as ContentRepository
+  }
+
+  // A single 1000-row read silently dropped every later entry from the tick.
+  it('runs a per-entry action for every matching entry, not only the first page', async () => {
+    const deps = makeDeps({ contentRepository: pagedRepository(2500) })
+    deps.findActiveSpy.mockResolvedValue([makeAutomation({ actions: [editField] })])
+
+    await runCronAutomations(deps, TICK)
+
+    expect(executeActionMock).toHaveBeenCalledTimes(2500)
+  })
+
+  // 10_000 is the MAX_AUTOMATION_ROWS ceiling that keeps one tick inside the isolate's memory budget.
+  it('stops at the row ceiling instead of loading an unbounded seed', async () => {
+    const deps = makeDeps({ contentRepository: pagedRepository(10_500) })
+    deps.findActiveSpy.mockResolvedValue([makeAutomation({ actions: [editField] })])
+
+    await runCronAutomations(deps, TICK)
+
+    expect(executeActionMock).toHaveBeenCalledTimes(10_000)
   })
 })

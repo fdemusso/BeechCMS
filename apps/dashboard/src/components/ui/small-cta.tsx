@@ -6,6 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 
 function Empty({ className, ...props }: React.ComponentProps<"div">) {
   return (
@@ -104,6 +105,8 @@ interface SmallCtaProps {
   readonly title?: string
   readonly buttonText?: string
   readonly onButtonClick?: () => void
+  readonly buttonDisabled?: boolean
+  readonly buttonTooltip?: string
   readonly className?: string
 }
 
@@ -112,6 +115,8 @@ function SmallCta({
   title,
   buttonText,
   onButtonClick,
+  buttonDisabled,
+  buttonTooltip,
   className,
 }: SmallCtaProps) {
   const hasText = Boolean(title)
@@ -134,9 +139,24 @@ function SmallCta({
       )}
       {hasText && buttonText && (
         <EmptyContent className="flex justify-center w-full">
-          <Button size="lg" onClick={onButtonClick}>
-            {buttonText}
-          </Button>
+          {buttonDisabled && buttonTooltip ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button size="lg" disabled>
+                    {buttonText}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {buttonTooltip}
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button size="lg" onClick={onButtonClick} disabled={buttonDisabled}>
+              {buttonText}
+            </Button>
+          )}
         </EmptyContent>
       )}
     </Empty>

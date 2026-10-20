@@ -2,25 +2,48 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import type { TFunction } from "i18next"
+import type { Branch } from "@beechcms/core"
+
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { shouldShowPendingDraftBadge } from "@/lib/pending-draft"
-import { extractTagChips, type TagChipData } from "@/lib/tags-utils"
+import { resolveTagChips, type TagChipData } from "@/lib/tags-utils"
+import { NO_ELEMENT_FORMAT, type ElementFormat, type ElementStyle } from "@/lib/conditional-format"
+import { extractTextFromTiptap, isTipTapDoc } from "@/components/fields/display/richtext-plain"
 
 import type { ResolvedCardFields } from "./resolve-card-fields"
 
 export type StatusBadgeVariant = "default" | "secondary" | "outline" | "destructive"
 
+type GalleryCardSlot = "status" | "title" | "excerpt" | "date" | "tags"
+
+/** Campo extra della card personalizzata: valore grezzo, reso da `FieldDisplay`. */
+interface GalleryCardMetadataItem {
+  branch: Branch
+  value: unknown
+  style?: ElementStyle
+}
+
 export interface GalleryCardDisplayModel {
   entryId: string
   status: string
+  /** Status badge is meaningful only for seeds that support drafts. */
+  showStatus: boolean
   tags: TagChipData[]
+  /** Valore della categoria, stringa vuota se assente: usato per raggruppare la galleria. */
+  category: string
   imageUrl: string | null
   title: string
   excerpt: string
   dateText: string
+  metadata: GalleryCardMetadataItem[]
   ariaLabel: string
   statusVariant: StatusBadgeVariant
   hasPendingDraft: boolean
+  /** Element-level conditional format. Absent when no `element` rule matches. */
+  elementStyle?: ElementStyle
+  /** Field-level conditional format per visible slot. Present only for slots whose column matched a `field` rule. */
+  slotStyles?: Partial<Record<GalleryCardSlot, ElementStyle>>
 }
 
 export function getStatusBadgeVariant(status: string): StatusBadgeVariant {
@@ -57,7 +80,10 @@ export function resolveImageUrl(value: unknown): string | null {
   return null
 }
 
-function toPlainText(value: unknown): string {
+export function toPlainText(value: unknown): string {
+  if (isTipTapDoc(value)) {
+    return extractTextFromTiptap(value)
+  }
   if (typeof value === "string") {
     return value.replaceAll(/<[^>]*>/g, " ").replaceAll(/\s+/g, " ").trim()
   }
@@ -83,13 +109,13 @@ function toExcerpt(value: unknown, maxChars = 50): string {
   return `${plain.slice(0, maxChars).trimEnd()}…`
 }
 
-function formatDate(value: unknown): string {
+function formatDate(value: unknown, language: string): string {
   if (value == null || value === "") return ""
   const rawNum = typeof value === "number" ? value : (typeof value === "string" && !isNaN(Number(value)) ? Number(value) : NaN)
   const finalVal = !isNaN(rawNum) && rawNum < 1e11 ? rawNum * 1000 : value
   const date = new Date(finalVal as string | number)
   if (Number.isNaN(date.getTime())) return String(value)
-  return date.toLocaleDateString("it-IT", {
+  return date.toLocaleDateString(language, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -98,12 +124,19 @@ function formatDate(value: unknown): string {
 
 export function buildGalleryCardDisplayModel(
   entry: ContentEntry,
-  branches: ResolvedCardFields
+  branches: ResolvedCardFields,
+  t: TFunction,
+  language: string,
+  format: ElementFormat = NO_ELEMENT_FORMAT,
+  showStatus = true
 ): GalleryCardDisplayModel {
   const status = entry.status?.trim() || "—"
   const tags = branches.tagsBranch
-    ? extractTagChips(entry.data[branches.tagsBranch.alias])
+    ? resolveTagChips(entry.data[branches.tagsBranch.alias], branches.tagsBranch)
     : []
+  const category = branches.categoryBranch
+    ? toPlainText(entry.data[branches.categoryBranch.alias])
+    : ""
   const imageUrl = branches.coverBranch
     ? resolveImageUrl(entry.data[branches.coverBranch.alias])
     : null
@@ -111,22 +144,48 @@ export function buildGalleryCardDisplayModel(
   const excerpt = branches.excerptBranch
     ? toExcerpt(entry.data[branches.excerptBranch.alias], 90)
     : ""
-  const dateText = branches.dateBranch ? formatDate(entry.data[branches.dateBranch.alias]) : ""
+  const dateText = branches.dateBranch ? formatDate(entry.data[branches.dateBranch.alias], language) : ""
+
+  const metadata = branches.metadataBranches.map((branch): GalleryCardMetadataItem => {
+    const style = format.fields[branch.alias]
+    return style
+      ? { branch, value: entry.data[branch.alias], style }
+      : { branch, value: entry.data[branch.alias] }
+  })
 
   const ariaLabel = title
-    ? `Apri dettaglio: ${title}`
-    : `Apri dettaglio entry ${entry.id}`
+    ? t("gallery.openDetailAriaLabel", { title })
+    : t("gallery.openDetailAriaLabelFallback", { id: entry.id })
+
+  const slotColumnId: Partial<Record<GalleryCardSlot, string>> = {
+    status: "status",
+    title: branches.titleBranch?.alias,
+    excerpt: branches.excerptBranch?.alias,
+    date: branches.dateBranch?.alias,
+    tags: branches.tagsBranch?.alias,
+  }
+  const slotStyles: Partial<Record<GalleryCardSlot, ElementStyle>> = {}
+  for (const [slot, columnId] of Object.entries(slotColumnId) as [GalleryCardSlot, string | undefined][]) {
+    if (!columnId) continue
+    const style = format.fields[columnId]
+    if (style) slotStyles[slot] = style
+  }
 
   return {
     entryId: entry.id,
     status,
+    showStatus,
     tags,
+    category,
     imageUrl,
     title,
     excerpt,
     dateText,
+    metadata,
     ariaLabel,
     statusVariant: getStatusBadgeVariant(status),
-    hasPendingDraft: shouldShowPendingDraftBadge(status, entry.has_pending_draft),
+    hasPendingDraft: showStatus && shouldShowPendingDraftBadge(status, entry.has_pending_draft),
+    ...(format.element ? { elementStyle: format.element } : {}),
+    ...(Object.keys(slotStyles).length > 0 ? { slotStyles } : {}),
   }
 }

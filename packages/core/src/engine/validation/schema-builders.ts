@@ -6,7 +6,11 @@ import type { Branch, BranchType } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
 import type { ResolvedOptions } from './index.js'
 import { extensionFromUrl, isExtensionAccepted } from '../../media/file-types.js'
-import { cleanString, stripControlChars, byteLength, isPlainObject } from './primitives.js'
+import { isLocalizedWriteDictionary, toLocalizedPatch, type LocaleConfig, type LocalizedPatch } from '../localization/localization.js'
+import { cleanString, stripControlChars, byteLength, isPlainObject, exceedsMaxDepth } from './primitives.js'
+import { isEffectivelyEmpty } from './emptiness.js'
+import { isSingleChoiceTags, tagOptionValues } from '../seeds/tag-options.js'
+import { normalizeTagValue, TAG_MAX_COUNT, TAG_MAX_LENGTH, TAG_RAW_MAX_COUNT } from '../seeds/tag-value.js'
 import { sanitizeRichtext } from './richtext-sanitizer.js'
 import { resolveFileOptions, isAssetListBranch, collectAssetListItems, extractFileCandidate } from './file-branch.js'
 
@@ -197,8 +201,6 @@ function dateSchema(allowNull: boolean): z.ZodTypeAny {
 
 /** Max nesting depth accepted when walking a `json` branch value. */
 const JSON_MAX_DEPTH = 50
-/** Max number of items accepted in a `tags` branch array. */
-const MAX_TAGS_COUNT = 100
 
 /**
  * Recursively strips control characters from string leaves while enforcing a
@@ -244,6 +246,13 @@ function jsonSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny 
   const base = z
     .union([z.record(z.string(), z.unknown()), z.array(z.unknown())])
     .transform((val, ctx) => {
+      // Fail-fast depth pre-check BEFORE any JSON.stringify: deep nesting stack-
+      // overflows JSON.stringify (recursive) before the size check or the
+      // depth-guarded sanitizing walk below ever run (#443).
+      if (exceedsMaxDepth(val, JSON_MAX_DEPTH)) {
+        ctx.addIssue({ code: 'custom', message: `Expected json(maxDepth:${JSON_MAX_DEPTH})` })
+        return z.NEVER
+      }
       // Fail-fast size check before the sanitizing walk, same order as richtext.
       const rawSize = byteLength(JSON.stringify(val))
       if (rawSize > options.maxTextLength) {
@@ -261,24 +270,59 @@ function jsonSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny 
 }
 
 /**
- * Compiles a Zod validation schema for a `tags` branch, constraining it to a
- * bounded array of cleaned strings (fixes #183: previously any array/object
- * shape passed, breaking callers like the kanban swap that cast to `string[]`).
+ * Compiles a Zod validation schema for a `tags` branch: a small array of short labels.
+ * Free values go through {@link normalizeTagValue} (invisible/control characters removed, whitespace
+ * collapsed, NFC) and may not exceed {@link TAG_MAX_LENGTH} characters; at most {@link TAG_MAX_COUNT} survive.
+ * With `options` the array is a closed vocabulary (exact, case-sensitive match after NFC, no trimming);
+ * without, values are normalized and those that clean to nothing are dropped. Duplicates are rejected, never merged,
+ * and a single-choice branch (`multiple: false`) accepts at most one value. The first violated
+ * rule emits one issue for the whole array.
  *
- * @param options - The resolved validation options.
+ * @param branch - The tags branch definition.
  * @param allowNull - Whether null values are allowed.
  * @returns The compiled tags schema.
  */
-function tagsSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny {
-  const tagSchema = z
-    .string()
-    .transform((value) => cleanString(value))
-    .refine((value) => byteLength(value) <= options.maxTextLength, {
-      message: `Expected string(max:${options.maxTextLength})`,
+function tagsSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
+  const allowedValues = tagOptionValues(branch)
+  const isClosedVocabulary = allowedValues.length > 0
+  const base = z
+    .array(z.string())
+    // Coarse guard so a huge payload is not scanned; the real cap applies after blanks are dropped.
+    .max(TAG_RAW_MAX_COUNT, { message: `Expected tags(max:${TAG_MAX_COUNT})` })
+    .transform((tags, ctx) => {
+      const values: string[] = []
+      for (const tag of tags) {
+        if (isClosedVocabulary) {
+          // Exact match: only NFC is applied, so a padded or invisible-char variant of an option is rejected.
+          values.push(tag.normalize('NFC'))
+          continue
+        }
+        const normalized = normalizeTagValue(tag)
+        if (!normalized.ok) {
+          const expected = normalized.reason === 'too-long' ? `tags(item-max:${TAG_MAX_LENGTH})` : 'tags(valid-text)'
+          ctx.addIssue({ code: 'custom', message: `Expected ${expected}` })
+          return z.NEVER
+        }
+        if (normalized.value.length > 0) values.push(normalized.value)
+      }
+      if (isClosedVocabulary && values.some((tag) => !allowedValues.includes(tag))) {
+        ctx.addIssue({ code: 'custom', message: `Expected tags(one-of:${allowedValues.join('|')})` })
+        return z.NEVER
+      }
+      if (values.length > TAG_MAX_COUNT) {
+        ctx.addIssue({ code: 'custom', message: `Expected tags(max:${TAG_MAX_COUNT})` })
+        return z.NEVER
+      }
+      if (new Set(values).size !== values.length) {
+        ctx.addIssue({ code: 'custom', message: 'Expected tags(unique)' })
+        return z.NEVER
+      }
+      if (isSingleChoiceTags(branch) && values.length > 1) {
+        ctx.addIssue({ code: 'custom', message: 'Expected tags(max:1)' })
+        return z.NEVER
+      }
+      return values
     })
-  const base = z.array(tagSchema).max(MAX_TAGS_COUNT, {
-    message: `Expected tags(max:${MAX_TAGS_COUNT})`,
-  })
   return withEmptyPreprocessing(base, allowNull)
 }
 
@@ -387,14 +431,26 @@ function repeaterSchema(branch: Branch, options: ResolvedOptions): z.ZodTypeAny 
   const subBranches = (branch.fields ?? []).filter((sub) => !REPEATER_DISALLOWED_SUBTYPES.has(sub.type))
 
   const shape: Record<string, z.ZodTypeAny> = {}
+  const requiredSubs: Branch[] = []
   for (const sub of subBranches) {
     const subSchema = schemaForBranch(sub, options)
     const isRequired = options.enforceRequiredFields && sub[requiredFlag]
     shape[sub.alias] = isRequired ? subSchema : subSchema.optional()
+    if (isRequired) requiredSubs.push(sub)
   }
   // z.object() strips unknown keys by default — old item shapes from a renamed/
   // removed sub-field are dropped rather than rejected (sprint 10 §5.1).
-  const itemSchema = z.object(shape)
+  // Making the key non-optional above only guards presence: leaf schemas fold ""
+  // to `undefined` (withEmptyPreprocessing) or accept whitespace-only text, so a
+  // required sub-field still needs the same value-level emptiness check top-level
+  // required branches get from detectMissingRequired (issue #444).
+  const itemSchema = z.object(shape).superRefine((item, ctx) => {
+    for (const sub of requiredSubs) {
+      if (isEffectivelyEmpty(item[sub.alias], sub.type)) {
+        ctx.addIssue({ code: 'custom', path: [sub.alias], message: 'Expected non-empty(required)' })
+      }
+    }
+  })
   let arraySchema = z.array(itemSchema)
   if (Number.isInteger(branch.minItems) && (branch.minItems as number) >= 0) {
     arraySchema = arraySchema.min(branch.minItems as number, {
@@ -417,7 +473,7 @@ const BRANCH_SCHEMA_BUILDERS: Record<string, (branch: Branch, options: ResolvedO
   boolean: (_branch, options) => booleanSchema(options.allowNull),
   date: (_branch, options) => dateSchema(options.allowNull),
   json: (_branch, options) => jsonSchema(options, options.allowNull),
-  tags: (_branch, options) => tagsSchema(options, options.allowNull),
+  tags: (branch, options) => tagsSchema(branch, options.allowNull),
   file: (branch, options) => fileSchema(branch, options.allowNull),
   relation: (branch, options) => relationSchema(branch, options),
   repeater: (branch, options) => repeaterSchema(branch, options),
@@ -436,4 +492,53 @@ export function schemaForBranch(branch: Branch, options: ResolvedOptions): z.Zod
     throw new Error(`Unhandled branch type: ${(branch as { type: string }).type}`)
   }
   return builder(branch, options)
+}
+
+/**
+ * Compiles the schema of a localized branch. Top level only: `compileSeedSchema` is the sole caller, so
+ * repeater sub-fields (validated through `schemaForBranch`) can never reach it.
+ *
+ * Accepts a plain value (→ default locale) or a locale dictionary, normalises it with
+ * {@link toLocalizedPatch}, and validates every non-null locale value with the branch's base-type schema.
+ * Output is a {@link LocalizedPatch}. Failures are reported at `<alias>.<locale>` for dictionary input
+ * and at `<alias>` for a plain value, i.e. always at a path that exists in the client's payload.
+ *
+ * @param branch - A branch for which `isLocalizedBranch(branch)` is true.
+ * @param options - The resolved validation options.
+ * @param config - The project language configuration.
+ * @returns The compiled localized schema.
+ */
+export function localizedSchema(branch: Branch, options: ResolvedOptions, config: LocaleConfig): z.ZodTypeAny {
+  const valueSchema = schemaForBranch({ ...branch, localized: false }, { ...options, allowNull: false })
+  return z.any().transform((raw, ctx) => {
+    if (raw === null) {
+      if (!options.allowNull) ctx.addIssue({ code: 'custom', message: 'Expected localized-value' })
+      return null
+    }
+    const isDictionaryInput = isLocalizedWriteDictionary(raw, config)
+    const patch = toLocalizedPatch(raw, config)
+    const validated: LocalizedPatch = {}
+    for (const [locale, localeValue] of Object.entries(patch)) {
+      if (localeValue === null) {
+        validated[locale] = null
+        continue
+      }
+      const parsed = valueSchema.safeParse(localeValue)
+      if (parsed.success) {
+        validated[locale] = parsed.data
+        continue
+      }
+      for (const issue of parsed.error.issues) {
+        const innerPath = issue.path as (string | number)[]
+        ctx.addIssue({
+          code: 'custom',
+          path: isDictionaryInput ? [locale, ...innerPath] : innerPath,
+          // Keep the "Expected <type>" convention expectedFromIssue() relies on.
+          message: issue.code === 'invalid_type' ? `Expected ${issue.expected}` : issue.message,
+          params: (issue as { params?: Record<string, unknown> }).params,
+        })
+      }
+    }
+    return validated
+  })
 }

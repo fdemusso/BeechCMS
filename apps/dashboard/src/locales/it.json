@@ -28,6 +28,8 @@
     "yes": "Sì",
     "no": "No",
     "previous": "Precedente",
+    "selectedOfTotal_one": "{{selected}} di {{total}} selezionata",
+    "selectedOfTotal_other": "{{selected}} di {{total}} selezionate",
     "next": "Successivo"
   },
   "dashboard": {
@@ -163,6 +165,7 @@
     },
     "widgetRegistry": {
       "unknown": "Widget sconosciuto:",
+      "disabled": "Widget non funzionante in questa versione",
       "widgets": {
         "stat": {
           "label": "Statistica"
@@ -396,7 +399,8 @@
     "groups": {
       "account": "Account",
       "system": "Sistema & UI",
-      "models": "Modelli Dati"
+      "models": "Modelli Dati",
+      "access": "Accesso"
     },
     "tabs": {
       "profile": "Profilo",
@@ -405,7 +409,10 @@
       "storage": "Storage",
       "notifications": "Notifiche",
       "general": "Sito",
-      "connectedApps": "App connesse"
+      "connectedApps": "App connesse",
+      "users": "Utenti",
+      "roles": "Ruoli",
+      "invitations": "Inviti"
     },
     "notifications": {
       "title": "Notifiche in-app",
@@ -433,10 +440,19 @@
       "usageTitle": "Utilizzo storage",
       "usageDesc": "Spazio occupato dai file caricati su R2.",
       "orphansTitle": "File orfani",
-      "orphansDesc": "File caricati ma non referenziati da nessun contenuto. Possono essere eliminati manualmente da Cloudflare R2.",
+      "orphansDesc": "File caricati ma non referenziati da nessun campo file, pubblicato o in bozza. Verifica prima di eliminare: un file potrebbe essere usato altrove.",
       "fileCount": "{{count}} file totali",
       "referenceVisual": "Riferimento visivo: 1 GB",
-      "noOrphans": "Nessun file orfano trovato"
+      "noOrphans": "Nessun file orfano trovato",
+      "orphanCount": "{{count}} file orfani",
+      "pageRange": "{{start}}–{{end}} di {{total}}",
+      "loadFailed": "Impossibile caricare le informazioni sullo storage",
+      "selectOrphan": "Seleziona {{filename}}",
+      "deleteSelected": "Elimina {{count}} selezionati",
+      "deleteTitle": "Eliminare definitivamente {{count}} file?",
+      "deleteDesc": "I file vengono rimossi dallo storage e non sono recuperabili. Se un file selezionato è di nuovo referenziato o non è più tracciato, non viene eliminato nulla.",
+      "deleted": "{{count}} file eliminati",
+      "deleteFailed": "Impossibile eliminare i file selezionati. L'elenco è stato aggiornato: verificalo e riprova."
     },
     "profile": {
       "infoTitle": "Informazioni profilo",
@@ -487,6 +503,25 @@
       "savedError": "Errore durante il salvataggio delle impostazioni",
       "saveChanges": "Salva modifiche"
     },
+    "contentLanguages": {
+      "title": "Lingue dei contenuti",
+      "description": "Lingue in cui i contenuti possono essere tradotti. La lingua predefinita viene mostrata dove manca una traduzione.",
+      "defaultBadge": "Predefinita",
+      "makeDefault": "Rendi predefinita",
+      "remove": "Rimuovi {{code}}",
+      "addLabel": "Aggiungi una lingua",
+      "addPlaceholder": "es. en, fr, pt-BR",
+      "add": "Aggiungi",
+      "keptOnRemoveHint": "Rimuovere una lingua non cancella mai le sue traduzioni: restano salvate e ricompaiono se la aggiungi di nuovo.",
+      "errors": {
+        "invalid": "Usa un codice lingua come \"en\", \"fr\" o \"pt-BR\".",
+        "duplicate": "Questa lingua è già nell'elenco.",
+        "limit": "Puoi aggiungere al massimo 50 lingue."
+      },
+      "save": "Salva lingue",
+      "savedSuccess": "Lingue dei contenuti salvate",
+      "savedError": "Errore durante il salvataggio delle lingue dei contenuti"
+    },
     "security": {
       "sessionsTitle": "Sessioni attive",
       "sessionsDesc": "Sessioni di accesso correntemente aperte per il tuo account.",
@@ -533,9 +568,39 @@
     "list": {
       "table": "Tabella",
       "gallery": "Galleria",
+      "kanban": "Kanban",
       "deletionPartial": "Eliminazione parziale: {{failures}} su {{total}} fallite",
       "emptyTitle": "Qui non c'è nulla",
       "emptyCreateFirst": "Crea il tuo primo {{label}}"
+    },
+    "views": {
+      "add": "Aggiungi vista",
+      "delete": "Elimina vista",
+      "deleteConfirmTitle": "Eliminare questa vista?",
+      "deleteConfirmDescription": "\"{{label}}\" verrà rimossa per tutti coloro che accedono a questo tipo di contenuto. I contenuti non vengono toccati.",
+      "tabsLabel": "Viste",
+      "pickerTitle": "Aggiungi una nuova vista",
+      "types": {
+        "chart": "Grafico",
+        "board": "Bacheca",
+        "list": "Elenco",
+        "calendar": "Calendario",
+        "map": "Mappa",
+        "timeline": "Timeline",
+        "feed": "Feed",
+        "form": "Modulo"
+      },
+      "emptyTitle": "Nessuna vista {{label}}",
+      "emptyDescription": "Crea una vista per vedere questo contenuto come {{label}}.",
+      "emptyCreate": "Crea la tua prima vista",
+      "errors": {
+        "loadFailed": "Impossibile caricare le viste di questo tipo di contenuto",
+        "createFailed": "Impossibile creare la vista",
+        "saveFailed": "Impossibile salvare la vista",
+        "deleteFailed": "Impossibile eliminare la vista",
+        "lastTable": "Un tipo di contenuto deve mantenere almeno una vista Tabella",
+        "reorderFailed": "Impossibile salvare l'ordine delle viste"
+      }
     },
     "editor": {
       "newEntry": "Nuovo {{label}}",
@@ -577,12 +642,21 @@
       "savedSuccess": "Modifiche salvate",
       "createdSuccess": "Entry creata",
       "slugDuplicate": "Slug già esistente per questo schema",
+      "updateConflict": "Questa entry è stata modificata altrove — ricarica per vedere la versione più recente",
+      "reload": "Ricarica",
       "saveError": "Errore durante il salvataggio",
       "validationError_one": "{{count}} campo ha un errore di validazione — controlla i campi evidenziati",
       "validationError_other": "{{count}} campi hanno errori di validazione — controlla i campi evidenziati",
       "jsonError": "Il campo \"{{field}}\" deve contenere JSON valido",
       "emptyTab": "Nessun campo in questa tab.",
       "emptyColumn": "Vuoto",
+      "localization": {
+        "switcherLabel": "Lingua del contenuto",
+        "defaultBadge": "predefinita",
+        "completion": "{{filled}}/{{total}} tradotti",
+        "missing": "Nessun valore in {{locale}}: chi legge in {{locale}} vede una lingua di ripiego.",
+        "copyFromDefault": "Copia dal valore predefinito ({{locale}})"
+      },
       "relation": {
         "placeholder": "Seleziona una voce correlata…",
         "search": "Cerca…",
@@ -598,10 +672,39 @@
         "selectedItems": "Elementi selezionati"
       }
     },
+    "trash": {
+      "open": "Cestino",
+      "title": "Cestino — {{type}}",
+      "back": "Torna alla lista",
+      "deletedAt": "Eliminato",
+      "retention": "Conservazione",
+      "daysLeft_one": "{{count}} giorno rimasto",
+      "daysLeft_other": "{{count}} giorni rimasti",
+      "empty": "Il cestino è vuoto",
+      "disabled": "Questo tipo di contenuto non usa il cestino: le eliminazioni sono immediate e irreversibili.",
+      "restore": "Ripristina",
+      "purge": "Elimina definitivamente",
+      "selectedCount_one": "{{count}} entry selezionata",
+      "selectedCount_other": "{{count}} entry selezionate",
+      "restored": "Entry ripristinata",
+      "restoredRenamed": "Entry ripristinata con lo slug \"{{slug}}\" — lo slug originale era già in uso.",
+      "purged": "Entry eliminata definitivamente",
+      "partialFailure_one": "{{count}} entry non è stata elaborata",
+      "partialFailure_other": "{{count}} entry non sono state elaborate"
+    },
     "deleteDialog": {
       "title": "Conferma eliminazione",
       "single": "Sei sicuro di voler eliminare questa entry di tipo \"{{type}}\"?",
-      "multiple": "Sei sicuro di voler eliminare {{count}} entry di tipo \"{{type}}\"?"
+      "multiple": "Sei sicuro di voler eliminare {{count}} entry di tipo \"{{type}}\"?",
+      "trashTitle": "Sposta nel Cestino",
+      "trashSingle": "Spostare questa entry di tipo \"{{type}}\" nel Cestino? Potrai ripristinarla in seguito.",
+      "trashMultiple": "Spostare {{count}} entry di tipo \"{{type}}\" nel Cestino? Potrai ripristinarle in seguito.",
+      "trashConfirm": "Sposta nel Cestino",
+      "purgeTitle": "Elimina definitivamente",
+      "purgeSingle": "Eliminare definitivamente questa entry di tipo \"{{type}}\"?",
+      "purgeMultiple": "Eliminare definitivamente {{count}} entry di tipo \"{{type}}\"?",
+      "purgeWarning": "L'operazione è irreversibile. I media allegati vengono eliminati e la cancellazione viene registrata in modo permanente: la voce resta eliminata anche dopo un ripristino del database.",
+      "purgeConfirm": "Elimina definitivamente"
     },
     "actions": {
       "label": "Azioni",
@@ -648,12 +751,16 @@
     "viewSwitcher": {
       "addView": "Aggiungi vista"
     },
-    "filterPills": {
-      "groupedBy": "Raggruppato per: {{label}}"
+    "newEntry": {
+      "moreOptions": "Template",
+      "templatesTitle": "Template per {{label}}",
+      "templatesDescription": "Crea un template riutilizzabile per le entry di questo tipo di contenuto.",
+      "newTemplate": "Nuovo template"
     },
     "filterBanner": {
-      "message": "Sono stati applicati dei filtri: {{filters}}",
-      "clearAll": "Rimuovi tutti i filtri"
+      "message": "I filtri vengono salvati automaticamente per tutti gli utenti che vedono questa vista.",
+      "clearAll": "Rimuovi tutti i filtri",
+      "dismiss": "Ho capito"
     },
     "settings": {
       "selectAxisField": "Per favore seleziona un campo per raggruppare le schede dalle impostazioni (icona ingranaggio) in alto a destra.",
@@ -670,6 +777,7 @@
       "recommended": "Consigliati",
       "active": "attivo",
       "table": "Tabella",
+      "display": "Visualizzazione",
       "columnSearch": "Cerca colonna...",
       "noColumns": "Nessuna colonna trovata",
       "invertOrder": "Inverti ordine",
@@ -709,8 +817,8 @@
       "editRule": "Modifica regola",
       "toggleRule": "Attiva/disattiva regola",
       "applyTo": "Applica a",
-      "cell": "Cella",
-      "row": "Riga",
+      "field": "Campo",
+      "element": "Intero elemento",
       "useColorIf": "usa colore se",
       "formatStyle": "stile di formattazione",
       "default": "Predefinito",
@@ -783,13 +891,59 @@
   "gallery": {
     "noItems": "Nessun elemento da visualizzare",
     "noItemsDesc": "Non ci sono contenuti disponibili per questa vista galleria.",
-    "mainContent": "Contenuto principale",
-    "content": "Contenuto",
-    "seo": "Metadati / SEO",
-    "status": "Stato",
-    "noContent": "Nessun campo contenuto.",
-    "edit": "Modifica",
-    "cover": "Copertina"
+    "untitled": "Senza titolo",
+    "preview": "Anteprima",
+    "imageUnavailable": "Immagine non disponibile",
+    "openDetailAriaLabel": "Apri dettaglio: {{title}}",
+    "openDetailAriaLabelFallback": "Apri dettaglio entry {{id}}",
+    "folders": {
+      "sectionAriaLabel": "Cartelle",
+      "emptyTitle": "Non hai ancora nessuna cartella",
+      "emptyDescription": "Aggiungi la prima foto e imposta la sua categoria: le cartelle appariranno qui.",
+      "uncategorized": "Altre foto",
+      "itemCount": "{{count}} {{label}}",
+      "openAriaLabel": "Apri cartella {{label}}, {{count}}",
+      "edit": {
+        "title": "Personalizza cartella",
+        "label": "Nome",
+        "description": "Descrizione",
+        "color": "Colore",
+        "icon": "Icona",
+        "reset": "Ripristina",
+        "openAriaLabel": "Modifica cartella {{label}}",
+        "colors": {
+          "slate": "Grigio",
+          "red": "Rosso",
+          "orange": "Arancione",
+          "amber": "Ambra",
+          "green": "Verde",
+          "teal": "Turchese",
+          "blue": "Blu",
+          "violet": "Viola",
+          "pink": "Rosa"
+        },
+        "icons": {
+          "Folder": "Cartella",
+          "Star": "Stella",
+          "Heart": "Cuore",
+          "Image": "Immagine",
+          "Camera": "Fotocamera",
+          "Calendar": "Calendario",
+          "Tag": "Tag",
+          "Bookmark": "Segnalibro",
+          "Home": "Casa",
+          "Gift": "Regalo",
+          "Video": "Video",
+          "Music": "Musica",
+          "Book": "Libro",
+          "Flag": "Bandiera",
+          "Briefcase": "Valigetta",
+          "Users": "Persone",
+          "Sun": "Sole",
+          "Crown": "Corona"
+        }
+      }
+    }
   },
   "siteHeader": {
     "settings": "Impostazioni",
@@ -804,7 +958,10 @@
     "contentGroup": "Content",
     "createNew": "Crea Nuovo",
     "scheduled": "Programmati",
-    "analytics": "Analitiche"
+    "analytics": "Analitiche",
+    "disabled": {
+      "createContent": "Non puoi creare contenuti qui"
+    }
   },
   "drafts": {
     "title": "Bozze",
@@ -1207,6 +1364,14 @@
     "defaultTabBadge": "Predefinita"
   },
   "fields": {
+    "tags": {
+      "empty": "Nessun valore selezionato",
+      "menuTitle": "Scegli tra le opzioni",
+      "allSelected": "Tutte le opzioni sono già selezionate.",
+      "add": "Scegli un valore",
+      "remove": "Rimuovi {{value}}",
+      "notInOptions": "{{value}} — non presente nelle opzioni"
+    },
     "restricted": "Riservato",
     "repeater": {
       "addItem": "Aggiungi elemento",
@@ -1320,12 +1485,23 @@
       "fileAccept_any": "Qualsiasi file",
       "fileAccept_image": "Solo immagini",
       "fileAccept_document": "Solo documenti",
-      "options": "Opzioni (valori)",
-      "optionsPlaceholder": "valore1, valore2, valore3",
-      "optionsHint": "Lista separata da virgole dei valori consentiti.",
+      "options": "Opzioni",
+      "optionValue": "Valore",
+      "optionColor": "Colore",
+      "addOption": "Aggiungi opzione",
+      "removeOption": "Rimuovi opzione",
+      "moveOptionUp": "Sposta su",
+      "moveOptionDown": "Sposta giù",
+      "freeTagsHint": "Nessuna opzione: qualsiasi etichetta breve è accettata (tag liberi, massimo 10 per campo, 25 caratteri ciascuno).",
       "policies": "Policy",
       "removeExistingWarning": "Il campo smette di essere usato; i dati esistenti vengono conservati nel database e non eliminati. Continuare?",
-      "reservedAliasError": "Uno o più alias confliggono con nomi di campo di sistema riservati."
+      "reservedAliasError": "Uno o più alias confliggono con nomi di campo di sistema riservati.",
+      "localized": "Localizzato",
+      "localizedBadge": "localizzato",
+      "localizedHint": "Gli editor compilano questo campo per ogni lingua dei contenuti (Impostazioni → Sito → Lingue dei contenuti).",
+      "localizedBlockedSubField": "I sotto-campi di un repeater non possono essere localizzati.",
+      "localizedBlockedClassification": "I campi riservati e ristretti sono salvati cifrati o come hash, quindi non possono essere localizzati.",
+      "localizedDisableWarning": "Le traduzioni esistenti restano salvate. Finché non riattivi la localizzazione, questo campo le mostra come testo grezzo."
     },
     "policies": {
       "classification": "Classificazione dati",
@@ -1377,16 +1553,21 @@
       "updateFailed": "Errore nell'aggiornamento del tipo di contenuto",
       "deleteFailed": "Errore nell'eliminazione del tipo di contenuto"
     },
+    "purge": {
+      "button": "Elimina definitivamente",
+      "title": "Elimina definitivamente {{label}}",
+      "description": "Questo tipo di contenuto è stato eliminato. L'eliminazione definitiva ne rimuove tabelle e media."
+    },
     "dangerZone": {
       "title": "Zona pericolosa",
       "subtitle": "Queste operazioni sono irreversibili e possono causare perdita permanente di dati.",
       "hardDelete": {
         "title": "Elimina definitivamente questo tipo di contenuto",
-        "description": "Rimuove tutte le tabelle (contenuto, bozze, FTS, junction) e il record seed. Tutti i dati vengono distrutti permanentemente.",
+        "description": "Nasconde subito questo tipo di contenuto, poi elimina tabelle e media in background. L'operazione è irreversibile.",
         "confirmPlaceholder": "Scrivi lo slug per confermare",
         "confirmLabel": "Scrivi \"{{slug}}\" per confermare",
         "button": "Elimina definitivamente",
-        "successToast": "Tipo di contenuto \"{{slug}}\" eliminato definitivamente."
+        "successToast": "Eliminazione di \"{{slug}}\" avviata. La pulizia dei media è in corso."
       },
       "dropColumn": {
         "title": "Rimuovi campo",
@@ -1478,6 +1659,180 @@
       "revokeDesc": "{{client}} perderà immediatamente l'accesso. Ogni token attivo viene invalidato.",
       "revokeSuccess": "Accesso revocato",
       "revokeError": "Errore nella revoca dell'accesso"
+    }
+  },
+  "rbac": {
+    "users": {
+      "title": "Utenti",
+      "create": "Crea account",
+      "email": "Email",
+      "name": "Nome",
+      "surname": "Cognome",
+      "password": "Password",
+      "status": "Stato",
+      "active": "Attivo",
+      "disabled": "Disattivato",
+      "roles": "Ruoli",
+      "you": "Tu",
+      "deactivate": "Disattiva",
+      "reactivate": "Riattiva",
+      "manageRoles": "Gestisci ruoli",
+      "zeroTrustHint": "L'account viene creato senza ruolo e senza accesso finché non viene assegnato.",
+      "cannotDeactivateDev": "L'account sviluppatore non può essere disattivato",
+      "cannotDeactivateSelf": "Non puoi disattivare il tuo account",
+      "deactivateWarning": "Tutte le sessioni attive vengono revocate immediatamente.",
+      "createSuccess": "Account creato"
+    },
+    "roles": {
+      "title": "Ruoli",
+      "create": "Crea ruolo",
+      "edit": "Modifica ruolo",
+      "delete": "Elimina ruolo",
+      "name": "Nome",
+      "description": "Descrizione",
+      "icon": "Icona",
+      "selectIcon": "Seleziona icona",
+      "searchIcons": "Cerca icone...",
+      "noIconsFound": "Nessuna icona trovata",
+      "permissions": "Permessi",
+      "system": "Sistema",
+      "deleteWarning": "Ogni assegnazione tramite questo ruolo viene rimossa a cascata.",
+      "saveSuccess": "Ruolo salvato",
+      "morePermissions": "+{{count}} altri",
+      "moreRoles": "+{{count}} altri",
+      "groupContent": "Contenuto",
+      "groupSystem": "Sistema"
+    },
+    "invitations": {
+      "title": "Inviti",
+      "invite": "Invita",
+      "status": "Stato",
+      "expires": "Scade",
+      "regenerate": "Rigenera",
+      "revoke": "Revoca",
+      "emailSent": "Invito inviato via email",
+      "revokeWarning": "Questo link di invito smetterà di funzionare.",
+      "copyLink": "Copia link di invito",
+      "linkCopied": "Link di invito copiato",
+      "statuses": {
+        "pending": "In attesa",
+        "accepted": "Accettato",
+        "expired": "Scaduto"
+      }
+    },
+    "assignments": {
+      "title": "Ruoli per {{email}}",
+      "add": "Aggiungi",
+      "remove": "Rimuovi",
+      "role": "Ruolo",
+      "scope": "Ambito",
+      "inactiveScope": "Ambito inattivo",
+      "cannotRemoveDevSuperAdmin": "L'account sviluppatore non può rimuovere il ruolo SuperAdmin",
+      "empty": "Ancora nessuna assegnazione"
+    },
+    "scope": {
+      "global": "Tutti i seed (globale)",
+      "none": "Nessun ambito disponibile",
+      "select": "Seleziona un ambito"
+    },
+    "permissions": {
+      "content:read": "Leggi contenuti",
+      "content:create": "Crea contenuti",
+      "content:update": "Aggiorna contenuti",
+      "content:delete": "Elimina contenuti",
+      "manage_users": "Gestisci utenti",
+      "manage_roles": "Gestisci ruoli",
+      "view_analytics": "Visualizza analitiche"
+    },
+    "errors": {
+      "generic": "Qualcosa è andato storto. Riprova.",
+      "validation-failed": "Alcuni campi non sono validi.",
+      "not-found": "Non trovato.",
+      "forbidden": "Non sei autorizzato a farlo.",
+      "escalation-refused": "Non puoi concedere autorità che non possiedi.",
+      "email-taken": "Questa email è già registrata.",
+      "role-name-taken": "Questo nome ruolo è già in uso.",
+      "system-role-immutable": "I ruoli di sistema non possono essere modificati.",
+      "last-global-admin": "Questo lascerebbe la piattaforma senza un amministratore globale attivo.",
+      "unknown-scope": "Quell'ambito non è un seed valido né l'ambito globale.",
+      "email-unavailable": "Il servizio email non è configurato. L'invito non può essere inviato.",
+      "invitation-invalid": "Questo link di invito non è valido o è scaduto.",
+      "invitation-revoked": "Questo invito è stato revocato.",
+      "invitation-already-used": "Questo invito è già stato utilizzato."
+    }
+  },
+  "acceptInvite": {
+    "title": "Accetta invito",
+    "desc": "Imposta una password per attivare il tuo account.",
+    "invitedAs": "Sei stato invitato come {{role}}",
+    "onScope": "su {{scope}}",
+    "invalidOrExpired": "Questo link di invito non è valido o è scaduto.",
+    "password": "Password",
+    "confirm": "Conferma password",
+    "mismatch": "Le password non coincidono",
+    "tooShort": "La password deve contenere almeno 8 caratteri",
+    "tooLong": "La password non può superare i 128 caratteri",
+    "passwordPlaceholder": "Minimo 8 caratteri",
+    "confirmPlaceholder": "Ripeti la password",
+    "strengthWeak": "Debole",
+    "strengthFair": "Discreta",
+    "strengthStrong": "Forte",
+    "submit": "Attiva account",
+    "success": "Account attivato. Ora puoi accedere.",
+    "accountExists": "Un account con questa email esiste già. Accedi invece.",
+    "genericError": "Qualcosa è andato storto. Riprova."
+  },
+  "transfer": {
+    "menu": {
+      "tooltip": "Esporta / Importa",
+      "exportGroup": "Esporta",
+      "csvDisabled": "CSV disabilitato: {{branches}} non possono essere colonne piatte",
+      "import": "Importa…"
+    },
+    "export": {
+      "errors": {
+        "unknown": "Esportazione fallita"
+      }
+    },
+    "import": {
+      "title": "Importa in {{label}}",
+      "description": "Carica un file CSV o NDJSON per inserire nuove voci.",
+      "formatLabel": "Formato",
+      "csvDisabled": "CSV disabilitato: {{branches}} non possono essere colonne piatte",
+      "fileLabel": "File",
+      "startUpload": "Carica e avvia l'importazione",
+      "uploading": "Caricamento e avvio del job di importazione…",
+      "openJobPage": "Apri la pagina completa del job",
+      "presignPermissionWarning": "Il caricamento di un file di importazione richiede attualmente il permesso globale content-create.",
+      "errors": {
+        "unknown": "Importazione fallita",
+        "storageNotConfigured": "Il caricamento diretto non è configurato su questo deployment. Chiedi a un amministratore di configurare le credenziali S3 API di R2."
+      }
+    },
+    "job": {
+      "pageTitle": "Job di importazione",
+      "loading": "Caricamento job…",
+      "rowsRead": "Righe lette",
+      "insertedRows": "Inserite",
+      "failedRows": "Fallite",
+      "state": {
+        "pending": "In attesa",
+        "processing": "In elaborazione",
+        "completed": "Completato",
+        "failed": "Fallito"
+      },
+      "errorTable": {
+        "row": "Riga",
+        "field": "Campo",
+        "code": "Codice",
+        "message": "Messaggio",
+        "capped": "{{count}} ulteriori errori non elencati"
+      },
+      "errors": {
+        "forbidden": "Non sei autorizzato a vedere questo job",
+        "notFound": "Job non trovato",
+        "unknown": "Impossibile caricare il job"
+      }
     }
   }
 }

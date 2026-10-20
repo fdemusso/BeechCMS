@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { ColumnDef, GroupingColumnDef } from "@tanstack/react-table"
-import type { Seed } from "@beechcms/core"
+import { isSingleChoiceTags, type Seed } from "@beechcms/core"
 import { More as MoreHorizontal, Text as Type, Hashtag as Hash, ToggleOff as ToggleLeft, Calendar, Code, FileText, File, Link as LinkIcon } from 'reicon-react'
 import { toast } from "sonner"
 
@@ -11,9 +11,11 @@ import { FieldDisplay } from "@/components/fields"
 import { IndicatorIcon } from "@/components/ui/indicator-icon"
 import { RelativeTime } from "@/components/ui/relative-time"
 import { getStatusTone, STATUS_TONE_DOT_CLASS } from "@/lib/status-tone"
+import { extractTagNames } from "@/lib/tags-utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { ALIGN_JUSTIFY_CLASS, getBranchAlign, type ColumnAlign } from "@/lib/column-alignment"
 import { pendingDraftBadgeClass, shouldShowPendingDraftBadge } from "@/lib/pending-draft"
 
 import {
@@ -65,6 +68,8 @@ export interface ContentEntry {
   created_at: number | null
   /** Epoch timestamp of when this entry was last updated. */
   updated_at: number | null
+  /** Epoch timestamp of the soft deletion. Present only on rows read from the Trash endpoint. */
+  deleted_at?: number | null
 }
 
 /**
@@ -96,6 +101,18 @@ function getIconForType(type: string) {
   }
 }
 
+/** Plain decimal numbers without an explicit `decimals`: the only case where the column picks its own. */
+function usesPlainDecimals(branch: Seed["branches"][number]) {
+  const options = branch.numberOptions
+  return options?.decimals == null && options?.control !== "rating" && (options?.format ?? "decimal") === "decimal"
+}
+
+/** Wraps a header or cell so it follows the column alignment; left is the default and stays unwrapped. */
+function alignContent(align: ColumnAlign, content: React.ReactNode) {
+  if (align === "left") return content
+  return <div className={`flex ${ALIGN_JUSTIFY_CLASS[align]}`}>{content}</div>
+}
+
 /**
  * Generates the unified React Table column definitions mapping.
  * Combines system columns (selection checkbox, ID, slug, status, timestamps, actions dropdown)
@@ -105,19 +122,37 @@ function getIconForType(type: string) {
  * @param onEdit - Callback to edit a selected entry.
  * @param onDelete - Callback to delete a selected entry.
  * @param maxLengths - Map containing truncation options.
- * @param selectedIds - List of currently selected row IDs (for bulk actions).
+ * @param selectedIds - Currently selected row IDs (for bulk actions), or a getter read at cell render time
+ *   so the column defs can stay referentially stable across selection changes.
  * @param onBulkDelete - Callback to trigger bulk delete.
  * @param datePrecision - The active grouping precision rules for dates.
  * @param translate - Localization translation function.
  * @param onBulkEdit - Callback to trigger bulk edit dialog.
  * @returns Column definitions list for TanStack Table.
  */
+
+/**
+ * Columns hidden until the user decides otherwise: id, slug, created_at, status (only meaningful
+ * when the seed has drafts) and json branches named like metadata.
+ */
+export function defaultHiddenColumns(seed: Seed): string[] {
+  const hidden = ["id", "slug", "created_at", ...(seed.allowDrafts ? [] : ["status"])]
+  const metaAliases = seed.branches
+    .filter(
+      (b) =>
+        b.type === "json" &&
+        (b.alias.toLowerCase().includes("metadata") || b.alias.toLowerCase().includes("metadati"))
+    )
+    .map((b) => b.alias)
+  return [...hidden, ...metaAliases]
+}
+
 export function generateColumns(
   seed: Seed,
   onEdit: (id: string) => void,
   onDelete: (id: string) => void,
   maxLengths?: Record<string, number>,
-  selectedIds: string[] = [],
+  selectedIds: string[] | (() => string[]) = [],
   onBulkDelete?: (ids: string[]) => void,
   datePrecision: DateGroupPrecision = DEFAULT_DATE_GROUP_PRECISION,
   translate: (key: string, options?: any) => string = (key) => key,
@@ -129,16 +164,36 @@ export function generateColumns(
       id: "select",
       enableResizing: false,
       size: 40,
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label={translate("common.selectAll")}
-        />
-      ),
+      header: ({ table }) => {
+        // Leaf rows of the current page only: group rows are never selectable, so TanStack's
+        // getIsAllPageRowsSelected() stays false when grouping is on.
+        const getPageRows = () =>
+          table.getRowModel().flatRows.filter((r) => !r.getIsGrouped() && r.getCanSelect())
+        const areAllSelected = () => {
+          const rows = getPageRows()
+          return rows.length > 0 && rows.every((r) => r.getIsSelected())
+        }
+        return (
+          <Checkbox
+            checked={areAllSelected()}
+            onCheckedChange={() => {
+              // Read live state at click time and apply a single update: separate toggleSelected
+              // calls in one tick overwrite each other.
+              const rows = getPageRows()
+              const deselect = areAllSelected()
+              table.setRowSelection((old) => {
+                const next = { ...old }
+                for (const r of rows) {
+                  if (deselect) delete next[r.id]
+                  else next[r.id] = true
+                }
+                return next
+              })
+            }}
+            aria-label={translate("common.selectAll")}
+          />
+        )
+      },
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
@@ -157,12 +212,14 @@ export function generateColumns(
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.id,
-      header: "ID",
-      cell: ({ row }) => (
-        <span className="font-mono text-xs truncate max-w-[8rem] block" title={row.original.id}>
-          {row.original.id}
-        </span>
-      ),
+      header: () => alignContent("center", "ID"),
+      cell: ({ row }) =>
+        alignContent(
+          "center",
+          <span className="font-mono text-xs truncate max-w-[8rem] block" title={row.original.id}>
+            {row.original.id}
+          </span>
+        ),
       enableSorting: false,
     },
 
@@ -188,7 +245,7 @@ export function generateColumns(
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.status,
-      header: translate("content.table.status"),
+      header: () => alignContent("center", translate("content.table.status")),
       cell: ({ row }) => {
         const status = (row.original.status ?? "").trim() || "—"
         const tone = getStatusTone(status)
@@ -197,7 +254,7 @@ export function generateColumns(
           row.original.has_pending_draft
         )
         return (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
             <span className="inline-flex items-center gap-1.5">
               <IndicatorIcon colorClassName={STATUS_TONE_DOT_CLASS[tone]} aria-label={status} />
               <span className="text-sm">{status}</span>
@@ -243,6 +300,7 @@ export function generateColumns(
   // Colonne dinamiche: solo da seed.branches, cella = solo FieldDisplay
   const dynamicColumns: ColumnDef<ContentEntry>[] = seed.branches.map((branch) => {
     const IconComponent = getIconForType(branch.type)
+    const align = getBranchAlign(branch)
     const baseColumn: ColumnDef<ContentEntry> & GroupingColumnDef<ContentEntry, unknown> = {
       accessorFn: (row) => row.data[branch.alias],
       id: branch.alias,
@@ -250,11 +308,20 @@ export function generateColumns(
       minSize: 80,
       maxSize: 600,
       header: () => (
-        <div className="flex items-center gap-[0.5em] font-medium">
+        <div className={`flex items-center gap-[0.5em] font-medium ${ALIGN_JUSTIFY_CLASS[align]}`}>
           <IconComponent className="h-[1em] w-[1em] shrink-0 text-muted-foreground" />
           <span>{branch.label}</span>
         </div>
       ),
+    }
+
+    if (branch.type === "tags") {
+      if (!isSingleChoiceTags(branch)) {
+        baseColumn.enableSorting = false
+      } else {
+        // Without it TanStack groups an array by identity: one group per row.
+        baseColumn.getGroupingValue = (row) => extractTagNames(row.data[branch.alias])[0] ?? ""
+      }
     }
 
     // Configurazione grouping/aggregation per tipo
@@ -306,16 +373,25 @@ export function generateColumns(
     }
 
     const maxLength = maxLengths?.[branch.alias]
-    const displayOptions = typeof maxLength === "number" ? { maxLength } : undefined
+    const isNumber = branch.type === "number"
+    const displayOptions = !isNumber && typeof maxLength === "number" ? { maxLength } : undefined
+    // For number branches `maxLengths` carries the fraction digits found in the data, so every
+    // value in the column shows the same decimals (e.g. 12,50 next to 3,25).
+    const displayBranch =
+      isNumber && typeof maxLength === "number" && usesPlainDecimals(branch)
+        ? { ...branch, numberOptions: { ...branch.numberOptions, decimals: maxLength } }
+        : branch
     return {
       ...baseColumn,
-      cell: ({ row }) => (
-        <FieldDisplay
-          branch={branch}
-          value={row.original.data[branch.alias]}
-          options={displayOptions}
-        />
-      ),
+      cell: ({ row }) =>
+        alignContent(
+          align,
+          <FieldDisplay
+            branch={displayBranch}
+            value={row.original.data[branch.alias]}
+            options={displayOptions}
+          />
+        ),
     }
   })
 
@@ -325,9 +401,13 @@ export function generateColumns(
     enableHiding: false,
     enableResizing: false,
     size: 56,
-    cell: ({ row }) => {
+    cell: function ActionsCellRender({ row }) {
       const entry = row.original
-      const hasBulkSelection = selectedIds.length > 1
+      const currentSelectedIds = typeof selectedIds === "function" ? selectedIds() : selectedIds
+      const hasBulkSelection = currentSelectedIds.length > 1
+      const { can } = usePermissions()
+      const canUpdate = can("content:update", seed.slug)
+      const canDelete = can("content:delete", seed.slug)
 
       return (
         <div className="text-right">
@@ -342,13 +422,14 @@ export function generateColumns(
               <DropdownMenuLabel>{translate("content.actions.label")}</DropdownMenuLabel>
               {hasBulkSelection ? (
                 <>
-                  <DropdownMenuItem onClick={() => onBulkEdit?.(selectedIds)}>
+                  <DropdownMenuItem onClick={() => onBulkEdit?.(currentSelectedIds)} disabled={!canUpdate}>
                     {translate("bulkEdit.trigger")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => onBulkDelete?.(selectedIds)}
+                    onClick={() => onBulkDelete?.(currentSelectedIds)}
                     className="text-destructive focus:text-destructive"
+                    disabled={!canDelete}
                   >
                     {translate("common.delete")}
                   </DropdownMenuItem>
@@ -370,12 +451,14 @@ export function generateColumns(
                     onClick={() => {
                       onEdit(entry.id)
                     }}
+                    disabled={!canUpdate}
                   >
                     {translate("common.edit")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => onDelete(entry.id)}
                     className="text-destructive focus:text-destructive"
+                    disabled={!canDelete}
                   >
                     {translate("common.delete")}
                   </DropdownMenuItem>
@@ -388,5 +471,8 @@ export function generateColumns(
     },
   }
 
-  return [...fixedColumns, ...dynamicColumns, actionsColumn]
+  // "Last modified" sits at the far right, right before the actions column.
+  const leadingColumns = fixedColumns.filter((column) => column.id !== "updated_at")
+  const updatedAtColumns = fixedColumns.filter((column) => column.id === "updated_at")
+  return [...leadingColumns, ...dynamicColumns, ...updatedAtColumns, actionsColumn]
 }

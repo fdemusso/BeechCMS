@@ -14,13 +14,14 @@
 
 Insert a new notification and return its generated id so callers (e.g.
 the public form submission flow) can correlate the notification with the
-triggering request.
+triggering request. With `dedupeKey`, a repeated key stores nothing and returns the id of the
+notification the first call created.
 
 #### Parameters
 
 ##### record
 
-`Omit`&lt;[`NotificationRecord`](NotificationRecord.md), `"id"` \| `"createdAt"` \| `"isRead"`&gt;
+[`CreateNotificationRecord`](../type-aliases/CreateNotificationRecord.md)
 
 #### Returns
 

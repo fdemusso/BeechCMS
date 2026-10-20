@@ -20,6 +20,9 @@ import type { AppEnv } from '../../../types'
 import { SEARCH_ERRORS, SEARCH_LIMITS } from '../constants'
 import type { SearchResponse } from '../types'
 import { encodeCursor, mapSearchResultRow } from '../utils/search-utils'
+import { resolveEffectivePermissions } from '../../../shared/rbac/effective-permissions'
+import { filterSeedsByPermission } from '../../../shared/rbac/scoped-projection'
+import { loadDisplayLocaleConfig, resolveDisplayName } from '../../../shared/localization/display-name'
 
 /**
  * Handles `GET /api/search?q=…&schema_slug=…&status=…&limit=20&cursor=…`.
@@ -39,22 +42,40 @@ export async function fullTextSearchHandler(c: Context<AppEnv>): Promise<Respons
   const schemaSlug   = c.req.query('schema_slug') ?? null
   const statusFilter = c.req.query('status') ?? null
   const rawLimit     = Number.parseInt(c.req.query('limit') ?? String(SEARCH_LIMITS.DEFAULT_PAGE_SIZE), 10)
-  const limit        = Math.min(Math.max(rawLimit, SEARCH_LIMITS.MIN_PAGE_SIZE), SEARCH_LIMITS.MAX_PAGE_SIZE)
+  // parseInt yields NaN for non-numeric input and Math.min/max propagate it into the SQL LIMIT bind.
+  const requestedLimit = Number.isNaN(rawLimit) ? SEARCH_LIMITS.DEFAULT_PAGE_SIZE : rawLimit
+  const limit        = Math.min(Math.max(requestedLimit, SEARCH_LIMITS.MIN_PAGE_SIZE), SEARCH_LIMITS.MAX_PAGE_SIZE)
   const cursor       = c.req.query('cursor') ?? null
 
   if (queryText.length < SEARCH_LIMITS.QUERY_MIN_LENGTH) {
     return c.json({ error: SEARCH_ERRORS.QUERY_TOO_SHORT }, 400)
   }
 
-  const allSeeds        = c.get('seedRegistry').all()
-  const searchRepository = c.get('searchRepository')
+  const effective = await resolveEffectivePermissions(c)
+  const readableSeeds = filterSeedsByPermission(
+    c.get('seedRegistry').all(),
+    effective,
+    'content:read',
+  )
 
+  // An explicit `schema_slug` outside the caller's perimeter yields an empty result,
+  // NOT a 403: search must not become an existence oracle for seeds the caller cannot
+  // see (same reasoning as the 404-not-403 rule in features/rbac).
+  const searchableSeeds = schemaSlug === null
+    ? readableSeeds
+    : readableSeeds.filter(seed => seed.slug === schemaSlug)
+
+  if (searchableSeeds.length === 0) {
+    return c.json({ items: [], nextCursor: null, total: 0 } satisfies SearchResponse)
+  }
+
+  const searchRepository = c.get('searchRepository')
   const searchOptions = { queryText, schemaSlug, statusFilter, limit, cursor }
   const countOptions  = { queryText, schemaSlug, statusFilter }
 
   const [rawRows, countResult] = await Promise.all([
-    searchRepository.search(searchOptions, allSeeds),
-    searchRepository.count(countOptions, allSeeds),
+    searchRepository.search(searchOptions, searchableSeeds),
+    searchRepository.count(countOptions, searchableSeeds),
   ])
 
   const hasNextPage  = rawRows.length > limit
@@ -69,7 +90,12 @@ export async function fullTextSearchHandler(c: Context<AppEnv>): Promise<Respons
     return c.json({ items: [], nextCursor: null, total: countResult.total } satisfies SearchResponse)
   }
 
-  const items = pageRows.map(mapSearchResultRow)
+  const localeConfig = await loadDisplayLocaleConfig(c.get('siteSettingsRepository'), searchableSeeds)
+  const seedsBySlug = new Map(searchableSeeds.map((seed) => [seed.slug, seed]))
+  const items = pageRows.map((row) => {
+    const seed = seedsBySlug.get(row.schemaSlug)
+    return mapSearchResultRow(seed ? { ...row, title: resolveDisplayName(seed, row.title, localeConfig) } : row)
+  })
 
   return c.json({ items, nextCursor, total: countResult.total } satisfies SearchResponse)
 }

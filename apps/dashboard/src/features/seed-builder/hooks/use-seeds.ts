@@ -93,6 +93,17 @@ export function useDropBranch() {
   })
 }
 
+export function useDropOrphan() {
+  const inv = useInvalidate()
+  const { t } = useTranslation()
+  return useMutation({
+    mutationFn: ({ slug, column, confirm }: { slug: string; column: string; confirm: string }) =>
+      seedsApi.dropOrphan(slug, column, confirm),
+    onSuccess: inv,
+    onError: (err) => toast.error(t("seedBuilder.dangerZone.errors.dropColumnFailed"), { description: extractDetail(err) }),
+  })
+}
+
 export function useRenameBranch() {
   const inv = useInvalidate()
   const { t } = useTranslation()

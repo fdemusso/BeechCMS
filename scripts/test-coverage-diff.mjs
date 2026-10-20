@@ -15,13 +15,17 @@
 //   npm run test:diff -- --base origin/main
 //   npm run test:diff -- --all            (run full suite, targeted coverage)
 //   npm run test:diff -- --base HEAD~1 --all
+//   npm run test:diff -- --tier unit,integration
+//   npm run test:diff -- --tier flow
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { execSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import picomatch from 'picomatch'
+import { WORKSPACES, parseTiers, isNeverSelected, NEVER_SELECTED_PREFIXES } from './lib/test-tiers.mjs'
+import { resolveTestResources, lowerProcessPriority, describeTestResources } from './lib/test-resources.mjs'
+import { acquireCpuSlot, releaseOnExit, HELD_ENV, EXIT_SLOT_TIMEOUT } from './lib/cpu-slot.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -64,15 +68,13 @@ function getFlag(name) {
 const runAllMode   = args.includes('--all') || args.includes('--run-all')
 const baseOverride = getFlag('--base')
 
-// ─── Workspace Definitions ─────────────────────────────────────────────────
-// Each workspace has a path relative to root, and the vitest config location.
-const WORKSPACES = [
-  { name: 'packages/core',      dir: 'packages/core',      config: 'vitest.config.ts' },
-  { name: 'packages/cli',       dir: 'packages/cli',       config: 'vitest.config.ts' },
-  { name: 'packages/mcp',       dir: 'packages/mcp',       config: 'vitest.config.ts' },
-  { name: 'apps/api',           dir: 'apps/api',           config: 'vitest.config.ts' },
-  { name: 'apps/dashboard',     dir: 'apps/dashboard',     config: 'vitest.config.ts' },
-]
+// --tier unit,integration  |  --tier flow
+const tierArg = getFlag('--tier')
+const { tiers: selectedTiers, error: tierError } = parseTiers(tierArg)
+if (tierError) {
+  console.error(red(`ERROR: ${tierError}`))
+  process.exit(1)
+}
 
 // ─── Utility: run a shell command, return stdout or null on error ───────────
 function run(cmd, opts = {}) {
@@ -218,69 +220,51 @@ function isExcluded(relPath, { include, exclude }) {
 
   // If there's an include list, the file must match at least one pattern
   if (include && include.length > 0) {
-    const matchesInclude = include.some(p => picomatch(p)(relPath))
+    const matchesInclude = include.some(p => path.posix.matchesGlob(relPath, p))
     if (!matchesInclude) return true
   }
 
   // If it matches any exclude pattern, it's excluded
   if (exclude && exclude.length > 0) {
-    const matchesExclude = exclude.some(p => picomatch(p)(relPath))
+    const matchesExclude = exclude.some(p => path.posix.matchesGlob(relPath, p))
     if (matchesExclude) return true
   }
 
   return false
 }
 
-// ─── Run Vitest for a workspace ────────────────────────────────────────────
-function runVitestCoverage(workspace, sourceFiles, mode) {
+// ─── Run Vitest for a workspace tier ────────────────────────────────────────
+function runVitestTier(workspace, runner, sourceFiles) {
   const workspaceDir = path.join(ROOT, workspace.dir)
   const relFiles = sourceFiles.map(f => path.relative(workspaceDir, f).replace(/\\/g, '/'))
 
-  // Build --coverage.include flags for each source file
-  const includeFlags = relFiles.flatMap(f => [`--coverage.include=${f}`])
-  const thresholdFlags = [
-    '--coverage.thresholds.lines=0',
-    '--coverage.thresholds.functions=0',
-    '--coverage.thresholds.branches=0',
-    '--coverage.thresholds.statements=0',
-  ]
+  const configFlags  = runner.config  ? ['--config', runner.config]  : []
+  const projectFlags = runner.project ? [`--project=${runner.project}`] : []
 
-  let vitestArgs
-  if (mode === 'related') {
-    vitestArgs = [
-      'related',
-      '--run',
-      '--coverage',
-      '--coverage.reporter=json-summary',
-      '--coverage.reporter=text',
-      ...includeFlags,
-      ...thresholdFlags,
-      ...relFiles,
-    ]
-  } else {
-    // Full test run with targeted coverage
-    vitestArgs = [
-      'run',
-      '--coverage',
-      '--coverage.reporter=json-summary',
-      '--coverage.reporter=text',
-      ...includeFlags,
-      ...thresholdFlags,
-    ]
-  }
+  const coverageFlags = runner.coverage
+    ? [
+        '--coverage',
+        '--coverage.reporter=json-summary',
+        '--coverage.reporter=text',
+        ...relFiles.map(f => `--coverage.include=${f}`),
+        '--coverage.thresholds.lines=0',
+        '--coverage.thresholds.functions=0',
+        '--coverage.thresholds.branches=0',
+        '--coverage.thresholds.statements=0',
+      ]
+    : []
 
-  const result = spawnSync('npx', ['vitest', ...vitestArgs], {
-    cwd: workspaceDir,
-    encoding: 'utf8',
-    stdio: 'pipe',
-    shell: true,
+  // 'related' narrows to the changed files; 'all' runs the whole tier (workerd integration:
+  // one suite, no v8 coverage, and `related` cannot see through the harness import chain).
+  const selection = runner.mode === 'related' && !runAllMode
+    ? ['related', '--run', ...coverageFlags, ...relFiles]
+    : ['run', ...coverageFlags]
+
+  const result = spawnSync('npx', ['vitest', ...selection, ...configFlags, ...projectFlags], {
+    cwd: workspaceDir, encoding: 'utf8', stdio: 'pipe', shell: true,
   })
 
-  return {
-    stdout: result.stdout || '',
-    stderr: result.stderr || '',
-    status: result.status,
-  }
+  return { stdout: result.stdout || '', stderr: result.stderr || '', status: result.status }
 }
 
 // ─── Parse Coverage Summary JSON ──────────────────────────────────────────
@@ -332,8 +316,7 @@ function renderTable(rows) {
   console.log(`│${header}│`)
   console.log(`├${sep}┤`)
 
-  for (const [ri, row] of colData.entries()) {
-    const r = rows[ri]
+  for (const r of rows) {
     const stmts  = formatPct(r.stmts)
     const branch = formatPct(r.branch)
     const funcs  = formatPct(r.funcs)
@@ -361,7 +344,6 @@ function renderTable(rows) {
 
 // Strip ANSI for length calculation
 function stripAnsi(str) {
-  // eslint-disable-next-line no-control-regex
   return str.replace(/\x1b\[[0-9;]*m/g, '')
 }
 
@@ -370,6 +352,15 @@ async function main() {
   console.log()
   console.log(bold(cyan('BeechCMS — Git Diff Coverage Runner')))
   console.log(dim('  Runs Vitest coverage only for files changed on this branch'))
+
+  // Workspaces run one at a time, so a single Vitest may use the whole local budget.
+  // Inherited by every spawnSync below; an outer `beech test --diff` cap already set wins.
+  const resources = resolveTestResources()
+  if (resources) {
+    lowerProcessPriority()
+    process.env.VITEST_MAX_WORKERS ??= String(resources.budget)
+  }
+  console.log(dim(`  ${describeTestResources(resources)}`))
   console.log()
 
   const base = detectBase()
@@ -385,6 +376,16 @@ async function main() {
   console.log(`${bold('Changed files detected:')} ${changedFiles.length}`)
   console.log()
 
+  // Machine-wide slot shared with every worktree; flow shares one Docker stack, so it is exclusive.
+  try {
+    releaseOnExit(await acquireCpuSlot({ exclusive: selectedTiers.includes('flow'), label: `test:diff --tier ${selectedTiers.join(',')}` }))
+  } catch (err) {
+    if (err.code !== 'SLOT_TIMEOUT') throw err
+    console.error(red(`${err.message} The diff run did NOT run.`))
+    process.exit(EXIT_SLOT_TIMEOUT)
+  }
+  process.env[HELD_ENV] = '1'
+
   // Group files by workspace
   const workspaceGroups = new Map()
   for (const ws of WORKSPACES) {
@@ -392,7 +393,10 @@ async function main() {
   }
 
   const unmatched = []
+  const neverSelected = []
   for (const file of changedFiles) {
+    if (isNeverSelected(file)) { neverSelected.push(file); continue }
+
     let matched = false
     for (const ws of WORKSPACES) {
       if (file.startsWith(ws.dir + '/') || file.startsWith(ws.dir + '\\')) {
@@ -410,7 +414,15 @@ async function main() {
     console.log()
   }
 
+  if (neverSelected.length > 0) {
+    console.log(dim(`   Skipping ${neverSelected.length} file(s) under a never-selected prefix (${NEVER_SELECTED_PREFIXES.join(', ')}):`))
+    for (const f of neverSelected) console.log(dim(`     - ${f}`))
+    console.log(dim('   The e2e tier runs only pre-merge/nightly — never from --diff.'))
+    console.log()
+  }
+
   let anyWorkspaceRan = false
+  let anyTierFailed = false
   let globalUntested = 0
   let globalTotal = 0
 
@@ -426,12 +438,9 @@ async function main() {
 
     // Classify files
     const sourceFiles  = []
-    const tableRows    = []
 
     for (const absFile of files) {
       const relToWs = path.relative(workspaceDir, absFile).replace(/\\/g, '/')
-      const relToRoot = path.relative(ROOT, absFile).replace(/\\/g, '/')
-      const display   = relToRoot
 
       // Skip test files themselves — we care about source files
       if (/\.test\.(ts|tsx|js|jsx)$/.test(relToWs)) continue
@@ -453,90 +462,103 @@ async function main() {
       continue
     }
 
-    anyWorkspaceRan = true
-    const mode = runAllMode ? 'full' : 'related'
-    console.log(`   ${dim(`Running vitest (${mode} mode) for ${sourceFiles.length} source file(s)...`)}`)
-    console.log()
+    for (const tier of selectedTiers) {
+      const runner = workspace.tiers[tier]
+      if (!runner) continue                      // workspace does not own this tier
 
-    const { stdout, stderr, status } = runVitestCoverage(workspace, sourceFiles, mode)
+      anyWorkspaceRan = true
+      console.log(`   ${dim(`[${tier}] vitest (${runner.mode === 'related' && !runAllMode ? 'related' : 'full'}) — ${sourceFiles.length} source file(s)…`)}`)
 
-    // Print vitest output (compact)
-    const lines = (stdout + '\n' + stderr)
-      .split('\n')
-      .filter(l => l.trim())
-    const relevantLines = lines.filter(l =>
-      l.includes('passed') || l.includes('failed') || l.includes('skipped') ||
-      l.includes('Tests') || l.includes('Test Files') || l.includes('Duration') ||
-      l.includes('ERROR') || l.includes('FAIL')
-    )
-    for (const l of relevantLines) {
-      console.log('   ' + dim(l.trim()))
-    }
-    console.log()
+      const { stdout, stderr, status } = runVitestTier(workspace, runner, sourceFiles)
 
-    // Parse coverage summary
-    const summary = parseCoverageSummary(workspaceDir)
-    const relFiles = sourceFiles.map(f => path.relative(workspaceDir, f).replace(/\\/g, '/'))
-
-    for (const relFile of relFiles) {
-      const display   = path.join(workspace.dir, relFile).replace(/\\/g, '/')
-      const absForKey = path.join(workspaceDir, relFile)
-
-      // The summary JSON keys use the absolute path with OS separators
-      // Try both forward-slash and backslash variants
-      const summaryKey = Object.keys(summary || {}).find(k =>
-        path.resolve(k) === path.resolve(absForKey)
+      // Print vitest output (compact)
+      const lines = (stdout + '\n' + stderr)
+        .split('\n')
+        .filter(l => l.trim())
+      const relevantLines = lines.filter(l =>
+        l.includes('passed') || l.includes('failed') || l.includes('skipped') ||
+        l.includes('Tests') || l.includes('Test Files') || l.includes('Duration') ||
+        l.includes('ERROR') || l.includes('FAIL')
       )
+      for (const l of relevantLines) {
+        console.log('   ' + dim(l.trim()))
+      }
+      console.log()
 
-      if (!summary || !summaryKey) {
-        // No coverage data — no tests found for this file
-        tableRows.push({ file: display, status: '? No Tests Found' })
-        globalUntested++
-        globalTotal++
+      if (status !== 0) anyTierFailed = true
+
+      if (!runner.coverage) {
+        // No coverage provider in this tier: pass/fail is the whole signal.
+        console.log(status === 0 ? green(`   [${tier}] PASS`) : red(`   [${tier}] FAIL`))
+        console.log()
         continue
       }
 
-      const data = summary[summaryKey]
-      const pct = {
-        stmts:  data.statements?.pct,
-        branch: data.branches?.pct,
-        funcs:  data.functions?.pct,
-        lines:  data.lines?.pct,
-      }
+      // Parse coverage summary
+      const summary = parseCoverageSummary(workspaceDir)
+      const relFiles = sourceFiles.map(f => path.relative(workspaceDir, f).replace(/\\/g, '/'))
+      const tierTableRows = []
 
-      // Flag as untested if all zeros
-      if (data.statements?.covered === 0 && data.functions?.covered === 0) {
-        tableRows.push({ file: display, ...pct, status: '!! Untested' })
-        globalUntested++
+      for (const relFile of relFiles) {
+        const display   = path.join(workspace.dir, relFile).replace(/\\/g, '/')
+        const absForKey = path.join(workspaceDir, relFile)
+
+        // The summary JSON keys use the absolute path with OS separators
+        // Try both forward-slash and backslash variants
+        const summaryKey = Object.keys(summary || {}).find(k =>
+          path.resolve(k) === path.resolve(absForKey)
+        )
+
+        if (!summary || !summaryKey) {
+          // No coverage data — no tests found for this file
+          tierTableRows.push({ file: display, status: '? No Tests Found' })
+          globalUntested++
+          globalTotal++
+          continue
+        }
+
+        const data = summary[summaryKey]
+        const pct = {
+          stmts:  data.statements?.pct,
+          branch: data.branches?.pct,
+          funcs:  data.functions?.pct,
+          lines:  data.lines?.pct,
+        }
+
+        // Flag as untested if all zeros
+        if (data.statements?.covered === 0 && data.functions?.covered === 0) {
+          tierTableRows.push({ file: display, ...pct, status: '!! Untested' })
+          globalUntested++
+          globalTotal++
+          continue
+        }
+
+        // Check each metric against workspace thresholds
+        const failing = []
+        if (pct.stmts  !== undefined && pct.stmts  < thresholds.statements) failing.push(`stmts ${pct.stmts.toFixed(1)}%<${thresholds.statements}%`)
+        if (pct.branch !== undefined && pct.branch < thresholds.branches)   failing.push(`branch ${pct.branch.toFixed(1)}%<${thresholds.branches}%`)
+        if (pct.funcs  !== undefined && pct.funcs  < thresholds.functions)  failing.push(`funcs ${pct.funcs.toFixed(1)}%<${thresholds.functions}%`)
+        if (pct.lines  !== undefined && pct.lines  < thresholds.lines)      failing.push(`lines ${pct.lines.toFixed(1)}%<${thresholds.lines}%`)
+
+        let rowStatus
+        if (status !== 0) {
+          rowStatus = 'FAIL Tests Failed'
+          globalUntested++
+        } else if (failing.length > 0) {
+          rowStatus = `LOW: ${failing.join(', ')}`
+          globalUntested++
+        } else {
+          rowStatus = 'PASS'
+        }
+
+        tierTableRows.push({ file: display, ...pct, status: rowStatus })
         globalTotal++
-        continue
       }
 
-      // Check each metric against workspace thresholds
-      const failing = []
-      if (pct.stmts  !== undefined && pct.stmts  < thresholds.statements) failing.push(`stmts ${pct.stmts.toFixed(1)}%<${thresholds.statements}%`)
-      if (pct.branch !== undefined && pct.branch < thresholds.branches)   failing.push(`branch ${pct.branch.toFixed(1)}%<${thresholds.branches}%`)
-      if (pct.funcs  !== undefined && pct.funcs  < thresholds.functions)  failing.push(`funcs ${pct.funcs.toFixed(1)}%<${thresholds.functions}%`)
-      if (pct.lines  !== undefined && pct.lines  < thresholds.lines)      failing.push(`lines ${pct.lines.toFixed(1)}%<${thresholds.lines}%`)
-
-      let rowStatus
-      if (status !== 0) {
-        rowStatus = 'FAIL Tests Failed'
-        globalUntested++
-      } else if (failing.length > 0) {
-        rowStatus = `LOW: ${failing.join(', ')}`
-        globalUntested++
-      } else {
-        rowStatus = 'PASS'
-      }
-
-      tableRows.push({ file: display, ...pct, status: rowStatus })
-      globalTotal++
+      console.log(dim(`   [${tier}]`))
+      renderTable(tierTableRows)
+      console.log()
     }
-
-    // Add excluded rows at the end
-    renderTable(tableRows)
-    console.log()
   }
 
   if (!anyWorkspaceRan) {
@@ -558,6 +580,10 @@ async function main() {
     console.log(dim('      Review LOW: / !! Untested entries above and add tests.'))
   }
   console.log()
+
+  // A failing test run now fails the command. Coverage shortfalls stay warn-only:
+  // they are a review signal, not a gate, and that behaviour predates this sprint.
+  if (anyTierFailed) process.exitCode = 1
 }
 
 main().catch(err => {

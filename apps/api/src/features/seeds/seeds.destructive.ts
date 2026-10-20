@@ -6,40 +6,49 @@
 import { Hono } from 'hono'
 import type { Branch, Seed } from '@beechcms/core'
 import {
-  generateDropTable,
   generateDropColumn,
+  generateDropOrphanColumn,
+  draftTableName,
+  tableName,
+  SYSTEM_COLUMNS,
   generateRenameColumn,
   generateRetypeColumn,
+  generateRetypeIncompatibleCount,
   planFtsRebuild,
   BRANCH_ALIAS_RE,
+  reservedBranchAliasReason,
 } from '@beechcms/core'
-import { publicProblem } from '../../public/problem-details'
+import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
 import {
   parseJsonBody,
   requireConfirm,
   getActiveSeed,
-  deleteSeedMediaObjects,
+  getSeedAnyStatus,
+  rejectManifestOwned,
   applyDestructiveSeedDef,
   actorFromContext,
+  externalReferencers,
+  automationReferencesAlias,
 } from './seeds.helpers'
+import { SEED_MEDIA_PURGE_JOB } from './seed-media-purge'
 
 export const destructiveApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 /**
- * Permanently hard-deletes a content type, dropping physical tables and associated R2 media assets.
+ * Starts durable deletion of a content type and its R2 media assets.
  *
  * @remarks
  * Irreversible destructive operation.
  * - Requires body `{ confirm: slug }`.
  * - Checks backref graph and rejects with 409 Conflict if referenced by other active seeds.
- * - Deletes all R2 media objects referenced in file columns.
- * - Drops physical content table `content_<slug>` and FTS tables.
- * - Removes seed record permanently from `SeedRepository`.
+ * - Accepts an active or soft-deleted seed; the job records the prior status so a failed DROP restores it.
+ * - Immediately hides the seed and records a durable purge job.
+ * - Background steps stage media keys, drop tables, then delete R2 objects.
  *
  * @route DELETE /api/seeds/:slug/hard
  * @param slug - Seed slug identifier.
- * @returns 200 OK with `{ success: true }`, or 400/404/409/422 Problem Details on error.
+ * @returns 202 Accepted with a purge job ID, or 400/404/409/422 Problem Details on error.
  */
 destructiveApp.delete('/:slug/hard', async (context) => {
   const slug = context.req.param('slug')
@@ -49,13 +58,20 @@ destructiveApp.delete('/:slug/hard', async (context) => {
   const confirmErr = requireConfirm(context, slug, body)
   if (confirmErr) return confirmErr
 
-  const existing = await getActiveSeed(context, slug)
-  if (existing instanceof Response) return existing
+  const purgeRepository = context.get('seedMediaPurgeRepository')
+  const pending = await purgeRepository.getActiveBySlug(slug)
+  if (pending) {
+    return publicProblem(context, { type: 'seed-purge-pending', title: 'Seed purge pending', status: 409,
+      detail: `Seed '${slug}' is already being purged.` })
+  }
 
-  const backrefMap = context.get('backrefMap')
-  const inbound = backrefMap.get(slug)
-  if (inbound && inbound.length > 0) {
-    const referencers = [...new Set(inbound.map((r: any) => r.sourceSlug))]
+  const existing = await getSeedAnyStatus(context, slug)
+  if (existing instanceof Response) return existing
+  const owned = rejectManifestOwned(context, existing)
+  if (owned) return owned
+
+  const referencers = externalReferencers(context, slug)
+  if (referencers.length > 0) {
     return publicProblem(context, {
       type: 'seed-referenced',
       title: 'Seed referenced',
@@ -64,20 +80,35 @@ destructiveApp.delete('/:slug/hard', async (context) => {
     })
   }
 
-  const repo = context.get('seedRepository')
-  const schemaMutator = context.get('schemaMutator')
   const seed = existing.definition
+  const jobId = context.get('idGenerator').uuid()
+  try {
+    await purgeRepository.begin(jobId, seed, context.get('clock').nowSeconds())
+  } catch (error) {
+    if (await purgeRepository.getActiveBySlug(slug)) {
+      return publicProblem(context, { type: 'seed-purge-pending', title: 'Seed purge pending', status: 409,
+        detail: `Seed '${slug}' is already being purged.` })
+    }
+    return publicProblem(context, { type: 'seed-purge-start-failed', title: 'Seed purge could not start',
+      status: 422, detail: internalErrorDetail(context.env, error) })
+  }
 
-  await deleteSeedMediaObjects(context, slug, seed, schemaMutator)
-
-  await schemaMutator.execDestructive(generateDropTable(seed))
-  await repo.hardDelete(slug)
-  await repo.bumpRegistryVersion()
+  const queued = await context.get('queue').enqueue(SEED_MEDIA_PURGE_JOB, { jobId })
+  if (!queued) console.warn(`Seed purge '${jobId}' will resume from the scheduled worker.`)
 
   const actor = actorFromContext(context)
-  context.get('activityLogger').log({ action: 'delete', entityType: 'seed', entityId: slug, details: { op: 'hard-delete', slug }, actor })
+  context.get('activityLogger').log({ action: 'delete', entityType: 'seed', entityId: slug, details: { op: 'hard-delete-start', slug, jobId }, actor })
 
-  return context.json({ success: true })
+  context.header('Location', `/api/seeds/purges/${jobId}`)
+  return context.json({ jobId, status: 'pending' }, 202)
+})
+
+destructiveApp.get('/purges/:id', async (context) => {
+  const job = await context.get('seedMediaPurgeRepository').get(context.req.param('id'))
+  if (!job) return publicProblem(context, { type: 'seed-purge-not-found', title: 'Seed purge not found',
+    status: 404, detail: 'No seed purge job has this ID.' })
+  return context.json({ id: job.id, slug: job.slug, phase: job.phase,
+    stagedCount: job.stagedCount, purgedCount: job.purgedCount })
 })
 
 /**
@@ -102,10 +133,21 @@ destructiveApp.delete('/:slug/branches/:branchId', async (context) => {
 
   const existing = await getActiveSeed(context, slug)
   if (existing instanceof Response) return existing
+  const owned = rejectManifestOwned(context, existing)
+  if (owned) return owned
 
   const branch = existing.definition.branches.find((b: Branch) => b.id === branchId)
   if (!branch) {
     return publicProblem(context, { type: 'branch-not-found', title: 'Branch not found', status: 404, detail: `No branch with id '${branchId}' in seed '${slug}'.` })
+  }
+
+  if (branch.alias === existing.definition.displayNameAlias) {
+    return publicProblem(context, {
+      type: 'display-branch-drop-not-supported',
+      title: 'Drop not supported',
+      status: 422,
+      detail: `Branch '${branch.alias}' is the display name of seed '${slug}'. Point displayNameAlias at another branch first.`,
+    })
   }
 
   const confirmErr = requireConfirm(context, `${slug}.${branch.alias}`, body)
@@ -124,19 +166,66 @@ destructiveApp.delete('/:slug/branches/:branchId', async (context) => {
 })
 
 /**
+ * Drops an orphan column: a physical column left behind after its branch was removed from the definition.
+ *
+ * @remarks
+ * Irreversible destructive operation.
+ * - Requires body `{ confirm: "<slug>.<column>" }`.
+ * - Rejects system columns and defined branches; only columns reported by `GET /:slug/orphans` qualify.
+ * - The seed definition is unchanged; only the physical column (and its draft-table twin) is dropped.
+ *
+ * @route DELETE /api/seeds/:slug/orphans/:column
+ * @param slug - Seed slug identifier.
+ * @param column - Orphan column name.
+ * @returns 200 OK with `{ success: true }`, or 400/404/422 Problem Details on error.
+ */
+destructiveApp.delete('/:slug/orphans/:column', async (context) => {
+  const slug = context.req.param('slug')
+  const column = context.req.param('column')
+  const body = await parseJsonBody(context)
+  if (body instanceof Response) return body
+
+  const existing = await getActiveSeed(context, slug)
+  if (existing instanceof Response) return existing
+  const owned = rejectManifestOwned(context, existing)
+  if (owned) return owned
+
+  const definition = existing.definition
+  const mutator = context.get('schemaMutator')
+  const columns = await mutator.getColumns(tableName(definition))
+  const isOrphan = BRANCH_ALIAS_RE.test(column)
+    && !SYSTEM_COLUMNS.has(column)
+    && !definition.branches.some((b: Branch) => b.alias === column)
+    && columns?.has(column) === true
+  if (!isOrphan) {
+    return publicProblem(context, { type: 'orphan-not-found', title: 'Orphan column not found', status: 404, detail: `Seed '${slug}' has no orphan column '${column}'.` })
+  }
+
+  const confirmErr = requireConfirm(context, `${slug}.${column}`, body)
+  if (confirmErr) return confirmErr
+
+  const draftColumns = definition.allowDrafts ? await mutator.getColumns(draftTableName(definition)) : null
+  const stmts = generateDropOrphanColumn(definition, column, draftColumns?.has(column) === true)
+  const error = await applyDestructiveSeedDef(context, slug, definition, stmts, { op: 'drop-orphan', alias: column })
+  if (error) return error
+
+  return context.json({ success: true })
+})
+
+/**
  * Renames a branch alias (column name) within a seed.
  *
  * @remarks
  * Irreversible destructive operation.
  * - Requires body `{ newAlias: string, confirm: "<slug>.<alias>" }`.
- * - Validates `newAlias` against `BRANCH_ALIAS_RE`.
+ * - Validates `newAlias` against `BRANCH_ALIAS_RE`, reserved words and sibling alias uniqueness.
  * - Generates rename column DDL and FTS rebuild statements.
  * - Scans automations repository for references to the old alias and returns affected automation IDs.
  *
  * @route PATCH /api/seeds/:slug/branches/:branchId/rename
  * @param slug - Seed slug identifier.
  * @param branchId - Unique branch identifier.
- * @returns 200 OK with `{ success: true, affectedAutomations: string[] }`, or 400/404/422 Problem Details on error.
+ * @returns 200 OK with `{ success: true, affectedAutomations: string[] }`, or 400/404/409/422 Problem Details on error.
  */
 destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
   const slug = context.req.param('slug')
@@ -148,13 +237,22 @@ destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
   if (typeof newAlias !== 'string' || !BRANCH_ALIAS_RE.test(newAlias)) {
     return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: `newAlias must match ${BRANCH_ALIAS_RE.source} (lowercase letter followed by alphanumeric characters or underscores).` })
   }
+  const reserved = reservedBranchAliasReason(newAlias)
+  if (reserved) {
+    return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: reserved })
+  }
 
   const existing = await getActiveSeed(context, slug)
   if (existing instanceof Response) return existing
+  const owned = rejectManifestOwned(context, existing)
+  if (owned) return owned
 
   const branch = existing.definition.branches.find((b: Branch) => b.id === branchId)
   if (!branch) {
     return publicProblem(context, { type: 'branch-not-found', title: 'Branch not found', status: 404, detail: `No branch with id '${branchId}' in seed '${slug}'.` })
+  }
+  if (existing.definition.branches.some((b: Branch) => b.id !== branchId && b.alias === newAlias)) {
+    return publicProblem(context, { type: 'duplicate-alias', title: 'Conflict', status: 409, detail: `Seed '${slug}' already has a branch with alias '${newAlias}'.` })
   }
 
   const confirmErr = requireConfirm(context, `${slug}.${branch.alias}`, body)
@@ -162,6 +260,7 @@ destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
 
   const renamedDef: Seed = {
     ...existing.definition,
+    displayNameAlias: existing.definition.displayNameAlias === branch.alias ? newAlias : existing.definition.displayNameAlias,
     branches: existing.definition.branches.map((b: Branch) =>
       b.id === branchId ? { ...b, alias: newAlias } : b
     ),
@@ -178,9 +277,8 @@ destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
     const automationRepo = context.get('automationRepository')
     if (automationRepo) {
       const automations = await automationRepo.list(slug)
-      const oldAlias = branch.alias
       affectedAutomations = automations
-        .filter((a: any) => JSON.stringify(a).includes(oldAlias))
+        .filter((a: any) => automationReferencesAlias(a, branch.alias))
         .map((a: any) => a.id)
     }
   } catch { /* non-fatal */ }
@@ -194,8 +292,10 @@ destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
  * @remarks
  * Irreversible destructive operation.
  * - Validates `newType` against supported types (`text`, `number`, `boolean`, `date`, `json`, `richtext`, `file`, `tags`, `relation`, `repeater`).
- * - Rejects retyping to or from `'repeater'`.
+ * - Rejects retyping to or from `'repeater'`, and retyping a multi-relation (it has no column).
+ * - Retyping to `'relation'` is rejected by seed validation: a retype carries no `targetSeed`.
  * - Requires body `{ newType: string, confirm: "<slug>.<alias>" }`.
+ * - Rejects with 422 if any existing value would be zeroed or truncated by the conversion.
  * - Generates column retyping DDL and rebuilds FTS.
  *
  * @route PATCH /api/seeds/:slug/branches/:branchId/retype
@@ -217,6 +317,8 @@ destructiveApp.patch('/:slug/branches/:branchId/retype', async (context) => {
 
   const existing = await getActiveSeed(context, slug)
   if (existing instanceof Response) return existing
+  const owned = rejectManifestOwned(context, existing)
+  if (owned) return owned
 
   const branch = existing.definition.branches.find((b: Branch) => b.id === branchId)
   if (!branch) {
@@ -232,10 +334,41 @@ destructiveApp.patch('/:slug/branches/:branchId/retype', async (context) => {
     })
   }
 
+  if (branch.type === 'relation' && branch.multiple === true) {
+    return publicProblem(context, {
+      type: 'retype-not-supported',
+      title: 'Retype not supported',
+      status: 422,
+      detail: `Branch '${branch.alias}' is a multi-relation stored in a junction table and has no column to retype.`,
+    })
+  }
+
+  // Validation does not cover localized on retyped types: without
+  // this guard `localized: true` would survive onto a non-localizable type and stored dictionaries would
+  // be reinterpreted as the new type. Disabling localization is metadata-only, so the owner can do that first.
+  if (branch.localized === true) {
+    return publicProblem(context, {
+      type: 'retype-localized-not-supported',
+      title: 'Retype not supported',
+      status: 422,
+      detail: `Branch '${branch.alias}' is localized. Disable localization on it before retyping.`,
+    })
+  }
+
   const confirmErr = requireConfirm(context, `${slug}.${branch.alias}`, body)
   if (confirmErr) return confirmErr
 
   const retypedBranch: Branch = { ...branch, type: newType as Branch['type'] }
+
+  const incompatible = await context.get('schemaMutator').sumCounts(generateRetypeIncompatibleCount(existing.definition, retypedBranch))
+  if (incompatible > 0) {
+    return publicProblem(context, {
+      type: 'retype-data-incompatible',
+      title: 'Retype would lose data',
+      status: 422,
+      detail: `${incompatible} existing value(s) in '${branch.alias}' cannot be converted to '${newType}' without data loss. Fix or clear them first.`,
+    })
+  }
   const retypedDef: Seed = {
     ...existing.definition,
     branches: existing.definition.branches.map((b: Branch) => b.id === branchId ? retypedBranch : b),

@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { createMiddleware } from 'hono/factory'
-import { SystemClock, SystemIdGenerator } from '@beechcms/core'
+import { NoOpQueueService, SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { IQueueService, JobRegistry, JobContext, QueueMessage } from '@beechcms/core'
 import type { AppEnv } from '../types'
 import { CloudflareQueueService } from '../shared/services/queue/cloudflare-queue-service'
@@ -35,14 +35,21 @@ export const queueMiddleware = (jobs: JobRegistry = {}, overrides?: QueueOverrid
     } else if (context.env.QUEUE) {
       queue = new CloudflareQueueService(context.env.QUEUE as Queue<QueueMessage>)
     } else {
+      // The in-memory transport IS the context's queue: a chunked job re-enqueuing itself in
+      // local dev must reach the same in-process dispatcher. The cycle is broken by assigning
+      // after construction rather than by making JobContext.queue optional, which would push a
+      // null-check into every handler.
       const jobContext: JobContext = {
         repository: context.get('repository'),
         bucket: context.get('bucket'),
         clock: SystemClock,
         idGenerator: SystemIdGenerator,
+        queue: new NoOpQueueService(),
         env: context.env as unknown as Record<string, string | undefined>,
       }
-      queue = new InMemoryQueueService(jobs, jobContext, scheduleBackgroundTask)
+      const inMemoryQueue = new InMemoryQueueService(jobs, jobContext, scheduleBackgroundTask)
+      jobContext.queue = inMemoryQueue
+      queue = inMemoryQueue
     }
 
     context.set('queue', queue)

@@ -62,6 +62,12 @@ export class D1SchemaMutator implements ISchemaMutator {
     await this.db.batch(statements.map(s => this.db.prepare(s)))
   }
 
+  async sumCounts(statements: string[]): Promise<number> {
+    if (statements.length === 0) return 0
+    const results = await this.db.batch<{ count: number }>(statements.map(s => this.db.prepare(s)))
+    return results.reduce((total, rs) => total + (rs.results?.[0]?.count ?? 0), 0)
+  }
+
   async fetchRows(table: string, columns: string[]): Promise<Record<string, unknown>[]> {
     D1SchemaMutator.assertIdentifier(table)
     for (const col of columns) D1SchemaMutator.assertIdentifier(col)

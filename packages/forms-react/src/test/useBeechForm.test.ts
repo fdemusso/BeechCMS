@@ -240,6 +240,67 @@ describe('useBeechForm', () => {
     expect(addCall[1]?.headers?.['x-time-trap']).toBe('t0_1000.abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234')
   })
 
+  describe('tags branch payload', () => {
+    const tagsSchema: FormSeedSchema = {
+      slug: 'tickets',
+      branches: [
+        {
+          alias: 'priority',
+          type: 'select',
+          arrayValue: true,
+          options: [
+            { label: 'low', value: 'low', color: '#64748b' },
+            { label: 'high', value: 'high', color: '#ef4444' },
+          ],
+        },
+      ],
+    }
+
+    function renderTicketForm(priority: string) {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: { id: 'rec_1' } }) })
+      globalThis.fetch = mockFetch
+      const { result } = renderHook(() =>
+        useBeechForm({ seed: tagsSchema, baseUrl: 'https://api.example.com', disableAntiBot: true })
+      )
+      act(() => {
+        result.current.setFieldValue('priority', priority)
+      })
+      return { result, mockFetch }
+    }
+
+    function submittedPriority(mockFetch: ReturnType<typeof vi.fn>): unknown {
+      const addCall = mockFetch.mock.calls.find((call) => String(call[0]).endsWith('/tickets/add'))
+      expect(addCall).toBeDefined()
+      return (JSON.parse(addCall?.[1].body) as { data: Record<string, unknown> }).data.priority
+    }
+
+    it('submits the chosen option as a one-element array', async () => {
+      const { result, mockFetch } = renderTicketForm('high')
+
+      let success = false
+      await act(async () => {
+        success = await result.current.handleSubmit()
+      })
+
+      expect(success).toBe(true)
+      const submitted = submittedPriority(mockFetch)
+      expect(submitted).toEqual(['high'])
+    })
+
+    it('submits an empty choice as an empty array', async () => {
+      const { result, mockFetch } = renderTicketForm('')
+
+      let success = false
+      await act(async () => {
+        success = await result.current.handleSubmit()
+      })
+
+      expect(success).toBe(true)
+      const submitted = submittedPriority(mockFetch)
+      expect(submitted).toEqual([])
+    })
+  })
+
   it('resets form state back to initial', () => {
     const { result } = renderHook(() =>
       useBeechForm({

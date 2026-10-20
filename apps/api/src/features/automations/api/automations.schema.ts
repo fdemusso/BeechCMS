@@ -7,6 +7,7 @@ import { z } from 'zod'
 import type { WhenNode } from '@beechcms/core'
 import { isPrivateHost } from '@beechcms/core'
 import { AUTOMATION_RESERVED_WORDS } from '../evaluator/template-grammar'
+import { isValidCronExpression } from '../engine/cron-runner.utils'
 
 // ---------------------------------------------------------------------------
 // Trigger conditions — recursive WhenNode schema (Task 14)
@@ -32,24 +33,38 @@ const whenNodeSchema: z.ZodType<WhenNode> = z.lazy(() =>
       op: z.enum(['AND', 'OR']),
       children: z.array(whenNodeSchema).min(1),
       negate: z.boolean().optional(),
-    }).refine(
-      (g) => depthOf(g) <= 10,
-      { message: 'WhenNode nesting exceeds maximum depth of 10' },
-    ),
+    }),
   ]),
 )
 
-function depthOf(node: unknown, d = 0): number {
-  if (d > 10) return d
-  if (typeof node !== 'object' || !node) return d
-  const n = node as Record<string, unknown>
-  if (n['kind'] === 'group' && Array.isArray(n['children'])) {
-    return Math.max(...(n['children'] as unknown[]).map((c) => depthOf(c, d + 1)))
+const MAX_CONDITION_DEPTH = 10
+
+/** Walks the raw body iteratively so a deep tree is rejected before the recursive schema ever descends into it. */
+function exceedsMaxDepth(root: unknown): boolean {
+  const pending: Array<{ node: unknown; depth: number }> = [{ node: root, depth: 0 }]
+  while (pending.length > 0) {
+    const { node, depth } = pending.pop()!
+    if (depth > MAX_CONDITION_DEPTH) return true
+    if (typeof node !== 'object' || node === null) continue
+    const children = (node as { kind?: unknown; children?: unknown }).children
+    if ((node as { kind?: unknown }).kind === 'group' && Array.isArray(children)) {
+      for (const child of children) pending.push({ node: child, depth: depth + 1 })
+    }
   }
-  return d
+  return false
 }
 
-const triggerConditionsSchema = whenNodeSchema.nullable().optional()
+const triggerConditionsSchema = z
+  .unknown()
+  .transform((value, ctx) => {
+    if (exceedsMaxDepth(value)) {
+      ctx.issues.push({ code: 'custom', message: `WhenNode nesting exceeds maximum depth of ${MAX_CONDITION_DEPTH}`, input: value })
+      return z.NEVER
+    }
+    return value
+  })
+  .pipe(whenNodeSchema.nullable())
+  .optional()
 
 const setVariableFilterSchema = z.object({
   field: z.string().min(1),
@@ -116,7 +131,7 @@ const createEntryActionSchema = z.object({
   field_map: z.record(z.string(), z.string()),
 })
 
-export const automationActionSchema = z.discriminatedUnion('type', [
+const automationActionSchema = z.discriminatedUnion('type', [
   setVariableActionSchema,
   webhookActionSchema,
   sendMailActionSchema,
@@ -151,6 +166,11 @@ const triggersSchema = z
     (triggers) => triggers.every((t) => t.event !== 'cron' || !!t.cron),
     { message: 'cron expression is required for cron triggers', path: ['cron'] },
   )
+  // An expression the runner cannot parse is stored and then never fires, with no signal to the author.
+  .refine(
+    (triggers) => triggers.every((t) => t.event !== 'cron' || !t.cron || isValidCronExpression(t.cron)),
+    { message: 'cron expression is invalid', path: ['cron'] },
+  )
 
 // ---------------------------------------------------------------------------
 // Automation create/update schemas
@@ -172,5 +192,5 @@ export const toggleAutomationSchema = z.object({
   enabled: z.boolean(),
 })
 
-export type CreateAutomationBody = z.infer<typeof createAutomationSchema>
-export type UpdateAutomationBody = z.infer<typeof updateAutomationSchema>
+type CreateAutomationBody = z.infer<typeof createAutomationSchema>
+type UpdateAutomationBody = z.infer<typeof updateAutomationSchema>

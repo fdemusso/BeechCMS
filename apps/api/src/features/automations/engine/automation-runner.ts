@@ -10,12 +10,9 @@ import type {
   Seed,
   IIdGenerator,
 } from '@beechcms/core'
-import { resolvePath } from './automation-runner.utils'
-import { resolveAutomationContext, type ResolvedContext } from '../evaluator/context-resolver'
-import type { ParsedKey } from '../evaluator/template-grammar'
+import { resolveAutomationContext, withVariables } from '../evaluator/context-resolver'
 import { executeAction } from '../executors/index'
 import { evaluateWhen } from '../filters/when-evaluator'
-import { resolveVarAccess } from '../evaluator/var-access-resolver'
 
 export interface AutomationRunnerDeps {
   automationRepository: IAutomationRepository
@@ -23,21 +20,6 @@ export interface AutomationRunnerDeps {
   getSeed: (slug: string) => Seed | null
   idGenerator: IIdGenerator
   env: Record<string, string | undefined>
-}
-
-function withVariables(base: ResolvedContext, variables: Record<string, unknown>): ResolvedContext {
-  return {
-    triggerEntry: base.triggerEntry,
-    lookup(parsed: ParsedKey, onMissing?: (field: string) => void): unknown {
-      if (parsed.kind === 'simple') {
-        const varVal = resolvePath(variables, parsed.path)
-        if (varVal !== undefined) return varVal
-      } else if (parsed.kind === 'var_access') {
-        return resolveVarAccess(parsed, variables, onMissing)
-      }
-      return base.lookup(parsed, onMissing)
-    },
-  }
 }
 
 export class AutomationRunner implements IAutomationRunner {
@@ -51,11 +33,14 @@ export class AutomationRunner implements IAutomationRunner {
     const automations = await this.deps.automationRepository.findActive(seedSlug, event)
 
     for (const automation of automations) {
-      const resolved = await resolveAutomationContext(automation, entry, [entry])
+      const resolved = await resolveAutomationContext(automation, entry, [entry], {
+        repository: this.deps.contentRepository,
+        getSeed: this.deps.getSeed,
+      })
 
-      // Evaluate conditions with the resolved context (this + batch scopes available).
-      // Variables from set_variable actions are not yet available here; use inline refs
-      // like {{customers:byid({{this.id}}):field}} for cross-seed conditions in v1.
+      // Evaluate conditions with the resolved context (this, batch and seed-scoped refs).
+      // Variables from set_variable actions are not yet available here; seed-scoped refs
+      // need a literal selector, e.g. {{customers:byid(c_42):field}} (no nested {{...}}).
       if (!evaluateWhen(automation.trigger_conditions, resolved)) continue
 
       const variables: Record<string, unknown> = {}

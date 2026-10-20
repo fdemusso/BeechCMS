@@ -30,6 +30,11 @@ If a capability flag is `false` or absent, the endpoint fails closed and returns
 ### Level 3 — Published-Only Filter
 By default, all public read queries automatically filter by `AND status = 'published'` (`PUBLIC_PUBLISHED_ONLY !== 'false'`). Content in `draft` or `review` status is invisible to external consumers. To expose drafts publicly, explicitly set `PUBLIC_PUBLISHED_ONLY=false`.
 
+### Level 4 — Trashed-Row Exclusion
+On a Seed with `softDelete: true`, every public read additionally filters by `AND deleted_at IS NULL`. The predicate is compiled by the engine's single SQL compiler and defaults to active-only, so it covers list reads, single reads, relation expansion (`?include=`), and relation subquery filters at once — a trashed parent can never surface through a subquery, and there is no opt-out on any public route. Trashed entries are reachable only through the authenticated Trash endpoints. Unlike the published-only filter, this one has **no environment variable** and cannot be disabled.
+
+A live row never carries a `deleted_at` key, so payloads for Seeds with and without `softDelete` are shape-identical. See [Trash, Soft Delete & GDPR Purge](/features/trash).
+
 ---
 
 ## Rate Limiting
@@ -99,10 +104,33 @@ GET /api/v1/public/posts/schema
       "label": "Body",
       "requiredOnCreate": false,
       "policies": { "public": true, "visibility": "full" }
+    },
+    {
+      "alias": "priority",
+      "type": "tags",
+      "label": "Priority",
+      "options": [
+        { "label": "low", "value": "low", "color": "#64748b" },
+        { "label": "high", "value": "high", "color": "#ef4444" }
+      ],
+      "multiple": false,
+      "requiredOnCreate": false,
+      "policies": { "public": true, "visibility": "full" }
     }
   ]
 }
 ```
+
+Branch keys specific to `tags`:
+
+| Key | Value | Present when |
+|---|---|---|
+| `options` | `Array<{ label: string; value: string; color: string }>` — `label` equals `value` | the branch declares `options` |
+| `multiple` | `boolean` — `false` = single choice, `true` = multiple choice | `type` is `tags` |
+
+The value of a `tags` branch is always an array of strings, single choice included. A value outside `options`, a duplicate, or more than one value on a single-choice branch is rejected with `400 content-validation-failed`.
+
+Tag values are normalized on write (invisible/control characters removed, whitespace collapsed, trimmed, Unicode NFC; case preserved). A field holds at most 10 tags of 25 characters each; a longer tag or a larger array is rejected with `400 content-validation-failed`, never truncated. See [Tag values](/build/schema-modeling#tag-values).
 
 ---
 
@@ -123,6 +151,8 @@ Reads entries for a seed. Requires `allowPublicRead: true` and `PUBLIC_READ_API_
 | `orderBy` / `orderDir` | Sorting by field alias or system timestamp (`asc` \| `desc`) |
 | `filter` | JSON-encoded filter object (see below) |
 | `fields` | Comma-separated list of aliases to project |
+| `include` | Comma-separated relation aliases to expand at depth 1 (max 3 includes) |
+| `lang` | Response language for localized fields: a locale code (`en`, `pt-BR`) or `all`. See [Localization](#localization) |
 
 **Filter syntax:**
 
@@ -139,6 +169,10 @@ Reads entries for a seed. Requires `allowPublicRead: true` and `PUBLIC_READ_API_
 
 **Supported filter operators (snake_case required):**
 `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `contains`, `not_contains`, `starts_with`, `ends_with`, `is_empty`, `is_not_empty`, `in`, `not_in`, `has_tag`, `has_any_tag`, `has_all_tags`.
+
+On a `tags` field, `eq`, `contains` and `in` test membership of the stored array, and `neq`, `not_contains` and `not_in` are their negation.
+
+`has_tag`, `has_any_tag` and `has_all_tags` on a `tags` field normalize each requested tag with the same rule used on write, so `" design "` matches `design`. A tag that cannot be normalized (blank, too long) matches nothing, and `has_all_tags` containing one matches no entry. A list of more than 50 tags is a malformed filter and is ignored.
 
 **Single entry request:**
 
@@ -192,6 +226,207 @@ X-API-Key: dev-public-read-key-changeme
 ```
 
 ---
+
+## Relation Expansion — `?include=`
+
+The `include` query parameter enables server-side resolution and expansion of related entries in a single request. Expanded targets are returned under the `_includes` object on each entry.
+
+**Request with relation expansion:**
+
+```http
+GET /api/v1/public/posts?slug=my-first-post&include=category_id,related_posts
+X-API-Key: dev-public-read-key-changeme
+```
+
+**Response `200 OK` with `_includes`:**
+
+```json
+{
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "slug": "my-first-post",
+    "status": "published",
+    "title": "My First Post",
+    "category_id": "8a01f92e-3367-42f2-8ce1-b9242a7fa5bc",
+    "related_posts": ["661e8400-e29b-41d4-a716-446655440111"],
+    "_includes": {
+      "category_id": {
+        "id": "8a01f92e-3367-42f2-8ce1-b9242a7fa5bc",
+        "slug": "technology",
+        "name": "Technology",
+        "status": "published"
+      },
+      "related_posts": [
+        {
+          "id": "661e8400-e29b-41d4-a716-446655440111",
+          "slug": "second-post",
+          "title": "Second Post",
+          "status": "published"
+        }
+      ]
+    }
+  },
+  "meta": { "seed": "posts" }
+}
+```
+
+### Operational Limits & Invariants
+- **Depth 1 Only**: Nested dot paths (e.g., `include=category_id.author`) are rejected with `400 Bad Request` (`invalid-include`).
+- **Maximum 3 Includes**: A single request may request at most 3 distinct include branches. Requests with >3 branches return `400 Bad Request`.
+- **Target ID Clamping**: Sub-queries for included entries are bounded at a maximum of 200 target IDs per branch.
+- **Access Policies**: A relation branch is expandable only if its resolved policy allows public read (`resolvePolicies(branch).public`) and the target seed specifies `allowPublicRead: true`.
+- **Projection Independence**: Relation expansion works seamlessly with `?fields=`. Even if the foreign key alias is omitted from `?fields=`, `_includes` is still populated.
+
+---
+
+## Relation Subquery Filters
+
+A relation subquery filters the collection by a condition evaluated against the **target** of a relation branch, instead of against the parent entry itself. It is a nested object in the `value` position of an existing `in` condition inside the `filter` query parameter — no new query parameter is introduced.
+
+**Request — posts in the category named "Tech":**
+
+```http
+GET /api/v1/public/posts?filter={"logic":"AND","where":[
+  {"field":"category_id","op":"in","value":{"logic":"AND","where":[{"field":"name","op":"eq","value":"Tech"}]}}
+]}
+X-API-Key: dev-public-read-key-changeme
+```
+
+The nested value is `{ where: [...], logic?: 'AND' | 'OR' }`; `where` entries share the ordinary `{field, op, value}` shape and are validated **against the target seed**, through the same public + filterable policy gate as a top-level filter. An `in` condition on a relation alias whose value is a **plain array of ids** (rather than a subquery object) stays legal and is routed through the same resolver — this also fixes a multi-relation `in` filter that answered `500` before this endpoint existed.
+
+### Operational Limits & Invariants
+- **Relation Reachability**: `field` must be a publicly reachable relation branch of the queried seed — the same five checks `?include=` enforces. Both single and multi relations are accepted.
+- **Operator**: `op` must be `in`. Any other operator paired with an object value returns `400` (`invalid-subquery`).
+- **Depth 1 Only**: A nested condition whose own `value` is an object (a subquery inside a subquery) returns `400`.
+- **Request Bound**: At most **2** relation subqueries per request; each inner `where` carries at most **5** conditions.
+- **Published Only**: The inner query resolves against published entries only, matching `?include=`.
+- **Refused, Not Truncated**: A resolved target-id set larger than **200**, or a resolved parent-id set larger than **500** (multi-relation fan-out), is refused with `400` — never silently truncated, since truncation would silently drop matching parent rows.
+- **Composability**: A subquery filter composes with `?include=` in the same request; the filtered set is resolved first, then relations are expanded on the surviving entries.
+
+### Error Responses
+- `400 invalid-subquery`: the relation is not publicly reachable, the operator/shape is wrong, or a resolved id set exceeds its cap.
+- `400 invalid-filter`: an inner `where` condition names a field on the target seed that is not public or not filterable — the same contract an ordinary top-level filter enforces.
+
+---
+
+## Localization
+
+When a seed has [localized fields](/features/localization), every Public API endpoint that returns entry data negotiates a **response language**. If no seed in the project has a localized branch, none of this applies: `lang` and `Accept-Language` are ignored, no settings are read, and no language headers are added.
+
+### Language negotiation
+
+The response language is the first match of:
+
+1. **`?lang=<code>`** — if the code is registered in the project's content languages. An exact match wins, then the primary language subtag (`?lang=en-US` resolves to `en` when only `en` is registered). Codes are case-normalised (`EN-us` → `en-US`).
+2. **`Accept-Language`** — each tag in preference order (`q` descending, header order among equals), with the same exact-then-primary lookup. `*`, `q=0` and malformed entries are skipped.
+3. **The default locale** of the project.
+
+A well-formed `lang` that the project does not register (for example after a language was removed) is **not** an error: negotiation falls through to `Accept-Language` and then the default, so a stale frontend keeps rendering. A **malformed** `lang` is refused:
+
+```json
+{
+  "type": "invalid-lang",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "'lang' must be a language code such as 'en' or 'pt-BR', or 'all'."
+}
+```
+
+### Single language (default)
+
+Localized fields are returned as **plain values** in the resolved language, following the fallback chain requested locale → default locale → first stored translation → `null`:
+
+```http
+GET /api/v1/public/products?slug=trail-shoe&lang=en
+X-API-Key: dev-public-read-key-changeme
+```
+
+```json
+{
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "slug": "trail-shoe",
+    "status": "published",
+    "name": "Trail shoe",
+    "price": 129
+  },
+  "meta": { "seed": "products" }
+}
+```
+
+### Every language — `?lang=all`
+
+`?lang=all` (or `?lang=*`) returns each localized field as its full `{ locale: value }` dictionary, including translations for locales no longer registered. A legacy plain value is returned as `{ "<defaultLocale>": value }`, an empty field as `null`:
+
+```json
+{
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "slug": "trail-shoe",
+    "name": { "it": "Scarpa da trail", "en": "Trail shoe" },
+    "price": 129
+  },
+  "meta": { "seed": "products" }
+}
+```
+
+### Filters, sort, search and includes
+
+- `filter` and `orderBy` on a localized field compare the value **resolved to the response language** — what the reader sees. Under `?lang=all` they compare the default-locale value.
+- `search` matches **every** translation.
+- `include` expands related entries in the **same language** as the parent response; relation subquery filters resolve in that language too.
+- Field policies apply per translation: under `?lang=all` a masked field masks every entry of its dictionary.
+
+### Response headers and caching
+
+| Header | When | Value |
+| :--- | :--- | :--- |
+| `Content-Language` | Single-language responses | The locale the response resolved to (use it to detect a fallback) |
+| `Vary` | Every negotiated response | Includes `Accept-Language` |
+
+The edge cache keys each read on the URL **plus** the resolved language, so two visitors sending different `Accept-Language` headers never share a cached response.
+
+### Writing localized fields
+
+`POST /add` and `PUT`/`PATCH /edit/:id` accept, for each localized field, either a plain value or a dictionary. Writes are **merged** into the stored translations:
+
+| Value sent | Effect |
+| :--- | :--- |
+| Plain value (`"Trail shoe"`) | Sets the **default-locale** translation |
+| Dictionary (`{ "en": "Trail shoe" }`) | Sets each named registered locale; unnamed locales are kept; unregistered keys are dropped |
+| `{ "fr": null }` | Clears that locale only |
+| `null` for the field | Clears every translation |
+
+```http
+PUT /api/v1/public/products/edit/550e8400-e29b-41d4-a716-446655440000?lang=en
+X-API-Key: dev-public-write-key-changeme
+Content-Type: application/json
+
+{
+  "data": {
+    "name": { "en": "Trail running shoe" }
+  }
+}
+```
+
+The `data` echoed in the response follows the same negotiation as a read (`lang`, then `Accept-Language`, then the default), and a malformed `lang` is a `400 invalid-lang` before anything is written. `requiredOnCreate` checks the default-locale translation only.
+
+**Concurrency.** An edit that merges a localized field is a read-modify-write, so it is version-guarded: if the entry changed between the read and the write, the request fails with `409 entry-update-conflict` instead of silently dropping a translation. Re-read the entry and retry.
+
+---
+
+## Schema Revision Header — `X-Schema-Revision`
+
+All responses emitted across the Public API surface (`/api/v1/public/*`) carry the `X-Schema-Revision` response header:
+
+```http
+X-Schema-Revision: v2:a1b2c3d4e5f60718293a4b5c6d7e8f90
+```
+
+- **Format**: `v<version>:<32_hex_sha256>`.
+- **Ubiquity**: Injected early by `schemaRevisionMiddleware` on all status codes (`200`, `201`, `400`, `401`, `404`, `429`).
+- **Cache Memoization**: Computed once from `computeSchemaFingerprint` and cached per isolate via a `WeakMap` on the `SeedRegistry` instance.
+- **Drift Detection**: Used by the Fluent Client Query Builder to verify contract alignment and detect schema updates without out-of-band polling.
 
 ## Anti-Bot Helper — `GET /api/v1/public/timetrap/token`
 

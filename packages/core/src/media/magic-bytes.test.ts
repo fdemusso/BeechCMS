@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { verifyMagicBytes } from './magic-bytes.js'
-import { SUPPORTED_FILE_TYPES, getFileTypeByExtension, getFileTypeByMime } from './file-types.js'
+import { SUPPORTED_FILE_TYPES, extensionFromUrl, getFileTypeByExtension, getFileTypeByMime } from './file-types.js'
 
 describe('verifyMagicBytes & File Types Registry', () => {
   it('exposes SUPPORTED_FILE_TYPES registry with all key-value mappings', () => {
@@ -186,12 +186,72 @@ describe('verifyMagicBytes & File Types Registry', () => {
       expect(res.error).toBe('File buffer too small for signature inspection')
     })
 
+    it('does not mislabel ZIP-container bytes as DOCX (#531)', () => {
+      const zipBytes = new Uint8Array([0x50, 0x4B, 0x03, 0x04, 0x00, 0x00])
+      const res = verifyMagicBytes(zipBytes, 'image/png')
+      expect(res.valid).toBe(false)
+      expect(res.detectedMime).toBeUndefined()
+      expect(res.error).not.toContain('DOCX')
+      expect(res.error).toContain('ZIP')
+    })
+
+    it('does not mislabel OLE2 bytes as DOC (#531)', () => {
+      const oleBytes = new Uint8Array([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 0x00])
+      const res = verifyMagicBytes(oleBytes, 'image/png')
+      expect(res.valid).toBe(false)
+      expect(res.detectedMime).toBeUndefined()
+      expect(res.error).not.toContain('is DOC ')
+      expect(res.error).toContain('OLE')
+    })
+
+    it('still names unambiguous formats and dedupes JPG/JPEG aliases', () => {
+      const jpegBytes = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10])
+      const res = verifyMagicBytes(jpegBytes, 'image/png')
+      expect(res.detectedMime).toBe('image/jpeg')
+      expect(res.error).toContain('Signature mismatch: file is JPG')
+    })
+
+    it.each([
+      ['image/gif', 6, [0x47, 0x49, 0x46, 0x38]],
+      ['image/webp', 12, [0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00]],
+      ['image/avif', 12, [0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70]],
+      ['application/x-tar', 512, [0x75, 0x73, 0x74, 0x61, 0x72, 0x00]],
+    ])('reports "too small" for truncated %s buffer (#531)', (mime, _min, head) => {
+      const res = verifyMagicBytes(new Uint8Array(head), mime)
+      expect(res.valid).toBe(false)
+      expect(res.error).toBe('File buffer too small for signature inspection')
+    })
+
     it('rejects unknown binary signatures for image types', () => {
       const randomBytes = new Uint8Array([0x00, 0x01, 0x02, 0x03, 0x04, 0x05])
       const res = verifyMagicBytes(randomBytes, 'image/png')
       expect(res.valid).toBe(false)
       expect(res.error).toContain('Unrecognized file signature')
     })
+  })
+})
+
+describe('getFileTypeByExtension', () => {
+  // Regression guard for #452: SUPPORTED_FILE_TYPES is a plain object literal, so an unguarded
+  // index access reaches inherited Object.prototype members for these keys.
+  it('returns undefined for __proto__ and constructor instead of an inherited Object.prototype member', () => {
+    expect(getFileTypeByExtension('__proto__')).toBeUndefined()
+    expect(getFileTypeByExtension('constructor')).toBeUndefined()
+  })
+})
+
+describe('extensionFromUrl', () => {
+  // Regression guard for #452: lastIndexOf('.') ran over the whole pathname, so a dot in a
+  // directory segment (a versioned path, a CDN transform segment) was misread as the extension.
+  it('ignores a dot in a directory segment and falls back to the query-param extension', () => {
+    expect(extensionFromUrl('https://cdn.example.com/v1.2/photo')).toBeNull()
+    expect(extensionFromUrl('https://res.cloudinary.com/demo/image/upload/w_0.5/sample')).toBeNull()
+    expect(extensionFromUrl('https://example.com/photo?fm=jpg')).toBe('jpg')
+  })
+
+  it('reads the extension from the last path segment, ignoring a trailing slash', () => {
+    expect(extensionFromUrl('https://example.com/photo.jpg')).toBe('jpg')
+    expect(extensionFromUrl('https://example.com/photo.jpg/')).toBeNull()
   })
 })
 

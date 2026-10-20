@@ -1,12 +1,13 @@
 {
   "name": "@beechcms/widget-sdk",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "!dist/.tsbuildinfo"
   ],
   "exports": {
     ".": {
@@ -19,6 +20,7 @@
     "dev": "tsc -w --preserveWatchOutput",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
   "peerDependencies": {
@@ -26,7 +28,7 @@
     "react": "^19.0.0"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.8.1",
+    "@beechcms/core": "workspace:^0.9.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.564.0",
     "tailwind-merge": "^3.4.0",

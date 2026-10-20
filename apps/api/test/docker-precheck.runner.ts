@@ -4,8 +4,55 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { execSync } from 'node:child_process'
+import { execSync, spawn } from 'node:child_process'
 import { assertDockerStackReady } from './docker-precheck'
+
+function isDockerDaemonReachable(): boolean {
+  try {
+    execSync('docker info', { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Windows has no equivalent of macOS's "open Docker Desktop at login" habit that makes the
+// daemon already reachable by the time the test suite runs. Best-effort launch, win32 only.
+function tryLaunchDockerDesktopWindows(): boolean {
+  if (process.platform !== 'win32') return false
+
+  try {
+    execSync('docker desktop start', { stdio: 'ignore' }) // Docker Desktop 4.x CLI command
+    return true
+  } catch {
+    // Fall through to launching the .exe directly.
+  }
+
+  const candidates = [
+    'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe',
+    path.join(process.env.LOCALAPPDATA ?? '', 'Docker', 'Docker Desktop.exe'),
+  ]
+  for (const exe of candidates) {
+    if (fs.existsSync(exe)) {
+      try {
+        spawn(exe, [], { detached: true, stdio: 'ignore' }).unref()
+        return true
+      } catch {
+        // Try the next candidate.
+      }
+    }
+  }
+  return false
+}
+
+async function waitForDockerDaemon(timeoutMs: number): Promise<boolean> {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    if (isDockerDaemonReachable()) return true
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+  }
+  return false
+}
 
 // Load .dev.vars into process.env for local dev (only if env var not already set).
 // In CI, env vars are injected by the workflow and take precedence.
@@ -51,6 +98,11 @@ function findComposeRoot(): string {
 }
 
 async function tryStartDockerStack(): Promise<void> {
+  if (!isDockerDaemonReachable() && tryLaunchDockerDesktopWindows()) {
+    console.log('\n🐳 Docker daemon not reachable — launching Docker Desktop, waiting up to 60s...')
+    await waitForDockerDaemon(60000) // best-effort; the compose call below reports the real error if it's still down
+  }
+
   console.log('\n🐳 Docker stack not running — attempting to start containers...')
   syncDockerPortsFromDevVars()
 

@@ -3,10 +3,10 @@
 
 import { z } from 'zod'
 import type { Seed, Branch } from '../engine/types.js'
-import { findBranchById } from '../engine/seed-registry.js'
+import { findBranchById } from '../engine/seeds/seed-registry.js'
 
 // ---------------------------------------------------------------------------
-// View config — per-seed, per-view dashboard preferences (KB-S02)
+// Kanban view config — embedded in ContentViewConfig.kanban (seed_views)
 // ---------------------------------------------------------------------------
 
 export const kanbanViewConfigSchema = z.object({
@@ -18,7 +18,7 @@ export const kanbanViewConfigSchema = z.object({
 export type KanbanViewConfig = z.infer<typeof kanbanViewConfigSchema>
 
 // ---------------------------------------------------------------------------
-// Kanban card layout (view_config.card)
+// Kanban card layout — embedded in ContentViewConfig.card (seed_views)
 // ---------------------------------------------------------------------------
 
 export const cardSlotFieldSchema = z.object({
@@ -38,12 +38,6 @@ export const kanbanCardConfigSchema = z.object({
   metadata: z.array(cardSlotFieldSchema).max(6).default([]),
 })
 export type KanbanCardConfig = z.infer<typeof kanbanCardConfigSchema>
-
-export const seedViewConfigSchema = z.object({
-  kanban: kanbanViewConfigSchema.optional(),
-  card: kanbanCardConfigSchema.optional(),
-}).passthrough()
-export type SeedViewConfig = z.infer<typeof seedViewConfigSchema>
 
 // ---------------------------------------------------------------------------
 // Layout interfaces
@@ -96,6 +90,13 @@ export function isGalleryBranch(branch: Branch): boolean {
     && (branch.multiple === true || branch.format === 'asset-list')
 }
 
+/** True for a single-file image branch: the candidate cover of the default editor layout. */
+function isCoverImageBranch(branch: Branch): boolean {
+  return branch.type === 'file'
+    && !isGalleryBranch(branch)
+    && branch.fileOptions?.accept === 'image'
+}
+
 /** Branch types currently unsupported in the Layout Builder. */
 export const UNSUPPORTED_BRANCH_TYPES = new Set<Branch['type']>([])
 
@@ -137,6 +138,19 @@ export function isCardEligibleBranch(branch: Branch): boolean {
   return true
 }
 
+/** Gallery cover: a single-file branch that accepts images (a multi-file/asset-list branch has no single cover). */
+export function isImageMediaBranch(branch: Branch): boolean {
+  return isCardEligibleBranch(branch)
+    && branch.type === 'file'
+    && !isGalleryBranch(branch)
+    && branch.fileOptions?.accept === 'image'
+}
+
+export interface ValidateCardConfigOptions {
+  /** Gallery cards only render an image cover: a non-image `media` slot is dropped. */
+  mediaImageOnly?: boolean
+}
+
 export type ValidateCardConfigResult =
   | { ok: true; cleaned: KanbanCardConfig }
   | { ok: false; errors: string[]; cleaned: KanbanCardConfig }
@@ -144,6 +158,7 @@ export type ValidateCardConfigResult =
 export function validateCardConfigAgainstSeed(
   config: KanbanCardConfig,
   seed: Seed,
+  options: ValidateCardConfigOptions = {},
 ): ValidateCardConfigResult {
   const errors: string[] = []
   const seen = new Set<string>()
@@ -157,7 +172,9 @@ export function validateCardConfigAgainstSeed(
     return { branchId: f.branchId }
   }
 
-  const media    = keepSingle(config.media)
+  const mediaBranch = config.media ? findBranchById(seed, config.media.branchId) : null
+  const mediaAllowed = !options.mediaImageOnly || (mediaBranch !== null && isImageMediaBranch(mediaBranch))
+  const media    = mediaAllowed ? keepSingle(config.media) : null
   const header   = keepSingle(config.header)
   const subtitle = keepSingle(config.subtitle)
 
@@ -179,28 +196,40 @@ export function validateCardConfigAgainstSeed(
 // Zod schema for shape validation
 // ---------------------------------------------------------------------------
 
+/** Max serialized size of a form layout. Keeps the `seed_layouts` row far below D1's per-row limit. */
+export const MAX_LAYOUT_BYTES = 256 * 1024
+
+const LAYOUT_ID_MAX = 64
+const LAYOUT_LABEL_MAX = 120
+const MAX_SECTIONS_PER_TAB = 50
+const MAX_FIELDS_PER_COLUMN = 100
+
 export const layoutFieldSchema = z.object({ branchId: z.string().regex(/^br_[A-Za-z0-9]+$/) })
 export const layoutColumnSchema = z.object({
-  id: z.string().min(1),
-  fields: z.array(layoutFieldSchema),
+  id: z.string().min(1).max(LAYOUT_ID_MAX),
+  fields: z.array(layoutFieldSchema).max(MAX_FIELDS_PER_COLUMN),
 })
 export const layoutSectionSchema = z.object({
-  id: z.string().min(1),
-  label: z.string().optional(),
+  id: z.string().min(1).max(LAYOUT_ID_MAX),
+  label: z.string().max(LAYOUT_LABEL_MAX).optional(),
   hideLabel: z.boolean().optional(),
   hideBorder: z.boolean().optional(),
   collapsible: z.boolean().optional(),
   columns: z.array(layoutColumnSchema).min(1).max(4),
 })
 export const layoutTabSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).max(LAYOUT_ID_MAX),
   label: z.string().min(1).max(60),
-  sections: z.array(layoutSectionSchema).min(1),
+  sections: z.array(layoutSectionSchema).min(1).max(MAX_SECTIONS_PER_TAB),
 })
-export const formLayoutSchema = z.object({
-  version: z.literal(1),
-  tabs: z.array(layoutTabSchema).min(1).max(8),
-})
+export const formLayoutSchema = z
+  .object({
+    version: z.literal(1),
+    tabs: z.array(layoutTabSchema).min(1).max(8),
+  })
+  .refine((layout) => new TextEncoder().encode(JSON.stringify(layout)).length <= MAX_LAYOUT_BYTES, {
+    message: `Layout exceeds the ${MAX_LAYOUT_BYTES / 1024} KB size limit.`,
+  })
 
 // ---------------------------------------------------------------------------
 // Default layout generator
@@ -249,6 +278,12 @@ function buildSectionsForBranches(
   return sections
 }
 
+/**
+ * Builds the default editor layout for a Seed with no custom `layout`: full-width branches
+ * (richtext, json, galleries) each get their own dedicated section, the remaining branches are
+ * packed three per section in seed order, and a single main non-gallery image file branch
+ * (`fileOptions.accept === 'image'`) leads the Data tab alone in its own full-width section.
+ */
 export function generateDefaultLayout(
   seed: Seed,
   opts?: { newId: () => string },
@@ -259,10 +294,30 @@ export function generateDefaultLayout(
   const seo = layoutable.filter(isSeoBranch)
   const main = layoutable.filter((b) => !isSeoBranch(b))
 
+  const coverCandidates = main.filter(isCoverImageBranch)
+  const cover = coverCandidates.length === 1 ? coverCandidates[0] : null
+
+  const dataTabId = newId()
+  let dataSections: LayoutSection[]
+  if (cover) {
+    const coverSection: LayoutSection = {
+      id: newId(),
+      label: cover.label,
+      hideLabel: true,
+      columns: [{ id: newId(), fields: [{ branchId: cover.id }] }],
+    }
+    const rest = main.filter((b) => b.id !== cover.id)
+    dataSections = rest.length === 0
+      ? [coverSection]
+      : [coverSection, ...buildSectionsForBranches(rest, newId)]
+  } else {
+    dataSections = buildSectionsForBranches(main, newId)
+  }
+
   const dataTab: LayoutTab = {
-    id: newId(),
+    id: dataTabId,
     label: 'Data',
-    sections: buildSectionsForBranches(main, newId),
+    sections: dataSections,
   }
   const seoTab: LayoutTab = {
     id: newId(),
@@ -360,3 +415,32 @@ export function validateLayoutAgainstSeed(
   return { ok: true, cleaned }
 }
 
+/**
+ * Makes a stored layout safe to serve after the Seed changed. A layout that breaks the
+ * full-width rules falls back to the generated default; otherwise layoutable branches the
+ * layout never placed (added to the Seed later) are appended as trailing sections of the
+ * first tab, so the editor can always render and fill them.
+ */
+export function reconcileLayoutWithSeed(layout: FormLayout, seed: Seed): FormLayout {
+  const result = validateLayoutAgainstSeed(layout, seed)
+  if (!result.ok) return generateDefaultLayout(seed)
+
+  const placed = new Set<string>()
+  for (const tab of result.cleaned.tabs) {
+    for (const section of tab.sections) {
+      for (const column of section.columns) {
+        for (const field of column.fields) placed.add(field.branchId)
+      }
+    }
+  }
+
+  const unplaced = seed.branches.filter((b) => isLayoutableBranch(b) && !placed.has(b.id))
+  if (unplaced.length === 0) return result.cleaned
+
+  const [firstTab, ...otherTabs] = result.cleaned.tabs
+  const extended: LayoutTab = {
+    ...firstTab,
+    sections: [...firstTab.sections, ...buildSectionsForBranches(unplaced, defaultIdFactory)],
+  }
+  return { ...result.cleaned, tabs: [extended, ...otherTabs] }
+}

@@ -5,15 +5,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi } from '../api/settings.api'
 import type { NotificationPrefs } from '../types/settings.types'
+import { GENERAL_SETTINGS_QUERY_KEY, ME_QUERY_KEY, useMe } from "@/features/shared"
 
 export const SETTINGS_QUERY_KEYS = {
   all: ['settings'] as const,
-  profile: () => [...SETTINGS_QUERY_KEYS.all, 'profile'] as const,
+  /** Same key as `features/shared`'s `useMe()` — one cache entry for `/settings/me`. */
+  profile: () => ME_QUERY_KEY,
   sessions: () => [...SETTINGS_QUERY_KEYS.all, 'sessions'] as const,
   activity: () => [...SETTINGS_QUERY_KEYS.all, 'activity'] as const,
-  storage: () => [...SETTINGS_QUERY_KEYS.all, 'storage'] as const,
+  storage: (offset: number) => [...SETTINGS_QUERY_KEYS.all, 'storage', offset] as const,
   notifications: () => [...SETTINGS_QUERY_KEYS.all, 'notifications'] as const,
-  general: () => [...SETTINGS_QUERY_KEYS.all, 'general'] as const,
+  general: () => GENERAL_SETTINGS_QUERY_KEY,
 }
 
 export function useGeneralSettings() {
@@ -34,12 +36,10 @@ export function useUpdateGeneralSettings() {
   })
 }
 
+/** @deprecated for new code — prefer `useMe()` from `@/features/shared`.
+ *  Kept as the profile-shaped view onto the same query. */
 export function useProfile() {
-  return useQuery({
-    queryKey: SETTINGS_QUERY_KEYS.profile(),
-    queryFn: settingsApi.getProfile,
-    staleTime: 5 * 60 * 1000,
-  })
+  return useMe()
 }
 
 export function useUpdateProfile() {
@@ -90,11 +90,20 @@ export function useSettingsActivity() {
   })
 }
 
-export function useStorageStats() {
+export function useStorageStats(offset = 0) {
   return useQuery({
-    queryKey: SETTINGS_QUERY_KEYS.storage(),
-    queryFn: settingsApi.getStorage,
+    queryKey: SETTINGS_QUERY_KEYS.storage(offset),
+    queryFn: () => settingsApi.getStorage(offset),
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useDeleteOrphans() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: settingsApi.deleteOrphans,
+    // Refetch on failure too: a refused selection means the report is stale.
+    onSettled: () => qc.invalidateQueries({ queryKey: [...SETTINGS_QUERY_KEYS.all, 'storage'] }),
   })
 }
 

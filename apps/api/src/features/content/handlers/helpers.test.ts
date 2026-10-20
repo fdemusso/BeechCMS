@@ -5,7 +5,7 @@ import { normalizeBody, contentValidationProblem, logContentActivity, dispatchCo
 import { CONTENT_ERRORS } from '../constants'
 
 // Mock dependencies
-vi.mock('../../../public/problem-details', () => ({
+vi.mock('../../../public/errors/problem-details', () => ({
   publicProblem: vi.fn((_ctx, details) => ({ mockProblem: true, ...details })),
   fkProblemOrNull: vi.fn((_ctx, err, method) => {
     if (err instanceof Error && err.message === 'FK_ERROR') return { mockFkProblem: true }

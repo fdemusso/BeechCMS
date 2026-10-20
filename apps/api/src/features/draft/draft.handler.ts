@@ -9,24 +9,68 @@ import {
   resolvePolicies,
   EntryNotFoundError,
   RelationTargetNotFoundError,
+  DraftConflictError,
+  DraftSaveConflictError,
   ActorContext,
+  localizedAliasesIn,
+  mergeLocalizedFields,
+  resolveLocalizedFields,
+  resolveClassification,
+  type Seed,
 } from '@beechcms/core'
-import { publicProblem } from '../../public/problem-details'
+import { publicProblem } from '../../public/errors/problem-details'
 import { cleanStr } from '../../shared/utils/query-utils'
 import { applyVisibility } from '../../shared/policies/apply-policies'
 import { AppEnv } from '../../types'
 import { CONTENT_ERRORS } from '../content/constants'
+import { resolveIfMatch } from '../content/handlers/helpers'
 import { draftGuard } from './draft.middleware'
+import { loadLocaleConfig } from '../../shared/localization/locale-config'
+import { loadDisplayLocaleConfig, resolveDisplayName } from '../../shared/localization/display-name'
+import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
+import { filterSeedsByPermission } from '../../shared/rbac/scoped-projection'
 
 const draftApp = new Hono<AppEnv>()
 
-// GET /drafts — Unified list of pending drafts across all draft-enabled seeds.
+// GET /drafts — Pending drafts across every draft-enabled seed the caller may read.
 draftApp.get('/drafts', async (context) => {
-  const seeds = context.get('seedRegistry').draftEnabled()
+  const effective = await resolveEffectivePermissions(context)
+  const seeds = filterSeedsByPermission(
+    context.get('seedRegistry').draftEnabled(),
+    effective,
+    'content:read',
+  )
+  // No readable draft-enabled seed: answer with an empty list rather than handing the
+  // repository an empty seed set.
+  if (seeds.length === 0) return context.json([])
+
   const repository = context.get('repository')
   const drafts = await repository.findPendingDrafts(seeds)
-  return context.json(drafts)
+  const localeConfig = await loadDisplayLocaleConfig(context.get('siteSettingsRepository'), seeds)
+  const jwtPayload = context.get('jwtPayload')
+  const actor: ActorContext = context.get('actor') ?? {
+    type: 'authenticated',
+    userId: jwtPayload?.sub,
+    role: jwtPayload?.role,
+  }
+  const seedsBySlug = new Map(seeds.map((seed) => [seed.slug, seed]))
+  return context.json(drafts.map((draft) => {
+    const seed = seedsBySlug.get(draft.seedSlug)
+    if (!seed) return draft
+    const title = localeConfig ? resolveDisplayName(seed, draft.title, localeConfig) : draft.title
+    return { ...draft, title: concealedTitle(seed, title, draft.id, actor) }
+  }))
 })
+
+// Title column is raw SQL: re-apply the detail-read visibility pipeline.
+function concealedTitle(seed: Seed, title: string, id: string, actor: ActorContext): string {
+  const alias = seed.displayNameAlias
+  const branch = seed.branches.find((b) => b.alias === alias)
+  if (!branch) return title
+  if (resolveClassification(branch).storage === 'encrypt') return id
+  const visible = applyVisibility({ [alias]: title }, seed, actor)
+  return Object.hasOwn(visible, alias) ? String(visible[alias]) : id
+}
 
 function normalizeBody(raw: unknown): Record<string, unknown> {
   return typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
@@ -74,7 +118,7 @@ draftApp.put('/:slug/:id/draft', draftGuard, async (context) => {
 
   const sensitiveAliases = Object.keys(body).filter((alias) => {
     const branch = seed.branches.find((b) => b.alias === alias)
-    return branch != null && resolvePolicies(branch).privacy !== 'plain'
+    return branch != null && resolvePolicies(branch).privacy === 'hash'
   })
   
   if (sensitiveAliases.length > 0) {
@@ -86,12 +130,14 @@ draftApp.put('/:slug/:id/draft', draftGuard, async (context) => {
     })
   }
 
+  const localeConfig = await loadLocaleConfig(context.get('siteSettingsRepository'), seed)
   const validation = validateAndSanitizeSeedPayload(seed, body, {
     operation: 'update',
     allowNull: true,
     requireAtLeastOneValidField: true,
     enforceRequiredFields: false,
     idGenerator: context.get('idGenerator'),
+    localeConfig,
   })
   
   if (validation.dangerousFields.length > 0) {
@@ -114,9 +160,40 @@ draftApp.put('/:slug/:id/draft', draftGuard, async (context) => {
   }
 
   const repository = context.get('repository')
-  await repository.saveDraft(seed, id, validation.data)
+  const ifMatch = resolveIfMatch(context, body)
+  let draftData = validation.data
+  let guard = ifMatch
+  if (localeConfig && localizedAliasesIn(seed, validation.data).length > 0) {
+    // publishDraft copies each touched column over the live row, so the draft must hold the complete
+    // dictionary: base it on the pending draft value when this field was already drafted, else on live.
+    const [pending, live, pendingUpdatedAt] = await Promise.all([
+      repository.getDraft(seed, id),
+      repository.findById(seed, id),
+      repository.getDraftUpdatedAt(seed, id),
+    ])
+    draftData = mergeLocalizedFields(seed, { ...live, ...(pending ?? {}) }, validation.data, localeConfig)
+    // This is a read-modify-write against `pending`: without a version guard, a concurrent draft
+    // save landing in between would lose its translation silently. Fall back to the version we
+    // merged against when the client sent no explicit guard, turning that race into a 409.
+    if (guard === undefined && pending !== null) guard = pendingUpdatedAt ?? undefined
+  }
 
-  const displayTitle = cleanStr(validation.data[seed.displayNameAlias]) ?? id
+  try {
+    await repository.saveDraft(seed, id, draftData, { ifMatch: guard })
+  } catch (error) {
+    if (error instanceof DraftSaveConflictError) {
+      return publicProblem(context, {
+        type: 'draft-save-conflict',
+        title: 'Conflict',
+        status: 409,
+        detail: CONTENT_ERRORS.DRAFT_SAVE_CONFLICT,
+      })
+    }
+    throw error
+  }
+
+  const displayData = resolveLocalizedFields(seed, draftData, localeConfig)
+  const displayTitle = cleanStr(displayData[seed.displayNameAlias]) ?? id
   logDraftActivity(context, id, slug, displayTitle, 'draft saved')
 
   return context.json({ success: true })
@@ -161,6 +238,16 @@ draftApp.post('/:slug/:id/draft/publish', draftGuard, async (context) => {
   try {
     await repository.publishDraft(seed, id)
   } catch (err) {
+    if (err instanceof DraftConflictError) {
+      return publicProblem(context, {
+        type: 'draft-publish-conflict',
+        title: 'Conflict',
+        status: 409,
+        detail:
+          'The live entry was modified after this draft was created. Discard the draft and ' +
+          're-open the entry to start from the current version.',
+      })
+    }
     if (err instanceof EntryNotFoundError) {
       return publicProblem(context, {
         type: 'draft-not-found',

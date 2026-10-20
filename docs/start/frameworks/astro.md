@@ -82,10 +82,11 @@ Replace `src/pages/index.astro` with an Astro component that queries BeechCMS at
 import { beech } from '../lib/beech'
 import { renderRichText } from '@beechcms/client/richtext'
 
-const result = await beech.content('articles').list({
-  sort: { created_at: 'desc' },
-  limit: 10
-})
+const result = await beech
+  .collection('articles')
+  .orderBy('created_at', 'desc')
+  .limit(10)
+  .list()
 
 const articles = result.data ? result.data.data : []
 ---
@@ -130,7 +131,7 @@ import { beech, type Article } from '../../lib/beech'
 import { renderRichText } from '@beechcms/client/richtext'
 
 export async function getStaticPaths() {
-  const result = await beech.content('articles').list({ limit: 100 })
+  const result = await beech.collection('articles').limit(100).list()
   const articles = result.data ? result.data.data : []
   return articles.map((article) => ({
     params: { slug: article.slug },

@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { ISeedRepository, Seed, SeedRecord, SeedApplyInput, SeedApplyResult } from '@beechcms/core'
+import type { ISeedRepository, Seed, SeedRecord, SeedApplyInput, SeedApplyResult, SeedDestructiveApplyInput } from '@beechcms/core'
 
 /**
  * In-memory ISeedRepository for testing and for the config.seeds back-compat shim.
@@ -64,6 +64,19 @@ export class InMemorySeedRepository implements ISeedRepository {
   async applyAtomic(input: SeedApplyInput): Promise<SeedApplyResult> {
     if (input.expectedVersion !== this.version) {
       return { applied: false, version: this.version }
+    }
+    return { applied: true, version: ++this.version }
+  }
+
+  async applyDestructiveAtomic(input: SeedDestructiveApplyInput): Promise<SeedApplyResult> {
+    if (input.expectedVersion !== this.version) {
+      return { applied: false, version: this.version }
+    }
+    const index = this.seeds.findIndex(seed => seed.slug === input.slug)
+    if (input.operation === 'delete') {
+      if (index >= 0) this.seeds.splice(index, 1)
+    } else if (index >= 0) {
+      this.seeds[index] = input.definition
     }
     return { applied: true, version: ++this.version }
   }

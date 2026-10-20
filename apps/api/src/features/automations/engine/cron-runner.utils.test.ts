@@ -142,3 +142,37 @@ describe('cronMatches', () => {
     })
   })
 })
+
+describe('cronMatches — day-of-week 7', () => {
+  it('treats 7 as Sunday, like 0', () => {
+    // 2026-05-17 is a Sunday; getUTCDay() reports 0 for it, which is why 7 never matched.
+    const sunday = ts('2026-05-17T09:00:00Z')
+
+    expect(cronMatches('0 9 * * 7', sunday)).toBe(true)
+    expect(cronMatches('0 9 * * 7', ts('2026-05-18T09:00:00Z'))).toBe(false)
+  })
+
+  it('matches a range ending in 7 on Sunday', () => {
+    expect(cronMatches('0 9 * * 5-7', ts('2026-05-17T09:00:00Z'))).toBe(true)
+  })
+})
+
+describe('cronMatches — day-of-month and day-of-week together', () => {
+  // Standard cron: when both fields are restricted, a day matching either one fires.
+  const expression = '0 9 13 * 5'
+
+  it('fires on the restricted day of month even when it is not a Friday', () => {
+    // 2026-05-13 is a Wednesday.
+    expect(cronMatches(expression, ts('2026-05-13T09:00:00Z'))).toBe(true)
+  })
+
+  it('fires on a Friday that is not the restricted day of month', () => {
+    // 2026-05-15 is a Friday.
+    expect(cronMatches(expression, ts('2026-05-15T09:00:00Z'))).toBe(true)
+  })
+
+  it('does not fire on a day matching neither field', () => {
+    // 2026-05-14 is a Thursday.
+    expect(cronMatches(expression, ts('2026-05-14T09:00:00Z'))).toBe(false)
+  })
+})

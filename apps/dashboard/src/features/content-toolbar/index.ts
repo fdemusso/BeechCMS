@@ -18,10 +18,11 @@ export type {
   ToolbarFiltersState,
   ToolbarFilterGroup,
   ToolbarFilterCondition,
-  ViewType,
   ToolbarTool,
   FilterGroupType,
   FilterOperator,
 } from "./shared"
-export { DEFAULT_ENABLED_TOOLS, buildFilterableColumns, defaultOperatorForType, generateConditionId } from "./shared"
+export { DEFAULT_ENABLED_TOOLS, DEFAULT_VIEW_SETTINGS, buildFilterableColumns, defaultOperatorForType, generateConditionId } from "./shared"
 export type { FilterableColumn } from "./shared"
+export { ViewSwitcher } from "./toolbar-components/view-switcher"
+export { ToolbarStrip } from "./toolbar-components/toolbar-strip"

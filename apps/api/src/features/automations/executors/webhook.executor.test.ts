@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { verifyWebhookSignature } from '@beechcms/core/webhook-crypto'
 import { executeWebhook } from './webhook.executor'
 import type { ResolvedContext } from '../evaluator/context-resolver'
 
@@ -103,6 +104,31 @@ describe('executeWebhook', () => {
     expect(body).toContain('update')
   })
 
+  // HTML escaping corrupts quotes and leaves JSON control characters and backslashes unescaped.
+  it.each([
+    ['multiline text', 'line1\nline2\r\nline3'],
+    ['trailing backslash', 'path\\'],
+    ['control characters', Array.from({ length: 32 }, (_, code) => String.fromCharCode(code)).join('')],
+    ['quotes and markup', '"O\'Brien" & <Sons>'],
+    ['JSON structure text', '\\", "extra": true, "note": "'],
+    ['Unicode text', 'Caffè 🌳 \u2028 \u2029'],
+  ])('sends %s as a JSON string preserving the original value', async (_label, note) => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 200 }))
+    const action = { ...baseAction, body_template: '{"note":"{{this.note}}","static":true}' }
+    const context = makeContext({ note })
+
+    const delivery = executeWebhook(action, context, { WEBHOOK_SECRET: 'test-secret' })
+    await delivery
+
+    expect(fetchSpy).toHaveBeenCalledOnce()
+    const [, init] = fetchSpy.mock.calls[0]
+    const body = init?.body as string
+    expect(body).toBe(JSON.stringify({ note, static: true }))
+    expect(JSON.parse(body)).toEqual({ note, static: true })
+    const headers = init?.headers as Record<string, string>
+    expect(await verifyWebhookSignature(body, headers['X-BeechCMS-Signature'], 'test-secret')).toBe(true)
+  })
+
   it('recalculates HMAC and matches X-BeechCMS-Signature header', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeOkResponse())
     const secret = 'verify-secret'
@@ -138,5 +164,22 @@ describe('executeWebhook', () => {
 
     await expect(executeWebhook(baseAction, baseContext, {}))
       .rejects.toThrow('timed out after 8000ms')
+  })
+
+  // A mocked fetch hides runtime validation: build a real Request so GET-with-body throws like workerd.
+  it('sends GET without body or Content-Type so the Fetch API accepts it', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      new Request(input as string, init)
+      return makeOkResponse()
+    })
+    const action = { ...baseAction, method: 'GET' as const }
+
+    await executeWebhook(action, baseContext, { WEBHOOK_SECRET: 'test-secret' })
+
+    const [, init] = fetchSpy.mock.calls[0]
+    const headers = init?.headers as Record<string, string>
+    expect(init?.body).toBeUndefined()
+    expect(headers['Content-Type']).toBeUndefined()
+    expect(headers['X-BeechCMS-Signature']).toMatch(/^sha256=[0-9a-f]{64}$/)
   })
 })

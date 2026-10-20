@@ -77,7 +77,9 @@ BeechCMS solves this via **Blind Indexing**:
 Application-Level Encryption requires a 256-bit cryptographic master key (`PRIVACY_MASTER_KEY`).
 
 ### Local Development
-Generate a 32-byte hex key and add it to `.dev.vars`:
+`pnpm beech dev` (monorepo), `beech onboard`/`beech init` (consumer projects) and `npx @beechcms/cms` generate the key in `.dev.vars` when it is missing or empty. An existing value is never overwritten.
+
+To generate it manually, create a 32-byte hex key and add it to `.dev.vars`:
 
 ```bash
 # Generate key
@@ -88,6 +90,8 @@ Add to `.dev.vars`:
 ```bash
 PRIVACY_MASTER_KEY=4a2f8c9b... # 64 hex characters
 ```
+
+> **Warning:** Do not change the key once protected data is stored. Existing ciphertext and blind indexes become unreadable. Without a key the API fails closed with `PRIVACY_MASTER_KEY is not configured`.
 
 ### Cloudflare Edge Production
 Provision the key as a Cloudflare secret:

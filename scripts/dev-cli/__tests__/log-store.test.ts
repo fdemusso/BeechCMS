@@ -90,6 +90,18 @@ describe('LogStore', () => {
     expect(store.getErrors()).toHaveLength(0)
   })
 
+  it('toggles and dismisses the pending (not yet finalized) error', () => {
+    const store = new LogStore()
+    store.addLine('api', 'Error: first')
+    store.addLine('api', 'Error: second') // finalizes first; second stays pending
+
+    store.toggleErrorExpanded(1)
+    expect(store.getErrors()[1].expanded).toBe(true)
+
+    store.dismissError(1)
+    expect(store.getErrors().map((e) => e.code)).toEqual(['Error: first'])
+  })
+
   it('archives version-update notices and retains them in the buffer', () => {
     const store = new LogStore()
     const result = store.addLine('api', 'wrangler 4.20.0 is now available 🎉')

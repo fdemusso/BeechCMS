@@ -51,6 +51,24 @@ All API errors from the Public API use **RFC 9457 Problem Details** (obsoleting 
 | `slug-conflict` | `409` | Slug already exists for this content type |
 | `idempotency-key-conflict` | `409` | Idempotency key reused with a different payload |
 | `rate-limit-exceeded` | `429` | IP or account exceeded rate limit |
-| `internal-server-error` | `500` | Unhandled server error (details masked to `"An unexpected error occurred."` in production) |
+| `internal-server-error` | `500` | Unhandled server error (details masked to `"An unexpected error occurred."` unless `ENV` is `development` or `test`; an omitted or unrecognised `ENV` is masked) |
 
 > **Note:** The `errors` array is only present on `validation-failed` responses. It provides field-level detail for every field that failed validation.
+
+### Internal content & Trash `type` URIs
+
+The JWT-authenticated content surface uses `content-`-prefixed slugs for the same conditions, plus these:
+
+| `type` Slug | HTTP Status | Meaning |
+|---|---|---|
+| `content-seed-not-found` | `404` | Seed slug is not in the registry |
+| `content-not-found` | `404` | No entry with that id — on `/restore`, no **trashed** entry with that id |
+| `content-slug-conflict` | `409` | Slug already taken by a live entry |
+| `content-soft-delete-disabled` | `409` | A `/trash` route was called on a Seed without `softDelete: true` |
+| `draft-publish-conflict` | `409` | The live entry was written after the draft captured its snapshot — publishing would overwrite that write |
+| `content-invalid-slug-or-id` | `400` | Missing seed slug or entry id in the path |
+| `content-invalid-json` | `400` | Request body is not valid JSON |
+| `bulk-invalid-ids` | `400` | `ids` is not a non-empty array of strings |
+| `bulk-size-exceeded` | `400` | More than 500 ids in a bulk operation |
+
+Bulk trash operations return `200 OK` even when some ids fail: each failure is reported per id inside `failed[].problem` (`content-not-found`, `bulk-restore-error`, or `bulk-purge-error`) rather than failing the whole batch. See the [Internal Content API](/reference/internal-content#trash-and-purge).

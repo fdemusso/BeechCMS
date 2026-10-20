@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Hono } from 'hono'
-import type { Branch, ISeedRepository, ISchemaMutator, Seed, SeedRecord } from '@beechcms/core'
+import type { Branch, ISeedMediaPurgeRepository, ISeedRepository, ISchemaMutator, Seed, SeedRecord } from '@beechcms/core'
 import { seedsApp } from './seeds.handler'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -41,6 +41,7 @@ function makeRepo(overrides: Partial<ISeedRepository> = {}): ISeedRepository {
     getRegistryVersion: vi.fn().mockResolvedValue(1),
     bumpRegistryVersion: vi.fn().mockResolvedValue(2),
     applyAtomic: vi.fn().mockResolvedValue({ applied: true, version: 2 }),
+    applyDestructiveAtomic: vi.fn().mockResolvedValue({ applied: true, version: 2 }),
     ...overrides,
   }
 }
@@ -54,6 +55,28 @@ function makeMutator(overrides: Partial<ISchemaMutator> = {}): ISchemaMutator {
     dropColumn: vi.fn().mockResolvedValue(undefined),
     renameColumn: vi.fn().mockResolvedValue(undefined),
     execDestructive: vi.fn().mockResolvedValue(undefined),
+    sumCounts: vi.fn().mockResolvedValue(0),
+    ...overrides,
+  }
+}
+
+function makePurgeRepo(overrides: Partial<ISeedMediaPurgeRepository> = {}): ISeedMediaPurgeRepository {
+  return {
+    begin: vi.fn().mockResolvedValue(undefined),
+    get: vi.fn().mockResolvedValue(null),
+    getActiveBySlug: vi.fn().mockResolvedValue(null),
+    listPendingIds: vi.fn().mockResolvedValue([]),
+    claim: vi.fn().mockResolvedValue(null),
+    release: vi.fn().mockResolvedValue(undefined),
+    getColumns: vi.fn().mockResolvedValue(null),
+    readPage: vi.fn().mockResolvedValue([]),
+    stagePage: vi.fn().mockResolvedValue(undefined),
+    moveToDrafts: vi.fn().mockResolvedValue(undefined),
+    dropAndStartPurge: vi.fn().mockResolvedValue(undefined),
+    abortDrop: vi.fn().mockResolvedValue(undefined),
+    listKeys: vi.fn().mockResolvedValue([]),
+    completeKey: vi.fn().mockResolvedValue(undefined),
+    finish: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   }
 }
@@ -69,6 +92,7 @@ function buildApp(opts: {
   jwtPayload?: Record<string, unknown> | null
   repo?: ISeedRepository
   mutator?: ISchemaMutator
+  purgeRepo?: ISeedMediaPurgeRepository
   backrefMap?: Map<string, any[]>
   automationRepository?: any
   db?: any
@@ -79,6 +103,7 @@ function buildApp(opts: {
   const app = new Hono()
   const repo = opts.repo ?? makeRepo()
   const mutator = opts.mutator ?? makeMutator()
+  const purgeRepo = opts.purgeRepo ?? makePurgeRepo()
   const backrefMap = opts.backrefMap ?? new Map()
   const activityLogger = makeActivityLogger()
   // Default stub DB (used by hard-delete R2 cascade) — no results
@@ -95,6 +120,10 @@ function buildApp(opts: {
     c.set('jwtPayload' as never, jwtPayload)
     c.set('seedRepository' as never, repo)
     c.set('schemaMutator' as never, mutator)
+    c.set('seedMediaPurgeRepository' as never, purgeRepo)
+    c.set('idGenerator' as never, { uuid: () => '00000000-0000-4000-8000-000000000001' })
+    c.set('clock' as never, { nowSeconds: () => 1 })
+    c.set('queue' as never, { enqueue: vi.fn().mockResolvedValue(true) })
     c.set('backrefMap' as never, backrefMap)
     c.set('activityLogger' as never, activityLogger)
     c.set('automationRepository' as never, automationRepository)
@@ -113,7 +142,7 @@ function buildApp(opts: {
   app.request = ((input: any, init?: any, env?: any, executionCtx?: any) =>
     originalRequest(input, init, env ?? defaultEnv, executionCtx)) as typeof app.request
 
-  return { app, repo, mutator, activityLogger, bucket, mediaRepository, systemStatsRepository, db }
+  return { app, repo, mutator, purgeRepo, activityLogger, bucket, mediaRepository, systemStatsRepository, db }
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -179,7 +208,7 @@ describe('POST / (create)', () => {
     expect(res.status).toBe(409)
   })
 
-  it('creates new seed: planCreateSeed DDL emitted, upsert called, 201', async () => {
+  it('creates new seed: planCreateSeed DDL submitted atomically, 201', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(null), listActive: vi.fn().mockResolvedValue([]) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(null) })
     const { app, activityLogger } = buildApp({ role: 'admin', repo, mutator })
@@ -197,14 +226,13 @@ describe('POST / (create)', () => {
     })
     expect(res.status).toBe(201)
 
-    const ddlCalls = (mutator.execDdl as ReturnType<typeof vi.fn>).mock.calls
+    const ddlCalls = (repo.applyAtomic as ReturnType<typeof vi.fn>).mock.calls
     expect(ddlCalls.length).toBe(1)
-    const stmts: string[] = ddlCalls[0][0]
+    const stmts: string[] = ddlCalls[0][0].ddl
     expect(stmts.some((s: string) => s.includes('CREATE TABLE') && s.includes('content_notes'))).toBe(true)
     expect(stmts.some((s: string) => s.includes('DROP'))).toBe(false)
 
-    expect((repo.upsert as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
-    expect((repo.bumpRegistryVersion as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+    expect(ddlCalls[0][0].definition.slug).toBe('notes')
     expect(activityLogger.log.mock.calls.length).toBe(1)
     expect(activityLogger.log.mock.calls[0][0].action).toBe('create')
 
@@ -229,7 +257,7 @@ describe('POST / (create)', () => {
       body: JSON.stringify(noIdSeed),
     })
     expect(res.status).toBe(201)
-    const upsertArg = (repo.upsert as ReturnType<typeof vi.fn>).mock.calls[0][1] as Seed
+    const upsertArg = (repo.applyAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0].definition as Seed
     expect(upsertArg.branches[0].id).toMatch(/^br_\d+$/)
   })
 
@@ -250,7 +278,7 @@ describe('POST / (create)', () => {
     })
     expect(res.status).toBe(201)
     // No CREATE TABLE was emitted (table already exists), planExtendSeed path taken
-    const stmts: string[] = (mutator.execDdl as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] ?? []
+    const stmts: string[] = (repo.applyAtomic as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].ddl ?? []
     expect(stmts.every((s: string) => !s.includes('CREATE TABLE IF NOT EXISTS content_articles') || s.includes('IF NOT EXISTS'))).toBe(true)
   })
 
@@ -304,6 +332,20 @@ describe('PUT /:slug (edit)', () => {
     expect(body.type).toContain('alias-rename-not-supported')
   })
 
+  it('422 when PUT omits the displayNameAlias branch', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator()
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...baseSeed, branches: [baseSeed.branches[1]] }),
+    })
+    expect(res.status).toBe(422)
+    expect((repo.applyAtomic as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
+  })
+
   it('422 on branch type change', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const { app } = buildApp({ role: 'admin', repo })
@@ -345,7 +387,7 @@ describe('PUT /:slug (edit)', () => {
     })
     expect(res.status).toBe(200)
 
-    const stmts: string[] = (mutator.execDdl as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    const stmts: string[] = (repo.applyAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0].ddl
     expect(stmts.some((s: string) => s.includes('ADD COLUMN') && s.includes('summary'))).toBe(true)
     expect(stmts.every((s: string) => !s.includes('DROP'))).toBe(true)
   })
@@ -367,7 +409,7 @@ describe('PUT /:slug (edit)', () => {
     })
     expect(res.status).toBe(200)
 
-    const allStmts: string[] = (mutator.execDdl as ReturnType<typeof vi.fn>).mock.calls.flatMap((c: any) => c[0])
+    const allStmts: string[] = (repo.applyAtomic as ReturnType<typeof vi.fn>).mock.calls.flatMap((c: any) => c[0].ddl)
     expect(allStmts.every((s: string) => !s.includes('DROP'))).toBe(true)
   })
 })
@@ -388,7 +430,7 @@ describe('POST /:slug/branches (add branch)', () => {
     const body = await res.json() as any
     expect(body.id).toMatch(/^br_\d+$/)
 
-    const stmts: string[] = (mutator.execDdl as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    const stmts: string[] = (repo.applyAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0].ddl
     expect(stmts.some((s: string) => s.includes('ADD COLUMN') && s.includes('excerpt'))).toBe(true)
   })
 
@@ -405,7 +447,7 @@ describe('POST /:slug/branches (add branch)', () => {
     })
     expect(res.status).toBe(200)
 
-    const stmts: string[] = (mutator.execDdl as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] ?? []
+    const stmts: string[] = (repo.applyAtomic as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].ddl ?? []
     expect(stmts.every((s: string) => !s.includes('ADD COLUMN'))).toBe(true)
   })
 })
@@ -509,27 +551,27 @@ describe('DELETE /:slug/hard', () => {
     expect(res.status).toBe(409)
   })
 
-  it('hard delete: execDestructive called, hardDelete called, version bumped, audit logged', async () => {
+  it('hard delete accepts a durable purge job before touching tables or media', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
-    const { app, activityLogger } = buildApp({ role: 'admin', repo, mutator })
+    const purgeRepo = makePurgeRepo()
+    const { app, activityLogger, bucket } = buildApp({ role: 'admin', repo, mutator, purgeRepo })
 
     const res = await app.request('/articles/hard', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ confirm: 'articles' }),
     })
-    expect(res.status).toBe(200)
-
-    expect((mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0)
-    // execDdl must NOT have been called for DROP
-    const ddlCalls: string[] = (mutator.execDdl as ReturnType<typeof vi.fn>).mock.calls.flatMap((c: any) => c[0])
-    expect(ddlCalls.every((s: string) => !s.toUpperCase().includes('DROP'))).toBe(true)
-
-    expect((repo.hardDelete as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
-    expect((repo.bumpRegistryVersion as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+    expect(res.status).toBe(202)
+    const body = await res.json() as { jobId: string; status: string }
+    expect(body.status).toBe('pending')
+    expect(body.jobId).toBe('00000000-0000-4000-8000-000000000001')
+    expect(purgeRepo.begin).toHaveBeenCalledWith(body.jobId, baseSeed, 1)
+    expect(mutator.execDestructive).not.toHaveBeenCalled()
+    expect(repo.hardDelete).not.toHaveBeenCalled()
+    expect(bucket.delete).not.toHaveBeenCalled()
     expect(activityLogger.log.mock.calls[0][0].action).toBe('delete')
-    expect(activityLogger.log.mock.calls[0][0].details.op).toBe('hard-delete')
+    expect(activityLogger.log.mock.calls[0][0].details.op).toBe('hard-delete-start')
   })
 })
 
@@ -538,7 +580,7 @@ describe('DELETE /:slug/branches/:branchId', () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const { app } = buildApp({ role: 'admin', repo })
 
-    const res = await app.request('/articles/branches/br_01', {
+    const res = await app.request('/articles/branches/br_02', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ confirm: 'wrong' }),
@@ -546,7 +588,7 @@ describe('DELETE /:slug/branches/:branchId', () => {
     expect(res.status).toBe(400)
   })
 
-  it('drops branch: execDestructive called, definition updated, version bumped', async () => {
+  it('drops branch: DDL and definition submitted atomically', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
     const { app } = buildApp({ role: 'admin', repo, mutator })
@@ -558,10 +600,24 @@ describe('DELETE /:slug/branches/:branchId', () => {
     })
     expect(res.status).toBe(200)
 
-    expect((mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
-    const upsertArg = (repo.upsert as ReturnType<typeof vi.fn>).mock.calls[0][1] as any
+    const mutation = (repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(mutation.ddl.some((statement: string) => statement.includes('DROP COLUMN'))).toBe(true)
+    const upsertArg = mutation.definition as Seed
     expect(upsertArg.branches.find((b: any) => b.id === 'br_02')).toBeUndefined()
-    expect((repo.bumpRegistryVersion as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+  })
+
+  it('422 when dropping the displayNameAlias branch, no DDL run', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator()
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/branches/br_01', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'articles.title' }),
+    })
+    expect(res.status).toBe(422)
+    expect((repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
   })
 
   it('404 for unknown branchId', async () => {
@@ -574,6 +630,48 @@ describe('DELETE /:slug/branches/:branchId', () => {
       body: JSON.stringify({ confirm: 'articles.unknown' }),
     })
     expect(res.status).toBe(404)
+  })
+})
+
+describe('DELETE /:slug/orphans/:column', () => {
+  const dropOrphan = (app: { request: (path: string, init: RequestInit) => Promise<Response> | Response }, column: string, confirm: string) =>
+    app.request(`/articles/orphans/${column}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm }),
+    })
+  const withLegacy = () => makeMutator({
+    getColumns: vi.fn().mockResolvedValue(new Set(['id', 'slug', 'status', 'created_at', 'updated_at', 'title', 'body', 'legacy'])),
+  })
+
+  it('drops the orphan column, definition unchanged', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo, mutator: withLegacy() })
+
+    const res = await dropOrphan(app, 'legacy', 'articles.legacy')
+
+    expect(res.status).toBe(200)
+    const mutation = (repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(mutation.ddl).toContain('ALTER TABLE content_articles DROP COLUMN legacy;')
+    expect((mutation.definition as Seed).branches).toEqual(baseSeed.branches)
+  })
+
+  it('404 for a system column, a defined branch and an unknown column', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo, mutator: withLegacy() })
+
+    for (const column of ['status', 'body', 'ghost']) {
+      expect((await dropOrphan(app, column, `articles.${column}`)).status, column).toBe(404)
+    }
+    expect((repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
+  })
+
+  it('400 on confirm mismatch, no DDL', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo, mutator: withLegacy() })
+
+    expect((await dropOrphan(app, 'legacy', 'wrong')).status).toBe(400)
+    expect((repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
   })
 })
 
@@ -603,15 +701,45 @@ describe('PATCH /:slug/branches/:branchId/rename', () => {
     })
     expect(res.status).toBe(200)
 
-    const destructiveCalls: string[] = (mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    const destructiveCalls: string[] = (repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0].ddl
     expect(destructiveCalls.some((s: string) => s.toUpperCase().includes('RENAME COLUMN') || s.toUpperCase().includes('RENAME TO'))).toBe(true)
 
-    const upsertArg = (repo.upsert as ReturnType<typeof vi.fn>).mock.calls[0][1] as any
+    const upsertArg = (repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0].definition as Seed
     const renamed = upsertArg.branches.find((b: any) => b.id === 'br_01')
     expect(renamed?.alias).toBe('headline')
 
     const body = await res.json() as any
     expect(body.affectedAutomations).toContain('auto_1')
+  })
+
+  it('renaming the displayNameAlias branch repoints displayNameAlias', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo })
+
+    const res = await app.request('/articles/branches/br_01/rename', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newAlias: 'headline', confirm: 'articles.title' }),
+    })
+    expect(res.status).toBe(200)
+
+    const upsertArg = (repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0].definition as Seed
+    expect(upsertArg.displayNameAlias).toBe('headline')
+  })
+
+  it('renaming a non-display branch keeps displayNameAlias', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo })
+
+    const res = await app.request('/articles/branches/br_02/rename', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newAlias: 'content', confirm: 'articles.body' }),
+    })
+    expect(res.status).toBe(200)
+
+    const upsertArg = (repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0].definition as Seed
+    expect(upsertArg.displayNameAlias).toBe('title')
   })
 })
 
@@ -628,7 +756,7 @@ describe('PATCH /:slug/branches/:branchId/retype', () => {
     expect(res.status).toBe(400)
   })
 
-  it('retypes branch: execDestructive called, definition updated, version bumped', async () => {
+  it('retypes branch: DDL and definition submitted atomically', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
     const { app } = buildApp({ role: 'admin', repo, mutator })
@@ -640,10 +768,25 @@ describe('PATCH /:slug/branches/:branchId/retype', () => {
     })
     expect(res.status).toBe(200)
 
-    expect((mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
-    const upsertArg = (repo.upsert as ReturnType<typeof vi.fn>).mock.calls[0][1] as any
+    expect((repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+    const upsertArg = (repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0].definition as Seed
     expect(upsertArg.branches.find((b: any) => b.id === 'br_01')?.type).toBe('number')
-    expect((repo.bumpRegistryVersion as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+  })
+
+  it('422 retype-data-incompatible when existing values would be lost, nothing applied', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator({ sumCounts: vi.fn().mockResolvedValue(3) })
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/branches/br_01/retype', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newType: 'number', confirm: 'articles.title' }),
+    })
+
+    expect(res.status).toBe(422)
+    expect(((await res.json()) as any).type).toContain('retype-data-incompatible')
+    expect((repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
   })
 
   it('422 retype-not-supported when retyping a repeater branch away', async () => {
@@ -820,7 +963,7 @@ describe('Additional validation and 404 paths', () => {
       body: JSON.stringify(noDisplaySeed),
     })
     expect(res.status).toBe(201)
-    const upsertArg = (usedRepo.upsert as ReturnType<typeof vi.fn>).mock.calls[0][1] as Seed
+    const upsertArg = (usedRepo.applyAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0].definition as Seed
     expect(upsertArg.displayNameAlias).toBe('headline')
   })
 
@@ -840,9 +983,9 @@ describe('Additional validation and 404 paths', () => {
     expect(res.status).toBe(400)
   })
 
-  it('POST / 422 ddl-failed when execDdl throws', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(null), listActive: vi.fn().mockResolvedValue([]) })
-    const mutator = makeMutator({ execDdl: vi.fn().mockRejectedValue(new Error('boom')) })
+  it('POST / 422 ddl-failed when atomic apply throws', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(null), listActive: vi.fn().mockResolvedValue([]), applyAtomic: vi.fn().mockRejectedValue(new Error('boom')) })
+    const mutator = makeMutator()
     const { app } = buildApp({ role: 'admin', repo, mutator })
 
     const newSeed: Seed = {
@@ -891,7 +1034,7 @@ describe('Additional validation and 404 paths', () => {
       body: JSON.stringify(withNewUnidentified),
     })
     expect(res.status).toBe(200)
-    const upsertArg = (usedRepo.upsert as ReturnType<typeof vi.fn>).mock.calls[0][1] as Seed
+    const upsertArg = (usedRepo.applyAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0].definition as Seed
     const extra = upsertArg.branches.find((b) => b.alias === 'extra')
     expect(extra?.id).toMatch(/^br_\d+$/)
   })
@@ -924,142 +1067,6 @@ describe('Additional validation and 404 paths', () => {
   })
 })
 
-// ─── Hard delete: media cascade ──────────────────────────────────────────────
-
-describe('DELETE /:slug/hard — media cascade (deleteSeedMediaObjects)', () => {
-  const seedWithFile: Seed = {
-    slug: 'articles',
-    label: 'Articles',
-    displayNameAlias: 'title',
-    branches: [
-      { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
-      { id: 'br_02', alias: 'cover', label: 'Cover', type: 'file' },
-    ],
-  }
-  const recordWithFile: SeedRecord = { ...baseRecord, definition: seedWithFile }
-
-  it('400 on confirm mismatch', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
-    const res = await app.request('/articles/hard', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: 'wrong' }),
-    })
-    expect(res.status).toBe(400)
-  })
-
-  it('404 for non-existent seed', async () => {
-    const { app } = buildApp({ role: 'admin' })
-    const res = await app.request('/nope/hard', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: 'nope' }),
-    })
-    expect(res.status).toBe(404)
-  })
-
-  it('skips media cleanup when dbCols is null (table missing)', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(recordWithFile) })
-    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(null) })
-    const { app, bucket } = buildApp({ role: 'admin', repo, mutator })
-
-    const res = await app.request('/articles/hard', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: 'articles' }),
-    })
-    expect(res.status).toBe(200)
-    expect(bucket.delete).not.toHaveBeenCalled()
-  })
-
-  it('skips media cleanup when no file column is present in DB', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(recordWithFile) })
-    const dbCols = new Set(['id', 'title']) // 'cover' column absent
-    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(dbCols) })
-    const { app, bucket } = buildApp({ role: 'admin', repo, mutator })
-
-    const res = await app.request('/articles/hard', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: 'articles' }),
-    })
-    expect(res.status).toBe(200)
-    expect(bucket.delete).not.toHaveBeenCalled()
-  })
-
-  it('extracts R2 keys from rows and deletes them via deleteR2Objects', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(recordWithFile) })
-    const dbCols = new Set(['id', 'title', 'cover'])
-    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(dbCols) })
-    const db = {
-      prepare: (sql: string) => ({
-        all: async () => {
-          expect(sql).toContain('cover')
-          expect(sql).toContain('content_articles')
-          return { results: [{ cover: '/api/media/abc123.png' }, { cover: null }] }
-        },
-      }),
-    }
-    const mediaRepository = {
-      getByKey: vi.fn().mockResolvedValue({ key: 'abc123.png', size_bytes: 100 }),
-      untrack: vi.fn().mockResolvedValue(undefined),
-    }
-    const { app, bucket } = buildApp({ role: 'admin', repo, mutator, db, mediaRepository })
-
-    const res = await app.request(
-      '/articles/hard',
-      {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: 'articles' }),
-      },
-      { DB: db }
-    )
-    expect(res.status).toBe(200)
-    expect(bucket.delete).toHaveBeenCalledWith('abc123.png')
-    expect(mediaRepository.untrack).toHaveBeenCalledWith('abc123.png')
-  })
-
-  it('non-fatal: swallows errors thrown while gathering media keys', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(recordWithFile) })
-    const mutator = makeMutator({ getColumns: vi.fn().mockRejectedValue(new Error('schema unavailable')) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
-
-    const res = await app.request('/articles/hard', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: 'articles' }),
-    })
-    expect(res.status).toBe(200)
-  })
-
-  it('non-fatal: swallows errors thrown by deleteR2Objects itself', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(recordWithFile) })
-    const dbCols = new Set(['id', 'title', 'cover'])
-    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(dbCols) })
-    const db = {
-      prepare: () => ({
-        all: async () => ({ results: [{ cover: '/api/media/abc123.png' }] }),
-      }),
-    }
-    const bucket = { delete: vi.fn().mockRejectedValue(new Error('r2 down')) }
-    const mediaRepository = { getByKey: vi.fn().mockRejectedValue(new Error('lookup failed')), untrack: vi.fn().mockRejectedValue(new Error('untrack failed')) }
-    const { app } = buildApp({ role: 'admin', repo, mutator, db, bucket, mediaRepository })
-
-    const res = await app.request(
-      '/articles/hard',
-      {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: 'articles' }),
-      },
-      { DB: db }
-    )
-    expect(res.status).toBe(200)
-  })
-})
-
 // ─── DELETE /:slug/branches/:branchId — DDL failure ──────────────────────────
 
 describe('DELETE /:slug/branches/:branchId — DDL failure', () => {
@@ -1073,9 +1080,9 @@ describe('DELETE /:slug/branches/:branchId — DDL failure', () => {
     expect(res.status).toBe(404)
   })
 
-  it('422 ddl-failed when execDestructive throws', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const mutator = makeMutator({ execDestructive: vi.fn().mockRejectedValue(new Error('drop failed')) })
+  it('422 ddl-failed when destructive apply throws', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), applyDestructiveAtomic: vi.fn().mockRejectedValue(new Error('drop failed')) })
+    const mutator = makeMutator()
     const { app } = buildApp({ role: 'admin', repo, mutator })
 
     const res = await app.request('/articles/branches/br_02', {
@@ -1102,6 +1109,70 @@ describe('PATCH /:slug/branches/:branchId/rename — extra validation paths', ()
       body: JSON.stringify({ newAlias: 'Not Valid!', confirm: 'articles.title' }),
     })
     expect(res.status).toBe(400)
+  })
+
+  it.each(['id', 'slug', 'status', 'created_at', 'updated_at'])(
+    '400 when newAlias %s collides with system column',
+    async (newAlias) => {
+      const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+      const mutator = makeMutator()
+      const { app } = buildApp({ role: 'admin', repo, mutator })
+
+      const res = await app.request('/articles/branches/br_01/rename', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newAlias, confirm: 'articles.title' }),
+      })
+      expect(res.status).toBe(400)
+      expect(mutator.execDestructive).not.toHaveBeenCalled()
+      expect(repo.upsert).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['pluck', 'firstone'])(
+    '400 when newAlias %s is an automation reserved word',
+    async (newAlias) => {
+      const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+      const mutator = makeMutator()
+      const { app } = buildApp({ role: 'admin', repo, mutator })
+
+      const res = await app.request('/articles/branches/br_01/rename', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newAlias, confirm: 'articles.title' }),
+      })
+      expect(res.status).toBe(400)
+      expect(mutator.execDestructive).not.toHaveBeenCalled()
+    },
+  )
+
+  it('400 when newAlias is an SQL reserved keyword', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator()
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/branches/br_01/rename', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newAlias: 'select', confirm: 'articles.title' }),
+    })
+    expect(res.status).toBe(400)
+    expect(mutator.execDestructive).not.toHaveBeenCalled()
+  })
+
+  it('409 when newAlias duplicates a sibling branch alias', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator()
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/branches/br_01/rename', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newAlias: 'body', confirm: 'articles.title' }),
+    })
+    expect(res.status).toBe(409)
+    expect(mutator.execDestructive).not.toHaveBeenCalled()
+    expect(repo.upsert).not.toHaveBeenCalled()
   })
 
   it('404 for non-existent seed', async () => {
@@ -1180,9 +1251,9 @@ describe('PATCH /:slug/branches/:branchId/retype — extra validation paths', ()
     expect(res.status).toBe(404)
   })
 
-  it('422 ddl-failed when execDestructive throws', async () => {
-    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const mutator = makeMutator({ execDestructive: vi.fn().mockRejectedValue(new Error('retype failed')) })
+  it('422 ddl-failed when destructive apply throws', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), applyDestructiveAtomic: vi.fn().mockRejectedValue(new Error('retype failed')) })
+    const mutator = makeMutator()
     const { app } = buildApp({ role: 'admin', repo, mutator })
 
     const res = await app.request('/articles/branches/br_01/retype', {
@@ -1265,6 +1336,38 @@ describe('POST /:slug/mcp-plan', () => {
     expect(body.blockedReasons).toEqual([])
   })
 
+  it('resolves ids of a hand-authored candidate, repeater sub-fields included, against the stored seed', async () => {
+    const stored: Seed = {
+      ...baseSeed,
+      branches: [
+        ...baseSeed.branches,
+        { id: 'br_03', alias: 'links', label: 'Links', type: 'repeater', fields: [{ id: 'br_09', alias: 'url', label: 'Url', type: 'text' }] } as Branch,
+      ],
+    }
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue({ ...baseRecord, definition: stored }), listActive: vi.fn().mockResolvedValue([stored]) })
+    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body', 'links'])) })
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const candidate = {
+      ...baseSeed,
+      branches: [
+        { alias: 'title', label: 'Title', type: 'text' },
+        { alias: 'body', label: 'Body', type: 'richtext' },
+        { alias: 'links', label: 'Links', type: 'repeater', fields: [{ alias: 'url', label: 'Url', type: 'text' }] },
+      ],
+    }
+    const res = await app.request('/articles/mcp-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidate }),
+    })
+    const body = await res.json() as any
+
+    expect(body.blockedReasons).toEqual([])
+    expect(body.issues).toEqual([])
+    expect(body.classification).toBe('additive')
+  })
+
   it('classifies "additive" when new branches omit id (auto-assigned sequentially)', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), listActive: vi.fn().mockResolvedValue([baseSeed]) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body'])) })
@@ -1316,6 +1419,44 @@ describe('POST /:slug/mcp-plan', () => {
     })
     const body = await res.json() as any
     expect(body.expectedVersion).toBe(9)
+  })
+
+  it('reports definitionChanged true and the alias when a stored branch label changes', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), listActive: vi.fn().mockResolvedValue([]) })
+    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(null) })
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const relabeled: Seed = {
+      ...baseSeed,
+      branches: [baseSeed.branches[0], { ...baseSeed.branches[1], label: 'Body text' }],
+    }
+
+    const res = await app.request('/articles/mcp-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidate: relabeled }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { definitionChanged: boolean; changedBranches: string[] }
+    expect(body.definitionChanged).toBe(true)
+    expect(body.changedBranches).toEqual(['body'])
+  })
+
+  it('reports definitionChanged false and no branches when the candidate equals the stored definition', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), listActive: vi.fn().mockResolvedValue([]) })
+    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(null) })
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/mcp-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidate: baseSeed }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { definitionChanged: boolean; changedBranches: string[] }
+    expect(body.definitionChanged).toBe(false)
+    expect(body.changedBranches).toEqual([])
   })
 
   it('403 for a non-admin', async () => {
@@ -1514,5 +1655,27 @@ describe('POST /:slug/mcp-apply', () => {
     expect(details.planId).toBe('plan-123')
     expect(details.newVersion).toBe(2)
     expect(details.outcome).toBe('ok')
+  })
+
+  it('records the changed branch aliases in the mcp-apply audit entry', async () => {
+    const repo = makeRepo({
+      get: vi.fn().mockResolvedValue(baseRecord),
+      listActive: vi.fn().mockResolvedValue([]),
+      applyAtomic: vi.fn().mockResolvedValue({ applied: true, version: 2 }),
+    })
+    const { app, activityLogger } = buildApp({ role: 'admin', repo })
+    const relabeled: Seed = {
+      ...baseSeed,
+      branches: [baseSeed.branches[0], { ...baseSeed.branches[1], label: 'Body text' }],
+    }
+
+    const res = await app.request('/articles/mcp-apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidate: relabeled, expectedVersion: 1 }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(activityLogger.log.mock.calls[0][0].details.changedBranches).toEqual(['body'])
   })
 })

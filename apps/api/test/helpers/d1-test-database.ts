@@ -32,7 +32,7 @@ export class D1TestDatabase implements D1Database {
         const sql = readFileSync(join(MIGRATIONS_DIR, f), 'utf8')
         // Skip data-only migrations (demo seeds): they INSERT into content tables
         // that the Botanical Engine creates at runtime, not via SQL migrations.
-        if (!/CREATE\s/i.test(sql) && !/ALTER\s+TABLE/i.test(sql)) continue
+        if (f === '0030_test_seeds.sql') continue
         this.db.exec(sql)
       }
     }
@@ -107,7 +107,17 @@ class D1TestStatement implements D1PreparedStatement {
 
   _runAll<T = unknown>(): D1Result<T> {
     const start = performance.now()
-    const results = this.db.prepare(this.sql).all(...(toSqliteParams(this.params) as Parameters<typeof this.db.prepare>)) as T[]
+    const statement = this.db.prepare(this.sql)
+    // Real D1 reports `meta.changes` for every write inside a batch; a row-less `all()` would lose it.
+    if (statement.columns().length === 0) {
+      const info = statement.run(...(toSqliteParams(this.params) as Parameters<typeof statement.run>)) as { changes: number | bigint; lastInsertRowid: number | bigint }
+      return {
+        results: [] as T[],
+        success: true,
+        meta: { duration: performance.now() - start, served_by: 'd1-test', changes: Number(info.changes), last_row_id: Number(info.lastInsertRowid), rows_read: 0, rows_written: Number(info.changes), size_after: 0, changed_db: false },
+      }
+    }
+    const results = statement.all(...(toSqliteParams(this.params) as Parameters<typeof this.db.prepare>)) as T[]
     return {
       results,
       success: true,

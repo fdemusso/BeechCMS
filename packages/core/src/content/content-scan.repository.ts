@@ -6,7 +6,7 @@ import type { Seed } from '../engine/types.js'
 export interface IContentScanRepository {
   /**
    * Scans across all registered seeds to identify media keys that are currently referenced
-   * by any content entry. Used for orphaned media detection and storage analytics.
+   * by any content entry, live or draft. Used for orphaned media detection and storage analytics.
    */
   getReferencedMediaKeys(seeds: Seed[]): Promise<Set<string>>
 }

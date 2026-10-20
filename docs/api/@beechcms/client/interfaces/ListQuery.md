@@ -26,6 +26,20 @@
 
 ***
 
+### include?
+
+> `optional` **include?**: `string`[]
+
+***
+
+### lang?
+
+> `optional` **lang?**: `string`
+
+Response language (`?lang`). The API falls back to Accept-Language, then the project default.
+
+***
+
 ### latest?
 
 > `optional` **latest?**: `number`
@@ -47,6 +61,14 @@
 ### page?
 
 > `optional` **page?**: `number`
+
+***
+
+### relationFilters?
+
+> `optional` **relationFilters?**: `Record`&lt;`string`, [`RelationSubquery`](RelationSubquery.md)&gt;
+
+Relation alias → subquery. Encoded into the `filter` parameter as a nested `in` value.
 
 ***
 

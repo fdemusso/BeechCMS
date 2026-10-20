@@ -83,6 +83,15 @@ describe('Issue #391: Auto-restart MCP server and dynamic resource reload on reb
 
       await supervisor.start()
 
+      const waitForOutput = async (str: string, maxWait = 2000) => {
+        const start = Date.now()
+        while (Date.now() - start < maxWait) {
+          if (clientOutputs.some((l) => l.includes(str))) return true
+          await new Promise((r) => setTimeout(r, 50))
+        }
+        return false
+      }
+
       // Client sends initialize
       supervisor.handleClientInput(
         JSON.stringify({
@@ -93,9 +102,7 @@ describe('Issue #391: Auto-restart MCP server and dynamic resource reload on reb
         }) + '\n'
       )
 
-      // Wait for initialize response
-      await new Promise((r) => setTimeout(r, 200))
-      expect(clientOutputs.some((l) => l.includes('mock-mcp'))).toBe(true)
+      expect(await waitForOutput('mock-mcp')).toBe(true)
 
       // Send initial ping
       supervisor.handleClientInput(
@@ -105,8 +112,8 @@ describe('Issue #391: Auto-restart MCP server and dynamic resource reload on reb
           method: 'test/ping',
         }) + '\n'
       )
-      await new Promise((r) => setTimeout(r, 200))
-      expect(clientOutputs.some((l) => l.includes('"version":"1"'))).toBe(true)
+      
+      expect(await waitForOutput('"version":"1"')).toBe(true)
 
       // Simulate file rebuild
       writeFileSync(
@@ -131,12 +138,8 @@ describe('Issue #391: Auto-restart MCP server and dynamic resource reload on reb
       await supervisor.restart()
 
       // Supervisor must have emitted list_changed notifications to the client
-      expect(
-        clientOutputs.some((l) => l.includes('notifications/tools/list_changed'))
-      ).toBe(true)
-      expect(
-        clientOutputs.some((l) => l.includes('notifications/resources/list_changed'))
-      ).toBe(true)
+      expect(await waitForOutput('notifications/tools/list_changed')).toBe(true)
+      expect(await waitForOutput('notifications/resources/list_changed')).toBe(true)
 
       // Client sends a request to verify the new server responds with version 2
       supervisor.handleClientInput(
@@ -147,8 +150,89 @@ describe('Issue #391: Auto-restart MCP server and dynamic resource reload on reb
         }) + '\n'
       )
 
-      await new Promise((r) => setTimeout(r, 200))
-      expect(clientOutputs.some((l) => l.includes('"version":"2"'))).toBe(true)
+      expect(await waitForOutput('"version":"2"')).toBe(true)
+    })
+  })
+
+  describe('Issue #473: restart must not hang when the new child crashes before answering initialize', () => {
+    it('resolves restart() and drains buffered requests with an error instead of hanging forever', async () => {
+      const mockBundle = join(testDir, 'server.mjs')
+      writeFileSync(
+        mockBundle,
+        `
+        import readline from 'readline';
+        const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: false });
+        rl.on('line', (line) => {
+          try {
+            const msg = JSON.parse(line);
+            if (msg.method === 'initialize') {
+              console.log(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { serverInfo: { name: 'mock-mcp', version: '1.0' } } }));
+            }
+          } catch {}
+        });
+      `
+      )
+
+      const clientOutputs: string[] = []
+
+      supervisor = new McpSupervisor({
+        entryFile: mockBundle,
+        watchTargets: [mockBundle],
+        debounceMs: 50,
+        restartTimeoutMs: 1500,
+        onClientOutput: (line) => clientOutputs.push(line),
+      })
+
+      await supervisor.start()
+
+      const waitForOutput = async (str: string, maxWait = 2000) => {
+        const start = Date.now()
+        while (Date.now() - start < maxWait) {
+          if (clientOutputs.some((l) => l.includes(str))) return true
+          await new Promise((r) => setTimeout(r, 50))
+        }
+        return false
+      }
+
+      supervisor.handleClientInput(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'initialize',
+          params: { clientInfo: { name: 'test-client' } },
+        }) + '\n'
+      )
+      expect(await waitForOutput('mock-mcp')).toBe(true)
+
+      // Rebuild produces a bundle that crashes at startup, before it can answer `initialize`.
+      writeFileSync(mockBundle, `process.exit(1);\n`)
+
+      const restartPromise = supervisor.restart()
+
+      // A message arriving mid-restart must be buffered, not silently dropped.
+      supervisor.handleClientInput(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'test/ping' }) + '\n')
+
+      const timedOut = Symbol('timed-out')
+      const result = await Promise.race([
+        restartPromise.then(() => 'resolved' as const),
+        new Promise((resolve) => setTimeout(() => resolve(timedOut), 3000)),
+      ])
+
+      expect(result).toBe('resolved')
+      expect(await waitForOutput('"id":2')).toBe(true)
+      const errorForBufferedRequest = clientOutputs
+        .map((l) => {
+          try {
+            return JSON.parse(l)
+          } catch {
+            return null
+          }
+        })
+        .find((m) => m?.id === 2)
+      expect(errorForBufferedRequest?.error).toBeDefined()
+
+      // The supervisor must have recovered internal state so a later restart still works.
+      expect((supervisor as unknown as { restarting: boolean }).restarting).toBe(false)
     })
   })
 })

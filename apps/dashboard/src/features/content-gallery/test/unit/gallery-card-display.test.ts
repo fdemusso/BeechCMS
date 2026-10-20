@@ -1,0 +1,495 @@
+// @vitest-environment node
+
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
+import { describe, it, expect } from "vitest"
+import i18n from "i18next"
+import { CANONICAL_SEEDS } from "@beechcms/testing"
+
+import {
+  getStatusBadgeVariant,
+  resolveImageUrl,
+  toPlainText,
+  buildGalleryCardDisplayModel,
+} from "@/features/content-gallery/gallery-card-display"
+import type { ResolvedCardFields } from "@/features/content-gallery/resolve-card-fields"
+import type { ContentEntry } from "@/lib/dynamic-columns"
+import { NO_ELEMENT_FORMAT, type ElementFormat } from "@/lib/conditional-format"
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const t = i18n.t.bind(i18n)
+const language = i18n.language
+
+function buildModel(entry: ContentEntry, branches: ResolvedCardFields) {
+  return buildGalleryCardDisplayModel(entry, branches, t, language)
+}
+
+function makeEntry(overrides: Partial<ContentEntry> = {}): ContentEntry {
+  return {
+    id: "entry-1",
+    slug: "my-slug",
+    status: "draft",
+    data: {},
+    ...overrides,
+  } as ContentEntry
+}
+
+function makeBranch(alias: string, type = "text") {
+  return { alias, type, label: alias } as any
+}
+
+const emptyBranches: ResolvedCardFields = {
+  coverBranch: null,
+  titleBranch: null,
+  excerptBranch: null,
+  dateBranch: null,
+  tagsBranch: null,
+  categoryBranch: null,
+  metadataBranches: [],
+}
+
+// ---------------------------------------------------------------------------
+// getStatusBadgeVariant
+// ---------------------------------------------------------------------------
+
+describe("getStatusBadgeVariant", () => {
+  it('restituisce "secondary" per stringa vuota o solo spazi', () => {
+    expect(getStatusBadgeVariant("")).toBe("secondary")
+    expect(getStatusBadgeVariant("   ")).toBe("secondary")
+  })
+
+  it('restituisce "destructive" per stati negativi', () => {
+    for (const status of ["error", "failed", "rejected", "archived"]) {
+      expect(getStatusBadgeVariant(status)).toBe("destructive")
+      // Case-insensitive
+      expect(getStatusBadgeVariant(status.toUpperCase())).toBe("destructive")
+    }
+  })
+
+  it('restituisce "default" per stati positivi', () => {
+    for (const status of ["published", "active", "approved", "online"]) {
+      expect(getStatusBadgeVariant(status)).toBe("default")
+    }
+  })
+
+  it('restituisce "outline" per stati sconosciuti', () => {
+    expect(getStatusBadgeVariant("draft")).toBe("outline")
+    expect(getStatusBadgeVariant("pending")).toBe("outline")
+    expect(getStatusBadgeVariant("in-review")).toBe("outline")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// resolveImageUrl
+// ---------------------------------------------------------------------------
+
+describe("resolveImageUrl", () => {
+  it("restituisce null per valori falsy", () => {
+    expect(resolveImageUrl(null)).toBeNull()
+    expect(resolveImageUrl(undefined)).toBeNull()
+    expect(resolveImageUrl("")).toBeNull()
+    expect(resolveImageUrl("   ")).toBeNull()
+  })
+
+  it("restituisce la stringa diretta se non è JSON", () => {
+    expect(resolveImageUrl("https://example.com/image.jpg")).toBe(
+      "https://example.com/image.jpg"
+    )
+  })
+
+  it("risolve oggetti con campo url/src/path", () => {
+    expect(resolveImageUrl({ url: "https://cdn.example.com/pic.png" })).toBe(
+      "https://cdn.example.com/pic.png"
+    )
+    expect(resolveImageUrl({ src: "https://cdn.example.com/pic.png" })).toBe(
+      "https://cdn.example.com/pic.png"
+    )
+    expect(resolveImageUrl({ path: "https://cdn.example.com/pic.png" })).toBe(
+      "https://cdn.example.com/pic.png"
+    )
+  })
+
+  it("risolve stringhe JSON che contengono un oggetto con url", () => {
+    const json = JSON.stringify({ url: "https://cdn.example.com/pic.png" })
+    expect(resolveImageUrl(json)).toBe("https://cdn.example.com/pic.png")
+  })
+
+  it("restituisce null per oggetti senza campi url/src/path", () => {
+    expect(resolveImageUrl({ foo: "bar" })).toBeNull()
+    expect(resolveImageUrl({})).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// buildGalleryCardDisplayModel
+// ---------------------------------------------------------------------------
+
+describe("buildGalleryCardDisplayModel", () => {
+  it("costruisce un modello minimo con branchesFields vuoti", () => {
+    const entry = makeEntry({ id: "e1", status: "draft", data: {} })
+    const model = buildModel(entry, emptyBranches)
+
+    expect(model.entryId).toBe("e1")
+    expect(model.status).toBe("draft")
+    expect(model.title).toBe("")
+    expect(model.excerpt).toBe("")
+    expect(model.imageUrl).toBeNull()
+    expect(model.dateText).toBe("")
+    expect(model.tags).toEqual([])
+    expect(model.ariaLabel).toContain("e1")
+  })
+
+  it("con tagsBranch priority, tags contiene il chip high con tono option e colore dichiarato", () => {
+    const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts")!
+    const priority = posts.branches.find((branch) => branch.alias === "priority")!
+    const entry = makeEntry({ data: { priority: ["high"] } })
+
+    const model = buildModel(entry, { ...emptyBranches, tagsBranch: priority })
+
+    expect(model.tags).toEqual([{ label: "high", color: "#ef4444", tone: "option" }])
+  })
+
+  it("sets showStatus from the argument and suppresses hasPendingDraft when false", () => {
+    const entry = makeEntry({ status: "published", has_pending_draft: true } as Partial<ContentEntry>)
+
+    const model = buildGalleryCardDisplayModel(entry, emptyBranches, t, language, undefined, false)
+
+    expect(model.showStatus).toBe(false)
+    expect(model.hasPendingDraft).toBe(false)
+  })
+
+  it("imposta statusVariant in base allo status", () => {
+    const model = buildModel(makeEntry({ status: "published" }), emptyBranches)
+    expect(model.statusVariant).toBe("default")
+  })
+
+  it("segnala hasPendingDraft per entry pubblicate con bozza in sospeso", () => {
+    const model = buildModel(
+      makeEntry({ status: "published", has_pending_draft: true } as Partial<ContentEntry>),
+      emptyBranches
+    )
+
+    expect(model.hasPendingDraft).toBe(true)
+  })
+
+  it("non segnala hasPendingDraft per entry archived", () => {
+    const model = buildModel(
+      makeEntry({ status: "archived", has_pending_draft: true } as Partial<ContentEntry>),
+      emptyBranches
+    )
+
+    expect(model.hasPendingDraft).toBe(false)
+  })
+
+  it("non segnala hasPendingDraft per entry draft", () => {
+    const model = buildModel(
+      makeEntry({ status: "draft", has_pending_draft: true } as Partial<ContentEntry>),
+      emptyBranches
+    )
+
+    expect(model.hasPendingDraft).toBe(false)
+  })
+
+  it("popola title e ariaLabel dal branch corretto", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      titleBranch: makeBranch("title"),
+    }
+    const entry = makeEntry({ data: { title: "My Article" } })
+    const model = buildModel(entry, branches)
+
+    expect(model.title).toBe("My Article")
+    expect(model.ariaLabel).toContain("My Article")
+  })
+
+  it("tronca l'excerpt a 90 caratteri con ellissi", () => {
+    const longText = "A".repeat(100)
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("body", "text"),
+    }
+    const entry = makeEntry({ data: { body: longText } })
+    const model = buildModel(entry, branches)
+
+    expect(model.excerpt.endsWith("…")).toBe(true)
+    expect(model.excerpt.length).toBeLessThanOrEqual(91) // 90 chars + ellipsis
+  })
+
+  it("usa entry.slug come fallback per ariaLabel quando title è vuoto", () => {
+    const entry = makeEntry({ id: "e2", slug: "my-slug", data: {} })
+    const model = buildModel(entry, emptyBranches)
+    expect(model.ariaLabel).toContain("e2")
+  })
+
+  it("popola imageUrl da coverBranch", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      coverBranch: makeBranch("cover", "file"),
+    }
+    const entry = makeEntry({ data: { cover: "https://cdn.example.com/img.jpg" } })
+    const model = buildModel(entry, branches)
+    expect(model.imageUrl).toBe("https://cdn.example.com/img.jpg")
+  })
+
+  it("usa '—' come status di fallback quando status è assente", () => {
+    const entry = makeEntry({ status: undefined as any })
+    const model = buildModel(entry, emptyBranches)
+    expect(model.status).toBe("—")
+  })
+
+  it("converte numeri e booleani in testo per excerpt", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("count", "text"),
+    }
+    const entryNum = makeEntry({ data: { count: 42 } })
+    expect(buildModel(entryNum, branches).excerpt).toBe("42")
+
+    const entryBool = makeEntry({ data: { count: true } })
+    expect(buildModel(entryBool, branches).excerpt).toBe("true")
+  })
+
+  it("converte array in testo per excerpt (join con spazio)", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("items", "text"),
+    }
+    const entry = makeEntry({ data: { items: ["alpha", "beta"] } })
+    const model = buildModel(entry, branches)
+    expect(model.excerpt).toContain("alpha")
+    expect(model.excerpt).toContain("beta")
+  })
+
+  it("converte oggetti annidati in testo per excerpt", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("meta", "text"),
+    }
+    const entry = makeEntry({ data: { meta: { description: "Nested value" } } })
+    const model = buildModel(entry, branches)
+    expect(model.excerpt).toContain("Nested value")
+  })
+
+  it("formatta date valide nel dateBranch", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      dateBranch: makeBranch("publishedAt", "date"),
+    }
+    const entry = makeEntry({ data: { publishedAt: "2024-03-15" } })
+    const model = buildModel(entry, branches)
+    expect(model.dateText).not.toBe("")
+  })
+
+  it("gestisce date invalide nel dateBranch con fallback al valore grezzo", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      dateBranch: makeBranch("publishedAt", "date"),
+    }
+    const entry = makeEntry({ data: { publishedAt: "not-a-date" } })
+    const model = buildModel(entry, branches)
+    // Invalid date: falls back to the raw string value
+    expect(model.dateText).toBe("not-a-date")
+  })
+
+  it("rimuove tag HTML dall'excerpt", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("body", "richtext"),
+    }
+    const entry = makeEntry({ data: { body: "<p>Hello <strong>world</strong></p>" } })
+    const model = buildModel(entry, branches)
+    expect(model.excerpt).not.toContain("<p>")
+    expect(model.excerpt).toContain("Hello")
+    expect(model.excerpt).toContain("world")
+  })
+
+  it("estrae testo pulito da TipTap AST nell'excerpt senza residui di chiavi o nodi AST (#747)", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("body", "richtext"),
+    }
+    const tiptapDoc = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Welcome to our blog." }],
+        },
+      ],
+    }
+    const entry = makeEntry({ data: { body: tiptapDoc } })
+    const model = buildModel(entry, branches)
+
+    expect(model.excerpt).toBe("Welcome to our blog.")
+    expect(model.excerpt).not.toContain("doc")
+    expect(model.excerpt).not.toContain("paragraph")
+    expect(model.excerpt).not.toContain("text")
+  })
+
+  it("estrae testo da TipTap AST con marks e attributi ignorando formattazione (#747)", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("body", "richtext"),
+    }
+    const tiptapDoc = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          attrs: { textAlign: "center" },
+          content: [
+            {
+              type: "text",
+              marks: [{ type: "bold" }],
+              text: "Welcome to our blog.",
+            },
+          ],
+        },
+      ],
+    }
+    const entry = makeEntry({ data: { body: tiptapDoc } })
+    const model = buildModel(entry, branches)
+
+    expect(model.excerpt).toBe("Welcome to our blog.")
+    expect(model.excerpt).not.toContain("center")
+    expect(model.excerpt).not.toContain("bold")
+  })
+
+  it("restituisce stringa vuota per TipTap AST vuoto (#747)", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("body", "richtext"),
+    }
+    const emptyDoc = { type: "doc", content: [] }
+    const emptyParagraphDoc = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [] }],
+    }
+
+    expect(buildModel(makeEntry({ data: { body: emptyDoc } }), branches).excerpt).toBe("")
+    expect(buildModel(makeEntry({ data: { body: emptyParagraphDoc } }), branches).excerpt).toBe("")
+  })
+
+  it("popola title da titleBranch contenente TipTap AST (#747)", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      titleBranch: makeBranch("title", "richtext"),
+    }
+    const tiptapDoc = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "My TipTap Title" }],
+        },
+      ],
+    }
+    const entry = makeEntry({ data: { title: tiptapDoc } })
+    const model = buildModel(entry, branches)
+
+    expect(model.title).toBe("My TipTap Title")
+    expect(model.ariaLabel).toContain("My TipTap Title")
+  })
+
+  it("toPlainText supporta TipTap envelope v1 e JSON string (#747)", () => {
+    const envelope = {
+      schemaVersion: 1,
+      doc: {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "Envelope text" }],
+          },
+        ],
+      },
+    }
+    expect(toPlainText(envelope)).toBe("Envelope text")
+
+    const json = JSON.stringify({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "JSON string text" }],
+        },
+      ],
+    })
+    expect(toPlainText(json)).toBe("JSON string text")
+  })
+
+  it("legge la categoria dal categoryBranch, stringa vuota se assente", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      categoryBranch: makeBranch("categoria", "text"),
+    }
+    expect(buildModel(makeEntry({ data: { categoria: "Matrimonio" } }), branches).category).toBe("Matrimonio")
+    expect(buildModel(makeEntry({ data: {} }), branches).category).toBe("")
+    expect(buildModel(makeEntry({ data: { categoria: "X" } }), emptyBranches).category).toBe("")
+  })
+
+  it("maps fields.title and fields.status to slotStyles.title and slotStyles.status", () => {
+    const branches: ResolvedCardFields = { ...emptyBranches, titleBranch: makeBranch("title") }
+    const titleStyle = { tone: "danger", textStyles: [] } as const
+    const statusStyle = { tone: "warning", textStyles: ["bold"] } as const
+    const format: ElementFormat = { element: null, fields: { title: titleStyle, status: statusStyle } }
+
+    const model = buildGalleryCardDisplayModel(
+      makeEntry({ status: "draft", data: { title: "Hello" } }),
+      branches,
+      t,
+      language,
+      format
+    )
+
+    expect(model.slotStyles?.title).toEqual(titleStyle)
+    expect(model.slotStyles?.status).toEqual(statusStyle)
+  })
+
+  it("adds no slot style for a field rule on a column no slot displays", () => {
+    const format: ElementFormat = {
+      element: null,
+      fields: { view_count: { tone: "info", textStyles: [] } },
+    }
+
+    const model = buildGalleryCardDisplayModel(makeEntry(), emptyBranches, t, language, format)
+
+    expect(model.slotStyles).toBeUndefined()
+  })
+
+  it("maps format.element to elementStyle", () => {
+    const elementStyle = { tone: "success", textStyles: [] } as const
+    const format: ElementFormat = { element: elementStyle, fields: {} }
+
+    const model = buildGalleryCardDisplayModel(makeEntry(), emptyBranches, t, language, format)
+
+    expect(model.elementStyle).toEqual(elementStyle)
+  })
+
+  it("omits elementStyle and slotStyles when called without a format argument", () => {
+    const model = buildGalleryCardDisplayModel(makeEntry(), emptyBranches, t, language)
+
+    expect(model.elementStyle).toBeUndefined()
+    expect(model.slotStyles).toBeUndefined()
+    expect(NO_ELEMENT_FORMAT.element).toBeNull()
+  })
+})
+
+describe("buildGalleryCardDisplayModel — metadata", () => {
+  it("espone il valore grezzo di ogni branch extra, nell'ordine della config", () => {
+    const author = makeBranch("author")
+    const model = buildGalleryCardDisplayModel(
+      { id: "e1", status: "published", data: { author: "Ada" } } as any,
+      { ...emptyBranches, metadataBranches: [author] },
+      ((key: string) => key) as any,
+      "it"
+    )
+
+    expect(model.metadata).toEqual([{ branch: author, value: "Ada" }])
+  })
+})

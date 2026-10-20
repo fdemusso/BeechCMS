@@ -7,9 +7,11 @@
  * The Worker never receives file bytes: it acts as auth gatekeeper and signer only.
  */
 import { Hono, type Context } from 'hono'
-import { isMimeAccepted, SystemClock } from '@beechcms/core'
+import { isMimeAccepted, parseMediaTransformQuery, SystemClock } from '@beechcms/core'
 import { AppEnv } from '../../types'
 import { deleteR2Objects } from '../../shared/storage/upload'
+import { importObjectKeyPrefix } from '../../shared/storage/import-object-key'
+import { mediaTransformError, serveTransformedMedia } from './media-transform'
 
 const DEFAULT_MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 const ABSOLUTE_MAX_UPLOAD_BYTES = 500 * 1024 * 1024
@@ -76,9 +78,16 @@ function isActiveMimeType(mime: string): boolean {
 
 export const uploadRoutes = new Hono<AppEnv>()
 
-/** POST /upload — Direct proxied upload fallback (used when presigning is unconfigured). */
+/**
+ * POST /upload — Dev-only proxied upload fallback (used when presigning is unconfigured).
+ * Refused in production before the body is read: the Worker must never parse upload bytes there.
+ */
 uploadRoutes.post('/upload', async (c) => {
-  const { bucket, mediaRepository: mediaRepo, systemStatsRepository: statsRepo } = c.var
+  if (c.env.ENV === 'production') {
+    return c.json({ error: 'presigned_urls_required' }, 501)
+  }
+
+  const { bucket, mediaRepository: mediaRepo } = c.var
 
   let body: FormData
   try {
@@ -119,8 +128,7 @@ uploadRoutes.post('/upload', async (c) => {
   const uploadedBy = c.var.jwtPayload?.sub ?? ''
   const sanitizedFilename = extractOriginalFilename(key)
 
-  await statsRepo.incrementStorage(sizeBytes)
-  await mediaRepo.trackUpload({
+  await mediaRepo.registerUpload({
     key,
     filename: sanitizedFilename,
     mime_type: mimeType,
@@ -148,10 +156,11 @@ uploadRoutes.post('/upload', async (c) => {
 
 /** POST /upload/presign — Request a presigned URL for direct R2 upload. */
 uploadRoutes.post('/upload/presign', async (c) => {
-  let body: { filename?: unknown, mimeType?: unknown, sizeBytes?: unknown }
+  let body: { filename?: unknown, mimeType?: unknown, sizeBytes?: unknown, purpose?: unknown }
   try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON body' }, 400) }
 
-  const { filename, mimeType, sizeBytes } = body
+  const { filename, mimeType, sizeBytes, purpose } = body
+  if (purpose !== undefined && purpose !== 'import') return c.json({ error: 'Invalid purpose' }, 400)
   if (typeof filename !== 'string' || !filename.trim()) return c.json({ error: 'filename is required' }, 400)
   if (typeof mimeType !== 'string' || !mimeType.trim()) return c.json({ error: 'mimeType is required' }, 400)
   if (typeof sizeBytes !== 'number' || !Number.isFinite(sizeBytes) || sizeBytes <= 0) {
@@ -162,7 +171,8 @@ uploadRoutes.post('/upload/presign', async (c) => {
   if (sizeBytes > maxBytes) return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
   if (!isMimeAccepted(mimeType, 'any')) return c.json({ error: 'File type not allowed' }, 400)
 
-  const key = generateObjectKey(filename)
+  const generated = generateObjectKey(filename)
+  const key = purpose === 'import' ? `${importObjectKeyPrefix(c.var.jwtPayload?.sub ?? '')}${generated}` : generated
   const uploadUrl = await c.var.bucket.presignPut(key, {
     expiresIn: PRESIGN_TTL_SECONDS,
     contentType: mimeType,
@@ -174,7 +184,7 @@ uploadRoutes.post('/upload/presign', async (c) => {
 
 /** POST /upload/confirm — Verify R2 object and record metadata. Idempotent on key. */
 uploadRoutes.post('/upload/confirm', async (c) => {
-  const { bucket, mediaRepository: mediaRepo, systemStatsRepository: statsRepo } = c.var
+  const { bucket, mediaRepository: mediaRepo } = c.var
 
   let body: { key?: unknown }
   try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON body' }, 400) }
@@ -212,14 +222,15 @@ uploadRoutes.post('/upload/confirm', async (c) => {
   const uploadedBy = c.var.jwtPayload?.sub ?? ''
   const filename = extractOriginalFilename(sanitizedKey)
 
-  await statsRepo.incrementStorage(size)
-  await mediaRepo.trackUpload({
+  // A racing confirmation that lost the insert has nothing left to do; the winner logs the upload.
+  const registered = await mediaRepo.registerUpload({
     key: sanitizedKey,
     filename,
     mime_type: mime,
     size_bytes: size,
     uploaded_by: uploadedBy,
   })
+  if (!registered) return c.json({ url: bucket.getUrl(sanitizedKey) }, 200)
 
   const jwtPayload = c.get('jwtPayload')
   if (jwtPayload) {
@@ -315,7 +326,13 @@ export async function serveMediaHandler(c: Context<AppEnv>): Promise<Response> {
   const key = sanitizeStorageKey(decoded)
   if (!key) return new Response('Invalid key', { status: 400 })
 
+  // Decided before any storage I/O: an invalid transform request must not cost an R2 read.
+  const transformQuery = parseMediaTransformQuery(new URL(c.req.url).searchParams)
+  if (transformQuery.kind === 'invalid') return mediaTransformError(c, 400, transformQuery.code)
+
   try {
+    if (transformQuery.kind === 'transform') return await serveTransformedMedia(c, key, transformQuery.request)
+
     const object = await c.var.bucket.get(key)
     if (!object) return new Response('Not found', { status: 404 })
     const headers = new Headers()

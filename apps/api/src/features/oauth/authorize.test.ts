@@ -127,6 +127,34 @@ describe('OAuth authorize handlers', () => {
       expect(url.searchParams.get('state')).toBe('state123')
     })
 
+    it('a malformed JSON body returns 400 invalid_request instead of crashing into a 500', async () => {
+      const token = await login()
+      const res = await app.request('/oauth/authorize/consent', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: 'null',
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(400)
+      const body = await res.json<{ error: string }>()
+      expect(body.error).toBe('invalid_request')
+    })
+
+    it('a non-string scope field is treated as missing, not as a crash', async () => {
+      const token = await login()
+      const res = await app.request('/oauth/authorize/consent', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          response_type: 'code', client_id: CLIENT_ID, redirect_uri: REDIRECT_URI,
+          scope: 12345, state: 'state123', code_challenge: CODE_CHALLENGE,
+          code_challenge_method: 'S256', approved: true,
+        }),
+      }, { ...TEST_ENV, DB: db })
+      const body = await res.json<{ redirectTo: string }>()
+      const url = new URL(body.redirectTo)
+      expect(url.searchParams.get('error')).toBe('invalid_scope')
+    })
+
     it('a role guard granting nothing returns access_denied', async () => {
       const token = await login()
       const denyAllGuard = { arbitrate: async () => ({ grantedScopes: [], deniedScopes: ['schema:read' as const] }) }

@@ -4,6 +4,8 @@ All routes under `/api/seeds` require JWT authentication and user role verificat
 
 These endpoints drive the **Seed Builder UI** in the dashboard and interact with `D1SeedRepository` and `D1SchemaMutator` to execute schema changes.
 
+Schema-changing REST routes commit their D1 DDL, seed-row change, and `registry_version` bump in one batch. A failed database statement leaves all three unchanged. If another schema write advances the version before the batch commits, the route returns `409 Conflict` (`conflict`); reload the seed and retry. R2 media cleanup on hard deletion and the optional FTS rebuild after an additive update remain separate from that D1 batch.
+
 ---
 
 ## `GET /api/seeds`
@@ -94,7 +96,7 @@ Content-Type: application/json
 
 Performs an additive update of an active seed definition. You can add new branches or modify seed metadata (`label`, `allowDrafts`, etc.). This executes additive DDL (`ALTER TABLE ... ADD COLUMN`) for newly added branches and bumps the registry version token.
 
-> **Note:** Destructive field alterations like renaming aliases or changing field types are blocked through `PUT` with HTTP 422 (`alias-rename-not-supported` or `branch-type-change-not-supported`). Omitting existing branches from the payload does not drop the database columns; they are preserved as orphan columns in SQLite. To explicitly drop columns, use `DELETE /api/seeds/:slug/branches/:branchId`.
+> **Note:** Destructive field alterations like renaming aliases or changing field types are blocked through `PUT` with HTTP 422 (`alias-rename-not-supported` or `branch-type-change-not-supported`). Changing an existing relation's `multiple`, `targetSeed`, or effective `onDelete` rule is also blocked with `relation-change-not-supported`: it requires a data migration between the old and new relation storage or FK policy. Databases edited before this guard can be checked with `npx beech schema audit` (see [CLI workflows](/build/cli-workflows)). Omitting existing branches from the payload does not drop the database columns; they are preserved as orphan columns in SQLite. To explicitly drop columns, use `DELETE /api/seeds/:slug/branches/:branchId`.
 
 **Request**
 ```http
@@ -175,7 +177,7 @@ Authorization: Bearer eyJ...
 
 ## `DELETE /api/seeds/:slug/hard`
 
-Hard-deletes a content type. **This is destructive and irreversible.** It drops the main `content_{slug}` table, its mirror draft table, search virtual tables, and related junction tables. It removes the definition row from the `seeds` table, triggers cascade deletion of all R2 media files associated with its fields, and bumps the registry version token.
+Starts durable hard deletion of a content type, whether it is active or already soft-deleted (`DELETE /api/seeds/:slug`). **This is destructive and irreversible.** The seed becomes unavailable immediately. A background job stages media keys from the live and draft tables in bounded pages, drops the content, draft, search, and junction tables, then deletes the R2 objects in retryable batches. The registry version changes when the seed is hidden and when its tables are dropped.
 
 **Guards:**
 1. **Back-reference Check**: Fails with `409 Conflict` (`seed-referenced`) if any other active seed references this content type via a `relation` field.
@@ -192,12 +194,15 @@ Content-Type: application/json
 }
 ```
 
-**Response `200 OK`**
+**Response `202 Accepted`** (with a `Location` header pointing to the job)
 ```json
 {
-  "success": true
+  "jobId": "<uuid>",
+  "status": "pending"
 }
 ```
+
+`GET /api/seeds/purges/<jobId>` reports `phase` (`live`, `drafts`, `purging`, `done`, or `failed`), `stagedCount`, and `purgedCount`. A transient staging or R2 failure stays pending and is retried by the queue or scheduled worker. If the table DROP fails, the D1 batch rolls back, the seed returns to the status it had when the purge started (`active` or `deleted`), and the job reports `failed`. Recreating the slug while cleanup is pending returns `409 seed-purge-pending`.
 
 ---
 
@@ -350,6 +355,8 @@ Content-Type: application/json
   "statements": [
     "ALTER TABLE content_books ADD COLUMN pages REAL;"
   ],
+  "definitionChanged": true,
+  "changedBranches": ["pages"],
   "ftsRebuildNeeded": false,
   "expectedVersion": 4,
   "issues": []
@@ -357,6 +364,8 @@ Content-Type: application/json
 ```
 
 - `classification`: `'create'` (table does not exist), `'additive'` (safe additions only), or `'destructive'` (dropped branch, alias rename, type change).
+- `definitionChanged`: `false` when the stored definition already equals the candidate, so applying it changes nothing. This is the "is there anything to apply" criterion; `statements` cannot answer it because it always contains the idempotent `CREATE INDEX IF NOT EXISTS` statements for an existing seed.
+- `changedBranches`: Aliases (candidate order) of branches that are new or whose definition differs from the stored one. It includes definition-only changes, such as the options and colors of a `tags` branch, that produce no DDL.
 - `expectedVersion`: The current `seed_meta.registry_version` value that must be echoed back to `mcp-apply`.
 
 ---
@@ -407,4 +416,3 @@ Content-Type: application/json
 
 > [!TIP]
 > For higher-level usage via IDE agents over Stdio JSON-RPC, see the dedicated [MCP Server (@beechcms/mcp) Reference](/reference/mcp-server).
-

@@ -4,10 +4,11 @@
 import { z } from 'zod'
 import type { Seed } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
-import { isRichtextEnvelopeV1 } from '../../content/richtext/richtext.js'
-import { cleanString, isPlainObject } from './primitives.js'
-import { isRichtextDocEmpty } from './richtext-sanitizer.js'
+import { isLocalizedBranch, toLocalizedPatch, type LocaleConfig } from '../localization/localization.js'
 import { compileSeedSchema } from './cache.js'
+import { isEffectivelyEmpty } from './emptiness.js'
+
+export { isEffectivelyEmpty }
 
 // Re-export the public file-branch symbol so the barrel surface stays complete.
 export { resolveFileOptions } from './file-branch.js'
@@ -71,6 +72,13 @@ export interface ValidateSeedPayloadOptions {
    * Do NOT pass a concrete class — inject via the middleware / factory.
    */
   idGenerator?: IIdGenerator
+  /**
+   * Project language configuration. When provided, branches with `localized: true` accept a plain
+   * value (stored under `defaultLocale`) or a locale dictionary, and validate to a `LocalizedPatch`.
+   * When omitted, localized branches validate exactly like their base type — the pre-localization
+   * contract. `requiredOnCreate` / `requiredOnUpdate` then check the default locale only.
+   */
+  localeConfig?: LocaleConfig
 }
 
 /**
@@ -104,6 +112,7 @@ export type ResolvedOptions = {
   enforceRequiredFields: boolean
   maxTextLength: number
   idGenerator: IIdGenerator | undefined
+  localeConfig: LocaleConfig | undefined
 }
 
 /** Default maximum character length allowed for text and rich text branches. */
@@ -113,27 +122,6 @@ const DEFAULT_MAX_TEXT_LENGTH = 50_000
 const STATUS_VALUES = ['draft', 'review', 'published'] as const
 /** Zod schema for content status enum validation. */
 const statusSchema = z.enum(STATUS_VALUES)
-
-/**
- * Checks if a value is effectively empty (e.g. null, undefined, empty string, empty array, or empty rich text).
- *
- * @param value - The value to check.
- * @param branchType - The type of the branch being checked.
- * @returns True if effectively empty, false otherwise.
- */
-function isEffectivelyEmpty(value: unknown, branchType?: string): boolean {
-  if (value === null || value === undefined) return true
-  if (typeof value === 'string') return cleanString(value).length === 0
-  if (Array.isArray(value)) return value.length === 0
-  if (isPlainObject(value)) {
-    // Richtext envelope: delegate to the richtext emptiness check.
-    if (isRichtextEnvelopeV1(value)) return isRichtextDocEmpty(value.doc)
-    // Raw TipTap doc root: only delegate for richtext branches to avoid misclassifying generic json fields.
-    if (branchType === 'richtext' && value.type === 'doc') return isRichtextDocEmpty(value)
-    return Object.keys(value).length === 0
-  }
-  return false
-}
 
 /**
  * Detects missing or empty required fields based on whether the operation is create or update.
@@ -162,7 +150,13 @@ function detectMissingRequired(
     const isRequired = op === 'create' ? branch.requiredOnCreate : branch.requiredOnUpdate
     if (!isRequired) continue
 
+    const isLocalizedUpdate = op === 'update' && options.localeConfig != null && isLocalizedBranch(branch)
+
     if (!Object.hasOwn(rawPayload, branch.alias)) {
+      // Localized branches use patch semantics on update: the dashboard omits the branch entirely
+      // when no locale was touched (see buildLocalizedPatch), which is equivalent to a patch that
+      // does not name the default locale — leave it as stored rather than flagging it missing.
+      if (isLocalizedUpdate) continue
       missing.push(branch.alias)
       details.push({
         field: branch.alias,
@@ -173,7 +167,17 @@ function detectMissingRequired(
       continue
     }
 
-    const candidate = parseSucceeded ? parsedData[branch.alias] : filtered[branch.alias]
+    const value = parseSucceeded ? parsedData[branch.alias] : filtered[branch.alias]
+    let candidate = value
+    if (options.localeConfig && isLocalizedBranch(branch)) {
+      // A localized branch is present when its default locale is; other locales are optional (brief §4).
+      const { defaultLocale } = options.localeConfig
+      const patch = toLocalizedPatch(value, options.localeConfig)
+      // An update that does not name the default locale leaves it as stored — the write path merges
+      // (applyLocalizedPatch) — so saving one translation cannot trip requiredOnUpdate.
+      if (op === 'update' && !Object.hasOwn(patch, defaultLocale)) continue
+      candidate = patch[defaultLocale]
+    }
     if (isEffectivelyEmpty(candidate, branch.type)) {
       missing.push(branch.alias)
       details.push({
@@ -360,9 +364,8 @@ function processZodIssues(
     }
 
     // detectMissingRequired() already reports top-level required-and-missing branches;
-    // skip the redundant native invalid_type/undefined issue Zod v4 raises for the same field.
+    // skip redundant Zod issues when a required top-level field is omitted/undefined.
     if (
-      issue.code === 'invalid_type' &&
       options.enforceRequiredFields &&
       issuePath.length === 1 &&
       valByPath === undefined
@@ -421,6 +424,7 @@ export function validateAndSanitizeSeedPayload(
     enforceRequiredFields: options.enforceRequiredFields ?? true,
     maxTextLength: options.maxTextLength ?? DEFAULT_MAX_TEXT_LENGTH,
     idGenerator: options.idGenerator,
+    localeConfig: options.localeConfig,
   }
 
   const { filtered, unknown: preUnknown, details: preDetails } = splitUnknownAliases(seed, payload)
@@ -434,7 +438,11 @@ export function validateAndSanitizeSeedPayload(
   let data: Record<string, unknown> = {}
 
   if (parsed.success) {
-    data = { ...parsed.data }
+    for (const [key, value] of Object.entries(parsed.data)) {
+      if (value !== undefined) {
+        data[key] = value
+      }
+    }
   } else {
     const zodOutcome = processZodIssues(seed, parsed.error.issues, filtered, resolved)
     accumulatedDetails.push(...zodOutcome.details)

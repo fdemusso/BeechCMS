@@ -26,3 +26,13 @@ Options passed to write operations. Currently carries the acting user
 #### role?
 
 > `optional` **role?**: `string`
+
+***
+
+### ifMatch?
+
+> `optional` **ifMatch?**: `number`
+
+Optimistic concurrency guard for `update`: the `updated_at` the caller last read.
+When set, the write only applies if the live row's `updated_at` still matches;
+otherwise `update` throws [EntryConflictError](../classes/EntryConflictError.md).

@@ -33,7 +33,7 @@ type FileInput = File | { src: string | File; alt?: string; title?: string }
 
 export const isClient = (): boolean => typeof window !== "undefined"
 export const isServer = (): boolean => !isClient()
-export const isMacOS = (): boolean =>
+const isMacOS = (): boolean =>
   isClient() && window.navigator.platform === "MacIntel"
 
 const shortcutKeyMap: Record<string, ShortcutKeyResult> = Object.assign(

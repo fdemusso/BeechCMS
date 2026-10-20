@@ -22,18 +22,19 @@ export interface MagicBytesValidationResult {
 }
 
 /**
- * Iterates across supported binary definitions to find any matching file signature.
+ * Finds the binary formats matching the buffer, one per distinct MIME type.
  *
  * @param bytes - The raw byte buffer to analyze.
- * @returns The matching FileTypeDefinition if recognized, or undefined.
+ * @returns Matching definitions (empty if unrecognized).
  */
-function detectBinaryType(bytes: Uint8Array): FileTypeDefinition | undefined {
+function detectBinaryTypes(bytes: Uint8Array): FileTypeDefinition[] {
+  const matches = new Map<string, FileTypeDefinition>()
   for (const def of Object.values(SUPPORTED_FILE_TYPES)) {
-    if (def.isBinary && matchesFileSignature(def, bytes)) {
-      return def
+    if (def.isBinary && !matches.has(def.primaryMime) && matchesFileSignature(def, bytes)) {
+      matches.set(def.primaryMime, def)
     }
   }
-  return undefined
+  return [...matches.values()]
 }
 
 /**
@@ -74,7 +75,8 @@ export function verifyMagicBytes(
   }
 
   // If buffer is smaller than the minimum bytes needed for initial signature inspection (typically 4, or 2-3 for short signatures)
-  const minInspectionLength = Math.min(4, declaredDef.magicBytes?.length ?? 4)
+  const minInspectionLength =
+    declaredDef.minSignatureLength ?? Math.min(4, declaredDef.magicBytes?.length ?? 4)
   if (bytes.length < minInspectionLength) {
     return { valid: false, error: 'File buffer too small for signature inspection' }
   }
@@ -85,16 +87,23 @@ export function verifyMagicBytes(
   }
 
   // Signature mismatch: check if it matches another known binary signature
-  const detectedDef = detectBinaryType(bytes)
-  if (detectedDef) {
+  const detected = detectBinaryTypes(bytes)
+  if (detected.length === 1) {
+    const [detectedDef] = detected
     return {
       valid: false,
       detectedMime: detectedDef.primaryMime,
       error: `Signature mismatch: file is ${detectedDef.extension.toUpperCase()} but declared as ${declaredMime}`,
     }
   }
+  if (detected.length > 1) {
+    // Shared signature: exact format unknowable
+    const family = detected[0].signatureFamily ?? 'shared-signature format'
+    return {
+      valid: false,
+      error: `Signature mismatch: file is a ${family} but declared as ${declaredMime}`,
+    }
+  }
 
   return { valid: false, error: `Unrecognized file signature for declared MIME ${declaredMime}` }
 }
-
-

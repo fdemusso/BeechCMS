@@ -14,7 +14,7 @@ type OAuthContext = Context<{ Bindings: Env; Variables: Variables }>
  * One row of the dashboard "Connected apps" list: a live consent, enriched with
  * the client's display name and with token liveness.
  */
-export interface ConnectedAppSummary {
+interface ConnectedAppSummary {
   /** Stable identifier of the OAuth client (e.g. `beech-mcp-cli`). */
   clientId: string
   /** Human-readable client name; falls back to `clientId` when the client row was disabled. */
@@ -34,7 +34,7 @@ export interface ConnectedAppSummary {
 /**
  * Successful response payload returned when revoking a connected application.
  */
-export interface RevokeConsentResponse {
+interface RevokeConsentResponse {
   /** Indicates that the authorization revocation succeeded. */
   revoked: boolean
   /** Count of active access and refresh tokens revoked during cascade. */
@@ -88,13 +88,14 @@ export async function listConsentsHandler(context: OAuthContext): Promise<Respon
 /**
  * `DELETE /oauth/consents/:clientId`
  *
- * Cascading revocation for an authorized client: revokes the consent row AND
- * invalidates every active access and refresh token issued to that client for the user.
+ * Cascading revocation for an authorized client: revokes the consent row, invalidates
+ * every active access and refresh token issued to that client for the user, AND deletes
+ * any unconsumed authorization code still in flight for that pair.
  *
  * Security & Data Invariants:
  * - Protected by admin JWT authentication only (`authMiddleware()`).
- * - Cascade behavior: tokens are revoked even when the consent row was already revoked,
- *   preventing orphaned active tokens.
+ * - Cascade behavior: tokens and codes are invalidated even when the consent row was
+ *   already revoked, preventing orphaned active tokens or a code redeemable post-revoke.
  * - Fails with HTTP 404 (`not_found`) if neither an active consent nor active tokens exist
  *   for the specified client.
  *
@@ -111,6 +112,9 @@ export async function revokeConsentHandler(context: OAuthContext): Promise<Respo
   const consentRevoked = await context.get('oauthConsentRepository').revoke(clientId, userId, nowSeconds)
   const tokensRevoked = await context.get('oauthTokenRepository')
     .revokeAllForClientAndUser(clientId, userId, nowSeconds)
+  // A code issued up to 60s earlier survives the token cascade above (it mints tokens only
+  // on redemption); drop it too so a revoked app cannot still complete the exchange.
+  await context.get('oauthAuthorizationCodeRepository').invalidateByClientAndUser(clientId, userId)
 
   if (!consentRevoked && tokensRevoked === 0) {
     return context.json({ error: 'not_found', error_description: 'no active authorization for this client' }, 404)

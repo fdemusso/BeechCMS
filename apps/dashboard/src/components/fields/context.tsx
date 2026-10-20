@@ -3,14 +3,14 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
-import type { Seed } from "@beechcms/core"
+import type { LocaleConfig, Seed } from "@beechcms/core"
 import type { UseQueryResult } from "@tanstack/react-query"
 
 /**
  * Structured record representing a resolved content entry used for field relation resolution.
  * Matches the core shape of a CMS content entry.
  */
-export interface FieldRelationRecord {
+interface FieldRelationRecord {
   /** The unique identifier of the content entry. */
   id: string
   /** The key-value dictionary containing the content entry's custom fields. */
@@ -31,6 +31,12 @@ export interface FieldsContextType {
    * @returns A react-query query result containing the array of schema seeds.
    */
   useSchema: () => UseQueryResult<Seed[]>
+
+  /**
+   * Project content-language config, or `undefined` when no seed has a localized branch. Relation labels
+   * resolve a localized display name to the default locale through it. Typically proxies `useLocaleConfig`.
+   */
+  useLocaleConfig: () => LocaleConfig | undefined
 
   /**
    * Fetches a single entry by its schema slug and ID.
@@ -92,7 +98,7 @@ export interface FieldsContextType {
 /**
  * React Context containing the fields configuration.
  */
-export const FieldsContext = React.createContext<FieldsContextType | null>(null)
+const FieldsContext = React.createContext<FieldsContextType | null>(null)
 
 /**
  * Properties for the {@link FieldsProvider} component.

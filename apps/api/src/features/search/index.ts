@@ -27,6 +27,8 @@ export {
   computeVectorJob,
   deleteVectorJob,
   updateR2ManifestJob,
+  manifestKey,
+  vectorsKey,
   type ComputeVectorPayload,
   type UpdateR2ManifestPayload,
 } from './jobs/semantic-search.worker'

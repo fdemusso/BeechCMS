@@ -48,3 +48,29 @@ describe("uploadAvatar", () => {
     await expect(settingsApi.uploadAvatar(file)).rejects.toThrow("Storage PUT failed: 500")
   })
 })
+
+describe("getStorage", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it("requests the selected orphan page", async () => {
+    const storage = { totalBytes: 510, fileCount: 51, orphans: [], orphanTotal: 51, orphanBytes: 510, orphanOffset: 50, orphanLimit: 50 }
+    vi.mocked(api.get).mockResolvedValueOnce({ data: storage })
+
+    const result = await settingsApi.getStorage(50)
+
+    expect(api.get).toHaveBeenCalledWith("/settings/storage?offset=50")
+    expect(result).toEqual(storage)
+  })
+})
+
+describe("deleteOrphans", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it("posts the reviewed keys to the orphan cleanup route", async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { deleted: ["media/a.png"], totalBytes: 0, fileCount: 0 } })
+
+    await settingsApi.deleteOrphans(["media/a.png"])
+
+    expect(api.post).toHaveBeenCalledWith("/settings/storage/orphans/delete", { keys: ["media/a.png"] })
+  })
+})

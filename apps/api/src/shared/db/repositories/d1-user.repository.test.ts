@@ -13,6 +13,7 @@ const USER_ROW = {
   role: 'admin',
   avatar_url: null,
   notification_prefs: '{}',
+  is_active: 1,
 }
 
 function makeMockDb(opts: {
@@ -25,8 +26,8 @@ function makeMockDb(opts: {
   const firstMock = vi.fn().mockResolvedValue(firstResult)
   const allMock = vi.fn().mockResolvedValue({ results: allResults })
   const bindMock = vi.fn<(...args: any[]) => any>(() => ({ first: firstMock, all: allMock, run: runMock }))
-  // prepare() may be called without bind() for countAll (which calls .first() directly)
-  const prepareMock = vi.fn<(...args: any[]) => any>(() => ({ bind: bindMock, first: firstMock, run: runMock }))
+  // prepare() may be called without bind() for countAll/listAccounts (which call .first()/.all() directly)
+  const prepareMock = vi.fn<(...args: any[]) => any>(() => ({ bind: bindMock, first: firstMock, run: runMock, all: allMock }))
   return { db: { prepare: prepareMock } as any, prepareMock, bindMock, runMock, firstMock }
 }
 
@@ -56,6 +57,7 @@ describe('D1UserRepository', () => {
         role: 'admin',
         avatarUrl: null,
         notificationPreferences: '{}',
+        isActive: true,
       })
     })
 
@@ -98,17 +100,22 @@ describe('D1UserRepository', () => {
   })
 
   describe('createInitialAdmin', () => {
-    it('returns true and batches the setup_completed + users inserts', async () => {
+    const roleGrant = { id: 'ura1', roleId: 'role1', scope: '*' }
+
+    it('returns true and batches the setup_completed + users + role grant inserts', async () => {
       const batchMock = vi.fn().mockResolvedValue([])
       const { db, prepareMock, bindMock } = makeMockDb()
       ;(db as any).batch = batchMock
       const created = await new D1UserRepository(db).createInitialAdmin({
         id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
-      })
+      }, roleGrant)
       expect(created).toBe(true)
       expect(batchMock).toHaveBeenCalledTimes(1)
+      expect(batchMock.mock.calls[0][0]).toHaveLength(3)
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO setup_completed'))
+      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO user_role_assignments'))
       expect(bindMock).toHaveBeenCalledWith('u1', 'a@b.com', 'hash', 'admin', 'Test', null)
+      expect(bindMock).toHaveBeenCalledWith('ura1', 'u1', 'role1', '*')
     })
 
     it('returns false when the setup_completed insert violates its unique constraint', async () => {
@@ -117,7 +124,7 @@ describe('D1UserRepository', () => {
       ;(db as any).batch = batchMock
       const created = await new D1UserRepository(db).createInitialAdmin({
         id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
-      })
+      }, roleGrant)
       expect(created).toBe(false)
     })
 
@@ -128,7 +135,7 @@ describe('D1UserRepository', () => {
       await expect(
         new D1UserRepository(db).createInitialAdmin({
           id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
-        }),
+        }, roleGrant),
       ).rejects.toThrow('database is locked')
     })
 
@@ -145,7 +152,7 @@ describe('D1UserRepository', () => {
       userInput.surname = null
       userInput.constructor = 'proto-bypass-attempt'
 
-      const created = await new D1UserRepository(db).createInitialAdmin(userInput)
+      const created = await new D1UserRepository(db).createInitialAdmin(userInput, roleGrant)
       expect(created).toBe(true)
       expect(Object.hasOwn(userInput, 'constructor')).toBe(true)
     })
@@ -200,6 +207,73 @@ describe('D1UserRepository', () => {
     it('returns false when no other user owns the email', async () => {
       const { db } = makeMockDb({ firstResult: null })
       expect(await new D1UserRepository(db).emailBelongsToAnotherUser('free@test.com', 'current')).toBe(false)
+    })
+  })
+
+  describe('listAccounts', () => {
+    it('maps rows to AccountSummary carrying no passwordHash key and reflecting is_active', async () => {
+      const { db } = makeMockDb({
+        allResults: [
+          { id: 'u1', email: 'a@b.com', name: 'A', surname: null, role: 'editor', is_active: 1, created_at: 100 },
+          { id: 'u2', email: 'c@d.com', name: null, surname: null, role: 'admin', is_active: 0, created_at: 200 },
+        ],
+      })
+      const accounts = await new D1UserRepository(db).listAccounts({ limit: 10, offset: 0 })
+
+      expect(accounts).toEqual([
+        { id: 'u1', email: 'a@b.com', name: 'A', surname: null, role: 'editor', isActive: true, createdAt: 100 },
+        { id: 'u2', email: 'c@d.com', name: null, surname: null, role: 'admin', isActive: false, createdAt: 200 },
+      ])
+      for (const account of accounts) {
+        expect(Object.hasOwn(account, 'passwordHash')).toBe(false)
+      }
+    })
+
+    it('binds the requested page into the statement', async () => {
+      const { db, bindMock } = makeMockDb({ allResults: [] })
+
+      await new D1UserRepository(db).listAccounts({ limit: 5, offset: 10 })
+
+      expect(bindMock).toHaveBeenCalledWith(5, 10)
+    })
+  })
+
+  describe('findAccountById', () => {
+    it('maps the row to an AccountSummary carrying no passwordHash key', async () => {
+      const { db, bindMock } = makeMockDb({
+        firstResult: { id: 'u1', email: 'a@b.com', name: 'A', surname: null, role: 'editor', is_active: 0, created_at: 100 },
+      })
+
+      const account = await new D1UserRepository(db).findAccountById('u1')
+
+      expect(account).toEqual({ id: 'u1', email: 'a@b.com', name: 'A', surname: null, role: 'editor', isActive: false, createdAt: 100 })
+      expect(Object.hasOwn(account!, 'passwordHash')).toBe(false)
+      expect(bindMock).toHaveBeenCalledWith('u1')
+    })
+
+    it('returns null for an unknown id', async () => {
+      const { db } = makeMockDb({ firstResult: null })
+
+      expect(await new D1UserRepository(db).findAccountById('missing')).toBeNull()
+    })
+  })
+
+  describe('setActive', () => {
+    it('flips the column and reports applied when a row changed', async () => {
+      const { db, bindMock } = makeMockDb({ runChanges: 1 })
+      const result = await new D1UserRepository(db).setActive('u1', false)
+      expect(result).toBe('applied')
+      expect(bindMock).toHaveBeenCalledWith('u1')
+    })
+
+    it('reports not-found for an unknown id', async () => {
+      const { db } = makeMockDb({ runChanges: 0, firstResult: null })
+      expect(await new D1UserRepository(db).setActive('unknown', true)).toBe('not-found')
+    })
+
+    it('reports last-global-admin when the guarded update changed nothing for an existing account', async () => {
+      const { db } = makeMockDb({ runChanges: 0, firstResult: { id: 'u1' } })
+      expect(await new D1UserRepository(db).setActive('u1', false)).toBe('last-global-admin')
     })
   })
 })

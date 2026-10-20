@@ -10,6 +10,7 @@ export {
   useDeleteSeed,
   useHardDeleteSeed,
   useDropBranch,
+  useDropOrphan,
   useRenameBranch,
   useRetypeBranch,
   useRebuildFts,

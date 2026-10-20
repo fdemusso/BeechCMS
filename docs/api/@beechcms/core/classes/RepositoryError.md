@@ -18,6 +18,9 @@ Base Repository Error
 - [`SlugConflictError`](SlugConflictError.md)
 - [`RelationTargetNotFoundError`](RelationTargetNotFoundError.md)
 - [`HookValidationError`](HookValidationError.md)
+- [`DraftConflictError`](DraftConflictError.md)
+- [`EntryConflictError`](EntryConflictError.md)
+- [`DraftSaveConflictError`](DraftSaveConflictError.md)
 
 ## Constructors
 

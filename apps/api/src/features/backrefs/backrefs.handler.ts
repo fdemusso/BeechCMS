@@ -4,10 +4,13 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { resolvePolicies } from '@beechcms/core'
-import { publicProblem } from '../../public/problem-details'
+import { hasPermission, resolveClassification, resolvePolicies } from '@beechcms/core'
+import type { IPrivacyService, LocaleConfig, Seed } from '@beechcms/core'
+import { publicProblem } from '../../public/errors/problem-details'
 import type { AppEnv } from '../../types'
 import { D1BackrefRepository, type BackrefItem } from './d1-backref.repository'
+import { loadDisplayLocaleConfig, resolveDisplayName } from '../../shared/localization/display-name'
+import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 
 const PREVIEW_LIMIT = 3
 const DEFAULT_PAGE_LIMIT = 20
@@ -29,6 +32,7 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
   const getSeed = c.get('getSeed')
   const backrefMap = c.get('backrefMap')
   const backrefRepository = new D1BackrefRepository(c.env.DB)
+  const privacyService = c.get('privacyService')
 
   // 1. Resolve target seed
   const targetSeed = getSeed(targetSlug)
@@ -42,7 +46,7 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
   }
 
   // 2. Verify targetId exists
-  const exists = await backrefRepository.entryExists(targetSlug, targetId)
+  const exists = await backrefRepository.entryExists(targetSeed, targetId)
   if (!exists) {
     return publicProblem(c, {
       type: 'not-found',
@@ -53,10 +57,18 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
   }
 
   // 3. Get sources for this target
-  const sources = backrefMap.get(targetSlug)
-  if (!sources || sources.length === 0) {
+  const effective = await resolveEffectivePermissions(c)
+  const sources = (backrefMap.get(targetSlug) ?? []).filter(source =>
+    hasPermission(effective, 'content:read', source.sourceSlug)
+  )
+  if (sources.length === 0 && !groupParam) {
     return c.json({ groups: [] })
   }
+
+  const sourceSeeds = sources
+    .map((source) => getSeed(source.sourceSlug))
+    .filter((seed): seed is Seed => seed !== null)
+  const localeConfig = await loadDisplayLocaleConfig(c.get('siteSettingsRepository'), sourceSeeds)
 
   // 4. Pagination
   const page = Math.max(1, Number.parseInt(pageParam ?? '1', 10) || 1)
@@ -96,7 +108,8 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
     }
 
     const { items, total } = await backrefRepository.queryGroup(source, sourceSeed, targetId, limit, offset)
-    const filteredItems = filterVisibility(items, sourceSeed)
+    const readable = await decryptDisplayNames(items, sourceSeed, privacyService)
+    const filteredItems = filterVisibility(localizeDisplayNames(readable, sourceSeed, localeConfig), sourceSeed)
 
     return c.json({
       groups: [{
@@ -119,7 +132,8 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
       if (!sourceSeed) return null
 
       const { items, total } = await backrefRepository.queryGroup(source, sourceSeed, targetId, PREVIEW_LIMIT, 0)
-      const filteredItems = filterVisibility(items, sourceSeed)
+      const readable = await decryptDisplayNames(items, sourceSeed, privacyService)
+      const filteredItems = filterVisibility(localizeDisplayNames(readable, sourceSeed, localeConfig), sourceSeed)
 
       return {
         sourceSlug: source.sourceSlug,
@@ -144,6 +158,23 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+/** The raw display column of an `encrypt`-classified branch is ciphertext; decrypt it before localization and masking. */
+async function decryptDisplayNames(items: BackrefItem[], sourceSeed: Seed, privacyService: IPrivacyService): Promise<BackrefItem[]> {
+  const displayBranch = sourceSeed.branches.find(b => b.alias === sourceSeed.displayNameAlias)
+  if (!displayBranch || resolveClassification(displayBranch).storage !== 'encrypt') return items
+  return Promise.all(
+    items.map(async (item) =>
+      item.displayName ? { ...item, displayName: await privacyService.decrypt(item.displayName) } : item
+    )
+  )
+}
+
+/** Resolves localized display names to the default locale; masking then applies to the resolved string. */
+function localizeDisplayNames(items: BackrefItem[], sourceSeed: Seed, localeConfig: LocaleConfig | undefined): BackrefItem[] {
+  if (!localeConfig) return items
+  return items.map((item) => ({ ...item, displayName: resolveDisplayName(sourceSeed, item.displayName, localeConfig) }))
+}
 
 function filterVisibility(
   items: BackrefItem[],

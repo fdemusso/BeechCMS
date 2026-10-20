@@ -69,8 +69,24 @@ All valid MIME types associated with this format.
 
 ***
 
+### minSignatureLength?
+
+> `readonly` `optional` **minSignatureLength?**: `number`
+
+Minimum buffer length `matchSignature` needs to decide; defaults to a short generic prefix check.
+
+***
+
 ### primaryMime
 
 > `readonly` **primaryMime**: `string`
 
 Canonical primary MIME type (e.g. 'image/jpeg').
+
+***
+
+### signatureFamily?
+
+> `readonly` `optional` **signatureFamily?**: `string`
+
+Label for formats sharing one signature (ZIP, OLE2), used when the exact format is ambiguous.

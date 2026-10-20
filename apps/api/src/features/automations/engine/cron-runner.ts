@@ -11,8 +11,9 @@ import type {
   Seed,
 } from '@beechcms/core'
 import { cronMatches } from './cron-runner.utils'
+import { findAllEntries } from './entry-pages'
 import { executeAction } from '../executors/index'
-import { resolveAutomationContext, deriveEntryContext } from '../evaluator/context-resolver'
+import { resolveAutomationContext, deriveEntryContext, withVariables } from '../evaluator/context-resolver'
 import { extractPushdownFilters } from '../filters/when-pushdown'
 import { evaluateWhen } from '../filters/when-evaluator'
 
@@ -68,15 +69,28 @@ export async function runCronAutomations(
 
     if (entries.length === 0) continue
 
-    // Build the base ResolvedContext once per automation (shared seed-query cache).
-    // triggerEntry = first entry; batchEntries = full SQL-filtered list.
-    const batchResolved = await resolveAutomationContext(
+    // SQL pushdown is only an optimisation (Task 12): OR groups, negated groups,
+    // non-eq ops, and batch refs are never translated to filters. Re-check every
+    // fetched entry in-memory before any action — batch or per-entry — runs.
+    const seedLookup = { repository: deps.contentRepository, getSeed: deps.getSeed }
+    const pushdownContext = await resolveAutomationContext(automation, entries[0] ?? null, entries, seedLookup)
+    const matchingEntries = entries.filter((entry) =>
+      evaluateWhen(automation.trigger_conditions, deriveEntryContext(pushdownContext, entry)),
+    )
+    if (matchingEntries.length === 0) continue
+
+    // Build the base ResolvedContext once per automation (seed-scoped rows are fetched here, once).
+    // triggerEntry = first matching entry; batchEntries = full filtered list.
+    const batchBase = await resolveAutomationContext(
       automation,
-      entries[0] ?? null,
-      entries,
+      matchingEntries[0] ?? null,
+      matchingEntries,
+      seedLookup,
     )
 
+    // Shared across actions so set_variable results reach every later action.
     const variables: Record<string, unknown> = {}
+    const batchResolved = withVariables(batchBase, variables)
     const baseCtx = {
       env: deps.env,
       repository: deps.contentRepository,
@@ -88,14 +102,14 @@ export async function runCronAutomations(
 
     for (const action of automation.actions) {
       if (PER_ENTRY_ACTIONS.has(action.type)) {
-        for (const entry of entries) {
+        for (const entry of matchingEntries) {
           // Per-entry: derive a lightweight context whose `this` is the current entry.
-          // Seed-query cache is reused from batchResolved.
-          const entryResolved = deriveEntryContext(batchResolved, entry)
-          // In-memory per-entry condition check (Task 13)
-          if (!evaluateWhen(automation.trigger_conditions, entryResolved)) continue
+          // Seed-query cache is reused from batchBase.
+          const entryBase = deriveEntryContext(batchBase, entry)
+          // In-memory per-entry condition check (Task 13); conditions never see variables, as in the event runner.
+          if (!evaluateWhen(automation.trigger_conditions, entryBase)) continue
           try {
-            await executeAction(action, { ...baseCtx, entry, context: entryResolved })
+            await executeAction(action, { ...baseCtx, entry, context: withVariables(entryBase, variables) })
           } catch (err) {
             console.error('[cron] entry action failed', {
               automationId: automation.id,
@@ -108,7 +122,7 @@ export async function runCronAutomations(
       } else {
         // Batch actions run once per automation with the shared batch context.
         try {
-          await executeAction(action, { ...baseCtx, entry: entries[0] ?? {}, context: batchResolved })
+          await executeAction(action, { ...baseCtx, entry: matchingEntries[0] ?? {}, context: batchResolved })
         } catch (err) {
           console.error('[cron] batch action failed', {
             automationId: automation.id,
@@ -131,10 +145,5 @@ async function fetchMatchingEntries(
   const filters: FilterGroup[] = automation.trigger_conditions
     ? extractPushdownFilters(automation.trigger_conditions, seed)
     : []
-  const result = await repository.findMany(seed, {
-    filters,
-    status: null,
-    pagination: { limit: 1000, offset: 0 },
-  })
-  return result.items
+  return findAllEntries(repository, seed, { filters, status: null })
 }

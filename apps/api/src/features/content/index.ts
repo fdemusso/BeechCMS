@@ -11,19 +11,35 @@ import { updateHandler } from './handlers/update'
 import { deleteHandler } from './handlers/delete'
 import { facetsHandler } from './handlers/facets'
 import { bulkHandler } from './handlers/bulk.handler'
-import { kanbanPositionHandler } from './handlers/kanban-position'
 import { kanbanMoveHandler } from './handlers/kanban-move'
-import { getViewConfigHandler, putViewConfigHandler } from './handlers/view-config'
+import { listViewsHandler, createViewHandler, updateViewHandler, deleteViewHandler, reorderViewsHandler } from './handlers/views'
+import { trashListHandler, restoreHandler, bulkRestoreHandler, bulkPurgeHandler, reconcilePurgesHandler } from './handlers/trash'
+import { exportHandler } from './handlers/export'
+import { importHandler } from './handlers/import'
+import { importJobStatusHandler } from './handlers/import-job-status'
 
 const content = new Hono<AppEnv>()
 
+// A literal path, and it must precede every `/:slug/...` pattern below — `/:slug/:id`
+// (registered further down) would otherwise capture 'import-jobs' as a seed slug.
+content.get('/import-jobs/:id', importJobStatusHandler)
+
 content.patch('/:slug/:id/kanban-move', kanbanMoveHandler)
-content.patch('/:slug/:id/kanban-position', kanbanPositionHandler)
-content.get('/:slug/view-config', getViewConfigHandler)
-content.put('/:slug/view-config', putViewConfigHandler)
+content.get('/:slug/views', listViewsHandler)                       // before /:slug/:id
+content.post('/:slug/views', createViewHandler)
+content.put('/:slug/views/order', reorderViewsHandler)              // literal segment, before /:slug/views/:viewId
+content.patch('/:slug/views/:viewId', updateViewHandler)
+content.delete('/:slug/views/:viewId', deleteViewHandler)
+content.get('/:slug/trash', trashListHandler)                       // NEW — before /:slug/:id
+content.post('/:slug/trash/bulk-restore', bulkRestoreHandler)       // NEW
+content.post('/:slug/trash/bulk-purge', bulkPurgeHandler)           // NEW
+content.post('/:slug/trash/reconcile', reconcilePurgesHandler)      // NEW
+content.get('/:slug/export', exportHandler)                         // before /:slug/:id
+content.post('/:slug/import', importHandler)                        // before /:slug/:id
 content.get('/:slug', listHandler)
 content.get('/:slug/facets', facetsHandler)
 content.get('/:schema_slug/by-slug/:entry_slug', getBySlugHandler)
+content.post('/:slug/:id/restore', restoreHandler)                  // NEW — before POST /:slug
 content.get('/:slug/:id', getByIdHandler)
 content.post('/:slug', createHandler)
 content.patch('/:slug/bulk', bulkHandler)

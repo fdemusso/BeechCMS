@@ -6,6 +6,6 @@
 
 # Type Alias: KanbanAxisBranchType
 
-> **KanbanAxisBranchType** = `"text"` \| `"tags"` \| `"boolean"`
+> **KanbanAxisBranchType** = `"tags"` \| `"boolean"`
 
 Branch types that can form a discrete, finite set of columns (KB §2).

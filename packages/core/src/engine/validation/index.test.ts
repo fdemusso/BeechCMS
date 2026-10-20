@@ -187,11 +187,51 @@ describe('missing required field dedup with Zod v4 (#175)', () => {
     expect(titleDetails[0]).toMatchObject({ expected: 'required-field', received: 'missing' })
   })
 
+  it('reports exactly one detail for a missing required richtext field (#445)', () => {
+    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T' }, { operation: 'create' })
+
+    const bodyDetails = r.details.filter(d => d.field === 'body')
+    expect(bodyDetails).toHaveLength(1)
+    expect(bodyDetails[0]).toMatchObject({ expected: 'required-field', received: 'missing' })
+  })
+
   it('still reports a real type-mismatch detail for a present-but-wrong-typed field', () => {
     const r = safeValidate({ ...validBase(), qty: 'not-a-number' })
     const qtyDetails = r.details.filter(d => d.field === 'qty')
     expect(qtyDetails.length).toBeGreaterThan(0)
     expect(qtyDetails.some(d => d.expected === 'number')).toBe(true)
+  })
+})
+
+describe('requireAtLeastOneValidField and undefined key stripping (#445)', () => {
+  it('does not treat empty-string-to-undefined keys as valid fields when requireAtLeastOneValidField is enabled', () => {
+    const r = validateAndSanitizeSeedPayload(
+      CHAOS_SEED,
+      { price: '' },
+      { enforceRequiredFields: false, requireAtLeastOneValidField: true },
+    )
+
+    expect(r.hasAnyValidField).toBe(false)
+    expect(r.details).toContainEqual(
+      expect.objectContaining({
+        field: 'data',
+        expected: 'at-least-one-valid-field',
+        received: 'empty',
+      }),
+    )
+    expect(r.data).not.toHaveProperty('price')
+  })
+
+  it('strips keys whose value resolved to undefined from validated data', () => {
+    const r = validateAndSanitizeSeedPayload(
+      CHAOS_SEED,
+      { title: 'Valid Title', qty: 1, price: '' },
+      { operation: 'create' },
+    )
+
+    expect(r.data.title).toBe('Valid Title')
+    expect(r.data.qty).toBe(1)
+    expect(r.data).not.toHaveProperty('price')
   })
 })
 
@@ -204,5 +244,89 @@ describe('required json field emptiness detection', () => {
   it('treats a non-empty object as present for a required json field', () => {
     const r = validateAndSanitizeSeedPayload(JSON_REQUIRED_SEED, { name: 'X', settings: { a: 1 } }, { operation: 'create' })
     expect(r.requiredFieldsMissing).not.toContain('settings')
+  })
+})
+
+describe('tags branch value validation', () => {
+  const PRIORITY_OPTIONS = [
+    { value: 'low', color: '#64748b' },
+    { value: 'high', color: '#ef4444' },
+  ]
+  const TAGS_SEED: Seed = {
+    slug: 'posts',
+    label: 'Post',
+    displayNameAlias: 'title',
+    branches: [
+      { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+      { id: 'br_07', alias: 'tags', label: 'Tags', type: 'tags' },
+      { id: 'br_11', alias: 'priority', label: 'Priority', type: 'tags', multiple: false, options: PRIORITY_OPTIONS },
+      {
+        id: 'br_12', alias: 'labels', label: 'Labels', type: 'tags',
+        options: [...PRIORITY_OPTIONS, { value: 'mid', color: '#f59e0b' }],
+      },
+    ],
+  }
+  const REQUIRED_SINGLE_SEED: Seed = {
+    ...TAGS_SEED,
+    branches: [{ ...TAGS_SEED.branches[2], requiredOnCreate: true }],
+  }
+
+  it('a value outside the options is rejected with tags(one-of) and yields no data', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { priority: ['urgent'] })
+
+    expect(result.details[0]).toMatchObject({ field: 'priority', expected: 'tags(one-of:low|high)' })
+    expect(result.data).not.toHaveProperty('priority')
+  })
+
+  it('case and whitespace variants of an option are rejected with tags(one-of)', () => {
+    const variants = [['High'], [' high']]
+
+    const results = variants.map(priority => validateAndSanitizeSeedPayload(TAGS_SEED, { priority }))
+
+    expect(results.map(result => result.details[0]?.expected)).toEqual(['tags(one-of:low|high)', 'tags(one-of:low|high)'])
+  })
+
+  it('duplicate option values are rejected with tags(unique) instead of merged', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { labels: ['low', 'low'] })
+
+    expect(result.details[0]).toMatchObject({ field: 'labels', expected: 'tags(unique)' })
+  })
+
+  it('duplicate free tags are rejected with tags(unique)', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { tags: ['a', 'a'] })
+
+    expect(result.details[0]).toMatchObject({ field: 'tags', expected: 'tags(unique)' })
+  })
+
+  it('a single-choice tags branch rejects two distinct values with tags(max:1)', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { priority: ['low', 'high'] })
+
+    expect(result.details[0]).toMatchObject({ field: 'priority', expected: 'tags(max:1)' })
+  })
+
+  it('a required single-choice tags branch rejects [] on create through the required check', () => {
+    const result = validateAndSanitizeSeedPayload(REQUIRED_SINGLE_SEED, { priority: [] }, { operation: 'create' })
+
+    expect(result.requiredFieldsMissing).toContain('priority')
+  })
+
+  it('a bare string is rejected as expected array received string, never coerced', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { priority: 'low' })
+
+    expect(result.details[0]).toMatchObject({ field: 'priority', expected: 'array', received: 'string' })
+  })
+
+  it('a multiple-choice tags branch with options accepts distinct values in received order', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { labels: ['mid', 'low'] })
+
+    expect(result.details).toEqual([])
+    expect(result.data.labels).toEqual(['mid', 'low'])
+  })
+
+  it('a free tags branch trims values and drops empty strings', () => {
+    const result = validateAndSanitizeSeedPayload(TAGS_SEED, { tags: [' news ', '  ', 'tech'] })
+
+    expect(result.details).toEqual([])
+    expect(result.data.tags).toEqual(['news', 'tech'])
   })
 })

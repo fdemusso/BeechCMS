@@ -1,0 +1,640 @@
+// SPDX-License-Identifier: MIT
+import { describe, it, expect } from 'vitest'
+import type { Seed, Branch, SelectLocale, FilterOperator } from '../types.js'
+import { buildSelectQuery, findUnappliedFilters } from './query.js'
+
+const mockSeed: Seed = {
+  slug: 'articles',
+  label: 'Articles',
+  allowDrafts: true,
+  displayNameAlias: 'title',
+  branches: [
+    { id: 'br_title', alias: 'title', type: 'text', label: 'Title', requiredOnCreate: true },
+    { id: 'br_content', alias: 'content', type: 'richtext', label: 'Content' },
+    { id: 'br_published', alias: 'published', type: 'boolean', label: 'Published' },
+    { id: 'br_price', alias: 'price', type: 'number', label: 'Price' },
+    { id: 'br_tags', alias: 'tags', type: 'tags', label: 'Tags' },
+    { id: 'br_cover', alias: 'cover', type: 'file', label: 'Cover' },
+    { id: 'br_priority', alias: 'priority', type: 'tags', multiple: false, label: 'Priority', options: [{ value: 'low', color: '#64748b' }, { value: 'high', color: '#ef4444' }] },
+    { id: 'br_topic', alias: 'topic', type: 'tags', multiple: false, label: 'Topic' },
+  ]
+}
+
+describe('Query', () => {
+  describe('Query Builder', () => {
+    describe('encrypted field filters', () => {
+      const seed: Seed = {
+        ...mockSeed,
+        branches: [{
+          id: 'br_01', alias: 'bio', type: 'text',
+          policies: { classification: 'confidential', public: true },
+        }],
+      }
+      const unsupported: FilterOperator[] = [
+        'contains', 'not_contains', 'starts_with', 'ends_with',
+        'gt', 'gte', 'lt', 'lte', 'has_tag', 'has_any_tag', 'has_all_tags',
+      ]
+
+      it.each(unsupported)('rejects %s instead of dropping the condition', (op) => {
+        const options = {
+          filters: [{ column: 'bio', type: 'text' as const, conditions: [{ op, value: 'secret-substring' }] }],
+        }
+
+        const build = () => buildSelectQuery(seed, options)
+
+        expect(build).toThrow(TypeError)
+      })
+
+      it.each(['eq', 'neq', 'in', 'not_in'] as const)('preserves blind-index filtering for %s', (op) => {
+        const value = op === 'in' || op === 'not_in' ? ['digest'] : 'digest'
+
+        const query = buildSelectQuery(seed, {
+          filters: [{ column: 'bio', type: 'text', conditions: [{ op, value }] }],
+        })
+
+        expect(query.sql).toContain('WHERE content_articles.bio_bidx ')
+        expect(query.bindings).toEqual(['digest'])
+      })
+
+      it.each(['is_empty', 'is_not_empty'] as const)('preserves ciphertext emptiness filtering for %s', (op) => {
+        const query = buildSelectQuery(seed, {
+          filters: [{ column: 'bio', type: 'text', conditions: [{ op }] }],
+        })
+
+        expect(query.sql).toContain(op === 'is_empty' ? 'WHERE (bio IS NULL' : 'WHERE (bio IS NOT NULL')
+        expect(query.bindings).toEqual([])
+      })
+    })
+
+    describe('repeater field filters', () => {
+      const seedWithRepeater: Seed = {
+        ...mockSeed,
+        branches: [
+          ...mockSeed.branches,
+          {
+            id: 'br_items',
+            alias: 'items',
+            type: 'repeater',
+            label: 'Items',
+            fields: [{ id: 'br_sub_name', alias: 'name', type: 'text', label: 'Name' }],
+          },
+        ],
+      }
+
+      it('builds is_empty condition checking NULL and serialized empty array []', () => {
+        const query = buildSelectQuery(seedWithRepeater, {
+          filters: [{ column: 'items', type: 'repeater', conditions: [{ op: 'is_empty' }] }],
+        })
+
+        expect(query.sql).toContain("(items IS NULL OR items = '[]' OR items = '{}')")
+      })
+
+      it('builds is_not_empty condition excluding NULL and serialized empty array []', () => {
+        const query = buildSelectQuery(seedWithRepeater, {
+          filters: [{ column: 'items', type: 'repeater', conditions: [{ op: 'is_not_empty' }] }],
+        })
+
+        expect(query.sql).toContain("(items IS NOT NULL AND items != '[]' AND items != '{}')")
+      })
+    })
+
+    it('builds a basic SELECT query', () => {
+      const query = buildSelectQuery(mockSeed)
+      expect(query.sql).toContain('SELECT content_articles.* FROM content_articles')
+      expect(query.sql).toContain('ORDER BY content_articles.created_at DESC')
+    })
+
+    it('builds a query with filters', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { 
+            column: 'title', 
+            type: 'text', 
+            conditions: [{ op: 'contains', value: 'Hello' }] 
+          },
+          { 
+            column: 'price', 
+            type: 'number', 
+            conditions: [{ op: 'gt', value: 10 }] 
+          }
+        ]
+      })
+      expect(query.sql).toContain('title LIKE ?')
+      expect(query.sql).toContain('price > ?')
+      expect(query.bindings).toContain('%Hello%')
+      expect(query.bindings).toContain(10)
+    })
+
+    it('defaults to ANDing multiple filter groups', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'title', type: 'text', conditions: [{ op: 'contains', value: 'Hello' }] },
+          { column: 'price', type: 'number', conditions: [{ op: 'gt', value: 10 }] },
+        ],
+      })
+      expect(query.sql).toContain('WHERE (title LIKE ? AND price > ?)')
+    })
+
+    it('ORs top-level filter groups when filterLogic is OR', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'title', type: 'text', conditions: [{ op: 'contains', value: 'Hello' }] },
+          { column: 'price', type: 'number', conditions: [{ op: 'gt', value: 10 }] },
+        ],
+        filterLogic: 'OR',
+      })
+      expect(query.sql).toContain('WHERE (title LIKE ? OR price > ?)')
+      expect(query.bindings).toContain('%Hello%')
+      expect(query.bindings).toContain(10)
+    })
+
+    it('ANDs status and search with an OR-joined filter group', () => {
+      const query = buildSelectQuery(mockSeed, {
+        status: 'published',
+        filters: [
+          { column: 'title', type: 'text', conditions: [{ op: 'contains', value: 'Hello' }] },
+          { column: 'price', type: 'number', conditions: [{ op: 'gt', value: 10 }] },
+        ],
+        filterLogic: 'OR',
+      })
+      expect(query.sql).toContain('WHERE content_articles.status = ? AND (title LIKE ? OR price > ?)')
+    })
+
+    it('keeps conditions within one filter group ANDed even under filterLogic OR', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'title', type: 'text', conditions: [{ op: 'contains', value: 'Hello' }, { op: 'contains', value: 'World' }] },
+        ],
+        filterLogic: 'OR',
+      })
+      expect(query.sql).toContain('WHERE (title LIKE ? AND title LIKE ?)')
+    })
+
+    it('handles search with FTS JOIN', () => {
+      const query = buildSelectQuery(mockSeed, { search: 'test' })
+      expect(query.sql).toContain('INNER JOIN fts_articles ON fts_articles.entry_id = content_articles.id')
+      expect(query.sql).toContain('fts_articles MATCH ?')
+      expect(query.bindings).toContain('"test"*')
+    })
+
+    it('handles pagination', () => {
+      const query = buildSelectQuery(mockSeed, { 
+        pagination: { limit: 10, offset: 20 } 
+      })
+      expect(query.sql).toContain('LIMIT ? OFFSET ?')
+      expect(query.bindings).toContain(10)
+      expect(query.bindings).toContain(20)
+    })
+
+    it('handles isCount', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { 
+            column: 'title', 
+            type: 'text', 
+            conditions: [{ op: 'contains', value: 'Hello' }] 
+          }
+        ],
+        pagination: { limit: 10, offset: 20 },
+        isCount: true
+      })
+      expect(query.sql).toContain('SELECT COUNT(*) as total FROM content_articles')
+      expect(query.sql).toContain('title LIKE ?')
+      expect(query.sql).not.toContain('ORDER BY')
+      expect(query.sql).not.toContain('LIMIT ? OFFSET ?')
+      expect(query.bindings).toContain('%Hello%')
+      expect(query.bindings).not.toContain(10)
+      expect(query.bindings).not.toContain(20)
+    })
+
+    it('handles status filter', () => {
+      const query = buildSelectQuery(mockSeed, { status: 'published' })
+      expect(query.sql).toContain('content_articles.status = ?')
+      expect(query.bindings).toContain('published')
+    })
+
+    it('handles fields projection', () => {
+      const query = buildSelectQuery(mockSeed, { fields: ['id', 'title'] })
+      expect(query.sql).toContain('SELECT content_articles.id, title FROM content_articles')
+    })
+
+    it('ignores invalid fields in projection', () => {
+      const query = buildSelectQuery(mockSeed, { fields: ['title', 'invalid_field'] })
+      expect(query.sql).toContain('SELECT title FROM content_articles')
+    })
+
+    it('handles custom orderBy', () => {
+      const query = buildSelectQuery(mockSeed, { orderBy: { column: 'title', dir: 'ASC' } })
+      expect(query.sql).toContain('ORDER BY title ASC')
+    })
+
+    it('ignores invalid column in orderBy and fallbacks to created_at DESC', () => {
+      const query = buildSelectQuery(mockSeed, { orderBy: { column: 'invalid', dir: 'ASC' } })
+      expect(query.sql).toContain('ORDER BY content_articles.created_at DESC')
+    })
+
+    it('handles is_empty and is_not_empty conditions', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'title', type: 'text', conditions: [{ op: 'is_empty', value: null }] },
+          { column: 'price', type: 'number', conditions: [{ op: 'is_not_empty', value: null }] }
+        ]
+      })
+      expect(query.sql).toContain("(title IS NULL OR title = '')")
+      expect(query.sql).toContain("price IS NOT NULL")
+    })
+
+    it('handles is_empty and is_not_empty conditions for tags/json', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'tags', type: 'tags', conditions: [{ op: 'is_empty', value: null }] },
+          { column: 'tags', type: 'json', conditions: [{ op: 'is_not_empty', value: null }] }
+        ]
+      })
+      expect(query.sql).toContain("(tags IS NULL OR tags = '[]' OR tags = '{}')")
+      expect(query.sql).toContain("(tags IS NOT NULL AND tags != '[]' AND tags != '{}')")
+    })
+
+    it('handles in and not_in conditions', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'title', type: 'text', conditions: [{ op: 'in', value: ['A', 'B'] }] },
+          { column: 'price', type: 'number', conditions: [{ op: 'not_in', value: [10, 20] }] }
+        ]
+      })
+      expect(query.sql).toContain("title IN (?, ?)")
+      expect(query.sql).toContain("price NOT IN (?, ?)")
+      expect(query.bindings).toEqual(['A', 'B', 10, 20])
+    })
+
+    describe('empty membership', () => {
+      it('compiles an empty `in` to a constant false instead of dropping it', () => {
+        const query = buildSelectQuery(mockSeed, {
+          status: 'published',
+          filters: [{ column: 'title', type: 'text', conditions: [{ op: 'in', value: [] }] }]
+        })
+        expect(query.sql).toContain('AND 0')
+        expect(query.bindings).toEqual(['published'])
+      })
+
+      it('keeps the false disjunct neutral under OR', () => {
+        const query = buildSelectQuery(mockSeed, {
+          filterLogic: 'OR',
+          filters: [
+            { column: 'title', type: 'text', conditions: [{ op: 'in', value: [] }] },
+            { column: 'price', type: 'number', conditions: [{ op: 'eq', value: 5 }] }
+          ]
+        })
+        expect(query.sql).toContain('(0 OR price = ?)')
+        expect(query.bindings).toEqual([5])
+      })
+
+      it('treats an empty `not_in` as no constraint', () => {
+        const query = buildSelectQuery(mockSeed, {
+          filters: [{ column: 'title', type: 'text', conditions: [{ op: 'not_in', value: [] }] }]
+        })
+        expect(query.sql).not.toContain('WHERE')
+      })
+    })
+
+    it('handles tags conditions', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'tags', type: 'tags', conditions: [{ op: 'has_tag', value: 'tech' }] },
+          { column: 'tags', type: 'tags', conditions: [{ op: 'has_all_tags', value: ['a', 'b'] }] }
+        ]
+      })
+      expect(query.sql).toContain("EXISTS (SELECT 1 FROM json_each(tags) WHERE CASE json_type(tags) WHEN 'array' THEN value ELSE key END IN (?))")
+      expect(query.sql).toContain("(EXISTS (SELECT 1 FROM json_each(tags) WHERE CASE json_type(tags) WHEN 'array' THEN value ELSE key END = ?) AND EXISTS (SELECT 1 FROM json_each(tags) WHERE CASE json_type(tags) WHEN 'array' THEN value ELSE key END = ?))")
+      expect(query.bindings).toEqual(['tech', 'a', 'b'])
+    })
+
+    describe('tags membership needles', () => {
+      const tagsFilter = (op: FilterOperator, value: string | string[]) => ({
+        filters: [{ column: 'tags', type: 'tags' as const, conditions: [{ op, value }] }],
+      })
+
+      it('binds the normalized form of a needle, so a decomposed é finds the stored composed one', () => {
+        const query = buildSelectQuery(mockSeed, tagsFilter('has_tag', 'cafe\u0301  '))
+
+        expect(query.bindings).toEqual(['caf\u00E9'])
+      })
+
+      it('binds a needle once when the same value is requested twice in different forms', () => {
+        const query = buildSelectQuery(mockSeed, tagsFilter('has_any_tag', ['a', 'a\u200B', ' a']))
+
+        expect(query.bindings).toEqual(['a'])
+      })
+
+      it('matches nothing for a blank or over-long needle instead of widening the result set', () => {
+        const queries = ['\u200B', 'x'.repeat(26)].map((needle) => buildSelectQuery(mockSeed, tagsFilter('has_tag', needle)))
+
+        expect(queries.map((query) => query.sql.includes('json_each'))).toEqual([false, false])
+        expect(queries.map((query) => query.bindings)).toEqual([[], []])
+      })
+
+      it('makes has_all_tags unsatisfiable when one required tag can never exist', () => {
+        const query = buildSelectQuery(mockSeed, tagsFilter('has_all_tags', ['ok', 'x'.repeat(26)]))
+
+        expect(query.sql).not.toContain('json_each')
+        expect(query.bindings).toEqual([])
+      })
+
+      it('keeps has_any_tag satisfiable by the needles that can exist', () => {
+        const query = buildSelectQuery(mockSeed, tagsFilter('has_any_tag', ['ok', 'x'.repeat(26)]))
+
+        expect(query.bindings).toEqual(['ok'])
+      })
+
+      it('negates a needle that can never exist into "no constraint", not into "no rows"', () => {
+        const query = buildSelectQuery(mockSeed, tagsFilter('neq', 'x'.repeat(26)))
+
+        expect(query.sql).toContain('NOT (0)')
+        expect(query.bindings).toEqual([])
+      })
+
+      // D1 caps bound parameters per statement at 100; 51 distinct needles is already past any real use.
+      it('ignores a membership set of 51 distinct tags rather than binding them all', () => {
+        const needles = Array.from({ length: 51 }, (_, i) => `t${i}`)
+
+        const query = buildSelectQuery(mockSeed, tagsFilter('has_any_tag', needles))
+
+        expect(query.bindings).toEqual([])
+      })
+
+      it('accepts a membership set of exactly 50 distinct tags', () => {
+        const needles = Array.from({ length: 50 }, (_, i) => `t${i}`)
+
+        const query = buildSelectQuery(mockSeed, tagsFilter('has_any_tag', needles))
+
+        expect(query.bindings).toEqual(needles)
+      })
+
+      it('leaves a json-typed column needle untouched, since object keys are not normalized tags', () => {
+        const jsonSeed: Seed = { ...mockSeed, branches: [...mockSeed.branches, { id: 'br_meta', alias: 'meta', type: 'json', label: 'Meta' }] }
+
+        const query = buildSelectQuery(jsonSeed, {
+          filters: [{ column: 'meta', type: 'json', conditions: [{ op: 'has_tag', value: 'a  b' }] }],
+        })
+
+        expect(query.bindings).toEqual(['a  b'])
+      })
+    })
+
+    it('orders a single-choice tags branch by option position with empty values last', () => {
+      const query = buildSelectQuery(mockSeed, {
+        orderBy: { column: 'priority', dir: 'ASC' },
+        pagination: { limit: 10, offset: 0 },
+      })
+
+      expect(query.sql).toContain('CASE')
+      expect(query.sql).toContain('IS NULL) ASC')
+      expect(query.bindings).toEqual(['low', 'high', 10, 0])
+    })
+
+    it('orders a free single-choice tags branch by its first value with empty values last', () => {
+      const query = buildSelectQuery(mockSeed, { orderBy: { column: 'topic', dir: 'DESC' } })
+
+      expect(query.sql).toContain("json_extract(topic, '$[0]')")
+      expect(query.sql).toContain('IS NULL) ASC')
+      expect(query.sql).toMatch(/END\) DESC$/)
+      expect(query.bindings).toEqual([])
+    })
+
+    it('ignores orderBy on a multiple-choice tags branch and falls back to created_at DESC', () => {
+      const query = buildSelectQuery(mockSeed, { orderBy: { column: 'tags', dir: 'ASC' } })
+
+      expect(query.sql).toContain('ORDER BY content_articles.created_at DESC')
+    })
+
+    it('turns eq and contains on a tags column into membership', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'priority', type: 'tags', conditions: [{ op: 'eq', value: 'high' }] },
+          { column: 'tags', type: 'tags', conditions: [{ op: 'contains', value: 'tech' }] },
+        ],
+      })
+
+      expect(query.sql).toContain('json_each(priority)')
+      expect(query.sql).toContain('json_each(tags)')
+      expect(query.sql).not.toContain('priority = ?')
+      expect(query.sql).not.toContain('LIKE')
+      expect(query.bindings).toEqual(['high', 'tech'])
+    })
+
+    it('turns neq and not_in on a tags column into negated membership', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'priority', type: 'tags', conditions: [{ op: 'neq', value: 'high' }] },
+          { column: 'tags', type: 'tags', conditions: [{ op: 'not_in', value: ['a', 'b'] }] },
+        ],
+      })
+
+      expect(query.sql).toContain('NOT (EXISTS (SELECT 1 FROM json_each(priority)')
+      expect(query.sql).toContain('NOT (EXISTS (SELECT 1 FROM json_each(tags)')
+      expect(query.bindings).toEqual(['high', 'a', 'b'])
+    })
+
+    it('handles eq and neq conditions', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'title', type: 'text', conditions: [{ op: 'eq', value: 'test' }] },
+          { column: 'price', type: 'number', conditions: [{ op: 'neq', value: 10 }] }
+        ]
+      })
+      expect(query.sql).toContain("title = ?")
+      expect(query.sql).toContain("price != ?")
+      expect(query.bindings).toEqual(['test', 10])
+    })
+
+    it('emits LEFT JOIN kanban_positions with parameterized bindings and nulls-last ORDER BY', () => {
+      const query = buildSelectQuery(mockSeed, {
+        kanbanOrder: { seedSlug: 'articles', axisBranchId: 'br_01' },
+      })
+      expect(query.sql).toContain('LEFT JOIN kanban_positions kp')
+      expect(query.sql).toContain('kp.seed_slug = ?')
+      expect(query.sql).toContain('kp.axis_branch_id = ?')
+      expect(query.sql).toContain('ORDER BY (kp.position IS NULL) ASC, kp.position ASC')
+      expect(query.sql).toContain('kp.position')
+      // kp.position must appear in the SELECT projection so the dashboard can read it
+      expect(query.sql).toMatch(/SELECT\s+.*kp\.position.*FROM/s)
+      expect(query.bindings).toContain('articles')
+      expect(query.bindings).toContain('br_01')
+    })
+
+    it('kanbanOrder wins over orderBy', () => {
+      const query = buildSelectQuery(mockSeed, {
+        kanbanOrder: { seedSlug: 'articles', axisBranchId: 'br_01' },
+        orderBy: { column: 'title', dir: 'ASC' },
+      })
+      expect(query.sql).toContain('ORDER BY (kp.position IS NULL) ASC, kp.position ASC')
+      expect(query.sql).not.toContain('ORDER BY title')
+    })
+
+    it('existing callers without kanbanOrder produce byte-identical SQL (no kp join)', () => {
+      const withoutKanban = buildSelectQuery(mockSeed)
+      const withoutKanban2 = buildSelectQuery(mockSeed, {})
+      expect(withoutKanban.sql).toBe(withoutKanban2.sql)
+      expect(withoutKanban.sql).not.toContain('kanban_positions')
+    })
+  })
+
+  describe('softDelete', () => {
+    const trashSeed: Seed = { ...mockSeed, softDelete: true }
+
+    it('appends deleted_at IS NULL by default for a soft-delete seed', () => {
+      const query = buildSelectQuery(trashSeed)
+      expect(query.sql).toContain('content_articles.deleted_at IS NULL')
+    })
+
+    it('appends deleted_at IS NOT NULL for trashed: "trashed"', () => {
+      const query = buildSelectQuery(trashSeed, { trashed: 'trashed' })
+      expect(query.sql).toContain('content_articles.deleted_at IS NOT NULL')
+    })
+
+    it('emits no deleted_at predicate for trashed: "any"', () => {
+      const query = buildSelectQuery(trashSeed, { trashed: 'any' })
+      expect(query.sql).not.toContain('deleted_at')
+    })
+
+    it('emits no deleted_at predicate at all for a seed without softDelete, regardless of trashed', () => {
+      // Regression guard for the whole existing suite: a caller that forgets softDelete on
+      // the seed must get today's SQL back, byte-identical.
+      const query = buildSelectQuery(mockSeed, { trashed: 'trashed' })
+      expect(query.sql).not.toContain('deleted_at')
+    })
+  })
+
+  describe('buildSelectQuery — localized columns', () => {
+    const locArticlesSeed: Seed = {
+      slug: 'loc_articles',
+      label: 'Loc Articles',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_title', alias: 'title', type: 'text', label: 'Title', localized: true },
+        { id: 'br_data', alias: 'data', type: 'json', label: 'Data', localized: true },
+        { id: 'br_code', alias: 'code', type: 'text', label: 'Code' },
+      ],
+    }
+    const LOCALE: SelectLocale = { code: 'en', config: { locales: ['it', 'en'], defaultLocale: 'it' } }
+
+    it('a filter on a localized text branch compares the value resolved in the requested locale', () => {
+      const query = buildSelectQuery(locArticlesSeed, {
+        filters: [{ column: 'title', type: 'text', conditions: [{ op: 'eq', value: 'Shoe' }] }],
+        locale: LOCALE,
+      })
+      expect(query.sql).toContain(`json_extract(content_loc_articles.title, '$."en"')`)
+      expect(query.sql).toContain(`json_extract(content_loc_articles.title, '$."it"')`)
+      expect(query.bindings).toEqual(['Shoe'])
+    })
+
+    it('ORDER BY a localized branch sorts on the resolved value', () => {
+      const query = buildSelectQuery(locArticlesSeed, {
+        orderBy: { column: 'title', dir: 'ASC' },
+        locale: LOCALE,
+      })
+      expect(query.sql).toContain('ORDER BY (CASE WHEN json_valid(content_loc_articles.title)')
+      expect(query.sql.trimEnd().endsWith('ASC')).toBe(true)
+    })
+
+    it('without a locale a localized branch is compared raw, exactly as before', () => {
+      // Regression guard: the non-localized path must stay byte-identical.
+      const query = buildSelectQuery(locArticlesSeed, {
+        filters: [{ column: 'title', type: 'text', conditions: [{ op: 'eq', value: 'Shoe' }] }],
+      })
+      expect(query.sql).toContain('WHERE title = ?')
+      expect(query.sql).not.toContain('json_extract')
+    })
+
+    it('a non-localized branch is compared raw even when a locale is set', () => {
+      const query = buildSelectQuery(locArticlesSeed, {
+        filters: [{ column: 'code', type: 'text', conditions: [{ op: 'eq', value: 'X1' }] }],
+        locale: LOCALE,
+      })
+      expect(query.sql).toContain('WHERE code = ?')
+    })
+
+    it('a localized json branch also requires a registered locale key before treating a value as a dictionary', () => {
+      const dataQuery = buildSelectQuery(locArticlesSeed, {
+        filters: [{ column: 'data', type: 'json', conditions: [{ op: 'eq', value: 'x' }] }],
+        locale: LOCALE,
+      })
+      const titleQuery = buildSelectQuery(locArticlesSeed, {
+        filters: [{ column: 'title', type: 'text', conditions: [{ op: 'eq', value: 'x' }] }],
+        locale: LOCALE,
+      })
+      expect(dataQuery.sql).toContain(`key IN ('it', 'en')`)
+      expect(titleQuery.sql).not.toContain(`key IN ('it', 'en')`)
+    })
+
+    it('a locale code outside the grammar throws before any SQL is built', () => {
+      // Regression guard: codes are inlined, so the grammar is the injection guard.
+      const badCodes = ["en'); DROP TABLE x;--", 'EN', 'en_US']
+      for (const code of badCodes) {
+        const badLocale: SelectLocale = { code, config: { locales: ['it', 'en'], defaultLocale: 'it' } }
+        expect(() =>
+          buildSelectQuery(locArticlesSeed, {
+            filters: [{ column: 'title', type: 'text', conditions: [{ op: 'eq', value: 'x' }] }],
+            locale: badLocale,
+          }),
+        ).toThrow(TypeError)
+      }
+    })
+  })
+
+  describe('findUnappliedFilters', () => {
+    it('lists a tags eq condition with a null value as unapplied', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [
+        { column: 'priority', type: 'tags', conditions: [{ op: 'eq', value: null }] },
+      ])
+
+      expect(unapplied).toHaveLength(1)
+    })
+
+    const group = (column: string, type: 'text' | 'number' | 'date', op: FilterOperator, value: unknown) =>
+      ({ column, type, conditions: [{ op, value }] }) as never
+
+    it('reports a number filter with an empty value, the case buildSelectQuery drops from WHERE', () => {
+      const filters = [group('price', 'number', 'eq', '')]
+
+      const unapplied = findUnappliedFilters(mockSeed, filters)
+
+      expect(unapplied).toEqual(filters)
+      expect(buildSelectQuery(mockSeed, { filters }).sql).not.toContain('price')
+    })
+
+    it('reports a number filter with a non-numeric value', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [group('price', 'number', 'gt', 'abc')])
+
+      expect(unapplied).toHaveLength(1)
+    })
+
+    it('reports a date filter with an unparsable value', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [group('created_at', 'date', 'lt', 'not-a-date')])
+
+      expect(unapplied).toHaveLength(1)
+    })
+
+    it('reports a filter on a column the seed does not have', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [group('missing', 'text', 'eq', 'x')])
+
+      expect(unapplied).toHaveLength(1)
+    })
+
+    it('does not report an in filter with no values: it compiles to constant false and still constrains', () => {
+      const unapplied = findUnappliedFilters(mockSeed, [group('title', 'text', 'in', [])])
+
+      expect(unapplied).toHaveLength(0)
+    })
+
+    it('accepts filters that bind: numeric string, empty text, is_empty', () => {
+      const filters = [
+        group('price', 'number', 'eq', '12.5'),
+        group('title', 'text', 'eq', ''),
+        group('price', 'number', 'is_empty', null),
+      ]
+
+      expect(findUnappliedFilters(mockSeed, filters)).toEqual([])
+    })
+  })
+})

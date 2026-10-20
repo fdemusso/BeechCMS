@@ -97,7 +97,7 @@ export function useConditionalFormats({
           conditions: [{ id: generateConditionId(), op: defaultOp, value: null }],
         },
         tone: "warning",
-        target: "row",
+        target: "element",
         textStyles: [],
       }
       commitConditionalFormats([...conditionalFormats, nextRule])
@@ -195,14 +195,17 @@ export function useConditionalFormats({
 
   const removeConditionalCondition = React.useCallback(
     (ruleId: string, conditionId: string) => {
-      const next = conditionalFormats
-        .map((r) => {
-          if (r.id !== ruleId) return r
-          const nextConditions = r.group.conditions.filter((c) => c.id !== conditionId)
-          return { ...r, group: { ...r.group, conditions: nextConditions } }
-        })
-        .filter((r) => r.group.conditions.length > 0)
-        .map((r, i) => ({ ...r, priority: i }))
+      const rule = conditionalFormats.find((r) => r.id === ruleId)
+      // A rule keeps at least one condition; deleting the rule is removeConditionalRule's job.
+      if (!rule || rule.group.conditions.length <= 1) return
+      const next = conditionalFormats.map((r) =>
+        r.id === ruleId
+          ? {
+              ...r,
+              group: { ...r.group, conditions: r.group.conditions.filter((c) => c.id !== conditionId) },
+            }
+          : r
+      )
       commitConditionalFormats(next)
     },
     [commitConditionalFormats, conditionalFormats]

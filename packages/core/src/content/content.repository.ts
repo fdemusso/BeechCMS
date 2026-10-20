@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import { Seed, SelectOptions } from '../engine/types.js'
+import { Seed, SelectOptions, TrashedMode } from '../engine/types.js'
 
 /**
  * One row of the cross-seed pending-drafts overview. Aggregates the minimum a
@@ -84,6 +84,95 @@ export class HookValidationError extends RepositoryError {
   }
 }
 
+/**
+ * Thrown by `publishDraft` when the live entry was written after the draft captured its
+ * `live_snapshot_at`. Publishing would overwrite that write, so the repository refuses and the
+ * caller must discard the draft or re-create it from the current live version.
+ * Mapped to 409 Conflict by the API problem-mapper.
+ */
+export class DraftConflictError extends RepositoryError {
+  readonly seedSlug: string
+  readonly entryId: string
+  readonly snapshotAt: number | null
+  readonly liveUpdatedAt: number
+
+  constructor(params: {
+    seedSlug: string
+    entryId: string
+    snapshotAt: number | null
+    liveUpdatedAt: number
+  }) {
+    super(
+      `Draft conflict: entry '${params.entryId}' in '${params.seedSlug}' was modified at ` +
+        `${params.liveUpdatedAt}, after the draft snapshot ${params.snapshotAt}`,
+    )
+    this.name = 'DraftConflictError'
+    this.seedSlug = params.seedSlug
+    this.entryId = params.entryId
+    this.snapshotAt = params.snapshotAt
+    this.liveUpdatedAt = params.liveUpdatedAt
+  }
+}
+
+/**
+ * Thrown by `update` when the caller supplied `options.ifMatch` and the live row's
+ * `updated_at` no longer matches it — another writer committed in between.
+ * Mapped to 409 Conflict by the API problem-mapper.
+ */
+export class EntryConflictError extends RepositoryError {
+  readonly seedSlug: string
+  readonly entryId: string
+  readonly expectedUpdatedAt: number
+  readonly actualUpdatedAt: number
+
+  constructor(params: {
+    seedSlug: string
+    entryId: string
+    expectedUpdatedAt: number
+    actualUpdatedAt: number
+  }) {
+    super(
+      `Entry conflict: entry '${params.entryId}' in '${params.seedSlug}' was modified at ` +
+        `${params.actualUpdatedAt}, expected ${params.expectedUpdatedAt}`,
+    )
+    this.name = 'EntryConflictError'
+    this.seedSlug = params.seedSlug
+    this.entryId = params.entryId
+    this.expectedUpdatedAt = params.expectedUpdatedAt
+    this.actualUpdatedAt = params.actualUpdatedAt
+  }
+}
+
+/**
+ * Thrown by `saveDraft` when the caller supplied `options.ifMatch` and the pending draft
+ * row's `updated_at` no longer matches it — another writer saved a draft in between, and
+ * blindly merging on top of it would silently drop that writer's fields.
+ * Mapped to 409 Conflict by the API problem-mapper.
+ */
+export class DraftSaveConflictError extends RepositoryError {
+  readonly seedSlug: string
+  readonly entryId: string
+  readonly expectedUpdatedAt: number
+  readonly actualUpdatedAt: number
+
+  constructor(params: {
+    seedSlug: string
+    entryId: string
+    expectedUpdatedAt: number
+    actualUpdatedAt: number
+  }) {
+    super(
+      `Draft save conflict: draft for entry '${params.entryId}' in '${params.seedSlug}' was saved at ` +
+        `${params.actualUpdatedAt}, expected ${params.expectedUpdatedAt}`,
+    )
+    this.name = 'DraftSaveConflictError'
+    this.seedSlug = params.seedSlug
+    this.entryId = params.entryId
+    this.expectedUpdatedAt = params.expectedUpdatedAt
+    this.actualUpdatedAt = params.actualUpdatedAt
+  }
+}
+
 export type BulkFieldUpdate =
   | { kind: 'set'; value: unknown }
   | { kind: 'array_replace'; value: string[] }
@@ -96,6 +185,12 @@ export type BulkFieldUpdate =
  */
 export interface RepositoryOptions {
   actor?: { id: string; role?: string; email?: string }
+  /**
+   * Optimistic concurrency guard for `update`: the `updated_at` the caller last read.
+   * When set, the write only applies if the live row's `updated_at` still matches;
+   * otherwise `update` throws {@link EntryConflictError}.
+   */
+  ifMatch?: number
 }
 
 /**
@@ -111,6 +206,20 @@ export type BatchWrite =
   | { kind: 'update'; seed: Seed; id: string; data: Record<string, any>; status?: string }
   | { kind: 'mutateField'; seed: Seed; id: string; fieldName: string; operation: { type: 'increment' | 'decrement'; value: number }; options?: { min?: number; max?: number } }
 
+/** Everything a purge caller needs to finish cleanup outside the database. */
+export interface PurgeResult {
+  /** The row as it existed immediately before erasure — the source of the R2 media keys. */
+  row: Record<string, any>
+  /** True when a ledger event was appended. False only for a seed without `softDelete`. */
+  ledgerWritten: boolean
+}
+
+/** Per-id outcome of a bulk trash operation, mirroring `bulkUpdate`'s shape. */
+export interface BulkDeleteResult {
+  succeeded: string[]
+  failed: Array<{ id: string; reason: string }>
+}
+
 /**
  * Interface defining the standard operations for content persistence.
  * This is platform-agnostic and should be implemented for specific databases (e.g., D1).
@@ -123,15 +232,33 @@ export interface ContentRepository {
 
   /**
    * Finds a single entry by its unique ID.
+   * Trashed rows are invisible unless `options.trashed` says otherwise.
    * Throws EntryNotFoundError if not found.
    */
-  findById(seed: Seed, id: string): Promise<Record<string, any>>
+  findById(seed: Seed, id: string, options?: { trashed?: TrashedMode }): Promise<Record<string, any>>
 
   /**
    * Finds a single entry by its unique slug.
    * Throws EntryNotFoundError if not found.
    */
   findBySlug(seed: Seed, slug: string): Promise<Record<string, any>>
+
+  /**
+   * Resolves the parent entry ids that reference any of `targetIds` through a MULTI relation
+   * branch (junction table). Single-value relations need no lookup — their target id lives in a
+   * column on the parent row and is filterable directly.
+   *
+   * Returns at most `limit` distinct parent ids, in no guaranteed order. Callers that must
+   * distinguish "complete" from "truncated" pass `limit = cap + 1` and compare the length.
+   *
+   * @throws RepositoryError if `branchAlias` is not a `multiple: true` relation branch of `seed`.
+   */
+  findParentIdsByRelation(
+    seed: Seed,
+    branchAlias: string,
+    targetIds: string[],
+    limit: number,
+  ): Promise<string[]>
 
   /**
    * Computes facets (status counts and distinct tags) for a content type.
@@ -150,6 +277,7 @@ export interface ContentRepository {
   /**
    * Partially updates an existing entry in the live table.
    * Throws EntryNotFoundError if the ID does not exist.
+   * Throws EntryConflictError if `options.ifMatch` is set and no longer matches the live row's `updated_at`.
    */
   update(seed: Seed, id: string, data: Record<string, any>, status?: string, options?: RepositoryOptions): Promise<void>
 
@@ -178,6 +306,13 @@ export interface ContentRepository {
   /**
    * Atomically applies an axis-value patch AND a kanban_positions upsert in one DB batch (KB-S04e).
    * `patch` is null for same-column reorders (position only).
+   *
+   * @param ctx.ifMatch Optimistic concurrency guard for the axis-value patch: the `updated_at`
+   *   the caller last read. When set and `patch` is non-null, the write only applies if the live
+   *   row's `updated_at` still matches; otherwise throws {@link EntryConflictError}. Ignored when
+   *   `patch` is null, since a position-only reorder does not read-modify-write column data.
+   * @throws EntryConflictError if `ctx.ifMatch` is set, `patch` is non-null, and the live row's
+   *   `updated_at` no longer matches it.
    */
   updateWithKanbanPosition(
     seed: Seed,
@@ -185,7 +320,7 @@ export interface ContentRepository {
     patch: Record<string, unknown> | null,
     position: string,
     axisBranchId: string,
-    ctx: { actor: string },
+    ctx: { actor: string; ifMatch?: number },
   ): Promise<{ success: boolean }>
 
   /**
@@ -196,14 +331,23 @@ export interface ContentRepository {
 
   /**
    * Saves or updates a pending draft in the mirror table.
+   * Throws DraftSaveConflictError if `options.ifMatch` is set and no longer matches the
+   * pending draft row's `updated_at`.
    */
-  saveDraft(seed: Seed, entryId: string, data: Record<string, any>): Promise<void>
+  saveDraft(seed: Seed, entryId: string, data: Record<string, any>, options?: RepositoryOptions): Promise<void>
 
   /**
    * Retrieves the pending draft for a given entry.
    * Returns null if no draft exists.
    */
   getDraft(seed: Seed, entryId: string): Promise<Record<string, any> | null>
+
+  /**
+   * Retrieves the pending draft row's `updated_at`, for use as an optimistic-concurrency
+   * guard by callers that read the draft before merging into it.
+   * Returns null if no draft exists (or drafts are disallowed for the seed).
+   */
+  getDraftUpdatedAt(seed: Seed, entryId: string): Promise<number | null>
 
   /**
    * Atomic promotion of a draft to the live table.
@@ -244,5 +388,53 @@ export interface ContentRepository {
     ids: string[],
     fields: Record<string, BulkFieldUpdate>,
   ): Promise<{ updated: number; failed: Array<{ id: string; reason: string }> }>
+
+  /**
+   * Reversible delete: stamps `deleted_at` and returns the row as it was.
+   * Runs `beforeDelete`/`afterDelete`, exactly like `delete`.
+   * Leaves junction rows, `_drafts` rows and R2 media untouched — a trashed entry must be
+   * restorable whole.
+   * @throws RepositoryError if `seed.softDelete` is not true.
+   * @throws EntryNotFoundError if no live row with `id` exists.
+   */
+  softDelete(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }>
+
+  /**
+   * Clears `deleted_at`. When the entry's slug was taken by a live entry in the meantime the
+   * UNIQUE constraint rejects the update; the implementation catches it and restores under an
+   * auto-renamed slug rather than failing the operation (feature brief §4).
+   * @returns The restored row, carrying the slug it actually ended up with.
+   * @throws EntryNotFoundError if no TRASHED row with `id` exists.
+   */
+  restore(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }>
+
+  /**
+   * Irreversible erasure: runs `beforeDelete`, reads the row, deletes it (junction and
+   * `_drafts` rows follow via ON DELETE CASCADE), appends the ledger event, runs `afterDelete`.
+   * Works on a live row and on a trashed one.
+   * R2 media deletion is NOT performed here — the caller owns it (VSA: no external I/O in the
+   * repository beyond the ledger port).
+   * @throws EntryNotFoundError if no row with `id` exists.
+   */
+  purge(seed: Seed, id: string, options?: RepositoryOptions): Promise<PurgeResult>
+
+  /** `restore` applied per id. Never partially fails the batch: each id reports its own outcome. */
+  bulkRestore(seed: Seed, ids: string[], options?: RepositoryOptions): Promise<BulkDeleteResult>
+
+  /**
+   * `purge` applied per id. Returns the purged rows so the caller can collect R2 media keys.
+   */
+  bulkPurge(seed: Seed, ids: string[], options?: RepositoryOptions): Promise<
+    BulkDeleteResult & { rows: Record<string, any>[] }
+  >
+
+  /**
+   * Pure query, no side effects: ids of trashed entries whose retention window has elapsed
+   * (`deleted_at + seed.retentionDays * 86400 <= now`).
+   * Returns [] when the seed has no `retentionDays` or no `softDelete`.
+   * Deliberately NOT wired to any scheduler — the recurring-automation adapter is future work
+   * (feature brief §2). `now` is supplied by the caller's `IClock`; never read the clock here.
+   */
+  findExpiredByRetention(seed: Seed, now: number, limit: number): Promise<string[]>
 }
 

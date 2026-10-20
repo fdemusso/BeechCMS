@@ -12,13 +12,13 @@ Browser Client Interface.
 
 ### TRegistry
 
-`TRegistry` = `Record`&lt;`string`, `unknown`&gt;
+`TRegistry` = `SeedRegistryTypes`
 
 ## Methods
 
-### content()
+### collection()
 
-> **content**&lt;`K`&gt;(`seed`): [`BrowserContentResource`](BrowserContentResource.md)&lt;`TRegistry`\[`K`\]&gt;
+> **collection**&lt;`K`&gt;(`seed`): [`FluentQuery`](FluentQuery.md)&lt;`TRegistry`\[`K`\]&gt;
 
 #### Type Parameters
 
@@ -34,4 +34,4 @@ Browser Client Interface.
 
 #### Returns
 
-[`BrowserContentResource`](BrowserContentResource.md)&lt;`TRegistry`\[`K`\]&gt;
+[`FluentQuery`](FluentQuery.md)&lt;`TRegistry`\[`K`\]&gt;

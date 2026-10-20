@@ -3,7 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 import { scan } from 'react-scan'
-if (typeof window !== 'undefined') {
+// Instruments every render, so it is itself a load-time cost. Dev only, and
+// opt-out with VITE_REACT_SCAN=off when profiling the app's own performance.
+if (typeof window !== 'undefined' && import.meta.env.DEV && import.meta.env.VITE_REACT_SCAN !== 'off') {
   scan({
     enabled: true,
     log: true, // Registra anche i log in console
@@ -22,7 +24,6 @@ import { queryClient } from '@/lib/query-client'
 import { WidgetSdkProvider } from '@beechcms/widget-sdk'
 import { api } from '@/lib/api'
 import '@/lib/i18n'
-import '@/features/content-toolbar/view-registry.bootstrap'
 import App from './App.tsx'
 import './widgets.custom'
 

@@ -18,8 +18,12 @@
 - [BeechServerClient](interfaces/BeechServerClient.md)
 - [BrowserContentResource](interfaces/BrowserContentResource.md)
 - [ConstructWebhookEventOptions](interfaces/ConstructWebhookEventOptions.md)
+- [FluentQuery](interfaces/FluentQuery.md)
 - [ListMeta](interfaces/ListMeta.md)
 - [ListQuery](interfaces/ListQuery.md)
+- [MediaOptions](interfaces/MediaOptions.md)
+- [MediaUrlOptions](interfaces/MediaUrlOptions.md)
+- [RelationSubquery](interfaces/RelationSubquery.md)
 - [RequestOptions](interfaces/RequestOptions.md)
 - [ServerContentResource](interfaces/ServerContentResource.md)
 - [VerifyWebhookSignatureOptions](interfaces/VerifyWebhookSignatureOptions.md)
@@ -30,6 +34,9 @@
 - [BeechResult](type-aliases/BeechResult.md)
 - [FieldFilter](type-aliases/FieldFilter.md)
 - [Listable](type-aliases/Listable.md)
+- [MediaFormat](type-aliases/MediaFormat.md)
+- [MediaQuality](type-aliases/MediaQuality.md)
+- [MediaScalePreset](type-aliases/MediaScalePreset.md)
 - [Single](type-aliases/Single.md)
 
 ## Variables
@@ -40,4 +47,6 @@
 
 - [buildSearchParams](functions/buildSearchParams.md)
 - [constructWebhookEvent](functions/constructWebhookEvent.md)
+- [media](functions/media.md)
+- [mediaSrcSet](functions/mediaSrcSet.md)
 - [verifyBeechWebhookSignature](functions/verifyBeechWebhookSignature.md)

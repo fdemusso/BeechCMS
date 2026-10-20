@@ -28,6 +28,22 @@ export function registerWidget<TConfig>(definition: WidgetDefinition<TConfig>): 
   definitions.set(definition.type, resolved)
 }
 
+/** Widgets temporarily switched off: hidden from the picker and rendered as
+ *  a "not working in this version" notice in existing layouts. Remove a type
+ *  from this set to re-enable it. */
+const DISABLED_WIDGET_TYPES: ReadonlySet<string> = new Set([
+  "core/activity-feed",
+  "core/ai-insights",
+  "core/media-gallery",
+  "core/system-health",
+  "core/site-status",
+  "core/storage",
+])
+
+export function isWidgetDisabled(type: string): boolean {
+  return DISABLED_WIDGET_TYPES.has(type)
+}
+
 export function getWidgetDefinition(type: string): WidgetDefinition | undefined {
   return definitions.get(type)
 }

@@ -14,7 +14,7 @@
 
 ### cache?
 
-> `optional` **cache?**: `RequestCache`
+> `optional` **cache?**: `FetchCacheMode`
 
 ***
 

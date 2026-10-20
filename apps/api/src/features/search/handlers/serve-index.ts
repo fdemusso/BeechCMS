@@ -1,0 +1,103 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
+/**
+ * @module search/handlers/serve-index
+ * Thin route handler for `GET /api/v1/public/search/index/:seedSlug/:file`.
+ *
+ * Serves the `manifest.json` and `vectors.bin` R2 objects produced by
+ * {@link compileR2Manifest} so `@beechcms/search-client` can download them
+ * directly from `SearchClient.loadIndex(manifestUrl, vectorsUrl)`.
+ */
+
+import type { Context } from 'hono'
+import { ifNoneMatchMatches } from '@beechcms/core'
+import type { AppEnv } from '../../../types'
+import { manifestKey, vectorsKey } from '../jobs/semantic-search.worker'
+
+const CONTENT_TYPES: Record<string, string> = {
+  'manifest.json': 'application/json',
+  'vectors.bin':   'application/octet-stream',
+}
+
+/** Cache lifetime, in seconds, for served index assets. */
+const INDEX_CACHE_MAX_AGE_SECONDS = 300
+
+/**
+ * `vectors.bin` is written with the manifest's own `fingerprint` as R2 custom
+ * metadata (see `compileR2Manifest`), because the fingerprint — not R2's
+ * `httpEtag` — is what `SearchClient.fetchWithCache` sends as `If-None-Match`.
+ * `manifest.json` has no such metadata and falls back to `httpEtag`.
+ */
+function resolveEtag(file: string, object: R2Object): string | undefined {
+  if (file === 'vectors.bin') {
+    return object.customMetadata?.['fingerprint'] ?? object.httpEtag
+  }
+  return object.httpEtag
+}
+
+/** R2 object bodies are real `ReadableStream`s in production; test doubles may hand back a plain value. */
+async function discardBody(body: unknown): Promise<void> {
+  if (body && typeof (body as ReadableStream).cancel === 'function') {
+    await (body as ReadableStream).cancel().catch(() => undefined)
+  }
+}
+
+/**
+ * Handles `GET /api/v1/public/search/index/:seedSlug/:file`.
+ *
+ * `:file` must be `manifest.json` or `vectors.bin`; any other value yields 404.
+ *
+ * @param c - Hono context with typed `AppEnv` bindings and variables.
+ * @returns The raw R2 object body, or 404 when the seed is unknown, not publicly readable,
+ * or has no compiled index yet.
+ */
+export async function serveIndexHandler(c: Context<AppEnv>): Promise<Response> {
+  const seedSlug = c.req.param('seedSlug')
+  const file      = c.req.param('file')
+
+  const contentType = file ? CONTENT_TYPES[file] : undefined
+  if (!seedSlug || !file || !contentType) {
+    return c.notFound()
+  }
+
+  // Same gate as every public read; 404 (not 403) so unreadable seeds stay indistinguishable from unknown ones.
+  const seed = c.get('getSeed')(seedSlug)
+  if (seed?.allowPublicRead !== true) {
+    return c.notFound()
+  }
+
+  const searchR2 = c.env.SEARCH_R2
+  if (!searchR2) {
+    return c.notFound()
+  }
+
+  const key = file === 'manifest.json' ? manifestKey(seedSlug) : vectorsKey(seedSlug)
+
+  const object = await searchR2.get(key)
+  if (!object) {
+    return c.notFound()
+  }
+
+  const etag = resolveEtag(file, object)
+
+  if (ifNoneMatchMatches(c.req.header('If-None-Match'), etag)) {
+    await discardBody(object.body)
+    return new Response(null, {
+      status: 304,
+      headers: {
+        ...(etag ? { ETag: etag } : {}),
+        'Cache-Control': `public, max-age=${INDEX_CACHE_MAX_AGE_SECONDS}`,
+      },
+    })
+  }
+
+  c.header('Content-Type', contentType)
+  c.header('Cache-Control', `public, max-age=${INDEX_CACHE_MAX_AGE_SECONDS}`)
+  if (etag) {
+    c.header('ETag', etag)
+  }
+
+  return c.body(object.body)
+}

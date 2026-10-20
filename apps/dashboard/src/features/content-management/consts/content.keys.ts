@@ -20,3 +20,10 @@ export const FACET_QUERY_KEYS = {
   all: ["facets"] as const,
   bySlug: (slug: string) => [...FACET_QUERY_KEYS.all, slug] as const,
 }
+
+export const TRASH_QUERY_KEYS = {
+  all: ["trash"] as const,
+  lists: () => [...TRASH_QUERY_KEYS.all, "list"] as const,
+  list: (slug: string, page: number, limit: number) =>
+    [...TRASH_QUERY_KEYS.lists(), slug, page, limit] as const,
+}

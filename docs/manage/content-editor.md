@@ -31,6 +31,8 @@ BeechCMS is built around a natural, botanical metaphor:
 2. Enter your work **Email** and **Password**.
 3. Click **Sign in**.
 
+Account email addresses are trimmed and lowercased. Setup, account creation, invitations, profile changes, and login share the same validation: at most 254 characters after normalization, with nonempty domain labels separated by dots. Invalid profile changes leave the existing address unchanged.
+
 <p align="center">
   <img src="/images/login-page.png" alt="BeechCMS Login Page" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
 </p>
@@ -156,7 +158,7 @@ BeechCMS dynamically builds the form based on the Seed:
 
 - **Required Fields (`*`)**: Must be completed before saving (e.g., Title, Slug, Status).
 - **Text & Number Fields**: Type directly. Number fields may format currencies (e.g., `€ 1.250,00`) automatically.
-- **Dropdowns & Selectors**: Choose from predefined options (e.g., `free`, `pro`, `enterprise`).
+- **Dropdowns & Selectors**: Choose from predefined options (e.g., `free`, `pro`, `enterprise`) in a menu where each option has a colored dot. A single-choice field replaces the value; a multiple-choice field adds a chip per pick. A gray dashed chip marks a stored value that is no longer among the options: remove or replace it before saving, otherwise the save is rejected.
 - **Date Pickers**: Select specific dates and times with a visual calendar.
 - **Relations**: If a Fruit links to another Seed (for example, linking a Support Ticket or Subscription to a specific *Cliente*), search and select the related record from the autocomplete dropdown.
 
@@ -195,6 +197,9 @@ From the **Drafts Hub**, you can:
 3. **Publish**: Publish the draft directly to make it live on the public site immediately.
 4. **Discard**: Discard the draft to revert back to the last published version (or delete it if it was never published).
 
+> [!NOTE]
+> **Someone else edited it first?** If the live entry changed after your draft was created, publishing is refused with a conflict message instead of overwriting your colleague's work. Nothing is lost: your draft stays where it is. Discard it and re-open the entry to continue from the current version.
+
 <p align="center">
   <img src="/images/global-drafts-hub.png" alt="Dedicated Global Drafts Hub" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
 </p>
@@ -208,6 +213,38 @@ From the **Drafts Hub**, you can:
 
 ### Scheduled Content
 When you set content to go live at a specific future date and time, it appears in the **Scheduled** section in the sidebar, queued to be published automatically.
+
+## Deleting Content & the Trash
+
+How deletion behaves depends on how your administrator configured the Seed.
+
+### Content Types With a Trash
+
+For Seeds where the Trash is enabled (typically anything business-critical — orders, customers, leads), deleting is **reversible**:
+
+1. Delete an entry from the listing (row menu or bulk selection). The confirmation reads **"Move to Trash — you can restore it later"**.
+2. The entry disappears from the listing, from the public website, and from search — but nothing is destroyed. Its images and linked records stay attached.
+3. A **Trash** button appears in the listing header. Open it to see everything you have deleted, most recent first.
+
+From the Trash you can:
+
+- **Restore**: brings the entry straight back to the listing. No confirmation is asked — restoring is harmless.
+- **Delete forever**: erases the entry permanently, along with its uploaded images. This asks for an explicit confirmation, because it cannot be undone.
+- **Act in bulk**: tick several rows and restore or erase them together.
+
+The Trash also shows a **Retention** countdown when your administrator set a retention window (e.g. *"12 days left"*). It tells you how long the entry is meant to be kept. Nothing is deleted automatically when the countdown runs out — treat it as a reminder, not a timer.
+
+> [!TIP]
+> **Restored entries can come back with a different URL slug.** While an entry sits in the Trash, its slug is free for someone else to use. If that happened, BeechCMS restores your entry under a slightly different slug instead of refusing — and tells you the new one in a notification. Check any links pointing at the old URL.
+
+### Content Types Without a Trash
+
+On every other Seed, deleting is **immediate and permanent**: the entry and its uploaded images are gone, and no undo is available. The confirmation dialog says so explicitly. If you need a Trash for a content type that does not have one, ask your administrator — it is a per-Seed setting.
+
+> [!IMPORTANT]
+> **"Delete forever" really is forever.** A permanent deletion is recorded outside the database so it stays deleted even if the team later restores a database backup. Use **Move to Trash** whenever you are not certain.
+
+---
 
 ## Media & Images
 
@@ -267,6 +304,8 @@ BeechCMS provides distinct permissions to ensure content creators have total fre
 | :--- | :---: | :---: |
 | **Create & Edit Fruits** (Articles, Pages, Data) | Full Access | Full Access |
 | **Publish & Manage Drafts** | Full Access | Full Access |
+| **Restore from the Trash** | Granted with edit rights | Full Access |
+| **Delete Forever (permanent erasure)** | Granted with delete rights | Full Access |
 | **Upload Media & Manage Images** | Full Access | Full Access |
 | **Personal Profile & Notification Settings** | Full Access | Full Access |
 | **Customize Dashboard Layouts & Widgets** | Read-Only | Full Access |
@@ -293,6 +332,7 @@ BeechCMS provides distinct permissions to ensure content creators have total fre
 
 ### Missing Entries
 - Check the **Drafts** section (`/drafts`) in the sidebar.
+- Check the **Trash**, if the listing has a Trash button — the entry may have been deleted and can be restored in one click.
 - Clear any active search filters in the toolbar.
 - Use the **Command Palette (`Cmd + K`)** to search across all Seeds simultaneously.
 

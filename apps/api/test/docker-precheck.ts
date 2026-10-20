@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-export interface RequiredService {
+interface RequiredService {
   name: string
   url: string
   containerName: string

@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DatePickerInput } from '@/components/ui/date-picker-input'
-import type { Branch } from '@beechcms/core'
+import { tagOptionValues, type Branch } from '@beechcms/core'
 
 interface AutomationValueInputProps {
   branch: Branch | undefined
@@ -86,24 +86,9 @@ export function AutomationValueInput({
     )
   }
 
-  const options = branch.options ?? []
+  const options = tagOptionValues(branch)
 
-  if (branch.type === 'text' && options.length > 0) {
-    return (
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger size="sm" className={`${className} text-xs`}>
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((opt) => (
-            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    )
-  }
-
-  if ((branch.type === 'tags' || branch.type === 'json') && options.length > 0) {
+  if (branch.type === 'tags' && options.length > 0) {
     return (
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>

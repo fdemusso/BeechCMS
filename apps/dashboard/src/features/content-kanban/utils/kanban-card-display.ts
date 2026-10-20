@@ -1,6 +1,7 @@
 import type { Seed, Branch, KanbanCardConfig } from '@beechcms/core'
 import { findBranchById } from '@beechcms/core'
 import type { ContentEntry } from '@/lib/dynamic-columns'
+import { NO_ELEMENT_FORMAT, type ElementFormat } from '@/lib/conditional-format'
 import type { KanbanCardDisplayModel, KanbanCardSlots, ResolvedSlotField } from '../types'
 
 function resolveImageUrl(value: unknown): string | undefined {
@@ -34,11 +35,13 @@ export function buildKanbanCardDisplayModel(
   columnValue: string | null,
   seed?: Seed,
   card?: KanbanCardConfig,
+  format: ElementFormat = NO_ELEMENT_FORMAT,
 ): KanbanCardDisplayModel {
   const data = entry.data as Record<string, unknown>
 
   const pos = (entry as unknown as Record<string, unknown>).position
-  const position = typeof pos === 'string' ? pos : null
+  // A blank key is not a valid fractional index; treat it as unpositioned so resequencing assigns one.
+  const position = typeof pos === 'string' && pos.trim() !== '' ? pos : null
 
   // Legacy heuristic (backwards compat when no card config)
   const titleBranch = Object.keys(data).find(k => !SYSTEM_KEYS.has(k) && typeof data[k] === 'string' && data[k] !== '')
@@ -59,7 +62,8 @@ export function buildKanbanCardDisplayModel(
       if (branch.id === _axisBranch.id && columnValue !== undefined && columnValue !== null) {
         val = columnValue
       }
-      return { branch, value: val }
+      const style = format.fields[branch.alias]
+      return style ? { branch, value: val, style } : { branch, value: val }
     }
     slots = {
       media: resolve(card.media),
@@ -69,6 +73,9 @@ export function buildKanbanCardDisplayModel(
     }
   }
 
+  const statusStyle = format.fields.status
+  const titleStyle = titleBranch ? format.fields[titleBranch] : undefined
+
   return {
     entryId: entry.id,
     title,
@@ -77,5 +84,8 @@ export function buildKanbanCardDisplayModel(
     axisValue: columnValue,
     position,
     slots,
+    ...(format.element ? { elementStyle: format.element } : {}),
+    ...(titleStyle ? { titleStyle } : {}),
+    ...(statusStyle ? { statusStyle } : {}),
   }
 }

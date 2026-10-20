@@ -9,6 +9,9 @@ import {
   RepositoryError,
   SlugConflictError,
   RelationTargetNotFoundError,
+  DraftConflictError,
+  DraftSaveConflictError,
+  EntryConflictError,
   type BulkFieldUpdate,
   type BatchWrite,
   type DraftSummary,
@@ -22,11 +25,19 @@ import {
   type HookContext,
   type IPrivacyService,
   type IQueueService,
+  type IDeletionLedger,
+  type TrashedMode,
+  type PurgeResult,
+  type BulkDeleteResult,
+  type IClock,
   buildSelectQuery,
   deserializeFromDb,
   serializeForDb,
   resolveClassification,
   hasBlindIndex,
+  activeClause,
+  activeCondition,
+  SystemClock,
 } from '@beechcms/core'
 import { BaseD1Repository } from './base.repository.d1'
 
@@ -36,7 +47,7 @@ function isCiphertext(value: unknown): boolean {
   return typeof value === 'string' && /^v1:[A-Za-z0-9+/=]+:[A-Za-z0-9+/=]+$/.test(value)
 }
 
-export async function prepareBlindIndexOptions(
+async function prepareBlindIndexOptions(
   seed: Seed,
   options: SelectOptions,
   privacyService: IPrivacyService
@@ -118,6 +129,8 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     private readonly hooks?: BeechHooks,
     private readonly privacyService?: IPrivacyService,
     queue?: IQueueService,
+    private readonly deletionLedger?: IDeletionLedger,
+    private readonly clock: IClock = SystemClock,
   ) {
     super(database)
     this.queue = queue
@@ -130,6 +143,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   /** Assembles the {@link HookContext} passed to every lifecycle hook invocation. */
   private hookCtx(seed: Seed, actor?: HookActor): HookContext {
     return { seed, repository: this, actor, db: this.database, queue: this.queue }
+  }
+
+  /** ` AND deleted_at IS NULL` for a soft-delete seed, `''` otherwise. */
+  private activeClause(seed: Seed, mode: TrashedMode = 'active', tableAlias?: string): string {
+    return activeClause(seed, mode, tableAlias)
   }
 
   private async serializeAndProtect(
@@ -170,6 +188,12 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       status: row.status,
       created_at: row.created_at,
       updated_at: row.updated_at,
+    }
+
+    // Active-path rows always carry deleted_at NULL, so this stays invisible to every
+    // public/active payload; only a row read via trashed: 'trashed' | 'all' gets the key.
+    if (row.deleted_at != null) {
+      data.deleted_at = row.deleted_at
     }
 
     const branchEntries = await Promise.all(
@@ -341,11 +365,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * @throws EntryNotFoundError if no row with `id` exists in the seed's table.
    * @throws RepositoryError on any other database failure.
    */
-  async findById(seed: Seed, id: string): Promise<Record<string, any>> {
+  async findById(seed: Seed, id: string, options?: { trashed?: TrashedMode }): Promise<Record<string, any>> {
     try {
       const tableName = this.getTableName(seed.slug)
       const entryRow = await this.database
-        .prepare(`SELECT * FROM ${tableName} WHERE id = ? LIMIT 1`)
+        .prepare(`SELECT * FROM ${tableName} WHERE id = ?${this.activeClause(seed, options?.trashed)} LIMIT 1`)
         .bind(id)
         .first()
 
@@ -371,7 +395,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     try {
       const tableName = this.getTableName(seed.slug)
       const entryRow = await this.database
-        .prepare(`SELECT * FROM ${tableName} WHERE slug = ? LIMIT 1`)
+        .prepare(`SELECT * FROM ${tableName} WHERE slug = ?${this.activeClause(seed)} LIMIT 1`)
         .bind(slug)
         .first()
 
@@ -389,6 +413,45 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   }
 
   /**
+   * Reads the live junction table for a multi-relation branch and returns the distinct parent ids
+   * pointing at any of `targetIds`. Draft junction rows are deliberately excluded: the public
+   * surface filters published content only.
+   */
+  async findParentIdsByRelation(
+    seed: Seed,
+    branchAlias: string,
+    targetIds: string[],
+    limit: number,
+  ): Promise<string[]> {
+    if (targetIds.length === 0 || limit <= 0) return []
+
+    const branch = seed.branches.find(b => b.alias === branchAlias)
+    if (!branch || branch.type !== 'relation' || branch.multiple !== true) {
+      throw new RepositoryError(
+        `findParentIdsByRelation: '${branchAlias}' is not a multi-relation branch of ${seed.slug}`,
+      )
+    }
+
+    const table = jTable(seed.slug, branchAlias)
+    const parentTable = this.getTableName(seed.slug)
+    const placeholders = targetIds.map(() => '?').join(', ')
+    // A trashed parent's junction row must not resolve — otherwise a Public API relation
+    // subquery would return a trashed parent's id and the caller would fetch it by id.
+    const { results } = await this.database
+      .prepare(
+        `SELECT DISTINCT j.parent_id FROM ${table} j ` +
+        (seed.softDelete ? `INNER JOIN ${parentTable} p ON p.id = j.parent_id ` : '') +
+        `WHERE j.target_id IN (${placeholders})` +
+        (seed.softDelete ? ` AND p.deleted_at IS NULL` : '') +
+        ` LIMIT ?`,
+      )
+      .bind(...targetIds, limit)
+      .all<{ parent_id: string }>()
+
+    return (results ?? []).map(r => r.parent_id)
+  }
+
+  /**
    * Computes aggregate facets for a seed: entry counts per `status`, and the distinct set
    * of tag values present across all entries for each `tags`-typed branch (via `json_each`
    * over the JSON-serialized tag column).
@@ -401,7 +464,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       const tableName = this.getTableName(seed.slug)
 
       const statusResults = await this.database
-        .prepare(`SELECT status, COUNT(*) as count FROM ${tableName} GROUP BY status`)
+        .prepare(`SELECT status, COUNT(*) as count FROM ${tableName} WHERE 1=1${this.activeClause(seed)} GROUP BY status`)
         .all()
 
       const statusesCount: Record<string, number> = {}
@@ -414,7 +477,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       for (const branch of tagBranches) {
         const tagResults = await this.database
-          .prepare(`SELECT DISTINCT value FROM ${tableName}, json_each(${tableName}.${branch.alias}) WHERE value IS NOT NULL`)
+          .prepare(`SELECT DISTINCT value FROM ${tableName}, json_each(${tableName}.${branch.alias}) WHERE value IS NOT NULL${this.activeClause(seed)}`)
           .all()
         tagsByColumn[branch.alias] = (tagResults.results || []).map(row => row.value as string)
       }
@@ -432,7 +495,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   async existsSlug(seed: Seed, slug: string, excludeId?: string): Promise<boolean> {
     try {
       const tableName = this.getTableName(seed.slug)
-      let sql = `SELECT 1 FROM ${tableName} WHERE slug = ?`
+      let sql = `SELECT 1 FROM ${tableName} WHERE slug = ?${this.activeClause(seed)}`
       const queryBindings: any[] = [slug]
 
       if (excludeId) {
@@ -492,7 +555,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       }
     }
 
-    const nowEpoch = Math.floor(Date.now() / 1000)
+    const nowEpoch = this.clock.nowSeconds()
     const createdAtVal = Object.hasOwn(data, 'created_at') && data.created_at !== undefined && data.created_at !== null
       ? (typeof data.created_at === 'number' ? data.created_at : Math.floor(new Date(data.created_at as string).getTime() / 1000))
       : nowEpoch
@@ -521,7 +584,8 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     seed: Seed,
     id: string,
     data: Record<string, any>,
-    status?: string
+    status?: string,
+    ifMatch?: number
   ): Promise<{ stmt: D1PreparedStatement | null; junctionUpdates: any[] }> {
     const tableName = this.getTableName(seed.slug)
     const updateClauses: string[] = []
@@ -572,13 +636,42 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
     updateClauses.push('updated_at = (unixepoch())')
 
-    const mainSql = `UPDATE ${tableName} SET ${updateClauses.join(', ')} WHERE id = ?`
+    let whereSql = 'WHERE id = ?'
     queryBindings.push(id)
+
+    if (ifMatch !== undefined) {
+      whereSql += ' AND updated_at = ?'
+      queryBindings.push(ifMatch)
+    }
+
+    const mainSql = `UPDATE ${tableName} SET ${updateClauses.join(', ')} ${whereSql}`
 
     return {
       stmt: this.database.prepare(mainSql).bind(...queryBindings),
       junctionUpdates
     }
+  }
+
+  /**
+   * Distinguishes "no such row" from "row exists but ifMatch was stale" after a zero-change
+   * UPDATE, matching the shape `publishDraft`'s claim uses for the same ambiguity.
+   */
+  private async notFoundOrConflict(seed: Seed, id: string, ifMatch?: number): Promise<EntryNotFoundError | EntryConflictError> {
+    if (ifMatch !== undefined) {
+      const row = await this.database
+        .prepare(`SELECT updated_at FROM ${this.getTableName(seed.slug)} WHERE id = ?`)
+        .bind(id)
+        .first<{ updated_at: number }>()
+      if (row) {
+        return new EntryConflictError({
+          seedSlug: seed.slug,
+          entryId: id,
+          expectedUpdatedAt: ifMatch,
+          actualUpdatedAt: row.updated_at,
+        })
+      }
+    }
+    return new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
   }
 
   /** Builds one `INSERT` per target id into a live multi-relation junction table, preserving array order via `position`. */
@@ -661,15 +754,31 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * `array_replace` (delete-all + reinsert), `array_add` (append via `INSERT OR IGNORE`
    * with position computed from current max), or `array_remove` (targeted delete).
    * Returns an empty array for a no-op (e.g. `array_remove` with an empty value list).
+   *
+   * Every statement carries an `EXISTS` guard against the live row in `tableName` (mirroring
+   * the main-row `activeClause`), so a batch that also contains a zero-change main `UPDATE`
+   * (trashed/missing id) can never commit a junction write for it — see #467.
    */
-  private getBulkArrayUpdateStmts(seedSlug: string, id: string, alias: string, update: BulkFieldUpdate): D1PreparedStatement[] {
-    const jt = jTable(seedSlug, alias)
+  private getBulkArrayUpdateStmts(seed: Seed, tableName: string, id: string, alias: string, update: BulkFieldUpdate): D1PreparedStatement[] {
+    const jt = jTable(seed.slug, alias)
     const stmts: D1PreparedStatement[] = []
+    const liveCondition = activeCondition(seed, 'active')
+    const existsGuard = liveCondition ? `EXISTS (SELECT 1 FROM ${tableName} WHERE id = ? AND ${liveCondition})` : ''
+    // DELETE already has a WHERE clause to extend with AND; INSERT ... SELECT has none, so it
+    // needs its own WHERE — appending "AND EXISTS(...)" there would silently fold into the
+    // `position` result column instead of filtering rows.
+    const deleteGuard = existsGuard ? ` AND ${existsGuard}` : ''
+    const insertGuard = existsGuard ? ` WHERE ${existsGuard}` : ''
+    const guardBind = existsGuard ? [id] : []
 
     if (update.kind === 'array_replace') {
-      const deleteStmt = this.database.prepare(`DELETE FROM ${jt} WHERE parent_id = ?`).bind(id)
-      const insertStmts = update.value.map((v, i) => 
-        this.database.prepare(`INSERT INTO ${jt} (parent_id, target_id, position) VALUES (?, ?, ?)`).bind(id, v, i)
+      const deleteStmt = this.database
+        .prepare(`DELETE FROM ${jt} WHERE parent_id = ?${deleteGuard}`)
+        .bind(id, ...guardBind)
+      const insertStmts = update.value.map((v, i) =>
+        this.database
+          .prepare(`INSERT INTO ${jt} (parent_id, target_id, position) SELECT ?, ?, ?${insertGuard}`)
+          .bind(id, v, i, ...guardBind)
       )
       stmts.push(deleteStmt, ...insertStmts)
     } else if (update.kind === 'array_add') {
@@ -677,17 +786,17 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         stmts.push(
           this.database
             .prepare(
-              `INSERT OR IGNORE INTO ${jt} (parent_id, target_id, position) VALUES (?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM ${jt} WHERE parent_id = ?))`,
+              `INSERT OR IGNORE INTO ${jt} (parent_id, target_id, position) SELECT ?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM ${jt} WHERE parent_id = ?)${insertGuard}`,
             )
-            .bind(id, targetId, id),
+            .bind(id, targetId, id, ...guardBind),
         )
       }
     } else if (update.kind === 'array_remove' && update.value.length > 0) {
       const placeholders = update.value.map(() => '?').join(', ')
       stmts.push(
         this.database
-          .prepare(`DELETE FROM ${jt} WHERE parent_id = ? AND target_id IN (${placeholders})`)
-          .bind(id, ...update.value),
+          .prepare(`DELETE FROM ${jt} WHERE parent_id = ? AND target_id IN (${placeholders})${deleteGuard}`)
+          .bind(id, ...update.value, ...guardBind),
       )
     }
     return stmts
@@ -720,13 +829,14 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
           setBindings.push(protectedResult.bidx)
         }
       } else {
-        stmts.push(...this.getBulkArrayUpdateStmts(seed.slug, id, alias, update))
+        stmts.push(...this.getBulkArrayUpdateStmts(seed, tableName, id, alias, update))
       }
     }
 
     stmts.unshift(
       this.database
-        .prepare(`UPDATE ${tableName} SET ${setClauses.join(', ')} WHERE id = ?`)
+        // A bulk edit must never resurrect or mutate a trashed row.
+        .prepare(`UPDATE ${tableName} SET ${setClauses.join(', ')} WHERE id = ?${this.activeClause(seed)}`)
         .bind(...setBindings, id),
     )
 
@@ -828,6 +938,8 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * fields, no multi-relation fields, no status change) returns without touching the database.
    *
    * @throws EntryNotFoundError if the main-row `UPDATE` affects zero rows.
+   * @throws EntryConflictError if `options.ifMatch` is set and the live row's `updated_at`
+   *   no longer matches it.
    * @throws RepositoryError on any other database failure.
    * @remarks `afterUpdate` runs after the batch has committed, so it cannot roll back the write.
    */
@@ -870,7 +982,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         }
       }
 
-      const { stmt, junctionUpdates } = await this.buildUpdateMainStmt(seed, id, payloadToUpdate, status)
+      const { stmt, junctionUpdates } = await this.buildUpdateMainStmt(seed, id, payloadToUpdate, status, options?.ifMatch)
 
       if (!stmt && junctionUpdates.length === 0) return
 
@@ -887,16 +999,16 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       if (batchStmts.length === 1) {
         const updateResult = await batchStmts[0].run()
         if (updateResult.meta.changes === 0) {
-          throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
+          throw await this.notFoundOrConflict(seed, id, options?.ifMatch)
         }
       } else if (batchStmts.length > 1) {
         const results = await this.database.batch(batchStmts)
         if (stmt && (results[0].meta?.changes ?? 0) === 0) {
-          throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
+          throw await this.notFoundOrConflict(seed, id, options?.ifMatch)
         }
       }
     } catch (error) {
-      if (error instanceof EntryNotFoundError) throw error
+      if (error instanceof EntryNotFoundError || error instanceof EntryConflictError) throw error
       throw this.mapError(error, `update(${seed.slug}, ${id})`)
     }
 
@@ -947,6 +1059,209 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
 
     return { row }
+  }
+
+  /**
+   * Reversible delete: stamps `deleted_at` and returns the row as it was.
+   * Runs `beforeDelete`/`afterDelete`, exactly like `delete`.
+   */
+  async softDelete(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }> {
+    if (!seed.softDelete) {
+      throw new RepositoryError(`softDelete(${seed.slug}): seed has no softDelete enabled`)
+    }
+
+    if (this.hooks?.beforeDelete) {
+      await this.hooks.beforeDelete(id, this.hookCtx(seed, options?.actor))
+    }
+
+    let row: Record<string, any>
+    try {
+      const tableName = this.getTableName(seed.slug)
+
+      const entryRow = await this.database
+        .prepare(`SELECT * FROM ${tableName} WHERE id = ? AND deleted_at IS NULL`)
+        .bind(id)
+        .first()
+
+      if (!entryRow) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
+
+      await this.database
+        .prepare(`UPDATE ${tableName} SET deleted_at = (unixepoch()) WHERE id = ? AND deleted_at IS NULL`)
+        .bind(id)
+        .run()
+
+      row = await this.rowToData(seed, entryRow)
+    } catch (error) {
+      if (error instanceof EntryNotFoundError) throw error
+      throw this.mapError(error, `softDelete(${seed.slug}, ${id})`)
+    }
+
+    // afterDelete runs after the commit: it cannot roll the write back, same as delete().
+    if (this.hooks?.afterDelete) {
+      await this.hooks.afterDelete(id, this.hookCtx(seed, options?.actor))
+    }
+
+    return { row }
+  }
+
+  /**
+   * Clears `deleted_at`. Auto-renames the slug in `catch` when it was reassigned to a live
+   * entry while this one sat in the Trash (feature brief §4 — no confirmation round-trip).
+   */
+  async restore(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }> {
+    if (!seed.softDelete) {
+      throw new RepositoryError(`restore(${seed.slug}): seed has no softDelete enabled`)
+    }
+
+    const tableName = this.getTableName(seed.slug)
+    const entryRow = await this.database
+      .prepare(`SELECT * FROM ${tableName} WHERE id = ? AND deleted_at IS NOT NULL`)
+      .bind(id)
+      .first()
+
+    if (!entryRow) throw new EntryNotFoundError(`Trashed entry ${id} not found in ${seed.slug}`)
+
+    try {
+      await this.database
+        .prepare(`UPDATE ${tableName} SET deleted_at = NULL, updated_at = (unixepoch()) WHERE id = ?`)
+        .bind(id)
+        .run()
+    } catch (error) {
+      // The slug was reassigned to a live entry while this one sat in the Trash. The slug is a
+      // system detail, not a decision to hand back to the user (feature brief §5): rename and
+      // continue rather than answering 409.
+      const conflict = this.mapError(error, `restore(${seed.slug}, ${id})`)
+      if (!(conflict instanceof SlugConflictError)) throw conflict
+
+      const renamed = `${entryRow.slug as string}-restored-${id.slice(0, 8)}`
+      await this.database
+        .prepare(`UPDATE ${tableName} SET deleted_at = NULL, slug = ?, updated_at = (unixepoch()) WHERE id = ?`)
+        .bind(renamed, id)
+        .run()
+      entryRow.slug = renamed
+    }
+
+    entryRow.deleted_at = null
+    return { row: await this.rowToData(seed, entryRow) }
+  }
+
+  /**
+   * Irreversible erasure: runs `beforeDelete`, reads the row, appends the ledger event, deletes
+   * the row (junction and `_drafts` rows follow via ON DELETE CASCADE), runs `afterDelete`.
+   * R2 media deletion is NOT performed here — the caller owns it.
+   *
+   * The ledger write happens BEFORE the delete commits, not after: a ledger failure must leave
+   * the row intact so the caller can retry the purge, rather than erasing data that a restore
+   * could silently bring back with nothing recorded to reconcile it (#470). If the ledger write
+   * lands but the delete then fails, the row survives with its erasure already recorded — a
+   * retry (or `reconcilePurgesHandler`) finishes the job, since the ledger is the source of truth.
+   */
+  async purge(seed: Seed, id: string, options?: RepositoryOptions): Promise<PurgeResult> {
+    if (this.hooks?.beforeDelete) {
+      await this.hooks.beforeDelete(id, this.hookCtx(seed, options?.actor))
+    }
+
+    const tableName = this.getTableName(seed.slug)
+
+    let row: Record<string, any>
+    try {
+      // No deleted_at guard: a purge is valid on a live row (seed without softDelete, or an
+      // explicit ?purge=true) and on a trashed one.
+      const entryRow = await this.database
+        .prepare(`SELECT * FROM ${tableName} WHERE id = ?`)
+        .bind(id)
+        .first()
+
+      if (!entryRow) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
+
+      row = await this.rowToData(seed, entryRow)
+    } catch (error) {
+      if (error instanceof EntryNotFoundError) throw error
+      throw this.mapError(error, `purge(${seed.slug}, ${id})`)
+    }
+
+    // The ledger write is awaited and NOT swallowed: an erasure a restore could undo is worse
+    // than a failed request, because nothing downstream would ever notice.
+    let ledgerWritten = false
+    if (this.deletionLedger) {
+      await this.deletionLedger.append({
+        seedSlug: seed.slug,
+        entryId: id,
+        entrySlug: (row.slug as string) ?? null,
+        purgedAt: this.clock.nowSeconds(),
+        actorId: options?.actor?.id ?? null,
+        reason: 'purge',
+      })
+      ledgerWritten = true
+    }
+
+    try {
+      // Junction rows and the _drafts row follow via ON DELETE CASCADE (ddl.ts).
+      await this.database.prepare(`DELETE FROM ${tableName} WHERE id = ?`).bind(id).run()
+    } catch (error) {
+      throw this.mapError(error, `purge(${seed.slug}, ${id})`)
+    }
+
+    if (this.hooks?.afterDelete) {
+      await this.hooks.afterDelete(id, this.hookCtx(seed, options?.actor))
+    }
+
+    return { row, ledgerWritten }
+  }
+
+  /** `restore` applied per id. Never partially fails the batch: each id reports its own outcome. */
+  async bulkRestore(seed: Seed, ids: string[], options?: RepositoryOptions): Promise<BulkDeleteResult> {
+    const succeeded: string[] = []
+    const failed: Array<{ id: string; reason: string }> = []
+
+    for (const id of ids) {
+      try {
+        await this.restore(seed, id, options)
+        succeeded.push(id)
+      } catch (error) {
+        failed.push({ id, reason: error instanceof EntryNotFoundError ? 'not-found' : String((error as Error).message) })
+      }
+    }
+
+    return { succeeded, failed }
+  }
+
+  /** `purge` applied per id. Returns the purged rows so the caller can collect R2 media keys. */
+  async bulkPurge(seed: Seed, ids: string[], options?: RepositoryOptions): Promise<BulkDeleteResult & { rows: Record<string, any>[] }> {
+    const succeeded: string[] = []
+    const failed: Array<{ id: string; reason: string }> = []
+    const rows: Record<string, any>[] = []
+
+    for (const id of ids) {
+      try {
+        const { row } = await this.purge(seed, id, options)
+        succeeded.push(id)
+        rows.push(row)
+      } catch (error) {
+        failed.push({ id, reason: error instanceof EntryNotFoundError ? 'not-found' : String((error as Error).message) })
+      }
+    }
+
+    return { succeeded, failed, rows }
+  }
+
+  /**
+   * Pure query, no side effects: ids of trashed entries whose retention window has elapsed.
+   * Deliberately NOT wired to any scheduler — the recurring-automation adapter is future work.
+   */
+  async findExpiredByRetention(seed: Seed, now: number, limit: number): Promise<string[]> {
+    if (!seed.softDelete || !seed.retentionDays) return []
+
+    const tableName = this.getTableName(seed.slug)
+    const cutoff = now - seed.retentionDays * 86400
+    const { results } = await this.database
+      .prepare(
+        `SELECT id FROM ${tableName} WHERE deleted_at IS NOT NULL AND deleted_at <= ? ORDER BY deleted_at ASC LIMIT ?`,
+      )
+      .bind(cutoff, limit)
+      .all<{ id: string }>()
+
+    return (results ?? []).map(r => r.id)
   }
 
   /**
@@ -1046,17 +1361,38 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   }
 
   /**
+   * Distinguishes a stale `ifMatch` from every other reason the ON CONFLICT DO UPDATE branch
+   * of `saveDraft` could report zero changes.
+   */
+  private async draftSaveConflict(seed: Seed, entryId: string, ifMatch: number): Promise<DraftSaveConflictError> {
+    const row = await this.database
+      .prepare(`SELECT updated_at FROM ${this.getTableName(seed.slug, true)} WHERE entry_id = ?`)
+      .bind(entryId)
+      .first<{ updated_at: number }>()
+    return new DraftSaveConflictError({
+      seedSlug: seed.slug,
+      entryId,
+      expectedUpdatedAt: ifMatch,
+      actualUpdatedAt: row?.updated_at ?? ifMatch,
+    })
+  }
+
+  /**
    * Upserts a draft row for `entryId` (`INSERT ... ON CONFLICT DO UPDATE` keyed on `entry_id`)
    * plus a full delete+reinsert of each multi-relation branch's draft junction rows.
    * @throws RepositoryError if `seed.allowDrafts` is false, or on any database failure.
+   * @throws DraftSaveConflictError if `options.ifMatch` is set and no longer matches the
+   *   pending draft row's `updated_at`.
    */
-  async saveDraft(seed: Seed, entryId: string, data: Record<string, any>): Promise<void> {
+  async saveDraft(seed: Seed, entryId: string, data: Record<string, any>, options?: RepositoryOptions): Promise<void> {
+    const ifMatch = options?.ifMatch
     try {
       if (!seed.allowDrafts) {
         throw new RepositoryError(`Drafts not allowed for ${seed.slug}`)
       }
 
       const draftTableName = this.getTableName(seed.slug, true)
+      const liveTableName = this.getTableName(seed.slug)
       const mRelBranches = multiRelBranches(seed)
       const mRelAliases = new Set(mRelBranches.map(b => b.alias))
 
@@ -1111,23 +1447,44 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         )
       )`)
 
+      columnNames.push('live_snapshot_at')
+      // Read inside the INSERT rather than via a prior SELECT: one statement, no window in which the
+      // live row could move between the read and the write.
+      placeholders.push(`(SELECT updated_at FROM ${liveTableName} WHERE id = ?)`)
+      queryBindings.push(entryId)
+      // COALESCE keeps the value written at draft creation. An autosave must never re-base the
+      // snapshot onto a live row that changed in the meantime — doing so would silently re-authorise
+      // the overwrite this column exists to block. Unqualified on the left of COALESCE is the
+      // pre-existing row's value; `excluded.` is the value this statement would have inserted.
+      updateClauses.push('live_snapshot_at = COALESCE(live_snapshot_at, excluded.live_snapshot_at)')
+
       updateClauses.push('updated_at = (unixepoch())')
+
+      // Guards the conflict branch only: a caller that read the draft's `updated_at` before
+      // computing `data` wants this write to no-op (rather than silently overwrite) if another
+      // writer's save landed in between. The very first save of a draft never hits this branch,
+      // so ifMatch is meaningless there and is intentionally not checked on the INSERT path.
+      const conflictGuard = ifMatch !== undefined ? ' WHERE updated_at = ?' : ''
+      const bindings = ifMatch !== undefined ? [...queryBindings, ifMatch] : queryBindings
 
       const sql = `
         INSERT INTO ${draftTableName} (${columnNames.join(', ')})
         VALUES (${placeholders.join(', ')})
-        ON CONFLICT(entry_id) DO UPDATE SET ${updateClauses.join(', ')}
+        ON CONFLICT(entry_id) DO UPDATE SET ${updateClauses.join(', ')}${conflictGuard}
       `
 
       const junctionUpdates = mRelBranches.filter(b => Object.hasOwn(data, b.alias))
 
       if (junctionUpdates.length === 0) {
-        await this.database.prepare(sql).bind(...queryBindings).run()
+        const result = await this.database.prepare(sql).bind(...bindings).run()
+        if (ifMatch !== undefined && (result.meta?.changes ?? 0) === 0) {
+          throw await this.draftSaveConflict(seed, entryId, ifMatch)
+        }
         return
       }
 
       const batchStmts: D1PreparedStatement[] = [
-        this.database.prepare(sql).bind(...queryBindings),
+        this.database.prepare(sql).bind(...bindings),
       ]
 
       for (const branch of junctionUpdates) {
@@ -1145,9 +1502,31 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         }
       }
 
-      await this.database.batch(batchStmts)
+      const results = await this.database.batch(batchStmts)
+      if (ifMatch !== undefined && (results[0].meta?.changes ?? 0) === 0) {
+        throw await this.draftSaveConflict(seed, entryId, ifMatch)
+      }
     } catch (error) {
+      if (error instanceof DraftSaveConflictError) throw error
       throw this.mapError(error, `saveDraft(${seed.slug}, ${entryId})`)
+    }
+  }
+
+  /**
+   * Retrieves the pending draft row's `updated_at`, for use as an optimistic-concurrency
+   * guard by callers that read the draft before merging into it.
+   * @returns null if `seed.allowDrafts` is false or no draft row exists.
+   */
+  async getDraftUpdatedAt(seed: Seed, entryId: string): Promise<number | null> {
+    try {
+      if (!seed.allowDrafts) return null
+      const row = await this.database
+        .prepare(`SELECT updated_at FROM ${this.getTableName(seed.slug, true)} WHERE entry_id = ?`)
+        .bind(entryId)
+        .first<{ updated_at: number }>()
+      return row?.updated_at ?? null
+    } catch (error) {
+      throw this.mapError(error, `getDraftUpdatedAt(${seed.slug}, ${entryId})`)
     }
   }
 
@@ -1261,6 +1640,9 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    *
    * @throws EntryNotFoundError if no draft row exists for `entryId`.
    * @throws RelationTargetNotFoundError if any relation the draft references no longer exists.
+   * @throws DraftConflictError if the live row was written after the draft captured
+   *   `live_snapshot_at`. A NULL snapshot (legacy draft, or a draft table that predates the column)
+   *   disables the check.
    */
   async publishDraft(seed: Seed, entryId: string): Promise<void> {
     try {
@@ -1301,6 +1683,43 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       const { mRelBranches, mRelDraftIds } = await this.validatePublishDraftRelations(seed, draftRow, entryId)
 
+      // Relation validation runs first on purpose: a validation failure must not leave a bumped
+      // updated_at behind on a live row that was never published.
+      const rawSnapshot = draftRow['live_snapshot_at']
+      const snapshotAt = typeof rawSnapshot === 'number' ? rawSnapshot : null
+
+      // Compare-and-set. The comparison MUST live in the WHERE clause: a SELECT-then-compare in
+      // application code lets two concurrent publishes both pass the check before either writes.
+      // MAX(unixepoch(), updated_at + 1) guarantees the post-claim value is strictly greater than
+      // any snapshot that just matched — unixepoch() is second-granular, so a plain
+      // `updated_at = (unixepoch())` could rewrite the same value and let the loser match too.
+      // This claim is therefore the sole writer of updated_at for the whole publish; the batch
+      // below deliberately does not set it again.
+      const claim = await this.database
+        .prepare(
+          `UPDATE ${liveTableName} SET updated_at = MAX(unixepoch(), updated_at + 1) ` +
+            `WHERE id = ? AND (? IS NULL OR updated_at = ?)`,
+        )
+        .bind(entryId, snapshotAt, snapshotAt)
+        .run()
+
+      if ((claim.meta?.changes ?? 0) === 0) {
+        const live = await this.database
+          .prepare(`SELECT updated_at FROM ${liveTableName} WHERE id = ?`)
+          .bind(entryId)
+          .first<{ updated_at: number }>()
+
+        if (!live) {
+          throw new EntryNotFoundError(`No live entry ${entryId} in ${seed.slug}`)
+        }
+        throw new DraftConflictError({
+          seedSlug: seed.slug,
+          entryId,
+          snapshotAt,
+          liveUpdatedAt: live.updated_at,
+        })
+      }
+
       const mRelAliases = new Set(mRelBranches.map(b => b.alias))
       const updateClauses: string[] = []
       const queryBindings: any[] = []
@@ -1316,7 +1735,9 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         }
       }
 
-      updateClauses.push("status = 'published'", 'updated_at = (unixepoch())')
+      // `updated_at` is already stamped by the claim above. Re-stamping here with a bare
+      // unixepoch() would undo the +1 the claim may have applied and reopen the same-second race.
+      updateClauses.push("status = 'published'")
       const updateSql = `UPDATE ${liveTableName} SET ${updateClauses.join(', ')} WHERE id = ?`
       queryBindings.push(entryId)
 
@@ -1345,6 +1766,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       await this.database.batch(batchStmts)
     } catch (error) {
+      if (error instanceof DraftConflictError) throw error
       if (error instanceof EntryNotFoundError) throw error
       if (error instanceof RelationTargetNotFoundError) throw error
       throw this.mapError(error, `publishDraft(${seed.slug}, ${entryId})`)
@@ -1496,9 +1918,15 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * @param patch Field changes to apply alongside the drag/drop, or `null` if only position changed.
    * @param position Opaque fractional-index (or similar) position value used for ordering within the axis bucket.
    * @param axisBranchId Identifies which branch/column axis this position is relative to (e.g. status column).
+   * @param ctx.ifMatch Optimistic concurrency guard for `patch`: the `updated_at` the caller read
+   *   `patch` from (e.g. a tag swap computed against `current`). When `patch` is non-null and this
+   *   is set, the main-row `UPDATE` only applies if the live row's `updated_at` still matches.
    * @remarks Unlike {@link create}/{@link update}, this method does not invoke `beforeUpdate`/`afterUpdate`
    *   lifecycle hooks — the `_ctx.actor` parameter is currently unused. Kanban drag-and-drop writes
    *   therefore bypass hook-based side effects (e.g. audit logging) that `update()` would trigger.
+   * @throws EntryConflictError if `patch` is non-null, `ctx.ifMatch` is set, and the live row's
+   *   `updated_at` no longer matches it — e.g. two concurrent tag-column moves reading the same
+   *   `current` snapshot and racing to write their own swap.
    */
   async updateWithKanbanPosition(
     seed: Seed,
@@ -1506,14 +1934,18 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     patch: Record<string, unknown> | null,
     position: string,
     axisBranchId: string,
-    _ctx: { actor: string },
+    ctx: { actor: string; ifMatch?: number },
   ): Promise<{ success: boolean }> {
     try {
       const stmts: D1PreparedStatement[] = []
+      let mainStmtIndex = -1
 
       if (patch) {
-        const { stmt, junctionUpdates } = await this.buildUpdateMainStmt(seed, id, patch as Record<string, any>)
-        if (stmt) stmts.push(stmt)
+        const { stmt, junctionUpdates } = await this.buildUpdateMainStmt(seed, id, patch as Record<string, any>, undefined, ctx.ifMatch)
+        if (stmt) {
+          mainStmtIndex = stmts.length
+          stmts.push(stmt)
+        }
         for (const branch of junctionUpdates) {
           const jt = jTable(seed.slug, branch.alias)
           const value = ((patch as Record<string, any>)[branch.alias] ?? []) as string[]
@@ -1531,9 +1963,15 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         `).bind(seed.slug, id, axisBranchId, position),
       )
 
-      await this.database.batch(stmts)
+      const results = await this.database.batch(stmts)
+
+      if (mainStmtIndex !== -1 && (results[mainStmtIndex].meta?.changes ?? 0) === 0) {
+        throw await this.notFoundOrConflict(seed, id, ctx.ifMatch)
+      }
+
       return { success: true }
     } catch (error) {
+      if (error instanceof EntryNotFoundError || error instanceof EntryConflictError) throw error
       throw this.mapError(error, `updateWithKanbanPosition(${seed.slug}, ${id})`)
     }
   }

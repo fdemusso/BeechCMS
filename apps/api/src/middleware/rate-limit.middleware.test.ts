@@ -2,9 +2,11 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, it, expect } from 'vitest'
+/// <reference types="@cloudflare/workers-types" />
+import { describe, it, expect, vi } from 'vitest'
 import { Hono } from 'hono'
-import { rateLimiterMiddleware, buildDefaultRegistry, type RateLimiterName } from './rate-limit.middleware'
+import type { Env } from '../types'
+import { rateLimiterMiddleware, buildDefaultRegistry, type RateLimiterName, type IRateLimiterRegistry } from './rate-limit.middleware'
 
 describe('rateLimiterMiddleware', () => {
   it('injects a registry into context and forwards to handler', async () => {
@@ -32,7 +34,7 @@ describe('rateLimiterMiddleware', () => {
     let called = false
     const fakeRegistry = {
       getLimiter: (_name: RateLimiterName) => ({
-        checkLimit: async () => {
+        checkLimit: async (_key: string) => {
           called = true
           return { isAllowed: true as const }
         },
@@ -42,7 +44,7 @@ describe('rateLimiterMiddleware', () => {
     const app = new Hono()
     app.use('*', rateLimiterMiddleware({ registry: fakeRegistry }))
     app.get('/test', async (c) => {
-      await c.get('rateLimiters').getLimiter('login').checkLimit('x')
+      await ((c as any).get('rateLimiters') as IRateLimiterRegistry).getLimiter('login').checkLimit('x')
       return c.text('ok')
     })
 
@@ -89,5 +91,28 @@ describe('buildDefaultRegistry', () => {
     expect(result.isAllowed).toBe(true)
     expect(result.limit).toBeDefined()
     expect(result.remaining).toBeDefined()
+  })
+
+  it('wraps login binding into CloudflareRateLimiter with periodSeconds: 60 and failClosed: true', async () => {
+    const mockBinding = { limit: vi.fn().mockResolvedValue({ success: false }) }
+    const registry = buildDefaultRegistry({ LOGIN_RATE_LIMITER: mockBinding as unknown as RateLimit } as unknown as Env)
+    const limiter = registry.getLimiter('login')
+
+    const result = await limiter.checkLimit('1.2.3.4')
+
+    expect(result.isAllowed).toBe(false)
+    expect(result.retryAfterSeconds).toBe(60)
+  })
+
+  it('wraps publicRead binding into CloudflareRateLimiter with failClosed: false failing open on error', async () => {
+    const mockBinding = { limit: vi.fn().mockRejectedValue(new Error('Cloudflare error')) }
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const registry = buildDefaultRegistry({ PUBLIC_READ_RATE_LIMITER: mockBinding as unknown as RateLimit } as unknown as Env)
+    const limiter = registry.getLimiter('publicApiRead')
+
+    const result = await limiter.checkLimit('1.2.3.4')
+
+    expect(result.isAllowed).toBe(true)
+    warnSpy.mockRestore()
   })
 })

@@ -34,7 +34,7 @@ function Command({
   )
 }
 
-export interface CommandDialogProps extends DialogProps {
+interface CommandDialogProps extends DialogProps {
   title?: string
   description?: string
   className?: string

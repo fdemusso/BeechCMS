@@ -33,7 +33,7 @@ export interface ActivityEntry {
   created_at: number
 }
 
-export interface OrphanFile {
+interface OrphanFile {
   key: string
   filename: string
   mime_type: string
@@ -45,12 +45,20 @@ export interface StorageStats {
   totalBytes: number
   fileCount: number
   orphans: OrphanFile[]
+  orphanTotal: number
+  orphanBytes: number
+  orphanOffset: number
+  orphanLimit: number
 }
 
 export interface GeneralSettings {
   siteTitle: string
   siteLogo?: string
   defaultLanguage: string
+  /** Content locales (never empty: the API resolves an unconfigured project to `[defaultLanguage]`). */
+  locales: string[]
+  /** Content default locale; always one of `locales`. */
+  defaultLocale: string
   timezone: string
   currency: string
   company: {
@@ -68,4 +76,7 @@ export interface GeneralSettings {
   }
 }
 
-export type SettingsTab = 'profile' | 'interface' | 'security' | 'storage' | 'notifications' | 'general' | 'content-types' | 'connected-apps'
+export type SettingsTab =
+  | 'profile' | 'interface' | 'security' | 'storage' | 'notifications'
+  | 'general' | 'content-types' | 'connected-apps'
+  | 'users' | 'roles' | 'invitations'

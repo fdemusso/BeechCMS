@@ -62,6 +62,7 @@ Declared in `wrangler.toml` and bound at runtime:
 | Variable | Required | Description |
 | :--- | :---: | :--- |
 | `JWT_SECRET` | Yes | 256-bit secret key used to sign and verify HMAC-SHA256 JWT tokens. |
+| `PRIVACY_MASTER_KEY` | Required for protected fields | 256-bit key (64 hex chars) used for field encryption and blind indexes. Without it, reads and writes on seeds with protected fields fail. See [Field Policies](../build/field-policies.md#master-key-provisioning). |
 | `JWT_ISSUER` | Optional | Value validated against the `iss` claim (default: `beechcms`). |
 | `JWT_AUDIENCE` | Optional | Value validated against the `aud` claim (default: `beechcms-api`). |
 | `CORS_ORIGINS` | Optional | Comma-separated list of allowed origins (e.g. `https://my-site.com,https://admin.my-site.com`). |
@@ -95,6 +96,7 @@ During local development, Wrangler loads environment secrets from a `.dev.vars` 
 ```ini
 # .dev.vars (Never commit to version control)
 JWT_SECRET=super-secret-local-jwt-token-key-change-me
+PRIVACY_MASTER_KEY=4a2f8c9b... # 64 hex characters, see Field Policies
 RESEND_API_KEY=re_dev_123456789
 EMAIL_FROM="BeechCMS Dev <noreply@localhost>"
 PUBLIC_READ_API_KEY=pk_live_read_12345

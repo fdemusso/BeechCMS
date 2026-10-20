@@ -5,6 +5,8 @@
 import { useTranslation } from 'react-i18next'
 import { Flash as Zap } from 'reicon-react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { usePermissions } from '@/features/shared/hooks/use-permissions'
 
 interface AutomationEmptyStateProps {
   onNew: () => void
@@ -12,6 +14,8 @@ interface AutomationEmptyStateProps {
 
 export function AutomationEmptyState({ onNew }: AutomationEmptyStateProps) {
   const { t } = useTranslation()
+  const { can } = usePermissions()
+  const canUpdateGlobal = can('content:update', '*')
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <div className="flex size-12 items-center justify-center rounded-full bg-muted mb-4">
@@ -21,9 +25,24 @@ export function AutomationEmptyState({ onNew }: AutomationEmptyStateProps) {
       <p className="text-xs text-muted-foreground mb-4 max-w-48">
         {t('automations.panel.emptyDescription')}
       </p>
-      <Button size="sm" onClick={onNew}>
-        {t('automations.panel.emptyAction')}
-      </Button>
+      {canUpdateGlobal ? (
+        <Button size="sm" onClick={onNew}>
+          {t('automations.panel.emptyAction')}
+        </Button>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <Button size="sm" disabled>
+                {t('automations.panel.emptyAction')}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            Manca il permesso 'content:update' globale
+          </TooltipContent>
+        </Tooltip>
+      )}
     </div>
   )
 }

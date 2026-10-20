@@ -400,18 +400,23 @@ describe('json and tags fields', () => {
   })
 
   it('rejects a tags array exceeding the max item count', () => {
-    const r = safeValidate({ ...validBase(), tags: Array.from({ length: 101 }, (_, i) => `t${i}`) })
+    const r = safeValidate({ ...validBase(), tags: Array.from({ length: 11 }, (_, i) => `t${i}`) })
     expect(r.details.some(d => d.field === 'tags')).toBe(true)
   })
 
-  it('accepts exactly 100 tags', () => {
-    const r = safeValidate({ ...validBase(), tags: Array.from({ length: 100 }, (_, i) => `t${i}`) })
+  it('accepts exactly 10 tags', () => {
+    const r = safeValidate({ ...validBase(), tags: Array.from({ length: 10 }, (_, i) => `t${i}`) })
     expect(r.details.filter(d => d.field === 'tags')).toHaveLength(0)
   })
 
   it('trims and strips control characters from each tag', () => {
     const r = safeValidate({ ...validBase(), tags: [' news ', 'tech '] })
     expect(r.data.tags).toEqual(['news', 'tech'])
+  })
+
+  it('filters out blank tags (#445)', () => {
+    const r = safeValidate({ ...validBase(), tags: ['  ', 'a', '\0'] })
+    expect(r.data.tags).toEqual(['a'])
   })
 })
 

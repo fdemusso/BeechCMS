@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
+import type { ContentRepository, Seed } from '@beechcms/core'
+import { toFlatPublicEntry } from '../query/entry-projection'
+import { resolvePublicRelationTarget } from './relation-access'
+import type { PublicLanguage } from '../localization/public-language'
+
+const MAX_INCLUDES = 3
+const MAX_TARGET_IDS = 200
+
+export async function expandRelations(
+  items: Record<string, unknown>[],
+  includesParam: string | undefined,
+  parentSeed: Seed,
+  repository: ContentRepository,
+  getSeed: (slug: string) => Seed | null,
+  rawItems: Record<string, unknown>[] = items,
+  language?: PublicLanguage,
+): Promise<void> {
+  if (!includesParam) return
+
+  const rawIncludes = includesParam.split(',').map(s => s.trim()).filter(Boolean)
+  const includes = Array.from(new Set(rawIncludes))
+  if (includes.length === 0) return
+
+  if (includes.length > MAX_INCLUDES) {
+    throw new Error(`Invalid include: maximum of ${MAX_INCLUDES} includes allowed per request (got ${includes.length}).`)
+  }
+
+  for (const include of includes) {
+    if (include.includes('.')) {
+      throw new Error(`Invalid include: nested includes are not supported (got '${include}'). Max depth is 1.`)
+    }
+
+    const { branch, targetSeed } = resolvePublicRelationTarget(include, parentSeed, getSeed, 'include')
+
+    const targetIds = new Set<string>()
+    for (let i = 0; i < items.length; i++) {
+      const source = rawItems ? rawItems[i] : items[i]
+      const val = source?.[branch.alias]
+      if (Array.isArray(val)) {
+        for (const v of val) if (typeof v === 'string') targetIds.add(v)
+      } else if (typeof val === 'string') {
+        targetIds.add(val)
+      }
+    }
+
+    const clampedTargetIds = Array.from(targetIds).slice(0, MAX_TARGET_IDS)
+    if (clampedTargetIds.length === 0) continue
+
+    const { items: targetItems } = await repository.findMany(targetSeed, {
+      filters: [{
+        column: 'id',
+        type: 'system',
+        conditions: [{ op: 'in', value: clampedTargetIds }]
+      }],
+      status: 'published',
+      pagination: { limit: clampedTargetIds.length, offset: 0 }
+    })
+
+    const targetMap = new Map<string, Record<string, unknown>>()
+    for (const ti of targetItems) {
+      targetMap.set(ti.id as string, toFlatPublicEntry(ti, targetSeed, undefined, language))
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      const source = rawItems ? rawItems[i] : items[i]
+      const val = source?.[branch.alias]
+      if (!val) continue
+
+      item._includes = item._includes || {}
+      const includesRecord = item._includes as Record<string, unknown>
+
+      if (Array.isArray(val)) {
+        includesRecord[branch.alias] = val.map(v => targetMap.get(v as string)).filter(Boolean)
+      } else if (typeof val === 'string') {
+        includesRecord[branch.alias] = targetMap.get(val) || null
+      }
+    }
+  }
+}

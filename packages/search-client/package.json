@@ -1,12 +1,13 @@
 {
   "name": "@beechcms/search-client",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "!dist/.tsbuildinfo"
   ],
   "exports": {
     ".": {
@@ -19,7 +20,8 @@
     "dev": "tsc -w --preserveWatchOutput",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:unit": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^26.5.1",

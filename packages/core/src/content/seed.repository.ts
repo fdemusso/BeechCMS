@@ -43,6 +43,9 @@ export interface ISeedRepository {
    *  All-or-nothing: a guard mismatch or a failing statement writes nothing.
    *  The DDL strings MUST come from the core planners — this method never generates SQL. */
   applyAtomic(input: SeedApplyInput): Promise<SeedApplyResult>
+  /** Applies destructive DDL, the seed-row update or deletion, and the registry-version
+   *  bump in one OCC-guarded batch. Kept separate from the additive apply contract. */
+  applyDestructiveAtomic(input: SeedDestructiveApplyInput): Promise<SeedApplyResult>
 }
 
 /** Input for an atomic, OCC-guarded schema apply. */
@@ -63,3 +66,13 @@ export interface SeedApplyResult {
   /** The version now in D1: expectedVersion + 1 on success, the live value on conflict. */
   version: number
 }
+
+/** A destructive schema change planned by the core DDL generators. */
+export type SeedDestructiveApplyInput = {
+  slug: string
+  ddl: string[]
+  expectedVersion: number
+} & (
+  | { operation: 'update'; definition: Seed }
+  | { operation: 'delete' }
+)

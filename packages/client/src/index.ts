@@ -17,6 +17,8 @@ export type {
   BeechBrowserClient,
   ServerContentResource,
   BeechServerClient,
+  FluentQuery,
+  RelationSubquery,
 } from './types.js'
 
 export {
@@ -29,3 +31,6 @@ export type {
   VerifyWebhookSignatureOptions,
   ConstructWebhookEventOptions,
 } from './webhooks/index.js'
+
+export { media, mediaSrcSet } from './media/index.js'
+export type { MediaFormat, MediaQuality, MediaScalePreset, MediaOptions, MediaUrlOptions } from './media/index.js'

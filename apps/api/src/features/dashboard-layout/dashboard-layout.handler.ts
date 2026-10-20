@@ -14,7 +14,7 @@ import {
   KNOWN_DASHBOARD_ROLES,
   DEFAULT_DASHBOARD_SCOPE,
 } from '@beechcms/core'
-import { publicProblem } from '../../public/problem-details'
+import { publicProblem } from '../../public/errors/problem-details'
 import type { Context } from 'hono'
 import type { DashboardLayout } from '@beechcms/core'
 import type { Env, Variables } from '../../types'

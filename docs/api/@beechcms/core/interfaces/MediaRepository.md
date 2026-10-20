@@ -62,6 +62,25 @@ Lists all tracked media with pagination.
 
 ***
 
+### registerUpload()
+
+> **registerUpload**(`media`): `Promise`&lt;`boolean`&gt;
+
+Registers a file and counts its bytes toward total storage in one atomic step.
+Returns false, counting nothing, when the key is already registered.
+
+#### Parameters
+
+##### media
+
+`Omit`&lt;[`MediaObject`](MediaObject.md), `"created_at"`&gt;
+
+#### Returns
+
+`Promise`&lt;`boolean`&gt;
+
+***
+
 ### trackUpload()
 
 > **trackUpload**(`media`): `Promise`&lt;`void`&gt;

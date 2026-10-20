@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024-2026 Flavio De Musso
 
-import { cpSync, mkdirSync, readdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { join, relative, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -50,6 +50,7 @@ const manifest = []
 
 for (const item of INCLUDE) {
   const srcAbs = join(DOCS_ROOT, item.src)
+  if (!existsSync(srcAbs)) continue
   if (item.type === 'file') {
     const destAbs = join(OUT_DIR, item.dest)
     mkdirSync(dirname(destAbs), { recursive: true })

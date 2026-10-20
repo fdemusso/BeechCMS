@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import {
   generateAddColumn,
   generateIndexes,
+  generateEnableSoftDelete,
   planCreateSeed,
   type Seed,
 } from '@beechcms/core'
@@ -70,6 +71,11 @@ export function buildMigrationSql(
     if (missing.length || idxMissing.length) {
       lines.push(`-- ${diff.slug}: additive changes`)
       for (const col of missing) {
+        // System column, not a branch: seed.branches.find would never match it.
+        if (col.name === 'deleted_at') {
+          for (const stmt of generateEnableSoftDelete(seed)) { lines.push(stmt); additiveCount++ }
+          continue
+        }
         const branch = seed.branches.find(b => b.alias === col.name)
         if (branch) { lines.push(generateAddColumn(seed, branch)); additiveCount++ }
       }

@@ -7,6 +7,7 @@ import type { Context } from 'hono'
 import { sha256hex, type OAuthScope } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { generateOpaqueToken } from '../../shared/utils/opaque-token'
+import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { AUTHORIZATION_CODE_TTL_SECONDS, CONSENT_SCREEN_PATH, OAUTH_ERRORS } from './constants'
 import {
   buildErrorRedirect,
@@ -24,7 +25,7 @@ type OAuthContext = Context<{ Bindings: Env; Variables: Variables }>
  * to render client information, requested scopes, and determine whether
  * user interaction is required.
  */
-export interface AuthorizationRequestMetadata {
+interface AuthorizationRequestMetadata {
   /** Basic display details of the requesting OAuth client. */
   client: { clientId: string; name: string }
   /** Every OAuth scope requested by the client in this flow. */
@@ -43,7 +44,7 @@ export interface AuthorizationRequestMetadata {
  * Request body sent by the dashboard SPA consent screen when the user
  * submits an authorization decision (approval or rejection).
  */
-export interface ConsentDecisionBody {
+interface ConsentDecisionBody {
   /** OAuth response_type ('code'). */
   response_type: string
   /** The requesting client identifier. */
@@ -181,15 +182,27 @@ export async function authorizeRequestHandler(context: OAuthContext): Promise<Re
  * @returns JSON response containing `{ redirectTo: string }`.
  */
 export async function consentHandler(context: OAuthContext): Promise<Response> {
-  const body = await context.req.json<ConsentDecisionBody>()
+  let body: Partial<ConsentDecisionBody>
+  try {
+    body = await context.req.json<Partial<ConsentDecisionBody>>()
+  } catch {
+    return context.json({ error: OAUTH_ERRORS.INVALID_REQUEST, error_description: 'request body must be valid JSON' }, 400)
+  }
+  if (typeof body !== 'object' || body === null) {
+    return context.json({ error: OAUTH_ERRORS.INVALID_REQUEST, error_description: 'request body must be a JSON object' }, 400)
+  }
+
+  // Every field is read through a type guard: the body is attacker-controlled JSON, and a
+  // wrong-typed value (e.g. a numeric `scope`) must fall through as "missing", not crash
+  // downstream parsing (`parseScopeString` etc.) into an uncaught 500.
   const raw = {
-    responseType: body.response_type,
-    clientId: body.client_id,
-    redirectUri: body.redirect_uri,
-    scope: body.scope,
-    state: body.state,
-    codeChallenge: body.code_challenge,
-    codeChallengeMethod: body.code_challenge_method,
+    responseType: typeof body.response_type === 'string' ? body.response_type : undefined,
+    clientId: typeof body.client_id === 'string' ? body.client_id : undefined,
+    redirectUri: typeof body.redirect_uri === 'string' ? body.redirect_uri : undefined,
+    scope: typeof body.scope === 'string' ? body.scope : undefined,
+    state: typeof body.state === 'string' ? body.state : undefined,
+    codeChallenge: typeof body.code_challenge === 'string' ? body.code_challenge : undefined,
+    codeChallengeMethod: typeof body.code_challenge_method === 'string' ? body.code_challenge_method : undefined,
   }
 
   if (!raw.clientId) {
@@ -219,7 +232,8 @@ export async function consentHandler(context: OAuthContext): Promise<Response> {
   const userId = context.get('jwtPayload').sub
   const nowSeconds = context.get('clock').nowSeconds()
 
-  const decision = await context.get('roleGuard').arbitrate(context.get('jwtPayload').role, request.scopes)
+  const effective = await resolveEffectivePermissions(context)
+  const decision = await context.get('roleGuard').arbitrate(effective, request.scopes)
   if (decision.grantedScopes.length === 0) {
     return context.json(
       { redirectTo: buildErrorRedirect(request.redirectUri, OAUTH_ERRORS.ACCESS_DENIED, 'no requested scope may be granted to this role', request.state) },
