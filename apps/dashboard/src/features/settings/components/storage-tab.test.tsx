@@ -60,7 +60,7 @@ describe("StorageTab", () => {
       data: { ...firstPage, orphanTotal: 50, orphanOffset: offset, orphans: [] },
       isLoading: false,
       isError: false,
-    }) as ReturnType<typeof useStorageStats>)
+    }) as unknown as ReturnType<typeof useStorageStats>)
 
     fireEvent.click(screen.getByRole("button", { name: "Next" }))
     fireEvent.click(screen.getByRole("button", { name: "Previous" }))
