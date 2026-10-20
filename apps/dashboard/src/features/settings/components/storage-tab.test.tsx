@@ -54,6 +54,20 @@ describe("StorageTab", () => {
     expect(screen.queryByText("No orphan files found")).not.toBeInTheDocument()
   })
 
+  it("keeps Previous available when the orphan count drops to the page size while browsing page 2", () => {
+    render(<StorageTab />)
+    vi.mocked(useStorageStats).mockImplementation(offset => ({
+      data: { ...firstPage, orphanTotal: 50, orphanOffset: offset, orphans: [] },
+      isLoading: false,
+      isError: false,
+    }) as unknown as ReturnType<typeof useStorageStats>)
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }))
+    fireEvent.click(screen.getByRole("button", { name: "Previous" }))
+
+    expect(useStorageStats).toHaveBeenLastCalledWith(0)
+  })
+
   it("deletes only the reviewed orphans once the user confirms", () => {
     render(<StorageTab />)
     fireEvent.click(screen.getByRole("checkbox", { name: "Select file-50.png" }))
