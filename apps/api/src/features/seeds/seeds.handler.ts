@@ -219,7 +219,7 @@ seedsApp.post('/:slug/branches', async (context) => {
   if (owned) return owned
 
   const newBranch = body as unknown as Branch
-  newBranch.id = nextBranchId(existing.definition)
+  assignMissingBranchIds([newBranch], existing.definition.branches)
 
   const candidate: Seed = {
     ...existing.definition,

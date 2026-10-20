@@ -6,6 +6,6 @@
 
 # Type Alias: FilterType
 
-> **FilterType** = `"text"` \| `"number"` \| `"date"` \| `"boolean"` \| `"tags"` \| `"select"` \| `"system"` \| `"json"`
+> **FilterType** = `"text"` \| `"number"` \| `"date"` \| `"boolean"` \| `"tags"` \| `"select"` \| `"system"` \| `"json"` \| `"repeater"`
 
 Declared value type of a filtered column, used to normalize/coerce filter values before binding.

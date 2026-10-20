@@ -46,9 +46,11 @@ export async function runSeedMediaPurgeStep(id: string, deps: SeedMediaPurgeDepe
     }
 
     const table = `content_${job.slug}${job.phase === 'drafts' ? '_drafts' : ''}`
-    const fileAliases = job.definition.branches.filter(branch => branch.type === 'file').map(branch => branch.alias)
-    const physicalColumns = fileAliases.length ? await repository.getColumns(table) : null
-    const columns = fileAliases.filter(alias => physicalColumns?.has(alias))
+    const mediaAliases = job.definition.branches
+      .filter(branch => branch.type === 'file' || branch.type === 'json' || branch.type === 'repeater')
+      .map(branch => branch.alias)
+    const physicalColumns = mediaAliases.length ? await repository.getColumns(table) : null
+    const columns = mediaAliases.filter(alias => physicalColumns?.has(alias))
 
     if (columns.length > 0) {
       const rows = await repository.readPage(table, columns, job.cursor, ROW_PAGE_SIZE)

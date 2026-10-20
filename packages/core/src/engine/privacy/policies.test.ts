@@ -170,6 +170,16 @@ describe('resolvePolicies', () => {
     expect(result.search).toBe(true)
   })
 
+  it('repeater defaults filter, sort and search to false, but allows explicit override', () => {
+    const defaultRepeater = resolvePolicies({ ...baseBranch, type: 'repeater' })
+    expect(defaultRepeater.filter).toBe(false)
+    expect(defaultRepeater.sort).toBe(false)
+    expect(defaultRepeater.search).toBe(false)
+
+    const overriddenRepeater = resolvePolicies({ ...baseBranch, type: 'repeater', policies: { filter: true } })
+    expect(overriddenRepeater.filter).toBe(true)
+  })
+
   it('privacy: encrypt / confidential defaults visibility to full for authenticated context, sort to false, and search to false', () => {
     const result = resolvePolicies({ ...baseBranch, policies: { privacy: 'encrypt' } })
     expect(result.privacy).toBe('encrypt')

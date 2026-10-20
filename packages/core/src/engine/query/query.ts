@@ -353,7 +353,7 @@ function buildFilterCondition(
     if (type === 'text') {
       return isEmpty ? `(${col} IS NULL OR ${col} = '')` : `(${col} IS NOT NULL AND ${col} != '')`
     }
-    if (type === 'tags' || type === 'json') {
+    if (type === 'tags' || type === 'json' || type === 'repeater') {
       return isEmpty
         ? `(${col} IS NULL OR ${col} = '[]' OR ${col} = '{}')`
         : `(${col} IS NOT NULL AND ${col} != '[]' AND ${col} != '{}')`

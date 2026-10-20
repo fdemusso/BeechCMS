@@ -28,6 +28,7 @@ const SEED = {
     { id: 'br_10', alias: 'internal_note', type: 'text', policies: { filter: false } },
     { id: 'br_11', alias: 'salary', type: 'number', policies: { visibility: 'masked' } },
     { id: 'br_12', alias: 'secret_score', type: 'number', policies: { visibility: 'hidden' } },
+    { id: 'br_13', alias: 'items', type: 'repeater', policies: { filter: true }, fields: [{ id: 'br_sub', alias: 'label', type: 'text' }] },
   ],
 } as unknown as Seed
 
@@ -149,6 +150,11 @@ describe('toEngineFilters', () => {
   it('maps json branch to FilterType "json"', () => {
     const result = toEngineFilters(SEED, { where: [{ field: 'meta', op: 'eq', value: '{}' }], logic: 'AND' })
     expect(result[0].type).toBe('json')
+  })
+
+  it('maps repeater branch to FilterType "repeater"', () => {
+    const result = toEngineFilters(SEED, { where: [{ field: 'items', op: 'is_empty', value: null }], logic: 'AND' })
+    expect(result[0].type).toBe('repeater')
   })
 
   it('maps system columns (id, slug, status) to FilterType "system"', () => {

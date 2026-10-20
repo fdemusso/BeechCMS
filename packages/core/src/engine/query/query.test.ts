@@ -66,6 +66,38 @@ describe('Query', () => {
       })
     })
 
+    describe('repeater field filters', () => {
+      const seedWithRepeater: Seed = {
+        ...mockSeed,
+        branches: [
+          ...mockSeed.branches,
+          {
+            id: 'br_items',
+            alias: 'items',
+            type: 'repeater',
+            label: 'Items',
+            fields: [{ id: 'br_sub_name', alias: 'name', type: 'text', label: 'Name' }],
+          },
+        ],
+      }
+
+      it('builds is_empty condition checking NULL and serialized empty array []', () => {
+        const query = buildSelectQuery(seedWithRepeater, {
+          filters: [{ column: 'items', type: 'repeater', conditions: [{ op: 'is_empty' }] }],
+        })
+
+        expect(query.sql).toContain("(items IS NULL OR items = '[]' OR items = '{}')")
+      })
+
+      it('builds is_not_empty condition excluding NULL and serialized empty array []', () => {
+        const query = buildSelectQuery(seedWithRepeater, {
+          filters: [{ column: 'items', type: 'repeater', conditions: [{ op: 'is_not_empty' }] }],
+        })
+
+        expect(query.sql).toContain("(items IS NOT NULL AND items != '[]' AND items != '{}')")
+      })
+    })
+
     it('builds a basic SELECT query', () => {
       const query = buildSelectQuery(mockSeed)
       expect(query.sql).toContain('SELECT content_articles.* FROM content_articles')

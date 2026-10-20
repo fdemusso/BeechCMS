@@ -20,6 +20,7 @@ function mapBranchTypeToFilterType(type: BranchType): FilterType {
     case 'date': return 'date'
     case 'tags': return 'tags'
     case 'json': return 'json'
+    case 'repeater': return 'repeater'
     default: return 'text'
   }
 }

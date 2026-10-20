@@ -150,6 +150,8 @@ function mapBranchToFilterType(type: BranchType): FilterType {
       return 'text'
     case 'json':
       return 'json'
+    case 'repeater':
+      return 'repeater'
     case 'tags':
       return 'tags'
     case 'number':
