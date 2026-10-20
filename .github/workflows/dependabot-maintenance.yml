@@ -1,0 +1,117 @@
+name: Dependabot Maintenance
+
+# Keeps the Dependabot flow moving without a human and says so loudly when it cannot:
+#   - keep-fresh: master moves after every merge and every release commit, and the ruleset requires
+#     branches to be up to date, so an approved PR with auto-merge would sit BEHIND forever.
+#   - watchdog: weekly, lists the PRs that are not going to merge by themselves in one issue.
+
+on:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: dependabot-maintenance
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+  REPO: ${{ github.repository }}
+
+jobs:
+  keep-fresh:
+    name: Keep Dependabot PRs up to date
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Update branches that fell behind master
+        run: |
+          set -euo pipefail
+          # Give GitHub a moment to recompute mergeStateStatus after the push that triggered this run.
+          sleep 20
+
+          gh pr list --repo "$REPO" --author "app/dependabot" --base master --state open \
+            --json number,mergeStateStatus,autoMergeRequest,labels \
+            --jq '.[] | select([.labels[].name] | index("needs-review") | not) | "\(.number) \(.mergeStateStatus) \(.autoMergeRequest != null)"' \
+          | while read -r number state auto; do
+              case "$state" in
+                BEHIND)
+                  echo "#$number is behind master: updating the branch"
+                  gh api -X PUT "repos/$REPO/pulls/$number/update-branch" --silent \
+                    || echo "::warning::Could not update #$number"
+                  ;;
+                DIRTY)
+                  # A conflict: ask Dependabot to rebase, at most once a day per PR.
+                  recent=$(gh pr view "$number" --repo "$REPO" --json comments \
+                    --jq '[.comments[] | select(.body | contains("<!-- keep-fresh -->")) | select((now - (.createdAt | fromdate)) < 86400)] | length')
+                  if [ "$recent" = "0" ]; then
+                    echo "#$number has conflicts: asking Dependabot to rebase"
+                    gh pr comment "$number" --repo "$REPO" --body $'@dependabot rebase\n<!-- keep-fresh -->'
+                  fi
+                  ;;
+                *) echo "#$number is $state" ;;
+              esac
+            done
+
+  watchdog:
+    name: Report Dependabot PRs that need a human
+    # The schedule fires daily for keep-fresh; the report itself runs on Mondays only (checked below).
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Build the report
+        id: report
+        run: |
+          set -euo pipefail
+          # Weekly: Mondays only (the schedule fires daily for keep-fresh).
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(date -u +%u)" != "1" ]; then
+            echo "Not Monday, skipping the report."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          gh pr list --repo "$REPO" --author "app/dependabot" --state open \
+            --json number,title,createdAt,labels,mergeStateStatus,statusCheckRollup,url > prs.json
+
+          jq -r '
+            [ .[]
+              | . as $pr
+              | ([$pr.labels[].name] | map(select(. == "needs-review")) | length > 0) as $flagged
+              | ((now - ($pr.createdAt | fromdate)) / 86400 | floor) as $age
+              | ([$pr.statusCheckRollup[]? | select(.conclusion == "FAILURE")] | length > 0) as $failing
+              | select($flagged or $failing or $age >= 7 or $pr.mergeStateStatus == "DIRTY")
+              | "- \($pr.url) — \($pr.title) (\($age) days old"
+                + (if $flagged then ", needs review" else "" end)
+                + (if $failing then ", checks failing" else "" end)
+                + (if $pr.mergeStateStatus == "DIRTY" then ", conflicts" else "" end) + ")"
+            ] | join("\n")' prs.json > list.txt
+
+          if [ -s list.txt ]; then echo "attention=true" >> "$GITHUB_OUTPUT"; else echo "attention=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Open, update or close the issue
+        if: steps.report.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          TITLE="Dependabot: pull requests need attention"
+          EXISTING=$(gh issue list --repo "$REPO" --state open --search "\"$TITLE\" in:title" --json number,title \
+            --jq "[.[] | select(.title == \"$TITLE\")][0].number // empty")
+
+          if [ "${{ steps.report.outputs.attention }}" = "true" ]; then
+            BODY=$(printf 'These Dependabot pull requests will not merge by themselves (a major bump, a downgrade the guard refused, failing checks, conflicts, or simply open for a week):\n\n%s\n\nUpdated by the weekly watchdog; it closes this issue when the list is empty.' "$(cat list.txt)")
+            if [ -n "$EXISTING" ]; then
+              gh issue edit "$EXISTING" --repo "$REPO" --body "$BODY"
+            else
+              gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY"
+            fi
+          elif [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --repo "$REPO" --comment "No Dependabot pull request needs attention any more."
+          fi

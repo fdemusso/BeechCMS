@@ -4,22 +4,39 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+      day: "monday"
+    # A single pnpm lockfile serves the whole workspace, so a wide batch of PRs fails together on a
+    # stale lockfile. Keep the batch small and let the grouped PRs land one at a time.
+    open-pull-requests-limit: 5
+    # A brand-new release is the likeliest to be yanked or compromised: wait three days before
+    # proposing it. Security updates ignore the cooldown.
+    cooldown:
+      default-days: 3
     rebase-strategy: "auto"
     labels:
       - "dependencies"
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      # Workspace packages are versioned by scripts/release.mjs, never by Dependabot.
+      - dependency-name: "@beechcms/*"
     groups:
+      # Minor and patch updates are grouped; a major update gets its own PR so a breaking change
+      # cannot take a whole batch down with it.
       dev-dependencies:
+        applies-to: version-updates
         dependency-type: "development"
+        update-types: ["minor", "patch"]
       production-dependencies:
+        applies-to: version-updates
         dependency-type: "production"
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
     rebase-strategy: "auto"
     labels:
       - "dependencies"

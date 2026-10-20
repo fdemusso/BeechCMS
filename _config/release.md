@@ -194,3 +194,29 @@ When executed, the script performs the following atomic steps:
 If any failure occurs during type checking, building, or lockfile installation:
 - The script automatically **restores all `package.json` files and `.github/LICENSE`** to their exact pre-release snapshot.
 - No partial file changes are left behind.
+
+---
+
+## 🤖 Dependency updates without a human
+
+Dependabot keeps dependencies (security patches included) current and the release pipeline publishes them. Three workflows cooperate; none needs a person for a routine update.
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `dependabot-automerge.yml` | Dependabot PR to `master` | Regenerates a stale `pnpm-lock.yaml`, runs the guard, approves and enables auto-merge. The required checks (unit, integration, flow, e2e) still gate the merge. |
+| `dependabot-maintenance.yml` | push to `master`, daily, manual | `keep-fresh` updates approved PRs that fell behind `master` (the ruleset requires up-to-date branches); `watchdog` (Mondays) opens one issue listing the PRs that will not merge by themselves. |
+| `auto-release.yml` | push to `master` of a `chore(deps…)` / `chore(ci…)` / `fix(deps…)` commit | Bumps and publishes the changed packages, pushes the release commit and tags, creates the `v*` GitHub Release and merges `master` back into `devs`. |
+
+**The guard** (`scripts/lib/dependabot-guard.mjs`) refuses auto-merge, labels the PR `needs-review` and comments once when the PR:
+- changes anything but `package.json`, `pnpm-lock.yaml` or workflow files;
+- lowers a dependency range (a grouped update applies one target version to every directory, which downgrades packages that were ahead);
+- bumps a major version.
+
+Those PRs stay open on purpose; the watchdog issue lists them.
+
+**Release detection** compares each package with its latest `@beechcms/<pkg>@<version>` tag by tree, so it survives squash merges. A change to `devDependencies`, `scripts` or `version` alone does not release a package.
+
+**Operating it**
+- Pause the pipeline: `gh workflow disable auto-release.yml` (re-enable with `gh workflow enable auto-release.yml`).
+- A failed release run opens an issue; a conflicting back-merge opens a `master` → `devs` pull request and fails the `Sync master into devs` job.
+- Secrets used: `RELEASE_PAT` (push, approvals, issues), `NPM_TOKEN` (publish).
