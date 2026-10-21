@@ -114,6 +114,8 @@ export interface Env {
   FORGOT_PASSWORD_RATE_LIMITER?: RateLimit
   /** Rate limiter binding for the reset-password endpoint. */
   RESET_PASSWORD_RATE_LIMITER?: RateLimit
+  /** Rate limiter binding for the first-admin setup endpoint. */
+  SETUP_RATE_LIMITER?: RateLimit
   /** Deployment environment name (e.g. `development`, `production`). */
   ENV?: string
   /** Default date format string used for display/formatting purposes. */

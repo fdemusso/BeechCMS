@@ -6,7 +6,7 @@
 
 # Function: useWidgetGrowth()
 
-> **useWidgetGrowth**(`seedSlug`, `formula`, `window`): `UseQueryResult`&lt;`NoInfer`&lt;[`WidgetGrowthResponse`](../interfaces/WidgetGrowthResponse.md)&gt;, `Error`&gt;
+> **useWidgetGrowth**(`seedSlug`, `formula`, `window`): `UseQueryResult`&lt;[`WidgetGrowthResponse`](../interfaces/WidgetGrowthResponse.md), `Error`&gt;
 
 ## Parameters
 
@@ -24,4 +24,4 @@
 
 ## Returns
 
-`UseQueryResult`&lt;`NoInfer`&lt;[`WidgetGrowthResponse`](../interfaces/WidgetGrowthResponse.md)&gt;, `Error`&gt;
+`UseQueryResult`&lt;[`WidgetGrowthResponse`](../interfaces/WidgetGrowthResponse.md), `Error`&gt;

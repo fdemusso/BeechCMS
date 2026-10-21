@@ -11,6 +11,7 @@ import { publicProblem } from '../../public/errors/problem-details'
 import { DEMO_SEED_DEFINITIONS } from '../../shared/db/fixtures/demo-seeds'
 import { validateAndApplySeedDef } from '../seeds/seeds.helpers'
 import { getHydratedRegistry } from '../../shared/services/cache/seed-registry-cache'
+import { getClientIp } from '../../shared/utils/request-utils'
 
 const setupApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -46,6 +47,21 @@ setupApp.get('/auth/setup', async (context) => {
  * Creates the first administrator account and persists site defaults.
  */
 setupApp.post('/auth/setup', async (context) => {
+  // Before the first admin exists this route is open to anyone, so it is throttled
+  // ahead of every other check, including the already-done one.
+  const limit = await context.get('rateLimiters').getLimiter('setup').checkLimit(getClientIp(context.req))
+  if (!limit.isAllowed) {
+    const headers: Record<string, string> = {}
+    if (limit.retryAfterSeconds !== undefined) headers['Retry-After'] = String(limit.retryAfterSeconds)
+    return publicProblem(context, {
+      type: 'too-many-requests',
+      title: 'Too Many Requests',
+      status: 429,
+      detail: 'Too many requests.',
+      headers,
+    })
+  }
+
   const userCount = await context.get('userRepository').countAll()
 
   if (userCount > 0) {

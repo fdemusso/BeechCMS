@@ -389,7 +389,6 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [PKCE\_CHALLENGE\_METHOD](variables/PKCE_CHALLENGE_METHOD.md)
 - [PKCE\_VERIFIER\_MAX\_LENGTH](variables/PKCE_VERIFIER_MAX_LENGTH.md)
 - [PKCE\_VERIFIER\_MIN\_LENGTH](variables/PKCE_VERIFIER_MIN_LENGTH.md)
-- [PRIVATE\_HOST\_REGEX](variables/PRIVATE_HOST_REGEX.md)
 - [reorderContentViewsInputSchema](variables/reorderContentViewsInputSchema.md)
 - [RICHTEXT\_SCHEMA\_VERSION](variables/RICHTEXT_SCHEMA_VERSION.md)
 - [ROLES\_ALLOWED\_TO\_EDIT\_DASHBOARD](variables/ROLES_ALLOWED_TO_EDIT_DASHBOARD.md)

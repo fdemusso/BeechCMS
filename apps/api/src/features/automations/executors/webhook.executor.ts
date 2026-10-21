@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { AutomationAction } from '@beechcms/core'
+import { isPrivateHost, type AutomationAction } from '@beechcms/core'
 import { signWebhookBody } from '@beechcms/core/webhook-crypto'
 import type { ResolvedContext } from '../evaluator/context-resolver'
 import { interpolate } from '../engine/automation-runner.utils'
@@ -13,11 +13,27 @@ const WEBHOOK_TIMEOUT_MS = 8_000
 
 let warnedNoSecret = false
 
+// The schema check runs only at save time; this is the last gate before the request leaves the Worker.
+function assertPublicHttpsUrl(rawUrl: string): void {
+  let parsed: URL
+  try {
+    parsed = new URL(rawUrl)
+  } catch {
+    throw new Error('Webhook URL blocked: not a valid URL')
+  }
+  if (parsed.protocol !== 'https:') throw new Error('Webhook URL blocked: HTTPS required')
+  if (isPrivateHost(parsed.hostname)) throw new Error('Webhook URL blocked: private or internal host')
+}
+
 export async function executeWebhook(
   action: WebhookAction,
   context: ResolvedContext,
   env: Record<string, string | undefined>,
 ): Promise<void> {
+  // The local flow stack delivers to a plain-HTTP webhook sink on localhost, so development skips the gate.
+  if (env.ENV !== 'development') assertPublicHttpsUrl(action.url)
+
+
   // Fetch forbids a body on GET, so a GET webhook carries none and signs the empty payload.
   const isGet = action.method === 'GET'
   const body = isGet ? undefined : interpolate(action.body_template ?? '{}', context, { escape: 'json' })
@@ -40,6 +56,8 @@ export async function executeWebhook(
         ...signatureHeader,
       },
       ...(body === undefined ? {} : { body }),
+      // A 3xx would send the request to a Location the host check never saw; it surfaces as a non-ok failure.
+      redirect: 'manual',
       signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS),
     })
 

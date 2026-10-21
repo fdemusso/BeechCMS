@@ -182,4 +182,44 @@ describe('executeWebhook', () => {
     expect(headers['Content-Type']).toBeUndefined()
     expect(headers['X-BeechCMS-Signature']).toMatch(/^sha256=[0-9a-f]{64}$/)
   })
+
+  // The schema only runs when an automation is saved. Rows written before a rule tightened, or by
+  // any path that skips the schema, reach the executor unchecked, so it re-validates before egress.
+  it.each([
+    ['plain HTTP', 'http://example.com/hook'],
+    ['localhost', 'https://localhost/hook'],
+    ['IPv4 loopback', 'https://127.0.0.1/hook'],
+    ['IPv6 loopback', 'https://[::1]/hook'],
+    ['IPv4-mapped IPv6 metadata address', 'https://[::ffff:a9fe:a9fe]/latest/meta-data/'],
+    ['NAT64 loopback', 'https://[64:ff9b::7f00:1]/hook'],
+  ])('refuses to send a stored webhook pointing at %s and never calls fetch', async (_label, url) => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeOkResponse())
+
+    const delivery = executeWebhook({ ...baseAction, url }, baseContext, { WEBHOOK_SECRET: 'test-secret' })
+
+    await expect(delivery).rejects.toThrow('blocked')
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('delivers to a localhost URL only when ENV is development', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeOkResponse())
+    const localAction = { ...baseAction, url: 'http://localhost:8080/hook' }
+
+    await executeWebhook(localAction, baseContext, { ENV: 'development' })
+
+    expect(fetchSpy).toHaveBeenCalledOnce()
+    await expect(executeWebhook(localAction, baseContext, { ENV: 'production' })).rejects.toThrow('blocked')
+    expect(fetchSpy).toHaveBeenCalledOnce()
+  })
+
+  // A public host can answer 3xx with a Location pointing inside the network; following it would
+  // send the request to an address the URL check never saw.
+  it('does not follow redirects so a public host cannot bounce the request to a private one', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeOkResponse())
+
+    await executeWebhook(baseAction, baseContext, {})
+
+    const [, init] = fetchSpy.mock.calls[0]
+    expect(init?.redirect).toBe('manual')
+  })
 })
