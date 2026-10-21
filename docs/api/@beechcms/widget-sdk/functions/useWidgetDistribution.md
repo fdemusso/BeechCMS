@@ -6,7 +6,7 @@
 
 # Function: useWidgetDistribution()
 
-> **useWidgetDistribution**(`seedSlug`, `column`, `window`, `limit`): `UseQueryResult`&lt;`NoInfer`&lt;[`WidgetDistributionResponse`](../interfaces/WidgetDistributionResponse.md)&gt;, `Error`&gt;
+> **useWidgetDistribution**(`seedSlug`, `column`, `window`, `limit`): `UseQueryResult`&lt;[`WidgetDistributionResponse`](../interfaces/WidgetDistributionResponse.md), `Error`&gt;
 
 ## Parameters
 
@@ -28,4 +28,4 @@
 
 ## Returns
 
-`UseQueryResult`&lt;`NoInfer`&lt;[`WidgetDistributionResponse`](../interfaces/WidgetDistributionResponse.md)&gt;, `Error`&gt;
+`UseQueryResult`&lt;[`WidgetDistributionResponse`](../interfaces/WidgetDistributionResponse.md), `Error`&gt;

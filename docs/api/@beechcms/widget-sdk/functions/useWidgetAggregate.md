@@ -6,7 +6,7 @@
 
 # Function: useWidgetAggregate()
 
-> **useWidgetAggregate**(`seedSlug`, `formula`, `window`): `UseQueryResult`&lt;`NoInfer`&lt;[`WidgetAggregateResponse`](../interfaces/WidgetAggregateResponse.md)&gt;, `Error`&gt;
+> **useWidgetAggregate**(`seedSlug`, `formula`, `window`): `UseQueryResult`&lt;[`WidgetAggregateResponse`](../interfaces/WidgetAggregateResponse.md), `Error`&gt;
 
 ## Parameters
 
@@ -24,4 +24,4 @@
 
 ## Returns
 
-`UseQueryResult`&lt;`NoInfer`&lt;[`WidgetAggregateResponse`](../interfaces/WidgetAggregateResponse.md)&gt;, `Error`&gt;
+`UseQueryResult`&lt;[`WidgetAggregateResponse`](../interfaces/WidgetAggregateResponse.md), `Error`&gt;

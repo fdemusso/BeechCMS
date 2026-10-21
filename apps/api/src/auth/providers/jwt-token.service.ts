@@ -34,11 +34,12 @@ export class JoseTokenService implements ITokenService {
     const algorithm = this.config.algorithm ?? DEFAULT_ALGORITHM
     const issuedAtSeconds = this.clock.nowSeconds()
 
-    let builder = new SignJWT(remainingClaims)
+    let builder = new SignJWT(typeof sub === 'string' ? remainingClaims : claims)
       .setProtectedHeader({ alg: algorithm, typ: 'JWT' })
-      .setSubject(sub)
       .setIssuedAt(issuedAtSeconds)
       .setExpirationTime(issuedAtSeconds + ttlSeconds)
+
+    if (typeof sub === 'string') builder = builder.setSubject(sub)
 
     if (this.config.issuer) builder = builder.setIssuer(this.config.issuer)
     if (this.config.audience) builder = builder.setAudience(this.config.audience)

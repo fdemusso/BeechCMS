@@ -6,7 +6,7 @@
 
 # Function: useWidgetTimeseries()
 
-> **useWidgetTimeseries**(`seedSlug`, `formula`, `window`, `groupColumn`): `UseQueryResult`&lt;`NoInfer`&lt;[`WidgetTimeseriesResponse`](../interfaces/WidgetTimeseriesResponse.md)&gt;, `Error`&gt;
+> **useWidgetTimeseries**(`seedSlug`, `formula`, `window`, `groupColumn`): `UseQueryResult`&lt;[`WidgetTimeseriesResponse`](../interfaces/WidgetTimeseriesResponse.md), `Error`&gt;
 
 ## Parameters
 
@@ -28,4 +28,4 @@
 
 ## Returns
 
-`UseQueryResult`&lt;`NoInfer`&lt;[`WidgetTimeseriesResponse`](../interfaces/WidgetTimeseriesResponse.md)&gt;, `Error`&gt;
+`UseQueryResult`&lt;[`WidgetTimeseriesResponse`](../interfaces/WidgetTimeseriesResponse.md), `Error`&gt;
