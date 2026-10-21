@@ -16,7 +16,7 @@
 
 ### fields?
 
-> `optional` **fields?**: keyof `TRow` & `string`[]
+> `optional` **fields?**: (keyof `TRow` & `string`)[]
 
 ***
 
