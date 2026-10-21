@@ -6,7 +6,7 @@
 
 # Function: useWidgetList()
 
-> **useWidgetList**(`seedSlug`, `params`): `UseQueryResult`&lt;`NoInfer`&lt;[`WidgetListResponse`](../interfaces/WidgetListResponse.md)&gt;, `Error`&gt;
+> **useWidgetList**(`seedSlug`, `params`): `UseQueryResult`&lt;[`WidgetListResponse`](../interfaces/WidgetListResponse.md), `Error`&gt;
 
 ## Parameters
 
@@ -20,4 +20,4 @@
 
 ## Returns
 
-`UseQueryResult`&lt;`NoInfer`&lt;[`WidgetListResponse`](../interfaces/WidgetListResponse.md)&gt;, `Error`&gt;
+`UseQueryResult`&lt;[`WidgetListResponse`](../interfaces/WidgetListResponse.md), `Error`&gt;
