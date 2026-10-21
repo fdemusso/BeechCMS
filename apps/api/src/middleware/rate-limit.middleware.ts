@@ -15,6 +15,7 @@ export type RateLimiterName =
   | 'forgotPassword'
   | 'forgotPasswordAccount'
   | 'resetPassword'
+  | 'setup'
   | 'acceptInvitation'
   | 'publicApiRead'
   | 'publicApiWrite'
@@ -35,6 +36,7 @@ export function buildDefaultRegistry(env?: Env): IRateLimiterRegistry {
     forgotPassword: new TokenBucketRateLimiter({ capacity: 5, refillRatePerSecond: 0.05 }), // IP burst: 5, 1 token/20s
     forgotPasswordAccount: new TokenBucketRateLimiter({ capacity: 3, refillRatePerSecond: 0.02 }), // Account burst: 3, 1 token/50s
     resetPassword: new TokenBucketRateLimiter({ capacity: 5, refillRatePerSecond: 0.1 }), // IP burst: 5, 1 token/10s
+    setup: new TokenBucketRateLimiter({ capacity: 5, refillRatePerSecond: 0.1 }), // IP burst: 5, 1 token/10s
     acceptInvitation: new TokenBucketRateLimiter({ capacity: 10, refillRatePerSecond: 0.2 }), // IP burst: 10, 1 token/5s
     publicApiRead: new TokenBucketRateLimiter({ capacity: 60, refillRatePerSecond: 1 }), // Read burst: 60, 1 token/1s
     publicApiWrite: new TokenBucketRateLimiter({ capacity: 10, refillRatePerSecond: 0.2 }), // Write burst: 10, 1 token/5s
@@ -64,6 +66,7 @@ export function buildDefaultRegistry(env?: Env): IRateLimiterRegistry {
     forgotPassword: wrapWithBinding(env?.FORGOT_PASSWORD_RATE_LIMITER, localLimiters.forgotPassword, { failClosed: true, periodSeconds: 60, limiterName: 'forgotPassword' }),
     forgotPasswordAccount: localLimiters.forgotPasswordAccount,
     resetPassword: wrapWithBinding(env?.RESET_PASSWORD_RATE_LIMITER, localLimiters.resetPassword, { failClosed: true, periodSeconds: 60, limiterName: 'resetPassword' }),
+    setup: wrapWithBinding(env?.SETUP_RATE_LIMITER, localLimiters.setup, { failClosed: true, periodSeconds: 60, limiterName: 'setup' }),
     acceptInvitation: localLimiters.acceptInvitation,
     publicApiRead: wrapWithBinding(env?.PUBLIC_READ_RATE_LIMITER, localLimiters.publicApiRead, { failClosed: false, periodSeconds: 60, limiterName: 'publicApiRead' }),
     publicApiWrite: wrapWithBinding(env?.PUBLIC_WRITE_RATE_LIMITER, localLimiters.publicApiWrite, { failClosed: false, periodSeconds: 60, limiterName: 'publicApiWrite' }),

@@ -67,6 +67,11 @@
       "name": "RESET_PASSWORD_RATE_LIMITER",
       "namespace_id": "1006",
       "simple": { "limit": 5, "period": 60 }
+    },
+    {
+      "name": "SETUP_RATE_LIMITER",
+      "namespace_id": "1007",
+      "simple": { "limit": 5, "period": 60 }
     }
   ],
 
