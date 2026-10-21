@@ -25,8 +25,8 @@
     "@beechcms/core": "workspace:^0.8.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260213.0",
-    "@types/node": "^24.10.1",
+    "@cloudflare/workers-types": "^5.20260911.1",
+    "@types/node": "^26.5.1",
     "typescript": "^5.9.3"
   },
   "license": "BUSL-1.1"

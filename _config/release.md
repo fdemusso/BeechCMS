@@ -216,6 +216,8 @@ Dependabot keeps dependencies (security patches included) current and the releas
 
 Those PRs stay open on purpose; the watchdog issue lists them.
 
+**Known limitation: mixed major versions across workspaces (PR #828, Oct 2026).** The first monthly `routine` PR (#828) lowered 24 ranges (`vitest` 5→4.1, `@vitest/coverage-v8` 5→4.1, `@types/node` 26→24, `@cloudflare/workers-types` 5→4). The guard caught it correctly. Cause: `apps/api` must stay on vitest 4 because `@cloudflare/vitest-pool-workers` (0.23.0, latest) has peer `vitest ^4.1`, while the other workspaces moved to vitest 5; Dependabot ignores majors and applies one target to every manifest, so it dragged everyone back. Mitigation: `vitest` and `@vitest/*` are in the `ignore` list of `.github/dependabot.yml`, and `@types/node` / `workers-types` were aligned in every workspace. Rule: when a dependency has to lag in one workspace, ignore it in Dependabot instead of leaving mixed ranges. Follow-up (remove the ignore once pool-workers supports vitest 5): issue #829.
+
 **Release detection** compares each package with its latest `@beechcms/<pkg>@<version>` tag by tree, so it survives squash merges. A change to `devDependencies`, `scripts` or `version` alone does not release a package.
 
 **Operating it**

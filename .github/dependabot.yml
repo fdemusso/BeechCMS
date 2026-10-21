@@ -19,6 +19,11 @@ updates:
     ignore:
       # Workspace packages are versioned by scripts/release.mjs, never by Dependabot.
       - dependency-name: "@beechcms/*"
+      # apps/api tests run on @cloudflare/vitest-pool-workers, whose peer range is vitest ^4.1 (still
+      # true at 0.23.0). The rest of the workspace is on vitest 5, and a grouped update would apply
+      # one target to every manifest and downgrade them. Drop these once pool-workers supports vitest 5 (tracked in #829).
+      - dependency-name: "vitest"
+      - dependency-name: "@vitest/*"
       # A major bump is a migration, not maintenance: do it on purpose. This only silences routine
       # version updates; a security update that needs a major still opens a PR.
       - dependency-name: "*"
