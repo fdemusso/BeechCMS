@@ -136,6 +136,25 @@ describe('createAutomationSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  // Hostnames reach the schema as the WHATWG parser prints them: IPv6 stays bracketed and an
+  // IPv4-mapped tail becomes hex, so a dotted-decimal-only filter never sees these.
+  it.each([
+    ['IPv6 loopback', 'https://[::1]/x'],
+    ['IPv4-mapped IPv6 loopback', 'https://[::ffff:127.0.0.1]/x'],
+    ['IPv4-mapped IPv6 metadata address', 'https://[::ffff:a9fe:a9fe]/latest/meta-data/'],
+    ['NAT64 loopback', 'https://[64:ff9b::7f00:1]/x'],
+    ['IPv6 unique local address', 'https://[fd00::1]/x'],
+  ])('rejects webhook with %s as a private host', (_label, url) => {
+    const result = createAutomationSchema.safeParse({
+      ...minimalValid,
+      actions: [{ type: 'webhook', url, body_template: '{}' }],
+    })
+
+    expect(result.success).toBe(false)
+    const issues = result.error?.issues ?? []
+    expect(issues.some((i) => i.message === 'automations.editor.errors.webhookPrivateHostBlocked')).toBe(true)
+  })
+
   it('accepts webhook with 172.32.x.x (outside private range)', () => {
     const result = createAutomationSchema.safeParse({
       ...minimalValid,

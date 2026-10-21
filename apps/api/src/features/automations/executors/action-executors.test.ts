@@ -46,10 +46,13 @@ function makeCtx(overrides: Partial<ActionContext> = {}): ActionContext {
 
 // ── webhook ───────────────────────────────────────────────────────────────────
 
+// The webhook sink is plain HTTP on localhost; only ENV=development lets the executor reach it.
+const webhookCtx = (): ActionContext => makeCtx({ env: { ENV: 'development' } })
+
 describe('webhook executor', () => {
   it('POSTs to URL with interpolated body_template', async () => {
     const { url, uuid } = await newBucket()
-    const ctx = makeCtx()
+    const ctx = webhookCtx()
     await executeAction({ type: 'webhook', url, body_template: '{"id":"{{id}}","title":"{{title}}"}' }, ctx)
     const req = await waitForRequest(uuid)
     expect(req.method).toBe('POST')
@@ -58,7 +61,7 @@ describe('webhook executor', () => {
 
   it('interpolates body_template with entry values', async () => {
     const { url, uuid } = await newBucket()
-    const ctx = makeCtx()
+    const ctx = webhookCtx()
     await executeAction({ type: 'webhook', url, body_template: '{"t":"{{title}}"}' }, ctx)
     const req = await waitForRequest(uuid)
     expect(req.body).toBe('{"t":"Test Entry"}')
@@ -66,20 +69,20 @@ describe('webhook executor', () => {
 
   it('merges custom headers', async () => {
     const { url, uuid } = await newBucket()
-    const ctx = makeCtx()
+    const ctx = webhookCtx()
     await executeAction({ type: 'webhook', url, headers: { 'X-Token': 'abc' } }, ctx)
     const req = await waitForRequest(uuid)
     expect(req.headers['x-token']).toBe('abc')
   })
 
   it('throws when webhook endpoint is unreachable', async () => {
-    const ctx = makeCtx()
+    const ctx = webhookCtx()
     await expect(executeAction({ type: 'webhook', url: 'http://localhost:19999/nope' }, ctx)).rejects.toThrow()
   })
 
   it('uses custom HTTP method', async () => {
     const { url, uuid } = await newBucket()
-    const ctx = makeCtx()
+    const ctx = webhookCtx()
     await executeAction({ type: 'webhook', url, method: 'PUT' }, ctx)
     const req = await waitForRequest(uuid)
     expect(req.method).toBe('PUT')
