@@ -30,7 +30,8 @@ export async function executeWebhook(
   context: ResolvedContext,
   env: Record<string, string | undefined>,
 ): Promise<void> {
-  assertPublicHttpsUrl(action.url)
+  // The local flow stack delivers to a plain-HTTP webhook sink on localhost, so development skips the gate.
+  if (env.ENV !== 'development') assertPublicHttpsUrl(action.url)
 
 
   // Fetch forbids a body on GET, so a GET webhook carries none and signs the empty payload.

@@ -101,7 +101,7 @@ BeechCMS enforces strict security rules on all outbound webhooks:
 
 - **HTTPS Required**: Insecure `http://` webhook endpoints are rejected.
 - **SSRF Defense**: Private and loopback addresses (`localhost`, `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `100.64.0.0/10`, and the IPv6 loopback, unique-local `fc00::/7` and link-local `fe80::/10` ranges) are blocked to prevent attacks against cloud infrastructure. IPv6 forms that wrap an IPv4 address (IPv4-mapped `::ffff:`, NAT64 `64:ff9b::`, 6to4 `2002::`) are checked against the IPv4 address they carry.
-- **Checked again at delivery**: The URL is validated when the automation is saved and again right before each request is sent. Redirect responses are not followed and count as a failed delivery.
+- **Checked again at delivery**: The URL is validated when the automation is saved and again right before each request is sent (the delivery check is skipped only when `ENV=development`, so local webhook sinks keep working). Redirect responses are not followed and count as a failed delivery.
 - **Hostnames are not resolved**: The check applies to the address written in the URL. A public hostname whose DNS record points at an internal address is not detected by BeechCMS itself.
 
 ### HMAC Signature Verification

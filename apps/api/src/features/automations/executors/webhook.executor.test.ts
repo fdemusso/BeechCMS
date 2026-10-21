@@ -201,6 +201,17 @@ describe('executeWebhook', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
+  it('delivers to a localhost URL only when ENV is development', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeOkResponse())
+    const localAction = { ...baseAction, url: 'http://localhost:8080/hook' }
+
+    await executeWebhook(localAction, baseContext, { ENV: 'development' })
+
+    expect(fetchSpy).toHaveBeenCalledOnce()
+    await expect(executeWebhook(localAction, baseContext, { ENV: 'production' })).rejects.toThrow('blocked')
+    expect(fetchSpy).toHaveBeenCalledOnce()
+  })
+
   // A public host can answer 3xx with a Location pointing inside the network; following it would
   // send the request to an address the URL check never saw.
   it('does not follow redirects so a public host cannot bounce the request to a private one', async () => {
