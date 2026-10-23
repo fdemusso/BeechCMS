@@ -36,7 +36,7 @@ export class D1BackrefRepository implements IBackrefRepository {
             `SELECT id, status, updated_at, ${displayCol} AS displayName
                FROM content_${source.sourceSlug}
               WHERE ${source.branchAlias} = ?${softDeleteClause}
-              ORDER BY updated_at DESC
+              ORDER BY updated_at DESC, id
               LIMIT ? OFFSET ?`,
           )
           .bind(targetId, limit, offset)
@@ -64,7 +64,7 @@ export class D1BackrefRepository implements IBackrefRepository {
              FROM content_${source.sourceSlug} c
              JOIN ${joinTable} r ON r.parent_id = c.id
             WHERE r.target_id = ?${softDeleteClause}
-            ORDER BY c.updated_at DESC
+            ORDER BY c.updated_at DESC, c.id
             LIMIT ? OFFSET ?`,
         )
         .bind(targetId, limit, offset)
