@@ -39,7 +39,7 @@
   "devDependencies": {
     "@types/node": "^26.5.1",
     "@vitest/coverage-v8": "^5.0.0",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.5"
   },
   "dependencies": {
     "@tiptap/core": "^3.31.3",
