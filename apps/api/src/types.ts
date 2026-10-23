@@ -10,7 +10,7 @@
  */
 
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedMediaPurgeRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, OAuthScope, IRoleRepository, IRoleAssignmentRepository, EffectivePermissions, IInvitationRepository, IDeletionLedger, IImageTransformer, IContentViewRepository } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedMediaPurgeRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, OAuthScope, IRoleRepository, IRoleAssignmentRepository, EffectivePermissions, IInvitationRepository, IDeletionLedger, IImageTransformer, IContentViewRepository, IBackrefRepository } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import type { ISetupChecklistRepository } from './shared/db/repositories/d1-setup-checklist.repository'
 
@@ -275,6 +275,8 @@ export interface Variables {
   roleAssignmentRepository: IRoleAssignmentRepository
   /** Repository for single-use onboarding invitations (hash-only). */
   invitationRepository: IInvitationRepository
+  /** Repository for reading back-references (entries that relate to a target entry). */
+  backrefRepository: IBackrefRepository
   /**
    * The caller's folded authority, memoized by `resolveEffectivePermissions()`.
    * Absent until something on the request path asks for it.

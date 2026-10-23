@@ -76,24 +76,28 @@ export async function getHandler(c: Context<{ Bindings: Env; Variables: Variable
 ### 2. Middleware & Interface Injection
 
 To eliminate cross-slice dependencies:
-- Abstract service interfaces (e.g. `ContentRepository`, `ISeedRepository`) are defined centrally in `@beechcms/core`.
-- Concrete database persistence classes live in `apps/api/src/shared/db/repositories/`.
+- Abstract service interfaces (e.g. `ContentRepository`, `ISeedRepository`, `IBackrefRepository`) are defined centrally in `@beechcms/core`.
+- Concrete database persistence classes live in `apps/api/src/shared/db/repositories/` (e.g. `D1BackrefRepository` implements `IBackrefRepository` in `shared/db/repositories/d1-backref.repository.ts`).
 - Repositories are instantiated in global middleware and injected into the Hono context:
 
 ```typescript
 // apps/api/src/middleware/repository.middleware.ts
 import { createMiddleware } from 'hono/factory'
 import { D1ContentRepository } from '../shared/db/repositories/content.repository.d1'
+import { D1BackrefRepository } from '../shared/db/repositories/d1-backref.repository'
 
 export const repositoryMiddleware = (overrides?: RepositoryOverrides) =>
   createMiddleware(async (context, next) => {
     context.set('repository', overrides?.repository ?? new D1ContentRepository(database, overrides?.hooks, privacyService))
+    context.set('backrefRepository', overrides?.backrefRepository ?? new D1BackrefRepository(database))
     // …every other repository is injected the same way
     await next()
   })
 ```
 
-The injected content repository is read back as `context.get('repository')` — see the handler example above.
+The injected content repository is read back as `context.get('repository')` — see the handler example above. The back-reference handler likewise reads `c.get('backrefRepository')`.
+
+Code needed by more than one feature (e.g. `CONTENT_ERRORS` in `shared/content/constants.ts`, the OCC helper `resolveIfMatch` in `shared/utils/occ.ts`) lives in `shared/`, so `features/draft/` never imports from `features/content/`.
 
 ---
 

@@ -3,21 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { BackrefSource, Seed } from '@beechcms/core'
+import type { BackrefItem, BackrefSource, IBackrefRepository, QueryGroupResult, Seed } from '@beechcms/core'
 
-export interface BackrefItem {
-  id: string
-  displayName: string | null
-  status: string
-  updated_at: number | null
-}
-
-export interface QueryGroupResult {
-  items: BackrefItem[]
-  total: number
-}
-
-export class D1BackrefRepository {
+export class D1BackrefRepository implements IBackrefRepository {
   constructor(private readonly db: D1Database) {}
 
   async entryExists(seedOrSlug: Seed | string, id: string): Promise<boolean> {

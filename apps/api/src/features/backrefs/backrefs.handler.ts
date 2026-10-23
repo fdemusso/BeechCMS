@@ -5,10 +5,10 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import { hasPermission, resolveClassification, resolvePolicies } from '@beechcms/core'
-import type { IPrivacyService, LocaleConfig, Seed } from '@beechcms/core'
+import type { BackrefItem, IPrivacyService, LocaleConfig, Seed } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import type { AppEnv } from '../../types'
-import { D1BackrefRepository, type BackrefItem } from './d1-backref.repository'
+import { D1BackrefRepository } from '../../shared/db/repositories/d1-backref.repository'
 import { loadDisplayLocaleConfig, resolveDisplayName } from '../../shared/localization/display-name'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 
@@ -31,7 +31,7 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
 
   const getSeed = c.get('getSeed')
   const backrefMap = c.get('backrefMap')
-  const backrefRepository = new D1BackrefRepository(c.env.DB)
+  const backrefRepository = c.get('backrefRepository') ?? new D1BackrefRepository(c.env.DB)
   const privacyService = c.get('privacyService')
 
   // 1. Resolve target seed
