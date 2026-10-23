@@ -23,6 +23,17 @@ const STORAGE_MEDIA_SCAN_BATCH = 200
 /** Upper bound on content locales: each localized value holds one validated value per locale. */
 const MAX_LOCALES = 50
 
+/** Parses the request body as a JSON object; syntax errors, `null`, arrays and scalars yield null. */
+async function readJsonObject(request: { json(): Promise<unknown> }): Promise<Record<string, unknown> | null> {
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return null
+  }
+  return typeof body === 'object' && body !== null && !Array.isArray(body) ? (body as Record<string, unknown>) : null
+}
+
 /**
  * GET /api/settings
  * Retrieves the general site configuration from the database.
@@ -59,10 +70,8 @@ settingsApp.get('/', async (context) => {
  * Updates the general site configuration in the database.
  */
 settingsApp.put('/', async (context) => {
-  let payload: Record<string, unknown>
-  try {
-    payload = await context.req.json()
-  } catch {
+  const payload = await readJsonObject(context.req)
+  if (!payload) {
     return context.json({ error: 'Invalid JSON body' }, 400)
   }
 
@@ -210,10 +219,8 @@ settingsApp.get('/me', async (context) => {
 settingsApp.put('/profile', async (context) => {
   const { sub: userId } = context.get('jwtPayload')
 
-  let payload: Record<string, unknown>
-  try {
-    payload = await context.req.json()
-  } catch {
+  const payload = await readJsonObject(context.req)
+  if (!payload) {
     return context.json({ error: 'Invalid JSON body' }, 400)
   }
 
@@ -261,10 +268,8 @@ settingsApp.put('/profile', async (context) => {
 settingsApp.put('/password', async (context) => {
   const { sub: userId } = context.get('jwtPayload')
 
-  let payload: Record<string, unknown>
-  try {
-    payload = await context.req.json()
-  } catch {
+  const payload = await readJsonObject(context.req)
+  if (!payload) {
     return context.json({ error: 'Invalid JSON body' }, 400)
   }
 
@@ -307,10 +312,8 @@ settingsApp.put('/password', async (context) => {
 settingsApp.put('/avatar', async (context) => {
   const { sub: userId } = context.get('jwtPayload')
 
-  let payload: Record<string, unknown>
-  try {
-    payload = await context.req.json()
-  } catch {
+  const payload = await readJsonObject(context.req)
+  if (!payload) {
     return context.json({ error: 'Invalid JSON body' }, 400)
   }
 
@@ -325,7 +328,7 @@ settingsApp.put('/avatar', async (context) => {
  */
 settingsApp.get('/sessions', async (context) => {
   const { sub: userId } = context.get('jwtPayload')
-  const nowTimestamp = Math.floor(Date.now() / 1000)
+  const nowTimestamp = context.get('clock').nowSeconds()
   const sessions = await context.get('sessionRepository').listActiveForUser(userId, nowTimestamp, SESSION_LIST_LIMIT)
 
   // Dashboard Session contract is snake_case, same as the activity endpoint below.
@@ -343,7 +346,7 @@ settingsApp.get('/sessions', async (context) => {
 settingsApp.delete('/sessions/:id', async (context) => {
   const { sub: userId } = context.get('jwtPayload')
   const sessionId = context.req.param('id')
-  const nowTimestamp = Math.floor(Date.now() / 1000)
+  const nowTimestamp = context.get('clock').nowSeconds()
 
   const wasRevoked = await context.get('sessionRepository').revokeById(sessionId, userId, nowTimestamp)
   if (!wasRevoked) {
@@ -509,10 +512,8 @@ settingsApp.get('/notifications', async (context) => {
 settingsApp.put('/notifications', async (context) => {
   const { sub: userId } = context.get('jwtPayload')
 
-  let payload: Record<string, unknown>
-  try {
-    payload = await context.req.json()
-  } catch {
+  const payload = await readJsonObject(context.req)
+  if (!payload) {
     return context.json({ error: 'Invalid JSON body' }, 400)
   }
 
