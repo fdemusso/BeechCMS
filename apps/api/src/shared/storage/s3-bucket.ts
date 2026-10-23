@@ -247,7 +247,10 @@ export class S3Bucket implements BeechBucket {
       ContentType: options.contentType,
       ContentLength: options.contentLength,
     })
-    return getSignedUrl(this.client, putCommand, { expiresIn: options.expiresIn })
+    // The presigner marks content-type unsignable by default, so a client could PUT any
+    // Content-Type under a valid signature and bypass the MIME allowlist. Re-sign it explicitly.
+    const signableHeaders = new Set(['content-type'])
+    return getSignedUrl(this.client, putCommand, { expiresIn: options.expiresIn, signableHeaders })
   }
 
   /**
