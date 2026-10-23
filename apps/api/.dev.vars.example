@@ -19,6 +19,16 @@ JWT_SECRET=sviluppo-secret-cambiami-almeno-32-byte-per-sicurezza-hono
 # =============================================================================
 PRIVACY_MASTER_KEY=
 
+# =============================================================================
+# Public forms — PUBLIC_TIME_TRAP_SECRET (chiave HMAC dei token anti-bot Time-Trap).
+# Obbligatoria: in dev wrangler.jsonc ne fornisce un valore; se la imposti qui, deve essere non vuota.
+# Senza, GET /api/v1/public/timetrap/token e le submission anonime
+# rispondono 503 (fail-closed). Mai riusare un valore pubblico.
+# Manuale: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# In prod: wrangler secret put PUBLIC_TIME_TRAP_SECRET --env production
+# =============================================================================
+# PUBLIC_TIME_TRAP_SECRET=<32+ byte casuali>
+
 # Dev con MinIO (pnpm dev:full):
 R2_ENDPOINT=http://localhost:9000
 R2_ACCESS_KEY_ID=beechdev

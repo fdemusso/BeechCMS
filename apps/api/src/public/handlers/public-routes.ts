@@ -8,7 +8,7 @@ import type { AppEnv } from '../../types'
 import { publicReadHandler } from './public-read'
 import { publicAddHandler } from './public-add'
 import { publicEditHandler } from './public-edit'
-import { publicProblem } from '../errors/problem-details'
+import { publicProblem, timeTrapNotConfiguredProblem } from '../errors/problem-details'
 import { publicSearchRouter } from '../../features/search'
 
 const publicApp = new Hono<AppEnv>()
@@ -19,7 +19,8 @@ publicApp.get('/health', (c) => {
 
 /** Returns a signed time-trap token for public form submissions. */
 publicApp.get('/timetrap/token', async (c) => {
-  const secret = c.env.PUBLIC_TIME_TRAP_SECRET || 'beech-public-timetrap-default-secret'
+  const secret = c.env.PUBLIC_TIME_TRAP_SECRET
+  if (!secret) return timeTrapNotConfiguredProblem(c)
   const token = await generateTimeTrapToken(secret)
   return c.json({ token, minDeltaSeconds: 1.5 }, 200)
 })
