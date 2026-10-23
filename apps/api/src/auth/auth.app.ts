@@ -10,7 +10,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono, type Context } from 'hono'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
-import { sha256hex, SystemClock, SystemIdGenerator } from '@beechcms/core'
+import { sha256hex } from '@beechcms/core'
 import type { Env, Variables } from '../types'
 import { AUTH_ERRORS } from './constants'
 import {
@@ -163,10 +163,10 @@ authApp.post('/auth/login', async (context) => {
     })
     const refreshToken = generateOpaqueToken()
     const refreshTokenHash = await sha256hex(refreshToken)
-    const nowSeconds = SystemClock.nowSeconds()
+    const nowSeconds = context.get('clock').nowSeconds()
 
     await context.get('sessionRepository').saveRefreshToken({
-      id: SystemIdGenerator.uuid(),
+      id: context.get('idGenerator').uuid(),
       userId: user.id,
       tokenHash: refreshTokenHash,
       expiresAt: nowSeconds + REFRESH_TOKEN_EXPIRY_DAYS * SECONDS_PER_DAY,
@@ -196,7 +196,7 @@ authApp.post('/auth/refresh', async (context) => {
     const refreshToken = getCookie(context, 'refresh_token')
     if (!refreshToken) return context.json({ error: 'Refresh token missing' }, 401)
 
-    const nowSeconds = SystemClock.nowSeconds()
+    const nowSeconds = context.get('clock').nowSeconds()
     const tokenHash = await sha256hex(refreshToken)
     const activeSession = await context.get('sessionRepository').findActiveByHash(tokenHash, nowSeconds)
     if (!activeSession) return context.json({ error: 'Invalid refresh token' }, 401)
@@ -223,7 +223,7 @@ authApp.post('/auth/refresh', async (context) => {
     const newRefreshTokenHash = await sha256hex(newRefreshToken)
 
     await context.get('sessionRepository').saveRefreshToken({
-      id: SystemIdGenerator.uuid(),
+      id: context.get('idGenerator').uuid(),
       userId: user.id,
       tokenHash: newRefreshTokenHash,
       expiresAt: nowSeconds + REFRESH_TOKEN_EXPIRY_DAYS * SECONDS_PER_DAY,
@@ -256,7 +256,7 @@ authApp.post('/auth/logout', async (context) => {
   try {
     const refreshToken = getCookie(context, 'refresh_token')
     if (refreshToken) {
-      const nowSeconds = SystemClock.nowSeconds()
+      const nowSeconds = context.get('clock').nowSeconds()
       const tokenHash = await sha256hex(refreshToken)
       await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
     }
