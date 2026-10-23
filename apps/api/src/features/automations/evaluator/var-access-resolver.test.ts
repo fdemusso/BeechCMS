@@ -94,3 +94,13 @@ describe('resolveVarAccess — inline conditions over missing values', () => {
     expect(resolve('v.count.(total<5)', variables)).toBe(0)
   })
 })
+
+describe('resolveVarAccess — inline conditions on inherited record properties', () => {
+  // The record carries `status` only on its prototype: an inline condition must not see it.
+  it('a condition column matching an inherited property does not match', () => {
+    const inherited = Object.assign(Object.create({ status: 'paid' }), { id: 'o1', created_at: 1 })
+    const variables = { v: materializeCollection(SEED, [inherited], null) }
+
+    expect(resolve('v.count.(status=paid)', variables)).toBe(0)
+  })
+})

@@ -112,9 +112,12 @@ const webhookActionSchema = z.object({
   ),
 })
 
+// The executor interpolates `to` at run time, so a recipient is an address or a template with a placeholder.
+const PLACEHOLDER_RE = /\{\{[^{}]+\}\}/
+
 const sendMailActionSchema = z.object({
   type: z.literal('send_mail'),
-  to: z.email(),
+  to: z.union([z.email(), z.string().regex(PLACEHOLDER_RE)]),
   subject_template: z.string().min(1),
   body_template: z.string().min(1),
 })

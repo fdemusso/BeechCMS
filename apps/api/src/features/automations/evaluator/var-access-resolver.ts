@@ -27,7 +27,7 @@ function numericCoerce(a: unknown, b: unknown): { left: unknown; right: unknown 
 }
 
 function applyCondition(record: Record<string, unknown>, cond: InlineCondition): boolean {
-  const raw = record[cond.column]
+  const raw = getOwn(record, cond.column)
   const { left, right } = numericCoerce(raw, cond.value)
   switch (cond.op) {
     case '=':  return left === right
