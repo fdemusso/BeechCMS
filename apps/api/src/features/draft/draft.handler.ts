@@ -24,6 +24,7 @@ import { applyVisibility } from '../../shared/policies/apply-policies'
 import { AppEnv } from '../../types'
 import { CONTENT_ERRORS } from '../../shared/content/constants'
 import { resolveIfMatch } from '../../shared/utils/occ'
+import { dispatchContentAutomation } from '../content/handlers/helpers'
 import { draftGuard } from './draft.middleware'
 import { loadLocaleConfig } from '../../shared/localization/locale-config'
 import { loadDisplayLocaleConfig, resolveDisplayName } from '../../shared/localization/display-name'
@@ -81,7 +82,7 @@ function logDraftActivity(
   id: string,
   slug: string,
   title: string,
-  note: 'draft saved' | 'draft published'
+  note: 'draft saved' | 'draft published' | 'draft discarded'
 ) {
   const actor = context.get('jwtPayload')
   context.get('activityLogger').log({
@@ -96,6 +97,17 @@ function logDraftActivity(
       name: [actor.name, actor.surname].filter(Boolean).join(' ') || null,
     },
   })
+}
+
+async function liveDisplayTitle(
+  context: Context<AppEnv>,
+  seed: Seed,
+  id: string,
+  row: Record<string, unknown>,
+): Promise<string> {
+  const localeConfig = await loadLocaleConfig(context.get('siteSettingsRepository'), seed)
+  const displayData = resolveLocalizedFields(seed, row, localeConfig)
+  return cleanStr(displayData[seed.displayNameAlias]) ?? id
 }
 
 // PUT /:slug/:id/draft — Creates or overwrites the pending draft
@@ -116,7 +128,13 @@ draftApp.put('/:slug/:id/draft', draftGuard, async (context) => {
     })
   }
 
-  const sensitiveAliases = Object.keys(body).filter((alias) => {
+  // Envelope keys are not seed fields: `updated_at` only feeds the OCC guard below.
+  const bodyForData = { ...body }
+  delete bodyForData.slug
+  delete bodyForData.status
+  delete bodyForData.updated_at
+
+  const sensitiveAliases = Object.keys(bodyForData).filter((alias) => {
     const branch = seed.branches.find((b) => b.alias === alias)
     return branch != null && resolvePolicies(branch).privacy === 'hash'
   })
@@ -131,7 +149,7 @@ draftApp.put('/:slug/:id/draft', draftGuard, async (context) => {
   }
 
   const localeConfig = await loadLocaleConfig(context.get('siteSettingsRepository'), seed)
-  const validation = validateAndSanitizeSeedPayload(seed, body, {
+  const validation = validateAndSanitizeSeedPayload(seed, bodyForData, {
     operation: 'update',
     allowNull: true,
     requireAtLeastOneValidField: true,
@@ -267,7 +285,10 @@ draftApp.post('/:slug/:id/draft/publish', draftGuard, async (context) => {
     throw err
   }
 
-  logDraftActivity(context, id, slug, id, 'draft published')
+  // Promoting a draft is an update of the live entry: same audit title and automation event.
+  const live = await repository.findById(seed, id)
+  logDraftActivity(context, id, slug, await liveDisplayTitle(context, seed, id, live), 'draft published')
+  dispatchContentAutomation(context, slug, 'update', { ...live, id })
 
   return context.json({ success: true })
 })
@@ -280,6 +301,9 @@ draftApp.delete('/:slug/:id/draft', draftGuard, async (context) => {
 
   const repository = context.get('repository')
   await repository.deleteDraft(seed, id)
+
+  const live = await repository.findById(seed, id)
+  logDraftActivity(context, id, slug, await liveDisplayTitle(context, seed, id, live), 'draft discarded')
 
   return context.json({ success: true })
 })
