@@ -96,16 +96,19 @@ function buildApp({
   db,
   backrefMap,
   getSeed,
+  siteSettingsRepository,
 }: {
   db: ReturnType<typeof makeD1>
   backrefMap: BackrefMap
   getSeed: (slug: string) => unknown
+  siteSettingsRepository?: { getAll: () => Promise<unknown> }
 }) {
   const app = new Hono<{ Variables: { effectivePermissions: EffectivePermissions } }>()
   app.use('*', async (c, next) => {
     ;(c as any).env = { DB: db }
     ;(c as any).set('backrefMap', backrefMap)
     ;(c as any).set('getSeed', getSeed)
+    ;(c as any).set('siteSettingsRepository', siteSettingsRepository)
     c.set('effectivePermissions', { global: new Set(['content:read']), byScope: new Map() })
     await next()
   })
@@ -320,6 +323,48 @@ describe('GET /:targetSlug/:targetId/backrefs', () => {
 
       const res = await app.request('/team/ada-1/backrefs?group=articles:unknown_field')
       expect(res.status).toBe(404)
+    })
+  })
+
+  describe('group validation order', () => {
+    const localizedTeamSeed = {
+      ...teamSeed,
+      branches: [{ id: 'br_01', alias: 'name', label: 'Name', type: 'text' as const, localized: true }],
+    }
+    const localizedArticlesSeed = {
+      ...articlesSeed,
+      branches: [
+        { id: 'br_01', alias: 'title', label: 'Title', type: 'text' as const, localized: true },
+        { id: 'br_02', alias: 'author_id', label: 'Author', type: 'relation' as const, targetSeed: 'team' },
+      ],
+    }
+    const backrefMap: BackrefMap = new Map([
+      ['team', [{
+        sourceSlug: 'articles',
+        branchAlias: 'author_id',
+        branchLabel: 'Author',
+        relationship: 'single',
+        restricts: false,
+      }]],
+    ])
+
+    it.each([
+      ['a malformed group key', 'articles'],
+      ['an unknown group key', 'articles:unknown_field'],
+    ])('rejects %s without reading site settings', async (_name, group) => {
+      const getAll = vi.fn().mockResolvedValue([])
+      const db = makeD1([{ firstResult: { id: 'ada-1' } }])
+      const app = buildApp({
+        db,
+        backrefMap,
+        getSeed: (s) => s === 'team' ? localizedTeamSeed : s === 'articles' ? localizedArticlesSeed : null,
+        siteSettingsRepository: { getAll },
+      })
+
+      const res = await app.request(`/team/ada-1/backrefs?group=${group}`)
+
+      expect(res.status).toBeGreaterThanOrEqual(400)
+      expect(getAll).not.toHaveBeenCalled()
     })
   })
 

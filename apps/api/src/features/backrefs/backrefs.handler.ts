@@ -65,11 +65,6 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
     return c.json({ groups: [] })
   }
 
-  const sourceSeeds = sources
-    .map((source) => getSeed(source.sourceSlug))
-    .filter((seed): seed is Seed => seed !== null)
-  const localeConfig = await loadDisplayLocaleConfig(c.get('siteSettingsRepository'), sourceSeeds)
-
   // 4. Pagination
   const page = Math.max(1, Number.parseInt(pageParam ?? '1', 10) || 1)
   const rawLimit = Number.parseInt(limitParam ?? String(DEFAULT_PAGE_LIMIT), 10) || DEFAULT_PAGE_LIMIT
@@ -107,6 +102,7 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
       return c.json({ groups: [] })
     }
 
+    const localeConfig = await loadDisplayLocaleConfig(c.get('siteSettingsRepository'), [sourceSeed])
     const { items, total } = await backrefRepository.queryGroup(source, sourceSeed, targetId, limit, offset)
     const readable = await decryptDisplayNames(items, sourceSeed, privacyService)
     const filteredItems = filterVisibility(localizeDisplayNames(readable, sourceSeed, localeConfig), sourceSeed)
@@ -126,6 +122,10 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
   }
 
   // 6. Preview mode — all groups, PREVIEW_LIMIT each
+  const sourceSeeds = sources
+    .map((source) => getSeed(source.sourceSlug))
+    .filter((seed): seed is Seed => seed !== null)
+  const localeConfig = await loadDisplayLocaleConfig(c.get('siteSettingsRepository'), sourceSeeds)
   const groupResults = await Promise.all(
     sources.map(async (source) => {
       const sourceSeed = getSeed(source.sourceSlug)
