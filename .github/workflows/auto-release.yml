@@ -140,7 +140,7 @@ jobs:
           missing=0
           for t in $PUBLISHED; do
             ok=false
-            for i in $(seq 1 12); do
+            for i in $(seq 1 36); do
               if [ "$(npm view "$t" version 2>/dev/null)" = "${t##*@}" ]; then ok=true; break; fi
               sleep 10
             done
