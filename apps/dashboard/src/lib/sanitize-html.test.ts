@@ -40,6 +40,24 @@ describe("sanitizeHtml", () => {
     expect(out).not.toContain("href")
   })
 
+  it.each([
+    ["xlink:href on svg anchor", '<svg><a xlink:href="javascript:alert(1)"><text>x</text></a></svg>', "xlink:href"],
+    ["formaction on button", '<form><button formaction="javascript:alert(1)">Go</button></form>', "formaction"],
+    ["action on form", '<form action="javascript:alert(1)"><input /></form>', "action"],
+    ["poster on video", '<video poster="javascript:alert(1)"></video>', "poster"],
+    ["background on table", '<table background="javascript:alert(1)"></table>', "background"],
+    ["obfuscated formaction", '<form><button formaction="jav&#x09;ascript:alert(1)">Go</button></form>', "formaction"],
+  ])("strips script URIs from non-href URL attributes (%s)", (_label, html, attrName) => {
+    const out = sanitizeHtml(html)
+    expect(out).not.toContain(attrName)
+    expect(out).not.toContain("javascript:")
+  })
+
+  it("keeps safe URLs on non-href URL attributes", () => {
+    const input = '<form action="/submit"><button formaction="https://a.example/x">Go</button></form>'
+    expect(sanitizeHtml(input)).toBe(input)
+  })
+
   it("keeps safe http, mailto and relative links", () => {
     const input = '<a href="https://a.example/x">a</a><a href="mailto:a@b.c">b</a><a href="/rel">c</a>'
     expect(sanitizeHtml(input)).toBe(input)

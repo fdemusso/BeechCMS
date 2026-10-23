@@ -4,6 +4,23 @@
 
 const ALLOWED_URL_PROTOCOLS = new Set(["http", "https", "mailto", "tel"])
 
+/** Attributes whose value is navigated, fetched or submitted to; each must pass isSafeUrl. */
+const URL_ATTRIBUTES = new Set([
+  "href",
+  "xlink:href",
+  "src",
+  "action",
+  "formaction",
+  "poster",
+  "background",
+  "cite",
+  "data",
+  "codebase",
+  "longdesc",
+  "manifest",
+  "ping",
+])
+
 /** Allowlist check; strips whitespace and control chars first, as browsers do. */
 function isSafeUrl(raw: string): boolean {
   // eslint-disable-next-line no-control-regex
@@ -36,10 +53,7 @@ export function sanitizeHtml(html: string): string {
     for (const attr of Array.from(el.attributes)) {
       if (attr.name.startsWith("on")) {
         el.removeAttribute(attr.name)
-      } else if (
-        (attr.name === "href" || attr.name === "src") &&
-        !isSafeUrl(attr.value)
-      ) {
+      } else if (URL_ATTRIBUTES.has(attr.name) && !isSafeUrl(attr.value)) {
         el.removeAttribute(attr.name)
       }
     }
