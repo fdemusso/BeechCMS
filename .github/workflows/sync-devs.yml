@@ -1,0 +1,71 @@
+name: Sync master into devs
+
+# Dependabot merges into master (and releases bump it), so devs falls behind. Once a day, and on
+# demand, merge master into devs. A clean merge is pushed straight away; a conflicting one opens
+# a master -> devs pull request (GitHub shows the conflicts there) and turns the run red, so a
+# pending PR is the signal that devs needs attention. Runs after auto-release (05:00 UTC).
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: sync-devs
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync master into devs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout devs
+        uses: actions/checkout@v7
+        with:
+          ref: devs
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 0
+
+      - name: Configure Git Author
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge master into devs
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            git fetch origin master devs
+            git reset --hard origin/devs
+
+            if git merge-base --is-ancestor origin/master HEAD; then
+              echo "devs already contains master."
+              exit 0
+            fi
+
+            if ! git merge origin/master --no-edit -m "chore: sync master into devs [skip ci]"; then
+              git merge --abort
+              if [ "$(gh pr list --base devs --head master --state open --json number --jq length)" = "0" ]; then
+                gh pr create --base devs --head master \
+                  --title "chore: sync master into devs" \
+                  --body "Daily back-merge of master into devs hit conflicts. Resolve them here, then merge (merge commit)."
+              fi
+              echo "::error::Merging master into devs conflicts. A pull request is open for manual resolution."
+              exit 1
+            fi
+
+            if git push origin devs; then
+              echo "devs is in sync with master."
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not push the sync merge to devs"
+          exit 1
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
