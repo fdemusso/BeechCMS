@@ -149,7 +149,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('siteSettingsRepository', overrides?.siteSettingsRepository ?? new D1SiteSettingsRepository(database))
     context.set('demoDataRepository', overrides?.demoDataRepository ?? new D1DemoDataRepository(database))
     context.set('setupChecklistRepository', new D1SetupChecklistRepository(database))
-    context.set('seedLayoutRepository', overrides?.seedLayoutRepository ?? new D1SeedLayoutRepository(database))
+    context.set('seedLayoutRepository', overrides?.seedLayoutRepository ?? new D1SeedLayoutRepository(database, resolvedClock))
     context.set('contentViewRepository', overrides?.contentViewRepository ?? new D1ContentViewRepository(database, resolvedIdGenerator, resolvedClock))
     context.set('seedRepository', overrides?.seedRepository ?? new D1SeedRepository(database))
     context.set('seedMediaPurgeRepository', overrides?.seedMediaPurgeRepository ?? new D1SeedMediaPurgeRepository(database))

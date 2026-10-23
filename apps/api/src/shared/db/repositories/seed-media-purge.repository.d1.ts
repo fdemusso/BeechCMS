@@ -136,11 +136,16 @@ export class D1SeedMediaPurgeRepository implements ISeedMediaPurgeRepository {
     const drop = statements.map(sql => this.db.prepare(sql))
     const deleteSeed = this.db.prepare(`DELETE FROM seeds WHERE slug =
       (SELECT slug FROM seed_media_purge_jobs WHERE id = ?)`).bind(id)
+    // Slug-keyed rows are never cascaded: a re-created seed would inherit stale br_* references.
+    const deleteLayout = this.db.prepare(`DELETE FROM seed_layouts WHERE slug =
+      (SELECT slug FROM seed_media_purge_jobs WHERE id = ?)`).bind(id)
+    const deleteViews = this.db.prepare(`DELETE FROM seed_views WHERE seed_slug =
+      (SELECT slug FROM seed_media_purge_jobs WHERE id = ?)`).bind(id)
     const bump = this.db.prepare(`UPDATE seed_meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)
       WHERE id = 'registry_version'`)
     const advance = this.db.prepare(`UPDATE seed_media_purge_jobs SET phase = 'purging', cursor = 0,
       updated_at = ? WHERE id = ? AND lease_token = ?`).bind(now, id, token)
-    await this.db.batch([guard, ...drop, deleteSeed, bump, advance])
+    await this.db.batch([guard, ...drop, deleteSeed, deleteLayout, deleteViews, bump, advance])
   }
 
   async abortDrop(id: string, token: string, now: number): Promise<void> {
