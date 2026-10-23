@@ -27,7 +27,7 @@ const publicJsonSeed = defineSeed({
 
 // Time-Trap tokens are single-use and their table outlives a test. A token minted as "now - N seconds" repeats an earlier
 // test's t0 whenever the tests run N seconds apart, so the table is emptied before each test.
-const DEFAULT_TIME_TRAP_SECRET = 'beech-public-timetrap-default-secret'
+const TIME_TRAP_SECRET = 'idempotency-suite-time-trap-secret-0123456789'
 
 describe('public slice — idempotent add (real D1)', () => {
   let harness: TestHarness
@@ -38,6 +38,7 @@ describe('public slice — idempotent add (real D1)', () => {
     harness = await createTestHarness({
       db: env.DB,
       seeds: [publicJsonSeed],
+      env: { PUBLIC_TIME_TRAP_SECRET: TIME_TRAP_SECRET },
       createApp: (authProviders) => createBeechApp({ seeds: [], authProviders }),
     })
     await harness.db.prepare('DELETE FROM public_time_trap_tokens').run()
@@ -77,7 +78,7 @@ describe('public slice — idempotent add (real D1)', () => {
     })
 
     it('replays the cached 201 when an anonymous retry resends its already consumed Time-Trap token', async () => {
-      const token = await generateTimeTrapToken(DEFAULT_TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 2)
+      const token = await generateTimeTrapToken(TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 2)
       const anonymous = harness.anonymous()
       const headers = { 'Idempotency-Key': 'anonymous-lost-response-retry' }
       const first = await anonymous.post('/api/v1/public/public_json/add', { data: { title: 'Prefs' }, _timeTrapToken: token }, { headers })
@@ -95,7 +96,7 @@ describe('public slice — idempotent add (real D1)', () => {
     })
 
     it('answers 422 time-trap-replayed when a consumed token is resent without a matching idempotent request', async () => {
-      const token = await generateTimeTrapToken(DEFAULT_TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 3)
+      const token = await generateTimeTrapToken(TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 3)
       const anonymous = harness.anonymous()
       const first = await anonymous.post('/api/v1/public/public_json/add', { data: { title: 'Prefs' }, _timeTrapToken: token }, { headers: { 'Idempotency-Key': 'first-key' } })
       expect(first.status).toBe(201) // precondition
@@ -110,7 +111,7 @@ describe('public slice — idempotent add (real D1)', () => {
     })
 
     it('answers 409 idempotency-key-conflict when a consumed token is resent with a different payload under the same key', async () => {
-      const token = await generateTimeTrapToken(DEFAULT_TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 4)
+      const token = await generateTimeTrapToken(TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 4)
       const anonymous = harness.anonymous()
       const headers = { 'Idempotency-Key': 'changed-payload-key' }
       const first = await anonymous.post('/api/v1/public/public_json/add', { data: { title: 'Prefs' }, _timeTrapToken: token }, { headers })

@@ -81,7 +81,7 @@ interface PublicProblemDetailItem {
 type PublicProblemInput = {
   type: string
   title: string
-  status: 400 | 401 | 403 | 404 | 405 | 409 | 413 | 422 | 429 | 500 | 501
+  status: 400 | 401 | 403 | 404 | 405 | 409 | 413 | 422 | 429 | 500 | 501 | 503
   detail: string
   errors?: PublicProblemDetailItem[]
   headers?: Record<string, string>
@@ -128,5 +128,15 @@ export function publicProblem(c: Context, input: PublicProblemInput): Response {
   return c.json(body, input.status, {
     'Content-Type': 'application/problem+json',
     ...input.headers,
+  })
+}
+
+/** 503 for the Time-Trap routes while PUBLIC_TIME_TRAP_SECRET is unset: no key means no trustworthy token. */
+export function timeTrapNotConfiguredProblem(c: Context): Response {
+  return publicProblem(c, {
+    type: 'time-trap-not-configured',
+    title: 'Service Unavailable',
+    status: 503,
+    detail: 'Time-Trap is not configured. Set PUBLIC_TIME_TRAP_SECRET (wrangler secret or .dev.vars).',
   })
 }

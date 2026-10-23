@@ -9,7 +9,7 @@ import { __resetSeedRegistryCache } from '../../shared/services/cache/seed-regis
 import { StaticContentRepository } from '../../../test/mocks/static-content.repository'
 import { StaticIdempotencyRepository } from '../../../test/mocks/static-idempotency.repository'
 import { StaticAutomationRepository } from '../../../test/mocks/static-automation.repository'
-import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_WRITE_KEY } from '../../../test/fixtures'
+import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_WRITE_KEY, TEST_TIME_TRAP_SECRET } from '../../../test/fixtures'
 
 describe('publicAddHandler Quarantine & Security Integration', () => {
   let app: ReturnType<typeof createBeechApp>
@@ -65,7 +65,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
     })
 
     const t0 = Math.floor(Date.now() / 1000) - 2
-    const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+    const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
 
     const res = await customApp.request('/api/v1/public/posts/add', {
       method: 'POST',
@@ -122,7 +122,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       })
 
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
 
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',
@@ -166,7 +166,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       })
 
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
 
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',
@@ -200,7 +200,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       })
 
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
 
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',

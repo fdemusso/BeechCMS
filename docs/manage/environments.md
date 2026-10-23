@@ -73,6 +73,7 @@ Declared in `wrangler.toml` and bound at runtime:
 | :--- | :---: | :--- |
 | `PUBLIC_READ_API_KEY` | Recommended | Key required to query public content via `/api/v1/public/*`. |
 | `PUBLIC_WRITE_API_KEY` | Recommended | Key required for public submissions and form entries. |
+| `PUBLIC_TIME_TRAP_SECRET` | Required for anonymous forms | HMAC key (use 32+ random bytes) that signs the anti-bot Time-Trap tokens. When unset, `GET /api/v1/public/timetrap/token` and anonymous `POST /api/v1/public/:seed/add` answer `503 time-trap-not-configured` instead of signing with a guessable key. Requests authenticated with `PUBLIC_WRITE_API_KEY` are not affected. |
 | `PUBLIC_PUBLISHED_ONLY`| Optional | When set to `true`, restricts public reads strictly to published items. |
 
 ### Automations & Delivery
@@ -101,6 +102,7 @@ RESEND_API_KEY=re_dev_123456789
 EMAIL_FROM="BeechCMS Dev <noreply@localhost>"
 PUBLIC_READ_API_KEY=pk_live_read_12345
 PUBLIC_WRITE_API_KEY=pk_live_write_12345
+PUBLIC_TIME_TRAP_SECRET=local-time-trap-secret-change-me
 WEBHOOK_SECRET=whsec_dev_local_secret
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 ```

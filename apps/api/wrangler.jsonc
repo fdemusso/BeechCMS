@@ -103,6 +103,7 @@
   //   RESEND_API_KEY      → npx wrangler secret put RESEND_API_KEY --env production
   //   PUBLIC_READ_API_KEY → npx wrangler secret put PUBLIC_READ_API_KEY --env production
   //   PUBLIC_WRITE_API_KEY→ npx wrangler secret put PUBLIC_WRITE_API_KEY --env production
+  //   PUBLIC_TIME_TRAP_SECRET → npx wrangler secret put PUBLIC_TIME_TRAP_SECRET --env production
   //   WEBHOOK_SECRET      → npx wrangler secret put WEBHOOK_SECRET --env production
   //   PRIVACY_MASTER_KEY  → npx wrangler secret put PRIVACY_MASTER_KEY --env production
   //   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME
@@ -111,6 +112,7 @@
     "CORS_ORIGINS": "http://localhost:5173,http://localhost:5174,https://dashboard.beech.local",
     "PUBLIC_READ_API_KEY": "dev-public-read-key-changeme",
     "PUBLIC_WRITE_API_KEY": "dev-public-write-key-changeme",
+    "PUBLIC_TIME_TRAP_SECRET": "dev-public-time-trap-secret-changeme",
     "PUBLIC_PUBLISHED_ONLY": "true",
     "PUBLIC_IDEMPOTENCY_TTL_SECONDS": "86400",
     "MEDIA_BASE_URL": "http://localhost:5173",
@@ -134,6 +136,7 @@
   //   npx wrangler secret put RESEND_API_KEY --env production
   //   npx wrangler secret put PUBLIC_READ_API_KEY --env production
   //   npx wrangler secret put PUBLIC_WRITE_API_KEY --env production
+  //   npx wrangler secret put PUBLIC_TIME_TRAP_SECRET --env production
   //   npx wrangler secret put WEBHOOK_SECRET --env production
   //   npx wrangler secret put PRIVACY_MASTER_KEY --env production
   //   npx wrangler secret put R2_ACCESS_KEY_ID --env production
@@ -162,7 +165,7 @@
         "EMAIL_FROM": "Beech CMS <noreply@SOSTITUISCI_CON_IL_TUO_DOMINIO>"
 
         // Le seguenti vars NON compaiono qui: sono wrangler secrets.
-        // PUBLIC_READ_API_KEY, PUBLIC_WRITE_API_KEY, JWT_SECRET,
+        // PUBLIC_READ_API_KEY, PUBLIC_WRITE_API_KEY, PUBLIC_TIME_TRAP_SECRET, JWT_SECRET,
         // RESEND_API_KEY, WEBHOOK_SECRET, R2_*, SMTP_*
       }
     }

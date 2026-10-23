@@ -7,7 +7,7 @@ import type { Seed } from '@beechcms/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../../shared/utils/query-utils.js'
 import { checkPublicOperation } from '../validation/access-policy.js'
-import { publicProblem, internalErrorDetail } from '../errors/problem-details.js'
+import { publicProblem, internalErrorDetail, timeTrapNotConfiguredProblem } from '../errors/problem-details.js'
 import { generateEntrySlug, slugify } from '../utils/slug-utils.js'
 import { sanitizePublicPayload } from '../validation/sanitize.js'
 import { parseIdempotencyKey, buildRequestFingerprint } from '../validation/idempotency.js'
@@ -256,7 +256,8 @@ export async function publicAddHandler(context: Context<AppEnv>) {
 
     // A consumed token passed this verification when it was claimed, and its 1h window may have lapsed since.
     if (!tokenConsumed) {
-      const secret = context.env.PUBLIC_TIME_TRAP_SECRET || 'beech-public-timetrap-default-secret'
+      const secret = context.env.PUBLIC_TIME_TRAP_SECRET
+      if (!secret) return timeTrapNotConfiguredProblem(context)
       const verification = await verifyTimeTrapToken(timeTrapToken, secret, 1.5, 3600)
       if (!verification.valid) {
         return publicProblem(context, {

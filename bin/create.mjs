@@ -77,6 +77,7 @@ function buildWranglerJsonc(cfg) {
     "CORS_ORIGINS": "${cfg.corsOrigins}",
     "PUBLIC_READ_API_KEY": "${cfg.publicReadKey}",
     "PUBLIC_WRITE_API_KEY": "${cfg.publicWriteKey}",
+    "PUBLIC_TIME_TRAP_SECRET": "${cfg.timeTrapSecret}",
     "APP_URL": "${cfg.appUrl || 'http://localhost:5173'}"
   },
 
@@ -304,6 +305,7 @@ async function main() {
   const jwtSecret = generateSecret(32)
   const publicReadKey = generateSecret(16)
   const publicWriteKey = generateSecret(16)
+  const timeTrapSecret = generateSecret(32)
 
   const corsOrigins = cloudflare
     ? ['http://localhost:5173', 'http://localhost:5174', cloudflare.appUrl]
@@ -328,6 +330,7 @@ async function main() {
     corsOrigins,
     publicReadKey,
     publicWriteKey,
+    timeTrapSecret,
     appUrl: cloudflare?.appUrl ?? '',
   }))
   writeFile(join(targetDir, '.dev.vars'), buildDevVars(cloudflare))

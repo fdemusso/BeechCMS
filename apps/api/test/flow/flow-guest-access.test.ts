@@ -10,7 +10,7 @@ import { StaticAutomationRepository } from '../mocks/static-automation.repositor
 import { StaticContentRepository } from '../mocks/static-content.repository'
 import { StaticIdempotencyRepository } from '../mocks/static-idempotency.repository'
 import { __resetSeedRegistryCache } from '../../src/shared/services/cache/seed-registry-cache'
-import { TEST_SEEDS, TEST_ENV } from '../fixtures'
+import { TEST_SEEDS, TEST_ENV, TEST_TIME_TRAP_SECRET } from '../fixtures'
 
 /**
  * SPRINT: BeechCMS Test Redesign
@@ -194,7 +194,7 @@ describe('Flow: Guest Access (Public API)', () => {
   describe('POST /api/v1/public/:seed/add (Submit)', () => {
     it('success: valid payload creates a new entry', async () => {
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -225,7 +225,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
     it('error: missing data object returns 400', async () => {
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -236,7 +236,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
     it('success: client status is ignored and backend default status is used', async () => {
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -248,7 +248,7 @@ describe('Flow: Guest Access (Public API)', () => {
     it('error: slug conflict returns 409', async () => {
       repo.load('posts', [{ id: 'existing', slug: 'conflict', status: 'published', title: 'Existing' }])
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -260,7 +260,7 @@ describe('Flow: Guest Access (Public API)', () => {
     it('success: idempotency-key returns cached result', async () => {
       const key = 'test-key'
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
       const payload = JSON.stringify({ data: { title: 'Idempotent' }, _timeTrapToken: token })
       
       const res1 = await app.request('/api/v1/public/posts/add', {
@@ -289,7 +289,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
     it('security: ignores reserved prototype keys in data payload and resolves safely', async () => {
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -560,7 +560,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
     it('POST /api/v1/public/:seed/add returns 400 when missing required fields', async () => {
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -572,8 +572,8 @@ describe('Flow: Guest Access (Public API)', () => {
     it('POST /api/v1/public/:seed/add returns 409 on idempotency key fingerprint conflict', async () => {
       const key = 'test-conflict-key'
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token1 = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
-      const token2 = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token1 = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
+      const token2 = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
 
       // First call
       await app.request('/api/v1/public/posts/add', {
@@ -593,7 +593,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
     it('POST /api/v1/public/:seed/add returns 500 when repository throws generic error', async () => {
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
       vi.spyOn(repo, 'create').mockRejectedValueOnce(new Error('Generic create error'))
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
@@ -606,7 +606,7 @@ describe('Flow: Guest Access (Public API)', () => {
     // Regression: GH #201 - public-add never applied privacy policy
     it('error: returns 422 when writing an internal-only (public: false) field', async () => {
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -632,7 +632,7 @@ describe('Flow: Guest Access (Public API)', () => {
       __resetSeedRegistryCache()
 
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
 
       const res = await localApp.request('/api/v1/public/hash_test/add', {
         method: 'POST',
@@ -662,7 +662,7 @@ describe('Flow: Guest Access (Public API)', () => {
       __resetSeedRegistryCache()
 
       const t0 = Math.floor(Date.now() / 1000) - 2
-      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, t0)
 
       const res = await localApp.request('/api/v1/public/encrypt_test/add', {
         method: 'POST',
