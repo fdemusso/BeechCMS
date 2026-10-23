@@ -23,6 +23,30 @@ export interface BackrefSource {
   restricts: boolean
 }
 
+export interface BackrefItem {
+  id: string
+  displayName: string | null
+  status: string
+  updated_at: number | null
+}
+
+export interface QueryGroupResult {
+  items: BackrefItem[]
+  total: number
+}
+
+/** Port for reading back-references (entries pointing at a target entry). */
+export interface IBackrefRepository {
+  entryExists(seedOrSlug: Seed | string, id: string): Promise<boolean>
+  queryGroup(
+    source: BackrefSource,
+    sourceSeed: Seed,
+    targetId: string,
+    limit: number,
+    offset: number,
+  ): Promise<QueryGroupResult>
+}
+
 /** Map: targetSlug → every source that points to it */
 export type BackrefMap = Map<string, BackrefSource[]>
 

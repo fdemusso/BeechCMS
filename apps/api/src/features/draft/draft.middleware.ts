@@ -5,7 +5,7 @@
 import { createMiddleware } from 'hono/factory'
 import { EntryNotFoundError } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
-import { CONTENT_ERRORS } from '../content/constants'
+import { CONTENT_ERRORS } from '../../shared/content/constants'
 import type { AppEnv } from '../../types'
 
 /**
