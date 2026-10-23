@@ -80,5 +80,43 @@ describe('notifications slice — ETag integration (real D1)', () => {
       const body = await response.json<{ id: string }[]>()
       expect(body.map((item) => item.id)).toEqual(['y'])
     })
+
+    // RFC 9110 §13.1.2: If-None-Match is a list of entity-tags or `*`, compared weakly. An exact-string
+    // compare turns every one of these into a silent full response.
+    it.each([
+      ['a list that contains the current tag', (etag: string) => `"other", ${etag}`],
+      ['a wildcard', () => '*'],
+      ['the strong form of the weak tag', (etag: string) => etag.replace(/^W\//, '')],
+    ])('answers 304 when If-None-Match is %s', async (_label, buildHeader) => {
+      await insertNotification('a', 0)
+      const etag = await currentEtag()
+
+      const response = await admin.get('/api/content/notifications', {
+        headers: { 'If-None-Match': buildHeader(etag) },
+      })
+
+      expect(response.status).toBe(304)
+    })
+
+    it('answers 200 when If-None-Match lists only tags that do not match', async () => {
+      await insertNotification('a', 0)
+
+      const response = await admin.get('/api/content/notifications', {
+        headers: { 'If-None-Match': 'W/"stale-one", "stale-two"' },
+      })
+
+      expect(response.status).toBe(200)
+    })
+
+    it('sends ETag and Cache-Control on the 304 so caches keep the same freshness rules', async () => {
+      await insertNotification('a', 0)
+      const etag = await currentEtag()
+
+      const response = await admin.get('/api/content/notifications', { headers: { 'If-None-Match': etag } })
+
+      expect(response.status).toBe(304)
+      expect(response.headers.get('ETag')).toBe(etag)
+      expect(response.headers.get('Cache-Control')).toBe('no-cache, must-revalidate')
+    })
   })
 })

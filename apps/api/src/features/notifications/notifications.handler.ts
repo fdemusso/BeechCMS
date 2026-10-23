@@ -30,6 +30,17 @@ async function buildListEtag(limit: number, payload: string): Promise<string> {
 }
 
 /**
+ * RFC 9110 §13.1.2: `If-None-Match` is `*` or a comma-separated list of entity-tags, compared
+ * weakly, so a proxy that strips or adds the `W/` prefix still revalidates.
+ */
+function matchesIfNoneMatch(headerValue: string | undefined, etagValue: string): boolean {
+  if (!headerValue) return false
+  const opaqueTag = (tag: string) => tag.trim().replace(/^W\//, '')
+  const current = opaqueTag(etagValue)
+  return headerValue.split(',').some((candidate) => candidate.trim() === '*' || opaqueTag(candidate) === current)
+}
+
+/**
  * GET /notifications
  *
  * Returns the most recent notifications. The ETag is derived from the list
@@ -42,12 +53,12 @@ notificationsApp.get('/notifications', async (context) => {
     const body = JSON.stringify(notifications)
     const etagValue = await buildListEtag(NOTIFICATION_LIST_LIMIT, body)
 
-    if (context.req.header('If-None-Match') === etagValue) {
-      return new Response(null, { status: 304, headers: { ETag: etagValue } })
-    }
-
     context.header('ETag', etagValue)
     context.header('Cache-Control', 'no-cache, must-revalidate')
+
+    if (matchesIfNoneMatch(context.req.header('If-None-Match'), etagValue)) {
+      return context.body(null, 304)
+    }
 
     return context.body(body, 200, { 'Content-Type': 'application/json' })
   } catch (error) {
@@ -62,7 +73,8 @@ notificationsApp.get('/notifications', async (context) => {
 notificationsApp.patch('/notifications/:id/read', async (context) => {
   try {
     const notificationId = context.req.param('id')
-    await context.get('notificationRepository').markRead(notificationId)
+    const found = await context.get('notificationRepository').markRead(notificationId)
+    if (!found) return context.json({ error: 'Notification not found' }, 404)
     return context.json({ success: true })
   } catch (error) {
     console.error('[Notifications] Mark read error:', error)
@@ -76,7 +88,8 @@ notificationsApp.patch('/notifications/:id/read', async (context) => {
 notificationsApp.patch('/notifications/:id/unread', async (context) => {
   try {
     const notificationId = context.req.param('id')
-    await context.get('notificationRepository').markUnread(notificationId)
+    const found = await context.get('notificationRepository').markUnread(notificationId)
+    if (!found) return context.json({ error: 'Notification not found' }, 404)
     return context.json({ success: true })
   } catch (error) {
     console.error('[Notifications] Mark unread error:', error)
@@ -90,7 +103,8 @@ notificationsApp.patch('/notifications/:id/unread', async (context) => {
 notificationsApp.delete('/notifications/:id', async (context) => {
   try {
     const notificationId = context.req.param('id')
-    await context.get('notificationRepository').delete(notificationId)
+    const found = await context.get('notificationRepository').delete(notificationId)
+    if (!found) return context.json({ error: 'Notification not found' }, 404)
     return context.json({ success: true })
   } catch (error) {
     console.error('[Notifications] Delete error:', error)
