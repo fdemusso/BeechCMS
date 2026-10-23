@@ -63,4 +63,14 @@ describe('executeCreateEntry', () => {
 
     expect(create).toHaveBeenCalledWith(targetSeed, 'new-id-123', 'new-id-123', 'draft', { title: 'Alice' })
   })
+
+  // `slug` is a system column, not a branch: validation rejects it before the repository is reached.
+  it('rejects a field_map target named slug with a validation error and never writes', async () => {
+    const entry = { id: 'e1', author: 'Alice', existing: 'taken' }
+
+    const result = run({ type: 'create_entry', seed_slug: 'comments', field_map: { title: 'author', slug: 'existing' } }, entry)
+
+    await expect(result).rejects.toThrow(/Field 'slug' is not defined/)
+    expect(create).not.toHaveBeenCalled()
+  })
 })
