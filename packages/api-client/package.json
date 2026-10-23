@@ -21,7 +21,7 @@
     "@types/node": "^26.5.1",
     "esbuild": "^0.28.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   },
   "license": "MIT"
 }
