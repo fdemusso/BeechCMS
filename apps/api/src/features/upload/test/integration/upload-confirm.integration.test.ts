@@ -71,5 +71,35 @@ describe('upload slice — confirm integration (real D1 + R2)', () => {
       expect(await mediaRows()).toBe(1)
       expect(await storageBytes()).toBe(OBJECT_BYTES.byteLength)
     })
+
+    it('rejects a disallowed stored Content-Type and deletes the untracked object', async () => {
+      await bucket.put(OBJECT_KEY, OBJECT_BYTES, { httpMetadata: { contentType: 'text/html' } })
+
+      const response = await confirm()
+
+      expect(response.status).toBe(400)
+      expect(await bucket.head(OBJECT_KEY)).toBeNull()
+      expect(await mediaRows()).toBe(0)
+      expect(await storageBytes()).toBe(0)
+    })
+
+    it('rejects an oversized stored object and deletes it', async () => {
+      const limited = await createTestHarness({
+        db: env.DB,
+        env: { MEDIA_BUCKET: bucket, MAX_UPLOAD_BYTES: String(OBJECT_BYTES.byteLength - 1) },
+        createApp: (authProviders) => createBeechApp({ seeds: [], authProviders }),
+      })
+      const limitedAdmin = await limited.asUser('admin')
+
+      const response = await limitedAdmin.request('/api/upload/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: OBJECT_KEY }),
+      })
+
+      expect(response.status).toBe(400)
+      expect(await bucket.head(OBJECT_KEY)).toBeNull()
+      expect(await mediaRows()).toBe(0)
+    })
   })
 })
