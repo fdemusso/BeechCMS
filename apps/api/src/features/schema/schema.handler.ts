@@ -99,7 +99,7 @@ schemaApp.put('/:slug/layout', async (context) => {
       type: 'invalid-layout',
       title: 'Invalid layout',
       status: 422,
-      detail: parsed.error.message,
+      detail: parsed.error.issues.map((issue) => `${issue.path.join('.') || 'layout'}: ${issue.message}`).join('; '),
     })
   }
 

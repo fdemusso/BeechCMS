@@ -120,6 +120,28 @@ describe('seeds slice — media purge (real D1 and R2)', () => {
     expect(media?.n).toBe(0)
   })
 
+  it('removes the seed layout and views with the seed while keeping other seeds\' rows', async () => {
+    await arrangeMedia()
+    await env.DB.prepare('DELETE FROM seed_layouts').run()
+    await env.DB.prepare('DELETE FROM seed_views').run()
+    await env.DB.prepare(`INSERT INTO seed_layouts (slug, layout, updated_at, updated_by)
+      VALUES ('purge_articles', '{}', 0, 'admin'), ('other_seed', '{}', 0, 'admin')`).run()
+    await env.DB.prepare(`INSERT INTO seed_views (id, seed_slug, view_type, position, config, updated_by)
+      VALUES ('v1', 'purge_articles', 'table', 0, '{}', 'admin'), ('v2', 'other_seed', 'table', 0, '{}', 'admin')`).run()
+    const accepted = await admin.delete('/api/seeds/purge_articles/hard', {
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirm: 'purge_articles' }),
+    })
+    if (accepted.status !== 202) throw new Error(`seed purge returned ${accepted.status}: ${await accepted.text()}`)
+    const { jobId } = await accepted.json<{ jobId: string }>()
+
+    await drainPurge(jobId)
+
+    const layouts = await env.DB.prepare('SELECT slug FROM seed_layouts').all<{ slug: string }>()
+    expect(layouts.results.map(row => row.slug)).toEqual(['other_seed'])
+    const views = await env.DB.prepare('SELECT seed_slug FROM seed_views').all<{ seed_slug: string }>()
+    expect(views.results.map(row => row.seed_slug)).toEqual(['other_seed'])
+  })
+
   it('persists a row cursor after one page while later rows and media remain intact', async () => {
     await arrangeMedia()
     for (let index = 0; index < 100; index++) {

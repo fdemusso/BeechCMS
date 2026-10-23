@@ -2,8 +2,9 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { D1SeedLayoutRepository } from './seed-layout.repository.d1'
+import { FixedClock } from '@beechcms/testing'
 import type { FormLayout } from '@beechcms/core'
 
 function makeMockDb(opts: { firstResult?: unknown; allResults?: unknown[] } = {}) {
@@ -18,18 +19,12 @@ function makeMockDb(opts: { firstResult?: unknown; allResults?: unknown[] } = {}
 }
 
 describe('D1SeedLayoutRepository', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-  })
+  const clock = new FixedClock(Date.parse('2026-06-04T12:00:00Z'))
 
   describe('get', () => {
     it('returns null when the layout is not found', async () => {
       const { db } = makeMockDb({ firstResult: null })
-      const repo = new D1SeedLayoutRepository(db)
+      const repo = new D1SeedLayoutRepository(db, clock)
       const res = await repo.get('non-existent')
       expect(res).toBeNull()
     })
@@ -43,7 +38,7 @@ describe('D1SeedLayoutRepository', () => {
         updated_by: 'admin-user',
       }
       const { db, prepareMock, bindMock } = makeMockDb({ firstResult: row })
-      const repo = new D1SeedLayoutRepository(db)
+      const repo = new D1SeedLayoutRepository(db, clock)
 
       const res = await repo.get('pages')
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('SELECT slug, layout, updated_at, updated_by FROM seed_layouts'))
@@ -60,7 +55,7 @@ describe('D1SeedLayoutRepository', () => {
   describe('getAllAsMap', () => {
     it('returns an empty map when there are no records', async () => {
       const { db } = makeMockDb({ allResults: [] })
-      const repo = new D1SeedLayoutRepository(db)
+      const repo = new D1SeedLayoutRepository(db, clock)
       const map = await repo.getAllAsMap()
       expect(map).toBeInstanceOf(Map)
       expect(map.size).toBe(0)
@@ -73,7 +68,7 @@ describe('D1SeedLayoutRepository', () => {
         { slug: 'posts', layout: JSON.stringify({ tabs: [{ id: 't2', label: 'T2', sections: [] }] }) },
       ]
       const { db, prepareMock } = makeMockDb({ allResults })
-      const repo = new D1SeedLayoutRepository(db)
+      const repo = new D1SeedLayoutRepository(db, clock)
 
       const map = await repo.getAllAsMap()
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('SELECT slug, layout FROM seed_layouts'))
@@ -86,12 +81,10 @@ describe('D1SeedLayoutRepository', () => {
 
   describe('upsert', () => {
     it('prepares and binds the correct layout layout JSON and timestamp', async () => {
-      const mockDate = new Date('2026-06-04T12:00:00Z')
-      vi.setSystemTime(mockDate)
-      const expectedTimestamp = Math.floor(mockDate.getTime() / 1000)
+      const expectedTimestamp = clock.nowSeconds()
 
       const { db, prepareMock, bindMock } = makeMockDb()
-      const repo = new D1SeedLayoutRepository(db)
+      const repo = new D1SeedLayoutRepository(db, clock)
 
       const layout: FormLayout = { version: 1, tabs: [{ id: 'tab-1', label: 'Tab 1', sections: [] }] }
       await repo.upsert('articles', layout, 'editor-1')
@@ -104,7 +97,7 @@ describe('D1SeedLayoutRepository', () => {
   describe('remove', () => {
     it('deletes the layout by slug', async () => {
       const { db, prepareMock, bindMock } = makeMockDb()
-      const repo = new D1SeedLayoutRepository(db)
+      const repo = new D1SeedLayoutRepository(db, clock)
 
       await repo.remove('products')
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM seed_layouts WHERE slug = ?'))

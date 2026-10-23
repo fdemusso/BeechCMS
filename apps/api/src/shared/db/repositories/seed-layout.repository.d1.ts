@@ -3,10 +3,13 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { ISeedLayoutRepository, SeedLayoutRecord, FormLayout } from '@beechcms/core'
+import type { IClock, ISeedLayoutRepository, SeedLayoutRecord, FormLayout } from '@beechcms/core'
 
 export class D1SeedLayoutRepository implements ISeedLayoutRepository {
-  constructor(private readonly db: D1Database) {}
+  constructor(
+    private readonly db: D1Database,
+    private readonly clock: IClock,
+  ) {}
 
   async get(slug: string): Promise<SeedLayoutRecord | null> {
     const row = await this.db
@@ -39,7 +42,7 @@ export class D1SeedLayoutRepository implements ISeedLayoutRepository {
 
   async upsert(slug: string, layout: FormLayout, updatedBy: string): Promise<void> {
     const json = JSON.stringify(layout)
-    const now = Math.floor(Date.now() / 1000)
+    const now = this.clock.nowSeconds()
     await this.db
       .prepare(`
         INSERT INTO seed_layouts (slug, layout, updated_at, updated_by)

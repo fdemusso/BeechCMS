@@ -415,6 +415,29 @@ function flattenFieldIds(sections: { columns: { fields: LayoutField[] }[] }[]): 
   return sections.flatMap((s) => s.columns.flatMap((c) => c.fields.map((f) => f.branchId)))
 }
 
+describe('validateLayoutAgainstSeed — hidden branches', () => {
+  const seed = {
+    slug: 'tasks',
+    label: 'Tasks',
+    displayNameAlias: 'title',
+    branches: [
+      { id: 'br_01', alias: 'title', type: 'text', label: 'Title' },
+      { id: 'br_02', alias: 'secret', type: 'text', label: 'Secret', policies: { visibility: 'hidden' } },
+    ],
+  } as any
+
+  it('strips a hidden branch placed in the layout', () => {
+    const layout = {
+      version: 1,
+      tabs: [{ id: 't', label: 'Data', sections: [{ id: 's', columns: [{ id: 'c', fields: [{ branchId: 'br_01' }, { branchId: 'br_02' }] }] }] }],
+    } as any
+
+    const result = validateLayoutAgainstSeed(layout, seed)
+
+    expect(result.cleaned.tabs[0].sections[0].columns[0].fields).toEqual([{ branchId: 'br_01' }])
+  })
+})
+
 describe('generateDefaultLayout', () => {
   it('generates a dedicated single-column full-width section for json branches', () => {
     const seedWithJson = {
@@ -579,6 +602,34 @@ describe('formLayoutSchema bounds', () => {
     const sections = [{ ...section('s'), label: 'x'.repeat(121) }]
 
     expect(formLayoutSchema.safeParse(layoutWith(sections)).success).toBe(false)
+  })
+
+  describe('id uniqueness', () => {
+    const tab = (id: string, sections: unknown[]) => ({ id, label: id, sections })
+
+    it('rejects two tabs sharing an id', () => {
+      const layout = { version: 1, tabs: [tab('a', [section('s1')]), tab('a', [section('s2')])] }
+
+      expect(formLayoutSchema.safeParse(layout).success).toBe(false)
+    })
+
+    it('rejects two sections sharing an id, even across tabs', () => {
+      const layout = { version: 1, tabs: [tab('a', [section('s')]), tab('b', [section('s')])] }
+
+      expect(formLayoutSchema.safeParse(layout).success).toBe(false)
+    })
+
+    it('rejects two columns sharing an id', () => {
+      const sections = [{ id: 's', columns: [{ id: 'c', fields: [] }, { id: 'c', fields: [] }] }]
+
+      expect(formLayoutSchema.safeParse(layoutWith(sections)).success).toBe(false)
+    })
+
+    it('accepts a layout whose ids are all distinct', () => {
+      const layout = { version: 1, tabs: [tab('a', [section('s1')]), tab('b', [section('s2')])] }
+
+      expect(formLayoutSchema.safeParse(layout).success).toBe(true)
+    })
   })
 })
 
