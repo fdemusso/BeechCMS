@@ -31,7 +31,9 @@ notification the first call created.
 
 ### delete()
 
-> **delete**(`notificationId`): `Promise`&lt;`void`&gt;
+> **delete**(`notificationId`): `Promise`&lt;`boolean`&gt;
+
+Resolve `false` when no notification has this id, so the caller can answer 404.
 
 #### Parameters
 
@@ -41,7 +43,7 @@ notification the first call created.
 
 #### Returns
 
-`Promise`&lt;`void`&gt;
+`Promise`&lt;`boolean`&gt;
 
 ***
 
@@ -78,7 +80,9 @@ could grow large over time and clients only ever render a window.
 
 ### markRead()
 
-> **markRead**(`notificationId`): `Promise`&lt;`void`&gt;
+> **markRead**(`notificationId`): `Promise`&lt;`boolean`&gt;
+
+Resolve `false` when no notification has this id, so the caller can answer 404.
 
 #### Parameters
 
@@ -88,13 +92,15 @@ could grow large over time and clients only ever render a window.
 
 #### Returns
 
-`Promise`&lt;`void`&gt;
+`Promise`&lt;`boolean`&gt;
 
 ***
 
 ### markUnread()
 
-> **markUnread**(`notificationId`): `Promise`&lt;`void`&gt;
+> **markUnread**(`notificationId`): `Promise`&lt;`boolean`&gt;
+
+Resolve `false` when no notification has this id, so the caller can answer 404.
 
 #### Parameters
 
@@ -104,7 +110,7 @@ could grow large over time and clients only ever render a window.
 
 #### Returns
 
-`Promise`&lt;`void`&gt;
+`Promise`&lt;`boolean`&gt;
 
 ***
 

@@ -63,8 +63,11 @@ export interface INotificationRepository {
    */
   create(record: CreateNotificationRecord): Promise<string>
 
-  markRead(notificationId: string): Promise<void>
-  markUnread(notificationId: string): Promise<void>
+  /** Resolve `false` when no notification has this id, so the caller can answer 404. */
+  markRead(notificationId: string): Promise<boolean>
+  /** Resolve `false` when no notification has this id, so the caller can answer 404. */
+  markUnread(notificationId: string): Promise<boolean>
   markAllRead(): Promise<void>
-  delete(notificationId: string): Promise<void>
+  /** Resolve `false` when no notification has this id, so the caller can answer 404. */
+  delete(notificationId: string): Promise<boolean>
 }
