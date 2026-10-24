@@ -345,6 +345,10 @@ export async function serveMediaHandler(c: Context<AppEnv>): Promise<Response> {
   if (transformQuery.kind === 'invalid') return mediaTransformError(c, 400, transformQuery.code)
 
   try {
+    // The registry is the allowlist: a bucket object with no row (never confirmed, or rejected at
+    // confirm) is not public. Checked before any R2 read and before the edge-cache branch of transforms.
+    if (!(await c.var.mediaRepository.getByKey(key))) return new Response('Not found', { status: 404 })
+
     if (transformQuery.kind === 'transform') return await serveTransformedMedia(c, key, transformQuery.request)
 
     const object = await c.var.bucket.get(key)
