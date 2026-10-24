@@ -8,5 +8,5 @@
 
 > `const` **MAX\_WIDGET\_CONFIG\_BYTES**: `8192` = `8192`
 
-Max serialized size of a single widget `config`
- (`JSON.stringify(widget.config).length`) — guards D1 row bloat.
+Max serialized size of a single widget `config`, in UTF-8 bytes
+ (`JSON.stringify(widget.config)` encoded) — guards D1 row bloat.

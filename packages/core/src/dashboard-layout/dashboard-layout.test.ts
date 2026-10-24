@@ -287,6 +287,20 @@ describe('validateDashboardLayout', () => {
     expect(res.errors[0]).toContain(`config exceeds ${MAX_WIDGET_CONFIG_BYTES} bytes`)
   })
 
+  it('measures the widget config cap in UTF-8 bytes, not UTF-16 characters', () => {
+    // 3000 euro signs serialize to ~3008 UTF-16 chars but 9008 UTF-8 bytes (3 bytes each).
+    const layout = singleSectionLayout([
+      [widget('w-1', 'core/site-status', { blob: '€'.repeat(3000) })],
+    ])
+
+    const res = validateDashboardLayout(layout, ctx)
+
+    expect(res.ok).toBe(false)
+    if (res.ok) throw new Error('expected ok: false')
+    expect(res.errors).toHaveLength(1)
+    expect(res.errors[0]).toContain(`config exceeds ${MAX_WIDGET_CONFIG_BYTES} bytes`)
+  })
+
   it('warns about unknown widget types without stripping them', () => {
     const layout = singleSectionLayout([
       [widget('w-1', 'core/site-status'), widget('w-2', '@acme/weather')],

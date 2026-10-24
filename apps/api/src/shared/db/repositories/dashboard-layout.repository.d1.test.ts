@@ -2,7 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+import { FixedClock } from '@beechcms/testing'
 import { D1DashboardLayoutRepository } from './dashboard-layout.repository.d1'
 import type { DashboardLayout } from '@beechcms/core'
 
@@ -34,19 +35,13 @@ const sampleLayout: DashboardLayout = {
   ],
 }
 
+const FIXED_NOW_MS = Date.UTC(2026, 5, 4, 12, 0, 0)
+
 describe('D1DashboardLayoutRepository', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
   describe('get', () => {
     it('returns null when the layout is not found', async () => {
       const { db } = makeMockDb({ firstResult: null })
-      const repo = new D1DashboardLayoutRepository(db)
+      const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
       const res = await repo.get('default')
       expect(res).toBeNull()
     })
@@ -59,7 +54,7 @@ describe('D1DashboardLayoutRepository', () => {
         updated_by: 'admin-user',
       }
       const { db, prepareMock, bindMock } = makeMockDb({ firstResult: row })
-      const repo = new D1DashboardLayoutRepository(db)
+      const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
 
       const res = await repo.get('default')
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('SELECT scope, layout, updated_at, updated_by FROM dashboard_layouts'))
@@ -80,7 +75,7 @@ describe('D1DashboardLayoutRepository', () => {
         updated_by: 'admin-user',
       }
       const { db } = makeMockDb({ firstResult: row })
-      const repo = new D1DashboardLayoutRepository(db)
+      const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
 
       const res = await repo.get('default')
       expect(res).toBeNull()
@@ -90,7 +85,7 @@ describe('D1DashboardLayoutRepository', () => {
   describe('listScopes', () => {
     it('returns an empty array when there are no rows', async () => {
       const { db } = makeMockDb({ allResults: [] })
-      const repo = new D1DashboardLayoutRepository(db)
+      const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
       const scopes = await repo.listScopes()
       expect(scopes).toEqual([])
     })
@@ -98,7 +93,7 @@ describe('D1DashboardLayoutRepository', () => {
     it('returns the stored scopes', async () => {
       const allResults = [{ scope: 'default' }, { scope: 'role:admin' }]
       const { db, prepareMock } = makeMockDb({ allResults })
-      const repo = new D1DashboardLayoutRepository(db)
+      const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
 
       const scopes = await repo.listScopes()
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('SELECT scope FROM dashboard_layouts'))
@@ -107,13 +102,11 @@ describe('D1DashboardLayoutRepository', () => {
   })
 
   describe('upsert', () => {
-    it('prepares and binds the correct layout JSON and timestamp', async () => {
-      const mockDate = new Date('2026-06-04T12:00:00Z')
-      vi.setSystemTime(mockDate)
-      const expectedTimestamp = Math.floor(mockDate.getTime() / 1000)
+    it('stamps updated_at from the injected clock, not the wall clock', async () => {
+      const expectedTimestamp = Math.floor(FIXED_NOW_MS / 1000)
 
       const { db, prepareMock, bindMock } = makeMockDb()
-      const repo = new D1DashboardLayoutRepository(db)
+      const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
 
       await repo.upsert('default', sampleLayout, 'admin-1')
 
@@ -125,7 +118,7 @@ describe('D1DashboardLayoutRepository', () => {
   describe('remove', () => {
     it('deletes the layout by scope', async () => {
       const { db, prepareMock, bindMock } = makeMockDb()
-      const repo = new D1DashboardLayoutRepository(db)
+      const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
 
       await repo.remove('default')
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM dashboard_layouts WHERE scope = ?'))

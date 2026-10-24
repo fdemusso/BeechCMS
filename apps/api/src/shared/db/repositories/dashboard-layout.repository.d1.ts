@@ -3,10 +3,13 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { IDashboardLayoutRepository, DashboardLayoutRecord, DashboardLayout } from '@beechcms/core'
+import type { IDashboardLayoutRepository, DashboardLayoutRecord, DashboardLayout, IClock } from '@beechcms/core'
 
 export class D1DashboardLayoutRepository implements IDashboardLayoutRepository {
-  constructor(private readonly db: D1Database) {}
+  constructor(
+    private readonly db: D1Database,
+    private readonly clock: IClock,
+  ) {}
 
   async get(scope: string): Promise<DashboardLayoutRecord | null> {
     const row = await this.db
@@ -35,7 +38,7 @@ export class D1DashboardLayoutRepository implements IDashboardLayoutRepository {
 
   async upsert(scope: string, layout: DashboardLayout, updatedBy: string): Promise<void> {
     const json = JSON.stringify(layout)
-    const now = Math.floor(Date.now() / 1000)
+    const now = this.clock.nowSeconds()
     await this.db
       .prepare(`
         INSERT INTO dashboard_layouts (scope, layout, updated_at, updated_by)
