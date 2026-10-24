@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
+import { SystemClock, type IClock } from '../common/clock.js'
+
 async function getHmacKey(secret: string): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     'raw',
@@ -11,8 +13,12 @@ async function getHmacKey(secret: string): Promise<CryptoKey> {
   )
 }
 
-export async function generateTimeTrapToken(secret: string, timestampSeconds?: number): Promise<string> {
-  const t0 = timestampSeconds ?? Math.floor(Date.now() / 1000)
+export async function generateTimeTrapToken(
+  secret: string,
+  timestampSeconds?: number,
+  clock: IClock = SystemClock
+): Promise<string> {
+  const t0 = timestampSeconds ?? clock.nowSeconds()
   const payload = `t0_${t0}`
   const key = await getHmacKey(secret)
   const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
@@ -24,7 +30,8 @@ export async function verifyTimeTrapToken(
   token: string,
   secret: string,
   minDeltaSeconds: number = 1.5,
-  maxAgeSeconds: number = 3600
+  maxAgeSeconds: number = 3600,
+  clock: IClock = SystemClock
 ): Promise<{ valid: boolean; reason?: string; elapsedSeconds?: number }> {
   if (!token || typeof token !== 'string') {
     return { valid: false, reason: 'Missing or invalid token format' }
@@ -55,7 +62,7 @@ export async function verifyTimeTrapToken(
     return { valid: false, reason: 'Cryptographic signature mismatch' }
   }
 
-  const now = Date.now() / 1000
+  const now = clock.now() / 1000
   const elapsed = now - t0
 
   if (elapsed < minDeltaSeconds) {

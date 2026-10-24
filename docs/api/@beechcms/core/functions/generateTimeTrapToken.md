@@ -6,7 +6,7 @@
 
 # Function: generateTimeTrapToken()
 
-> **generateTimeTrapToken**(`secret`, `timestampSeconds?`): `Promise`&lt;`string`&gt;
+> **generateTimeTrapToken**(`secret`, `timestampSeconds?`, `clock?`): `Promise`&lt;`string`&gt;
 
 ## Parameters
 
@@ -17,6 +17,10 @@
 ### timestampSeconds?
 
 `number`
+
+### clock?
+
+[`IClock`](../interfaces/IClock.md) = `SystemClock`
 
 ## Returns
 

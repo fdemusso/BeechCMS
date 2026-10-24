@@ -6,7 +6,7 @@
 
 # Function: verifyTimeTrapToken()
 
-> **verifyTimeTrapToken**(`token`, `secret`, `minDeltaSeconds?`, `maxAgeSeconds?`): `Promise`&lt;\{ `elapsedSeconds?`: `number`; `reason?`: `string`; `valid`: `boolean`; \}&gt;
+> **verifyTimeTrapToken**(`token`, `secret`, `minDeltaSeconds?`, `maxAgeSeconds?`, `clock?`): `Promise`&lt;\{ `elapsedSeconds?`: `number`; `reason?`: `string`; `valid`: `boolean`; \}&gt;
 
 ## Parameters
 
@@ -25,6 +25,10 @@
 ### maxAgeSeconds?
 
 `number` = `3600`
+
+### clock?
+
+[`IClock`](../interfaces/IClock.md) = `SystemClock`
 
 ## Returns
 
