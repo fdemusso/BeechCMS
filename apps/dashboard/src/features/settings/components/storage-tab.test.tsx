@@ -89,4 +89,49 @@ describe("StorageTab", () => {
     expect(screen.queryByRole("button", { name: /selected$/ })).not.toBeInTheDocument()
     expect(deleteOrphans).not.toHaveBeenCalled()
   })
+
+  describe("with six orphans over pages of two", () => {
+    const orphan = (n: number) => ({ key: `media/o-${n}.png`, filename: `o-${n}.png`, mime_type: "image/png", size_bytes: 10, created_at: n })
+    const pageAt = (offset: number): StorageStats => ({
+      totalBytes: 60, fileCount: 6, orphanTotal: 6, orphanBytes: 60, orphanOffset: offset, orphanLimit: 2,
+      orphans: [orphan(offset), orphan(offset + 1)],
+    })
+
+    beforeEach(() => {
+      vi.mocked(useStorageStats).mockImplementation(offset => ({ data: pageAt(offset ?? 0), isLoading: false, isError: false }) as ReturnType<typeof useStorageStats>)
+      deleteOrphans.mockImplementation((_keys: string[], options: { onSuccess?: () => void }) => options.onSuccess?.())
+    })
+
+    function deleteBothOnPage(offset: number) {
+      render(<StorageTab />)
+      for (let reached = 0; reached < offset; reached += 2) fireEvent.click(screen.getByRole("button", { name: "Next" }))
+      fireEvent.click(screen.getByRole("checkbox", { name: `Select o-${offset}.png` }))
+      fireEvent.click(screen.getByRole("checkbox", { name: `Select o-${offset + 1}.png` }))
+      fireEvent.click(screen.getByRole("button", { name: "Delete 2 selected" }))
+      fireEvent.click(screen.getByRole("button", { name: "Delete" }))
+    }
+
+    it("stays on the same offset after emptying an intermediate page, where the next orphans slide in", () => {
+      deleteBothOnPage(2)
+
+      expect(useStorageStats).toHaveBeenLastCalledWith(2)
+    })
+
+    it("steps back one page after emptying the last page, which no longer exists", () => {
+      deleteBothOnPage(4)
+
+      expect(useStorageStats).toHaveBeenLastCalledWith(2)
+    })
+
+    it("disables the confirm action while a delete is in flight", () => {
+      const { rerender } = render(<StorageTab />)
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select o-0.png" }))
+      fireEvent.click(screen.getByRole("button", { name: "Delete 1 selected" }))
+      vi.mocked(useDeleteOrphans).mockReturnValue({ mutate: deleteOrphans, isPending: true } as unknown as ReturnType<typeof useDeleteOrphans>)
+
+      rerender(<StorageTab />)
+
+      expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled()
+    })
+  })
 })

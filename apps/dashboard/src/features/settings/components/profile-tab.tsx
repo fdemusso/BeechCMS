@@ -51,8 +51,8 @@ export function ProfileTab() {
     e.preventDefault()
     try {
       await updateProfile.mutateAsync({
-        name: name || undefined,
-        surname: surname || undefined,
+        name,
+        surname,
         email: email || undefined,
       })
       toast.success(t('settings.profile.savedSuccess'))
