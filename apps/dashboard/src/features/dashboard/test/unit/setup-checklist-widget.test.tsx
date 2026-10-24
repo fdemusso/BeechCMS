@@ -7,7 +7,7 @@ import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes } from "react-router-dom"
 
-vi.mock("@/features/dashboard", () => ({
+vi.mock("@/features/dashboard/hooks/use-dashboard-stats", () => ({
   useSetupChecklist: () => ({
     isLoading: false,
     isError: false,

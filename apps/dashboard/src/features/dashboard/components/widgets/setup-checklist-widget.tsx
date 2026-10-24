@@ -7,7 +7,7 @@ import { CheckCircle as CheckCircle2, FormatCircle as Circle, AlertCircle, X, Ch
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router-dom"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useSetupChecklist } from "@/features/dashboard"
+import { useSetupChecklist } from "../../hooks/use-dashboard-stats"
 import { cn } from "@/lib/utils"
 
 const DISMISS_KEY = "beech_setup_checklist_dismissed"

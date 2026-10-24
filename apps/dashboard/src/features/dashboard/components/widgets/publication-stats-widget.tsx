@@ -5,8 +5,8 @@
 import { useTranslation } from "react-i18next"
 import { ChartBarTrendUp as TrendingUp } from 'reicon-react'
 import { Skeleton } from "@/components/ui/skeleton"
-import { DashboardWidgetShell } from "@/features/dashboard"
-import { useDashboardStats } from "@/features/dashboard"
+import { DashboardWidgetShell } from "../dashboard-widget-shell"
+import { useDashboardStats } from "../../hooks/use-dashboard-stats"
 import { cn } from "@/lib/utils"
 import { WidgetError } from "./_parts/widget-error"
 

@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ColumnStack } from './column-stack'
 import { COLUMN_PRESETS } from './use-dashboard-builder'
+import { resolveColumnSpans } from '../renderer/dashboard-section'
 
 export interface SectionCardProps {
   readonly pageId: string
@@ -70,7 +71,7 @@ export function SectionCard({
     setIsRenaming(false)
   }
 
-  const spans = section.columnSpans ?? section.columns.map(() => 12 / section.columns.length)
+  const spans = resolveColumnSpans(section)
   const currentPresetKey = spans.join(',')
 
   return (
