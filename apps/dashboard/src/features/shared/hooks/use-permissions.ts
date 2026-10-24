@@ -22,13 +22,13 @@ const NO_AUTHORITY: EffectivePermissions = {
 /** Rebuilds the Sets/Maps `@beechcms/core`'s evaluator expects from the JSON payload.
  *  Exported for tests; the hook is the only production caller. */
 export function hydrateEffectivePermissions(
-  payload: EffectivePermissionsPayload | undefined,
+  payload: Partial<EffectivePermissionsPayload> | undefined,
 ): EffectivePermissions {
   if (!payload) return NO_AUTHORITY
   return {
-    global: new Set<Permission>(payload.global),
+    global: new Set<Permission>(payload.global ?? []),
     byScope: new Map<Scope, ReadonlySet<Permission>>(
-      Object.entries(payload.byScope).map(([scope, permissions]) => [
+      Object.entries(payload.byScope ?? {}).map(([scope, permissions]) => [
         scope,
         new Set<Permission>(permissions),
       ]),
