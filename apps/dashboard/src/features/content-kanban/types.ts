@@ -65,7 +65,7 @@ export interface ContentKanbanProps {
   activeFilters?: import('@beechcms/core').FilterGroup[]
   search?: string
   kanbanConfig: KanbanBoardConfig
-  setKanbanConfig: (next: import('@beechcms/core').KanbanConfig) => void
+  setKanbanConfig: (next: KanbanBoardConfig) => void
   cardConfig?: KanbanCardConfig
   setCardConfig?: (next: KanbanCardConfig) => void
   isSaving?: boolean

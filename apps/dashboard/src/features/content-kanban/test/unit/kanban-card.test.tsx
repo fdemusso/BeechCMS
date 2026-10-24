@@ -118,6 +118,23 @@ describe('KanbanCard — legacy render (no slots)', () => {
     render(<KanbanCard model={model} canEdit sortActive={false} onEdit={vi.fn()} />)
 
     const header = screen.getByText('Header value')
-    expect(header.closest('p')?.className).toContain('text-sky-800')
+    expect(header.closest('[class*="text-sky-800"]')).not.toBeNull()
+  })
+
+  // Regression guard: FieldDisplay renders a <div>, which is not valid inside <p>;
+  // the browser parser closes the paragraph early and React logs a hydration warning.
+  it('renders header, subtitle and metadata slots without block elements inside a paragraph', () => {
+    const branch: Branch = { id: 'br_02', alias: 'title', type: 'text', label: 'Title' } as Branch
+    const model: KanbanCardDisplayModel = {
+      ...baseModel,
+      slots: {
+        header: { branch, value: 'Header value' },
+        subtitle: { branch, value: 'Subtitle value' },
+        metadata: [{ branch, value: 'Metadata value' }],
+      },
+    }
+    const { container } = render(<KanbanCard model={model} canEdit sortActive={false} onEdit={vi.fn()} />)
+
+    expect(container.querySelector('p div, span div')).toBeNull()
   })
 })

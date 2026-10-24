@@ -755,7 +755,8 @@
       "moreOptions": "Templates",
       "templatesTitle": "Templates for {{label}}",
       "templatesDescription": "Create a reusable entry template for this content type.",
-      "newTemplate": "New template"
+      "newTemplate": "New template",
+      "missingPermission": "You don't have permission to create entries here"
     },
     "filterBanner": {
       "message": "Filters are saved automatically for everyone who can see this view.",

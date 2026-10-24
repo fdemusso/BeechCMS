@@ -35,6 +35,13 @@ describe("hydrateEffectivePermissions", () => {
     expect(effective.byScope.get("articles")).toEqual(new Set(["content:read", "content:update"]))
   })
 
+  it("a payload with nullish global/byScope fields ⇒ zero-trust default instead of a TypeError", () => {
+    const effective = hydrateEffectivePermissions({ global: undefined, byScope: undefined })
+
+    expect(effective.global.size).toBe(0)
+    expect(effective.byScope.size).toBe(0)
+  })
+
   it("undefined payload ⇒ zero-trust default (no authority)", () => {
     const effective = hydrateEffectivePermissions(undefined)
     expect(effective.global.size).toBe(0)

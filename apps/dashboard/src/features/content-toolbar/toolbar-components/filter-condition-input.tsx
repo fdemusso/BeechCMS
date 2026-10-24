@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useId } from "react"
 import { useTranslation } from "react-i18next"
 import { SortV as ArrowUpDown } from 'reicon-react'
 import { Button } from "@/components/ui/button"
@@ -45,6 +46,7 @@ export function FilterConditionInput({
   buttonPlaceholder,
 }: FilterConditionInputProps) {
   const { t } = useTranslation()
+  const dateInputId = useId()
   const valuePlaceholder = t("toolbar.conditionInput.value")
   const choosePlaceholder = buttonPlaceholder ?? t("toolbar.conditionInput.choose")
 
@@ -67,7 +69,7 @@ export function FilterConditionInput({
       return (
         // dateFormat: uses DEFAULT_DATE_FORMAT until this component moves to features/content-toolbar in Phase B2
         <DatePickerInput
-          id="toolbar-filter-date"
+          id={dateInputId}
           value={value as string | null}
           onChange={onChange}
           placeholder={choosePlaceholder}

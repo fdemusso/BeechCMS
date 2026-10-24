@@ -755,7 +755,8 @@
       "moreOptions": "Template",
       "templatesTitle": "Template per {{label}}",
       "templatesDescription": "Crea un template riutilizzabile per le entry di questo tipo di contenuto.",
-      "newTemplate": "Nuovo template"
+      "newTemplate": "Nuovo template",
+      "missingPermission": "Manca il permesso 'content:create'"
     },
     "filterBanner": {
       "message": "I filtri vengono salvati automaticamente per tutti gli utenti che vedono questa vista.",
