@@ -138,7 +138,11 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
       if (d.pages.length <= 1) return d
       return { ...d, pages: d.pages.filter((p) => p.id !== pageId) }
     })
-  }, [mutate])
+    setActivePageId((current) => {
+      if (current !== pageId || draft.pages.length <= 1) return current
+      return draft.pages.find((p) => p.id !== pageId)?.id ?? current
+    })
+  }, [mutate, draft.pages])
 
   const movePage = useCallback((fromIndex: number, toIndex: number) => {
     mutate((d) => {

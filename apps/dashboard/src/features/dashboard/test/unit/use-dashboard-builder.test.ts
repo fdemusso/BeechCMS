@@ -55,6 +55,17 @@ describe("useDashboardBuilder", () => {
     expect(result.current.draft.pages[0].id).toBe(lastPageId)
   })
 
+  it("removing the active page moves the selection to a page that still exists", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+    act(() => result.current.addPage())
+    const activeId = result.current.activePageId
+    expect(result.current.draft.pages.map((p) => p.id)).toContain(activeId)
+
+    act(() => result.current.removePage(activeId))
+
+    expect(result.current.draft.pages.map((p) => p.id)).toContain(result.current.activePageId)
+  })
+
   it("moves sections within a page", () => {
     const layout = makeLayout()
     layout.pages[0].sections.push({

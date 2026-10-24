@@ -91,3 +91,66 @@ describe("dashboard builder: dropping a widget on an empty column", () => {
     expect(within(emptyColumn).getByRole("button", { name: /text/i })).toBeInTheDocument()
   })
 })
+
+describe("dashboard builder: dropping a widget onto a widget of another column", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [] })
+  })
+
+  it("inserts the widget at the target widget's position instead of appending it", async () => {
+    const layout: DashboardLayout = {
+      version: 1,
+      pages: [
+        {
+          id: "page-1",
+          slug: "overview",
+          label: "Overview",
+          sections: [
+            {
+              id: "section-1",
+              columns: [
+                { id: "col-a", widgets: [{ id: "widget-1", type: "core/text", config: {} }] },
+                {
+                  id: "col-b",
+                  widgets: [
+                    { id: "widget-2", type: "core/text", config: {} },
+                    { id: "widget-3", type: "core/text", config: {} },
+                  ],
+                },
+              ],
+              columnSpans: [6, 6],
+            },
+          ],
+        },
+      ],
+    }
+    const captured: { ops?: ReturnType<typeof useDashboardBuilder> } = {}
+    function CapturingHarness() {
+      const ops = useDashboardBuilder({ initialLayout: layout })
+      captured.ops = ops
+      return <BuilderPane ops={ops} isSaving={false} onSave={vi.fn()} onReset={vi.fn()} onClose={vi.fn()} />
+    }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={client}>
+          <WidgetSdkProvider client={api}>
+            <CapturingHarness />
+          </WidgetSdkProvider>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+    await screen.findAllByRole("button", { name: /Add Widget/i })
+
+    act(() => {
+      dnd.onDragEnd?.({
+        active: { id: "widget:page-1:section-1:col-a:widget-1" },
+        over: { id: "widget:page-1:section-1:col-b:widget-3" },
+      } as unknown as DragEndEvent)
+    })
+
+    const targetColumn = captured.ops!.draft.pages[0].sections[0].columns[1]
+    expect(targetColumn.widgets.map((w) => w.id)).toEqual(["widget-2", "widget-1", "widget-3"])
+  })
+})
