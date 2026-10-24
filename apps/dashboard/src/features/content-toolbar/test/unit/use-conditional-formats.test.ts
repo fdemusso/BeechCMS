@@ -7,6 +7,7 @@ import { renderHook, act } from "@testing-library/react"
 
 import type { ConditionalFormatRule } from "@/lib/conditional-format"
 import { useConditionalFormats } from "@/features/content-toolbar/toolbar-hooks/use-conditional-formats"
+import { MAX_CONDITIONS_PER_FILTER } from "@/features/content-toolbar/shared"
 
 const columns = [{ columnId: "status", label: "Stato", type: "select", selectOptions: ["draft"] }] as any
 
@@ -168,5 +169,38 @@ describe("useConditionalFormats", () => {
     expect(committed.map((r) => r.id)).toEqual(["r1", "r2"])
     expect(committed[0]).toMatchObject({ tone: "danger", textStyles: ["bold"] })
     expect(committed[0].group.conditions).toHaveLength(1)
+  })
+
+  it("refuses to add a condition to a rule that already holds MAX_CONDITIONS_PER_FILTER", () => {
+    const ruleWith = (count: number): ConditionalFormatRule => ({
+      id: "r1",
+      enabled: true,
+      priority: 0,
+      label: "Stato",
+      columnId: "status",
+      group: {
+        columnId: "status",
+        label: "Stato",
+        type: "select",
+        selectOptions: ["draft"],
+        conditions: Array.from({ length: count }, (_, i) => ({ id: `c${i}`, op: "eq" as const, value: "draft" })),
+      },
+      tone: "danger",
+      target: "element",
+      textStyles: [],
+    })
+    const onConditionalFormatsChange = vi.fn()
+    const { result } = renderHook(() =>
+      useConditionalFormats({
+        viewId: "table",
+        conditionalFormatsInput: [ruleWith(MAX_CONDITIONS_PER_FILTER)],
+        formattableColumns: columns,
+        onConditionalFormatsChange,
+      })
+    )
+
+    act(() => result.current.addConditionalCondition("r1"))
+
+    expect(onConditionalFormatsChange).not.toHaveBeenCalled()
   })
 })

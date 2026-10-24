@@ -7,6 +7,7 @@ import type { ConditionalFormatRule, ConditionalFormatTextStyle } from "@/lib/co
 import type { FilterOperator, ToolbarFilterCondition } from "@/features/content-toolbar/shared"
 import {
   generateConditionId,
+  MAX_CONDITIONS_PER_FILTER,
   normalizeConditionalTarget,
   normalizeTextStyles,
 } from "@/features/content-toolbar/shared"
@@ -172,7 +173,7 @@ export function useConditionalFormats({
   const addConditionalCondition = React.useCallback(
     (ruleId: string) => {
       const rule = conditionalFormats.find((r) => r.id === ruleId)
-      if (!rule) return
+      if (!rule || rule.group.conditions.length >= MAX_CONDITIONS_PER_FILTER) return
       const defaultOp: FilterOperator = rule.group.type === "tags" ? "contains" : "eq"
       const next = conditionalFormats.map((r) =>
         r.id === ruleId

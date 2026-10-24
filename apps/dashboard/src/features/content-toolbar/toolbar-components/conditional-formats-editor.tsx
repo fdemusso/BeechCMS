@@ -35,6 +35,7 @@ import {
   CONDITIONAL_TONE_OPTIONS,
   getConditionalToneStripClass,
   getOperatorOptions,
+  MAX_CONDITIONS_PER_FILTER,
   operatorRequiresValue,
 } from "../shared"
 import type { FilterOperator, ToolbarFilterCondition } from "../shared"
@@ -325,6 +326,7 @@ function ConditionalRuleEditor({
                 size="icon-xs"
                 className="h-8 w-8"
                 aria-label={t("toolbar.conditionalFormats.addCondition")}
+                disabled={activeConditionalRule.group.conditions.length >= MAX_CONDITIONS_PER_FILTER}
                 onClick={() => addConditionalCondition(activeConditionalRule.id)}
               >
                 <Plus className="size-3.5" />
