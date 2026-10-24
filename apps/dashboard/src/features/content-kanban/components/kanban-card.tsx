@@ -85,32 +85,32 @@ export const KanbanCard = React.memo(function KanbanCard({
             </div>
           )}
           {slots.header && (
-            <p className={cn(
+            <div className={cn(
               "truncate text-sm font-medium leading-tight",
               slots.header.style && getConditionalFormatCellClass(slots.header.style.tone, slots.header.style.textStyles)
             )}>
               <SlotCell slot={slots.header} maxLength={40} />
-            </p>
+            </div>
           )}
           {slots.subtitle && (
-            <p className={cn(
+            <div className={cn(
               "truncate text-xs text-muted-foreground",
               slots.subtitle.style && getConditionalFormatCellClass(slots.subtitle.style.tone, slots.subtitle.style.textStyles)
             )}>
               <SlotCell slot={slots.subtitle} maxLength={60} />
-            </p>
+            </div>
           )}
           {slots.metadata.length > 0 && (
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-1">
               {slots.metadata.map((slot) => (
                 <div key={slot.branch.id} className="flex flex-col gap-0.5 min-w-0">
                   <span className="text-[10px] text-muted-foreground truncate">{slot.branch.label}</span>
-                  <span className={cn(
+                  <div className={cn(
                     "text-xs truncate",
                     slot.style && getConditionalFormatCellClass(slot.style.tone, slot.style.textStyles)
                   )}>
                     <SlotCell slot={slot} maxLength={24} compact />
-                  </span>
+                  </div>
                 </div>
               ))}
             </div>

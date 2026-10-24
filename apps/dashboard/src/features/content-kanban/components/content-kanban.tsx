@@ -184,6 +184,7 @@ export function ContentKanban({
   activeFilters = [],
   search = '',
   kanbanConfig,
+  setKanbanConfig,
   cardConfig,
   formatElement = NO_ELEMENT_FORMATTER,
 }: ContentKanbanProps) {
@@ -198,18 +199,17 @@ export function ContentKanban({
 
   const columns = useKanbanColumns(axisBranch, kanbanConfig)
 
-  const [collapsed, setCollapsed] = React.useState<Set<string | null>>(
+  const [collapsed, setCollapsed] = React.useState<Set<string>>(
     () => new Set(kanbanConfig.collapsedColumnValues),
   )
 
   const toggleCollapse = React.useCallback((value: string | null) => {
-    setCollapsed(prev => {
-      const next = new Set(prev)
-      const key = value ?? '__null__'
-      if (next.has(key)) { next.delete(key) } else { next.add(key) }
-      return next
-    })
-  }, [])
+    const next = new Set(collapsed)
+    const key = value ?? '__null__'
+    if (next.has(key)) { next.delete(key) } else { next.add(key) }
+    setCollapsed(next)
+    setKanbanConfig({ ...kanbanConfig, collapsedColumnValues: [...next] })
+  }, [collapsed, kanbanConfig, setKanbanConfig])
 
   const { state: boardState, dispatch } = useKanbanBoard()
   const [touchDragActive, setTouchDragActive] = React.useState(false)
