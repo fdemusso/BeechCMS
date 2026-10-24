@@ -21,6 +21,7 @@ describe('upload slice — media delivery integration (real R2, no IMAGES bindin
   let harness: TestHarness
   let admin: TestClient
   let visitor: TestClient
+  const bucket = (env as unknown as { MEDIA_BUCKET: R2Bucket }).MEDIA_BUCKET
 
   beforeEach(async () => {
     __resetSeedRegistryCache()
@@ -100,6 +101,36 @@ describe('upload slice — media delivery integration (real R2, no IMAGES bindin
       const response = await visitor.get('/api/media/1717000000-deadbeef-missing.png?preset=card')
 
       expect(response.status).toBe(404)
+    })
+
+    it('a bucket object with no media row is 404', async () => {
+      // Never confirmed, or rejected at confirm before the bytes were deleted: stored, never registered.
+      const key = '1717000000-deadbeef-orphan.png'
+      await bucket.put(key, PNG_1X1, { httpMetadata: { contentType: 'image/png' } })
+
+      const response = await visitor.get(`/api/media/${key}`)
+
+      expect(response.status).toBe(404)
+      expect(await bucket.head(key)).not.toBeNull()
+    })
+
+    it('a bucket object with no media row is 404 with a preset too', async () => {
+      const key = '1717000000-deadbeef-orphan.png'
+      await bucket.put(key, PNG_1X1, { httpMetadata: { contentType: 'image/png' } })
+
+      const response = await visitor.get(`/api/media/${key}?preset=card`)
+
+      expect(response.status).toBe(404)
+    })
+
+    it('an object whose media row was removed stops being served while the bytes remain', async () => {
+      const key = await upload(PNG_1X1, 'photo.png', 'image/png')
+      await env.DB.prepare('DELETE FROM media_objects WHERE key = ?').bind(key).run()
+
+      const response = await visitor.get(`/api/media/${key}`)
+
+      expect(response.status).toBe(404)
+      expect(await bucket.head(key)).not.toBeNull()
     })
   })
 })

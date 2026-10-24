@@ -13,7 +13,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Hono } from 'hono'
-import type { BeechBucket, GetBucketResult, IImageTransformer, ImageTransformSpec, MediaDimensions, TransformedImage } from '@beechcms/core'
+import type { BeechBucket, GetBucketResult, IImageTransformer, ImageTransformSpec, MediaDimensions, MediaObject, MediaRepository, TransformedImage } from '@beechcms/core'
 import type { AppEnv } from '../../types'
 import { serveMediaHandler } from './index'
 
@@ -67,6 +67,32 @@ class InMemoryBucket implements BeechBucket {
     throw new Error('not used')
   }
   presignGet(): Promise<string> {
+    throw new Error('not used')
+  }
+}
+
+/** Registry stand-in: the fixture keys are confirmed uploads, independent of what the bucket holds. */
+class FixtureMediaRepository implements MediaRepository {
+  private readonly registered = new Set([PHOTO_KEY, PDF_KEY])
+
+  async getByKey(key: string): Promise<MediaObject | null> {
+    if (!this.registered.has(key)) return null
+    return { key, filename: key, mime_type: 'application/octet-stream', size_bytes: 0, uploaded_by: 'user', created_at: 0 }
+  }
+
+  trackUpload(): Promise<void> {
+    throw new Error('not used')
+  }
+  registerUpload(): Promise<boolean> {
+    throw new Error('not used')
+  }
+  untrack(): Promise<void> {
+    throw new Error('not used')
+  }
+  list(): Promise<{ items: MediaObject[]; total: number }> {
+    throw new Error('not used')
+  }
+  count(): Promise<number> {
     throw new Error('not used')
   }
 }
@@ -130,6 +156,7 @@ describe('serveMediaHandler — transform path', () => {
     const instance = new Hono<AppEnv>()
     instance.use('*', async (context, next) => {
       context.set('bucket', bucket)
+      context.set('mediaRepository', new FixtureMediaRepository())
       context.set('imageTransformer', imageTransformer)
       await next()
     })
