@@ -101,7 +101,7 @@ describe('Query', () => {
     it('builds a basic SELECT query', () => {
       const query = buildSelectQuery(mockSeed)
       expect(query.sql).toContain('SELECT content_articles.* FROM content_articles')
-      expect(query.sql).toContain('ORDER BY content_articles.created_at DESC')
+      expect(query.sql).toContain('ORDER BY content_articles.created_at DESC, content_articles.id DESC')
     })
 
     it('builds a query with filters', () => {
@@ -225,12 +225,17 @@ describe('Query', () => {
 
     it('handles custom orderBy', () => {
       const query = buildSelectQuery(mockSeed, { orderBy: { column: 'title', dir: 'ASC' } })
-      expect(query.sql).toContain('ORDER BY title ASC')
+      expect(query.sql).toContain('ORDER BY title ASC, content_articles.id ASC')
+    })
+
+    it('ends a descending orderBy with the primary key in the same direction', () => {
+      const query = buildSelectQuery(mockSeed, { orderBy: { column: 'title', dir: 'DESC' } })
+      expect(query.sql).toContain('ORDER BY title DESC, content_articles.id DESC')
     })
 
     it('ignores invalid column in orderBy and fallbacks to created_at DESC', () => {
       const query = buildSelectQuery(mockSeed, { orderBy: { column: 'invalid', dir: 'ASC' } })
-      expect(query.sql).toContain('ORDER BY content_articles.created_at DESC')
+      expect(query.sql).toContain('ORDER BY content_articles.created_at DESC, content_articles.id DESC')
     })
 
     it('handles is_empty and is_not_empty conditions', () => {
@@ -397,7 +402,7 @@ describe('Query', () => {
 
       expect(query.sql).toContain("json_extract(topic, '$[0]')")
       expect(query.sql).toContain('IS NULL) ASC')
-      expect(query.sql).toMatch(/END\) DESC$/)
+      expect(query.sql).toMatch(/END\) DESC, content_articles\.id DESC$/)
       expect(query.bindings).toEqual([])
     })
 
@@ -454,7 +459,7 @@ describe('Query', () => {
       expect(query.sql).toContain('LEFT JOIN kanban_positions kp')
       expect(query.sql).toContain('kp.seed_slug = ?')
       expect(query.sql).toContain('kp.axis_branch_id = ?')
-      expect(query.sql).toContain('ORDER BY (kp.position IS NULL) ASC, kp.position ASC')
+      expect(query.sql).toContain('ORDER BY (kp.position IS NULL) ASC, kp.position ASC, content_articles.id ASC')
       expect(query.sql).toContain('kp.position')
       // kp.position must appear in the SELECT projection so the dashboard can read it
       expect(query.sql).toMatch(/SELECT\s+.*kp\.position.*FROM/s)
