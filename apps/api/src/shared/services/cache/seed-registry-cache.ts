@@ -12,23 +12,38 @@ interface CachedRegistry {
   backrefMap: BackrefMap
 }
 
+type HydratedRegistry = { registry: ISeedRegistry; backrefMap: BackrefMap }
+
+interface RepositoryCacheState {
+  cache: CachedRegistry | null
+  inFlightPromise: Promise<HydratedRegistry> | null
+}
+
 // Module-level = isolate-level. Survives across requests on the same isolate,
-// re-initialised on cold start.
-let cache: CachedRegistry | null = null
+// re-initialised on cold start. Keyed by repository instance: two apps (or databases)
+// in one isolate can report the same version token for different seeds.
+let states = new WeakMap<ISeedRepository, RepositoryCacheState>()
 
 // Even if the token read fails, never serve a build older than this.
 const TTL_MS = 5_000
 
-let inFlightPromise: Promise<{ registry: ISeedRegistry; backrefMap: BackrefMap }> | null = null
+function stateFor(repo: ISeedRepository): RepositoryCacheState {
+  let state = states.get(repo)
+  if (!state) {
+    state = { cache: null, inFlightPromise: null }
+    states.set(repo, state)
+  }
+  return state
+}
 
 /**
  * Returns a fresh-enough { registry, backrefMap }. Reads the version token once per
  * request (cheap indexed D1 read); rebuilds from listActive() only when the token
- * changed or TTL lapsed.
+ * changed or TTL lapsed. The repository instance must be stable across requests for the
+ * cache to hit (repositoryMiddleware memoizes the D1 one per binding).
  */
-export async function getHydratedRegistry(
-  repo: ISeedRepository,
-): Promise<{ registry: ISeedRegistry; backrefMap: BackrefMap }> {
+export async function getHydratedRegistry(repo: ISeedRepository): Promise<HydratedRegistry> {
+  const state = stateFor(repo)
   let version = -1
   let tokenError: unknown = null
   try {
@@ -37,6 +52,7 @@ export async function getHydratedRegistry(
     tokenError = err
   }
   const now = Date.now()
+  const { cache } = state
   if (cache) {
     const isVersionMatch = version !== -1 && cache.version === version
     const isFresh = now - cache.builtAt < TTL_MS
@@ -44,22 +60,22 @@ export async function getHydratedRegistry(
       return { registry: cache.registry, backrefMap: cache.backrefMap }
     }
   }
-  
+
   if (tokenError) {
     throw tokenError
   }
 
-  if (inFlightPromise) {
-    return inFlightPromise
+  if (state.inFlightPromise) {
+    return state.inFlightPromise
   }
 
-  inFlightPromise = repo.listActive().then((seeds) => {
-    return rebuild(seeds, version, now)
+  state.inFlightPromise = repo.listActive().then((seeds) => {
+    return rebuild(state, seeds, version, now)
   }).finally(() => {
-    inFlightPromise = null
+    state.inFlightPromise = null
   })
-  
-  return inFlightPromise
+
+  return state.inFlightPromise
 }
 
 // A quarantined seed is reported once per isolate, not on every cache rebuild.
@@ -81,16 +97,16 @@ export function warnQuarantinedSeeds(quarantined: ReadonlyArray<QuarantinedSeed>
   }
 }
 
-function rebuild(seeds: Seed[], version: number, now: number) {
+function rebuild(state: RepositoryCacheState, seeds: Seed[], version: number, now: number) {
   const { registry, quarantined } = createTolerantSeedRegistry(seeds)
   warnQuarantinedSeeds(quarantined)
   const backrefMap = buildBackrefMap(registry.all())
-  cache = { version, builtAt: now, registry, backrefMap }
+  state.cache = { version, builtAt: now, registry, backrefMap }
   return { registry, backrefMap }
 }
 
 /** Test seam: drop the isolate cache. */
 export function __resetSeedRegistryCache(): void {
-  cache = null
+  states = new WeakMap()
   warnedQuarantine.clear()
 }
