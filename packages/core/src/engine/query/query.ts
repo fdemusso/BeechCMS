@@ -135,7 +135,7 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
     joinClause = `LEFT JOIN kanban_positions kp` +
       ` ON kp.seed_slug = ? AND kp.entry_id = ${table}.id AND kp.axis_branch_id = ?`
     bindings.push(options.kanbanOrder.seedSlug, options.kanbanOrder.axisBranchId)
-    kanbanOrderClause = ` ORDER BY (kp.position IS NULL) ASC, kp.position ASC`
+    kanbanOrderClause = ` ORDER BY (kp.position IS NULL) ASC, kp.position ASC, ${table}.id ASC`
   }
 
   const rtBranches = indexableSearchBranches(seed)
@@ -224,8 +224,10 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
       sql += orderedBranch && isSingleChoiceTags(orderedBranch)
         ? tagsOrderClause(col, orderedBranch, dir, bindings)
         : ` ORDER BY ${col} ${dir}`
+      // Unique final key: tied sort values would otherwise page in an undefined order.
+      sql += `, ${table}.id ${dir}`
     } else {
-      sql += ` ORDER BY ${table}.created_at DESC`
+      sql += ` ORDER BY ${table}.created_at DESC, ${table}.id DESC`
     }
 
     if (pagination) {
