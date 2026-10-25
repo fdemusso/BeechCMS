@@ -6,6 +6,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Hono } from 'hono'
 import { seedRegistryMiddleware } from './seed-registry.middleware'
 import { __resetSeedRegistryCache } from '../shared/services/cache/seed-registry-cache'
+import { createBeechApp } from '../factory'
+import { InMemorySeedRepository } from '../shared/db/repositories/in-memory-seed.repository'
 import type { ISeedRepository, Seed } from '@beechcms/core'
 
 const mockSeed: Seed = {
@@ -96,5 +98,22 @@ describe('seedRegistryMiddleware', () => {
     const res = await app.request('/test')
     const body = await res.json() as any
     expect(body.count).toBe(0)
+  })
+
+  it('serves each app the seeds of its own repository when two apps share the module cache', async () => {
+    const buildApp = (slug: string) => {
+      const app = createBeechApp({ seeds: [], seedRepository: new InMemorySeedRepository([{ ...mockSeed, slug }]) })
+      app.get('/__slugs', (context) => context.json({ slugs: context.get('seedRegistry').all().map((seed) => seed.slug) }))
+      return app
+    }
+    const env = { DB: {}, JWT_SECRET: 'x'.repeat(32) }
+    const firstApp = buildApp('first-app')
+    const secondApp = buildApp('second-app')
+    await firstApp.request('/__slugs', undefined, env)
+
+    const response = await secondApp.request('/__slugs', undefined, env)
+
+    expect(response.status).toBe(200)
+    expect((await response.json<{ slugs: string[] }>()).slugs).toEqual(['second-app'])
   })
 })
