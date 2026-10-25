@@ -398,6 +398,7 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
 
   describe('GET /api/media/:key with native MEDIA_BUCKET binding (issue #307)', () => {
     it('serves media from native MEDIA_BUCKET binding when S3 credentials are not set', async () => {
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind('photos/cat.webp', 'cat.webp', 'image/webp', 19, TEST_USERS[0].id).run()
       const mockStorage = new Map<string, { body: Uint8Array; contentType: string }>()
       mockStorage.set('photos/cat.webp', {
         body: new TextEncoder().encode('webp-binary-content'),
@@ -699,6 +700,7 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
     it('sets Content-Disposition with original filename for active MIME types in media serving', async () => {
       const mockStorage = new Map<string, { body: Uint8Array; contentType: string }>()
       const key = '1700000000-a1b2c3d4-vector_graphic.svg'
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'vector_graphic.svg', 'image/svg+xml', 11, TEST_USERS[0].id).run()
       mockStorage.set(key, {
         body: new TextEncoder().encode('<svg></svg>'),
         contentType: 'image/svg+xml',
