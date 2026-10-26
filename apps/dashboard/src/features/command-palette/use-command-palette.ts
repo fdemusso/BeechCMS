@@ -26,18 +26,19 @@ export function useCommandPalette(): CommandPaletteState {
     setSearch("")
   }, [])
 
-  // Global keyboard listener: Cmd/Ctrl+K, Alt+N, Backspace-on-empty, Escape
+  // Global keyboard listener: Cmd/Ctrl+K, Alt+N, Backspace-on-empty
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       // Toggle palette
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+      if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         setOpen((prev) => !prev)
         return
       }
 
       // Alt+N → apre palette sulla pagina "create"
-      if (e.key === "n" && e.altKey && !e.metaKey && !e.ctrlKey) {
+      // e.code: su macOS Option+N produce e.key "˜", non "n"
+      if (e.code === "KeyN" && e.altKey && !e.metaKey && !e.ctrlKey) {
         e.preventDefault()
         setOpen(true)
         setPages(["root", "create"])
@@ -54,11 +55,7 @@ export function useCommandPalette(): CommandPaletteState {
         return
       }
 
-      // Escape: pop sub-page or close
-      if (e.key === "Escape" && pages.length > 1) {
-        e.preventDefault()
-        popPage()
-      }
+      // Escape on a sub-page is handled by the dialog's onEscapeKeyDown
     }
 
     document.addEventListener("keydown", down)

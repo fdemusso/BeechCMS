@@ -17,6 +17,9 @@ vi.mock("next-themes", () => ({
   }),
 }))
 
+const PLACEHOLDER_ROOT = "Search actions, content, seeds…"
+const PLACEHOLDER_CREATE = "Create content in which seed?"
+
 describe("CommandPalette", () => {
   it("opens when cmd+k is pressed and renders without crash", () => {
     render(<CommandPalette />)
@@ -32,5 +35,34 @@ describe("CommandPalette", () => {
     
     // Check if the input placeholder is rendered correctly
     expect(screen.getByPlaceholderText("Search actions, content, seeds…")).toBeInTheDocument()
+  })
+
+  it("Option+N on macOS (key \"˜\", code KeyN) opens the palette on the create page", () => {
+    render(<CommandPalette />)
+
+    fireEvent.keyDown(document, { key: "˜", code: "KeyN", altKey: true })
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(PLACEHOLDER_CREATE)).toBeInTheDocument()
+  })
+
+  it("Escape on a sub-page returns to the root page and keeps the palette open", () => {
+    render(<CommandPalette />)
+    fireEvent.keyDown(document, { key: "k", code: "KeyK", metaKey: true })
+    fireEvent.keyDown(document, { key: "˜", code: "KeyN", altKey: true })
+
+    fireEvent.keyDown(document, { key: "Escape", code: "Escape" })
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(PLACEHOLDER_ROOT)).toBeInTheDocument()
+  })
+
+  it("Escape on the root page closes the palette", () => {
+    render(<CommandPalette />)
+    fireEvent.keyDown(document, { key: "k", code: "KeyK", metaKey: true })
+
+    fireEvent.keyDown(document, { key: "Escape", code: "Escape" })
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 })

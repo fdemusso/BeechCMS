@@ -35,6 +35,7 @@ function Command({
 }
 
 interface CommandDialogProps extends DialogProps {
+  onEscapeKeyDown?: (event: KeyboardEvent) => void
   title?: string
   description?: string
   className?: string
@@ -49,22 +50,27 @@ function CommandDialog({
   className,
   showCloseButton = false,
   "aria-label": ariaLabel,
+  onEscapeKeyDown,
   ...props
 }: CommandDialogProps) {
   return (
     <Dialog {...props}>
-      <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
-      </DialogHeader>
       <DialogContent
         className={cn(
-          "top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0",
+          // Anchor the panel so its max height (~40rem) is vertically centred; the top edge
+          // stays fixed while results shrink, instead of the box jumping around.
+          "top-[max(1rem,calc(50dvh-20rem))] translate-y-0 overflow-hidden rounded-xl! p-0",
           className
         )}
+        overlayClassName="bg-black/30 supports-backdrop-filter:backdrop-blur-sm"
         showCloseButton={showCloseButton}
         aria-label={ariaLabel}
+        onEscapeKeyDown={onEscapeKeyDown}
       >
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
         {children}
       </DialogContent>
     </Dialog>

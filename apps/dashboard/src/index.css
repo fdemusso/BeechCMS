@@ -274,11 +274,6 @@ h1 {
   margin-inline: auto;
 }
 
-/* Command palette: frosted-glass backdrop on Radix Dialog overlay */
-[data-radix-dialog-overlay] {
-  backdrop-filter: blur(4px);
-}
-
 /*
   Sidebar hover fix: forza icone e testo a ereditare il colore del parent
   quando scatta hover:text-sidebar-accent-foreground.
