@@ -353,17 +353,6 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
     }
   }
 
-  // ── Fatal 16: softDelete type validation ────────────────────────────────────
-  for (const seed of seeds) {
-    if (seed.softDelete !== undefined && typeof seed.softDelete !== 'boolean') {
-      result.push({
-        slug: seed.slug,
-        messages: [`softDelete must be a boolean (got ${typeof seed.softDelete}).`],
-        fatal: true,
-      })
-    }
-  }
-
   // ── Fatal 17: field-level localization constraints ─────────────────────────
   // A localized value is a readable locale dictionary. Encrypted or hashed storage turns it into an
   // opaque blob: per-locale extraction would be meaningless and would break decryption. Repeater

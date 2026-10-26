@@ -14,7 +14,7 @@ export interface ContentDeleteDialogProps {
   seed: Seed
   entryIds: string[] | null
   onConfirm: () => Promise<void>
-  /** Defaults to the seed's own policy: a `softDelete` seed trashes, anything else erases. */
+  /** Defaults to `trash`; `purge` is the Trash's Delete-forever path. */
   mode?: ContentDeleteMode
 }
 
@@ -22,12 +22,9 @@ export function useContentDeleteDialog({
   entryIds,
   onConfirm,
   onOpenChange,
-  seed,
   mode,
-}: Pick<ContentDeleteDialogProps, "entryIds" | "onConfirm" | "onOpenChange" | "mode"> & {
-  seed?: Seed | null
-}) {
-  const resolvedMode: ContentDeleteMode = mode ?? (seed?.softDelete === true ? "trash" : "purge")
+}: Pick<ContentDeleteDialogProps, "entryIds" | "onConfirm" | "onOpenChange" | "mode">) {
+  const resolvedMode: ContentDeleteMode = mode ?? "trash"
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 

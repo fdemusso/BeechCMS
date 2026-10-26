@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button"
 import { AppSidebar, SiteHeader, PageShellLoading } from "@/features/navigation"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { useActiveSeed } from "@/features/schema"
-import { SmallCta } from "@/components/ui/small-cta"
 import { ContentDeleteDialog } from "@/features/content-delete-dialog"
 import {
   ContentTrashView,
@@ -37,8 +36,7 @@ export function ContentTrashPage() {
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [purgeTarget, setPurgeTarget] = React.useState<string[] | null>(null)
 
-  const softDeleteEnabled = seed?.softDelete === true
-  const trash = useContentTrash(slug, { page, limit: PAGE_SIZE }, { enabled: softDeleteEnabled })
+  const trash = useContentTrash(slug, { page, limit: PAGE_SIZE })
 
   const restoreMutation = useRestoreContent(slug ?? "")
   const purgeMutation = usePurgeContent(slug ?? "")
@@ -159,35 +157,26 @@ export function ContentTrashPage() {
                   {t("content.trash.title", { type: seed.labelPlural ?? seed.label })}
                 </h1>
 
-                {!softDeleteEnabled ? (
-                  <SmallCta
-                    svgPath={`${import.meta.env.BASE_URL}noResult.svg`}
-                    title={t("content.trash.disabled")}
-                    buttonText={t("content.trash.back")}
-                    onButtonClick={() => navigate(`/content/${slug}`)}
-                  />
-                ) : (
-                  <ContentTrashView
-                    seed={seed}
-                    data={trash.data?.items ?? []}
-                    nowSeconds={nowSeconds}
-                    rowSelection={rowSelection}
-                    onRowSelectionChange={setRowSelection}
-                    selectedIds={selectedIds}
-                    pageIndex={page - 1}
-                    onPageIndexChange={(i) => setPage(i + 1)}
-                    pageSize={PAGE_SIZE}
-                    pageCount={Math.ceil((trash.data?.total ?? 0) / PAGE_SIZE)}
-                    totalRows={trash.data?.total ?? 0}
-                    canRestore={can("content:update", seed.slug)}
-                    canPurge={can("content:delete", seed.slug)}
-                    isMutating={isMutating}
-                    onRestore={handleRestore}
-                    onPurge={(id) => setPurgeTarget([id])}
-                    onBulkRestore={handleBulkRestore}
-                    onBulkPurge={(ids) => setPurgeTarget(ids)}
-                  />
-                )}
+                <ContentTrashView
+                  seed={seed}
+                  data={trash.data?.items ?? []}
+                  nowSeconds={nowSeconds}
+                  rowSelection={rowSelection}
+                  onRowSelectionChange={setRowSelection}
+                  selectedIds={selectedIds}
+                  pageIndex={page - 1}
+                  onPageIndexChange={(i) => setPage(i + 1)}
+                  pageSize={PAGE_SIZE}
+                  pageCount={Math.ceil((trash.data?.total ?? 0) / PAGE_SIZE)}
+                  totalRows={trash.data?.total ?? 0}
+                  canRestore={can("content:update", seed.slug)}
+                  canPurge={can("content:delete", seed.slug)}
+                  isMutating={isMutating}
+                  onRestore={handleRestore}
+                  onPurge={(id) => setPurgeTarget([id])}
+                  onBulkRestore={handleBulkRestore}
+                  onBulkPurge={(ids) => setPurgeTarget(ids)}
+                />
               </div>
             </div>
           </SidebarInset>

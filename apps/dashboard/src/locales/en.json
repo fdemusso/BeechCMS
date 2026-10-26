@@ -681,7 +681,6 @@
       "daysLeft_one": "{{count}} day left",
       "daysLeft_other": "{{count}} days left",
       "empty": "The Trash is empty",
-      "disabled": "This content type does not use the Trash: deletions are immediate and irreversible.",
       "restore": "Restore",
       "purge": "Delete forever",
       "selectedCount_one": "{{count}} selected entry",

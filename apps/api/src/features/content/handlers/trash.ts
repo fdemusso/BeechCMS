@@ -24,16 +24,6 @@ function resolveSeedOrProblem(context: Context<AppEnv>) {
   if (!seed) {
     return { problem: publicProblem(context, { type: 'content-seed-not-found', title: 'Not Found', status: 404, detail: CONTENT_ERRORS.SEED_NOT_FOUND }) }
   }
-  if (seed.softDelete !== true) {
-    return {
-      problem: publicProblem(context, {
-        type: 'content-soft-delete-disabled',
-        title: 'Conflict',
-        status: 409,
-        detail: CONTENT_ERRORS.SOFT_DELETE_DISABLED,
-      }),
-    }
-  }
   return { slug, seed }
 }
 
@@ -184,7 +174,8 @@ export async function reconcilePurgesHandler(context: Context<AppEnv>) {
     try {
       // The external log is the ONLY source of truth: a row present here was erased, so its
       // presence in D1 means a restore resurrected it. Re-erase, do not reconcile the other way.
-      await repository.purge(seed, event.entryId, { actor })
+      // A resurrected row may be live, which is why this caller alone opts out of the trashed-only default.
+      await repository.purge(seed, event.entryId, { actor, trashed: 'any' })
       repurged.push(event.entryId)
     } catch (error) {
       // Already absent — the expected case on a database that was never restored.

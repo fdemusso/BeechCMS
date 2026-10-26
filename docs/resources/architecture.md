@@ -116,7 +116,7 @@ The draft table also carries a nullable `live_snapshot_at INTEGER` system column
 
 ## Soft Delete & the Erasure Ledger
 
-For Seeds with `softDelete: true`, deletion is a row state rather than a row removal. `content_<seed>` gains a nullable `deleted_at INTEGER` system column, and uniqueness moves from an inline `slug ... UNIQUE` to a **partial unique index** (`WHERE deleted_at IS NULL`) so a trashed entry releases its slug for reuse.
+For every Seed, deletion is a row state rather than a row removal. `content_<seed>` gains a nullable `deleted_at INTEGER` system column, and uniqueness moves from an inline `slug ... UNIQUE` to a **partial unique index** (`WHERE deleted_at IS NULL`) and the trashed slug is renamed to `<slug>_old_<ms>`, so a trashed entry releases its slug for reuse.
 
 Two structural decisions carry the feature:
 

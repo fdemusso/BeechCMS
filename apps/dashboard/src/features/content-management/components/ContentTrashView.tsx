@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import type { ColumnDef, RowSelectionState } from "@tanstack/react-table"
-import type { Seed } from "@beechcms/core"
+import { fromTrashedSlug, type Seed } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import { DataTable } from "@/components/ui/data-table"
 import { RelativeTime } from "@/components/ui/relative-time"
@@ -71,7 +71,7 @@ export function ContentTrashView(props: Readonly<ContentTrashViewProps>) {
       {
         id: "slug",
         header: t("content.table.slug", { defaultValue: "Slug" }),
-        accessorFn: (row) => row.slug,
+        accessorFn: (row) => (row.slug ? fromTrashedSlug(row.slug) : row.slug),
         cell: ({ getValue }) => (
           <span className="font-mono text-sm">{getValue<string | null>() ?? "—"}</span>
         ),

@@ -14,7 +14,7 @@ Everything a purge caller needs to finish cleanup outside the database.
 
 > **ledgerWritten**: `boolean`
 
-True when a ledger event was appended. False only for a seed without `softDelete`.
+True when a ledger event was appended. False only when the repository has no ledger configured.
 
 ***
 

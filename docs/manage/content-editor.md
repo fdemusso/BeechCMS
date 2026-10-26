@@ -216,11 +216,7 @@ When you set content to go live at a specific future date and time, it appears i
 
 ## Deleting Content & the Trash
 
-How deletion behaves depends on how your administrator configured the Seed.
-
-### Content Types With a Trash
-
-For Seeds where the Trash is enabled (typically anything business-critical — orders, customers, leads), deleting is **reversible**:
+Deleting is **reversible** on every content type:
 
 1. Delete an entry from the listing (row menu or bulk selection). The confirmation reads **"Move to Trash — you can restore it later"**.
 2. The entry disappears from the listing, from the public website, and from search — but nothing is destroyed. Its images and linked records stay attached.
@@ -236,10 +232,6 @@ The Trash also shows a **Retention** countdown when your administrator set a ret
 
 > [!TIP]
 > **Restored entries can come back with a different URL slug.** While an entry sits in the Trash, its slug is free for someone else to use. If that happened, BeechCMS restores your entry under a slightly different slug instead of refusing — and tells you the new one in a notification. Check any links pointing at the old URL.
-
-### Content Types Without a Trash
-
-On every other Seed, deleting is **immediate and permanent**: the entry and its uploaded images are gone, and no undo is available. The confirmation dialog says so explicitly. If you need a Trash for a content type that does not have one, ask your administrator — it is a per-Seed setting.
 
 > [!IMPORTANT]
 > **"Delete forever" really is forever.** A permanent deletion is recorded outside the database so it stays deleted even if the team later restores a database backup. Use **Move to Trash** whenever you are not certain.

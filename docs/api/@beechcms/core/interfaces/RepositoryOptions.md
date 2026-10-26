@@ -9,6 +9,10 @@
 Options passed to write operations. Currently carries the acting user
 (extracted from the JWT) so lifecycle hooks can attribute changes.
 
+## Extended by
+
+- [`PurgeOptions`](PurgeOptions.md)
+
 ## Properties
 
 ### actor?

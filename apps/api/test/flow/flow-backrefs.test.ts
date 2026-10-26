@@ -59,7 +59,8 @@ CREATE TABLE IF NOT EXISTS content_test_categories (
   status     TEXT NOT NULL DEFAULT 'published',
   name       TEXT NOT NULL,
   created_at INTEGER NOT NULL DEFAULT 0,
-  updated_at INTEGER NOT NULL DEFAULT 0
+  updated_at INTEGER NOT NULL DEFAULT 0,
+  deleted_at INTEGER
 );
 CREATE TABLE IF NOT EXISTS content_test_products (
   id          TEXT NOT NULL PRIMARY KEY,
@@ -68,7 +69,8 @@ CREATE TABLE IF NOT EXISTS content_test_products (
   title       TEXT NOT NULL,
   category_id TEXT REFERENCES content_test_categories(id),
   created_at  INTEGER NOT NULL DEFAULT 0,
-  updated_at  INTEGER NOT NULL DEFAULT 0
+  updated_at  INTEGER NOT NULL DEFAULT 0,
+  deleted_at INTEGER
 );
 CREATE TABLE IF NOT EXISTS content_test_reviews (
   id         TEXT NOT NULL PRIMARY KEY,
@@ -77,7 +79,8 @@ CREATE TABLE IF NOT EXISTS content_test_reviews (
   author     TEXT NOT NULL,
   product_id TEXT REFERENCES content_test_products(id),
   created_at INTEGER NOT NULL DEFAULT 0,
-  updated_at INTEGER NOT NULL DEFAULT 0
+  updated_at INTEGER NOT NULL DEFAULT 0,
+  deleted_at INTEGER
 );
 CREATE TABLE IF NOT EXISTS content_test_hidden_docs (
   id            TEXT NOT NULL PRIMARY KEY,
@@ -86,7 +89,8 @@ CREATE TABLE IF NOT EXISTS content_test_hidden_docs (
   internal_name TEXT NOT NULL,
   product_id    TEXT REFERENCES content_test_products(id),
   created_at    INTEGER NOT NULL DEFAULT 0,
-  updated_at    INTEGER NOT NULL DEFAULT 0
+  updated_at    INTEGER NOT NULL DEFAULT 0,
+  deleted_at INTEGER
 );
 `
 

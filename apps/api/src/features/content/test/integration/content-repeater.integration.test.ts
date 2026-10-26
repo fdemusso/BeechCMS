@@ -183,14 +183,15 @@ describe('content slice — repeater fields (real D1)', () => {
       expect(parsed[0].q).toBe('Original Q?')
     })
 
-    it('deletes an entry containing repeater items', async () => {
+    it('purges a trashed entry containing repeater items', async () => {
       const created = await admin.post('/api/content/faq_articles', {
         topic: 'To Delete',
         questions: [{ q: 'Will I be deleted?', a: 'Yes' }],
       })
       const { id } = await created.json<{ id: string }>()
+      await admin.delete(`/api/content/faq_articles/${id}`)
 
-      const response = await admin.delete(`/api/content/faq_articles/${id}`)
+      const response = await admin.delete(`/api/content/faq_articles/${id}?purge=true`)
 
       expect(response.status).toBe(200)
 

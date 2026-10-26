@@ -8,8 +8,7 @@
 
 > **activeCondition**(`seed`, `mode?`, `tableAlias?`): `string` \| `null`
 
-Returns the SQL condition (e.g. `ce.deleted_at IS NULL`), or `null` if the
-seed does not use soft delete or mode is 'any'.
+Returns the SQL condition (e.g. `ce.deleted_at IS NULL`), or `null` if mode is 'any'.
 
 ## Parameters
 

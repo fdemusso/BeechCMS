@@ -23,6 +23,7 @@ describe("ContentDeleteDialog", () => {
         open
         onOpenChange={vi.fn()}
         seed={seed}
+        mode="purge"
         entryIds={["id-1"]}
         onConfirm={vi.fn().mockResolvedValue(undefined)}
       />
@@ -38,6 +39,7 @@ describe("ContentDeleteDialog", () => {
         open
         onOpenChange={vi.fn()}
         seed={seed}
+        mode="purge"
         entryIds={["id-1", "id-2", "id-3", "id-4"]}
         onConfirm={vi.fn().mockResolvedValue(undefined)}
       />
@@ -54,6 +56,7 @@ describe("ContentDeleteDialog", () => {
         open
         onOpenChange={onOpenChange}
         seed={seed}
+        mode="purge"
         entryIds={["id-1"]}
         onConfirm={vi.fn().mockResolvedValue(undefined)}
       />
@@ -72,6 +75,7 @@ describe("ContentDeleteDialog", () => {
         open
         onOpenChange={onOpenChange}
         seed={seed}
+        mode="purge"
         entryIds={["id-1"]}
         onConfirm={onConfirm}
       />
@@ -94,6 +98,7 @@ describe("ContentDeleteDialog", () => {
         open
         onOpenChange={onOpenChange}
         seed={seed}
+        mode="purge"
         entryIds={["id-1"]}
         onConfirm={onConfirm}
       />
@@ -111,6 +116,7 @@ describe("ContentDeleteDialog", () => {
         open
         onOpenChange={vi.fn()}
         seed={seed}
+        mode="purge"
         entryIds={["id-1"]}
         mode="trash"
         onConfirm={vi.fn().mockResolvedValue(undefined)}
@@ -127,6 +133,7 @@ describe("ContentDeleteDialog", () => {
         open
         onOpenChange={vi.fn()}
         seed={seed}
+        mode="purge"
         entryIds={["id-1"]}
         mode="purge"
         onConfirm={vi.fn().mockResolvedValue(undefined)}

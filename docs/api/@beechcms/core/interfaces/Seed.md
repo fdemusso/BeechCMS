@@ -112,11 +112,13 @@ Identifying slug — also the table name: `content_{slug}`.
 
 ***
 
-### softDelete?
+### ~~softDelete?~~
 
 > `optional` **softDelete?**: `boolean`
 
-Enables the Trash for this content type. When true, `content_{slug}` carries a
-`deleted_at INTEGER NULL` column, `DELETE` becomes a reversible soft delete, and every
-read excludes trashed rows unless the caller opts in via `SelectOptions.trashed`.
-Default: false.
+#### Deprecated
+
+Ignored. Every seed has a Trash: `content_{slug}` always carries `deleted_at`,
+`DELETE` is always a reversible soft delete, and every read excludes trashed rows unless
+the caller opts in via `SelectOptions.trashed`. Kept only so existing seed definitions
+still type-check.

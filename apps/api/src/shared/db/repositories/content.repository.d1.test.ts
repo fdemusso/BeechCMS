@@ -391,21 +391,54 @@ describe('D1ContentRepository', () => {
     })
   })
 
-  // ─── delete ─────────────────────────────────────────────────────────────────
+  // ─── softDelete / restore ─────────────────────────────────────────────────────
 
-  describe('delete', () => {
-    it('returns the row data and calls DELETE', async () => {
-      const row = { id: 'e1', slug: 'p', status: 'published', title: 'T', body: null }
-      const { db, prepareMock } = makeMockDb({ firstResult: row })
-      const result = await new D1ContentRepository(db).delete(SEED, 'e1')
-      expect(result.row.id).toBe('e1')
-      const sqls = prepareMock.mock.calls.map(c => c[0] as string)
-      expect(sqls.some(s => s.includes('DELETE FROM content_posts'))).toBe(true)
+  describe('softDelete', () => {
+    it('stamps deleted_at in seconds from the injected clock and renames the slug with the millisecond suffix', async () => {
+      const row = { id: 'e1', slug: 'my-post', status: 'published', title: 'T', body: null }
+      const { db, bindMock } = makeMockDb({ firstResult: row })
+      const clock = new FixedClock(1_700_000_123_456)
+
+      const result = await new D1ContentRepository(db, undefined, undefined, undefined, undefined, clock).softDelete(SEED, 'e1')
+
+      expect(bindMock).toHaveBeenCalledWith(1_700_000_123, 'my-post_old_1700000123456', 'e1')
+      expect(result.row.slug).toBe('my-post')
     })
 
-    it('throws EntryNotFoundError when the entry does not exist', async () => {
+    it('throws EntryNotFoundError when no live row matches', async () => {
       const { db } = makeMockDb({ firstResult: null })
-      await expect(new D1ContentRepository(db).delete(SEED, 'missing')).rejects.toBeInstanceOf(EntryNotFoundError)
+
+      await expect(new D1ContentRepository(db).softDelete(SEED, 'missing')).rejects.toBeInstanceOf(EntryNotFoundError)
+    })
+  })
+
+  describe('restore', () => {
+    it('puts back the slug stripped of the _old_ suffix', async () => {
+      const trashed = { id: 'e1', slug: 'my-post_old_1700000123456', status: 'published', title: 'T', body: null, deleted_at: 1_700_000_123 }
+      const { db, bindMock } = makeMockDb({ firstResult: trashed })
+
+      const result = await new D1ContentRepository(db).restore(SEED, 'e1')
+
+      expect(bindMock).toHaveBeenCalledWith('my-post', 'e1')
+      expect(result.row.slug).toBe('my-post')
+    })
+
+    it('falls back to <original>-restored-<id8>, built from the stripped slug, when the original slug is taken', async () => {
+      const id = 'abcdef12-0000-4000-8000-000000000000'
+      const trashed = { id, slug: 'my-post_old_1700000123456', status: 'published', title: 'T', body: null, deleted_at: 1_700_000_123 }
+      const { db, bindMock, runMock } = makeMockDb({ firstResult: trashed })
+      runMock.mockRejectedValueOnce(new Error('D1_ERROR: UNIQUE constraint failed: content_posts.slug'))
+
+      const result = await new D1ContentRepository(db).restore(SEED, id)
+
+      expect(bindMock).toHaveBeenLastCalledWith('my-post-restored-abcdef12', id)
+      expect(result.row.slug).toBe('my-post-restored-abcdef12')
+    })
+
+    it('throws EntryNotFoundError when no trashed row matches', async () => {
+      const { db } = makeMockDb({ firstResult: null })
+
+      await expect(new D1ContentRepository(db).restore(SEED, 'missing')).rejects.toBeInstanceOf(EntryNotFoundError)
     })
   })
 
@@ -452,6 +485,24 @@ describe('D1ContentRepository', () => {
 
       const sqls = prepareMock.mock.calls.map(c => c[0] as string)
       expect(sqls.some(s => s.includes('DELETE FROM content_posts'))).toBe(false)
+    })
+
+    it('selects only trashed rows by default', async () => {
+      const { db, prepareMock } = makeMockDb({ firstResult: null })
+
+      await expect(new D1ContentRepository(db).purge(SEED, 'e1')).rejects.toBeInstanceOf(EntryNotFoundError)
+
+      const selectSql = prepareMock.mock.calls.map(c => c[0] as string).find(sql => sql.startsWith('SELECT'))
+      expect(selectSql).toContain('deleted_at IS NOT NULL')
+    })
+
+    it('selects live rows too when the caller opts in with trashed: any', async () => {
+      const { db, prepareMock } = makeMockDb({ firstResult: null })
+
+      await expect(new D1ContentRepository(db).purge(SEED, 'e1', { trashed: 'any' })).rejects.toBeInstanceOf(EntryNotFoundError)
+
+      const selectSql = prepareMock.mock.calls.map(c => c[0] as string).find(sql => sql.startsWith('SELECT'))
+      expect(selectSql).not.toContain('deleted_at')
     })
 
     it('throws EntryNotFoundError when the entry does not exist', async () => {
@@ -954,17 +1005,28 @@ describe('D1ContentRepository', () => {
       )
     })
 
-    it('delete: beforeDelete and afterDelete are called around the deletion', async () => {
+    it('softDelete: beforeDelete and afterDelete are called around the soft deletion', async () => {
       const row = { id: 'e1', slug: 'p', status: 'published', title: 'T', body: null }
       const { db } = makeMockDb({ firstResult: row })
       const beforeDelete = vi.fn().mockResolvedValue(undefined)
       const afterDelete = vi.fn().mockResolvedValue(undefined)
 
-      const result = await new D1ContentRepository(db, { beforeDelete, afterDelete }).delete(SEED, 'e1', { actor: { id: 'u1' } })
+      const result = await new D1ContentRepository(db, { beforeDelete, afterDelete }).softDelete(SEED, 'e1', { actor: { id: 'u1' } })
 
       expect(beforeDelete).toHaveBeenCalledWith('e1', expect.objectContaining({ seed: SEED, actor: { id: 'u1' } }))
       expect(afterDelete).toHaveBeenCalledWith('e1', expect.objectContaining({ seed: SEED }))
       expect(result.row.id).toBe('e1')
+    })
+  })
+
+  describe('findExpiredByRetention', () => {
+    it('returns an empty list without querying when the seed has no retentionDays', async () => {
+      const { db, prepareMock } = makeMockDb()
+
+      const ids = await new D1ContentRepository(db).findExpiredByRetention(SEED, 2_000_000, 10)
+
+      expect(ids).toEqual([])
+      expect(prepareMock).not.toHaveBeenCalled()
     })
   })
 
@@ -1117,7 +1179,7 @@ describe('D1ContentRepository', () => {
 
       expect(result.updated).toBe(1)
       expect(result.failed).toEqual([])
-      expect(prepareMock).toHaveBeenCalledWith('UPDATE content_posts SET updated_at = (unixepoch()), title = ?, body = ? WHERE id = ?')
+      expect(prepareMock).toHaveBeenCalledWith('UPDATE content_posts SET updated_at = (unixepoch()), title = ?, body = ? WHERE id = ? AND deleted_at IS NULL')
       expect(bindMock).toHaveBeenCalledWith('New title', 'New body', 'e1')
     })
 
@@ -1314,12 +1376,6 @@ describe('D1ContentRepository', () => {
       const { db, runMock } = makeMockDb()
       runMock.mockRejectedValue(new Error('D1 down'))
       await expect(new D1ContentRepository(db).update(SEED, 'e1', { title: 'X' })).rejects.toThrow('update')
-    })
-
-    it('delete wraps unexpected errors in RepositoryError', async () => {
-      const { db, firstMock } = makeMockDb()
-      firstMock.mockRejectedValue(new Error('D1 down'))
-      await expect(new D1ContentRepository(db).delete(SEED, 'e1')).rejects.toThrow('delete')
     })
 
     it('saveDraft wraps unexpected errors in RepositoryError', async () => {

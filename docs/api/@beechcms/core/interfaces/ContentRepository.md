@@ -130,34 +130,6 @@ Throws SlugConflictError if the slug is already taken.
 
 ***
 
-### delete()
-
-> **delete**(`seed`, `id`, `options?`): `Promise`&lt;\{ `row`: `Record`&lt;`string`, `any`&gt;; \}&gt;
-
-Deletes an entry from the live table.
-Returns the deleted row data (useful for media cleanup).
-Throws EntryNotFoundError if the ID does not exist.
-
-#### Parameters
-
-##### seed
-
-[`Seed`](Seed.md)
-
-##### id
-
-`string`
-
-##### options?
-
-[`RepositoryOptions`](RepositoryOptions.md)
-
-#### Returns
-
-`Promise`&lt;\{ `row`: `Record`&lt;`string`, `any`&gt;; \}&gt;
-
-***
-
 ### deleteDraft()
 
 > **deleteDraft**(`seed`, `entryId`): `Promise`&lt;`void`&gt;
@@ -265,7 +237,7 @@ Throws EntryNotFoundError if not found.
 
 Pure query, no side effects: ids of trashed entries whose retention window has elapsed
 (`deleted_at + seed.retentionDays * 86400 <= now`).
-Returns [] when the seed has no `retentionDays` or no `softDelete`.
+Returns [] when the seed has no `retentionDays`.
 Deliberately NOT wired to any scheduler — the recurring-automation adapter is future work
 (feature brief §2). `now` is supplied by the caller's `IClock`; never read the clock here.
 
@@ -539,7 +511,7 @@ Must use a transaction (db.batch) to update live and delete draft.
 
 Irreversible erasure: runs `beforeDelete`, reads the row, deletes it (junction and
 `_drafts` rows follow via ON DELETE CASCADE), appends the ledger event, runs `afterDelete`.
-Works on a live row and on a trashed one.
+Only erases a trashed row unless `PurgeOptions.trashed` is `'any'`.
 R2 media deletion is NOT performed here — the caller owns it (VSA: no external I/O in the
 repository beyond the ledger port).
 
@@ -555,7 +527,7 @@ repository beyond the ledger port).
 
 ##### options?
 
-[`RepositoryOptions`](RepositoryOptions.md)
+[`PurgeOptions`](PurgeOptions.md)
 
 #### Returns
 
@@ -563,7 +535,7 @@ repository beyond the ledger port).
 
 #### Throws
 
-EntryNotFoundError if no row with `id` exists.
+EntryNotFoundError if no row matching the `PurgeOptions.trashed` mode with `id` exists.
 
 ***
 
@@ -571,9 +543,9 @@ EntryNotFoundError if no row with `id` exists.
 
 > **restore**(`seed`, `id`, `options?`): `Promise`&lt;\{ `row`: `Record`&lt;`string`, `any`&gt;; \}&gt;
 
-Clears `deleted_at`. When the entry's slug was taken by a live entry in the meantime the
-UNIQUE constraint rejects the update; the implementation catches it and restores under an
-auto-renamed slug rather than failing the operation (feature brief §4).
+Clears `deleted_at` and restores `fromTrashedSlug(slug)`. When that slug was taken by a live
+entry in the meantime the UNIQUE constraint rejects the update; the implementation catches it
+and falls back to `<original>-restored-<id8>` rather than failing the operation (feature brief §4).
 
 #### Parameters
 
@@ -657,7 +629,8 @@ pending draft row's `updated_at`.
 > **softDelete**(`seed`, `id`, `options?`): `Promise`&lt;\{ `row`: `Record`&lt;`string`, `any`&gt;; \}&gt;
 
 Reversible delete: stamps `deleted_at` and returns the row as it was.
-Runs `beforeDelete`/`afterDelete`, exactly like `delete`.
+Stamps `deleted_at` from the repository's `IClock` and renames the slug with `toTrashedSlug`.
+Runs `beforeDelete`/`afterDelete`.
 Leaves junction rows, `_drafts` rows and R2 media untouched — a trashed entry must be
 restorable whole.
 
@@ -678,10 +651,6 @@ restorable whole.
 #### Returns
 
 `Promise`&lt;\{ `row`: `Record`&lt;`string`, `any`&gt;; \}&gt;
-
-#### Throws
-
-RepositoryError if `seed.softDelete` is not true.
 
 #### Throws
 

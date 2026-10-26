@@ -81,7 +81,6 @@ export default defineSchema({
       displayNameAlias: 'title',
       allowPublicRead: true,
       allowDrafts: true,
-      softDelete: true,
       branches: [
         defineField.text({ alias: 'title', label: 'Title', requiredOnCreate: true }),
         defineField.richtext({ alias: 'body', label: 'Body' }),

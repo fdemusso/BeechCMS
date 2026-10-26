@@ -681,7 +681,6 @@
       "daysLeft_one": "{{count}} giorno rimasto",
       "daysLeft_other": "{{count}} giorni rimasti",
       "empty": "Il cestino è vuoto",
-      "disabled": "Questo tipo di contenuto non usa il cestino: le eliminazioni sono immediate e irreversibili.",
       "restore": "Ripristina",
       "purge": "Elimina definitivamente",
       "selectedCount_one": "{{count}} entry selezionata",

@@ -85,6 +85,12 @@ describe('diffSeedDefinition', () => {
     expect(diff).toEqual({ changed: false, changedBranches: [] })
   })
 
+  it('returns changed false for two definitions that differ only in the deprecated softDelete flag', () => {
+    const diff = diffSeedDefinition(postsSeed({}, { softDelete: true }), postsSeed())
+
+    expect(diff).toEqual({ changed: false, changedBranches: [] })
+  })
+
   it('reports priority when only an option color changes', () => {
     const recolored = [{ value: 'low', color: '#64748b' }, { value: 'high', color: '#dc2626' }]
 

@@ -12,7 +12,7 @@ export type BranchDefinitionLike = Omit<Branch, 'id' | 'fields'> & { id?: string
 export type SeedDefinitionLike = Omit<Seed, 'branches' | 'layout'> & { branches: BranchDefinitionLike[]; layout?: unknown }
 
 /** Seed-level flags the engine treats as `false` when omitted. */
-export const SEED_DEFINITION_FLAGS = ['allowDrafts', 'allowPublicRead', 'allowPublicPost', 'allowPublicEdit', 'softDelete'] as const
+export const SEED_DEFINITION_FLAGS = ['allowDrafts', 'allowPublicRead', 'allowPublicPost', 'allowPublicEdit'] as const
 
 /** Branch-level flags the engine treats as `false` when omitted. `multiple` is resolved separately (see normalizeBranchDefinition). */
 export const BRANCH_DEFINITION_FLAGS = ['requiredOnCreate', 'requiredOnUpdate'] as const
@@ -36,7 +36,7 @@ export function normalizeBranchDefinition(branch: BranchDefinitionLike): Record<
 
 /** Comparable form of one seed definition (branches normalized, order kept). `layout` is server-populated and dropped. */
 export function normalizeSeedDefinition(seed: SeedDefinitionLike): Record<string, unknown> {
-  const { layout: _layout, branches, ...rest } = seed
+  const { layout: _layout, softDelete: _deprecated, branches, ...rest } = seed
   const normalized: Record<string, unknown> = { ...rest }
   for (const flag of SEED_DEFINITION_FLAGS) normalized[flag] = seed[flag] === true
   normalized.branches = (branches ?? []).map(normalizeBranchDefinition)

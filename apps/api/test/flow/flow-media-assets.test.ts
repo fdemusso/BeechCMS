@@ -785,14 +785,14 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       s3SendSpy.mockReset()
     })
 
-    it('removes the entry and triggers R2 cleanup for its tracked media field', async () => {
+    it('purging a trashed entry removes it and triggers R2 cleanup for its tracked media field', async () => {
       await db.prepare(
         'INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)'
       ).bind('f.png', 'f.png', 'image/png', 100, TEST_USERS[0].id).run()
       s3SendSpy.mockResolvedValue({ ContentLength: 100 } satisfies Partial<HeadObjectCommandOutput>)
-      contentRepo.load('posts', [{ id: 'p_del', status: 'published', image: 'https://ex.com/api/media/f.png' }])
+      contentRepo.load('posts', [{ id: 'p_del', status: 'published', deleted_at: 1, image: 'https://ex.com/api/media/f.png' }])
 
-      const res = await contentApp.request('/api/content/posts/p_del', {
+      const res = await contentApp.request('/api/content/posts/p_del?purge=true', {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${adminToken}` },
       }, { ...TEST_ENV, DB: db })
@@ -801,18 +801,18 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       expect(s3SendSpy).toHaveBeenCalled()
     })
 
-    it('logs but does not fail the request when R2 cleanup on delete fails', async () => {
+    it('logs but does not fail the request when R2 cleanup on purge fails', async () => {
       vi.spyOn(uploadModule, 'deleteR2Objects').mockRejectedValueOnce(new Error('R2 unreachable'))
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      contentRepo.load('posts', [{ id: 'p_del_r2', status: 'published', image: 'https://ex.com/api/media/f2.png' }])
+      contentRepo.load('posts', [{ id: 'p_del_r2', status: 'published', deleted_at: 1, image: 'https://ex.com/api/media/f2.png' }])
 
-      const res = await contentApp.request('/api/content/posts/p_del_r2', {
+      const res = await contentApp.request('/api/content/posts/p_del_r2?purge=true', {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${adminToken}` },
       }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(200)
-      // 'posts' has no softDelete, so DELETE resolves through the purge path (soft-delete sprint).
+      // Only a purge from the Trash touches the bucket.
       expect(warnSpy).toHaveBeenCalledWith('R2 cleanup on purge failed (orphaned files):', expect.any(Error))
     })
   })

@@ -222,13 +222,13 @@ describe('buildFtsQuery', () => {
     expect(result.countSql).toContain('ce.deleted_at IS NULL')
   })
 
-  it('does not include deleted_at condition for seeds without softDelete (#465)', () => {
+  it('appends ce.deleted_at IS NULL to data query and count query for a seed that declares no flag', () => {
     const result = buildFtsQuery(
       { queryText: 'hello', schemaSlug: null, statusFilter: null, pageSize: 20, cursor: null },
       [TEXT_SEED],
     )
-    expect(result.sql).not.toContain('deleted_at')
-    expect(result.countSql).not.toContain('deleted_at')
+    expect(result.sql).toContain('ce.deleted_at IS NULL')
+    expect(result.countSql).toContain('ce.deleted_at IS NULL')
   })
 })
 

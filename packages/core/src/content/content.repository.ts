@@ -193,6 +193,16 @@ export interface RepositoryOptions {
   ifMatch?: number
 }
 
+/** Options for `purge`. */
+export interface PurgeOptions extends RepositoryOptions {
+  /**
+   * Which rows the purge may erase. Default `'trashed'`: an ordinary purge only ever erases an entry
+   * already in the Trash. `'any'` is reserved for ledger reconciliation, which must re-erase a row a
+   * database restore resurrected as live.
+   */
+  trashed?: Exclude<TrashedMode, 'active'>
+}
+
 /**
  * Declarative multi-write operation translated into a single `db.batch` call.
  * Used for coordinated writes across one or more seeds when D1's lack of
@@ -210,7 +220,7 @@ export type BatchWrite =
 export interface PurgeResult {
   /** The row as it existed immediately before erasure — the source of the R2 media keys. */
   row: Record<string, any>
-  /** True when a ledger event was appended. False only for a seed without `softDelete`. */
+  /** True when a ledger event was appended. False only when the repository has no ledger configured. */
   ledgerWritten: boolean
 }
 
@@ -280,13 +290,6 @@ export interface ContentRepository {
    * Throws EntryConflictError if `options.ifMatch` is set and no longer matches the live row's `updated_at`.
    */
   update(seed: Seed, id: string, data: Record<string, any>, status?: string, options?: RepositoryOptions): Promise<void>
-
-  /**
-   * Deletes an entry from the live table.
-   * Returns the deleted row data (useful for media cleanup).
-   * Throws EntryNotFoundError if the ID does not exist.
-   */
-  delete(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }>
 
   /**
    * Atomically increments/decrements a numeric field with optional min/max guards.
@@ -391,18 +394,18 @@ export interface ContentRepository {
 
   /**
    * Reversible delete: stamps `deleted_at` and returns the row as it was.
-   * Runs `beforeDelete`/`afterDelete`, exactly like `delete`.
+   * Stamps `deleted_at` from the repository's `IClock` and renames the slug with `toTrashedSlug`.
+   * Runs `beforeDelete`/`afterDelete`.
    * Leaves junction rows, `_drafts` rows and R2 media untouched — a trashed entry must be
    * restorable whole.
-   * @throws RepositoryError if `seed.softDelete` is not true.
    * @throws EntryNotFoundError if no live row with `id` exists.
    */
   softDelete(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }>
 
   /**
-   * Clears `deleted_at`. When the entry's slug was taken by a live entry in the meantime the
-   * UNIQUE constraint rejects the update; the implementation catches it and restores under an
-   * auto-renamed slug rather than failing the operation (feature brief §4).
+   * Clears `deleted_at` and restores `fromTrashedSlug(slug)`. When that slug was taken by a live
+   * entry in the meantime the UNIQUE constraint rejects the update; the implementation catches it
+   * and falls back to `<original>-restored-<id8>` rather than failing the operation (feature brief §4).
    * @returns The restored row, carrying the slug it actually ended up with.
    * @throws EntryNotFoundError if no TRASHED row with `id` exists.
    */
@@ -411,12 +414,12 @@ export interface ContentRepository {
   /**
    * Irreversible erasure: runs `beforeDelete`, reads the row, deletes it (junction and
    * `_drafts` rows follow via ON DELETE CASCADE), appends the ledger event, runs `afterDelete`.
-   * Works on a live row and on a trashed one.
+   * Only erases a trashed row unless `PurgeOptions.trashed` is `'any'`.
    * R2 media deletion is NOT performed here — the caller owns it (VSA: no external I/O in the
    * repository beyond the ledger port).
-   * @throws EntryNotFoundError if no row with `id` exists.
+   * @throws EntryNotFoundError if no row matching the `PurgeOptions.trashed` mode with `id` exists.
    */
-  purge(seed: Seed, id: string, options?: RepositoryOptions): Promise<PurgeResult>
+  purge(seed: Seed, id: string, options?: PurgeOptions): Promise<PurgeResult>
 
   /** `restore` applied per id. Never partially fails the batch: each id reports its own outcome. */
   bulkRestore(seed: Seed, ids: string[], options?: RepositoryOptions): Promise<BulkDeleteResult>
@@ -431,7 +434,7 @@ export interface ContentRepository {
   /**
    * Pure query, no side effects: ids of trashed entries whose retention window has elapsed
    * (`deleted_at + seed.retentionDays * 86400 <= now`).
-   * Returns [] when the seed has no `retentionDays` or no `softDelete`.
+   * Returns [] when the seed has no `retentionDays`.
    * Deliberately NOT wired to any scheduler — the recurring-automation adapter is future work
    * (feature brief §2). `now` is supplied by the caller's `IClock`; never read the clock here.
    */

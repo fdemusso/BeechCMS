@@ -260,10 +260,10 @@ export interface Seed {
    */
   allowDrafts?: boolean
   /**
-   * Enables the Trash for this content type. When true, `content_{slug}` carries a
-   * `deleted_at INTEGER NULL` column, `DELETE` becomes a reversible soft delete, and every
-   * read excludes trashed rows unless the caller opts in via `SelectOptions.trashed`.
-   * Default: false.
+   * @deprecated Ignored. Every seed has a Trash: `content_{slug}` always carries `deleted_at`,
+   * `DELETE` is always a reversible soft delete, and every read excludes trashed rows unless
+   * the caller opts in via `SelectOptions.trashed`. Kept only so existing seed definitions
+   * still type-check.
    */
   softDelete?: boolean
   /**
@@ -333,7 +333,6 @@ export interface FilterGroup {
  *  - 'active'  (default) — only rows with `deleted_at IS NULL`
  *  - 'trashed'           — only rows with `deleted_at IS NOT NULL` (the Trash view)
  *  - 'any'               — no predicate (restore/purge lookups, reconciliation)
- * Ignored entirely for seeds without `softDelete: true`.
  */
 export type TrashedMode = 'active' | 'trashed' | 'any'
 
