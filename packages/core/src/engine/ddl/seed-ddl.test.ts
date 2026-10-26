@@ -45,6 +45,22 @@ describe('planCreateSeed', () => {
     expect(stmts.some(s => s.includes('rel_posts_tags'))).toBe(true)
   })
 
+  it('includes vector table when indexable search branches exist', () => {
+    const stmts = planCreateSeed(fullSeed)
+    expect(stmts.some(s => s.includes('CREATE TABLE IF NOT EXISTS vector_posts'))).toBe(true)
+  })
+
+  it('omits vector table when no indexable search branches exist', () => {
+    const minimal: Seed = {
+      slug: 'stats',
+      label: 'Stats',
+      displayNameAlias: 'count',
+      branches: [{ id: 'br_01', alias: 'count', label: 'Count', type: 'number' }],
+    }
+    const stmts = planCreateSeed(minimal)
+    expect(stmts.some(s => s.includes('vector_stats'))).toBe(false)
+  })
+
   it('order: CREATE TABLE before draft table', () => {
     const stmts = planCreateSeed(fullSeed)
     const mainIdx = stmts.findIndex(s => s.includes('CREATE TABLE IF NOT EXISTS content_posts') && !s.includes('drafts'))
@@ -62,7 +78,7 @@ describe('planCreateSeed', () => {
 })
 
 describe('planExtendSeed', () => {
-  const existing = new Set(['title', 'body'])
+  const existing = new Set(['title', 'body', 'deleted_at'])
 
   it('returns ADD COLUMN for new non-relation branch', () => {
     const seed: Seed = {
@@ -136,7 +152,7 @@ describe('planExtendSeed', () => {
         },
       ],
     }
-    const { statements, ftsRebuildNeeded } = planExtendSeed(seed, new Set(['title']))
+    const { statements, ftsRebuildNeeded } = planExtendSeed(seed, new Set(['title', 'deleted_at']))
     const addCols = statements.filter(s => s.toUpperCase().includes('ADD COLUMN'))
     expect(addCols).toEqual(['ALTER TABLE content_posts ADD COLUMN items TEXT;'])
     expect(statements.some(s => s.includes('idx_posts_items'))).toBe(false)
@@ -154,8 +170,9 @@ describe('planExtendSeed', () => {
         { id: 'br_02', alias: 'body', label: 'Body', type: 'text' },
       ],
     }
-    const { statements } = planExtendSeed(seed, new Set(['title', 'body']))
+    const { statements } = planExtendSeed(seed, new Set(['title', 'body', 'deleted_at']))
     expect(statements.filter(s => s.toUpperCase().includes('ADD COLUMN'))).toHaveLength(0)
+    expect(statements.some(s => s.includes('CREATE TABLE IF NOT EXISTS vector_posts'))).toBe(true)
   })
 
   it('emits no DROP or RENAME', () => {
@@ -222,16 +239,15 @@ describe('planExtendSeed', () => {
     })
   })
 
-  describe('softDelete', () => {
+  describe('deleted_at', () => {
     const softDeleteSeed: Seed = {
       slug: 'posts',
       label: 'Posts',
       displayNameAlias: 'title',
-      softDelete: true,
       branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text' }],
     }
 
-    it('emits the enable statements once when deleted_at is absent', () => {
+    it('emits the enable statements once when deleted_at is absent, with no flag on the seed', () => {
       const { statements } = planExtendSeed(softDeleteSeed, new Set(['title']))
       const alters = statements.filter(s => s.includes('ADD COLUMN deleted_at'))
       expect(alters).toHaveLength(1)
@@ -239,7 +255,7 @@ describe('planExtendSeed', () => {
       expect(statements.some(s => s.includes('idx_posts_slug_active'))).toBe(true)
     })
 
-    it('emits nothing when deleted_at already exists', () => {
+    it('emits no ADD COLUMN deleted_at when the column already exists', () => {
       const { statements } = planExtendSeed(softDeleteSeed, new Set(['title', 'deleted_at']))
       expect(statements.some(s => s.includes('ADD COLUMN deleted_at'))).toBe(false)
     })

@@ -17,7 +17,7 @@ vi.mock("@/features/shared", () => ({
   useLocalizeEntryData: () => (_seed: unknown, data: Record<string, unknown>) => data,
 }))
 
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, within } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { FilterGroup, Seed } from "@beechcms/core"
 import { CANONICAL_SEEDS } from "@beechcms/testing"
@@ -43,7 +43,7 @@ function serveColumns(nullColumnItems: unknown[]) {
   })
 }
 
-function renderBoard() {
+function renderBoard(setKanbanConfig = vi.fn()) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
@@ -53,7 +53,7 @@ function renderBoard() {
         onEdit={vi.fn()}
         onCreateEntry={vi.fn()}
         kanbanConfig={{ axisBranchId: "br_11", sort: null }}
-        setKanbanConfig={vi.fn()}
+        setKanbanConfig={setKanbanConfig}
       />
     </QueryClientProvider>
   )
@@ -82,5 +82,16 @@ describe("ContentKanban", () => {
     expect(await screen.findByRole("region", { name: "Senza Priority — 1 voci" })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Nuova voce in Senza Priority" })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Nuova voce in high" })).toBeInTheDocument()
+  })
+
+  it("persists a collapsed column through setKanbanConfig", async () => {
+    serveColumns([])
+    const setKanbanConfig = vi.fn()
+    renderBoard(setKanbanConfig)
+    const column = await screen.findByRole("region", { name: "high — 0 voci" })
+
+    fireEvent.click(within(column).getByRole("button", { expanded: true }))
+
+    expect(setKanbanConfig).toHaveBeenCalledWith(expect.objectContaining({ axisBranchId: "br_11", collapsedColumnValues: ["high"] }))
   })
 })

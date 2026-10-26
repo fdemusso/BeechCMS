@@ -67,7 +67,7 @@ export function NewEntryButton({ canCreate, onCreate, seedLabel }: NewEntryButto
       <TooltipTrigger asChild>
         <span className="inline-flex">{group}</span>
       </TooltipTrigger>
-      <TooltipContent side="bottom">Manca il permesso 'content:create'</TooltipContent>
+      <TooltipContent side="bottom">{t("toolbar.newEntry.missingPermission")}</TooltipContent>
     </Tooltip>
   )
 }

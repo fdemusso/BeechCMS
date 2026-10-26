@@ -189,6 +189,14 @@ describe('createAutomationSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  it('accepts send_mail with a template placeholder as recipient', () => {
+    const result = createAutomationSchema.safeParse({
+      ...minimalValid,
+      actions: [{ type: 'send_mail', to: '{{email}}', subject_template: 'hi', body_template: 'body' }],
+    })
+    expect(result.success).toBe(true)
+  })
+
   it('accepts trigger_conditions as null', () => {
     const result = createAutomationSchema.safeParse({
       ...minimalValid,

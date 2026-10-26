@@ -5,7 +5,7 @@
 import { useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api"
-import { registerSeeds, type Seed } from "@beechcms/core"
+import { registerSeeds, SEED_REGISTRY, type Seed } from "@beechcms/core"
 
 export function useSchema() {
   const query = useQuery<Seed[]>({
@@ -21,6 +21,11 @@ export function useSchema() {
   useEffect(() => {
     if (query.data) {
       registerSeeds(query.data)
+      // registerSeeds only adds: a seed deleted since the last fetch must leave the registry too.
+      const liveSlugs = new Set(query.data.map((seed) => seed.slug))
+      for (const slug of Object.keys(SEED_REGISTRY)) {
+        if (!liveSlugs.has(slug)) delete SEED_REGISTRY[slug]
+      }
     }
   }, [query.data])
 

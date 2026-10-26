@@ -230,6 +230,21 @@ export const formLayoutSchema = z
   .refine((layout) => new TextEncoder().encode(JSON.stringify(layout)).length <= MAX_LAYOUT_BYTES, {
     message: `Layout exceeds the ${MAX_LAYOUT_BYTES / 1024} KB size limit.`,
   })
+  .superRefine((layout, ctx) => {
+    // The builder keys tabs, sections and columns (and drag-and-drop targets) by id alone.
+    const seen = { tab: new Set<string>(), section: new Set<string>(), column: new Set<string>() }
+    const claim = (kind: keyof typeof seen, id: string, path: (string | number)[]): void => {
+      if (seen[kind].has(id)) ctx.addIssue({ code: 'custom', path, message: `Duplicate ${kind} id '${id}'.` })
+      seen[kind].add(id)
+    }
+    layout.tabs.forEach((tab, ti) => {
+      claim('tab', tab.id, ['tabs', ti, 'id'])
+      tab.sections.forEach((section, si) => {
+        claim('section', section.id, ['tabs', ti, 'sections', si, 'id'])
+        section.columns.forEach((col, ci) => claim('column', col.id, ['tabs', ti, 'sections', si, 'columns', ci, 'id']))
+      })
+    })
+  })
 
 // ---------------------------------------------------------------------------
 // Default layout generator
@@ -363,7 +378,7 @@ export function validateLayoutAgainstSeed(
           if (!f || typeof f !== 'object' || !('branchId' in f)) return false
           const branch = findBranchById(seed, f.branchId)
           if (!branch) return false
-          if (UNSUPPORTED_BRANCH_TYPES.has(branch.type) || SYSTEM_ALIASES.has(branch.alias)) return false
+          if (!isLayoutableBranch(branch)) return false
           return true
         }),
       })),

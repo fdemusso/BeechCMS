@@ -68,7 +68,11 @@ export function useDeleteSeed() {
   return useMutation({
     mutationFn: seedsApi.remove,
     onSuccess: inv,
-    onError: (err) => toast.error(t("seedBuilder.errors.deleteFailed"), { description: extractDetail(err) }),
+    onError: (err) => {
+      // A 409 is explained by DeleteSeedDialog (it lists the referencing seeds); a second toast here would duplicate it.
+      if ((err as AxiosError).response?.status === 409) return
+      toast.error(t("seedBuilder.errors.deleteFailed"), { description: extractDetail(err) })
+    },
   })
 }
 

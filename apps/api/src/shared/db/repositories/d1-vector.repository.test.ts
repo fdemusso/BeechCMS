@@ -134,4 +134,60 @@ describe('D1VectorRepository', () => {
     )
     expect(page).toEqual([{ entryId: 'e1', vector: vec, title: '' }])
   })
+
+  it('deleteVector does not throw when table does not exist', async () => {
+    const error = new Error('D1_ERROR: no such table: vector_articles: SQLITE_ERROR')
+    const runMock = vi.fn().mockRejectedValue(error)
+    const bindMock = vi.fn().mockReturnValue({ run: runMock })
+    const prepareMock = vi.fn().mockReturnValue({ bind: bindMock })
+    const mockDb = { prepare: prepareMock } as unknown as D1Database
+
+    const repo = new D1VectorRepository(mockDb)
+    await expect(repo.deleteVector(TEST_SEED, 'entry-123')).resolves.toBeUndefined()
+  })
+
+  it('countVectors returns 0 when table does not exist', async () => {
+    const error = new Error('no such table: vector_articles')
+    const firstMock = vi.fn().mockRejectedValue(error)
+    const prepareMock = vi.fn().mockReturnValue({ first: firstMock })
+    const mockDb = { prepare: prepareMock } as unknown as D1Database
+
+    const repo = new D1VectorRepository(mockDb)
+    const count = await repo.countVectors(TEST_SEED)
+    expect(count).toBe(0)
+  })
+
+  it('getVectorPage returns empty array when table does not exist', async () => {
+    const error = new Error('no such table: vector_articles')
+    const allMock = vi.fn().mockRejectedValue(error)
+    const bindMock = vi.fn().mockReturnValue({ all: allMock })
+    const prepareMock = vi.fn().mockReturnValue({ bind: bindMock })
+    const mockDb = { prepare: prepareMock } as unknown as D1Database
+
+    const repo = new D1VectorRepository(mockDb)
+    const page = await repo.getVectorPage(TEST_SEED, null, 10)
+    expect(page).toEqual([])
+  })
+
+  it('saveVector creates table lazily if missing and succeeds on retry', async () => {
+    let callCount = 0
+    const runMock = vi.fn().mockImplementation(async () => {
+      callCount++
+      if (callCount === 1) {
+        throw new Error('D1_ERROR: no such table: vector_articles: SQLITE_ERROR')
+      }
+      return { success: true, meta: { changes: 1 } }
+    })
+    const bindMock = vi.fn().mockReturnValue({ run: runMock })
+    const prepareMock = vi.fn().mockReturnValue({ bind: bindMock })
+    const execMock = vi.fn().mockResolvedValue(undefined)
+    const mockDb = { prepare: prepareMock, exec: execMock } as unknown as D1Database
+
+    const repo = new D1VectorRepository(mockDb)
+    const vector = new Float32Array([0.1, 0.2])
+    await repo.saveVector(TEST_SEED, 'entry-123', vector)
+
+    expect(execMock).toHaveBeenCalledWith(expect.stringContaining('CREATE TABLE IF NOT EXISTS vector_articles'))
+    expect(callCount).toBe(2)
+  })
 })

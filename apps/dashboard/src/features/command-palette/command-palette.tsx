@@ -94,15 +94,23 @@ export function CommandPalette() {
   return (
     <>
       {/* Animate cmdk list height */}
-      <style>{`[cmdk-list]{height:var(--cmdk-list-height);transition:height 100ms ease}`}</style>
+      <style>{`[data-slot="command-list"]{height:var(--cmdk-list-height);transition:height 100ms ease}`}</style>
 
       <CommandDialog
         open={open}
         onOpenChange={setOpen}
         aria-label={t("commandPalette.ariaLabel")}
         className="sm:max-w-2xl"
+        onEscapeKeyDown={(e) => {
+          // Radix closes the dialog on Escape before our document listener runs:
+          // on a sub-page, step back instead of closing.
+          if (pages.length > 1) {
+            e.preventDefault()
+            popPage()
+          }
+        }}
       >
-        <Command className="border-none bg-transparent shadow-none">
+        <Command loop className="border-none bg-transparent shadow-none">
           <div className="flex flex-col">
             <BreadcrumbChips pages={pages} popPage={popPage} />
             <CommandInput
@@ -112,7 +120,7 @@ export function CommandPalette() {
             />
           </div>
 
-          <CommandList className="max-h-[550px]">
+          <CommandList className="max-h-[min(550px,calc(100dvh-12rem))]">
             <EmptyMessage />
 
             {currentPage === "root" && (

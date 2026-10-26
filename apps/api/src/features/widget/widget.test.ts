@@ -166,6 +166,23 @@ describe('GET /list/:seed', () => {
     expect(body.detail).toContain('must be an array')
   })
 
+  it.each([
+    ['null item', '[null]'],
+    ['number item', '[1]'],
+    ['string item', '["title"]'],
+    ['missing op', '[{"column":"title","value":"x"}]'],
+    ['non-string column', '[{"column":1,"op":"eq","value":"x"}]'],
+    ['object value', '[{"column":"title","op":"eq","value":{}}]'],
+  ])('returns 400 for malformed filter element (%s) before reaching the repository', async (_label, raw) => {
+    const repo = makeRepoStub()
+    const { app } = buildApp({ repo })
+    const res = await app.request(`/list/posts?filters=${encodeURIComponent(raw)}`)
+    expect(res.status).toBe(400)
+    const body = await res.json() as { detail: string }
+    expect(body.detail).toContain('Invalid filters JSON')
+    expect(repo.list).not.toHaveBeenCalled()
+  })
+
   it('handles safe lookup in deserialization of branches', async () => {
     const repo = makeRepoStub()
     repo.list = vi.fn().mockResolvedValue({

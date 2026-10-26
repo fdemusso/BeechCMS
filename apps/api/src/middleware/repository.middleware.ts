@@ -90,6 +90,19 @@ interface RepositoryOverrides {
   bucket?: BeechBucket
 }
 
+// One D1SeedRepository per binding: the seed registry cache is keyed by repository instance,
+// so a fresh instance per request would rebuild the registry on every request.
+const d1SeedRepositories = new WeakMap<D1Database, ISeedRepository>()
+
+function resolveD1SeedRepository(database: D1Database): ISeedRepository {
+  let repository = d1SeedRepositories.get(database)
+  if (!repository) {
+    repository = new D1SeedRepository(database)
+    d1SeedRepositories.set(database, repository)
+  }
+  return repository
+}
+
 function buildScheduler(context: Context): IScheduler {
   try {
     return new ExecutionContextScheduler(context.executionCtx)
@@ -149,12 +162,12 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('siteSettingsRepository', overrides?.siteSettingsRepository ?? new D1SiteSettingsRepository(database))
     context.set('demoDataRepository', overrides?.demoDataRepository ?? new D1DemoDataRepository(database))
     context.set('setupChecklistRepository', new D1SetupChecklistRepository(database))
-    context.set('seedLayoutRepository', overrides?.seedLayoutRepository ?? new D1SeedLayoutRepository(database))
+    context.set('seedLayoutRepository', overrides?.seedLayoutRepository ?? new D1SeedLayoutRepository(database, resolvedClock))
     context.set('contentViewRepository', overrides?.contentViewRepository ?? new D1ContentViewRepository(database, resolvedIdGenerator, resolvedClock))
-    context.set('seedRepository', overrides?.seedRepository ?? new D1SeedRepository(database))
+    context.set('seedRepository', overrides?.seedRepository ?? resolveD1SeedRepository(database))
     context.set('seedMediaPurgeRepository', overrides?.seedMediaPurgeRepository ?? new D1SeedMediaPurgeRepository(database))
     context.set('schemaMutator', overrides?.schemaMutator ?? new D1SchemaMutator(database))
-    context.set('dashboardLayoutRepository', overrides?.dashboardLayoutRepository ?? new D1DashboardLayoutRepository(database))
+    context.set('dashboardLayoutRepository', overrides?.dashboardLayoutRepository ?? new D1DashboardLayoutRepository(database, resolvedClock))
     context.set('antivirusProvider', overrides?.antivirusProvider ?? new VirusTotalAntivirusProvider(context.env.VIRUSTOTAL_API_KEY))
     context.set('timeTrapTokenRepository', overrides?.timeTrapTokenRepository ?? new D1TimeTrapTokenRepository(database))
     context.set('oauthClientRepository', overrides?.oauthClientRepository ?? new D1OAuthClientRepository(database))

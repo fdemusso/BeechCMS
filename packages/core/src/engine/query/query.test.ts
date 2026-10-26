@@ -52,7 +52,7 @@ describe('Query', () => {
           filters: [{ column: 'bio', type: 'text', conditions: [{ op, value }] }],
         })
 
-        expect(query.sql).toContain('WHERE content_articles.bio_bidx ')
+        expect(query.sql).toContain('WHERE content_articles.deleted_at IS NULL AND content_articles.bio_bidx ')
         expect(query.bindings).toEqual(['digest'])
       })
 
@@ -61,7 +61,7 @@ describe('Query', () => {
           filters: [{ column: 'bio', type: 'text', conditions: [{ op }] }],
         })
 
-        expect(query.sql).toContain(op === 'is_empty' ? 'WHERE (bio IS NULL' : 'WHERE (bio IS NOT NULL')
+        expect(query.sql).toContain(op === 'is_empty' ? 'WHERE content_articles.deleted_at IS NULL AND (bio IS NULL' : 'WHERE content_articles.deleted_at IS NULL AND (bio IS NOT NULL')
         expect(query.bindings).toEqual([])
       })
     })
@@ -101,7 +101,7 @@ describe('Query', () => {
     it('builds a basic SELECT query', () => {
       const query = buildSelectQuery(mockSeed)
       expect(query.sql).toContain('SELECT content_articles.* FROM content_articles')
-      expect(query.sql).toContain('ORDER BY content_articles.created_at DESC')
+      expect(query.sql).toContain('ORDER BY content_articles.created_at DESC, content_articles.id DESC')
     })
 
     it('builds a query with filters', () => {
@@ -132,7 +132,7 @@ describe('Query', () => {
           { column: 'price', type: 'number', conditions: [{ op: 'gt', value: 10 }] },
         ],
       })
-      expect(query.sql).toContain('WHERE (title LIKE ? AND price > ?)')
+      expect(query.sql).toContain('WHERE content_articles.deleted_at IS NULL AND (title LIKE ? AND price > ?)')
     })
 
     it('ORs top-level filter groups when filterLogic is OR', () => {
@@ -143,7 +143,7 @@ describe('Query', () => {
         ],
         filterLogic: 'OR',
       })
-      expect(query.sql).toContain('WHERE (title LIKE ? OR price > ?)')
+      expect(query.sql).toContain('WHERE content_articles.deleted_at IS NULL AND (title LIKE ? OR price > ?)')
       expect(query.bindings).toContain('%Hello%')
       expect(query.bindings).toContain(10)
     })
@@ -157,7 +157,7 @@ describe('Query', () => {
         ],
         filterLogic: 'OR',
       })
-      expect(query.sql).toContain('WHERE content_articles.status = ? AND (title LIKE ? OR price > ?)')
+      expect(query.sql).toContain('WHERE content_articles.status = ? AND content_articles.deleted_at IS NULL AND (title LIKE ? OR price > ?)')
     })
 
     it('keeps conditions within one filter group ANDed even under filterLogic OR', () => {
@@ -167,7 +167,7 @@ describe('Query', () => {
         ],
         filterLogic: 'OR',
       })
-      expect(query.sql).toContain('WHERE (title LIKE ? AND title LIKE ?)')
+      expect(query.sql).toContain('WHERE content_articles.deleted_at IS NULL AND (title LIKE ? AND title LIKE ?)')
     })
 
     it('handles search with FTS JOIN', () => {
@@ -225,12 +225,17 @@ describe('Query', () => {
 
     it('handles custom orderBy', () => {
       const query = buildSelectQuery(mockSeed, { orderBy: { column: 'title', dir: 'ASC' } })
-      expect(query.sql).toContain('ORDER BY title ASC')
+      expect(query.sql).toContain('ORDER BY title ASC, content_articles.id ASC')
+    })
+
+    it('ends a descending orderBy with the primary key in the same direction', () => {
+      const query = buildSelectQuery(mockSeed, { orderBy: { column: 'title', dir: 'DESC' } })
+      expect(query.sql).toContain('ORDER BY title DESC, content_articles.id DESC')
     })
 
     it('ignores invalid column in orderBy and fallbacks to created_at DESC', () => {
       const query = buildSelectQuery(mockSeed, { orderBy: { column: 'invalid', dir: 'ASC' } })
-      expect(query.sql).toContain('ORDER BY content_articles.created_at DESC')
+      expect(query.sql).toContain('ORDER BY content_articles.created_at DESC, content_articles.id DESC')
     })
 
     it('handles is_empty and is_not_empty conditions', () => {
@@ -293,7 +298,7 @@ describe('Query', () => {
         const query = buildSelectQuery(mockSeed, {
           filters: [{ column: 'title', type: 'text', conditions: [{ op: 'not_in', value: [] }] }]
         })
-        expect(query.sql).not.toContain('WHERE')
+        expect(query.sql).toContain('WHERE content_articles.deleted_at IS NULL ORDER BY')
       })
     })
 
@@ -397,7 +402,7 @@ describe('Query', () => {
 
       expect(query.sql).toContain("json_extract(topic, '$[0]')")
       expect(query.sql).toContain('IS NULL) ASC')
-      expect(query.sql).toMatch(/END\) DESC$/)
+      expect(query.sql).toMatch(/END\) DESC, content_articles\.id DESC$/)
       expect(query.bindings).toEqual([])
     })
 
@@ -454,7 +459,7 @@ describe('Query', () => {
       expect(query.sql).toContain('LEFT JOIN kanban_positions kp')
       expect(query.sql).toContain('kp.seed_slug = ?')
       expect(query.sql).toContain('kp.axis_branch_id = ?')
-      expect(query.sql).toContain('ORDER BY (kp.position IS NULL) ASC, kp.position ASC')
+      expect(query.sql).toContain('ORDER BY (kp.position IS NULL) ASC, kp.position ASC, content_articles.id ASC')
       expect(query.sql).toContain('kp.position')
       // kp.position must appear in the SELECT projection so the dashboard can read it
       expect(query.sql).toMatch(/SELECT\s+.*kp\.position.*FROM/s)
@@ -497,11 +502,16 @@ describe('Query', () => {
       expect(query.sql).not.toContain('deleted_at')
     })
 
-    it('emits no deleted_at predicate at all for a seed without softDelete, regardless of trashed', () => {
-      // Regression guard for the whole existing suite: a caller that forgets softDelete on
-      // the seed must get today's SQL back, byte-identical.
+    it('appends the active predicate for a seed that declares no flag', () => {
+      const query = buildSelectQuery(mockSeed)
+
+      expect(query.sql).toContain('content_articles.deleted_at IS NULL')
+    })
+
+    it('compiles deleted_at IS NOT NULL for trashed: "trashed" on a seed that declares no flag', () => {
       const query = buildSelectQuery(mockSeed, { trashed: 'trashed' })
-      expect(query.sql).not.toContain('deleted_at')
+
+      expect(query.sql).toContain('content_articles.deleted_at IS NOT NULL')
     })
   })
 
@@ -542,7 +552,7 @@ describe('Query', () => {
       const query = buildSelectQuery(locArticlesSeed, {
         filters: [{ column: 'title', type: 'text', conditions: [{ op: 'eq', value: 'Shoe' }] }],
       })
-      expect(query.sql).toContain('WHERE title = ?')
+      expect(query.sql).toContain('WHERE content_loc_articles.deleted_at IS NULL AND title = ?')
       expect(query.sql).not.toContain('json_extract')
     })
 
@@ -551,7 +561,7 @@ describe('Query', () => {
         filters: [{ column: 'code', type: 'text', conditions: [{ op: 'eq', value: 'X1' }] }],
         locale: LOCALE,
       })
-      expect(query.sql).toContain('WHERE code = ?')
+      expect(query.sql).toContain('WHERE content_loc_articles.deleted_at IS NULL AND code = ?')
     })
 
     it('a localized json branch also requires a registered locale key before treating a value as a dictionary', () => {

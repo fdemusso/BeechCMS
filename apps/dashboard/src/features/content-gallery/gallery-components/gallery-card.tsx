@@ -82,7 +82,7 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
             )}
           >
             <Badge
-              variant="outline"
+              variant={model.statusVariant}
               className={cn(
                 "text-[10px] font-semibold tracking-wide backdrop-blur-sm",
                 statusBadgeClass(model.status),

@@ -73,8 +73,11 @@ export function StorageTab() {
     deleteOrphans.mutate([...selectedKeys], {
       onSuccess: () => {
         toast.success(t('settings.storage.deleted', { count: selectedKeys.size }))
-        // An emptied last page would otherwise render no rows.
-        const pageEmptied = stats !== undefined && selectedKeys.size === stats.orphans.length
+        // Only an emptied last page needs a step back; on an earlier page the next orphans slide into this offset.
+        const pageEmptied =
+          stats !== undefined &&
+          selectedKeys.size === stats.orphans.length &&
+          offset + stats.orphans.length >= stats.orphanTotal
         goToOffset(pageEmptied ? Math.max(0, offset - stats.orphanLimit) : offset)
       },
       onError: () => {
@@ -177,7 +180,7 @@ export function StorageTab() {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete}>{t('common.delete')}</AlertDialogAction>
+                    <AlertDialogAction onClick={handleDelete} disabled={deleteOrphans.isPending}>{t('common.delete')}</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>

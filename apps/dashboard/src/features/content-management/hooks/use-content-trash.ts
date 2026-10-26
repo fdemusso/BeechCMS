@@ -2,23 +2,11 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query"
-import { DASHBOARD_QUERY_KEYS, BACKREF_QUERY_KEY } from "@/features/shared"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { contentApi } from "../api/content.api"
 import { trashApi, type BulkTrashResult, type RestoreResult, type TrashListResponse } from "../api/trash.api"
-import { CONTENT_QUERY_KEYS, TRASH_QUERY_KEYS } from "../consts/content.keys"
-
-/**
- * A trash mutation moves a row between the two listings, so both key spaces go stale at once;
- * the activity feed and back-refs follow the same rule the delete path already applies
- * (see `useDeleteContent`).
- */
-function invalidateTrashSurfaces(queryClient: QueryClient) {
-  queryClient.invalidateQueries({ queryKey: TRASH_QUERY_KEYS.all })
-  queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.all })
-  queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.activity() })
-  queryClient.invalidateQueries({ queryKey: [BACKREF_QUERY_KEY] })
-}
+import { TRASH_QUERY_KEYS } from "../consts/content.keys"
+import { invalidateTrashSurfaces } from "../lib/trash-cache"
 
 export function useContentTrash(
   slug: string | undefined,

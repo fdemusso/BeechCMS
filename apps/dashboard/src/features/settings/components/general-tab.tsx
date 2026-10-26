@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from 'react-i18next'
+import { MAX_RETENTION_DAYS } from '@beechcms/core'
 import { Loader as Loader2 } from 'reicon-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -109,6 +110,30 @@ export function GeneralTab() {
                     onChange={(e) => actions.setCompanyWebsite(e.target.value)}
                     placeholder={t('settings.general.companyWebsitePlaceholder')}
                   />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div>
+              <h3 className="text-sm font-medium mb-3">{t('settings.general.trashTitle')}</h3>
+              <p className="text-xs text-muted-foreground mb-4">{t('settings.general.trashDesc')}</p>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="trashRetentionDays">{t('settings.general.trashRetentionLabel')}</Label>
+                  <Input
+                    id="trashRetentionDays"
+                    type="number"
+                    min={0}
+                    max={MAX_RETENTION_DAYS}
+                    step={1}
+                    inputMode="numeric"
+                    value={state.trashRetentionDays}
+                    onChange={(e) => actions.setTrashRetentionDays(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">{t('settings.general.trashRetentionHint')}</p>
                 </div>
               </div>
             </div>

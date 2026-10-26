@@ -39,6 +39,7 @@ const SETTINGS: SiteSettings = {
   companyAbbreviation: null,
   locales: ['it', 'en'],
   defaultLocale: 'it',
+  trashRetentionDays: 14,
 }
 
 function makeContext(overrides: {

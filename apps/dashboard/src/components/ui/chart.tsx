@@ -9,6 +9,12 @@ import { cn } from "@/lib/utils"
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const
 
+// Widget layouts store colours as free text and ChartStyle writes them into a raw <style>,
+// so only plain colour syntaxes (no `;`, braces, quotes or nested url()) may reach the sink.
+const SAFE_CSS_COLOR =
+  /^(?:#[0-9a-f]{3,8}|[a-z]+|var\(--[\w-]+\)|(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\([\w\s.,%/+-]+\))$/i
+const SAFE_CONFIG_KEY = /^[\w-]+$/
+
 const INITIAL_DIMENSION = { width: 320, height: 200 } as const
 type TooltipNameType = number | string
 
@@ -83,7 +89,7 @@ function ChartContainer({
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(
-    ([, config]) => config.theme ?? config.color
+    ([key, config]) => SAFE_CONFIG_KEY.test(key) && (config.theme ?? config.color)
   )
 
   if (!colorConfig.length) {
@@ -102,7 +108,7 @@ ${colorConfig
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ??
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    return color && SAFE_CSS_COLOR.test(color) ? `  --color-${key}: ${color};` : null
   })
   .join("\n")}
 }

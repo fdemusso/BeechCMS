@@ -9,6 +9,16 @@
 // coverage exclusions. Files that are excluded in the vitest config are listed
 // as "excluded" and skipped from the run.
 //
+// Coverage is judged on the CHANGED LINES only (from `git diff -U0`), combined across the V8
+// tiers that ran, against the workspace `lines` threshold. Whole-file figures stay in the
+// per-tier tables as context. The tier that cannot report V8 coverage (workerd integration)
+// still decides pass/fail of its tests; a file only it can exercise is listed as NOT MEASURED.
+//
+// Exit codes:  0 = tests passed and changed-line coverage met the threshold
+//              1 = a selected test run failed
+//              2 = tests passed, changed-line coverage below threshold (the report says FAIL)
+//             75 = no CPU slot, nothing ran
+//
 // Usage:
 //   npm run test:diff
 //   npm run test:diff -- --base main
@@ -26,6 +36,15 @@ import { fileURLToPath } from 'node:url'
 import { WORKSPACES, parseTiers, isNeverSelected, NEVER_SELECTED_PREFIXES } from './lib/test-tiers.mjs'
 import { resolveTestResources, lowerProcessPriority, describeTestResources } from './lib/test-resources.mjs'
 import { acquireCpuSlot, releaseOnExit, HELD_ENV, EXIT_SLOT_TIMEOUT } from './lib/cpu-slot.mjs'
+import {
+  changedLineCoverage,
+  exitCodeFor,
+  formatLineRanges,
+  lineHitsFromIstanbul,
+  mergeChangedLines,
+  parseChangedLines,
+  unionLineHits,
+} from './lib/changed-line-coverage.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -132,6 +151,13 @@ function getChangedFiles(base) {
   ].filter(Boolean))
 
   return [...all]
+}
+
+// ─── Get Changed Lines ─────────────────────────────────────────────────────
+// Repo-relative path → set of new-side line numbers changed on this branch.
+function getChangedLines(base) {
+  const diff = (extra) => parseChangedLines(run(`git diff -U0 --no-color ${extra}`, { maxBuffer: 256 * 1024 * 1024 }) || '')
+  return mergeChangedLines(diff(`${base}...HEAD`), diff('--cached'), diff(''))
 }
 
 // ─── Parse Vitest Config Exclusions (regex-based, no dynamic import) ────────
@@ -245,6 +271,7 @@ function runVitestTier(workspace, runner, sourceFiles) {
     ? [
         '--coverage',
         '--coverage.reporter=json-summary',
+        '--coverage.reporter=json',
         '--coverage.reporter=text',
         ...relFiles.map(f => `--coverage.include=${f}`),
         '--coverage.thresholds.lines=0',
@@ -279,6 +306,19 @@ function parseCoverageSummary(workspaceDir) {
   }
 }
 
+// Absolute source path → executable line → hits, from the istanbul-shaped coverage-final.json.
+function parseLineHits(workspaceDir) {
+  const finalPath = path.join(workspaceDir, 'coverage', 'coverage-final.json')
+  if (!fs.existsSync(finalPath)) return new Map()
+
+  try {
+    const raw = JSON.parse(fs.readFileSync(finalPath, 'utf8'))
+    return new Map(Object.entries(raw).map(([file, data]) => [path.resolve(file), lineHitsFromIstanbul(data)]))
+  } catch {
+    return new Map()
+  }
+}
+
 // ─── Format Percentage ──────────────────────────────────────────────────────
 function formatPct(pct) {
   if (pct === undefined || pct === null) return gray('n/a')
@@ -289,19 +329,10 @@ function formatPct(pct) {
 }
 
 // ─── Render Table ──────────────────────────────────────────────────────────
-function renderTable(rows) {
-  const cols = ['File', 'Stmts', 'Branch', 'Funcs', 'Lines', 'Status']
-  const colData = rows.map(r => [
-    r.file,
-    r.stmts   !== undefined ? `${Number(r.stmts).toFixed(1)}%`   : 'n/a',
-    r.branch  !== undefined ? `${Number(r.branch).toFixed(1)}%`  : 'n/a',
-    r.funcs   !== undefined ? `${Number(r.funcs).toFixed(1)}%`   : 'n/a',
-    r.lines   !== undefined ? `${Number(r.lines).toFixed(1)}%`   : 'n/a',
-    r.status,
-  ])
-
+// `cells` are already-formatted strings (ANSI allowed); widths ignore escape codes.
+function renderGrid(cols, cells) {
   const widths = cols.map((col, i) =>
-    Math.max(col.length, ...colData.map(r => stripAnsi(String(r[i])).length))
+    Math.max(col.length, ...cells.map(r => stripAnsi(String(r[i])).length))
   )
 
   function pad(s, w) {
@@ -315,31 +346,38 @@ function renderTable(rows) {
   console.log(`┌${widths.map(w => '─'.repeat(w + 2)).join('┬')}┐`)
   console.log(`│${header}│`)
   console.log(`├${sep}┤`)
-
-  for (const r of rows) {
-    const stmts  = formatPct(r.stmts)
-    const branch = formatPct(r.branch)
-    const funcs  = formatPct(r.funcs)
-    const lines  = formatPct(r.lines)
-    const status = r.status === 'PASS'              ? green(r.status)
-                 : r.status === '? No Tests Found'  ? yellow(r.status)
-                 : r.status.startsWith('LOW:')       ? red(r.status)
-                 : r.status === '!! Untested'        ? red(r.status)
-                 : r.status === 'FAIL Tests Failed'  ? red(r.status)
-                 : gray(r.status)
-
-    const line = [
-      ` ${pad(r.file, widths[0])} `,
-      ` ${pad(stmts,  widths[1])} `,
-      ` ${pad(branch, widths[2])} `,
-      ` ${pad(funcs,  widths[3])} `,
-      ` ${pad(lines,  widths[4])} `,
-      ` ${pad(status, widths[5])} `,
-    ].join('│')
-    console.log(`│${line}│`)
+  for (const r of cells) {
+    console.log(`│${r.map((cell, i) => ` ${pad(cell, widths[i])} `).join('│')}│`)
   }
-
   console.log(`└${widths.map(w => '─'.repeat(w + 2)).join('┴')}┘`)
+}
+
+function colourStatus(status) {
+  if (status === 'PASS') return green(status)
+  if (status.startsWith('LOW:') || status === '!! Untested' || status === 'FAIL Tests Failed') return red(status)
+  if (status === '? No Tests Found' || status.startsWith('NOT MEASURED')) return yellow(status)
+  return gray(status)
+}
+
+// Whole-file figures of one tier: context only, the verdict lives in the changed-line table.
+function renderTierTable(rows) {
+  renderGrid(
+    ['File', 'Stmts', 'Branch', 'Funcs', 'Lines', 'Status'],
+    rows.map(r => [r.file, formatPct(r.stmts), formatPct(r.branch), formatPct(r.funcs), formatPct(r.lines), colourStatus(r.status)]),
+  )
+}
+
+function renderChangedLineTable(rows) {
+  renderGrid(
+    ['File', 'Changed', 'Covered', 'Changed-line cov', 'Status'],
+    rows.map(r => [
+      r.file,
+      r.total === undefined ? 'n/a' : String(r.total),
+      r.total === undefined ? 'n/a' : String(r.covered),
+      r.pct === undefined || r.pct === null ? gray('n/a') : formatPct(r.pct),
+      colourStatus(r.status),
+    ]),
+  )
 }
 
 // Strip ANSI for length calculation
@@ -421,10 +459,13 @@ async function main() {
     console.log()
   }
 
+  const changedLines = getChangedLines(base)
+
   let anyWorkspaceRan = false
   let anyTierFailed = false
-  let globalUntested = 0
-  let globalTotal = 0
+  let coverageFailures = 0
+  let coverageRows = 0
+  let notMeasured = 0
 
   for (const { workspace, files } of workspaceGroups.values()) {
     if (files.length === 0) continue
@@ -462,6 +503,12 @@ async function main() {
       continue
     }
 
+    // Executable lines and hits per source file, combined across the V8 tiers of this workspace.
+    const combinedHits = new Map()
+    let coverageTierRan = false
+    let unmeasuredTierPassed = false
+    let workspaceTestsFailed = false
+
     for (const tier of selectedTiers) {
       const runner = workspace.tiers[tier]
       if (!runner) continue                      // workspace does not own this tier
@@ -485,80 +532,105 @@ async function main() {
       }
       console.log()
 
-      if (status !== 0) anyTierFailed = true
+      if (status !== 0) { anyTierFailed = true; workspaceTestsFailed = true }
 
       if (!runner.coverage) {
         // No coverage provider in this tier: pass/fail is the whole signal.
+        if (status === 0) unmeasuredTierPassed = true
         console.log(status === 0 ? green(`   [${tier}] PASS`) : red(`   [${tier}] FAIL`))
         console.log()
         continue
       }
+      coverageTierRan = true
 
-      // Parse coverage summary
+      // Whole-file summary (context) and per-line hits (verdict)
       const summary = parseCoverageSummary(workspaceDir)
-      const relFiles = sourceFiles.map(f => path.relative(workspaceDir, f).replace(/\\/g, '/'))
+      const tierHits = parseLineHits(workspaceDir)
       const tierTableRows = []
 
-      for (const relFile of relFiles) {
-        const display   = path.join(workspace.dir, relFile).replace(/\\/g, '/')
-        const absForKey = path.join(workspaceDir, relFile)
+      for (const absFile of sourceFiles) {
+        const relFile = path.relative(workspaceDir, absFile).replace(/\\/g, '/')
+        const display = path.join(workspace.dir, relFile).replace(/\\/g, '/')
 
-        // The summary JSON keys use the absolute path with OS separators
-        // Try both forward-slash and backslash variants
-        const summaryKey = Object.keys(summary || {}).find(k =>
-          path.resolve(k) === path.resolve(absForKey)
-        )
+        const summaryKey = Object.keys(summary || {}).find(k => path.resolve(k) === path.resolve(absFile))
+        const fileHits = tierHits.get(path.resolve(absFile))
+        if (fileHits) combinedHits.set(absFile, unionLineHits(combinedHits.get(absFile) ?? new Map(), fileHits))
 
         if (!summary || !summaryKey) {
           // No coverage data — no tests found for this file
           tierTableRows.push({ file: display, status: '? No Tests Found' })
-          globalUntested++
-          globalTotal++
           continue
         }
 
         const data = summary[summaryKey]
-        const pct = {
+        tierTableRows.push({
+          file: display,
           stmts:  data.statements?.pct,
           branch: data.branches?.pct,
           funcs:  data.functions?.pct,
           lines:  data.lines?.pct,
-        }
-
-        // Flag as untested if all zeros
-        if (data.statements?.covered === 0 && data.functions?.covered === 0) {
-          tierTableRows.push({ file: display, ...pct, status: '!! Untested' })
-          globalUntested++
-          globalTotal++
-          continue
-        }
-
-        // Check each metric against workspace thresholds
-        const failing = []
-        if (pct.stmts  !== undefined && pct.stmts  < thresholds.statements) failing.push(`stmts ${pct.stmts.toFixed(1)}%<${thresholds.statements}%`)
-        if (pct.branch !== undefined && pct.branch < thresholds.branches)   failing.push(`branch ${pct.branch.toFixed(1)}%<${thresholds.branches}%`)
-        if (pct.funcs  !== undefined && pct.funcs  < thresholds.functions)  failing.push(`funcs ${pct.funcs.toFixed(1)}%<${thresholds.functions}%`)
-        if (pct.lines  !== undefined && pct.lines  < thresholds.lines)      failing.push(`lines ${pct.lines.toFixed(1)}%<${thresholds.lines}%`)
-
-        let rowStatus
-        if (status !== 0) {
-          rowStatus = 'FAIL Tests Failed'
-          globalUntested++
-        } else if (failing.length > 0) {
-          rowStatus = `LOW: ${failing.join(', ')}`
-          globalUntested++
-        } else {
-          rowStatus = 'PASS'
-        }
-
-        tierTableRows.push({ file: display, ...pct, status: rowStatus })
-        globalTotal++
+          status: status === 0 ? 'ok' : 'FAIL Tests Failed',
+        })
       }
 
-      console.log(dim(`   [${tier}]`))
-      renderTable(tierTableRows)
+      console.log(dim(`   [${tier}] whole-file figures (context)`))
+      renderTierTable(tierTableRows)
       console.log()
     }
+
+    if (!coverageTierRan) continue
+
+    // ─── Verdict: changed lines, all V8 tiers combined ─────────────────────
+    const lineThreshold = thresholds.lines
+    const verdictRows = []
+    const uncoveredNotes = []
+
+    for (const absFile of sourceFiles) {
+      const relToRoot = path.relative(ROOT, absFile).replace(/\\/g, '/')
+      const hits = combinedHits.get(absFile)
+
+      if (!hits) {
+        if (unmeasuredTierPassed) {
+          verdictRows.push({ file: relToRoot, status: 'NOT MEASURED (workerd tier has no V8 coverage)' })
+          notMeasured++
+        } else {
+          verdictRows.push({ file: relToRoot, status: '? No Tests Found' })
+          coverageFailures++
+          coverageRows++
+        }
+        continue
+      }
+
+      const result = changedLineCoverage(changedLines.get(relToRoot), hits)
+      let status
+      if (workspaceTestsFailed) {
+        status = 'FAIL Tests Failed'
+      } else if (result.pct === null) {
+        status = 'PASS'
+      } else if (result.covered === 0 && unmeasuredTierPassed) {
+        // Nothing V8 can see ran these lines, but the workerd tier passed: it may well be what covers them.
+        status = 'NOT MEASURED (workerd tier has no V8 coverage)'
+        notMeasured++
+      } else if (result.covered === 0) {
+        status = '!! Untested'
+      } else if (result.pct < lineThreshold) {
+        status = `LOW: changed lines ${result.pct.toFixed(1)}%<${lineThreshold}%`
+      } else {
+        status = 'PASS'
+      }
+
+      if (status === '!! Untested' || status.startsWith('LOW:')) {
+        coverageFailures++
+        uncoveredNotes.push(`${relToRoot}: lines ${formatLineRanges(result.uncovered)}`)
+      }
+      if (!workspaceTestsFailed) coverageRows++
+      verdictRows.push({ file: relToRoot, ...result, status })
+    }
+
+    console.log(dim(`   [${workspace.name}] changed-line coverage (tiers combined, threshold ${lineThreshold}%)`))
+    renderChangedLineTable(verdictRows)
+    for (const note of uncoveredNotes) console.log(dim(`   uncovered changed lines — ${note}`))
+    console.log()
   }
 
   if (!anyWorkspaceRan) {
@@ -568,22 +640,24 @@ async function main() {
   }
 
   // ─── Summary Footer ──────────────────────────────────────────────────────
+  const coverageFailed = coverageFailures > 0
   console.log(bold('─'.repeat(70)))
-  if (globalTotal === 0) {
-    // nothing to report
-  } else if (globalUntested === 0) {
-    console.log(green(bold(`PASS  All ${globalTotal} changed file(s) meet coverage thresholds.`)))
+  console.log(anyTierFailed ? red(bold('FAIL  Tests: at least one selected test run failed.')) : green(bold('PASS  Tests: every selected test run passed.')))
+  if (coverageRows === 0 && !coverageFailed) {
+    // nothing measured
+  } else if (!coverageFailed) {
+    console.log(green(bold(`PASS  Coverage: all ${coverageRows} changed file(s) meet the changed-line threshold.`)))
   } else {
-    const passed = globalTotal - globalUntested
-    console.log(red(bold(`FAIL  ${globalUntested} / ${globalTotal} file(s) below threshold or untested.`)))
-    if (passed > 0) console.log(dim(`      ${passed} file(s) passed.`))
+    console.log(red(bold(`FAIL  Coverage: ${coverageFailures} / ${coverageRows} file(s) below threshold or untested.`)))
     console.log(dim('      Review LOW: / !! Untested entries above and add tests.'))
+  }
+  if (notMeasured > 0) {
+    console.log(yellow(`      ${notMeasured} file(s) NOT MEASURED: only the workerd integration tier could cover them. Check by hand that a suite does.`))
   }
   console.log()
 
-  // A failing test run now fails the command. Coverage shortfalls stay warn-only:
-  // they are a review signal, not a gate, and that behaviour predates this sprint.
-  if (anyTierFailed) process.exitCode = 1
+  // The exit status mirrors the two verdicts above (see the header for the codes).
+  process.exitCode = exitCodeFor({ testsFailed: anyTierFailed, coverageFailed })
 }
 
 main().catch(err => {

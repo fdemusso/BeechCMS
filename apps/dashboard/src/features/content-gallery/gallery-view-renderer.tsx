@@ -18,7 +18,6 @@ export function GalleryViewRenderer({ seed, query, entries, layout, formatElemen
       data={query.data}
       isLoading={query.isLoading}
       onEdit={entries.handleEdit}
-      onCreate={entries.handleCreate}
       groupBy={layout.groupBy}
       formatElement={formatElement}
       card={layout.card}

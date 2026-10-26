@@ -11,7 +11,7 @@ import { api } from "@/lib/api"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
-import { DashboardWidgetShell } from "@/features/dashboard"
+import { DashboardWidgetShell } from "../dashboard-widget-shell"
 import { DASHBOARD_QUERY_KEYS, GLOBAL_DRAFTS_QUERY_KEY } from "@/features/shared"
 import { cn } from "@/lib/utils"
 

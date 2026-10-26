@@ -66,4 +66,16 @@ describe("NewEntryButton", () => {
     expect(screen.getByText("New").closest("button")).toBeDisabled()
     expect(screen.getByRole("button", { name: /templates/i })).toBeDisabled()
   })
+
+  it("explains the missing permission in the active language", async () => {
+    render(
+      <TooltipProvider>
+        <NewEntryButton canCreate={false} onCreate={vi.fn()} seedLabel="Posts" />
+      </TooltipProvider>
+    )
+
+    fireEvent.pointerMove(screen.getByText("New").closest("span")!, { pointerType: "mouse" })
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("You don't have permission to create entries here")
+  })
 })

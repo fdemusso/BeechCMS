@@ -501,7 +501,12 @@
       "currencyPlaceholder": "Select default currency",
       "savedSuccess": "Site settings saved successfully",
       "savedError": "Error saving settings",
-      "saveChanges": "Save changes"
+      "saveChanges": "Save changes",
+      "trashTitle": "Trash",
+      "trashDesc": "How long deleted entries stay in the Trash before they are erased. A content type can override it.",
+      "trashRetentionLabel": "Retention (days)",
+      "trashRetentionHint": "0 = never erase automatically.",
+      "trashRetentionInvalid": "Retention must be a whole number between 0 and {{max}}."
     },
     "contentLanguages": {
       "title": "Content languages",
@@ -569,7 +574,6 @@
       "table": "Table",
       "gallery": "Gallery",
       "kanban": "Kanban",
-      "deletionPartial": "Partial deletion: {{failures}} of {{total}} failed",
       "emptyTitle": "There isn't anything here",
       "emptyCreateFirst": "Create your first {{label}}"
     },
@@ -680,8 +684,8 @@
       "retention": "Retention",
       "daysLeft_one": "{{count}} day left",
       "daysLeft_other": "{{count}} days left",
+      "neverPurged": "Kept indefinitely",
       "empty": "The Trash is empty",
-      "disabled": "This content type does not use the Trash: deletions are immediate and irreversible.",
       "restore": "Restore",
       "purge": "Delete forever",
       "selectedCount_one": "{{count}} selected entry",
@@ -704,7 +708,16 @@
       "purgeSingle": "Delete this \"{{type}}\" entry forever?",
       "purgeMultiple": "Delete {{count}} \"{{type}}\" entries forever?",
       "purgeWarning": "This cannot be undone. Attached media are deleted and the erasure is recorded permanently, so the entry stays deleted even after a database restore.",
-      "purgeConfirm": "Delete forever"
+      "purgeConfirm": "Delete forever",
+      "bulkTrashed_one": "{{count}} entry moved to Trash",
+      "bulkTrashed_other": "{{count}} entries moved to Trash",
+      "bulkPartialFailure": "{{count}} of {{total}} entries could not be moved to the Trash. Confirm to retry them."
+    },
+    "undoDelete": {
+      "trashed": "Moved to Trash",
+      "undo": "Undo",
+      "deleteFailed": "Could not delete the entry",
+      "restoreFailed": "Could not undo — the entry is still in the Trash"
     },
     "actions": {
       "label": "Actions",
@@ -755,7 +768,8 @@
       "moreOptions": "Templates",
       "templatesTitle": "Templates for {{label}}",
       "templatesDescription": "Create a reusable entry template for this content type.",
-      "newTemplate": "New template"
+      "newTemplate": "New template",
+      "missingPermission": "You don't have permission to create entries here"
     },
     "filterBanner": {
       "message": "Filters are saved automatically for everyone who can see this view.",

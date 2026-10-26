@@ -2,7 +2,12 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
+import type { IClock } from '../common/clock.js'
 import { generateTimeTrapToken, verifyTimeTrapToken } from './time-trap.js'
+
+function clockAtSeconds(seconds: number): IClock {
+  return { now: () => seconds * 1000, nowSeconds: () => seconds }
+}
 
 describe('Time Trap Security Tokens', () => {
   const SECRET = 'super-secret-key-for-time-trap-testing-12345'
@@ -15,6 +20,21 @@ describe('Time Trap Security Tokens', () => {
     const result = await verifyTimeTrapToken(token, SECRET, 1.5, 3600)
     expect(result.valid).toBe(true)
     expect(result.elapsedSeconds).toBeGreaterThanOrEqual(1.5)
+  })
+
+  it('stamps a generated token from the injected clock', async () => {
+    const token = await generateTimeTrapToken(SECRET, undefined, clockAtSeconds(1_700_000_000))
+
+    expect(token).toMatch(/^t0_1700000000\.[0-9a-f]{64}$/)
+  })
+
+  it('measures elapsed time against the injected clock, not the wall clock', async () => {
+    const token = await generateTimeTrapToken(SECRET, 1_700_000_000)
+
+    const result = await verifyTimeTrapToken(token, SECRET, 1.5, 3600, clockAtSeconds(1_700_000_010))
+
+    expect(result.valid).toBe(true)
+    expect(result.elapsedSeconds).toBe(10)
   })
 
   it('rejects submissions that are too fast (< minDeltaSeconds)', async () => {

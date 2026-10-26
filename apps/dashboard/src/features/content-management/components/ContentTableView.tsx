@@ -15,10 +15,12 @@ import type {
 } from "@tanstack/react-table"
 import type { Seed } from "@beechcms/core"
 import { DataTable } from "@/components/ui/data-table"
+import { Copy, Pencil, Trash2 } from "lucide-react"
 import {
   ContextMenuItem,
   ContextMenuLabel,
   ContextMenuSeparator,
+  ContextMenuShortcut,
 } from "@/components/ui/context-menu"
 import { SmallCta } from "@/components/ui/small-cta"
 import { toast } from "sonner"
@@ -123,42 +125,50 @@ export function ContentTableView({
   const renderContextMenuContent = React.useCallback(
     (entry: ContentEntry) => (
       <>
-        <ContextMenuLabel>Actions</ContextMenuLabel>
+        <ContextMenuLabel>{t("content.actions.label")}</ContextMenuLabel>
         {selectedIds.length > 1 ? (
           <ContextMenuItem
+            variant="destructive"
             onSelect={() => onBulkDelete(selectedIds)}
-            className="text-destructive focus:text-destructive"
+            disabled={!can("content:delete", slug)}
           >
-            Delete
+            <Trash2 className="size-4" />
+            {t("common.delete")}
+            <ContextMenuShortcut>Del</ContextMenuShortcut>
           </ContextMenuItem>
         ) : (
           <>
             <ContextMenuItem
               onSelect={() => {
                 navigator.clipboard.writeText(entry.id).then(
-                  () => toast.success("ID copied"),
-                  () => toast.error("Copy failed")
+                  () => toast.success(t("common.copied")),
+                  () => toast.error(t("common.copyFailed"))
                 )
               }}
             >
-              Copy ID
+              <Copy className="size-4" />
+              {t("content.actions.copyId")}
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem onSelect={() => onEdit(entry.id)} disabled={!can("content:update", slug)}>
-              Edit
+              <Pencil className="size-4" />
+              {t("common.edit")}
+              <ContextMenuShortcut>Enter</ContextMenuShortcut>
             </ContextMenuItem>
             <ContextMenuItem
+              variant="destructive"
               onSelect={() => onDelete(entry.id)}
-              className="text-destructive focus:text-destructive"
               disabled={!can("content:delete", slug)}
             >
-              Delete
+              <Trash2 className="size-4" />
+              {t("common.delete")}
+              <ContextMenuShortcut>Del</ContextMenuShortcut>
             </ContextMenuItem>
           </>
         )}
       </>
     ),
-    [selectedIds, onBulkDelete, onEdit, onDelete, can, slug]
+    [selectedIds, onBulkDelete, onEdit, onDelete, can, slug, t]
   )
 
   const tableEmptyState = React.useMemo(

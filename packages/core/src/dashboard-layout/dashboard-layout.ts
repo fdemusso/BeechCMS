@@ -59,8 +59,8 @@ export interface DashboardLayout {
  *  Built-ins use the 'core/' prefix; custom widgets '@scope/name'. */
 export const WIDGET_TYPE_REGEX = /^[a-z0-9@][a-z0-9@/_-]*$/
 
-/** Max serialized size of a single widget `config`
- *  (`JSON.stringify(widget.config).length`) — guards D1 row bloat. */
+/** Max serialized size of a single widget `config`, in UTF-8 bytes
+ *  (`JSON.stringify(widget.config)` encoded) — guards D1 row bloat. */
 export const MAX_WIDGET_CONFIG_BYTES = 8192
 
 /** Max serialized size of a whole layout. Keeps the `dashboard_layouts` row
@@ -281,7 +281,7 @@ export function validateDashboardLayout(
             seenWidgetIds.add(w.id)
           }
 
-          if (JSON.stringify(w.config ?? {}).length > MAX_WIDGET_CONFIG_BYTES) {
+          if (new TextEncoder().encode(JSON.stringify(w.config ?? {})).length > MAX_WIDGET_CONFIG_BYTES) {
             errors.push(
               `Widget '${w.type}' (id=${w.id}): config exceeds ${MAX_WIDGET_CONFIG_BYTES} bytes when serialized.`,
             )

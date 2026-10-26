@@ -7,7 +7,7 @@
  * The Worker never receives file bytes: it acts as auth gatekeeper and signer only.
  */
 import { Hono, type Context } from 'hono'
-import { isMimeAccepted, parseMediaTransformQuery, SystemClock } from '@beechcms/core'
+import { isMimeAccepted, parseMediaTransformQuery, SystemClock, type BeechBucket } from '@beechcms/core'
 import { AppEnv } from '../../types'
 import { deleteR2Objects } from '../../shared/storage/upload'
 import { importObjectKeyPrefix } from '../../shared/storage/import-object-key'
@@ -58,6 +58,18 @@ function sanitizeStorageKey(rawKey: string): string {
   }
   key = key.replace(/^[/]+/, '')
   return key.replace(/[^a-zA-Z0-9._\-/]/g, '')
+}
+
+/**
+ * Drops an object that failed confirmation. It has no media row, so `deleteR2Objects` cannot be
+ * used; without this the bytes stay in the bucket and remain servable at /api/media/<key>.
+ */
+async function discardRejectedUpload(bucket: BeechBucket, key: string): Promise<void> {
+  try {
+    await bucket.delete(key)
+  } catch (err) {
+    console.error(`[upload/confirm] failed to delete rejected object ${key}:`, err)
+  }
 }
 
 // MIME types that browsers can render as active content — must be served as
@@ -211,11 +223,13 @@ uploadRoutes.post('/upload/confirm', async (c) => {
   const size = head.size ?? 0
   const maxBytes = resolveMaxUploadBytes(c.env)
   if (size > maxBytes) {
+    await discardRejectedUpload(bucket, sanitizedKey)
     return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
   }
 
   const mime = head.contentType ?? 'application/octet-stream'
   if (!isMimeAccepted(mime, 'any')) {
+    await discardRejectedUpload(bucket, sanitizedKey)
     return c.json({ error: 'File type not allowed' }, 400)
   }
 
@@ -331,6 +345,10 @@ export async function serveMediaHandler(c: Context<AppEnv>): Promise<Response> {
   if (transformQuery.kind === 'invalid') return mediaTransformError(c, 400, transformQuery.code)
 
   try {
+    // The registry is the allowlist: a bucket object with no row (never confirmed, or rejected at
+    // confirm) is not public. Checked before any R2 read and before the edge-cache branch of transforms.
+    if (!(await c.var.mediaRepository.getByKey(key))) return new Response('Not found', { status: 404 })
+
     if (transformQuery.kind === 'transform') return await serveTransformedMedia(c, key, transformQuery.request)
 
     const object = await c.var.bucket.get(key)

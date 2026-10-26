@@ -114,8 +114,6 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
     fieldErrors,
     hasRestrictedRefs,
     setHasRestrictedRefs,
-    showDeleteConfirm,
-    setShowDeleteConfirm,
     builderMode,
     setBuilderMode,
     canEditLayoutFlag,
@@ -321,7 +319,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                     variant="destructive"
                     size="sm"
                     disabled={isDeleting}
-                    onClick={() => setShowDeleteConfirm(true)}
+                    onClick={handleDelete}
                   >
                     <Trash2 className="mr-1 size-4" />
                     {t("common.delete", "Delete")}
@@ -427,28 +425,6 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
               <AlertDialogAction variant="destructive" onClick={handleDiscardDraft} disabled={isDiscarding}>
                 {isDiscarding ? <Loader2 className="mr-1 size-4 animate-spin" /> : null}
                 {t("content.editor.discardDraft")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-
-      {capabilities.delete && (
-        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t("content.editor.deleteTitle", "Delete entry?")}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t("content.editor.deleteDesc", "This action cannot be undone.")}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowDeleteConfirm(false)}>
-                {t("content.editor.stay")}
-              </AlertDialogCancel>
-              <AlertDialogAction variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-                {isDeleting ? <Loader2 className="mr-1 size-4 animate-spin" /> : null}
-                {t("common.delete", "Delete")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

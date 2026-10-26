@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { DEFAULT_TRASH_RETENTION_DAYS, isValidRetentionDays } from '@beechcms/core'
 import type { ISiteSettingsRepository, SiteSettings } from '@beechcms/core'
 
 const DEFAULTS: SiteSettings = {
@@ -15,6 +16,14 @@ const DEFAULTS: SiteSettings = {
   companyAbbreviation: null,
   locales: null,
   defaultLocale: null,
+  trashRetentionDays: DEFAULT_TRASH_RETENTION_DAYS,
+}
+
+/** A malformed stored value reads as "never configured"; a stored '0' (never purge) is kept. */
+function parseTrashRetentionDays(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === '') return DEFAULTS.trashRetentionDays
+  const parsed = Number(raw)
+  return isValidRetentionDays(parsed) ? parsed : DEFAULTS.trashRetentionDays
 }
 
 /** A malformed stored array reads as "never configured" — resolveLocaleConfig then falls back safely. */
@@ -48,11 +57,12 @@ export class D1SiteSettingsRepository implements ISiteSettingsRepository {
       companyAbbreviation: map.get('companyAbbreviation') || null,
       locales: parseLocales(map.get('locales')),
       defaultLocale: map.get('defaultLocale') || null,
+      trashRetentionDays: parseTrashRetentionDays(map.get('trashRetentionDays')),
     }
   }
 
   async setMany(values: Partial<SiteSettings>): Promise<void> {
-    const entries = Object.entries(values).filter(([, v]) => v !== undefined) as [string, string | string[] | null][]
+    const entries = Object.entries(values).filter(([, v]) => v !== undefined) as [string, string | number | string[] | null][]
     if (entries.length === 0) return
 
     const stmts = entries.map(([key, value]) =>
@@ -60,7 +70,7 @@ export class D1SiteSettingsRepository implements ISiteSettingsRepository {
         .prepare(
           'INSERT INTO site_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
         )
-        .bind(key, Array.isArray(value) ? JSON.stringify(value) : (value ?? '')),
+        .bind(key, Array.isArray(value) ? JSON.stringify(value) : typeof value === 'number' ? String(value) : (value ?? '')),
     )
 
     await this.db.batch(stmts)

@@ -501,7 +501,12 @@
       "currencyPlaceholder": "Seleziona valuta predefinita",
       "savedSuccess": "Impostazioni del sito salvate con successo",
       "savedError": "Errore durante il salvataggio delle impostazioni",
-      "saveChanges": "Salva modifiche"
+      "saveChanges": "Salva modifiche",
+      "trashTitle": "Cestino",
+      "trashDesc": "Per quanto tempo le entry eliminate restano nel cestino prima di essere cancellate definitivamente. Un tipo di contenuto può sovrascriverlo.",
+      "trashRetentionLabel": "Conservazione (giorni)",
+      "trashRetentionHint": "0 = non cancellare mai automaticamente.",
+      "trashRetentionInvalid": "La conservazione deve essere un numero intero tra 0 e {{max}}."
     },
     "contentLanguages": {
       "title": "Lingue dei contenuti",
@@ -569,7 +574,6 @@
       "table": "Tabella",
       "gallery": "Galleria",
       "kanban": "Kanban",
-      "deletionPartial": "Eliminazione parziale: {{failures}} su {{total}} fallite",
       "emptyTitle": "Qui non c'è nulla",
       "emptyCreateFirst": "Crea il tuo primo {{label}}"
     },
@@ -680,8 +684,8 @@
       "retention": "Conservazione",
       "daysLeft_one": "{{count}} giorno rimasto",
       "daysLeft_other": "{{count}} giorni rimasti",
+      "neverPurged": "Conservata a tempo indeterminato",
       "empty": "Il cestino è vuoto",
-      "disabled": "Questo tipo di contenuto non usa il cestino: le eliminazioni sono immediate e irreversibili.",
       "restore": "Ripristina",
       "purge": "Elimina definitivamente",
       "selectedCount_one": "{{count}} entry selezionata",
@@ -704,7 +708,16 @@
       "purgeSingle": "Eliminare definitivamente questa entry di tipo \"{{type}}\"?",
       "purgeMultiple": "Eliminare definitivamente {{count}} entry di tipo \"{{type}}\"?",
       "purgeWarning": "L'operazione è irreversibile. I media allegati vengono eliminati e la cancellazione viene registrata in modo permanente: la voce resta eliminata anche dopo un ripristino del database.",
-      "purgeConfirm": "Elimina definitivamente"
+      "purgeConfirm": "Elimina definitivamente",
+      "bulkTrashed_one": "{{count}} entry spostata nel cestino",
+      "bulkTrashed_other": "{{count}} entry spostate nel cestino",
+      "bulkPartialFailure": "{{count}} di {{total}} entry non sono state spostate nel cestino. Conferma per riprovare."
+    },
+    "undoDelete": {
+      "trashed": "Spostato nel cestino",
+      "undo": "Annulla",
+      "deleteFailed": "Impossibile eliminare l'entry",
+      "restoreFailed": "Annullamento non riuscito — l'entry è ancora nel cestino"
     },
     "actions": {
       "label": "Azioni",
@@ -755,7 +768,8 @@
       "moreOptions": "Template",
       "templatesTitle": "Template per {{label}}",
       "templatesDescription": "Crea un template riutilizzabile per le entry di questo tipo di contenuto.",
-      "newTemplate": "Nuovo template"
+      "newTemplate": "Nuovo template",
+      "missingPermission": "Manca il permesso 'content:create'"
     },
     "filterBanner": {
       "message": "I filtri vengono salvati automaticamente per tutti gli utenti che vedono questa vista.",

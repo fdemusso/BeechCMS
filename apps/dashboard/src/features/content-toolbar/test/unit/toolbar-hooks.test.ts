@@ -43,6 +43,22 @@ describe("toolbar hooks", () => {
     expect(onRenameView).toHaveBeenCalledWith("table", "Nuova vista")
   })
 
+  it("useViewName restores the saved label in the draft when an emptied name is committed", () => {
+    const onRenameView = vi.fn()
+    const { result } = renderHook(() =>
+      useViewName({
+        activeView: { id: "table", label: "Tabella", type: "table", enabledTools: [] as any, settings: [] },
+        onRenameView,
+      })
+    )
+    act(() => result.current.setViewNameDraft("   "))
+
+    act(() => result.current.commitViewName())
+
+    expect(onRenameView).not.toHaveBeenCalled()
+    expect(result.current.viewNameDraft).toBe("Tabella")
+  })
+
   it("useToolbarSearch apre/chiude e submitta query", () => {
     const onSearchChange = vi.fn()
     const onSubmitSearch = vi.fn()

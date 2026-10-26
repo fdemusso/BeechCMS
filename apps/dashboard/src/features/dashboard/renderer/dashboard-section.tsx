@@ -14,7 +14,7 @@ export interface DashboardSectionProps {
 
 /** Spans on a 12-unit grid: explicit `columnSpans`, or an equal split with
  *  the remainder distributed left-to-right. */
-function resolveColumnSpans(section: DashboardSectionLayout): number[] {
+export function resolveColumnSpans(section: DashboardSectionLayout): number[] {
   const count = section.columns.length
   if (section.columnSpans && section.columnSpans.length === count) {
     return section.columnSpans

@@ -24,6 +24,7 @@ const SETTINGS: SiteSettings = {
   companyAbbreviation: null,
   locales: ['it', 'en'],
   defaultLocale: 'en',
+  trashRetentionDays: 14,
 }
 
 describe('loadLocaleConfig', () => {

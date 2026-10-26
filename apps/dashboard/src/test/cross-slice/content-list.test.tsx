@@ -14,6 +14,7 @@ const mockNavigate = vi.fn()
 const mockUseParams = vi.fn()
 const mockFetchContentListServer = vi.fn()
 const mockDeleteContent = vi.fn()
+const mockDeleteWithUndo = vi.fn()
 const mockToastSuccess = vi.fn()
 const mockToastError = vi.fn()
 
@@ -67,6 +68,10 @@ vi.mock("@/features/content-management/hooks/use-content-facets", () => ({
   }),
 }))
 
+vi.mock("@/features/content-management/hooks/use-delete-with-undo", () => ({
+  useDeleteWithUndo: () => ({ deleteWithUndo: mockDeleteWithUndo, isDeleting: false }),
+}))
+
 vi.mock("@/features/content-management", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/features/content-management")>()
   return {
@@ -84,6 +89,7 @@ vi.mock("@/features/content-management", async (importOriginal) => {
     useDeleteContent: () => ({
       mutateAsync: async (...args: any[]) => mockDeleteContent(...args),
     }),
+    useDeleteWithUndo: () => ({ deleteWithUndo: mockDeleteWithUndo, isDeleting: false }),
     useBulkUpdate: () => ({
       mutateAsync: async () => ({ updated: 0, failed: [] }),
       isPending: false,
@@ -115,6 +121,7 @@ vi.mock("@/components/ui/context-menu", () => ({
   ContextMenuItem: ({ children, onSelect }: any) => <button onClick={onSelect}>{children}</button>,
   ContextMenuLabel: ({ children }: any) => <div>{children}</div>,
   ContextMenuSeparator: () => <div />,
+  ContextMenuShortcut: () => null,
 }))
 
 vi.mock("@/features/navigation", () => ({
@@ -357,15 +364,15 @@ describe("ContentListPage", () => {
     expect(screen.getByTestId("active-view")).toHaveTextContent(TABLE_VIEW_ID)
   })
 
-  it("apre dialog ed esegue delete con refresh dati", async () => {
-    mockDeleteContent.mockResolvedValueOnce(undefined)
+  it("clicking Delete on a row deletes it at once without opening the confirmation dialog", async () => {
+    mockDeleteWithUndo.mockResolvedValueOnce(true)
     renderWithProviders(<ContentListPage />)
     await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
 
     fireEvent.click(await screen.findByText("Delete"))
-    fireEvent.click(await screen.findByText("confirm-delete"))
 
-    await waitFor(() => expect(mockDeleteContent).toHaveBeenCalledWith({ slug: "posts", id: "id-1" }))
-    await waitFor(() => expect(mockFetchContentListServer.mock.calls.length).toBeGreaterThanOrEqual(2))
+    await waitFor(() => expect(mockDeleteWithUndo).toHaveBeenCalledWith({ slug: "posts", id: "id-1" }))
+    expect(screen.queryByText("confirm-delete")).not.toBeInTheDocument()
+    expect(mockDeleteContent).not.toHaveBeenCalled()
   })
 })

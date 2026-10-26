@@ -39,7 +39,6 @@ const plainSeed: Seed = {
   slug: 'posts',
   label: 'Post',
   displayNameAlias: 'title',
-  softDelete: false,
   branches: [],
 }
 
@@ -56,25 +55,17 @@ describe('D1BackrefRepository unit tests', () => {
       )
     })
 
-    it('does not append deleted_at filter when seed has softDelete: false', async () => {
+    it.each([
+      ['a seed with no flag', plainSeed],
+      ['a bare slug string', 'posts'],
+    ])('appends AND deleted_at IS NULL for %s', async (_label, seedOrSlug) => {
       const db = makeMockDb()
       const repo = new D1BackrefRepository(db as unknown as D1Database)
 
-      await repo.entryExists(plainSeed, 'post-1')
+      await repo.entryExists(seedOrSlug, 'post-1')
 
       expect(db.prepare).toHaveBeenCalledWith(
-        'SELECT id FROM content_posts WHERE id = ? LIMIT 1',
-      )
-    })
-
-    it('does not append deleted_at filter when called with string slug (backwards compat)', async () => {
-      const db = makeMockDb()
-      const repo = new D1BackrefRepository(db as unknown as D1Database)
-
-      await repo.entryExists('posts', 'post-1')
-
-      expect(db.prepare).toHaveBeenCalledWith(
-        'SELECT id FROM content_posts WHERE id = ? LIMIT 1',
+        'SELECT id FROM content_posts WHERE id = ? AND deleted_at IS NULL LIMIT 1',
       )
     })
   })
@@ -102,7 +93,7 @@ describe('D1BackrefRepository unit tests', () => {
       expect(countSql).toContain('WHERE author_id = ? AND deleted_at IS NULL')
     })
 
-    it('does not include deleted_at in queries when softDelete is false', async () => {
+    it('filters trashed sources in list and count queries for a seed with no flag', async () => {
       const db = makeMockDb()
       const repo = new D1BackrefRepository(db as unknown as D1Database)
 
@@ -112,8 +103,8 @@ describe('D1BackrefRepository unit tests', () => {
       const listSql = calls.find(s => s.includes('SELECT id, status, updated_at'))
       const countSql = calls.find(s => s.includes('SELECT COUNT(*) AS total'))
 
-      expect(listSql).not.toContain('deleted_at')
-      expect(countSql).not.toContain('deleted_at')
+      expect(listSql).toContain('WHERE author_id = ? AND deleted_at IS NULL')
+      expect(countSql).toContain('WHERE author_id = ? AND deleted_at IS NULL')
     })
   })
 
@@ -142,7 +133,7 @@ describe('D1BackrefRepository unit tests', () => {
       )
     })
 
-    it('does not join or filter by deleted_at when softDelete is false', async () => {
+    it('joins the source table and filters trashed sources for a seed with no flag', async () => {
       const db = makeMockDb()
       const repo = new D1BackrefRepository(db as unknown as D1Database)
 
@@ -152,9 +143,9 @@ describe('D1BackrefRepository unit tests', () => {
       const listSql = calls.find(s => s.includes('SELECT c.id, c.status'))
       const countSql = calls.find(s => s.includes('SELECT COUNT(DISTINCT'))
 
-      expect(listSql).not.toContain('c.deleted_at')
+      expect(listSql).toContain('WHERE r.target_id = ? AND c.deleted_at IS NULL')
       expect(countSql).toBe(
-        'SELECT COUNT(DISTINCT parent_id) AS total FROM rel_posts_tags WHERE target_id = ?',
+        'SELECT COUNT(DISTINCT r.parent_id) AS total FROM rel_posts_tags r JOIN content_posts c ON r.parent_id = c.id WHERE r.target_id = ? AND c.deleted_at IS NULL',
       )
     })
   })

@@ -9,6 +9,7 @@
 /**
  * Converte una stringa in uno slug URL-safe.
  * Limita la lunghezza a 15 caratteri come richiesto.
+ * Never emits `_`, so a live slug can never carry `TRASHED_SLUG_INFIX`.
  */
 export function slugify(value: string): string {
   return value
@@ -22,6 +23,20 @@ export function slugify(value: string): string {
     .replace(/-+$/g, '')             // Rimuove trattini rimasti alla fine dopo il taglio
 }
 
+/** Separator between an entry's slug and its deletion timestamp while it sits in the Trash. */
+export const TRASHED_SLUG_INFIX = '_old_'
+
+const TRASHED_SLUG_SUFFIX = new RegExp(`${TRASHED_SLUG_INFIX}\\d+$`)
+
+/** `<slug>_old_<deletedAtMs>`, lower-cased. Frees the slug for reuse under any UNIQUE constraint. */
+export function toTrashedSlug(slug: string, deletedAtMs: number): string {
+  return `${slug.toLowerCase()}${TRASHED_SLUG_INFIX}${deletedAtMs}`
+}
+
+/** Inverse of toTrashedSlug: strips a trailing `_old_<digits>`; returns the input unchanged when absent. */
+export function fromTrashedSlug(slug: string): string {
+  return slug.replace(TRASHED_SLUG_SUFFIX, '')
+}
 
 /**
  * Genera uno slug da un input (es. titolo o nome) o un fallback UUID.

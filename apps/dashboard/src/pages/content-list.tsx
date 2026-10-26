@@ -203,12 +203,10 @@ export function ContentListPage() {
                       Manage "{seed.slug}" content
                     </p>
                   </div>
-                  {seed.softDelete === true && (
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/content/${slug}/trash`)}>
-                      <Trash2 className="size-4" />
-                      {t("content.trash.open")}
-                    </Button>
-                  )}
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/content/${slug}/trash`)}>
+                    <Trash2 className="size-4" />
+                    {t("content.trash.open")}
+                  </Button>
                 </div>
 
                 {viewsQuery.isError || (!activeView && !emptyStateType) ? (

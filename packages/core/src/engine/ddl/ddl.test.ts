@@ -442,52 +442,45 @@ describe('DDL', () => {
     })
   })
 
-  describe('softDelete', () => {
-    it('generateCreateTable emits a nullable deleted_at column and drops the inline UNIQUE for softDelete: true', () => {
-      const sql = generateCreateTable({ ...mockSeed, softDelete: true })
+  describe('deleted_at', () => {
+    it('generateCreateTable emits a nullable deleted_at and no inline slug UNIQUE for a seed that declares no flag', () => {
+      const sql = generateCreateTable(mockSeed)
+
       expect(sql).toContain('slug       TEXT    NOT NULL,')
       expect(sql).not.toContain('slug       TEXT    NOT NULL UNIQUE,')
       expect(sql).toContain('deleted_at INTEGER')
     })
 
-    it('generateCreateTable emits today\'s exact DDL for softDelete: false, byte-identical to master', () => {
-      const sql = generateCreateTable(mockSeed)
-      expect(sql).toContain('slug       TEXT    NOT NULL UNIQUE,')
-      expect(sql).not.toContain('deleted_at')
+    it('generateCreateTable output is identical for softDelete true, false and absent', () => {
+      const absent = generateCreateTable(mockSeed)
+
+      expect(generateCreateTable({ ...mockSeed, softDelete: true })).toBe(absent)
+      expect(generateCreateTable({ ...mockSeed, softDelete: false })).toBe(absent)
     })
 
-    it('generateIndexes emits the deleted_at index and the partial unique slug index for softDelete: true', () => {
-      const indexes = generateIndexes({ ...mockSeed, softDelete: true })
+    it('generateIndexes always emits the deleted_at index and the partial unique slug index', () => {
+      const indexes = generateIndexes(mockSeed)
+
       expect(indexes).toContain('CREATE INDEX IF NOT EXISTS idx_articles_deleted_at ON content_articles(deleted_at);')
       expect(indexes).toContain(
         'CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_slug_active ON content_articles(slug) WHERE deleted_at IS NULL;'
       )
     })
 
-    it('generateIndexes emits no soft-delete indexes for softDelete: false', () => {
-      const indexes = generateIndexes(mockSeed)
-      expect(indexes.some(i => i.includes('deleted_at'))).toBe(false)
+    it('getExpectedColumns includes deleted_at for every seed', () => {
+      const columns = getExpectedColumns(mockSeed)
+
+      expect(columns).toContainEqual({ name: 'deleted_at', sqlType: 'INTEGER', notNull: false, isPk: false })
     })
 
-    it('getExpectedColumns includes deleted_at only for a soft-delete seed', () => {
-      const withSoftDelete = getExpectedColumns({ ...mockSeed, softDelete: true })
-      expect(withSoftDelete).toContainEqual({ name: 'deleted_at', sqlType: 'INTEGER', notNull: false, isPk: false })
+    it('generateEnableSoftDelete returns the ALTER plus both indexes for a seed with no flag', () => {
+      const stmts = generateEnableSoftDelete(mockSeed)
 
-      const without = getExpectedColumns(mockSeed)
-      expect(without.some(c => c.name === 'deleted_at')).toBe(false)
-    })
-
-    it('generateEnableSoftDelete emits the ALTER and both indexes for a soft-delete seed', () => {
-      const stmts = generateEnableSoftDelete({ ...mockSeed, softDelete: true })
       expect(stmts).toEqual([
         'ALTER TABLE content_articles ADD COLUMN deleted_at INTEGER;',
         'CREATE INDEX IF NOT EXISTS idx_articles_deleted_at ON content_articles(deleted_at);',
         'CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_slug_active ON content_articles(slug) WHERE deleted_at IS NULL;',
       ])
-    })
-
-    it('generateEnableSoftDelete returns no statements for a seed that did not opt in', () => {
-      expect(generateEnableSoftDelete(mockSeed)).toEqual([])
     })
   })
 })

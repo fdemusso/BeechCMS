@@ -85,6 +85,34 @@ describe("SectionCard", () => {
     expect(screen.getByText("No Label")).toBeInTheDocument()
   })
 
+  it("gives every column of a five-column section without explicit spans an integer grid span", () => {
+    const columns = Array.from({ length: 5 }, (_, i) => ({ id: `col-${i}`, widgets: [] }))
+    const { container } = render(
+      <DndContext onDragEnd={() => {}}>
+        <SectionCard
+          pageId="page-1"
+          section={{ id: "section-5", columns }}
+          dragId="section:page-1:section-5"
+          otherPages={[]}
+          canRemove
+          onUpdate={vi.fn()}
+          onSetColumnPreset={vi.fn()}
+          onDuplicate={vi.fn()}
+          onRemove={vi.fn()}
+          onAddWidget={vi.fn()}
+          onConfigureWidget={vi.fn()}
+          onRemoveWidget={vi.fn()}
+          onMoveWidgetToPage={vi.fn()}
+        />
+      </DndContext>,
+    )
+
+    const spans = Array.from(container.querySelectorAll<HTMLElement>("[style*='grid-column']"), (el) => el.style.gridColumn)
+
+    expect(spans).toHaveLength(5)
+    expect(spans.every((span) => /^span \d+ \/ span \d+$/.test(span))).toBe(true)
+  })
+
   it("renders one ColumnStack per column", () => {
     renderCard(makeSection())
     expect(screen.getAllByRole("button", { name: /Add Widget/i })).toHaveLength(2)
@@ -226,7 +254,10 @@ describe("SectionCard", () => {
   })
 
   it("marks the currently active column preset", () => {
-    renderCard(makeSection({ columnSpans: [4, 4, 4] }))
+    renderCard(makeSection({
+      columns: [{ id: "col-1", widgets: [] }, { id: "col-2", widgets: [] }, { id: "col-3", widgets: [] }],
+      columnSpans: [4, 4, 4],
+    }))
     const activePreset = screen.getByText("[4, 4, 4]")
     expect(activePreset).toHaveClass("font-semibold")
   })

@@ -181,12 +181,12 @@ describe("ContentGallery", () => {
   })
 
   it("con il campo categoria ma senza foto mostra lo stato vuoto", () => {
-    renderGallery(<ContentGallery seed={seedWithCategory} data={[]} onEdit={vi.fn()} groupBy="categoria" onCreate={vi.fn()} />)
+    renderGallery(<ContentGallery seed={seedWithCategory} data={[]} onEdit={vi.fn()} groupBy="categoria" />)
     expect(screen.getByText("You don't have any folders yet")).toBeInTheDocument()
   })
 
   it("senza campo categoria mostra la griglia piatta, senza cartelle", () => {
-    renderGallery(<ContentGallery seed={seed} data={[makeEntry("1"), makeEntry("2")]} onEdit={vi.fn()} groupBy={null} onCreate={vi.fn()} />)
+    renderGallery(<ContentGallery seed={seed} data={[makeEntry("1"), makeEntry("2")]} onEdit={vi.fn()} groupBy={null} />)
     expect(screen.queryAllByRole("region")).toHaveLength(0)
     expect(screen.getByTestId("card-1")).toBeInTheDocument()
   })

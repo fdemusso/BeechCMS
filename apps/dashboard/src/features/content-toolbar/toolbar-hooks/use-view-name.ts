@@ -20,7 +20,11 @@ export function useViewName({ activeView, onRenameView }: UseViewNameProps) {
   const commitViewName = useCallback(() => {
     if (!activeView || !onRenameView) return
     const trimmed = viewNameDraft.trim()
-    if (!trimmed || trimmed === activeView.label) return
+    if (!trimmed) {
+      setViewNameDraft(activeView.label)
+      return
+    }
+    if (trimmed === activeView.label) return
     onRenameView(activeView.id, trimmed)
   }, [activeView, onRenameView, viewNameDraft])
 

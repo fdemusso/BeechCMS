@@ -38,6 +38,7 @@ const {
 const mockFetchContentById = vi.fn()
 const mockCreateContent = vi.fn()
 const mockUpdateContent = vi.fn()
+const mockDeleteWithUndo = vi.fn()
 const mockToastSuccess = vi.fn()
 const mockToastError = vi.fn()
 const mockFetchDraft = vi.fn()
@@ -183,9 +184,9 @@ vi.mock("@/features/content-management", () => ({
     mutateAsync: mockDiscardDraft,
     isPending: false,
   }),
-  useDeleteContent: () => ({
-    mutateAsync: vi.fn(),
-    isPending: false,
+  useDeleteWithUndo: () => ({
+    deleteWithUndo: mockDeleteWithUndo,
+    isDeleting: false,
   }),
 }))
 
@@ -400,6 +401,41 @@ describe("EntryEditorPage", () => {
     
     await waitFor(() => expect(mockUpdateContent).toHaveBeenCalled())
     expect(mockToastSuccess).toHaveBeenCalledWith("Changes saved")
+  })
+
+  describe("delete in edit mode", () => {
+    beforeEach(() => {
+      mockUseParams.mockReturnValue({ slug: "posts", id: "42" })
+      mockFetchContentById.mockReturnValue({
+        id: "42",
+        slug: "entry-42",
+        status: "draft",
+        data: { title: "Old", content: { type: "doc", content: [{ type: "paragraph" }] }, metaData: "{}" },
+      })
+    })
+
+    it("clicking Delete calls deleteWithUndo directly and closes the editor without a confirmation dialog", async () => {
+      const onClose = vi.fn()
+      mockDeleteWithUndo.mockResolvedValueOnce(true)
+      renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="42" onClose={onClose} />)
+
+      fireEvent.click(await screen.findByRole("button", { name: "Delete" }))
+
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+      expect(mockDeleteWithUndo).toHaveBeenCalledWith({ slug: "posts", id: "42" })
+      expect(screen.queryByText("Delete entry?")).not.toBeInTheDocument()
+    })
+
+    it("a failed delete keeps the editor open", async () => {
+      const onClose = vi.fn()
+      mockDeleteWithUndo.mockResolvedValueOnce(false)
+      renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="42" onClose={onClose} />)
+
+      fireEvent.click(await screen.findByRole("button", { name: "Delete" }))
+
+      await waitFor(() => expect(mockDeleteWithUndo).toHaveBeenCalledTimes(1))
+      expect(onClose).not.toHaveBeenCalled()
+    })
   })
 
   it("invia If-Match con l'updated_at caricato quando salva un'entry esistente", async () => {

@@ -86,29 +86,32 @@ export class D1NotificationRepository implements INotificationRepository {
     return generatedId
   }
 
-  async markRead(notificationId: string): Promise<void> {
-    await this.database
+  async markRead(notificationId: string): Promise<boolean> {
+    const result = await this.database
       .prepare('UPDATE notifications SET is_read = 1 WHERE id = ?')
       .bind(notificationId)
       .run()
+    return result.meta.changes > 0
   }
 
-  async markUnread(notificationId: string): Promise<void> {
-    await this.database
+  async markUnread(notificationId: string): Promise<boolean> {
+    const result = await this.database
       .prepare('UPDATE notifications SET is_read = 0 WHERE id = ?')
       .bind(notificationId)
       .run()
+    return result.meta.changes > 0
   }
 
   async markAllRead(): Promise<void> {
     await this.database.prepare('UPDATE notifications SET is_read = 1').run()
   }
 
-  async delete(notificationId: string): Promise<void> {
-    await this.database
+  async delete(notificationId: string): Promise<boolean> {
+    const result = await this.database
       .prepare('DELETE FROM notifications WHERE id = ?')
       .bind(notificationId)
       .run()
+    return result.meta.changes > 0
   }
 }
 

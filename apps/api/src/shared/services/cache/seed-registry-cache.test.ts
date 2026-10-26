@@ -55,6 +55,34 @@ describe('getHydratedRegistry', () => {
     expect(repo2.listActive).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps registries of distinct repositories apart when both report the same version', async () => {
+    const firstRepo = makeRepo(1, [{ ...mockSeed, slug: 'first-app' }])
+    const secondRepo = makeRepo(1, [{ ...mockSeed, slug: 'second-app' }])
+    await getHydratedRegistry(firstRepo)
+
+    const { registry } = await getHydratedRegistry(secondRepo)
+
+    // Regression guard: one module-level cache entry matched on version alone, so the second
+    // repository inside the TTL window was served the first repository's seeds.
+    expect(registry.all().map((seed) => seed.slug)).toEqual(['second-app'])
+    expect(secondRepo.listActive).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not share an in-flight build between distinct repositories', async () => {
+    let resolveFirst: (seeds: Seed[]) => void = () => {}
+    const firstRepo = makeRepo(1)
+    firstRepo.listActive.mockReturnValue(new Promise<Seed[]>((resolve) => { resolveFirst = resolve }))
+    const secondRepo = makeRepo(1, [{ ...mockSeed, slug: 'second-app' }])
+
+    const firstRequest = getHydratedRegistry(firstRepo)
+    const secondRequest = getHydratedRegistry(secondRepo)
+    resolveFirst([{ ...mockSeed, slug: 'first-app' }])
+    const [first, second] = await Promise.all([firstRequest, secondRequest])
+
+    expect(first.registry.all().map((seed) => seed.slug)).toEqual(['first-app'])
+    expect(second.registry.all().map((seed) => seed.slug)).toEqual(['second-app'])
+  })
+
   it('empty listActive produces empty registry without throwing', async () => {
     const repo = makeRepo(1, [])
     const { registry } = await getHydratedRegistry(repo)

@@ -105,9 +105,14 @@ export function BuilderPane({ ops, isSaving, onSave, onReset, onClose }: Builder
         })
       }
     } else {
+      const targetColumn = draft.pages
+        .find((p) => p.id === oPageId)
+        ?.sections.find((s) => s.id === oSectionId)
+        ?.columns.find((c) => c.id === oColumnId)
+      const targetIndex = targetColumn?.widgets.findIndex((w) => w.id === oWidgetId) ?? -1
       ops.moveWidget({
         from: { pageId: aPageId, sectionId: aSectionId, columnId: aColumnId, widgetId: aWidgetId },
-        to: { pageId: oPageId, sectionId: oSectionId, columnId: oColumnId },
+        to: { pageId: oPageId, sectionId: oSectionId, columnId: oColumnId, ...(targetIndex !== -1 ? { index: targetIndex } : {}) },
       })
     }
   }

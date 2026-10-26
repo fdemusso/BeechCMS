@@ -232,6 +232,40 @@ h1 {
   }
 }
 
+/* Undo toast (use-delete-with-undo): countdown bar + action button styled like <Button variant="outline" size="sm">.
+   The bar lasts as long as the toast (--undo-duration = sonner `duration`) and freezes on toaster hover,
+   which is when sonner pauses its own timer. */
+@keyframes undo-countdown {
+  from {
+    clip-path: inset(calc(100% - 3px) 0 0 0);
+  }
+  to {
+    clip-path: inset(calc(100% - 3px) 100% 0 0);
+  }
+}
+
+/* The pseudo covers the whole toast border box (same radius) and is clipped to its bottom 3px:
+   the bar follows the rounded corners and never overflows. The animation eats it from the right. */
+.undo-toast [data-content]::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--border-radius);
+  background: var(--foreground);
+  pointer-events: none;
+  clip-path: inset(calc(100% - 3px) 0 0 0);
+  animation: undo-countdown var(--undo-duration, 5000ms) linear forwards;
+}
+
+[data-sonner-toaster]:hover .undo-toast [data-content]::after {
+  animation-play-state: paused;
+}
+
+/* Selector mirrors sonner's own `[data-sonner-toast][data-styled=true] [data-button]` plus one class, so it wins. */
+[data-sonner-toast].undo-toast[data-styled=true] [data-button] {
+  @apply h-7 rounded-lg border border-border bg-background px-2.5 text-[0.8rem] font-medium text-foreground transition-all hover:bg-muted dark:border-input dark:bg-input/30 dark:hover:bg-input/50;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -272,11 +306,6 @@ h1 {
   width: 100%;
   max-width: min(100%, 2200px);
   margin-inline: auto;
-}
-
-/* Command palette: frosted-glass backdrop on Radix Dialog overlay */
-[data-radix-dialog-overlay] {
-  backdrop-filter: blur(4px);
 }
 
 /*

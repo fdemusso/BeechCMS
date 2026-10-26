@@ -44,7 +44,8 @@ export function useNotificationsPopover() {
     mutationFn: async (id: string) => {
       await api.patch(`/content/notifications/${id}/read`)
     },
-    onSuccess: () => {
+    // A 404 means another session already removed it; refetch so the stale row disappears.
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] })
     }
   })
@@ -53,7 +54,8 @@ export function useNotificationsPopover() {
     mutationFn: async (id: string) => {
       await api.patch(`/content/notifications/${id}/unread`)
     },
-    onSuccess: () => {
+    // A 404 means another session already removed it; refetch so the stale row disappears.
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] })
     }
   })
@@ -62,7 +64,8 @@ export function useNotificationsPopover() {
     mutationFn: async (id: string) => {
       await api.delete(`/content/notifications/${id}`)
     },
-    onSuccess: () => {
+    // A 404 means another session already removed it; refetch so the stale row disappears.
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] })
     }
   })

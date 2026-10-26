@@ -5,8 +5,8 @@
 import { Wifi, WifiOff } from 'reicon-react'
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { DashboardWidgetShell } from "@/features/dashboard"
-import { useDashboardStats, useCloudflareStats, useSystemHealth } from "@/features/dashboard"
+import { DashboardWidgetShell } from "../dashboard-widget-shell"
+import { useDashboardStats, useCloudflareStats, useSystemHealth } from "../../hooks/use-dashboard-stats"
 import { cn } from "@/lib/utils"
 import { WidgetError } from "./_parts/widget-error"
 

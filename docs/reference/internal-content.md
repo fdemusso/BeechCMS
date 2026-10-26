@@ -58,7 +58,7 @@ Authorization: Bearer eyJ...
 > **Note:** Calling `GET /api/content/:seed` without query parameters returns the items array directly (`[...]`). Each item has system columns at the top level and field values only inside `data`, already filtered by visibility policies (`hidden` dropped, `masked` masked). Each item also includes a `has_pending_draft` boolean indicating whether a draft exists in `content_{slug}_drafts`.
 
 > [!NOTE]
-> On a Seed with `softDelete: true`, trashed entries are excluded from this listing. Retrieve them from [`GET /api/content/:seed/trash`](#list-trash).
+> Trashed entries are excluded from this listing. Retrieve them from [`GET /api/content/:seed/trash`](#list-trash).
 
 ---
 
@@ -358,22 +358,17 @@ The server converts the column value into the entry value (`kanbanColumnEntryVal
 
 ## Delete Entry — `DELETE /api/content/:seed/:id`
 
-Deletes a content entry. The semantics depend on the Seed's `softDelete` flag:
-
-| Seed | Behaviour |
-|---|---|
-| `softDelete: true` | **Reversible.** Stamps `deleted_at` and moves the entry to the [Trash](#trash-soft-delete-purge). Junction rows, pending drafts, and R2 media are left untouched so the entry stays restorable whole. |
-| `softDelete` absent or `false` | **Irreversible.** Drops the row, cascades junction and draft rows, cleans up R2 media, and appends an event to the deletion ledger. |
+Deletes a content entry. **Reversible**: stamps `deleted_at`, renames the slug to `<slug>_old_<ms>` and moves the entry to the [Trash](#trash-and-purge). Junction rows, pending drafts, and R2 media are left untouched so the entry stays restorable whole.
 
 **Query parameters:**
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `purge` | `"true"` | — | Forces the irreversible path even on a soft-delete Seed. Use it to erase a trashed entry, or to skip the Trash entirely. |
+| `purge` | `"true"` | — | Erases an entry that is already in the Trash: drops the row, cascades junction and draft rows, cleans up R2 media, and appends an event to the deletion ledger. Answers `404 content-not-found` on an entry that is not in the Trash. |
 
-**Cascade behaviour (irreversible path only):** the API extracts media keys from `file`, `json`, and `repeater` branch values of the deleted entry and issues deletion commands against Cloudflare R2 (`bucket.delete(key)`). If R2 deletion fails, the content row remains deleted (best-effort media cleanup). Images embedded in `<img src="...">` inside `richtext` fields are not parsed during cascade deletion. A **soft** delete never touches the bucket.
+**Cascade behaviour (purge only):** the API extracts media keys from `file`, `json`, and `repeater` branch values of the deleted entry and issues deletion commands against Cloudflare R2 (`bucket.delete(key)`). If R2 deletion fails, the content row remains deleted (best-effort media cleanup). Images embedded in `<img src="...">` inside `richtext` fields are not parsed during cascade deletion. A **soft** delete never touches the bucket.
 
-Both paths run the `beforeDelete` / `afterDelete` lifecycle hooks.
+Both the move to the Trash and the purge run the `beforeDelete` / `afterDelete` lifecycle hooks.
 
 **Request**
 
@@ -391,15 +386,15 @@ Authorization: Bearer eyJ...
 }
 ```
 
-`softDeleted: false` means the entry was erased irreversibly: R2 media were wiped and the erasure was recorded in the ledger.
+`softDeleted: false` means the entry was purged from the Trash: R2 media were wiped and the erasure was recorded in the ledger.
 
 ---
 
 ## Trash, Soft Delete & Purge {#trash-and-purge}
 
-Available on Seeds declaring `softDelete: true`. Conceptual overview, DDL details, and the deletion-ledger design: [Trash, Soft Delete & GDPR Purge](/features/trash).
+Available on every Seed. Conceptual overview, DDL details, and the deletion-ledger design: [Trash, Soft Delete & GDPR Purge](/features/trash).
 
-**Seed guard:** every route in this section returns `409 Conflict` with `type: content-soft-delete-disabled` when the Seed does not declare `softDelete: true`, and `404` (`content-seed-not-found`) when the Seed slug is unknown.
+**Seed guard:** every route in this section returns `404` (`content-seed-not-found`) when the Seed slug is unknown.
 
 **Visibility:** trashed entries are excluded from every other read — the list endpoint, single reads, the Public API, relation expansion, and relation subqueries — by a predicate compiled at the engine's single SQL chokepoint. Only the route below returns them.
 
@@ -489,7 +484,6 @@ Restore does **not** run the delete lifecycle hooks; it is not a deletion. It lo
 | `400` | `content-invalid-slug-or-id` | Missing seed slug or entry id |
 | `404` | `content-seed-not-found` | Seed slug not found |
 | `404` | `content-not-found` | No **trashed** entry with that id |
-| `409` | `content-soft-delete-disabled` | Seed does not declare `softDelete: true` |
 
 **Permission:** `content:update` on the Seed scope.
 
@@ -538,7 +532,6 @@ A partial failure still returns `200 OK` — inspect `failed`.
 | `400` | `content-invalid-json` | Request body is not valid JSON |
 | `400` | `bulk-invalid-ids` | `ids` is not a non-empty array of strings |
 | `400` | `bulk-size-exceeded` | More than 500 ids |
-| `409` | `content-soft-delete-disabled` | Seed does not declare `softDelete: true` |
 
 **Permission:** `content:update` on the Seed scope.
 

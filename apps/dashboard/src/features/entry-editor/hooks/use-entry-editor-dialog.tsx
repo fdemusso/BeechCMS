@@ -24,7 +24,7 @@ import {
   useSaveDraft,
   usePublishDraft,
   useDiscardDraft,
-  useDeleteContent,
+  useDeleteWithUndo,
   CONTENT_ERROR_CODES,
   contentErrorCode,
 } from "@/features/content-management"
@@ -204,7 +204,7 @@ export function useEntryEditorDialog({
   } = useContentEntry(schemaSlug, entryId)
 
   const { mutateAsync: saveContent, isPending: isSaving } = useSaveContent()
-  const { mutateAsync: deleteContent, isPending: isDeleting } = useDeleteContent()
+  const { deleteWithUndo, isDeleting } = useDeleteWithUndo()
 
   const hasPendingDraftNotice = !isCreate && entryData?.has_pending_draft === true
 
@@ -230,7 +230,6 @@ export function useEntryEditorDialog({
   const [isDirty, setIsDirty] = React.useState(false)
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({})
   const [hasRestrictedRefs, setHasRestrictedRefs] = React.useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false)
   const [builderMode, setBuilderMode] = React.useState(false)
   const [isReadOnly, setIsReadOnly] = React.useState(readonly ?? false)
   const hasJustSavedRef = React.useRef(false)
@@ -467,16 +466,10 @@ export function useEntryEditorDialog({
 
   const handleDelete = async () => {
     if (!schemaSlug || !entryId) return
-    try {
-      await deleteContent({ slug: schemaSlug, id: entryId })
-      toast.success(t("content.editor.deletedSuccess", "Deleted"))
-      hasJustSavedRef.current = true
-      onClose()
-    } catch {
-      toast.error(t("content.editor.deleteError", "Could not delete entry"))
-    } finally {
-      setShowDeleteConfirm(false)
-    }
+    const deleted = await deleteWithUndo({ slug: schemaSlug, id: entryId })
+    if (!deleted) return
+    hasJustSavedRef.current = true
+    onClose()
   }
 
   /** Non-localized branches keep today's payload rules; localized ones send only the touched locales (patch semantics). */
@@ -681,8 +674,6 @@ export function useEntryEditorDialog({
     fieldErrors,
     hasRestrictedRefs,
     setHasRestrictedRefs,
-    showDeleteConfirm,
-    setShowDeleteConfirm,
     builderMode,
     setBuilderMode,
     canEditLayoutFlag,

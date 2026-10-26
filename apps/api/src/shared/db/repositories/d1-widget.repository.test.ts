@@ -354,4 +354,26 @@ describe('D1WidgetRepository', () => {
       ).rejects.toThrow('UNSAFE_COLUMN')
     })
   })
+
+  describe('trashed rows', () => {
+    const queries: Array<[string, (repo: D1WidgetRepository) => Promise<unknown>]> = [
+      ['aggregate', repo => repo.aggregate(seed, { op: 'count' }, 'all')],
+      ['list', repo => repo.list(seed, { limit: 10, offset: 0 })],
+      ['timeseries', repo => repo.timeseries(seed, { op: 'count' }, 'all', 'created_at')],
+      ['distribution', repo => repo.distribution(seed, 'title', 'all', 8)],
+    ]
+
+    it('every widget query on a seed with no flag excludes trashed rows in its SQL', async () => {
+      const failures: string[] = []
+
+      for (const [name, run] of queries) {
+        const { db, prepareMock } = makeMockDb([], { total: 0 })
+        await run(new D1WidgetRepository(db))
+        const statements = prepareMock.mock.calls.map(call => call[0] as string)
+        if (!statements.every(sql => sql.includes('deleted_at IS NULL'))) failures.push(name)
+      }
+
+      expect(failures).toEqual([])
+    })
+  })
 })

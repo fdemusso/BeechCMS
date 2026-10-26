@@ -61,6 +61,14 @@ function parseWidgetWindow(query: { window?: string; from?: string; to?: string 
   return parseWindow(query.window)
 }
 
+/** A filter element is an object with a string column, a string op and a scalar D1 can bind. */
+function isWellFormedFilter(item: unknown): item is { column: string; op: string; value: unknown } {
+  if (typeof item !== 'object' || item === null || Array.isArray(item)) return false
+  const { column, op, value } = item as Record<string, unknown>
+  if (typeof column !== 'string' || typeof op !== 'string') return false
+  return value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+}
+
 function parseBoundedInt(raw: string | undefined, fallback: number, maximum: number, minimum = 1): number {
   const parsed = Number.parseInt(raw ?? String(fallback), 10)
   if (!Number.isFinite(parsed) || parsed < minimum) return fallback
@@ -217,7 +225,13 @@ widgetApp.get('/list/:seed', async (context) => {
       if (!Array.isArray(parsed)) {
         return context.json(problem(400, 'Bad Request', 'Invalid filters JSON: must be an array'), 400)
       }
-      filters = parsed as Array<{ column: string; op: string; value: unknown }>
+      if (!parsed.every(isWellFormedFilter)) {
+        return context.json(
+          problem(400, 'Bad Request', 'Invalid filters JSON: each filter needs string column and op, and a scalar value'),
+          400,
+        )
+      }
+      filters = parsed
     } catch {
       return context.json(problem(400, 'Bad Request', 'Invalid filters JSON'), 400)
     }

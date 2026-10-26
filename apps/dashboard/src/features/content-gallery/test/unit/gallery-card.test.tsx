@@ -41,6 +41,12 @@ describe("GalleryCard", () => {
     expect(screen.getByRole("img")).toHaveAttribute("src", "https://cdn.test/fixed.jpg")
   })
 
+  it("renders the status badge with the variant the display model computed", () => {
+    render(<GalleryCard model={makeModel({ status: "archived", statusVariant: "destructive" })} onOpen={vi.fn()} />)
+
+    expect(screen.getByText("archived")).toHaveAttribute("data-variant", "destructive")
+  })
+
   it("hides the status and pending-draft badges when the seed does not support drafts", () => {
     render(
       <GalleryCard

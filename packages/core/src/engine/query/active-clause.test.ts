@@ -40,11 +40,14 @@ describe('activeCondition', () => {
     expect(activeCondition(softDeleteSeed, 'trashed', 'p')).toBe('p.deleted_at IS NOT NULL')
   })
 
-  it('returns null for seed without softDelete regardless of mode', () => {
-    expect(activeCondition(plainSeed, 'active')).toBeNull()
-    expect(activeCondition(plainSeed, 'trashed')).toBeNull()
+  it('returns deleted_at IS NULL for a seed with no flag in default mode', () => {
+    expect(activeCondition(plainSeed)).toBe('deleted_at IS NULL')
+  })
+
+  it('returns null only for any mode', () => {
     expect(activeCondition(plainSeed, 'any')).toBeNull()
-    expect(activeCondition(plainSeed, 'active', 'ce')).toBeNull()
+    expect(activeCondition(plainSeed, 'trashed')).not.toBeNull()
+    expect(activeCondition(plainSeed, 'active')).not.toBeNull()
   })
 })
 
@@ -66,9 +69,7 @@ describe('activeClause', () => {
     expect(activeClause(softDeleteSeed, 'trashed', 'p')).toBe(' AND p.deleted_at IS NOT NULL')
   })
 
-  it('returns empty string for seed without softDelete', () => {
-    expect(activeClause(plainSeed, 'active')).toBe('')
-    expect(activeClause(plainSeed, 'trashed')).toBe('')
-    expect(activeClause(plainSeed, 'any')).toBe('')
+  it('returns " AND deleted_at IS NULL" for a seed with no flag', () => {
+    expect(activeClause(plainSeed)).toBe(' AND deleted_at IS NULL')
   })
 })

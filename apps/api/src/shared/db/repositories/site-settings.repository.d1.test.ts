@@ -32,6 +32,7 @@ describe('D1SiteSettingsRepository', () => {
         companyAbbreviation: null,
         locales: null,
         defaultLocale: null,
+        trashRetentionDays: 14,
       })
     })
 
@@ -72,6 +73,33 @@ describe('D1SiteSettingsRepository', () => {
 
       expect(settings.locales).toBeNull()
     })
+
+    it('returns trashRetentionDays 14 when the key was never stored', async () => {
+      const { db } = makeMockDb([{ key: 'siteTitle', value: 'Acme' }])
+      const repo = new D1SiteSettingsRepository(db)
+
+      const settings = await repo.getAll()
+
+      expect(settings.trashRetentionDays).toBe(14)
+    })
+
+    it("reads a stored '0' as 0, not as the default", async () => {
+      const { db } = makeMockDb([{ key: 'trashRetentionDays', value: '0' }])
+      const repo = new D1SiteSettingsRepository(db)
+
+      const settings = await repo.getAll()
+
+      expect(settings.trashRetentionDays).toBe(0)
+    })
+
+    it('reads a malformed stored value as the default', async () => {
+      const { db } = makeMockDb([{ key: 'trashRetentionDays', value: 'abc' }])
+      const repo = new D1SiteSettingsRepository(db)
+
+      const settings = await repo.getAll()
+
+      expect(settings.trashRetentionDays).toBe(14)
+    })
   })
 
   describe('setMany', () => {
@@ -110,6 +138,15 @@ describe('D1SiteSettingsRepository', () => {
       await repo.setMany({ locales: ['it', 'en'] })
 
       expect(bindMock).toHaveBeenCalledWith('locales', '["it","en"]')
+    })
+
+    it('stores a numeric trashRetentionDays as its decimal string', async () => {
+      const { db, bindMock } = makeMockDb([])
+      const repo = new D1SiteSettingsRepository(db)
+
+      await repo.setMany({ trashRetentionDays: 30 })
+
+      expect(bindMock).toHaveBeenCalledWith('trashRetentionDays', '30')
     })
   })
 })

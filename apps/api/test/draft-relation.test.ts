@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS content_dr_team (
   status     TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','review','published','archived')),
   name       TEXT NOT NULL,
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  deleted_at INTEGER
 );
 `
 
@@ -69,7 +70,8 @@ CREATE TABLE IF NOT EXISTS content_dr_articles (
   title      TEXT NOT NULL,
   author_id  TEXT REFERENCES content_dr_team(id) ON DELETE SET NULL,
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  deleted_at INTEGER
 );
 `
 

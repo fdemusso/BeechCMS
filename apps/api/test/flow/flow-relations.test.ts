@@ -72,6 +72,7 @@ const ARTICLES_SEED_RESTRICT = defineSeed({
 
 // ── DDL helpers ──────────────────────────────────────────────────────────────
 
+// The engine now reads deleted_at on every content table, so each hand-rolled table carries it.
 const DDL_TEAM = `
 CREATE TABLE IF NOT EXISTS content_team (
   id         TEXT NOT NULL PRIMARY KEY,
@@ -80,7 +81,8 @@ CREATE TABLE IF NOT EXISTS content_team (
   name       TEXT NOT NULL,
   email      TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  deleted_at INTEGER
 );
 `
 
@@ -92,7 +94,8 @@ CREATE TABLE IF NOT EXISTS content_articoli (
   title      TEXT NOT NULL,
   author_id  TEXT REFERENCES content_team(id) ON DELETE SET NULL,
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  deleted_at INTEGER
 );
 `
 
@@ -104,7 +107,8 @@ CREATE TABLE IF NOT EXISTS content_articoli (
   title      TEXT NOT NULL,
   author_id  TEXT REFERENCES content_team(id) ON DELETE RESTRICT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  deleted_at INTEGER
 );
 `
 
@@ -178,7 +182,8 @@ describe('Flow: Relations — SET NULL', () => {
     expect(body.type).toBe('https://beechcms.dev/problems/relation-target-not-found')
   })
 
-  it('3. DELETE team member with SET NULL → 200, article.author_id becomes null', async () => {
+  // Regression guard: FK actions fire at purge, never at soft delete.
+  it('3. purging a trashed team member with SET NULL → 200, article.author_id becomes null', async () => {
     // Setup: team + article
     await db.prepare(
       `INSERT INTO content_team (id, slug, status, name) VALUES (?, ?, 'published', ?)`
@@ -186,8 +191,12 @@ describe('Flow: Relations — SET NULL', () => {
     await db.prepare(
       `INSERT INTO content_articoli (id, slug, status, title, author_id) VALUES (?, ?, 'draft', ?, ?)`
     ).bind('art-0001-0000-4000-8000-000000000001', 'article-bob', 'Article about Bob', TEAM_ID).run()
+    await app.request(`/api/content/team/${TEAM_ID}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    }, { ...TEST_ENV, DB: db })
 
-    const delRes = await app.request(`/api/content/team/${TEAM_ID}`, {
+    const delRes = await app.request(`/api/content/team/${TEAM_ID}?purge=true`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` },
     }, { ...TEST_ENV, DB: db })
@@ -216,15 +225,20 @@ describe('Flow: Relations — RESTRICT', () => {
     token = await login(app, db)
   })
 
-  it('4. DELETE team member with RESTRICT while referenced → 409 relation-in-use', async () => {
+  // Regression guard: FK actions fire at purge, never at soft delete.
+  it('4. purging a trashed team member with RESTRICT while referenced → 409 relation-in-use', async () => {
     await db.prepare(
       `INSERT INTO content_team (id, slug, status, name) VALUES (?, ?, 'published', ?)`
     ).bind(TEAM_ID_2, 'member-restrict', 'Carol').run()
     await db.prepare(
       `INSERT INTO content_articoli (id, slug, status, title, author_id) VALUES (?, ?, 'draft', ?, ?)`
     ).bind('art-0002-0000-4000-8000-000000000002', 'article-carol', 'Article about Carol', TEAM_ID_2).run()
+    await app.request(`/api/content/team/${TEAM_ID_2}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    }, { ...TEST_ENV, DB: db })
 
-    const delRes = await app.request(`/api/content/team/${TEAM_ID_2}`, {
+    const delRes = await app.request(`/api/content/team/${TEAM_ID_2}?purge=true`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` },
     }, { ...TEST_ENV, DB: db })

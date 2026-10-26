@@ -4,6 +4,7 @@
 
 export * from "./hooks/use-content-list"
 export * from "./hooks/use-content-facets"
+export * from "./hooks/use-delete-with-undo"
 export * from "./hooks/use-content-item"
 export * from "./hooks/use-bulk-update"
 export * from "./hooks/use-content-list-query"
