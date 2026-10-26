@@ -233,19 +233,22 @@ Throws EntryNotFoundError if not found.
 
 ### findExpiredByRetention()
 
-> **findExpiredByRetention**(`seed`, `now`, `limit`): `Promise`&lt;`string`[]&gt;
+> **findExpiredByRetention**(`seed`, `retentionDays`, `now`, `limit`): `Promise`&lt;`string`[]&gt;
 
 Pure query, no side effects: ids of trashed entries whose retention window has elapsed
-(`deleted_at + seed.retentionDays * 86400 <= now`).
-Returns [] when the seed has no `retentionDays`.
-Deliberately NOT wired to any scheduler — the recurring-automation adapter is future work
-(feature brief §2). `now` is supplied by the caller's `IClock`; never read the clock here.
+(`deleted_at + retentionDays * 86400 <= now`), oldest deletion first, at most `limit`.
+`retentionDays` is the EFFECTIVE value (`resolveRetentionDays`); `0` = never purge → [] without querying.
+`now` is unix seconds supplied by the caller's `IClock`; never read the clock here.
 
 #### Parameters
 
 ##### seed
 
 [`Seed`](Seed.md)
+
+##### retentionDays
+
+`number`
 
 ##### now
 

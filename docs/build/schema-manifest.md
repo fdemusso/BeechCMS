@@ -96,7 +96,7 @@ export default defineSchema({
 | `allowPublicEdit` | `boolean` | Enables `PUT /api/v1/public/:seed/edit/:id`. Default `false` |
 | `allowDrafts` | `boolean` | Generates the `content_{slug}_drafts` staging table. Default `false` |
 | `softDelete` | `boolean` | Deprecated, ignored: every seed has a [Trash](/features/trash), and `deleted_at` is always present. Not compared by `beech schema diff` |
-| `retentionDays` | `number` | Retention window before automatic cleanup / anonymization. Drives the Trash countdown |
+| `retentionDays` | `number` | Days a trashed entry is kept before the retention sweep purges it. Integer `0..36500`, overrides the global setting, `0` = never purge |
 | `branches` | `ManifestBranch[]` | **Required.** Order is preserved — it is the physical column order |
 
 ### Branch constructors

@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { isValidAccountEmail, isLocaleCode, resolveLocaleConfig, sha256hex, type SiteSettings } from '@beechcms/core'
+import { isValidAccountEmail, isLocaleCode, isValidRetentionDays, MAX_RETENTION_DAYS, resolveLocaleConfig, sha256hex, type SiteSettings } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { manageableScopes, serializeEffectivePermissions } from '../../shared/rbac/scoped-projection'
@@ -49,6 +49,7 @@ settingsApp.get('/', async (context) => {
     defaultLocale: localeConfig.defaultLocale,
     timezone: s.timezone,
     currency: s.currency,
+    trashRetentionDays: s.trashRetentionDays,
     company: {
       name: s.companyName,
       website: s.companyWebsite,
@@ -132,7 +133,12 @@ settingsApp.put('/', async (context) => {
     }
   }
 
+  if (payload.trashRetentionDays !== undefined && !isValidRetentionDays(payload.trashRetentionDays)) {
+    return context.json({ type: 'settings-invalid-trash-retention', title: 'Bad Request', status: 400, detail: `trashRetentionDays must be an integer between 0 and ${MAX_RETENTION_DAYS} (0 = never purge)` }, 400)
+  }
+
   const fieldsToUpdate: Partial<SiteSettings> = {}
+  if (isValidRetentionDays(payload.trashRetentionDays)) fieldsToUpdate.trashRetentionDays = payload.trashRetentionDays
   if (siteTitle !== undefined) fieldsToUpdate.siteTitle = siteTitle
   if (defaultLanguage !== undefined) fieldsToUpdate.defaultLanguage = defaultLanguage
   if (timezone !== undefined) fieldsToUpdate.timezone = timezone

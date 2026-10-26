@@ -5,8 +5,8 @@ Planned 2026-10-26. Sprints merge in order; each depends on the previous one bei
 
 | # | Slug | Status |
 |---|------|--------|
-| 1 | `UniversalSoftDelete` | **planned** (`output/UniversalSoftDelete.md`) |
-| 2 | `TrashRetentionSweep` | pending |
+| 1 | `UniversalSoftDelete` | **shipped** (`docs/Sprints/UniversalSoftDelete/`, commit `b5d8003f`) |
+| 2 | `TrashRetentionSweep` | **planned** (`output/TrashRetentionSweep.md`) |
 | 3 | `InstantDeleteUndo` | pending |
 
 ---
@@ -27,7 +27,14 @@ Planned 2026-10-26. Sprints merge in order; each depends on the previous one bei
 
 **Goal:** enforce retention. 14 days by default, set globally in Settings, overridable per seed, with `0` meaning "never purge". A periodic executor purges expired entries through the ledger-first purge path.
 
-**Deliverables (summary):** a global retention value in `SiteSettings` with default 14 and validation on the settings API. Seed `retentionDays` accepts `0` and still rejects negative or non-integer values. One core resolver turns seed + global into an effective retention. `findExpiredByRetention` uses the effective value. A bounded retention sweep runs in the existing `scheduled()` cron, per seed and per id, so one failure never stops the run. It reuses the sprint-1 `purge` (ledger first, R2 media cleanup non-blocking). The trash list exposes the effective retention so the countdown is correct.
+**Deliverables (summary):**
+- core `retention.ts`: `DEFAULT_TRASH_RETENTION_DAYS`, `MAX_RETENTION_DAYS`, `isValidRetentionDays`, `resolveRetentionDays`.
+- Seed `retentionDays` accepts `0`. `findExpiredByRetention(seed, retentionDays, now, limit)` takes the effective value.
+- `SiteSettings.trashRetentionDays` on `GET/PUT /api/settings`. Invalid values get 400 `settings-invalid-trash-retention`.
+- `runRetentionSweep` (content slice) runs from `scheduled()` every 5 minutes:
+  - at most 25 purges per run, isolated per seed and per id;
+  - uses a ledger-equipped repository, with non-blocking R2 cleanup.
+- The trash list response gains `retentionDays` (the effective value).
 
 **Depends on:** sprint 1. The sweep relies on every seed having `deleted_at` stamped from `IClock`, and on `purge` defaulting to trashed-only.
 
@@ -35,6 +42,11 @@ Planned 2026-10-26. Sprints merge in order; each depends on the previous one bei
 
 **Goal:** the dashboard delete experience from the brief. Single delete happens instantly with no dialog: the row disappears optimistically and an "Undo" toast stays for 5 seconds, then calls `restore`. Each deletion has its own independent toast. Bulk delete keeps a mandatory confirmation modal, has no undo, and reports per-id results. Settings gets a field for the global retention, and the Trash countdown uses the effective retention.
 
-**Deliverables (summary):** dashboard only. Rework `useContentListModals` and the entry-editor delete path, add the undo-toast flow, keep the bulk modal, add a retention field in the Settings tab, and switch the Trash countdown to the effective retention from sprint 2. The per-seed override stays a seed contract field (manifest / `PUT /api/seeds/:slug`). Whether the Seed Builder exposes it gets decided when this sprint is planned.
+**Deliverables (summary):** dashboard only.
+- Rework `useContentListModals` and the entry-editor delete path, and add the undo-toast flow. Keep the bulk modal.
+- Add a `trashRetentionDays` field in the Settings General tab (validated with core `isValidRetentionDays`).
+- Switch the Trash countdown (`ContentTrashView.tsx` / `lib/retention.ts`) from `seed.retentionDays` to the trash list's `retentionDays`, and add the field to `TrashListResponse`.
 
-**Depends on:** sprint 2, for the effective retention in the trash payload and the settings key. Sprint 1 already makes the Trash reachable on every seed.
+The per-seed override stays a seed contract field (manifest / `PUT /api/seeds/:slug`). Whether the Seed Builder exposes it gets decided when this sprint is planned.
+
+**Depends on:** sprint 2, for `GET/PUT /api/settings` `trashRetentionDays` and the `retentionDays` field in the trash payload. Sprint 1 already makes the Trash reachable on every seed.

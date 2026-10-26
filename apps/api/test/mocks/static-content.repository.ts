@@ -276,9 +276,9 @@ export class StaticContentRepository implements ContentRepository {
     return { succeeded, failed, rows }
   }
 
-  async findExpiredByRetention(seed: Seed, now: number, limit: number): Promise<string[]> {
-    if (!seed.retentionDays) return []
-    const cutoff = now - seed.retentionDays * 86400
+  async findExpiredByRetention(seed: Seed, retentionDays: number, now: number, limit: number): Promise<string[]> {
+    if (retentionDays <= 0 || limit <= 0) return []
+    const cutoff = now - retentionDays * 86400
     return this.getTable(seed.slug)
       .filter((e) => e.deleted_at != null && e.deleted_at <= cutoff)
       .slice(0, limit)

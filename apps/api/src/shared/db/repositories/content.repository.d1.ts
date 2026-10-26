@@ -1203,14 +1203,15 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   }
 
   /**
-   * Pure query, no side effects: ids of trashed entries whose retention window has elapsed.
-   * Deliberately NOT wired to any scheduler — the recurring-automation adapter is future work.
+   * Pure query, no side effects: ids of trashed entries whose retention window has elapsed,
+   * oldest deletion first. `retentionDays` is the effective value; `0` = never purge.
+   * Called by the retention sweep.
    */
-  async findExpiredByRetention(seed: Seed, now: number, limit: number): Promise<string[]> {
-    if (!seed.retentionDays) return []
+  async findExpiredByRetention(seed: Seed, retentionDays: number, now: number, limit: number): Promise<string[]> {
+    if (retentionDays <= 0 || limit <= 0) return []
 
     const tableName = this.getTableName(seed.slug)
-    const cutoff = now - seed.retentionDays * 86400
+    const cutoff = now - retentionDays * 86400
     const { results } = await this.database
       .prepare(
         `SELECT id FROM ${tableName} WHERE deleted_at IS NOT NULL AND deleted_at <= ? ORDER BY deleted_at ASC LIMIT ?`,

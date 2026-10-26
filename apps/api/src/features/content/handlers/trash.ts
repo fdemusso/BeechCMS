@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { EntryNotFoundError, type ActorContext } from '@beechcms/core'
+import { EntryNotFoundError, resolveRetentionDays, type ActorContext } from '@beechcms/core'
 import { toEntryEnvelope } from '../../../shared/policies/apply-policies'
 import { deleteR2Objects } from '../../../shared/storage/upload'
 import { extractMediaKeysFromData } from '../../../shared/utils/media-utils'
@@ -79,7 +79,11 @@ export async function trashListHandler(context: Context<AppEnv>) {
     }
     const entries = items.map((item) => toEntryEnvelope(item, seed, actor))
 
-    return context.json({ items: entries, total, page, limit })
+    // A failed settings read must fail the request: a default here would show a wrong countdown.
+    const settings = await context.get('siteSettingsRepository').getAll()
+    const retentionDays = resolveRetentionDays(seed, settings.trashRetentionDays)
+
+    return context.json({ items: entries, total, page, limit, retentionDays })
   } catch (error) {
     return handleContentDatabaseError(context, error)
   }

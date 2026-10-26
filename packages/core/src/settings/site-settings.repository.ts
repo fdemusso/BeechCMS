@@ -17,6 +17,8 @@ export interface SiteSettings {
   locales: string[] | null
   /** Default content locale. `null` = never configured. */
   defaultLocale: string | null
+  /** Global Trash retention in days; a seed's `retentionDays` overrides it. `0` = never purge. Default 14. */
+  trashRetentionDays: number
 }
 
 export interface ISiteSettingsRepository {

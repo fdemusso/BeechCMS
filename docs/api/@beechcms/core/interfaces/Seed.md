@@ -99,8 +99,9 @@ Custom editor form layout. Absent when no override is stored.
 
 > `optional` **retentionDays?**: `number`
 
-Number of days to retain entries before automatic cleanup or anonymization (GDPR compliance).
-Must be a positive integer (\>= 1) when specified.
+Days a trashed entry is kept before the retention sweep purges it.
+Overrides the global `trashRetentionDays` site setting; `0` means never purge.
+Absent means use the global value. Integer `0..36500`.
 
 ***
 

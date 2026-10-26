@@ -272,8 +272,9 @@ export interface Seed {
    */
   displayNameAlias: string
   /**
-   * Number of days to retain entries before automatic cleanup or anonymization (GDPR compliance).
-   * Must be a positive integer (>= 1) when specified.
+   * Days a trashed entry is kept before the retention sweep purges it.
+   * Overrides the global `trashRetentionDays` site setting; `0` means never purge.
+   * Absent means use the global value. Integer `0..36500`.
    */
   retentionDays?: number
   /** List of fields (Branch). */

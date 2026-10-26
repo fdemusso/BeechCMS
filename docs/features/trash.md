@@ -19,7 +19,7 @@ There is nothing to enable: the `softDelete` Seed flag is deprecated and ignored
 - **Irreversible purge**: `?purge=true` (or the Trash's *Delete forever*) acts only on an entry already in the Trash. It drops the row, cascades junction and draft rows, deletes attached R2 media, and appends an erasure event to the deletion ledger.
 - **The ledger outlives D1**: erasure events are written to Cloudflare R2, one immutable object per event. A D1 Time Travel restore rewinds every table it wrote — including any ledger that lived there. The R2 log is the sole source of truth for "this was erased".
 - **Reconciliation**: an operator route replays the ledger against a restored database and re-erases anything a restore resurrected.
-- **Retention as an interface, not a job**: `retentionDays` drives a countdown in the Trash and a pure `findExpiredByRetention` query. Nothing deletes anything on a timer — see [Retention](#retention-windows).
+- **Retention is enforced**: a sweep on the cron purges trashed entries past their retention. The default is 14 days, a Seed's `retentionDays` overrides it, and `0` means never purge — see [Retention](#retention-windows).
 
 ---
 
@@ -35,7 +35,7 @@ export const OrderSeed = defineSeed({
   label: 'Order',
   labelPlural: 'Orders',
   displayNameAlias: 'reference',
-  retentionDays: 30,  // [!code highlight] optional: drives the countdown shown in the Trash
+  retentionDays: 30,  // [!code highlight] optional: overrides the global retention; 0 = never purge
   branches: [
     { alias: 'reference', type: 'text', requiredOnCreate: true },
     { alias: 'total', type: 'number' },
@@ -148,13 +148,28 @@ Reconcile is an **operator / compliance action**, not an editor action — it is
 
 ## Retention Windows
 
-`retentionDays` on a Seed defines how long a trashed entry is kept before it is considered expired. Two consumers use it:
+A trashed entry is kept for its **effective retention** and then purged by a sweep. The effective value is resolved in this order:
 
-1. **The Trash UI** renders a per-row countdown (*"12 days left"*). A Seed with no `retentionDays` shows `—`, never *"0 days left"* — "no policy" and "expires today" must not look alike.
-2. **`ContentRepository.findExpiredByRetention(seed, now, limit)`** is a pure query returning the ids of trashed entries where `deleted_at + retentionDays * 86400 <= now`. It reads no clock of its own; the caller supplies `now`.
+1. The Seed's `retentionDays`, when set. `0` means *never purge* for that Seed.
+2. Otherwise the global `trashRetentionDays` site setting. It defaults to **14** and `0` means *never purge*.
 
-> [!NOTE]
-> **No scheduler is wired up.** `findExpiredByRetention` is currently uncalled: retention is exposed as an interface, not a job. Nothing deletes anything on a timer, client- or server-side — the countdown is informational, and expired entries stay in the Trash until someone purges them. Automating it is a deliberate future step, not an oversight.
+`trashRetentionDays` is an integer `0..36500` on `GET /api/settings` and `PUT /api/settings` (`manage_users`, global scope). A malformed value is refused with `400 settings-invalid-trash-retention` and nothing is stored; `null` is refused too, because there is no "reset to default" value.
+
+### The sweep
+
+The sweep runs inside the existing Cron Trigger, every 5 minutes:
+
+- At most **25** purges are attempted per run, across all Seeds, oldest deletion first.
+- Every purge goes through the same path as *Delete forever*: the ledger event is written first, with `actorId: null` to mark a system purge, then the row is deleted.
+- R2 media cleanup is non-blocking. A failure leaves orphaned files, never a failed purge.
+- No lifecycle hooks, automations or activity-log entries run: they already fired when the entry was trashed.
+- An entry restored or purged by a user between the query and the purge is skipped silently.
+- If the site settings cannot be read, the run purges nothing. It never falls back to the default, so a transient error cannot erase entries an admin chose to keep.
+- With no storage configured the ledger cannot be written, so every purge fails and the rows stay in the Trash.
+
+### What the Trash shows
+
+`GET /api/content/:seed/trash` returns the effective `retentionDays` for that Seed next to `items`, `total`, `page` and `limit`. `0` means never purge.
 
 ---
 

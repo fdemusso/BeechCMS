@@ -1020,13 +1020,23 @@ describe('D1ContentRepository', () => {
   })
 
   describe('findExpiredByRetention', () => {
-    it('returns an empty list without querying when the seed has no retentionDays', async () => {
+    it('returns an empty list without querying when the effective retention is 0', async () => {
       const { db, prepareMock } = makeMockDb()
 
-      const ids = await new D1ContentRepository(db).findExpiredByRetention(SEED, 2_000_000, 10)
+      const ids = await new D1ContentRepository(db).findExpiredByRetention(SEED, 0, 2_000_000, 10)
 
       expect(ids).toEqual([])
       expect(prepareMock).not.toHaveBeenCalled()
+    })
+
+    it('binds now - days*86400 as the cutoff and the limit, oldest deletion first', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb({ allResults: [{ id: 'e1' }, { id: 'e2' }] })
+
+      const ids = await new D1ContentRepository(db).findExpiredByRetention(SEED, 14, 2_000_000, 10)
+
+      expect(ids).toEqual(['e1', 'e2'])
+      expect(bindMock).toHaveBeenCalledWith(2_000_000 - 14 * 86400, 10)
+      expect(prepareMock.mock.calls[0][0]).toContain('ORDER BY deleted_at ASC')
     })
   })
 

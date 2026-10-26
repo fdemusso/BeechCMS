@@ -56,7 +56,7 @@ A `Seed` is the top-level content type definition. Only `slug`, `label`, `displa
 | `allowPublicEdit` | `boolean` | — | `false` | Enables `PUT /api/v1/public/:seed/edit/:id`. |
 | `allowDrafts` | `boolean` | — | `false` | Provisions a mirror `content_{slug}_drafts` table and enables `/draft` endpoints for pending-review workflows. |
 | `softDelete` | `boolean` | — | — | Deprecated, ignored: every seed has a Trash. Kept only so existing definitions still validate. See [Trash, Soft Delete & GDPR Purge](/features/trash). |
-| `retentionDays` | `number` | — | — | GDPR auto-cleanup/anonymization window. Must be a positive integer (`>= 1`) when set. It drives the Trash retention countdown and `findExpiredByRetention`; **no scheduler deletes anything on a timer**. |
+| `retentionDays` | `number` | — | — | Days a trashed entry is kept before the retention sweep purges it. An integer `0..36500`; overrides the global `trashRetentionDays` setting, and `0` means never purge. Absent means use the global value. |
 | `dashboard` | `DashboardSeedConfig` | — | — | UI-only config (icon, sidebar group/order, feature toggles, authorized views). Completely ignored by the Botanical Engine — safe to omit. See below. |
 | `layout` | `unknown` | — | — | Custom editor form layout. Populated server-side; never set this from a candidate — it is engine-ignored and managed separately via the layout endpoints. |
 

@@ -545,21 +545,23 @@ describe('validateSeedDefinitions', () => {
 
   // ── Fatal 13: retentionDays validation ─────────────────────────────────────
 
-  it('fatal: rejects non-integer or non-positive retentionDays', () => {
-    const invalidValues = [0, -5, 1.5, NaN, -Infinity]
+  it('fatal: rejects non-integer, negative or out-of-range retentionDays', () => {
+    const invalidValues = [-1, 1.5, NaN, 36501]
     for (const val of invalidValues) {
       const seeds = [makeSeed({ slug: 'leads', retentionDays: val })]
       const issues = validateSeedDefinitions(seeds)
       const fatal = issues.filter(i => i.fatal && i.slug === 'leads')
       expect(fatal.length).toBeGreaterThan(0)
-      expect(fatal[0].messages.some(m => m.includes('retentionDays must be a positive integer'))).toBe(true)
+      expect(fatal[0].messages.some(m => m.includes('retentionDays must be an integer between 0 and'))).toBe(true)
     }
   })
 
-  it('accepts valid positive integer retentionDays', () => {
-    const seeds = [makeSeed({ slug: 'leads', retentionDays: 30 })]
-    const issues = validateSeedDefinitions(seeds)
-    expect(issues.filter(i => i.fatal)).toEqual([])
+  it('accepts retentionDays 0 (never purge) and 30', () => {
+    for (const val of [0, 30]) {
+      const seeds = [makeSeed({ slug: 'leads', retentionDays: val })]
+      const issues = validateSeedDefinitions(seeds)
+      expect(issues.filter(i => i.fatal)).toEqual([])
+    }
   })
 
   // ── Fatal 14: publicEdit validation ─────────────────────────────────────────
