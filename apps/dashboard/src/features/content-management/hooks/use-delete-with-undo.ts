@@ -60,6 +60,10 @@ export function useDeleteWithUndo(): DeleteWithUndo {
       // No toast `id`: a shared id would make one deletion's Undo replace another's.
       toast.success(t("content.undoDelete.trashed"), {
         duration: UNDO_DELETE_TOAST_MS,
+        // `.undo-toast` (index.css) draws the countdown bar and styles the action like our outline Button.
+        // Without `content:update` there is no Undo, so no countdown either.
+        className: can("content:update", slug) ? "undo-toast" : undefined,
+        style: { "--undo-duration": `${UNDO_DELETE_TOAST_MS}ms` } as React.CSSProperties,
         action: can("content:update", slug)
           ? {
               label: t("content.undoDelete.undo"),
