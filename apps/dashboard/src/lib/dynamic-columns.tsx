@@ -22,6 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ALIGN_JUSTIFY_CLASS, getBranchAlign, type ColumnAlign } from "@/lib/column-alignment"
@@ -432,6 +433,7 @@ export function generateColumns(
                     disabled={!canDelete}
                   >
                     {translate("common.delete")}
+                    <DropdownMenuShortcut>Del</DropdownMenuShortcut>
                   </DropdownMenuItem>
                 </>
               ) : (
@@ -454,6 +456,7 @@ export function generateColumns(
                     disabled={!canUpdate}
                   >
                     {translate("common.edit")}
+                    <DropdownMenuShortcut>Enter</DropdownMenuShortcut>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => onDelete(entry.id)}
@@ -461,6 +464,7 @@ export function generateColumns(
                     disabled={!canDelete}
                   >
                     {translate("common.delete")}
+                    <DropdownMenuShortcut>Del</DropdownMenuShortcut>
                   </DropdownMenuItem>
                 </>
               )}

@@ -115,6 +115,7 @@ vi.mock("@/components/ui/context-menu", () => ({
   ContextMenuItem: ({ children, onSelect }: any) => <button onClick={onSelect}>{children}</button>,
   ContextMenuLabel: ({ children }: any) => <div>{children}</div>,
   ContextMenuSeparator: () => <div />,
+  ContextMenuShortcut: () => null,
 }))
 
 vi.mock("@/features/navigation", () => ({
