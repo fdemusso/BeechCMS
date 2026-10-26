@@ -15,6 +15,11 @@ import { dispatchQueueBatch } from './shared/jobs/queue-consumer'
 import { createBucketProvider } from './shared/storage/factory'
 import { CloudflareQueueService } from './shared/services/queue/cloudflare-queue-service'
 import { runSeedMediaPurgeStep, SEED_MEDIA_PURGE_JOB } from './features/seeds/seed-media-purge'
+import { isRetentionSweepTick, runRetentionSweep } from './features/content/jobs/retention-sweep'
+import { D1MediaRepository } from './shared/db/repositories/media.repository.d1'
+import { D1SystemStatsRepository } from './shared/db/repositories/system-stats.repository.d1'
+import { D1SiteSettingsRepository } from './shared/db/repositories/site-settings.repository.d1'
+import { R2DeletionLedger } from './shared/storage/deletion-ledger'
 import { semanticSearchHooks, semanticSearchJobs } from './features/search'
 import { contentImportJobs } from './features/content/jobs/import-chunk.worker'
 import type { Env } from './types'
@@ -124,6 +129,32 @@ export default {
           if (more) await purgeQueue?.enqueue(SEED_MEDIA_PURGE_JOB, { jobId })
         } catch (error) {
           console.error(`[seed-purge] job ${jobId} failed; cron will retry`, error)
+        }
+      })())
+    }
+
+    if (isRetentionSweepTick(scheduledTime)) {
+      ctx.waitUntil((async () => {
+        try {
+          // Built with the ledger: purge without it would erase with nothing recorded.
+          await runRetentionSweep(
+            {
+              repository: new D1ContentRepository(env.DB, undefined, undefined, undefined, new R2DeletionLedger(bucket), SystemClock),
+              siteSettingsRepository: new D1SiteSettingsRepository(env.DB),
+              seeds: registry.all(),
+              media: {
+                var: {
+                  bucket,
+                  mediaRepository: new D1MediaRepository(env.DB),
+                  systemStatsRepository: new D1SystemStatsRepository(env.DB),
+                },
+              },
+              cdnUrl: env.MEDIA_CDN_URL,
+            },
+            Math.floor(scheduledTime / 1000),
+          )
+        } catch (error) {
+          console.error('[retention-sweep] run failed; next sweep tick retries', error)
         }
       })())
     }

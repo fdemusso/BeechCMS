@@ -110,6 +110,7 @@ describe('loadPublicLanguage', () => {
       companyAbbreviation: null,
       locales: ['it', 'en'],
       defaultLocale: 'it',
+      trashRetentionDays: 14,
     }
     const getAll = vi.fn<ISiteSettingsRepository['getAll']>().mockResolvedValue(settings)
 

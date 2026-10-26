@@ -65,3 +65,11 @@ which is the dashboard UI language.
 ### timezone
 
 > **timezone**: `string`
+
+***
+
+### trashRetentionDays
+
+> **trashRetentionDays**: `number`
+
+Global Trash retention in days; a seed's `retentionDays` overrides it. `0` = never purge. Default 14.

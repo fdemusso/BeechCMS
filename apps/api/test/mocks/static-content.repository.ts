@@ -12,6 +12,7 @@ import {
   type BatchWrite,
   type RepositoryOptions,
   type PurgeResult,
+  type PurgeOptions,
   type BulkDeleteResult,
   type TrashedMode,
   Seed,
@@ -19,6 +20,8 @@ import {
   DraftSummary,
   FilterGroup,
   FilterCondition,
+  toTrashedSlug,
+  fromTrashedSlug,
 } from '@beechcms/core'
 
 type Entry = Record<string, any>
@@ -125,13 +128,13 @@ export class StaticContentRepository implements ContentRepository {
 
   async findById(seed: Seed, id: string, options?: { trashed?: TrashedMode }): Promise<Entry> {
     const trashed = options?.trashed ?? 'active'
-    const entry = this.getTable(seed.slug).find((e) => e.id === id && this.matchesTrashed(seed, e, trashed))
+    const entry = this.getTable(seed.slug).find((e) => e.id === id && this.matchesTrashed(e, trashed))
     if (!entry) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
     return { ...entry }
   }
 
-  private matchesTrashed(seed: Seed, entry: Entry, mode: TrashedMode): boolean {
-    if (!seed.softDelete || mode === 'any') return true
+  private matchesTrashed(entry: Entry, mode: TrashedMode): boolean {
+    if (mode === 'any') return true
     return mode === 'trashed' ? entry.deleted_at != null : entry.deleted_at == null
   }
 
@@ -206,40 +209,38 @@ export class StaticContentRepository implements ContentRepository {
     }
   }
 
-  async delete(seed: Seed, id: string, _options?: RepositoryOptions): Promise<{ row: Entry }> {
-    const table = this.getTable(seed.slug)
-    const idx = table.findIndex((e) => e.id === id)
-    if (idx === -1) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
-    const [row] = table.splice(idx, 1)
-    return { row }
-  }
-
   async softDelete(seed: Seed, id: string, _options?: RepositoryOptions): Promise<{ row: Entry }> {
-    if (!seed.softDelete) throw new RepositoryError(`softDelete(${seed.slug}): seed has no softDelete enabled`)
     const table = this.getTable(seed.slug)
     const idx = table.findIndex((e) => e.id === id && e.deleted_at == null)
     if (idx === -1) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
-    table[idx] = { ...table[idx], deleted_at: Math.floor(Date.now() / 1000) }
-    return { row: { ...table[idx] } }
+    const deletedAtMs = Date.now()
+    const row = { ...table[idx] }
+    table[idx] = {
+      ...table[idx],
+      deleted_at: Math.floor(deletedAtMs / 1000),
+      slug: toTrashedSlug(table[idx].slug as string, deletedAtMs),
+    }
+    return { row }
   }
 
   async restore(seed: Seed, id: string, _options?: RepositoryOptions): Promise<{ row: Entry }> {
-    if (!seed.softDelete) throw new RepositoryError(`restore(${seed.slug}): seed has no softDelete enabled`)
     const table = this.getTable(seed.slug)
     const idx = table.findIndex((e) => e.id === id && e.deleted_at != null)
     if (idx === -1) throw new EntryNotFoundError(`Trashed entry ${id} not found in ${seed.slug}`)
 
-    let slug = table[idx].slug as string
+    const originalSlug = fromTrashedSlug(table[idx].slug as string)
+    let slug = originalSlug
     if (table.some((e) => e.id !== id && e.slug === slug && e.deleted_at == null)) {
-      slug = `${slug}-restored-${id.slice(0, 8)}`
+      slug = `${originalSlug}-restored-${id.slice(0, 8)}`
     }
     table[idx] = { ...table[idx], deleted_at: null, slug, updated_at: Math.floor(Date.now() / 1000) }
     return { row: { ...table[idx] } }
   }
 
-  async purge(seed: Seed, id: string, _options?: RepositoryOptions): Promise<PurgeResult> {
+  async purge(seed: Seed, id: string, options?: PurgeOptions): Promise<PurgeResult> {
     const table = this.getTable(seed.slug)
-    const idx = table.findIndex((e) => e.id === id)
+    const mode = options?.trashed ?? 'trashed'
+    const idx = table.findIndex((e) => e.id === id && this.matchesTrashed(e, mode))
     if (idx === -1) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
     const [row] = table.splice(idx, 1)
     return { row, ledgerWritten: false }
@@ -275,9 +276,9 @@ export class StaticContentRepository implements ContentRepository {
     return { succeeded, failed, rows }
   }
 
-  async findExpiredByRetention(seed: Seed, now: number, limit: number): Promise<string[]> {
-    if (!seed.softDelete || !seed.retentionDays) return []
-    const cutoff = now - seed.retentionDays * 86400
+  async findExpiredByRetention(seed: Seed, retentionDays: number, now: number, limit: number): Promise<string[]> {
+    if (retentionDays <= 0 || limit <= 0) return []
+    const cutoff = now - retentionDays * 86400
     return this.getTable(seed.slug)
       .filter((e) => e.deleted_at != null && e.deleted_at <= cutoff)
       .slice(0, limit)

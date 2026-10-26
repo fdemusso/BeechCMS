@@ -80,7 +80,7 @@ export function planExtendSeed(
     }
   }
   // System column, not a branch: the branch loop above can never emit it.
-  if (seed.softDelete && !existingColumns.has('deleted_at')) {
+  if (!existingColumns.has('deleted_at')) {
     statements.push(...generateEnableSoftDelete(seed))
   }
   // Draft-table system column. Emitted only when the caller actually introspected

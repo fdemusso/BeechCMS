@@ -11,6 +11,15 @@ import type { D1Database, D1PreparedStatement, D1Result, D1ExecResult, D1Databas
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const MIGRATIONS_DIR = join(__dirname, '../../migrations')
 
+const SKIPPED_SEED_TABLE_LINE = /content_(products|reviews|tasks)|idx_(products|reviews|tasks)_/
+
+function withoutSkippedSeedTables(sql: string): string {
+  return sql
+    .split('\n')
+    .filter(line => !SKIPPED_SEED_TABLE_LINE.test(line))
+    .join('\n')
+}
+
 export interface D1TestDatabaseOptions {
   applyMigrations?: boolean
   seedSql?: string[]
@@ -33,7 +42,8 @@ export class D1TestDatabase implements D1Database {
         // Skip data-only migrations (demo seeds): they INSERT into content tables
         // that the Botanical Engine creates at runtime, not via SQL migrations.
         if (f === '0030_test_seeds.sql') continue
-        this.db.exec(sql)
+        // 0038 also alters the tables 0030 creates, which are absent here.
+        this.db.exec(f === '0038_content_deleted_at.sql' ? withoutSkippedSeedTables(sql) : sql)
       }
     }
     for (const sql of opts.seedSql ?? []) this.db.exec(sql)

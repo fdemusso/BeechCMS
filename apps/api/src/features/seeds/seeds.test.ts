@@ -436,7 +436,7 @@ describe('POST /:slug/branches (add branch)', () => {
 
   it('column already present: no ADD COLUMN emitted', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const existingCols = new Set(['id', 'title', 'body', 'excerpt'])
+    const existingCols = new Set(['id', 'title', 'body', 'excerpt', 'deleted_at'])
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(existingCols) })
     const { app } = buildApp({ role: 'admin', repo, mutator })
 

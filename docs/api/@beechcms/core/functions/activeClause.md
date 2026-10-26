@@ -8,7 +8,7 @@
 
 > **activeClause**(`seed`, `mode?`, `tableAlias?`): `string`
 
-Returns ` AND <activeCondition>` for a soft-delete seed, or `''` otherwise.
+Returns ` AND <activeCondition>`, or `''` when mode is 'any'.
 
 ## Parameters
 

@@ -28,6 +28,7 @@ import {
   type IDeletionLedger,
   type TrashedMode,
   type PurgeResult,
+  type PurgeOptions,
   type BulkDeleteResult,
   type IClock,
   buildSelectQuery,
@@ -38,6 +39,8 @@ import {
   activeClause,
   activeCondition,
   SystemClock,
+  toTrashedSlug,
+  fromTrashedSlug,
 } from '@beechcms/core'
 import { BaseD1Repository } from './base.repository.d1'
 
@@ -440,9 +443,9 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     const { results } = await this.database
       .prepare(
         `SELECT DISTINCT j.parent_id FROM ${table} j ` +
-        (seed.softDelete ? `INNER JOIN ${parentTable} p ON p.id = j.parent_id ` : '') +
+        `INNER JOIN ${parentTable} p ON p.id = j.parent_id ` +
         `WHERE j.target_id IN (${placeholders})` +
-        (seed.softDelete ? ` AND p.deleted_at IS NULL` : '') +
+        this.activeClause(seed, 'active', 'p') +
         ` LIMIT ?`,
       )
       .bind(...targetIds, limit)
@@ -1020,56 +1023,10 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   }
 
   /**
-   * Deletes an entry: runs `beforeDelete`, reads the row (for the return value), deletes it,
-   * then runs `afterDelete`. Relies on database-level `ON DELETE CASCADE` for junction rows.
-   *
-   * @returns The deserialized row as it existed immediately before deletion.
-   * @throws EntryNotFoundError if no row with `id` exists.
-   * @remarks `afterDelete` runs after the delete has committed, so it cannot roll back the write.
-   */
-  async delete(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }> {
-    if (this.hooks?.beforeDelete) {
-      await this.hooks.beforeDelete(id, this.hookCtx(seed, options?.actor))
-    }
-
-    let row: Record<string, any>
-    try {
-      const tableName = this.getTableName(seed.slug)
-
-      const entryRow = await this.database
-        .prepare(`SELECT * FROM ${tableName} WHERE id = ?`)
-        .bind(id)
-        .first()
-
-      if (!entryRow) {
-        throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
-      }
-
-      await this.database.prepare(`DELETE FROM ${tableName} WHERE id = ?`).bind(id).run()
-
-      row = await this.rowToData(seed, entryRow)
-    } catch (error) {
-      if (error instanceof EntryNotFoundError) throw error
-      throw this.mapError(error, `delete(${seed.slug}, ${id})`)
-    }
-
-    // afterDelete gira DOPO il commit: NON puo fare rollback.
-    if (this.hooks?.afterDelete) {
-      await this.hooks.afterDelete(id, this.hookCtx(seed, options?.actor))
-    }
-
-    return { row }
-  }
-
-  /**
-   * Reversible delete: stamps `deleted_at` and returns the row as it was.
-   * Runs `beforeDelete`/`afterDelete`, exactly like `delete`.
+   * Reversible delete: stamps `deleted_at` from the clock, renames the slug with `toTrashedSlug`
+   * and returns the row as it was. Runs `beforeDelete`/`afterDelete`.
    */
   async softDelete(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }> {
-    if (!seed.softDelete) {
-      throw new RepositoryError(`softDelete(${seed.slug}): seed has no softDelete enabled`)
-    }
-
     if (this.hooks?.beforeDelete) {
       await this.hooks.beforeDelete(id, this.hookCtx(seed, options?.actor))
     }
@@ -1085,9 +1042,10 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       if (!entryRow) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
 
+      const deletedAtMs = this.clock.now()
       await this.database
-        .prepare(`UPDATE ${tableName} SET deleted_at = (unixepoch()) WHERE id = ? AND deleted_at IS NULL`)
-        .bind(id)
+        .prepare(`UPDATE ${tableName} SET deleted_at = ?, slug = ? WHERE id = ? AND deleted_at IS NULL`)
+        .bind(Math.floor(deletedAtMs / 1000), toTrashedSlug(entryRow.slug as string, deletedAtMs), id)
         .run()
 
       row = await this.rowToData(seed, entryRow)
@@ -1096,7 +1054,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       throw this.mapError(error, `softDelete(${seed.slug}, ${id})`)
     }
 
-    // afterDelete runs after the commit: it cannot roll the write back, same as delete().
+    // afterDelete runs after the commit: it cannot roll the write back.
     if (this.hooks?.afterDelete) {
       await this.hooks.afterDelete(id, this.hookCtx(seed, options?.actor))
     }
@@ -1105,14 +1063,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   }
 
   /**
-   * Clears `deleted_at`. Auto-renames the slug in `catch` when it was reassigned to a live
-   * entry while this one sat in the Trash (feature brief §4 — no confirmation round-trip).
+   * Clears `deleted_at` and puts back the original slug. Auto-renames the slug in `catch` when it
+   * was reassigned to a live entry while this one sat in the Trash (feature brief §4 — no
+   * confirmation round-trip).
    */
   async restore(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }> {
-    if (!seed.softDelete) {
-      throw new RepositoryError(`restore(${seed.slug}): seed has no softDelete enabled`)
-    }
-
     const tableName = this.getTableName(seed.slug)
     const entryRow = await this.database
       .prepare(`SELECT * FROM ${tableName} WHERE id = ? AND deleted_at IS NOT NULL`)
@@ -1121,11 +1076,14 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
     if (!entryRow) throw new EntryNotFoundError(`Trashed entry ${id} not found in ${seed.slug}`)
 
+    const originalSlug = fromTrashedSlug(entryRow.slug as string)
+
     try {
       await this.database
-        .prepare(`UPDATE ${tableName} SET deleted_at = NULL, updated_at = (unixepoch()) WHERE id = ?`)
-        .bind(id)
+        .prepare(`UPDATE ${tableName} SET deleted_at = NULL, slug = ?, updated_at = (unixepoch()) WHERE id = ?`)
+        .bind(originalSlug, id)
         .run()
+      entryRow.slug = originalSlug
     } catch (error) {
       // The slug was reassigned to a live entry while this one sat in the Trash. The slug is a
       // system detail, not a decision to hand back to the user (feature brief §5): rename and
@@ -1133,7 +1091,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       const conflict = this.mapError(error, `restore(${seed.slug}, ${id})`)
       if (!(conflict instanceof SlugConflictError)) throw conflict
 
-      const renamed = `${entryRow.slug as string}-restored-${id.slice(0, 8)}`
+      const renamed = `${originalSlug}-restored-${id.slice(0, 8)}`
       await this.database
         .prepare(`UPDATE ${tableName} SET deleted_at = NULL, slug = ?, updated_at = (unixepoch()) WHERE id = ?`)
         .bind(renamed, id)
@@ -1156,7 +1114,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * lands but the delete then fails, the row survives with its erasure already recorded — a
    * retry (or `reconcilePurgesHandler`) finishes the job, since the ledger is the source of truth.
    */
-  async purge(seed: Seed, id: string, options?: RepositoryOptions): Promise<PurgeResult> {
+  async purge(seed: Seed, id: string, options?: PurgeOptions): Promise<PurgeResult> {
     if (this.hooks?.beforeDelete) {
       await this.hooks.beforeDelete(id, this.hookCtx(seed, options?.actor))
     }
@@ -1165,10 +1123,9 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
     let row: Record<string, any>
     try {
-      // No deleted_at guard: a purge is valid on a live row (seed without softDelete, or an
-      // explicit ?purge=true) and on a trashed one.
+      // Trashed-only by default; 'any' lets reconciliation re-erase a row a DB restore made live.
       const entryRow = await this.database
-        .prepare(`SELECT * FROM ${tableName} WHERE id = ?`)
+        .prepare(`SELECT * FROM ${tableName} WHERE id = ?${this.activeClause(seed, options?.trashed ?? 'trashed')}`)
         .bind(id)
         .first()
 
@@ -1246,14 +1203,15 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   }
 
   /**
-   * Pure query, no side effects: ids of trashed entries whose retention window has elapsed.
-   * Deliberately NOT wired to any scheduler — the recurring-automation adapter is future work.
+   * Pure query, no side effects: ids of trashed entries whose retention window has elapsed,
+   * oldest deletion first. `retentionDays` is the effective value; `0` = never purge.
+   * Called by the retention sweep.
    */
-  async findExpiredByRetention(seed: Seed, now: number, limit: number): Promise<string[]> {
-    if (!seed.softDelete || !seed.retentionDays) return []
+  async findExpiredByRetention(seed: Seed, retentionDays: number, now: number, limit: number): Promise<string[]> {
+    if (retentionDays <= 0 || limit <= 0) return []
 
     const tableName = this.getTableName(seed.slug)
-    const cutoff = now - seed.retentionDays * 86400
+    const cutoff = now - retentionDays * 86400
     const { results } = await this.database
       .prepare(
         `SELECT id FROM ${tableName} WHERE deleted_at IS NOT NULL AND deleted_at <= ? ORDER BY deleted_at ASC LIMIT ?`,

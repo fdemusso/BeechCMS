@@ -106,7 +106,6 @@ export function vectorTableName(seed: Seed): string {
  * @returns True if the column is valid, false otherwise.
  */
 export function isValidColumn(seed: Seed, col: string): boolean {
-  if (col === 'deleted_at') return seed.softDelete === true
   if (SYSTEM_COLUMNS.has(col)) return true
   return seed.branches.some(b => b.alias === col)
 }
@@ -168,12 +167,9 @@ export function generateCreateTable(seed: Seed): string {
   const lines: string[] = [
     `CREATE TABLE IF NOT EXISTS ${table} (`,
     `  id         TEXT    NOT NULL PRIMARY KEY,`,
-    // Soft-delete tables carry uniqueness in a PARTIAL unique index instead, so a trashed
-    // row stops reserving its slug. An inline UNIQUE would become a sqlite_autoindex that
-    // no ALTER TABLE can drop later.
-    seed.softDelete
-      ? `  slug       TEXT    NOT NULL,`
-      : `  slug       TEXT    NOT NULL UNIQUE,`,
+    // Uniqueness lives in a PARTIAL unique index instead, so a trashed row stops reserving
+    // its slug. An inline UNIQUE would become a sqlite_autoindex that no ALTER TABLE can drop later.
+    `  slug       TEXT    NOT NULL,`,
     `  status     TEXT    NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'review', 'published', 'archived')),`,
   ]
 
@@ -191,8 +187,8 @@ export function generateCreateTable(seed: Seed): string {
   }
 
   lines.push(`  created_at INTEGER NOT NULL DEFAULT (unixepoch()),`)
-  lines.push(`  updated_at INTEGER NOT NULL DEFAULT (unixepoch())` + (seed.softDelete ? ',' : ''))
-  if (seed.softDelete) lines.push(`  deleted_at INTEGER`)
+  lines.push(`  updated_at INTEGER NOT NULL DEFAULT (unixepoch()),`)
+  lines.push(`  deleted_at INTEGER`)
   lines.push(`);`)
 
   return lines.join('\n')
@@ -328,13 +324,11 @@ export function generateIndexes(seed: Seed): string[] {
     }
   }
 
-  if (seed.softDelete) {
-    indexes.push(`CREATE INDEX IF NOT EXISTS idx_${slug}_deleted_at ON ${table}(deleted_at);`)
-    // Active rows only: a trashed row releases its slug for reuse (feature brief §4).
-    indexes.push(
-      `CREATE UNIQUE INDEX IF NOT EXISTS idx_${slug}_slug_active ON ${table}(slug) WHERE deleted_at IS NULL;`
-    )
-  }
+  indexes.push(`CREATE INDEX IF NOT EXISTS idx_${slug}_deleted_at ON ${table}(deleted_at);`)
+  // Active rows only: a trashed row releases its slug for reuse (feature brief §4).
+  indexes.push(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_${slug}_slug_active ON ${table}(slug) WHERE deleted_at IS NULL;`
+  )
 
   return indexes
 }
@@ -473,9 +467,7 @@ export function getExpectedColumns(seed: Seed): SchemaColumn[] {
     ...branchCols,
     { name: 'created_at', sqlType: 'INTEGER', notNull: true,  isPk: false },
     { name: 'updated_at', sqlType: 'INTEGER', notNull: true,  isPk: false },
-    ...(seed.softDelete
-      ? [{ name: 'deleted_at', sqlType: 'INTEGER' as const, notNull: false, isPk: false }]
-      : []),
+    { name: 'deleted_at', sqlType: 'INTEGER', notNull: false, isPk: false },
   ]
 }
 
@@ -745,16 +737,13 @@ export function generateRetypeIncompatibleCount(seed: Seed, branch: Branch): str
 
 
 /**
- * Additive statements that turn soft delete on for a table that already exists.
+ * Additive statements that upgrade a table predating universal soft delete.
  *
- * The partial unique index is emitted for correctness on tables that were CREATED with
- * `softDelete: true`. On a pre-existing table the inline `slug … UNIQUE` survives as a
- * sqlite_autoindex that SQLite cannot drop via ALTER; there the partial index is redundant
- * and a trashed slug stays reserved until the table is rebuilt (see ROADMAP deferral).
- * Returns [] when the seed does not opt in.
+ * On a pre-existing table the inline `slug … UNIQUE` survives as a sqlite_autoindex that
+ * SQLite cannot drop via ALTER; there the partial index is redundant, and the `_old_<ms>`
+ * slug rename on soft delete is what frees the slug. Callers decide when to emit these.
  */
 export function generateEnableSoftDelete(seed: Seed): string[] {
-  if (!seed.softDelete) return []
   const table = tableName(seed)
   const slug = seed.slug
   return [

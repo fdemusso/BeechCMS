@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import type { Seed } from '../types.js'
+import { isValidRetentionDays, MAX_RETENTION_DAYS } from '../../content/retention.js'
 import { AUTOMATION_RESERVED_WORDS } from '../../automations/automations-grammar-words.js'
 import { SYSTEM_COLUMNS } from '../ddl/ddl.js'
 import { LOCALIZABLE_BRANCH_TYPES } from '../localization/localization.js'
@@ -317,11 +318,11 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
 
   // ── Fatal 13: retentionDays validation ─────────────────────────────────────
   for (const seed of seeds) {
-    if (seed.retentionDays !== undefined && (!Number.isInteger(seed.retentionDays) || seed.retentionDays <= 0)) {
+    if (seed.retentionDays !== undefined && !isValidRetentionDays(seed.retentionDays)) {
       result.push({
         slug: seed.slug,
         messages: [
-          `retentionDays must be a positive integer >= 1 (got ${seed.retentionDays}).`,
+          `retentionDays must be an integer between 0 and ${MAX_RETENTION_DAYS} (0 = never purge; got ${seed.retentionDays}).`,
         ],
         fatal: true,
       })
@@ -348,17 +349,6 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
           `slug '${seed.slug}' is invalid. Expected format ${SEED_SLUG_RE.source} ` +
           `(lowercase letters, numbers, and underscores only).`,
         ],
-        fatal: true,
-      })
-    }
-  }
-
-  // ── Fatal 16: softDelete type validation ────────────────────────────────────
-  for (const seed of seeds) {
-    if (seed.softDelete !== undefined && typeof seed.softDelete !== 'boolean') {
-      result.push({
-        slug: seed.slug,
-        messages: [`softDelete must be a boolean (got ${typeof seed.softDelete}).`],
         fatal: true,
       })
     }

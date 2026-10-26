@@ -93,9 +93,6 @@ function createFakeRepository() {
       Object.assign(existing, data, status !== undefined ? { status } : {})
       updates.push({ seedSlug: seed.slug, id, data })
     },
-    async delete() {
-      throw new Error('not implemented in fake repository')
-    },
   }
 
   return { repository, tables, updates }

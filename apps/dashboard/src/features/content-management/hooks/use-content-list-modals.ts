@@ -3,11 +3,15 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
+import { toast } from "sonner"
 import type { RowSelectionState } from "@tanstack/react-table"
 import { useDeleteContent } from "./use-content-facets"
+import { useDeleteWithUndo } from "./use-delete-with-undo"
 
 export function useContentListModals(slug: string | undefined) {
+  const { t } = useTranslation()
   const { id: entryId } = useParams<{ slug: string; id?: string }>()
   const navigate = useNavigate()
   const location = useLocation()
@@ -52,6 +56,7 @@ export function useContentListModals(slug: string | undefined) {
   const [importWizardOpen, setImportWizardOpen] = React.useState(false)
 
   const { mutateAsync: deleteContent } = useDeleteContent()
+  const { deleteWithUndo } = useDeleteWithUndo()
 
   const handleEdit = React.useCallback(
     (id: string) => {
@@ -60,17 +65,32 @@ export function useContentListModals(slug: string | undefined) {
     [slug, navigate, location.search]
   )
 
-  const handleDelete = React.useCallback((id: string) => {
-    setEntryIdsToDelete([id])
-    setDeleteDialogOpen(true)
-  }, [])
+  const handleDelete = React.useCallback(
+    (id: string) => {
+      if (!slug) return
+      void deleteWithUndo({ slug, id })
+      setRowSelection((selection) => {
+        const { [id]: _removed, ...rest } = selection
+        return rest
+      })
+    },
+    [slug, deleteWithUndo]
+  )
 
-  const handleBulkDelete = React.useCallback((ids: string[]) => {
-    const unique = Array.from(new Set(ids)).filter(Boolean)
-    if (!unique.length) return
-    setEntryIdsToDelete(unique)
-    setDeleteDialogOpen(true)
-  }, [])
+  const handleBulkDelete = React.useCallback(
+    (ids: string[]) => {
+      const unique = Array.from(new Set(ids)).filter(Boolean)
+      if (!unique.length) return
+      // The Del key routes one focused row through here; a single deletion is always instant.
+      if (unique.length === 1) {
+        handleDelete(unique[0])
+        return
+      }
+      setEntryIdsToDelete(unique)
+      setDeleteDialogOpen(true)
+    },
+    [handleDelete]
+  )
 
   const handleCreate = React.useCallback(
     (defaultValues?: Record<string, unknown> | React.SyntheticEvent | Event) => {
@@ -99,15 +119,26 @@ export function useContentListModals(slug: string | undefined) {
     const results = await Promise.allSettled(
       entryIdsToDelete.map((id) => deleteContent({ slug, id }))
     )
-    const failures = results.filter((r) => r.status === "rejected").length
-    if (failures > 0) {
-      throw new Error(
-        `Partial deletion: ${failures} out of ${entryIdsToDelete.length} failed`
-      )
+    const failedIds = entryIdsToDelete.filter((_, index) => results[index].status === "rejected")
+
+    if (failedIds.length === 0) {
+      setRowSelection({})
+      toast.success(t("content.deleteDialog.bulkTrashed", { count: entryIdsToDelete.length }))
+      return
     }
 
-    setRowSelection({})
-  }, [slug, entryIdsToDelete, deleteContent])
+    const failedIdSet = new Set(failedIds)
+    setRowSelection((selection) =>
+      Object.fromEntries(Object.entries(selection).filter(([id]) => failedIdSet.has(id)))
+    )
+    setEntryIdsToDelete(failedIds)
+    throw new Error(
+      t("content.deleteDialog.bulkPartialFailure", {
+        count: failedIds.length,
+        total: entryIdsToDelete.length,
+      })
+    )
+  }, [slug, entryIdsToDelete, deleteContent, t])
 
   const handleBulkEdit = React.useCallback((ids: string[]) => {
     const unique = Array.from(new Set(ids)).filter(Boolean)

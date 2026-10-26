@@ -24,6 +24,18 @@ describe("useContentDeleteDialog", () => {
     expect(result.current.hasMore).toBe(false)
   })
 
+  it("resolves trash mode when no mode is given", () => {
+    const { result } = renderHook(() =>
+      useContentDeleteDialog({
+        entryIds: ["id-1"],
+        onConfirm: vi.fn(),
+        onOpenChange: vi.fn(),
+      })
+    )
+
+    expect(result.current.resolvedMode).toBe("trash")
+  })
+
   it("handles null entryIds safely", () => {
     const { result } = renderHook(() =>
       useContentDeleteDialog({

@@ -15,6 +15,8 @@ export interface TrashListResponse {
   total: number
   page: number
   limit: number
+  /** Effective retention for this seed (seed override, else global setting). 0 = never purged. */
+  retentionDays: number
 }
 
 interface BulkTrashFailedItem {

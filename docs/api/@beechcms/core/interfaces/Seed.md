@@ -99,8 +99,9 @@ Custom editor form layout. Absent when no override is stored.
 
 > `optional` **retentionDays?**: `number`
 
-Number of days to retain entries before automatic cleanup or anonymization (GDPR compliance).
-Must be a positive integer (\>= 1) when specified.
+Days a trashed entry is kept before the retention sweep purges it.
+Overrides the global `trashRetentionDays` site setting; `0` means never purge.
+Absent means use the global value. Integer `0..36500`.
 
 ***
 
@@ -112,11 +113,13 @@ Identifying slug — also the table name: `content_{slug}`.
 
 ***
 
-### softDelete?
+### ~~softDelete?~~
 
 > `optional` **softDelete?**: `boolean`
 
-Enables the Trash for this content type. When true, `content_{slug}` carries a
-`deleted_at INTEGER NULL` column, `DELETE` becomes a reversible soft delete, and every
-read excludes trashed rows unless the caller opts in via `SelectOptions.trashed`.
-Default: false.
+#### Deprecated
+
+Ignored. Every seed has a Trash: `content_{slug}` always carries `deleted_at`,
+`DELETE` is always a reversible soft delete, and every read excludes trashed rows unless
+the caller opts in via `SelectOptions.trashed`. Kept only so existing seed definitions
+still type-check.

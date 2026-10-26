@@ -4,6 +4,8 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import {
+  activeClause,
+  activeCondition,
   isDateRange,
   type Seed,
   type IWidgetRepository,
@@ -60,7 +62,7 @@ export class D1WidgetRepository implements IWidgetRepository {
     const sql =
       `SELECT ${aggregateExpression.sql} as computed_value
          FROM ${tableName}
-        WHERE ${timeWindowFilter}`
+        WHERE ${timeWindowFilter}${activeClause(seed)}`
 
     const row = await this.database
       .prepare(sql)
@@ -80,11 +82,11 @@ export class D1WidgetRepository implements IWidgetRepository {
 
     const [currentRow, previousRow] = await Promise.all([
       this.database
-        .prepare(`SELECT ${aggregateExpression.sql} as computed_value FROM ${tableName} WHERE ${currentFilter.sql}`)
+        .prepare(`SELECT ${aggregateExpression.sql} as computed_value FROM ${tableName} WHERE ${currentFilter.sql}${activeClause(seed)}`)
         .bind(...aggregateExpression.bindings, ...currentFilter.bindings)
         .first<{ computed_value: number | null }>(),
       this.database
-        .prepare(`SELECT ${aggregateExpression.sql} as computed_value FROM ${tableName} WHERE ${previousFilter.sql}`)
+        .prepare(`SELECT ${aggregateExpression.sql} as computed_value FROM ${tableName} WHERE ${previousFilter.sql}${activeClause(seed)}`)
         .bind(...aggregateExpression.bindings, ...previousFilter.bindings)
         .first<{ computed_value: number | null }>(),
     ])
@@ -106,7 +108,7 @@ export class D1WidgetRepository implements IWidgetRepository {
     const sql =
       `SELECT id, ${labelColumn} as label, ${scoreColumn} as score
          FROM ${tableName}
-        WHERE ${scoreColumn} IS NOT NULL
+        WHERE ${scoreColumn} IS NOT NULL${activeClause(seed)}
         ${orderClause}
         LIMIT ?`
 
@@ -126,6 +128,9 @@ export class D1WidgetRepository implements IWidgetRepository {
     const tableName = `content_${seed.slug}`
     const conditions: string[] = []
     const bindings: unknown[] = []
+
+    const activeFilter = activeCondition(seed, 'active')
+    if (activeFilter) conditions.push(activeFilter)
 
     const trimmedSearch = options.search?.trim() ?? ''
     if (trimmedSearch.length > 0) {
@@ -191,7 +196,7 @@ export class D1WidgetRepository implements IWidgetRepository {
       `SELECT ${dateBucketExpression} as bucket_label,
               ${aggregateExpression.sql} as bucket_value
          FROM ${tableName}
-        WHERE ${timeWindowFilter}
+        WHERE ${timeWindowFilter}${activeClause(seed)}
         GROUP BY bucket_label
         ORDER BY bucket_label ASC`
 
@@ -221,13 +226,13 @@ export class D1WidgetRepository implements IWidgetRepository {
     const sql = isTagsColumn
       ? `SELECT tag.value as label, COUNT(*) as value
            FROM ${tableName}, json_each(CASE WHEN json_valid(${columnExpression}) THEN ${columnExpression} ELSE '[]' END) AS tag
-          WHERE ${timeWindowFilter}
+          WHERE ${timeWindowFilter}${activeClause(seed)}
           GROUP BY tag.value
           ORDER BY value DESC
           LIMIT ?`
       : `SELECT ${columnExpression} as label, COUNT(*) as value
            FROM ${tableName}
-          WHERE ${timeWindowFilter}
+          WHERE ${timeWindowFilter}${activeClause(seed)}
           GROUP BY ${columnExpression}
           ORDER BY value DESC
           LIMIT ?`

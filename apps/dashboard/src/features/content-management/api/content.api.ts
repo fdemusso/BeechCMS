@@ -123,8 +123,8 @@ export const contentApi = {
 
   /**
    * Delete a content entry.
-   * On a `softDelete: true` seed this moves the entry to the Trash; `options.purge` forces the
-   * irreversible path (row + junction + drafts + R2 + ledger event).
+   * Moves the entry to the Trash; `options.purge` erases an entry that is already in the Trash
+   * (row + junction + drafts + R2 + ledger event).
    */
   delete: async (
     slug: string,

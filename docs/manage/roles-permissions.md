@@ -52,7 +52,7 @@ The [Trash](/features/trash) introduces no new permission. Its routes map onto t
 | `GET /api/content/{slug}/trash` | `content:read` on `{slug}` |
 | `POST /api/content/{slug}/{id}/restore` | `content:update` on `{slug}` |
 | `POST /api/content/{slug}/trash/bulk-restore` | `content:update` on `{slug}` |
-| `DELETE /api/content/{slug}/{id}` (soft delete or `?purge=true`) | `content:delete` on `{slug}` |
+| `DELETE /api/content/{slug}/{id}` (move to Trash, or `?purge=true` to erase an entry from the Trash) | `content:delete` on `{slug}` |
 | `POST /api/content/{slug}/trash/bulk-purge` | `content:delete` on `{slug}` |
 | `POST /api/content/{slug}/trash/reconcile` | `content:delete` on `{slug}` |
 

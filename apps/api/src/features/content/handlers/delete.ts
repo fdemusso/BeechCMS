@@ -42,11 +42,10 @@ export async function deleteHandler(context: Context<AppEnv>) {
     const actor = { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
 
     const forcePurge = context.req.query('purge') === 'true'
-    const useSoftDelete = seed.softDelete === true && !forcePurge
 
-    const { row } = useSoftDelete
-      ? await repository.softDelete(seed, entryId, { actor })
-      : await repository.purge(seed, entryId, { actor })
+    const { row } = forcePurge
+      ? await repository.purge(seed, entryId, { actor })
+      : await repository.softDelete(seed, entryId, { actor })
 
     const title = row.title || row.name || entryId
 
@@ -54,8 +53,8 @@ export async function deleteHandler(context: Context<AppEnv>) {
     dispatchContentAutomation(context, schemaSlug, 'delete', { ...row, id: entryId })
 
     // R2 lives outside the row's lifecycle: a trashed entry must stay restorable WITH its media
-    // (feature brief §4). Only an irreversible purge touches the bucket.
-    if (!useSoftDelete) {
+    // (feature brief §4). Only a purge from the Trash touches the bucket.
+    if (forcePurge) {
       const cdnUrl = context.env.MEDIA_CDN_URL
       const r2ObjectKeys = extractMediaKeysFromData(seed, row, cdnUrl)
       if (r2ObjectKeys.length > 0) {
@@ -67,7 +66,7 @@ export async function deleteHandler(context: Context<AppEnv>) {
       }
     }
 
-    return context.json({ success: true, softDeleted: useSoftDelete })
+    return context.json({ success: true, softDeleted: !forcePurge })
   } catch (error) {
     return handleContentDatabaseError(context, error)
   }

@@ -38,10 +38,10 @@ The repository never calls R2 itself: it returns the row as it existed immediate
 
 ## Deletion Semantics & the Erasure Ledger
 
-On a Seed with `softDelete: true` (see [Trash, Soft Delete & GDPR Purge](/features/trash)), deletion splits into two verbs on the repository:
+On every Seed (see [Trash, Soft Delete & GDPR Purge](/features/trash)), deletion splits into two verbs on the repository:
 
 - `softDelete` / `restore` / `bulkRestore` — reversible, row-level (`deleted_at`).
-- `purge` / `bulkPurge` — irreversible, plus one **deletion-ledger** event.
+- `purge` / `bulkPurge` — irreversible, only on an entry already in the Trash, plus one **deletion-ledger** event.
 
 Three properties are enforced at this layer rather than in handlers:
 

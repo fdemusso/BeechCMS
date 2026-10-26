@@ -4,8 +4,7 @@
 import type { Seed, TrashedMode } from '../types.js'
 
 /**
- * Returns the SQL condition (e.g. `ce.deleted_at IS NULL`), or `null` if the
- * seed does not use soft delete or mode is 'any'.
+ * Returns the SQL condition (e.g. `ce.deleted_at IS NULL`), or `null` if mode is 'any'.
  *
  * @param seed - The seed schema definition.
  * @param mode - 'active' (default), 'trashed', or 'any'.
@@ -16,13 +15,13 @@ export function activeCondition(
   mode: TrashedMode = 'active',
   tableAlias?: string,
 ): string | null {
-  if (!seed.softDelete || mode === 'any') return null
+  if (mode === 'any') return null
   const col = tableAlias ? `${tableAlias}.deleted_at` : 'deleted_at'
   return mode === 'trashed' ? `${col} IS NOT NULL` : `${col} IS NULL`
 }
 
 /**
- * Returns ` AND <activeCondition>` for a soft-delete seed, or `''` otherwise.
+ * Returns ` AND <activeCondition>`, or `''` when mode is 'any'.
  *
  * @param seed - The seed schema definition.
  * @param mode - 'active' (default), 'trashed', or 'any'.

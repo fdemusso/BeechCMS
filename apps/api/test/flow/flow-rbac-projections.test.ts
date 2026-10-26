@@ -41,7 +41,8 @@ describe('Flow: RBAC scoped projections', () => {
         slug TEXT NOT NULL UNIQUE,
         status TEXT NOT NULL DEFAULT 'draft',
         title TEXT,
-        body TEXT
+        body TEXT,
+        deleted_at INTEGER
       )
     `).run()
     await db.prepare(`

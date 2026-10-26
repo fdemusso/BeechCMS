@@ -154,12 +154,10 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
   // Soft delete: 'active' is the default, so a caller that forgets the option can never
   // observe a trashed row — including the Public API, relation expansion and subqueries,
   // which all reach SQL only through repository.findMany.
-  if (seed.softDelete) {
-    const trashed = options.trashed ?? 'active'
-    const cond = activeCondition(seed, trashed, table)
-    if (cond) {
-      whereClauses.push(cond)
-    }
+  const trashed = options.trashed ?? 'active'
+  const cond = activeCondition(seed, trashed, table)
+  if (cond) {
+    whereClauses.push(cond)
   }
 
   const groupClauses: string[] = []
