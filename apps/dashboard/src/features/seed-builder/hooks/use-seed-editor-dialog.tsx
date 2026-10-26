@@ -199,8 +199,6 @@ export function useSeedEditorDialog({
     entryId: editRecord?.slug,
 
     isDeleting: false,
-    showDeleteConfirm: false,
-    setShowDeleteConfirm: NOOP,
     handleDelete: NOOP,
     hasRestrictedRefs: false,
     setHasRestrictedRefs: NOOP,

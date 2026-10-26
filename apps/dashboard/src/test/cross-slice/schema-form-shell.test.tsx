@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type { ReactNode, MouseEventHandler } from "react"
 import type { Branch } from "@beechcms/core"
@@ -132,8 +132,6 @@ function buildViewModel(overrides: Partial<SchemaFormViewModel> = {}): SchemaFor
     schemaSlug: "posts",
     entryId: "e1",
     isDeleting: false,
-    showDeleteConfirm: false,
-    setShowDeleteConfirm: vi.fn(),
     handleDelete: vi.fn(),
     hasRestrictedRefs: false,
     setHasRestrictedRefs: vi.fn(),
@@ -151,14 +149,22 @@ describe("SchemaFormShell", () => {
     expect(screen.getByLabelText("field-title")).toBeInTheDocument()
   })
 
-  it("hides the delete button and never mounts the delete confirm when capabilities.delete is false", () => {
+  it("hides the delete button when capabilities.delete is false", () => {
     const vm = buildViewModel({
       capabilities: { ...allCapabilitiesTrue, delete: false },
-      showDeleteConfirm: true,
     })
     render(<SchemaFormShell vm={vm} open />)
 
     expect(screen.queryByText("common.delete")).not.toBeInTheDocument()
+  })
+
+  it("the Delete button calls handleDelete directly and mounts no confirmation dialog", () => {
+    const handleDelete = vi.fn()
+    render(<SchemaFormShell vm={buildViewModel({ handleDelete })} open />)
+
+    fireEvent.click(screen.getByText("common.delete"))
+
+    expect(handleDelete).toHaveBeenCalledTimes(1)
     expect(screen.queryByText("content.editor.deleteTitle")).not.toBeInTheDocument()
   })
 

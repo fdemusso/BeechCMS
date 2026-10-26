@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { DEFAULT_TRASH_RETENTION_DAYS, MAX_RETENTION_DAYS, isValidRetentionDays } from '@beechcms/core'
 import { useGeneralSettings, useUpdateGeneralSettings } from './use-settings'
 
 export function useGeneralTabLogic() {
@@ -17,6 +18,9 @@ export function useGeneralTabLogic() {
   const [companyWebsite, setCompanyWebsite] = useState('')
   const [companyAbbreviation, setCompanyAbbreviation] = useState('')
 
+  // A string, so the input can be empty while the user types.
+  const [trashRetentionDays, setTrashRetentionDays] = useState(String(DEFAULT_TRASH_RETENTION_DAYS))
+
   useEffect(() => {
     if (settings) {
       setSiteTitle(settings.siteTitle ?? '')
@@ -26,6 +30,7 @@ export function useGeneralTabLogic() {
       setCompanyName(settings.company?.name ?? '')
       setCompanyWebsite(settings.company?.website ?? '')
       setCompanyAbbreviation(settings.company?.abbreviation ?? '')
+      setTrashRetentionDays(String(settings.trashRetentionDays ?? DEFAULT_TRASH_RETENTION_DAYS))
     }
   }, [settings])
 
@@ -41,6 +46,13 @@ export function useGeneralTabLogic() {
       }
     }
 
+    const trimmedRetention = trashRetentionDays.trim()
+    const retention = Number(trimmedRetention)
+    if (!trimmedRetention || !isValidRetentionDays(retention)) {
+      toast.error(t('settings.general.trashRetentionInvalid', { max: MAX_RETENTION_DAYS }))
+      return
+    }
+
     try {
       await updateSettings.mutateAsync({
         siteTitle: siteTitle.trim() || undefined,
@@ -52,6 +64,7 @@ export function useGeneralTabLogic() {
           website: companyWebsite.trim() || null,
           abbreviation: companyAbbreviation.trim() || null,
         },
+        trashRetentionDays: retention,
       })
       toast.success(t('settings.general.savedSuccess'))
     } catch (err) {
@@ -72,6 +85,7 @@ export function useGeneralTabLogic() {
       companyName,
       companyWebsite,
       companyAbbreviation,
+      trashRetentionDays,
     },
     actions: {
       setSiteTitle,
@@ -81,6 +95,7 @@ export function useGeneralTabLogic() {
       setCompanyName,
       setCompanyWebsite,
       setCompanyAbbreviation,
+      setTrashRetentionDays,
       handleSave,
     },
   }

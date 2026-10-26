@@ -1,46 +1,33 @@
-# Execution Log — TrashRetentionSweep
+# Execution Log — InstantDeleteUndo
 
 ## SECTION 6 — ACCEPTANCE CRITERIA
 
-- [x] `DEFAULT_TRASH_RETENTION_DAYS = 14`, `MAX_RETENTION_DAYS = 36500`, `isValidRetentionDays` and `resolveRetentionDays` are exported from `@beechcms/core`. The module is pure and imports only core types.
-- [x] Seed validation accepts `retentionDays: 0` and rejects negative, non-integer and `> 36500` values.
-- [x] `ContentRepository.findExpiredByRetention(seed, retentionDays, now, limit)` is the only signature. Effective `0` returns `[]` without a query. Both implementations match.
-- [x] `SiteSettings.trashRetentionDays` is required. D1 reads an absent key as 14, a stored `'0'` as 0 and a malformed value as 14.
-- [x] `GET /api/settings` returns `trashRetentionDays`. `PUT /api/settings` persists valid values and answers 400 `settings-invalid-trash-retention` with nothing stored for invalid ones, including `null`.
-- [x] `GET /api/content/:slug/trash` returns `retentionDays` = the effective retention for that seed.
-- [x] `runRetentionSweep`:
-  - [x] purges only trashed entries past their effective retention, oldest first;
-  - [x] attempts at most 25 per run;
-  - [x] skips effective-`0` seeds without querying;
-  - [x] isolates failures per seed and per id;
-  - [x] treats `EntryNotFoundError` as a no-op.
-- [x] Every sweep purge goes through `ContentRepository.purge` on a repository built **with** `R2DeletionLedger`, and the ledger event carries `actorId: null`.
-- [x] R2 media of a swept entry is deleted through `deleteR2Objects`. A cleanup failure never marks the id failed.
-- [x] A failed settings read purges nothing (no fallback to the default).
-- [x] `scheduled()` runs the sweep only on ticks where `getUTCMinutes() % 5 === 0`, inside `ctx.waitUntil` with its own try/catch. Seed-media-purge and cron automations are unaffected.
-- [x] Hand-written docs describe the sweep, the global setting, the seed override and `0`. No doc or JSDoc still says retention is unwired.
-- [x] No file under `apps/dashboard`, `factory.ts`, `permission.middleware.ts` or `apps/api/migrations` changed.
-- [x] No cross-slice import was added (`features/content` ↔ `features/settings`). The sweep issues no SQL of its own.
-- [x] All SECTION 5 commands pass. `apps/api` `tsc` stays at the baseline error set.
+- [x] A single delete from the Table view (row menu, context menu, Del key on one row) and from the entry editor opens **no** dialog. It calls `DELETE /api/content/:slug/:id` with no purge flag immediately.
+- [x] The deleted row disappears from every cached list page of its seed before the server answers. A failed delete puts it back and shows `content.undoDelete.deleteFailed`.
+- [x] Each successful single delete raises its own sonner toast with `duration: UNDO_DELETE_TOAST_MS` (5000). No toast is created with an `id` option.
+- [x] Undo calls `POST /api/content/:slug/:id/restore` for exactly that toast's entry, then invalidates content, Trash, activity and back-refs. Undo is offered only with `content:update`.
+- [x] The undo toast is raised even when the calling component (the entry editor) has unmounted.
+- [x] Bulk delete of two or more ids always requires the confirmation modal, has no undo, and on partial failure keeps the dialog open with a localized per-id error and only the failed ids queued for retry.
+- [x] `TrashListResponse.retentionDays` exists. The Trash countdown uses it, shows `content.trash.neverPurged` for `0`, and no dashboard file reads `seed.retentionDays`.
+- [x] Settings → Site has a Trash retention field. Values that fail `isValidRetentionDays` (from `@beechcms/core`) are refused client-side with nothing sent. Valid values (including `0`) are sent as numbers.
+- [x] `SchemaFormViewModel` no longer has `showDeleteConfirm` / `setShowDeleteConfirm`, and both implementers compile.
+- [x] `en.json` and `it.json` carry the same new keys (Task 7).
+- [x] `docs/features/trash.md` Dashboard Experience describes instant delete + undo, the bulk modal, the effective countdown and the Settings field.
+- [x] No file under `packages/**` or `apps/api/**` changed. No new cross-slice import. `lib/trash-cache.ts` is not re-exported from the barrel.
+- [x] All SECTION 5 commands pass. `apps/dashboard` `tsc` stays at 0 errors.
 
 ## SECTION 5 — VALIDATION
 
-| Command | Result |
-|---|---|
-| `pnpm --filter @beechcms/core run build` | OK (`tsc`, no errors) |
-| `pnpm --filter @beechcms/core test` | 66 files, 1270 tests passed |
-| `npx tsc --noEmit` (apps/api) | 69 errors, same count as baseline; none in files touched by this sprint |
-| `pnpm --filter ./apps/api test` | unit+flow: 186 files, 2135 tests passed; integration: 85 files, 530 tests passed |
-| `npx tsc --noEmit` (apps/dashboard) | 0 errors |
-| `pnpm --filter ./apps/dashboard test` | 181 files, 1305 tests passed |
-| `pnpm lint` | 19/19 tasks successful |
-| `pnpm beech test --diff` | PASS; changed-line coverage 16 files meet threshold (`trash.ts`, `delete.ts` not measurable on the workerd tier; covered by `trash-retention.integration.test.ts`) |
-| `node scripts/check-test-placement.mjs` | OK |
-| `node scripts/docs-fact-check.mjs` | PASSED |
-| `rg "No scheduler is wired\|NOT wired to any scheduler\|positive integer >= 1" …` | no output |
-| `graphify update . --force` | 27869 nodes, 40242 edges, 2744 communities |
+```
+npx tsc --noEmit (apps/dashboard)          TypeScript: No errors found
+pnpm --filter ./apps/dashboard test        Test Files 185 passed (185) | Tests 1332 passed (1332)
+pnpm lint                                  ESLint: No issues found
+pnpm beech test --diff                     PASS Tests: every selected test run passed.
+                                           PASS Coverage: all 19 changed file(s) meet the changed-line threshold.
+node scripts/check-test-placement.mjs      test placement — OK
+node scripts/docs-fact-check.mjs           DOCUMENTATION FACT-CHECK PASSED: Code and Docs in 100% parity.
+rg -n "seed\.retentionDays|showDeleteConfirm|Partial deletion" apps/dashboard/src   (no output)
+graphify update . --force                  Rebuilt: 27971 nodes, 40354 edges, 2754 communities
+```
 
-## Notes
-
-- `site-settings.repository.d1.ts`: an empty or whitespace stored value reads as the default (`Number('')` would otherwise read as `0`, "never purge").
-- Work stays on `feature/universal-soft-delete`, as the plan states it is not merged until sprint 3. Nothing is committed.
+Manual smoke (`pnpm beech dev`) not run.

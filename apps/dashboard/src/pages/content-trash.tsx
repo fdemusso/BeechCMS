@@ -161,6 +161,7 @@ export function ContentTrashPage() {
                   seed={seed}
                   data={trash.data?.items ?? []}
                   nowSeconds={nowSeconds}
+                  retentionDays={trash.data?.retentionDays}
                   rowSelection={rowSelection}
                   onRowSelectionChange={setRowSelection}
                   selectedIds={selectedIds}

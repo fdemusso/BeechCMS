@@ -67,6 +67,8 @@ export interface GeneralSettings {
     abbreviation: string | null
   }
   dateFormat: string
+  /** Global Trash retention in days (seed `retentionDays` overrides it). 0 = never purge. Integer 0..MAX_RETENTION_DAYS. */
+  trashRetentionDays: number
   features?: {
     drafts?: boolean
     media?: boolean

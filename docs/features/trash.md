@@ -178,12 +178,14 @@ The sweep runs inside the existing Cron Trigger, every 5 minutes:
 On every Seed:
 
 1. **Trash button** appears in the content list header.
-2. **Delete dialog** defaults to *"Move to Trash — you can restore it later"*; the permanent-deletion warning is the Trash's *Delete forever* path.
-3. **Trash view** (`/content/:slug/trash`) lists trashed entries newest-first with the display name, the slug the entry will get back on restore, deletion time, and retention countdown. Entries are not editable there.
-4. **Per-row and bulk actions**: **Restore** acts immediately (it is reversible — a confirmation would be friction); **Delete forever** always requires an explicit confirmation stating the action is permanent, that attached media are deleted, and that the erasure is recorded so the entry stays deleted even after a database restore.
-5. **Auto-rename is surfaced**: when a restore returns a different slug because the original was reassigned, the UI says so instead of letting the slug change silently.
-6. **Partial bulk failures are reported**: a batch where some ids failed never shows as a clean success.
-7. **Permission gating**: Restore requires `content:update`, Delete forever requires `content:delete`. Unavailable actions are rendered disabled, never hidden-and-clickable — and the server gate is the real enforcement.
+2. **Single delete is instant.** There is no dialog. The row disappears at once, and a 5-second toast offers **Undo**, which calls restore. The toast has no Undo without `content:update`. Each deletion has its own toast.
+3. **Bulk delete** asks for confirmation, has no undo, and reports per-id failures, keeping the failed ids for a retry. The permanent-deletion warning is the Trash's *Delete forever* path.
+4. **Trash view** (`/content/:slug/trash`) lists trashed entries newest-first with the display name, the slug the entry will get back on restore, deletion time, and retention countdown. The countdown uses the trash list's effective `retentionDays`, and `0` shows "Kept indefinitely". Entries are not editable there.
+5. **Settings → Site → Trash** sets the global `trashRetentionDays` (requires `manage_users` global). The per-seed override is set in the seed manifest / `PUT /api/seeds/:slug`, not in the Seed Builder.
+6. **Per-row and bulk actions**: **Restore** acts immediately (it is reversible — a confirmation would be friction); **Delete forever** always requires an explicit confirmation stating the action is permanent, that attached media are deleted, and that the erasure is recorded so the entry stays deleted even after a database restore.
+7. **Auto-rename is surfaced**: when a restore returns a different slug because the original was reassigned, the UI says so instead of letting the slug change silently.
+8. **Partial bulk failures are reported**: a batch where some ids failed never shows as a clean success.
+9. **Permission gating**: Restore requires `content:update`, Delete forever requires `content:delete`. Unavailable actions are rendered disabled, never hidden-and-clickable — and the server gate is the real enforcement.
 
 ---
 

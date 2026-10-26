@@ -19,6 +19,8 @@ export interface ContentTrashViewProps {
   data: ContentEntry[]
   /** Unix seconds, resolved once per render by the page — keeps this component pure w.r.t. time. */
   nowSeconds: number
+  /** Effective retention from the trash list; `undefined` while it loads. 0 = never purged. */
+  retentionDays: number | undefined
   rowSelection: RowSelectionState
   onRowSelectionChange: (updater: RowSelectionState | ((old: RowSelectionState) => RowSelectionState)) => void
   selectedIds: string[]
@@ -41,6 +43,7 @@ export function ContentTrashView(props: Readonly<ContentTrashViewProps>) {
     seed,
     data,
     nowSeconds,
+    retentionDays,
     rowSelection,
     onRowSelectionChange,
     selectedIds,
@@ -85,7 +88,8 @@ export function ContentTrashView(props: Readonly<ContentTrashViewProps>) {
         id: "retention",
         header: t("content.trash.retention"),
         cell: ({ row }) => {
-          const days = retentionRemainingDays(row.original.deleted_at, seed.retentionDays, nowSeconds)
+          if (retentionDays === 0) return t("content.trash.neverPurged")
+          const days = retentionRemainingDays(row.original.deleted_at, retentionDays, nowSeconds)
           return days == null ? <span className="text-muted-foreground">—</span> : t("content.trash.daysLeft", { count: days })
         },
       },
@@ -114,7 +118,7 @@ export function ContentTrashView(props: Readonly<ContentTrashViewProps>) {
         ),
       },
     ],
-    [seed, t, nowSeconds, canRestore, canPurge, isMutating, onRestore, onPurge, localize]
+    [seed, t, nowSeconds, retentionDays, canRestore, canPurge, isMutating, onRestore, onPurge, localize]
   )
 
   return (

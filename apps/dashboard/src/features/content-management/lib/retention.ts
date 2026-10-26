@@ -2,16 +2,18 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-/** Seconds in a day — the unit `retentionDays` is expressed in on `Seed`. */
+/** Seconds in a day — the unit of the effective `retentionDays` returned by the trash list. */
 const SECONDS_PER_DAY = 86_400
 
 /**
- * Whole days left before `deletedAt` falls outside the seed's retention window.
+ * Whole days left before `deletedAt` falls outside the retention window.
  *
+ * `retentionDays` is the effective retention from `GET /api/content/:slug/trash`
+ * (`TrashListResponse.retentionDays`), not the seed's own declaration.
  * Mirrors the server-side predicate documented on `ContentRepository.findExpiredByRetention`
- * (`deleted_at + retentionDays * 86400 <= now`). Returns `null` when the seed declares no
- * retention or the row carries no deletion timestamp — the UI then shows no countdown at all,
- * because "0 days left" and "no policy" must never look alike.
+ * (`deleted_at + retentionDays * 86400 <= now`). Returns `null` for "no countdown": retention
+ * unknown or `0`, or a row without a deletion timestamp. The caller renders `0` as "kept
+ * indefinitely", because "0 days left" and "no policy" must never look alike.
  *
  * @param nowSeconds Unix seconds, supplied by the caller. Never read the clock in here.
  */

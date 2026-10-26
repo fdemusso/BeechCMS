@@ -80,8 +80,6 @@ export interface SchemaFormViewModel {
 
   // delete (read only when capabilities.delete)
   isDeleting: boolean
-  showDeleteConfirm: boolean
-  setShowDeleteConfirm: (v: boolean) => void
   handleDelete: () => void
   hasRestrictedRefs: boolean
   setHasRestrictedRefs: (v: boolean) => void

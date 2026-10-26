@@ -6,8 +6,8 @@ Planned 2026-10-26. Sprints merge in order; each depends on the previous one bei
 | # | Slug | Status |
 |---|------|--------|
 | 1 | `UniversalSoftDelete` | **shipped** (`docs/Sprints/UniversalSoftDelete/`, commit `b5d8003f`) |
-| 2 | `TrashRetentionSweep` | **planned** (`output/TrashRetentionSweep.md`) |
-| 3 | `InstantDeleteUndo` | pending |
+| 2 | `TrashRetentionSweep` | **shipped** (`docs/Sprints/TrashRetentionSweep/`, commit `cf12aab4`) |
+| 3 | `InstantDeleteUndo` | **planned** (`output/InstantDeleteUndo.md`) |
 
 ---
 
@@ -47,6 +47,6 @@ Planned 2026-10-26. Sprints merge in order; each depends on the previous one bei
 - Add a `trashRetentionDays` field in the Settings General tab (validated with core `isValidRetentionDays`).
 - Switch the Trash countdown (`ContentTrashView.tsx` / `lib/retention.ts`) from `seed.retentionDays` to the trash list's `retentionDays`, and add the field to `TrashListResponse`.
 
-The per-seed override stays a seed contract field (manifest / `PUT /api/seeds/:slug`). Whether the Seed Builder exposes it gets decided when this sprint is planned.
+The per-seed override stays a seed contract field (manifest / `PUT /api/seeds/:slug`). **Decided at planning (2026-10-26):** the Seed Builder does not expose it, because no user story asks for it there.
 
 **Depends on:** sprint 2, for `GET/PUT /api/settings` `trashRetentionDays` and the `retentionDays` field in the trash payload. Sprint 1 already makes the Trash reachable on every seed.
