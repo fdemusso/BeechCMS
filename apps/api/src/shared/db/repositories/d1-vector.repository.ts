@@ -4,7 +4,20 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type { Seed, IVectorRepository } from '@beechcms/core'
-import { vectorTableName, tableName, resolvePolicies } from '@beechcms/core'
+import { vectorTableName, tableName, resolvePolicies, generateVectorTable } from '@beechcms/core'
+
+function isNoSuchTableError(err: unknown): boolean {
+  if (!err) return false
+  const msg = err instanceof Error ? err.message : String(err)
+  if (msg.includes('no such table')) return true
+  if (err && typeof err === 'object' && 'cause' in err && err.cause) {
+    const causeMsg = (err as { cause: unknown }).cause instanceof Error
+      ? (err as { cause: Error }).cause.message
+      : String((err as { cause: unknown }).cause)
+    if (causeMsg.includes('no such table')) return true
+  }
+  return false
+}
 
 export class D1VectorRepository implements IVectorRepository {
   constructor(private readonly db: D1Database) {}
@@ -12,23 +25,54 @@ export class D1VectorRepository implements IVectorRepository {
   async saveVector(seed: Seed, entryId: string, vector: Float32Array): Promise<void> {
     const table = vectorTableName(seed)
     const blob = new Uint8Array(vector.buffer, vector.byteOffset, vector.byteLength)
-    await this.db
-      .prepare(
-        `INSERT INTO ${table} (entry_id, vector) VALUES (?, ?) ON CONFLICT(entry_id) DO UPDATE SET vector = ?`,
-      )
-      .bind(entryId, blob, blob)
-      .run()
+    try {
+      await this.db
+        .prepare(
+          `INSERT INTO ${table} (entry_id, vector) VALUES (?, ?) ON CONFLICT(entry_id) DO UPDATE SET vector = ?`,
+        )
+        .bind(entryId, blob, blob)
+        .run()
+    } catch (err: unknown) {
+      if (isNoSuchTableError(err)) {
+        const ddl = generateVectorTable(seed)
+        if (ddl) {
+          await this.db.exec(ddl)
+          await this.db
+            .prepare(
+              `INSERT INTO ${table} (entry_id, vector) VALUES (?, ?) ON CONFLICT(entry_id) DO UPDATE SET vector = ?`,
+            )
+            .bind(entryId, blob, blob)
+            .run()
+          return
+        }
+      }
+      throw err
+    }
   }
 
   async deleteVector(seed: Seed, entryId: string): Promise<void> {
     const table = vectorTableName(seed)
-    await this.db.prepare(`DELETE FROM ${table} WHERE entry_id = ?`).bind(entryId).run()
+    try {
+      await this.db.prepare(`DELETE FROM ${table} WHERE entry_id = ?`).bind(entryId).run()
+    } catch (err: unknown) {
+      if (isNoSuchTableError(err)) {
+        return
+      }
+      throw err
+    }
   }
 
   async getAllVectors(seed: Seed): Promise<StoredVector[]> {
-    const { sql } = this.selectVectors(seed)
-    const { results } = await this.db.prepare(sql).all<VectorRow>()
-    return (results ?? []).map(decodeVectorRow)
+    try {
+      const { sql } = this.selectVectors(seed)
+      const { results } = await this.db.prepare(sql).all<VectorRow>()
+      return (results ?? []).map(decodeVectorRow)
+    } catch (err: unknown) {
+      if (isNoSuchTableError(err)) {
+        return []
+      }
+      throw err
+    }
   }
 
   /**
@@ -36,19 +80,33 @@ export class D1VectorRepository implements IVectorRepository {
    * Pass the last returned `entryId` as `afterEntryId` to fetch the next page.
    */
   async getVectorPage(seed: Seed, afterEntryId: string | null, limit: number): Promise<StoredVector[]> {
-    const { sql, keyColumn } = this.selectVectors(seed)
-    const { results } = await this.db
-      .prepare(`${sql} WHERE ${keyColumn} > ? ORDER BY ${keyColumn} LIMIT ?`)
-      .bind(afterEntryId ?? '', limit)
-      .all<VectorRow>()
-    return (results ?? []).map(decodeVectorRow)
+    try {
+      const { sql, keyColumn } = this.selectVectors(seed)
+      const { results } = await this.db
+        .prepare(`${sql} WHERE ${keyColumn} > ? ORDER BY ${keyColumn} LIMIT ?`)
+        .bind(afterEntryId ?? '', limit)
+        .all<VectorRow>()
+      return (results ?? []).map(decodeVectorRow)
+    } catch (err: unknown) {
+      if (isNoSuchTableError(err)) {
+        return []
+      }
+      throw err
+    }
   }
 
   async countVectors(seed: Seed): Promise<number> {
-    const row = await this.db
-      .prepare(`SELECT COUNT(*) AS n FROM ${vectorTableName(seed)}`)
-      .first<{ n: number }>()
-    return row?.n ?? 0
+    try {
+      const row = await this.db
+        .prepare(`SELECT COUNT(*) AS n FROM ${vectorTableName(seed)}`)
+        .first<{ n: number }>()
+      return row?.n ?? 0
+    } catch (err: unknown) {
+      if (isNoSuchTableError(err)) {
+        return 0
+      }
+      throw err
+    }
   }
 
   private selectVectors(seed: Seed): { sql: string; keyColumn: string } {

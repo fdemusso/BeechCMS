@@ -8,6 +8,7 @@ import {
   generateIndexes,
   generateFtsTable,
   generateFtsTriggers,
+  generateVectorTable,
   generateAddColumn,
   generateAddDraftSnapshotColumn,
   generateJunctionTable,
@@ -30,6 +31,8 @@ export function planCreateSeed(seed: Seed): string[] {
   if (draft) stmts.push(draft)
   const fts = generateFtsTable(seed)
   if (fts) stmts.push(fts, ...generateFtsTriggers(seed))
+  const vector = generateVectorTable(seed)
+  if (vector) stmts.push(vector)
   for (const branch of seed.branches) {
     if (branch.type !== 'relation' || branch.multiple !== true) continue
     stmts.push(generateJunctionTable(seed, branch), ...generateJunctionIndexes(seed, branch))
@@ -92,6 +95,11 @@ export function planExtendSeed(
     !existingDraftColumns.has('live_snapshot_at')
   ) {
     statements.push(generateAddDraftSnapshotColumn(seed))
+  }
+  // Vector table is CREATE TABLE IF NOT EXISTS — safe and idempotent to emit if seed has indexable branches
+  const vector = generateVectorTable(seed)
+  if (vector) {
+    statements.push(vector)
   }
   // CREATE INDEX IF NOT EXISTS — idempotent, safe to re-run
   statements.push(...generateIndexes(seed))

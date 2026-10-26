@@ -45,6 +45,22 @@ describe('planCreateSeed', () => {
     expect(stmts.some(s => s.includes('rel_posts_tags'))).toBe(true)
   })
 
+  it('includes vector table when indexable search branches exist', () => {
+    const stmts = planCreateSeed(fullSeed)
+    expect(stmts.some(s => s.includes('CREATE TABLE IF NOT EXISTS vector_posts'))).toBe(true)
+  })
+
+  it('omits vector table when no indexable search branches exist', () => {
+    const minimal: Seed = {
+      slug: 'stats',
+      label: 'Stats',
+      displayNameAlias: 'count',
+      branches: [{ id: 'br_01', alias: 'count', label: 'Count', type: 'number' }],
+    }
+    const stmts = planCreateSeed(minimal)
+    expect(stmts.some(s => s.includes('vector_stats'))).toBe(false)
+  })
+
   it('order: CREATE TABLE before draft table', () => {
     const stmts = planCreateSeed(fullSeed)
     const mainIdx = stmts.findIndex(s => s.includes('CREATE TABLE IF NOT EXISTS content_posts') && !s.includes('drafts'))
@@ -156,6 +172,7 @@ describe('planExtendSeed', () => {
     }
     const { statements } = planExtendSeed(seed, new Set(['title', 'body', 'deleted_at']))
     expect(statements.filter(s => s.toUpperCase().includes('ADD COLUMN'))).toHaveLength(0)
+    expect(statements.some(s => s.includes('CREATE TABLE IF NOT EXISTS vector_posts'))).toBe(true)
   })
 
   it('emits no DROP or RENAME', () => {
