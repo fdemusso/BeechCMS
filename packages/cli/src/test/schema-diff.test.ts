@@ -155,6 +155,7 @@ const FULL_COLUMNS = [
   { cid: 3, name: 'title', type: 'TEXT', notnull: 0, dflt_value: null, pk: 0 },
   { cid: 4, name: 'created_at', type: 'INTEGER', notnull: 1, dflt_value: null, pk: 0 },
   { cid: 5, name: 'updated_at', type: 'INTEGER', notnull: 1, dflt_value: null, pk: 0 },
+  { cid: 6, name: 'deleted_at', type: 'INTEGER', notnull: 0, dflt_value: null, pk: 0 },
 ]
 
 const MISSING_TITLE_COLUMNS = FULL_COLUMNS.filter(c => c.name !== 'title')
