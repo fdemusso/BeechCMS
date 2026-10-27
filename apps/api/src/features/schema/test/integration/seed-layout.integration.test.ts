@@ -108,6 +108,28 @@ describe('schema slice — seed form layout (real D1)', () => {
       expect(await storedLayoutCount('no_such_seed')).toBe(0)
     })
 
+    // The permission and the seed are checked before the body is read: a caller who may not edit, or who
+    // names no seed, must not learn what the layout contract looks like from a 400/422.
+    it('forbids a non-admin before looking at the body, even when it is not JSON', async () => {
+      const editor = await harness.asUser('editor')
+
+      const response = await editor.put('/api/schema/posts/layout', undefined, {
+        headers: { 'Content-Type': 'application/json' },
+        body: '{not json',
+      })
+
+      expect(response.status).toBe(403)
+    })
+
+    it('returns 404 for an unknown seed before looking at the body, even when it is not JSON', async () => {
+      const response = await admin.put('/api/schema/no_such_seed/layout', undefined, {
+        headers: { 'Content-Type': 'application/json' },
+        body: '{not json',
+      })
+
+      expect(response.status).toBe(404)
+    })
+
     it('returns 400 for a body that is not JSON', async () => {
       const response = await admin.put('/api/schema/posts/layout', undefined, {
         headers: { 'Content-Type': 'application/json' },
