@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { api } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 
 export type BulkMultiRelMode = "replace" | "add" | "remove"
@@ -138,8 +139,9 @@ export const contentApi = {
   },
 
   fetchDraft: async (slug: string, id: string): Promise<Record<string, unknown>> => {
-    const response = await api.get<{ data: Record<string, unknown> }>(`/content/${slug}/${id}/draft`)
-    return response.data.data
+    const response = await rpc.api.content[":slug"][":id"].draft.$get({ param: { slug, id } })
+    const body = await response.json()
+    return body.data
   },
 
   saveDraft: async (
@@ -147,18 +149,18 @@ export const contentApi = {
     id: string,
     data: Record<string, unknown>
   ): Promise<{ success: boolean }> => {
-    const response = await api.put<{ success: boolean }>(`/content/${slug}/${id}/draft`, data)
-    return response.data
+    const response = await rpc.api.content[":slug"][":id"].draft.$put({ param: { slug, id }, json: data })
+    return response.json()
   },
 
   publishDraft: async (slug: string, id: string): Promise<{ success: boolean }> => {
-    const response = await api.post<{ success: boolean }>(`/content/${slug}/${id}/draft/publish`)
-    return response.data
+    const response = await rpc.api.content[":slug"][":id"].draft.publish.$post({ param: { slug, id } })
+    return response.json()
   },
 
   discardDraft: async (slug: string, id: string): Promise<{ success: boolean }> => {
-    const response = await api.delete<{ success: boolean }>(`/content/${slug}/${id}/draft`)
-    return response.data
+    const response = await rpc.api.content[":slug"][":id"].draft.$delete({ param: { slug, id } })
+    return response.json()
   },
 
   bulkUpdate: async (slug: string, body: BulkUpdateBody): Promise<BulkUpdateResult> => {

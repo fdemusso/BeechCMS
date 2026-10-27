@@ -11,7 +11,7 @@ vi.mock("@/features/shared", () => ({
   useLocalizeEntryData: () => (_seed: Seed, data: Record<string, unknown>) => data,
 }))
 
-import type { ContentEntry } from "@/lib/dynamic-columns"
+import type { TrashEntry } from "../../api/trash.api"
 import { ContentTrashView, type ContentTrashViewProps } from "../../components/ContentTrashView"
 
 const SECONDS_PER_DAY = 86_400
@@ -22,9 +22,9 @@ const ENTRY_A = "5b0a6b3e-2f4e-4c1a-9a53-0c9d3f1e7a01"
 const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts") as Seed
 
 // Deleted 4 days before `NOW_SECONDS`.
-const trashedEntry: ContentEntry = {
+// What the server sends: system columns and `data`, no `schema_slug`.
+const trashedEntry: TrashEntry = {
   id: ENTRY_A,
-  schema_slug: posts.slug,
   slug: null,
   status: "published",
   data: { title: "Canonical Post" },

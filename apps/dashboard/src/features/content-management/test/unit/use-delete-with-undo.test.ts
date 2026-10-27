@@ -9,8 +9,14 @@ import React from "react"
 import { CANONICAL_SEEDS } from "@beechcms/testing"
 import type { Seed } from "@beechcms/core"
 
+const mocked = vi.hoisted(() => ({ restore: vi.fn() }))
+
+// The live delete still goes through the `api` facade; only the Undo's restore is typed.
 vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), post: vi.fn(), delete: vi.fn() },
+  api: { delete: vi.fn() },
+}))
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { content: { ":slug": { ":id": { restore: { $post: mocked.restore } } } } } },
 }))
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: vi.fn() }))
@@ -84,7 +90,7 @@ describe("useDeleteWithUndo", () => {
     queryClient = makeQueryClient()
     permissionsWith(() => true)
     vi.mocked(api.delete).mockResolvedValue({ data: { success: true, softDeleted: true } })
-    vi.mocked(api.post).mockResolvedValue({ data: { success: true, slug: posts.slug } })
+    mocked.restore.mockResolvedValue({ json: async () => ({ success: true, slug: posts.slug }) })
   })
 
   function renderDeleteHook() {
@@ -171,8 +177,8 @@ describe("useDeleteWithUndo", () => {
 
     act(() => undoActionOf(0)?.onClick())
 
-    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1))
-    expect(api.post).toHaveBeenCalledWith(`/content/${posts.slug}/${ENTRY_A}/restore`)
+    await waitFor(() => expect(mocked.restore).toHaveBeenCalledTimes(1))
+    expect(mocked.restore).toHaveBeenCalledWith({ param: { slug: posts.slug, id: ENTRY_A } })
   })
 
   it("a successful undo invalidates the content and trash key spaces and confirms the restore", async () => {
@@ -188,7 +194,7 @@ describe("useDeleteWithUndo", () => {
   })
 
   it("a failed undo shows restoreFailed and does not throw", async () => {
-    vi.mocked(api.post).mockRejectedValueOnce(new Error("restore refused"))
+    mocked.restore.mockRejectedValueOnce(new Error("restore refused"))
     const { result } = renderDeleteHook()
     await runDelete(result, { slug: posts.slug, id: ENTRY_A })
 

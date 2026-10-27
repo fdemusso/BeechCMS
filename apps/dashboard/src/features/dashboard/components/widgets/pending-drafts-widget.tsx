@@ -8,6 +8,7 @@ import { formatDistanceToNow } from "date-fns"
 import { it as itLocale, enUS, type Locale } from "date-fns/locale"
 import { ClipboardList, Send } from '@/components/icons'
 import { api } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -61,7 +62,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, tit
 
   const publishMutation = useMutation({
     mutationFn: async (id: string) => {
-      await api.post(`/content/${seedSlug}/${id}/draft/publish`)
+      await rpc.api.content[":slug"][":id"].draft.publish.$post({ param: { slug: seedSlug, id } })
       return id
     },
     onSuccess: () => {

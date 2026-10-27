@@ -11,12 +11,12 @@ import { DataTable } from "@/components/ui/data-table"
 import { RelativeTime } from "@/components/ui/relative-time"
 import { SmallCta } from "@/components/ui/small-cta"
 import { useLocalizeEntryData } from "@/features/shared"
-import type { ContentEntry } from "@/lib/dynamic-columns"
+import type { TrashEntry } from "../api/trash.api"
 import { retentionRemainingDays } from "../lib/retention"
 
 export interface ContentTrashViewProps {
   seed: Seed
-  data: ContentEntry[]
+  data: TrashEntry[]
   /** Unix seconds, resolved once per render by the page — keeps this component pure w.r.t. time. */
   nowSeconds: number
   /** Effective retention from the trash list; `undefined` while it loads. 0 = never purged. */
@@ -63,7 +63,7 @@ export function ContentTrashView(props: Readonly<ContentTrashViewProps>) {
   const { t } = useTranslation()
   const localize = useLocalizeEntryData()
 
-  const columns = React.useMemo<ColumnDef<ContentEntry>[]>(
+  const columns = React.useMemo<ColumnDef<TrashEntry>[]>(
     () => [
       {
         id: "display",
