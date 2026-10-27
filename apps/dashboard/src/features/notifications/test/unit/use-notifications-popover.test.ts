@@ -7,18 +7,32 @@ import { renderHook, waitFor, act } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 
-// Mock del client api
-vi.mock("@/lib/api", () => ({
-  api: {
-    get: vi.fn(),
-    patch: vi.fn(),
-    delete: vi.fn(),
-    post: vi.fn(),
-  }
+// Mock del client rpc: stessa forma annidata di `rpc.api.content.notifications`
+const mocked = vi.hoisted(() => ({
+  list: vi.fn(),
+  markRead: vi.fn(),
+  markUnread: vi.fn(),
+  remove: vi.fn(),
+  markAllRead: vi.fn(),
 }))
 
-import { api } from "@/lib/api"
-const mockApi = vi.mocked(api)
+vi.mock("@/lib/rpc", () => ({
+  rpc: {
+    api: {
+      content: {
+        notifications: {
+          $get: mocked.list,
+          "mark-all-read": { $post: mocked.markAllRead },
+          ":id": {
+            read: { $patch: mocked.markRead },
+            unread: { $patch: mocked.markUnread },
+            $delete: mocked.remove,
+          },
+        },
+      },
+    },
+  },
+}))
 
 import { useNotificationsPopover } from "@/features/notifications/components/notifications-popover/use-notifications-popover"
 
@@ -41,9 +55,10 @@ describe("useNotificationsPopover", () => {
       { id: "1", title: "New", message: "Msg 1", type: "info", isRead: false, createdAt: 1700000000 },
       { id: "2", title: "Old", message: "Msg 2", type: "success", isRead: true, createdAt: 1700000000 },
     ]
-    ;(mockApi.get as any).mockResolvedValue({ data: mockData })
-    ;(mockApi.patch as any).mockResolvedValue({ data: { success: true } })
-    ;(mockApi.delete as any).mockResolvedValue({ data: { success: true } })
+    mocked.list.mockResolvedValue({ json: async () => mockData })
+    mocked.markRead.mockResolvedValue({ json: async () => ({ success: true }) })
+    mocked.markUnread.mockResolvedValue({ json: async () => ({ success: true }) })
+    mocked.remove.mockResolvedValue({ json: async () => ({ success: true }) })
 
     const wrapper = ({ children }: { children: React.ReactNode }) =>
       React.createElement(QueryClientProvider, { client: queryClient }, children)
@@ -65,7 +80,7 @@ describe("useNotificationsPopover", () => {
     await act(async () => {
       result.current.handleMarkSeen(firstId)
     })
-    expect(mockApi.patch).toHaveBeenCalledWith(`/content/notifications/${firstId}/read`)
+    expect(mocked.markRead).toHaveBeenCalledWith({ param: { id: firstId } })
 
     // Test filter
     act(() => {
@@ -79,12 +94,33 @@ describe("useNotificationsPopover", () => {
     await act(async () => {
       result.current.handleMarkUnseen(firstId)
     })
-    expect(mockApi.patch).toHaveBeenCalledWith(`/content/notifications/${firstId}/unread`)
+    expect(mocked.markUnread).toHaveBeenCalledWith({ param: { id: firstId } })
 
     // Test delete
     await act(async () => {
       result.current.handleDelete(firstId)
     })
-    expect(mockApi.delete).toHaveBeenCalledWith(`/content/notifications/${firstId}`)
+    expect(mocked.remove).toHaveBeenCalledWith({ param: { id: firstId } })
+  })
+
+  it("segna tutto come letto e rilegge l'elenco", async () => {
+    mocked.list.mockResolvedValue({
+      json: async () => [{ id: "1", title: "New", message: "Msg 1", type: "info", isRead: false, createdAt: 1700000000 }],
+    })
+    mocked.markAllRead.mockResolvedValue({ json: async () => ({ success: true }) })
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+    const { result } = renderHook(() => useNotificationsPopover(), { wrapper })
+    await waitFor(() => expect(result.current.unreadCount).toBe(1))
+    mocked.list.mockResolvedValue({
+      json: async () => [{ id: "1", title: "New", message: "Msg 1", type: "info", isRead: true, createdAt: 1700000000 }],
+    })
+
+    await act(async () => {
+      result.current.handleMarkAllRead()
+    })
+
+    expect(mocked.markAllRead).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(result.current.unreadCount).toBe(0))
   })
 })

@@ -78,4 +78,32 @@ describe("rpc", () => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
     })
   })
+
+  describe("rpc.api.content.notifications", () => {
+    it("addresses one notification by id under /api with the verb the router registers", async () => {
+      fetchMock.mockResolvedValueOnce(json(200, { success: true }))
+
+      await rpc.api.content.notifications[":id"].read.$patch({ param: { id: "n-1" } })
+
+      const [url, init] = fetchMock.mock.calls[0]
+      expect(String(url)).toBe("/api/content/notifications/n-1/read")
+      expect(init?.method).toBe("PATCH")
+    })
+
+    it("types the list rows as the API serialises them", async () => {
+      fetchMock.mockResolvedValueOnce(
+        json(200, [{ id: "n-1", title: "T", message: "M", type: "info", isRead: false, createdAt: 100 }]),
+      )
+
+      const response = await rpc.api.content.notifications.$get()
+      const rows = await response.json()
+
+      // The popover once read `is_read` / `created_at` off an `any[]`; the wire names are camelCase.
+      type Row = (typeof rows)[number]
+      expectTypeOf<Row["isRead"]>().toEqualTypeOf<boolean>()
+      expectTypeOf<Row["createdAt"]>().toEqualTypeOf<number>()
+      expectTypeOf<Row>().not.toHaveProperty("is_read")
+      expect(rows).toHaveLength(1)
+    })
+  })
 })
