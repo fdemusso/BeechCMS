@@ -127,7 +127,9 @@ export async function listHandler(context: Context<AppEnv, '/:slug', ZodQueryInp
 
     const page = parsePositiveInt(query.page, 1)
     const limit = Math.min(parsePositiveInt(query.limit, 25), 100)
-    const offset = (page - 1) * limit
+    // The kanban board reads a column as a window (`offset` = cards already fetched), not by page number.
+    const requestedOffset = Number.parseInt(query.offset ?? '', 10)
+    const offset = Number.isInteger(requestedOffset) && requestedOffset >= 0 ? requestedOffset : (page - 1) * limit
 
     const orderBy = sortBy
       ? { column: sortBy, dir: (sortDirRaw === 'desc' ? 'DESC' : 'ASC') as 'ASC' | 'DESC' }
@@ -204,7 +206,7 @@ export async function listHandler(context: Context<AppEnv, '/:slug', ZodQueryInp
     }))
 
     // If no query params (except slug), return array directly (legacy compatibility)
-    const hasQueryParams = Boolean(search) || Boolean(sortBy) || Boolean(query.filters) || Boolean(kanbanAxis) || query.page !== undefined || query.limit !== undefined
+    const hasQueryParams = Boolean(search) || Boolean(sortBy) || Boolean(query.filters) || Boolean(kanbanAxis) || query.page !== undefined || query.limit !== undefined || query.offset !== undefined
     if (!hasQueryParams) {
       return context.json(entries, 200)
     }

@@ -86,4 +86,22 @@ describe('content slice — list pagination order (real D1)', () => {
 
     expect(paged).toEqual([...createdIds].sort())
   })
+
+  // Regression guard: the kanban board asks for the next cards of a column with `offset` (and no
+  // page). The list used to read only `page`, so every "load more" answered the first window again.
+  it('reads a window by offset: the cards after the first PAGE_SIZE come back, not the first ones again', async () => {
+    const response = await admin.get(`/api/content/pg_list_tasks?kanbanAxis=br_02&limit=${PAGE_SIZE}&offset=${PAGE_SIZE}`)
+
+    expect(response.status).toBe(200)
+    const { items } = await response.json<{ items: { id: string }[] }>()
+    expect(items.map((item) => item.id)).toEqual([...createdIds].sort().slice(PAGE_SIZE, PAGE_SIZE * 2))
+  })
+
+  it('falls back to the page window when the offset is not a non-negative integer', async () => {
+    const response = await admin.get(`/api/content/pg_list_tasks?kanbanAxis=br_02&limit=${PAGE_SIZE}&page=2&offset=-1`)
+
+    expect(response.status).toBe(200)
+    const { items } = await response.json<{ items: { id: string }[] }>()
+    expect(items.map((item) => item.id)).toEqual([...createdIds].sort().slice(PAGE_SIZE, PAGE_SIZE * 2))
+  })
 })
