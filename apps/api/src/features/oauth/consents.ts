@@ -5,7 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
 import type { OAuthScope } from '@beechcms/core'
-import type { Env, Variables } from '../../types'
+import type { AppEnv, Env, Variables } from '../../types'
 
 /** Context type alias for OAuth route handlers. */
 type OAuthContext = Context<{ Bindings: Env; Variables: Variables }>
@@ -58,7 +58,7 @@ interface RevokeConsentResponse {
  *                  clock accessor, and injected OAuth repositories.
  * @returns HTTP 200 JSON response containing an array of {@link ConnectedAppSummary} items.
  */
-export async function listConsentsHandler(context: OAuthContext): Promise<Response> {
+export async function listConsentsHandler(context: OAuthContext) {
   const userId = context.get('jwtPayload').sub
   const nowSeconds = context.get('clock').nowSeconds()
 
@@ -104,7 +104,7 @@ export async function listConsentsHandler(context: OAuthContext): Promise<Respon
  * @returns HTTP 200 JSON response with {@link RevokeConsentResponse} on success,
  *          or HTTP 404 JSON response if no active authorization exists for the client.
  */
-export async function revokeConsentHandler(context: OAuthContext): Promise<Response> {
+export async function revokeConsentHandler(context: Context<AppEnv, '/oauth/consents/:clientId'>) {
   const clientId = context.req.param('clientId')!
   const userId = context.get('jwtPayload').sub
   const nowSeconds = context.get('clock').nowSeconds()

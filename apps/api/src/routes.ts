@@ -19,6 +19,7 @@ import { setupApp } from './features/setup'
 import { passwordResetApp } from './features/password-reset'
 import { rbacPublicApp } from './features/rbac/public'
 import { oauthApp } from './features/oauth'
+import { oauthConsentApp } from './features/oauth/consent.router'
 import contentFeature from './features/content'
 import { contentTransferApp } from './features/content/transfer.router'
 import { contentViewsApp } from './features/content/views.router'
@@ -48,6 +49,7 @@ export const publicAuthRoutes = new Hono<AppEnv>()
   .route('/', setupApp)
   .route('/', passwordResetApp)
   .route('/', rbacPublicApp)
+  .route('/', oauthConsentApp)
   .route('/', oauthApp)
 
 /**
