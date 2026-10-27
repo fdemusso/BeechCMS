@@ -15,31 +15,17 @@ import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import { authMiddleware } from './middleware/auth.middleware'
 import { oauthScopeMiddleware } from './middleware/oauth-scope.middleware'
 import { permissionMiddleware, requireActiveAccount } from './middleware/permission.middleware'
-import contentFeature from './features/content'
-import { widgetApp } from './features/widget/widget'
-import { rotateFieldApp } from './features/rotate-field'
-import { draftApp } from './features/draft'
-import { settingsApp } from './features/settings/settings.handler'
-import { schemaApp } from './features/schema/schema.handler'
-import { dashboardLayoutApp } from './features/dashboard-layout'
-import { seedsApp } from './features/seeds'
-import { rbacApp } from './features/rbac'
-import { notificationsApp } from './features/notifications'
-import { automationsApp } from './features/automations/api/automations.handler'
-import { statsApp } from './features/stats'
-import { backrefsApp } from './features/backrefs'
 import { webhooksApp } from './features/webhooks'
-import { uploadRoutes, serveMediaHandler } from './features/upload'
+import { serveMediaHandler } from './features/upload'
 import {
   publicRoutes,
   apiKeyMiddleware,
   publicRateLimitMiddleware,
   schemaRevisionMiddleware,
 } from './public'
-import { searchRouter } from './features/search'
 import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository, IRoleGuard, IAntivirusProvider, IScheduler } from '@beechcms/core'
 import { repositoryMiddleware } from './middleware/repository.middleware'
-import { publicAuthRoutes } from './routes'
+import { publicAuthRoutes, protectedRoutes } from './routes'
 import { seedRegistryMiddleware } from './middleware/seed-registry.middleware'
 import { storageMiddleware } from './middleware/storage.middleware'
 import { InMemorySeedRepository } from './shared/db/repositories/in-memory-seed.repository'
@@ -247,22 +233,9 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   // decides what the subject may do on the scope named by the route.
   apiProtected.use('*', permissionMiddleware())
 
-  apiProtected.route('/settings', settingsApp)
-  apiProtected.route('/schema', schemaApp)
-  apiProtected.route('/dashboard-layout', dashboardLayoutApp)
-  apiProtected.route('/seeds', seedsApp)
-  apiProtected.route('/rbac', rbacApp)
-  apiProtected.route('/content', notificationsApp)
-  apiProtected.route('/content', statsApp)
-  apiProtected.route('/content', rotateFieldApp)
-  apiProtected.route('/content', draftApp)
-  apiProtected.route('/content', backrefsApp)
-  apiProtected.route('/content', contentFeature)
-  apiProtected.route('/widget', widgetApp)
-  apiProtected.route('/automations', automationsApp)
-  apiProtected.route('/search', searchRouter)
-  apiProtected.route('/', uploadRoutes)
-  
+  // The feature routers and their order live in routes.ts, next to `AppType`.
+  apiProtected.route('/', protectedRoutes)
+
   // 5. Public API (must be registered before apiProtected to avoid auth middleware interception)
   const apiPublic = new Hono<{ Bindings: Env; Variables: Variables }>()
   apiPublic.use('*', schemaRevisionMiddleware())
