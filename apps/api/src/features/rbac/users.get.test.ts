@@ -8,7 +8,7 @@ import type { AccountSummary, IRoleAssignmentRepository, IUserRepository } from 
 import { SystemIdGenerator } from '@beechcms/core'
 import { CANONICAL_USERS } from '@beechcms/testing'
 import type { Env, Variables } from '../../types'
-import { getUserHandler } from './users'
+import { rbacApp } from './index'
 
 const account: AccountSummary = {
   id: CANONICAL_USERS.editor.id, email: CANONICAL_USERS.editor.email, name: null, surname: null,
@@ -34,7 +34,7 @@ function buildApp() {
     context.set('roleAssignmentRepository', assignmentRepository as unknown as IRoleAssignmentRepository)
     await next()
   })
-  app.get('/api/rbac/users/:userId', getUserHandler)
+  app.route('/api/rbac', rbacApp)
   return app
 }
 

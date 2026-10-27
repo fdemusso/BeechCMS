@@ -13,7 +13,7 @@ import type { IInvitationRepository, IRoleRepository, IRoleAssignmentRepository,
 import { CANONICAL_USERS, FixedClock } from '@beechcms/testing'
 import { SystemIdGenerator } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
-import { acceptInvitationHandler, previewInvitationHandler } from './invitations.public'
+import { rbacPublicApp } from './public'
 
 const invitations = {
   supersedePending: vi.fn<IInvitationRepository['supersedePending']>(),
@@ -94,8 +94,7 @@ function buildApp() {
     context.set('getSeed', () => null)
     await next()
   })
-  app.get('/auth/invitations/:token', previewInvitationHandler)
-  app.post('/auth/invitations/accept', acceptInvitationHandler)
+  app.route('/', rbacPublicApp)
   return app
 }
 
@@ -152,6 +151,17 @@ describe('invitation HTTP handlers', () => {
       expect(await response.json<{ type: string }>()).toMatchObject({ type: 'https://beechcms.dev/problems/too-many-requests' })
       expect(response.headers.get('Retry-After')).toBe(retryAfterSeconds === undefined ? null : String(retryAfterSeconds))
     }
+  })
+
+  it('rate limits acceptance before it reads the body', async () => {
+    limiter.checkLimit.mockResolvedValue({ isAllowed: false })
+
+    const response = await app.request('/auth/invitations/accept', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{',
+    })
+
+    expect(response.status).toBe(429)
+    expect(invitations.findValidByHash).not.toHaveBeenCalled()
   })
 
   // Every refusal must happen before the atomic redeem writes anything.

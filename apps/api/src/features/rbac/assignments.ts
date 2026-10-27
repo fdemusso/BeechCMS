@@ -6,8 +6,8 @@
 import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME, canGrant, hasPermission } from '@beechcms/core'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { RBAC_ERRORS } from './constants'
-import { canAdministerAccount, rbacProblem, readJson, type AppContext } from './guards'
-import { createAssignmentSchema } from './rbac.schema'
+import { canAdministerAccount, rbacProblem, type AppContext, type JsonContext } from './guards'
+import type { createAssignmentSchema } from './rbac.schema'
 
 /**
  * GET /api/rbac/users/:userId/assignments
@@ -38,7 +38,7 @@ export const listAssignmentsHandler = async (context: AppContext) => {
       roleName: roleById.get(assignment.roleId)?.name ?? null,
       permissions: roleById.get(assignment.roleId)?.permissions ?? [],
     })),
-  })
+  }, 200)
 }
 
 /**
@@ -50,17 +50,8 @@ export const listAssignmentsHandler = async (context: AppContext) => {
  *      that scope.
  * Idempotent: the repository's `INSERT OR IGNORE` + read-back returns the existing id.
  */
-export const createAssignmentHandler = async (context: AppContext) => {
-  const body = await readJson(context)
-  if (body === undefined) {
-    return rbacProblem(context, RBAC_ERRORS.INVALID_JSON, 400, 'Bad Request', 'Request body is not valid JSON.')
-  }
-  const parsed = createAssignmentSchema.safeParse(body)
-  if (!parsed.success) {
-    return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', parsed.error.message)
-  }
-
-  const { userId, roleId, scope } = parsed.data
+export const createAssignmentHandler = async (context: JsonContext<typeof createAssignmentSchema>) => {
+  const { userId, roleId, scope } = context.req.valid('json')
   const idGenerator = context.get('idGenerator')
   if (!idGenerator.isValid(userId) || !idGenerator.isValid(roleId)) {
     return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', 'Malformed id.')
