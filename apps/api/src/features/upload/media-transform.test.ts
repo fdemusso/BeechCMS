@@ -370,8 +370,9 @@ describe('serveMediaHandler — transform path', () => {
     let cache: FakeCache
     let waitUntilCalls: Promise<unknown>[]
 
-    function executionCtx() {
-      return { waitUntil: (promise: Promise<unknown>) => waitUntilCalls.push(promise) }
+    // The transform only calls waitUntil; the rest of ExecutionContext (exports, abort, ...) is the runtime's.
+    function executionCtx(): ExecutionContext {
+      return { waitUntil: (promise: Promise<unknown>) => { waitUntilCalls.push(promise) } } as unknown as ExecutionContext
     }
 
     async function flush(): Promise<void> {
