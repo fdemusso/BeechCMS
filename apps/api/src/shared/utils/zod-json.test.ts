@@ -61,6 +61,31 @@ describe('zodJson', () => {
     expect(response.status).toBe(400)
   })
 
+  it('tells onInvalid the body was malformed when it is not JSON', async () => {
+    const { app } = buildApp((context, _error, cause) => context.json({ cause }, 400))
+
+    const response = await post(app, '{not json')
+
+    expect(await response.json()).toEqual({ cause: 'malformed' })
+  })
+
+  it('tells onInvalid the body was invalid when it is JSON the schema rejects', async () => {
+    const { app } = buildApp((context, _error, cause) => context.json({ cause }, 400))
+
+    const response = await post(app, JSON.stringify({ title: '' }))
+
+    expect(await response.json()).toEqual({ cause: 'invalid' })
+  })
+
+  it('refuses a malformed body even when the schema would accept null', async () => {
+    const lenient = new Hono<AppEnv>()
+    lenient.post('/items', zodJson(z.null().or(z.object({})), (context) => context.json({ error: 'invalid' }, 400)), (context) => context.json({ ok: true }))
+
+    const response = await post(lenient, '{not json')
+
+    expect(response.status).toBe(400)
+  })
+
   it('hands onInvalid the ZodError so the endpoint can report the first issue', async () => {
     const { app } = buildApp((context, error) => context.json({ field: error.issues[0]?.path[0] }, 422))
 

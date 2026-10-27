@@ -112,6 +112,17 @@ describe('Dashboard Layout Handler', () => {
       expect(body.type).toContain('forbidden')
     })
 
+    it('returns 403 for an editor before the body is read, even when it is not JSON', async () => {
+      const { app, repo } = buildApp({ role: 'editor' })
+      const res = await app.request('/', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: 'not-json',
+      })
+      expect(res.status).toBe(403)
+      expect(repo.upsert).not.toHaveBeenCalled()
+    })
+
     it('returns 400 invalid-json for malformed JSON body', async () => {
       const { app } = buildApp()
       const res = await app.request('/', {
@@ -350,6 +361,12 @@ describe('Dashboard Layout Handler', () => {
     it('editor cannot write role:editor (403)', async () => {
       const { app } = buildApp({ role: 'editor', repo: makeMultiRepoStub() })
       const res = await app.request('/role:editor', putRequest(validLayout))
+      expect(res.status).toBe(403)
+    })
+
+    it('returns 403 for an editor before the body is validated, even when it fails the schema', async () => {
+      const { app } = buildApp({ role: 'editor', repo: makeMultiRepoStub() })
+      const res = await app.request('/role:editor', putRequest({ version: 2, pages: [] }))
       expect(res.status).toBe(403)
     })
 
