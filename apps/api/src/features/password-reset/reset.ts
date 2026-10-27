@@ -4,11 +4,11 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
-import type { Env, Variables } from '../../types'
+import type { AppEnv } from '../../types'
+import type { ZodJsonInput } from '../../shared/utils/zod-json'
 import { sendPasswordChangedEmail, resolveEmailLocale } from '../../shared/email'
 import { sha256hex } from '@beechcms/core'
-import { getClientIp } from '../../shared/utils/request-utils'
-import { readJsonObject } from './read-json-object'
+import type { resetPasswordBodySchema } from './password-reset.schema'
 
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 128
@@ -19,29 +19,11 @@ const MAX_PASSWORD_BYTES = 72
  * Handles the actual password reset process using a valid token.
  */
 export async function resetPassword(
-  context: Context<{ Bindings: Env; Variables: Variables }>
-): Promise<Response> {
-  const { env, req, executionCtx } = context
+  context: Context<AppEnv, string, ZodJsonInput<typeof resetPasswordBodySchema>>
+) {
+  const { env, executionCtx } = context
 
-  const useSmtp = env.EMAIL_PROVIDER === 'smtp'
-  if (!useSmtp && !env.RESEND_API_KEY) {
-    return context.json({ error: 'Service not available' }, 503)
-  }
-
-  const clientIpAddress = getClientIp(req)
-  const resetPasswordRateLimit = await context.get('rateLimiters').getLimiter('resetPassword').checkLimit(clientIpAddress)
-  if (!resetPasswordRateLimit.isAllowed) {
-    const headers: Record<string, string> = {}
-    if (resetPasswordRateLimit.retryAfterSeconds !== undefined) {
-      headers['Retry-After'] = String(resetPasswordRateLimit.retryAfterSeconds)
-    }
-    return context.json({ error: 'Too many requests' }, 429, headers)
-  }
-
-  const payload = await readJsonObject(req)
-  if (!payload) {
-    return context.json({ error: 'Invalid request body' }, 400)
-  }
+  const payload = context.req.valid('json')
 
   const resetToken = payload.token
   if (typeof resetToken !== 'string' || !resetToken) {
@@ -116,5 +98,5 @@ export async function resetPassword(
     void sendNotification()
   }
 
-  return context.json({ success: true })
+  return context.json({ success: true }, 200)
 }

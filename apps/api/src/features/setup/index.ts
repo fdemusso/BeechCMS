@@ -4,51 +4,23 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
+import type { Context, MiddlewareHandler } from 'hono'
 import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME, isValidAccountEmail } from '@beechcms/core'
-import type { Env, Variables } from '../../types'
+import type { AppEnv } from '../../types'
 import { sortSeedsByDependencies, planCreateSeed, planExtendSeed } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import { DEMO_SEED_DEFINITIONS } from '../../shared/db/fixtures/demo-seeds'
 import { validateAndApplySeedDef } from '../seeds/seeds.helpers'
 import { getHydratedRegistry } from '../../shared/services/cache/seed-registry-cache'
 import { getClientIp } from '../../shared/utils/request-utils'
-
-const setupApp = new Hono<{ Bindings: Env; Variables: Variables }>()
-
-/**
- * GET /auth/setup
- * Returns setup status + environment flags for the wizard.
- */
-setupApp.get('/auth/setup', async (context) => {
-  const userCount = await context.get('userRepository').countAll()
-  const needsSetup = userCount === 0
-
-  // Environment details (dev flag, mail/qstash configuration) are only useful
-  // to the wizard itself — once an admin exists, this endpoint stays public
-  // (the dashboard polls it pre-login) but must not leak them any further.
-  if (!needsSetup) {
-    return context.json({ needsSetup })
-  }
-
-  const isDeveloper = context.env.ENV === 'development'
-  const mail =
-    context.env.EMAIL_PROVIDER === 'smtp' ||
-    !!(context.env.EMAIL_API_KEY || context.env.RESEND_API_KEY)
-  const qstash = !!context.env.QSTASH_TOKEN
-
-  return context.json({
-    needsSetup,
-    environment: { isDeveloper, services: { mail, qstash } },
-  })
-})
+import { zodJson } from '../../shared/utils/zod-json'
+import { setupBodySchema } from './setup.schema'
 
 /**
- * POST /auth/setup
- * Creates the first administrator account and persists site defaults.
+ * Before the first admin exists this route is open to anyone, so it is throttled ahead of every
+ * other check, including the already-done one.
  */
-setupApp.post('/auth/setup', async (context) => {
-  // Before the first admin exists this route is open to anyone, so it is throttled
-  // ahead of every other check, including the already-done one.
+const throttleSetup: MiddlewareHandler<AppEnv> = async (context, next) => {
   const limit = await context.get('rateLimiters').getLimiter('setup').checkLimit(getClientIp(context.req))
   if (!limit.isAllowed) {
     const headers: Record<string, string> = {}
@@ -61,9 +33,12 @@ setupApp.post('/auth/setup', async (context) => {
       headers,
     })
   }
+  await next()
+}
 
+/** Refuses once an administrator exists, before the body is read. */
+const requireSetupOpen: MiddlewareHandler<AppEnv> = async (context, next) => {
   const userCount = await context.get('userRepository').countAll()
-
   if (userCount > 0) {
     return publicProblem(context, {
       type: 'setup-already-done',
@@ -72,348 +47,385 @@ setupApp.post('/auth/setup', async (context) => {
       detail: 'An administrator account already exists. Initial setup can only be performed once.',
     })
   }
+  await next()
+}
 
-  let payload: unknown
-  try {
-    payload = await context.req.json()
-  } catch {
-    return publicProblem(context, {
-      type: 'bad-request',
-      title: 'Invalid JSON body',
-      status: 400,
-      detail: 'The request body could not be parsed as valid JSON.',
-    })
-  }
+/** The body is not JSON at all; any JSON value is judged field by field by the handler. */
+function rejectUnparsableSetupBody(context: Context<AppEnv>) {
+  return publicProblem(context, {
+    type: 'bad-request',
+    title: 'Invalid JSON body',
+    status: 400,
+    detail: 'The request body could not be parsed as valid JSON.',
+  })
+}
 
-  if (!payload || typeof payload !== 'object') {
-    return publicProblem(context, {
-      type: 'bad-request',
-      title: 'Invalid request',
-      status: 400,
-      detail: 'The request payload is missing or invalid.',
-    })
-  }
+const setupApp = new Hono<AppEnv>()
 
-  const p = payload as Record<string, unknown>
-  const { email, password, name, surname, settings, track, company, loadDemoData } = p
+  /**
+   * GET /auth/setup
+   * Returns setup status + environment flags for the wizard.
+   */
+  .get('/auth/setup', async (context) => {
+    const userCount = await context.get('userRepository').countAll()
+    const needsSetup = userCount === 0
 
-  if (typeof email !== 'string' || !isValidAccountEmail(email)) {
-    return publicProblem(context, {
-      type: 'validation-error',
-      title: 'Valid email required',
-      status: 422,
-      detail: 'A valid email address is required for the administrator account.',
-    })
-  }
+    // Environment details (dev flag, mail/qstash configuration) are only useful
+    // to the wizard itself — once an admin exists, this endpoint stays public
+    // (the dashboard polls it pre-login) but must not leak them any further.
+    if (!needsSetup) {
+      return context.json({ needsSetup }, 200)
+    }
 
-  if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
-    return publicProblem(context, {
-      type: 'validation-error',
-      title: 'Invalid password',
-      status: 422,
-      detail: 'Password must be between 8 and 128 characters long.',
-    })
-  }
+    const isDeveloper = context.env.ENV === 'development'
+    const mail =
+      context.env.EMAIL_PROVIDER === 'smtp' ||
+      !!(context.env.EMAIL_API_KEY || context.env.RESEND_API_KEY)
+    const qstash = !!context.env.QSTASH_TOKEN
 
-  if (new TextEncoder().encode(password).length > 72) {
-    return publicProblem(context, {
-      type: 'validation-error',
-      title: 'Invalid password',
-      status: 422,
-      detail: 'Password must not exceed 72 bytes when UTF-8 encoded.',
-    })
-  }
+    return context.json({
+      needsSetup,
+      environment: { isDeveloper, services: { mail, qstash } },
+    }, 200)
+  })
 
-  if (!settings || typeof settings !== 'object') {
-    return publicProblem(context, {
-      type: 'validation-error',
-      title: 'Settings required',
-      status: 422,
-      detail: 'settings.language, settings.timezone, and settings.currency are required.',
-    })
-  }
+  /**
+   * POST /auth/setup
+   * Creates the first administrator account and persists site defaults.
+   */
+  .post('/auth/setup', throttleSetup, requireSetupOpen, zodJson(setupBodySchema, rejectUnparsableSetupBody), async (context) => {
+    // The schema only types the request: whatever JSON the caller sent arrives here.
+    const payload: unknown = context.req.valid('json')
 
-  const s = settings as Record<string, unknown>
-  const language = typeof s.language === 'string' ? s.language : ''
-  const timezone = typeof s.timezone === 'string' ? s.timezone.trim() : ''
-  const currency = typeof s.currency === 'string' ? s.currency.trim() : ''
+    if (!payload || typeof payload !== 'object') {
+      return publicProblem(context, {
+        type: 'bad-request',
+        title: 'Invalid request',
+        status: 400,
+        detail: 'The request payload is missing or invalid.',
+      })
+    }
 
-  if (!['it', 'en'].includes(language)) {
-    return publicProblem(context, {
-      type: 'validation-error',
-      title: 'Invalid language',
-      status: 422,
-      detail: 'settings.language must be "it" or "en".',
-    })
-  }
+    const p = payload as Record<string, unknown>
+    const { email, password, name, surname, settings, track, company, loadDemoData } = p
 
-  if (!timezone) {
-    return publicProblem(context, {
-      type: 'validation-error',
-      title: 'Timezone required',
-      status: 422,
-      detail: 'settings.timezone must be a non-empty IANA timezone string.',
-    })
-  }
-
-  if (!currency) {
-    return publicProblem(context, {
-      type: 'validation-error',
-      title: 'Currency required',
-      status: 422,
-      detail: 'settings.currency must be a non-empty ISO 4217 currency code.',
-    })
-  }
-
-  if (track === 'normal') {
-    if (!company || typeof company !== 'object') {
+    if (typeof email !== 'string' || !isValidAccountEmail(email)) {
       return publicProblem(context, {
         type: 'validation-error',
-        title: 'Company info required',
+        title: 'Valid email required',
         status: 422,
-        detail: 'company.name and company.website are required for the normal track.',
+        detail: 'A valid email address is required for the administrator account.',
       })
     }
-    const c = company as Record<string, unknown>
-    if (typeof c.name !== 'string' || !c.name.trim()) {
+
+    if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
       return publicProblem(context, {
         type: 'validation-error',
-        title: 'Company name required',
+        title: 'Invalid password',
         status: 422,
-        detail: 'company.name must be a non-empty string.',
+        detail: 'Password must be between 8 and 128 characters long.',
       })
     }
-    if (typeof c.website !== 'string' || !c.website.trim()) {
+
+    if (new TextEncoder().encode(password).length > 72) {
       return publicProblem(context, {
         type: 'validation-error',
-        title: 'Company website required',
+        title: 'Invalid password',
         status: 422,
-        detail: 'company.website must be a valid URL.',
+        detail: 'Password must not exceed 72 bytes when UTF-8 encoded.',
       })
     }
-    try {
-      new URL(c.website.trim())
-    } catch {
+
+    if (!settings || typeof settings !== 'object') {
       return publicProblem(context, {
         type: 'validation-error',
-        title: 'Invalid company website',
+        title: 'Settings required',
         status: 422,
-        detail: 'company.website must be a valid URL.',
+        detail: 'settings.language, settings.timezone, and settings.currency are required.',
       })
     }
-  }
 
-  if (track === 'developer' && loadDemoData === true) {
-    // Provision the canonical demo seeds (table + registry row) before creating the
-    // admin account, so a DDL/validation failure never leaves setup half-done.
-    const seedRepository = context.get('seedRepository')
-    for (const seedDef of DEMO_SEED_DEFINITIONS) {
-      const existing = await seedRepository.get(seedDef.slug)
-      if (existing?.status === 'active') continue
+    const s = settings as Record<string, unknown>
+    const language = typeof s.language === 'string' ? s.language : ''
+    const timezone = typeof s.timezone === 'string' ? s.timezone.trim() : ''
+    const currency = typeof s.currency === 'string' ? s.currency.trim() : ''
 
-      const error = await validateAndApplySeedDef(context, seedDef.slug, seedDef, 'create', {
-        slug: seedDef.slug,
-        source: 'demo-seed',
+    if (!['it', 'en'].includes(language)) {
+      return publicProblem(context, {
+        type: 'validation-error',
+        title: 'Invalid language',
+        status: 422,
+        detail: 'settings.language must be "it" or "en".',
       })
-      if (error) return error
     }
 
-    // Rehydrate the registry in-request: getSeed() was captured by seedRegistryMiddleware
-    // before the seeds above existed, so it must be refreshed before loadDemoData() runs.
-    const { registry } = await getHydratedRegistry(seedRepository)
-    context.set('seedRegistry', registry)
-    context.set('getSeed', (slug: string) => registry.get(slug))
-  }
+    if (!timezone) {
+      return publicProblem(context, {
+        type: 'validation-error',
+        title: 'Timezone required',
+        status: 422,
+        detail: 'settings.timezone must be a non-empty IANA timezone string.',
+      })
+    }
 
-  // LOCKOUT GUARD. `user_role_assignments` ships empty, so without this grant the account
-  // about to be created would hold nothing and every `/api/*` route would 403 it. Resolved
-  // BEFORE any write: `createInitialAdmin` below commits the admin and this grant in one
-  // D1 batch, so a missing role aborts setup with nothing persisted instead of leaving a
-  // stranded admin that `countAll() > 0` then makes unrecoverable. The role id is minted
-  // per-database by `0000_v040_base.sql`, so it is resolved BY NAME, never hardcoded.
-  const superAdminRole = (await context.get('roleRepository').listAll())
-    .find(role => role.name === SUPER_ADMIN_ROLE_NAME)
+    if (!currency) {
+      return publicProblem(context, {
+        type: 'validation-error',
+        title: 'Currency required',
+        status: 422,
+        detail: 'settings.currency must be a non-empty ISO 4217 currency code.',
+      })
+    }
 
-  if (!superAdminRole) {
-    return publicProblem(context, {
-      type: 'rbac-not-provisioned',
-      title: 'RBAC not provisioned',
-      status: 500,
-      detail: `The '${SUPER_ADMIN_ROLE_NAME}' system role is missing. Run \`pnpm beech db:reset\`.`,
-    })
-  }
+    if (track === 'normal') {
+      if (!company || typeof company !== 'object') {
+        return publicProblem(context, {
+          type: 'validation-error',
+          title: 'Company info required',
+          status: 422,
+          detail: 'company.name and company.website are required for the normal track.',
+        })
+      }
+      const c = company as Record<string, unknown>
+      if (typeof c.name !== 'string' || !c.name.trim()) {
+        return publicProblem(context, {
+          type: 'validation-error',
+          title: 'Company name required',
+          status: 422,
+          detail: 'company.name must be a non-empty string.',
+        })
+      }
+      if (typeof c.website !== 'string' || !c.website.trim()) {
+        return publicProblem(context, {
+          type: 'validation-error',
+          title: 'Company website required',
+          status: 422,
+          detail: 'company.website must be a valid URL.',
+        })
+      }
+      try {
+        new URL(c.website.trim())
+      } catch {
+        return publicProblem(context, {
+          type: 'validation-error',
+          title: 'Invalid company website',
+          status: 422,
+          detail: 'company.website must be a valid URL.',
+        })
+      }
+    }
 
-  const passwordHash = await context.get('hashProvider').hash(password)
-  const normalizedEmail = email.trim().toLowerCase()
-  const normalizedName = typeof name === 'string' ? name.trim() : null
-  const normalizedSurname = typeof surname === 'string' ? surname.trim() : null
+    if (track === 'developer' && loadDemoData === true) {
+      // Provision the canonical demo seeds (table + registry row) before creating the
+      // admin account, so a DDL/validation failure never leaves setup half-done.
+      const seedRepository = context.get('seedRepository')
+      for (const seedDef of DEMO_SEED_DEFINITIONS) {
+        const existing = await seedRepository.get(seedDef.slug)
+        if (existing?.status === 'active') continue
 
-  const adminUserId = context.get('idGenerator').uuid()
-  const roleAssignmentId = context.get('idGenerator').uuid()
-  const created = await context.get('userRepository').createInitialAdmin(
-    {
-      id: adminUserId,
-      email: normalizedEmail,
-      passwordHash,
-      role: 'admin',
-      name: normalizedName,
-      surname: normalizedSurname,
-    },
-    {
-      id: roleAssignmentId,
-      roleId: superAdminRole.id,
-      scope: GLOBAL_SCOPE,
-    },
-  )
-
-  if (!created) {
-    return publicProblem(context, {
-      type: 'setup-already-done',
-      title: 'Setup already completed',
-      status: 403,
-      detail: 'An administrator account already exists. Initial setup can only be performed once.',
-    })
-  }
-
-  if (track === 'developer' && loadDemoData === true) {
-    try {
-      const seedRepo = context.get('seedRepository')
-      const schemaMutator = context.get('schemaMutator')
-
-      const sortedSeeds = sortSeedsByDependencies(DEMO_SEED_DEFINITIONS)
-      for (const seed of sortedSeeds) {
-        const existingCols = await schemaMutator.getColumns(`content_${seed.slug}`)
-        const stmts = existingCols === null
-          ? planCreateSeed(seed)
-          : planExtendSeed(seed, existingCols).statements
-        if (stmts.length > 0) {
-          await schemaMutator.execDdl(stmts)
-        }
-        await seedRepo.upsert(seed.slug, seed, 'runtime')
+        const error = await validateAndApplySeedDef(context, seedDef.slug, seedDef, 'create', {
+          slug: seedDef.slug,
+          source: 'demo-seed',
+        })
+        if (error) return error
       }
 
-      await seedRepo.bumpRegistryVersion()
-      const { registry, backrefMap } = await getHydratedRegistry(seedRepo)
+      // Rehydrate the registry in-request: getSeed() was captured by seedRegistryMiddleware
+      // before the seeds above existed, so it must be refreshed before loadDemoData() runs.
+      const { registry } = await getHydratedRegistry(seedRepository)
       context.set('seedRegistry', registry)
-      const freshGetSeed = (slug: string) => registry.get(slug)
-      context.set('getSeed', freshGetSeed)
-      context.set('backrefMap', backrefMap)
+      context.set('getSeed', (slug: string) => registry.get(slug))
+    }
 
-      await context.get('demoDataRepository').loadDemoData(
-        context.get('repository'),
-        freshGetSeed
-      )
-    } catch (err: unknown) {
+    // LOCKOUT GUARD. `user_role_assignments` ships empty, so without this grant the account
+    // about to be created would hold nothing and every `/api/*` route would 403 it. Resolved
+    // BEFORE any write: `createInitialAdmin` below commits the admin and this grant in one
+    // D1 batch, so a missing role aborts setup with nothing persisted instead of leaving a
+    // stranded admin that `countAll() > 0` then makes unrecoverable. The role id is minted
+    // per-database by `0000_v040_base.sql`, so it is resolved BY NAME, never hardcoded.
+    const superAdminRole = (await context.get('roleRepository').listAll())
+      .find(role => role.name === SUPER_ADMIN_ROLE_NAME)
+
+    if (!superAdminRole) {
       return publicProblem(context, {
-        type: 'feature-not-implemented',
-        title: 'Feature not implemented',
-        status: 501,
-        detail: err instanceof Error ? err.message : 'Demo data seeding is not implemented.',
+        type: 'rbac-not-provisioned',
+        title: 'RBAC not provisioned',
+        status: 500,
+        detail: `The '${SUPER_ADMIN_ROLE_NAME}' system role is missing. Run \`pnpm beech db:reset\`.`,
       })
     }
 
-    // Inject custom SaaS dashboard layout
-    const layout = {
-      version: 1,
-      pages: [
-        {
-          id: 'page-1',
-          slug: 'overview',
-          label: 'Overview',
-          icon: 'LayoutDashboard',
-          sections: [
-            {
-              id: 'sec-0',
-              hideLabel: true,
-              columns: [
-                { id: 'c0', widgets: [{ id: 'w0', type: 'core/text', config: { content: '# Acme SaaS Analytics\nWelcome to your production dashboard. Monitor real-time metrics and KPIs here.' } }] }
-              ]
-            },
-            {
-              id: 'sec-1',
-              hideLabel: true,
-              columns: [
-                { id: 'c1', widgets: [{ id: 'w1', type: 'core/stat', config: { seedSlug: 'clienti', formula: { op: 'sum', column: 'mrr' }, window: 'all' }, title: 'Total MRR' }] },
-                { id: 'c2', widgets: [{ id: 'w2', type: 'core/stat', config: { seedSlug: 'clienti', formula: { op: 'count' }, window: 'all' }, title: 'Active Customers' }] },
-                { id: 'c3', widgets: [{ id: 'w3', type: 'core/stat', config: { seedSlug: 'abbonamenti', formula: { op: 'count' }, window: 'all' }, title: 'Subscriptions' }] },
-                { id: 'c4', widgets: [{ id: 'w4', type: 'core/stat', config: { seedSlug: 'ticket', formula: { op: 'countWhere', column: 'ticket_status', value: 'open' }, window: 'all' }, title: 'Open Tickets' }] }
-              ]
-            },
-            {
-              id: 'sec-2',
-              hideLabel: true,
-              columns: [
-                { id: 'c5', widgets: [{ id: 'w5', type: 'core/area-chart', config: { seedSlug: 'clienti', groupColumn: 'created_at', window: 'all' }, title: 'Signups Trend' }] },
-                { id: 'c6', widgets: [{ id: 'w6', type: 'core/pie-chart', config: { seedSlug: 'clienti', column: 'tier', window: 'all' }, title: 'Plan Distribution' }] }
-              ],
-              columnSpans: [8, 4]
-            },
-            {
-              id: 'sec-3',
-              hideLabel: true,
-              columns: [
-                { id: 'c7', widgets: [{ id: 'w7', type: 'core/data-table', config: { seedSlug: 'clienti', pageSize: 5 }, title: 'Recent Signups' }] },
-                { id: 'c8', widgets: [{ id: 'w8', type: 'core/data-table', config: { seedSlug: 'changelog', pageSize: 5 }, title: 'Latest Releases' }] }
-              ],
-              columnSpans: [6, 6]
-            }
-          ]
-        },
-        {
-          id: 'page-2',
-          slug: 'operations',
-          label: 'Operations',
-          icon: 'LifeBuoy',
-          sections: [
-            {
-              id: 'sec-4',
-              hideLabel: true,
-              columns: [
-                { id: 'c9', widgets: [{ id: 'w9', type: 'core/stat', config: { seedSlug: 'ticket', formula: { op: 'countWhere', column: 'priority', value: 'high' }, window: 'all' }, title: 'High Priority Tickets' }] },
-                { id: 'c10', widgets: [{ id: 'w10', type: 'core/stat', config: { seedSlug: 'ticket', formula: { op: 'countWhere', column: 'ticket_status', value: 'closed' }, window: 'all' }, title: 'Closed Tickets' }] },
-                { id: 'c11', widgets: [{ id: 'w11', type: 'core/stat', config: { seedSlug: 'changelog', formula: { op: 'count' }, window: 'all' }, title: 'Released Updates' }] }
-              ]
-            },
-            {
-              id: 'sec-5',
-              hideLabel: true,
-              columns: [
-                { id: 'c12', widgets: [{ id: 'w12', type: 'core/bar-chart', config: { seedSlug: 'ticket', groupColumn: 'created_at', window: 'all' }, title: 'Tickets Over Time' }] },
-                { id: 'c13', widgets: [{ id: 'w13', type: 'core/line-chart', config: { seedSlug: 'abbonamenti', groupColumn: 'created_at', window: 'all' }, title: 'New Subscriptions' }] }
-              ],
-              columnSpans: [6, 6]
-            },
-            {
-              id: 'sec-6',
-              hideLabel: true,
-              columns: [
-                { id: 'c14', widgets: [{ id: 'w14', type: 'core/data-table', config: { seedSlug: 'ticket', pageSize: 10 }, title: 'Active Tickets' }] }
-              ]
-            }
-          ]
-        }
-      ]
+    const passwordHash = await context.get('hashProvider').hash(password)
+    const normalizedEmail = email.trim().toLowerCase()
+    const normalizedName = typeof name === 'string' ? name.trim() : null
+    const normalizedSurname = typeof surname === 'string' ? surname.trim() : null
+
+    const adminUserId = context.get('idGenerator').uuid()
+    const roleAssignmentId = context.get('idGenerator').uuid()
+    const created = await context.get('userRepository').createInitialAdmin(
+      {
+        id: adminUserId,
+        email: normalizedEmail,
+        passwordHash,
+        role: 'admin',
+        name: normalizedName,
+        surname: normalizedSurname,
+      },
+      {
+        id: roleAssignmentId,
+        roleId: superAdminRole.id,
+        scope: GLOBAL_SCOPE,
+      },
+    )
+
+    if (!created) {
+      return publicProblem(context, {
+        type: 'setup-already-done',
+        title: 'Setup already completed',
+        status: 403,
+        detail: 'An administrator account already exists. Initial setup can only be performed once.',
+      })
     }
-    await context.get('dashboardLayoutRepository').upsert('default', layout as any, 'system')
-  }
 
-  if (track === 'normal' && company && typeof company === 'object') {
-    const c = company as Record<string, unknown>
-    const companyName = (c.name as string).trim()
-    await context.get('siteSettingsRepository').setMany({
-      defaultLanguage: language,
-      timezone,
-      currency,
-      companyName,
-      companyWebsite: (c.website as string).trim(),
-      companyAbbreviation: typeof c.abbreviation === 'string' ? c.abbreviation.trim() || null : null,
-      siteTitle: companyName,
-    })
-  } else {
-    await context.get('siteSettingsRepository').setMany({ defaultLanguage: language, timezone, currency })
-  }
+    if (track === 'developer' && loadDemoData === true) {
+      try {
+        const seedRepo = context.get('seedRepository')
+        const schemaMutator = context.get('schemaMutator')
 
-  return context.json({ success: true }, 201)
-})
+        const sortedSeeds = sortSeedsByDependencies(DEMO_SEED_DEFINITIONS)
+        for (const seed of sortedSeeds) {
+          const existingCols = await schemaMutator.getColumns(`content_${seed.slug}`)
+          const stmts = existingCols === null
+            ? planCreateSeed(seed)
+            : planExtendSeed(seed, existingCols).statements
+          if (stmts.length > 0) {
+            await schemaMutator.execDdl(stmts)
+          }
+          await seedRepo.upsert(seed.slug, seed, 'runtime')
+        }
+
+        await seedRepo.bumpRegistryVersion()
+        const { registry, backrefMap } = await getHydratedRegistry(seedRepo)
+        context.set('seedRegistry', registry)
+        const freshGetSeed = (slug: string) => registry.get(slug)
+        context.set('getSeed', freshGetSeed)
+        context.set('backrefMap', backrefMap)
+
+        await context.get('demoDataRepository').loadDemoData(
+          context.get('repository'),
+          freshGetSeed
+        )
+      } catch (err: unknown) {
+        return publicProblem(context, {
+          type: 'feature-not-implemented',
+          title: 'Feature not implemented',
+          status: 501,
+          detail: err instanceof Error ? err.message : 'Demo data seeding is not implemented.',
+        })
+      }
+
+      // Inject custom SaaS dashboard layout
+      const layout = {
+        version: 1,
+        pages: [
+          {
+            id: 'page-1',
+            slug: 'overview',
+            label: 'Overview',
+            icon: 'LayoutDashboard',
+            sections: [
+              {
+                id: 'sec-0',
+                hideLabel: true,
+                columns: [
+                  { id: 'c0', widgets: [{ id: 'w0', type: 'core/text', config: { content: '# Acme SaaS Analytics\nWelcome to your production dashboard. Monitor real-time metrics and KPIs here.' } }] }
+                ]
+              },
+              {
+                id: 'sec-1',
+                hideLabel: true,
+                columns: [
+                  { id: 'c1', widgets: [{ id: 'w1', type: 'core/stat', config: { seedSlug: 'clienti', formula: { op: 'sum', column: 'mrr' }, window: 'all' }, title: 'Total MRR' }] },
+                  { id: 'c2', widgets: [{ id: 'w2', type: 'core/stat', config: { seedSlug: 'clienti', formula: { op: 'count' }, window: 'all' }, title: 'Active Customers' }] },
+                  { id: 'c3', widgets: [{ id: 'w3', type: 'core/stat', config: { seedSlug: 'abbonamenti', formula: { op: 'count' }, window: 'all' }, title: 'Subscriptions' }] },
+                  { id: 'c4', widgets: [{ id: 'w4', type: 'core/stat', config: { seedSlug: 'ticket', formula: { op: 'countWhere', column: 'ticket_status', value: 'open' }, window: 'all' }, title: 'Open Tickets' }] }
+                ]
+              },
+              {
+                id: 'sec-2',
+                hideLabel: true,
+                columns: [
+                  { id: 'c5', widgets: [{ id: 'w5', type: 'core/area-chart', config: { seedSlug: 'clienti', groupColumn: 'created_at', window: 'all' }, title: 'Signups Trend' }] },
+                  { id: 'c6', widgets: [{ id: 'w6', type: 'core/pie-chart', config: { seedSlug: 'clienti', column: 'tier', window: 'all' }, title: 'Plan Distribution' }] }
+                ],
+                columnSpans: [8, 4]
+              },
+              {
+                id: 'sec-3',
+                hideLabel: true,
+                columns: [
+                  { id: 'c7', widgets: [{ id: 'w7', type: 'core/data-table', config: { seedSlug: 'clienti', pageSize: 5 }, title: 'Recent Signups' }] },
+                  { id: 'c8', widgets: [{ id: 'w8', type: 'core/data-table', config: { seedSlug: 'changelog', pageSize: 5 }, title: 'Latest Releases' }] }
+                ],
+                columnSpans: [6, 6]
+              }
+            ]
+          },
+          {
+            id: 'page-2',
+            slug: 'operations',
+            label: 'Operations',
+            icon: 'LifeBuoy',
+            sections: [
+              {
+                id: 'sec-4',
+                hideLabel: true,
+                columns: [
+                  { id: 'c9', widgets: [{ id: 'w9', type: 'core/stat', config: { seedSlug: 'ticket', formula: { op: 'countWhere', column: 'priority', value: 'high' }, window: 'all' }, title: 'High Priority Tickets' }] },
+                  { id: 'c10', widgets: [{ id: 'w10', type: 'core/stat', config: { seedSlug: 'ticket', formula: { op: 'countWhere', column: 'ticket_status', value: 'closed' }, window: 'all' }, title: 'Closed Tickets' }] },
+                  { id: 'c11', widgets: [{ id: 'w11', type: 'core/stat', config: { seedSlug: 'changelog', formula: { op: 'count' }, window: 'all' }, title: 'Released Updates' }] }
+                ]
+              },
+              {
+                id: 'sec-5',
+                hideLabel: true,
+                columns: [
+                  { id: 'c12', widgets: [{ id: 'w12', type: 'core/bar-chart', config: { seedSlug: 'ticket', groupColumn: 'created_at', window: 'all' }, title: 'Tickets Over Time' }] },
+                  { id: 'c13', widgets: [{ id: 'w13', type: 'core/line-chart', config: { seedSlug: 'abbonamenti', groupColumn: 'created_at', window: 'all' }, title: 'New Subscriptions' }] }
+                ],
+                columnSpans: [6, 6]
+              },
+              {
+                id: 'sec-6',
+                hideLabel: true,
+                columns: [
+                  { id: 'c14', widgets: [{ id: 'w14', type: 'core/data-table', config: { seedSlug: 'ticket', pageSize: 10 }, title: 'Active Tickets' }] }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+      await context.get('dashboardLayoutRepository').upsert('default', layout as any, 'system')
+    }
+
+    if (track === 'normal' && company && typeof company === 'object') {
+      const c = company as Record<string, unknown>
+      const companyName = (c.name as string).trim()
+      await context.get('siteSettingsRepository').setMany({
+        defaultLanguage: language,
+        timezone,
+        currency,
+        companyName,
+        companyWebsite: (c.website as string).trim(),
+        companyAbbreviation: typeof c.abbreviation === 'string' ? c.abbreviation.trim() || null : null,
+        siteTitle: companyName,
+      })
+    } else {
+      await context.get('siteSettingsRepository').setMany({ defaultLanguage: language, timezone, currency })
+    }
+
+    return context.json({ success: true }, 201)
+  })
 
 export { setupApp }

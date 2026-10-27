@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { Hono } from 'hono'
 import { FixedClock } from '@beechcms/testing'
-import { resetPassword } from './reset'
+import { passwordResetApp } from './index'
 
 vi.mock('../../shared/email', () => ({
   sendPasswordChangedEmail: vi.fn().mockResolvedValue(undefined),
@@ -31,7 +31,7 @@ function buildApp() {
     c.set('hashProvider' as never, { hash: vi.fn().mockResolvedValue('hashed-password') })
     await next()
   })
-  app.post('/auth/reset-password', resetPassword)
+  app.route('/', passwordResetApp)
 
   return { app, passwordResetTokenRepository }
 }
