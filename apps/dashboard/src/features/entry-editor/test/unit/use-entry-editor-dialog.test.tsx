@@ -4,7 +4,9 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+const mocked = vi.hoisted(() => ({ schema: vi.fn() }))
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() } }))
+vi.mock("@/lib/rpc", () => ({ rpc: { api: { schema: { $get: mocked.schema } } } }))
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { role: "admin" } }) }))
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
@@ -31,7 +33,8 @@ describe("useEntryEditorDialog", () => {
     vi.clearAllMocks()
     client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
     onClose = vi.fn<() => void>()
-    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === "/schema" ? CANONICAL_SEEDS : url.endsWith("/draft") ? { data: { title: "Draft" } } : { id: entryId, data: CANONICAL_ENTRIES[0].data, status: "published", updated_at: 1 } }))
+    mocked.schema.mockResolvedValue({ json: async () => CANONICAL_SEEDS })
+    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url.endsWith("/draft") ? { data: { title: "Draft" } } : { id: entryId, data: CANONICAL_ENTRIES[0].data, status: "published", updated_at: 1 } }))
   })
 
   function conflictAction(): () => void {

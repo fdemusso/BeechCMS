@@ -13,7 +13,12 @@ vi.mock("@/lib/api", () => ({
   api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
 }))
 
-import { api } from "@/lib/api"
+const mocked = vi.hoisted(() => ({ schema: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { schema: { $get: mocked.schema } } },
+}))
+
 import "@/features/dashboard/registry/builtin-widgets"
 import { WidgetConfigSheet } from "@/features/dashboard/builder/widget-config-sheet"
 
@@ -42,7 +47,7 @@ function renderWithClient(ui: React.ReactElement) {
 describe("builtin widget config panels", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: SEEDS })
+    mocked.schema.mockResolvedValue({ json: async () => SEEDS })
   })
 
   it("core/stat: shows statKey select without a seed, and switches to formula/window/label fields once a seed is picked", async () => {

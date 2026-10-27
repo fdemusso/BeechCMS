@@ -13,6 +13,12 @@ vi.mock("@/lib/api", () => ({
   api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
 }))
 
+const mocked = vi.hoisted(() => ({ schema: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { schema: { $get: mocked.schema } } },
+}))
+
 import { api } from "@/lib/api"
 import { WidgetSdkProvider } from "@beechcms/widget-sdk"
 import { DataTableWidget } from "@/features/dashboard/components/widgets/data-table-widget"
@@ -43,7 +49,9 @@ function renderWithProviders(ui: React.ReactElement) {
   )
 }
 
-function mockApiGet(responses: Record<string, unknown>) {
+/** `GET /schema` goes through rpc; the widget list is read by the SDK client, which is the api client. */
+function mockApiGet({ "/schema": seeds, ...responses }: Record<string, unknown>) {
+  mocked.schema.mockResolvedValue({ json: async () => seeds })
   ;(api.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
     if (url in responses) return Promise.resolve({ data: responses[url] })
     throw new Error(`Unexpected api.get("${url}")`)

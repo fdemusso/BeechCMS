@@ -14,6 +14,12 @@ vi.mock("@/lib/api", () => ({
   api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
 }))
 
+const mocked = vi.hoisted(() => ({ schema: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { schema: { $get: mocked.schema } } },
+}))
+
 import { api } from "@/lib/api"
 import { QuickDraftWidget } from "@/features/dashboard/components/widgets/quick-draft-widget"
 import { QuickDraftAdapter } from "@/features/dashboard/registry/builtin/quick-draft-adapters"
@@ -97,12 +103,7 @@ describe("QuickDraftWidget", () => {
   })
 
   it("submits draft mutation through QuickDraftAdapter after useSchema resolves asynchronously", async () => {
-    ;(api.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url === "/schema") {
-        return Promise.resolve({ data: MOCK_SEEDS })
-      }
-      throw new Error(`Unexpected api.get("${url}")`)
-    })
+    mocked.schema.mockResolvedValue({ json: async () => MOCK_SEEDS })
 
     renderWithClient(
       <QuickDraftAdapter

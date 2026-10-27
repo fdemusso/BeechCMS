@@ -9,9 +9,10 @@ import { createElement, type ReactNode } from "react"
 import { getSeed, SEED_REGISTRY } from "@beechcms/core"
 import { CANONICAL_SEEDS } from "@beechcms/testing"
 
-vi.mock("@/lib/api", () => ({ api: { get: vi.fn() } }))
+const mocked = vi.hoisted(() => ({ schema: vi.fn() }))
 
-import { api } from "@/lib/api"
+vi.mock("@/lib/rpc", () => ({ rpc: { api: { schema: { $get: mocked.schema } } } }))
+
 import { useSchema } from "@/features/shared/hooks/use-schema"
 
 const [keptSeed, deletedSeed] = CANONICAL_SEEDS
@@ -24,12 +25,12 @@ describe("useSchema", () => {
   })
 
   it("drops a seed from the core registry once a refetched schema no longer lists it", async () => {
-    vi.mocked(api.get).mockResolvedValueOnce({ data: [keptSeed, deletedSeed] })
+    mocked.schema.mockResolvedValueOnce({ json: async () => [keptSeed, deletedSeed] })
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children)
     const { result } = renderHook(() => useSchema(), { wrapper })
     await waitFor(() => expect(getSeed(deletedSeed.slug)).not.toBeNull())
-    vi.mocked(api.get).mockResolvedValueOnce({ data: [keptSeed] })
+    mocked.schema.mockResolvedValueOnce({ json: async () => [keptSeed] })
 
     await result.current.refetch()
 

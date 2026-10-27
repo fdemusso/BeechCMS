@@ -14,14 +14,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createElement, type ReactNode } from "react"
 import type { Seed } from "@beechcms/core"
 
-const mocked = vi.hoisted(() => ({ settings: vi.fn() }))
+const mocked = vi.hoisted(() => ({ settings: vi.fn(), schema: vi.fn() }))
 
 vi.mock("@/lib/api", () => ({
   api: { get: vi.fn() },
 }))
 
 vi.mock("@/lib/rpc", () => ({
-  rpc: { api: { settings: { $get: mocked.settings } } },
+  rpc: { api: { settings: { $get: mocked.settings }, schema: { $get: mocked.schema } } },
 }))
 
 import { api } from "@/lib/api"
@@ -55,8 +55,8 @@ describe("useContentList — localized items", () => {
   })
 
   it("exposes list items with localized fields resolved to the default locale", async () => {
+    mocked.schema.mockResolvedValue({ json: async () => [LOCALIZED_SEED] })
     vi.mocked(api.get).mockImplementation(async (url: string) => {
-      if (url === "/schema") return { data: [LOCALIZED_SEED] }
       if (url === "/content/loc_items") {
         return {
           data: {
@@ -77,8 +77,8 @@ describe("useContentList — localized items", () => {
   })
 
   it("makes no settings request when no seed is localized", async () => {
+    mocked.schema.mockResolvedValue({ json: async () => [PLAIN_SEED] })
     vi.mocked(api.get).mockImplementation(async (url: string) => {
-      if (url === "/schema") return { data: [PLAIN_SEED] }
       if (url === "/content/plain_items") {
         return {
           data: {
