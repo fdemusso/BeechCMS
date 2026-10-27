@@ -99,23 +99,11 @@
     "typedoc-plugin-markdown": "^4.12.0",
     "typescript": "^5.9.3",
     "vitepress": "^1.6.4",
-    "vitest": "^4.1.12"
+    "vitest": "^5.0.5"
   },
   "dependencies": {
     "@beechcms/cli": "workspace:^0.9.6",
-    "@clack/prompts": "^0.11.0",
+    "@clack/prompts": "^1.8.1",
     "picocolors": "^1.1.1"
-  },
-  "peerDependencies": {
-    "@beechcms/api": "^0.6.6",
-    "@beechcms/core": "^0.6.6"
-  },
-  "peerDependenciesMeta": {
-    "@beechcms/api": {
-      "optional": true
-    },
-    "@beechcms/core": {
-      "optional": true
-    }
   }
 }

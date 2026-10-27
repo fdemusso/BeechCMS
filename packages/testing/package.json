@@ -22,7 +22,7 @@
     "type-check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.8.0"
+    "@beechcms/core": "workspace:^0.9.6"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260911.1",

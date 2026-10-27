@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "@beechcms/api": "workspace:*",
-    "@beechcms/core": "workspace:^0.8.0",
+    "@beechcms/core": "workspace:^0.9.6",
     "@beechcms/dashboard": "workspace:*",
     "@beechcms/testing": "workspace:*",
     "@playwright/test": "^1.63.0",

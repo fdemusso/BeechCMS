@@ -72,7 +72,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@beechcms/testing": "workspace:^0.8.0",
+    "@beechcms/testing": "workspace:*",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.1.18",
     "@testing-library/jest-dom": "^7.0.1",
