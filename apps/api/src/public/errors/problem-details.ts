@@ -53,13 +53,14 @@ const FK_PROBLEM: Record<FkViolationKind, { title: string; status: 409 | 422; de
 
 /**
  * Returns a Problem+JSON response when the error is a SQLite FK violation,
- * or null when the error is unrelated (let the caller handle it).
+ * or null when the error is unrelated (let the caller handle it). The return type is inferred,
+ * like `publicProblem`'s, so a handler that returns it keeps its route types.
  *
  * @param c       Hono context
  * @param error   The caught error
  * @param method  HTTP method of the current request (e.g. 'DELETE', 'POST')
  */
-export function fkProblemOrNull(c: Context, error: unknown, method: string): Response | null {
+export function fkProblemOrNull(c: Context, error: unknown, method: string) {
   if (!isFkError(error)) return null
   const kind = classifyFkError(method)
   const meta = FK_PROBLEM[kind]

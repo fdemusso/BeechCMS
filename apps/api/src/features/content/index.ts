@@ -12,19 +12,15 @@ import { deleteHandler } from './handlers/delete'
 import { facetsHandler } from './handlers/facets'
 import { bulkHandler } from './handlers/bulk.handler'
 import { kanbanMoveHandler } from './handlers/kanban-move'
-import { trashListHandler, restoreHandler, bulkRestoreHandler, bulkPurgeHandler, reconcilePurgesHandler } from './handlers/trash'
+import { reconcilePurgesHandler } from './handlers/trash'
 
 const content = new Hono<AppEnv>()
 
 content.patch('/:slug/:id/kanban-move', kanbanMoveHandler)
-content.get('/:slug/trash', trashListHandler)                       // NEW — before /:slug/:id
-content.post('/:slug/trash/bulk-restore', bulkRestoreHandler)       // NEW
-content.post('/:slug/trash/bulk-purge', bulkPurgeHandler)           // NEW
-content.post('/:slug/trash/reconcile', reconcilePurgesHandler)      // NEW
+content.post('/:slug/trash/reconcile', reconcilePurgesHandler)
 content.get('/:slug', listHandler)
 content.get('/:slug/facets', facetsHandler)
 content.get('/:schema_slug/by-slug/:entry_slug', getBySlugHandler)
-content.post('/:slug/:id/restore', restoreHandler)                  // NEW — before POST /:slug
 content.get('/:slug/:id', getByIdHandler)
 content.post('/:slug', createHandler)
 content.patch('/:slug/bulk', bulkHandler)
