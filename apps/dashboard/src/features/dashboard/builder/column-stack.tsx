@@ -4,7 +4,7 @@
 import { useTranslation } from 'react-i18next'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { Plus } from 'reicon-react'
+import { Plus } from '@/components/icons'
 import type { DashboardColumn, DashboardPageLayout } from '@beechcms/core'
 
 import { Button } from '@/components/ui/button'

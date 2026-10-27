@@ -4,7 +4,7 @@
 
 import type { ColumnDef, GroupingColumnDef } from "@tanstack/react-table"
 import { isSingleChoiceTags, type Seed } from "@beechcms/core"
-import { More as MoreHorizontal, Text as Type, Hashtag as Hash, ToggleOff as ToggleLeft, Calendar, Code, FileText, File, Link as LinkIcon } from 'reicon-react'
+import { More as MoreHorizontal, Text as Type, Hashtag as Hash, ToggleOff as ToggleLeft, Calendar, Code, FileText, File, Link as LinkIcon } from '@/components/icons'
 import { toast } from "sonner"
 
 import { FieldDisplay } from "@/components/fields"

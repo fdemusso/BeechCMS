@@ -43,7 +43,7 @@ export async function setupCloudflare(options: SetupCloudflareOptions = {}): Pro
         message: 'Project name',
         placeholder: 'my-website',
         validate: (v) => {
-          if (!v.trim()) return 'Required'
+          if (!v?.trim()) return 'Required'
           if (!/^[a-z0-9][a-z0-9-]*$/.test(v.trim())) return 'Lowercase letters, numbers and hyphens only'
         },
       })
@@ -142,17 +142,17 @@ export async function setupCloudflare(options: SetupCloudflareOptions = {}): Pro
       const accountId = await p.text({
         message: 'Cloudflare Account ID (from dash.cloudflare.com)',
         placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-        validate: (v) => { if (!v.trim()) return 'Required' },
+        validate: (v) => { if (!v?.trim()) return 'Required' },
       })
 
       const accessKeyId = !p.isCancel(accountId) ? await p.text({
         message: 'R2 Access Key ID',
-        validate: (v) => { if (!v.trim()) return 'Required' },
+        validate: (v) => { if (!v?.trim()) return 'Required' },
       }) : null
 
       const secretAccessKey = (!p.isCancel(accessKeyId) && accessKeyId) ? await p.password({
         message: 'R2 Secret Access Key',
-        validate: (v) => { if (!v.trim()) return 'Required' },
+        validate: (v) => { if (!v?.trim()) return 'Required' },
       }) : null
 
       if (!p.isCancel(accountId) && !p.isCancel(accessKeyId) && !p.isCancel(secretAccessKey) && accountId && accessKeyId && secretAccessKey) {

@@ -16,7 +16,7 @@ import {
   Users,
   ShieldCheck,
   Mailbox as Mail,
-} from "reicon-react"
+} from "@/components/icons"
 
 import {
   Dialog,

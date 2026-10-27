@@ -48,7 +48,7 @@
     "beech": "node bin/cli.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:full": "node scripts/dev.mjs",
-    "dev:plain": "cross-env BEECH_DEV_PLAIN=1 node scripts/dev.mjs",
+    "dev:plain": "node scripts/dev.mjs --plain",
     "dev:tunnel-url": "docker compose -f docker/docker-compose.yml logs tunnel 2>&1 | grep -Eo 'https://[a-z0-9-]+\\.trycloudflare\\.com' | tail -n 1",
     "dev:logs:mailpit": "docker compose -f docker/docker-compose.yml logs -f mailpit",
     "dev:logs:sqlite": "docker compose -f docker/docker-compose.yml logs -f sqlite-web",
@@ -85,40 +85,25 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.5.1",
-    "cross-env": "^10.1.0",
     "eslint": "^10.10.0",
     "execa": "^10.0.1",
     "globals": "^17.12.0",
     "husky": "^9.1.7",
     "ink": "^7.1.1",
-    "ink-spinner": "^5.0.0",
     "knip": "^6.41.0",
     "react": "^19.2.7",
     "react-doctor": "^0.9.14",
-    "strip-ansi": "^7.2.0",
     "tsx": "^4.22.4",
     "turbo": "^2.9.18",
     "typedoc": "^0.28.20",
     "typedoc-plugin-markdown": "^4.12.0",
-    "typescript": "^5.9.3",
+    "typescript": "~5.9.3",
     "vitepress": "^1.6.4",
-    "vitest": "^4.1.12"
+    "vitest": "^5.0.5"
   },
   "dependencies": {
     "@beechcms/cli": "workspace:^0.9.6",
-    "@clack/prompts": "^0.11.0",
+    "@clack/prompts": "^1.8.1",
     "picocolors": "^1.1.1"
-  },
-  "peerDependencies": {
-    "@beechcms/api": "^0.6.6",
-    "@beechcms/core": "^0.6.6"
-  },
-  "peerDependenciesMeta": {
-    "@beechcms/api": {
-      "optional": true
-    },
-    "@beechcms/core": {
-      "optional": true
-    }
   }
 }

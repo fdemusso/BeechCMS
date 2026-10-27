@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Trash2 } from "lucide-react";
+import { Trash2 } from "@/components/icons";
 import type { DashboardView } from "@beechcms/core";
 import type { UserViewInstance } from "../shared";
 import { moveViewId } from "../shared";

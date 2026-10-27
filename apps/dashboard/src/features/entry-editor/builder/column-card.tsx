@@ -10,7 +10,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { SortV as GripVertical, X, Plus } from 'reicon-react'
+import { SortV as GripVertical, X, Plus } from '@/components/icons'
 import type { Branch, LayoutField } from '@beechcms/core'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'

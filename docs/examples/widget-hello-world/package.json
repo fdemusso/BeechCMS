@@ -17,12 +17,11 @@
   },
   "dependencies": {
     "@beechcms/widget-sdk": "workspace:^0.8.0-preview.1",
-    "lucide-react": "^0.577.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/react": "^19.2.7",
-    "typescript": "^7.0.2"
+    "typescript": "~7.0.2"
   },
   "license": "MIT"
 }

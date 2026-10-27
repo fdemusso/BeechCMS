@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { Globe } from "reicon-react"
+import { Globe } from "@/components/icons"
 import { GLOBAL_SCOPE, type Permission } from "@beechcms/core"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"

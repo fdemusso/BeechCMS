@@ -4,7 +4,7 @@
 
 import { useId } from "react"
 import { useTranslation } from "react-i18next"
-import { SortV as ArrowUpDown } from 'reicon-react'
+import { SortV as ArrowUpDown } from '@/components/icons'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"

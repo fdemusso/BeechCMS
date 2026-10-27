@@ -4,7 +4,7 @@
 
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
-import { Plus, Trash2, X } from 'reicon-react'
+import { Plus, Trash2, X } from '@/components/icons'
 import { Button } from "@/components/ui/button"
 import { Pill } from "@/components/ui/pill"
 import {

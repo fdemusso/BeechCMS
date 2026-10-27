@@ -30,7 +30,7 @@ import {
 } from "@/features/content-management"
 import { useActiveSeed, useLocaleConfig } from "@/features/shared"
 import { useAuth } from "@/lib/auth-context"
-import { Loader as Loader2 } from 'reicon-react'
+import { Loader as Loader2 } from '@/components/icons'
 import type { RendererBranchMap, RendererLocalization } from "../renderer/layout-renderer"
 import { LocaleSwitcher } from "../renderer/locale-switcher"
 import {

@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { HardDrive } from 'reicon-react'
+import { HardDrive } from '@/components/icons'
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardWidgetShell } from "../dashboard-widget-shell"

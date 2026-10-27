@@ -32,3 +32,6 @@ Key commands:
 ## TypeScript 7.0 & ESLint Workaround
 - **TypeScript 7.0.2**: The project uses TypeScript 7.0.2 (Go-based compiler).
 - **ESLint/TS-ESLint**: Since TS 7.0 lacks a public JS compiler API, `typescript-eslint` is temporarily bypassed using a custom `noopParser` for `.ts`/`.tsx` files inside `eslint.config.js` and `apps/dashboard/eslint.config.js` to prevent crashes during `pnpm lint`.
+
+## Docker
+Se per test/flow o verifiche (MinIO, mailpit, db) serve Docker e il daemon non è attivo, puoi provare ad avviarlo (Docker Desktop) oppure chiedere all'utente di avviarlo.

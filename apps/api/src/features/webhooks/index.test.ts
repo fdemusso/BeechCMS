@@ -8,10 +8,9 @@ import { webhooksApp } from './index'
 
 const verifyMock = vi.fn()
 
-vi.mock('@upstash/qstash', () => ({
-  Receiver: vi.fn().mockImplementation(function Receiver() {
-    return { verify: verifyMock }
-  }),
+// Signature math is covered with real JWTs in qstash-signature.test.ts; here only the route wiring.
+vi.mock('./qstash-signature', () => ({
+  verifyQStashSignature: (input: unknown) => verifyMock(input),
 }))
 
 function buildApp(create = vi.fn().mockResolvedValue(undefined)) {
@@ -29,8 +28,8 @@ describe('webhooksApp POST /qstash', () => {
     verifyMock.mockReset()
   })
 
-  it('passes the request URL to receiver.verify for endpoint binding', async () => {
-    verifyMock.mockResolvedValue(true)
+  it('passes the request URL to verifyQStashSignature for endpoint binding', async () => {
+    verifyMock.mockResolvedValue(undefined)
     const { app, create } = buildApp()
 
     await app.request(
@@ -57,7 +56,7 @@ describe('webhooksApp POST /qstash', () => {
 
   it('rejects a signature valid for a different endpoint (cross-endpoint replay)', async () => {
     // Simulates verify() rejecting because the signed url does not match this endpoint.
-    verifyMock.mockResolvedValue(false)
+    verifyMock.mockRejectedValue(new Error('invalid subject'))
     const { app, create } = buildApp()
 
     const response = await app.request(
@@ -81,7 +80,7 @@ describe('webhooksApp POST /qstash', () => {
   })
 
   it('rejects malformed payloads instead of passing them to the repository', async () => {
-    verifyMock.mockResolvedValue(true)
+    verifyMock.mockResolvedValue(undefined)
     const { app, create } = buildApp()
 
     const response = await app.request(
@@ -106,7 +105,7 @@ describe('webhooksApp POST /qstash', () => {
   })
 
   it('rejects payloads with invalid types', async () => {
-    verifyMock.mockResolvedValue(true)
+    verifyMock.mockResolvedValue(undefined)
     const { app, create } = buildApp()
 
     const response = await app.request(
@@ -131,7 +130,7 @@ describe('webhooksApp POST /qstash', () => {
   })
 
   it('does not bypass validation with prototype keys (e.g., constructor, toString)', async () => {
-    verifyMock.mockResolvedValue(true)
+    verifyMock.mockResolvedValue(undefined)
     const { app, create } = buildApp()
 
     // Sending prototype keys as the body

@@ -6,7 +6,7 @@ import * as React from 'react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useFormContext, useFieldArray, Controller } from 'react-hook-form'
-import { Plus, Trash2 } from 'reicon-react'
+import { Plus, Trash2 } from '@/components/icons'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 

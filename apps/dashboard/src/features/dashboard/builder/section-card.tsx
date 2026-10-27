@@ -5,7 +5,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Check, Copy, SortV as GripVertical, More as MoreHorizontal } from 'reicon-react'
+import { Check, Copy, SortV as GripVertical, More as MoreHorizontal } from '@/components/icons'
 import type { DashboardSection, DashboardPageLayout } from '@beechcms/core'
 
 import { Button } from '@/components/ui/button'

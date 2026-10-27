@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { ChevronDown } from 'reicon-react'
+import { ChevronDown } from '@/components/icons'
 import type { LayoutSection, LayoutTab, LayoutColumn } from "@beechcms/core"
 import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"

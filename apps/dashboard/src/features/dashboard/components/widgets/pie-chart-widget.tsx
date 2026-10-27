@@ -4,7 +4,7 @@
 
 import { lazy, Suspense, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { ChartPie as PieChartIcon } from 'reicon-react'
+import { ChartPie as PieChartIcon } from '@/components/icons'
 import type { TimeWindow, WidgetWindow } from "@beechcms/core"
 import type { ChartConfig } from "@/components/ui/chart"
 import { Skeleton } from "@/components/ui/skeleton"

@@ -5,7 +5,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api"
-import { Bell, InfoCircle as Info, CheckCircle, AlertTriangle, XCircle } from 'reicon-react'
+import { Bell, InfoCircle as Info, CheckCircle, AlertTriangle, XCircle } from '@/components/icons'
 import type { Notification, NotificationFilter } from "./types"
 
 const NOTIFICATION_ICONS: Record<string, any> = {

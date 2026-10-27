@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { Category as LayoutDashboard, Image as ImageIcon, Settings, Layers, Plus, Sun, Moon } from 'reicon-react'
+import { Category as LayoutDashboard, Image as ImageIcon, Settings, Layers, Plus, Sun, Moon } from '@/components/icons'
 import {
   CommandGroup,
   CommandItem,

@@ -8,11 +8,11 @@ import type { ElementDimensions } from "../hooks/use-drag-resize"
 import { useDragResize } from "../hooks/use-drag-resize"
 import { ResizeHandle } from "./resize-handle"
 import { cn } from "@/lib/utils"
-import { Controlled as ControlledZoom } from "react-medium-image-zoom"
+import { ImageLightbox } from "./image-lightbox"
 import { ActionButton, ActionWrapper, ImageActions } from "./image-actions"
 import { useImageActions } from "../hooks/use-image-actions"
 import { blobUrlToBase64, randomId } from "../../../utils"
-import { InfoCircle as InfoCircledIcon, Trash as TrashIcon } from 'reicon-react'
+import { InfoCircle as InfoCircledIcon, Trash as TrashIcon } from '@/components/icons'
 import { ImageOverlay } from "./image-overlay"
 import { Spinner } from "../../../components/spinner"
 import type { UploadReturnType } from "../shared"
@@ -252,12 +252,6 @@ export const ImageViewBlock: React.FC<NodeViewProps> = ({
                 </div>
               )}
 
-              <ControlledZoom
-                isZoomed={imageState.isZoomed}
-                onZoomChange={() =>
-                  setImageState((prev) => ({ ...prev, isZoomed: false }))
-                }
-              >
                 <img
                   className={cn(
                     "h-auto rounded object-contain transition-shadow",
@@ -279,7 +273,15 @@ export const ImageViewBlock: React.FC<NodeViewProps> = ({
                   title={node.attrs.title || ""}
                   id={node.attrs.id}
                 />
-              </ControlledZoom>
+              <ImageLightbox
+                open={imageState.isZoomed}
+                onOpenChange={(open) =>
+                  setImageState((prev) => ({ ...prev, isZoomed: open }))
+                }
+                src={imageState.src}
+                alt={node.attrs.alt}
+                title={node.attrs.title}
+              />
             </div>
 
             {imageState.isServerUploading && <ImageOverlay />}

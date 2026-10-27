@@ -3,7 +3,7 @@ import type { IconComponent } from '@/lib/icon-registry'
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { ChartBar as BarChart3 } from 'reicon-react'
+import { ChartBar as BarChart3 } from '@/components/icons'
 import { useTranslation } from "react-i18next"
 import type { AggregateFormula, TimeWindow } from "@beechcms/core"
 import { useWidgetAggregate, useWidgetGrowth } from "../../hooks/use-widget-data"

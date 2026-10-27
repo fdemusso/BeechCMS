@@ -3,7 +3,7 @@ import type { IconComponent } from '@/lib/icon-registry'
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { Category as LayoutDashboard, Settings, PenLine, Plus, Calendar, ChartBar as BarChart2 } from 'reicon-react'
+import { Category as LayoutDashboard, Settings, PenLine, Plus, Calendar, ChartBar as BarChart2 } from '@/components/icons'
 import type { Seed } from "@beechcms/core"
 import { resolveIcon } from "@/lib/icon-registry"
 

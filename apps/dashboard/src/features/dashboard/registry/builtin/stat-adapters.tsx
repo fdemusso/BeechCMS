@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
-import { FileText, Globe, Flash as Zap, Database } from 'reicon-react'
+import { FileText, Globe, Flash as Zap, Database } from '@/components/icons'
 import { StatCard } from "../../components/stat-card"
 import { StatWidget } from "../../components/widgets/stat-widget"
 import { useDashboardStats, useCloudflareStats } from "../../hooks/use-dashboard-stats"

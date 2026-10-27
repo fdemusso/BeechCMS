@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { Plus, Refresh as RefreshCw, Trash2, Copy } from "reicon-react"
+import { Plus, Refresh as RefreshCw, Trash2, Copy } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

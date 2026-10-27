@@ -11,7 +11,7 @@ allowBuilds:
   workerd: true
 
 overrides:
-  esbuild: 0.28.1
+  esbuild: 0.28.2
   react: ^19.2.7
   react-dom: ^19.2.7
   qs: ^6.16.0

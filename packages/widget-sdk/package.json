@@ -30,7 +30,6 @@
   "dependencies": {
     "@beechcms/core": "workspace:^0.9.6",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.577.0",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6"
   },
@@ -39,11 +38,11 @@
     "@testing-library/react": "^16.3.0",
     "@types/node": "^26.5.1",
     "@types/react": "^19.2.7",
-    "@vitest/coverage-v8": "^5.0.0",
+    "@vitest/coverage-v8": "^5.0.5",
     "jsdom": "^30.0.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "typescript": "^7.0.2",
+    "typescript": "~7.0.2",
     "vitest": "^5.0.5"
   },
   "license": "MIT"

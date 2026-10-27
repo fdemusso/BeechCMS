@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { Loader, AlertTriangle } from "reicon-react"
+import { Loader, AlertTriangle } from "@/components/icons"
 
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"

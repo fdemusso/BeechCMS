@@ -1,7 +1,17 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Box, Text } from 'ink'
-import Spinner from 'ink-spinner'
 import type { DockerContainerStatus, ManagedService, PortAllocation } from '../orchestrator'
+
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+
+function Spinner() {
+  const [frame, setFrame] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => setFrame((f) => (f + 1) % SPINNER_FRAMES.length), 80)
+    return () => clearInterval(timer)
+  }, [])
+  return <>{SPINNER_FRAMES[frame]}</>
+}
 
 function StatusIcon({ status }: { status: ManagedService['status'] }) {
   switch (status) {
@@ -12,7 +22,7 @@ function StatusIcon({ status }: { status: ManagedService['status'] }) {
     case 'starting':
       return (
         <Text color="yellow">
-          <Spinner type="dots" /> <Text bold>STARTING</Text>
+          <Spinner /> <Text bold>STARTING</Text>
         </Text>
       )
     case 'stopped':
