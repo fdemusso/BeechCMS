@@ -4,6 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
+import type { z } from 'zod'
 import type { Branch, Seed, SeedRecord } from '@beechcms/core'
 import {
   nextBranchId,
@@ -15,6 +16,8 @@ import {
 } from '@beechcms/core'
 import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
+import { BODY_NOT_JSON_DETAIL, BODY_NOT_OBJECT_DETAIL } from './seeds.schema'
+import type { ZodJsonRefusal } from '../../shared/utils/zod-json'
 
 export type AppContext = Context<{ Bindings: Env; Variables: Variables }>
 
@@ -87,6 +90,20 @@ export async function parseJsonObject(context: AppContext): Promise<Record<strin
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * `zodJson` refusal shared by the seed routes: a body that is not JSON, or JSON the schema rejects,
+ * is a 400 `invalid-json`. The first schema issue's message is the detail (the schemas carry the
+ * wording); a body that is not an object keeps the `Invalid JSON` title, a rejected field is a `Bad Request`.
+ */
+export function rejectInvalidBody(context: AppContext, error: z.ZodError, cause: ZodJsonRefusal) {
+  if (cause === 'malformed') {
+    return publicProblem(context, { type: 'invalid-json', title: 'Invalid JSON', status: 400, detail: BODY_NOT_JSON_DETAIL })
+  }
+  const detail = error.issues[0]?.message ?? BODY_NOT_OBJECT_DETAIL
+  const title = detail === BODY_NOT_OBJECT_DETAIL ? 'Invalid JSON' : 'Bad Request'
+  return publicProblem(context, { type: 'invalid-json', title, status: 400, detail })
 }
 
 /**
