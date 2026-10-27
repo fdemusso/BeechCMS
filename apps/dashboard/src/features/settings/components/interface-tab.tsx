@@ -23,7 +23,7 @@ export function InterfaceTab() {
     { value: 'light', label: t('settings.interface.themeLight'), icon: Sun },
     { value: 'dark', label: t('settings.interface.themeDark'), icon: Moon },
     { value: 'system', label: t('settings.interface.themeSystem'), icon: Monitor },
-  ]
+  ] as const
 
   const ROWS_OPTIONS = [
     { value: '10', label: t('settings.interface.rows10') },
