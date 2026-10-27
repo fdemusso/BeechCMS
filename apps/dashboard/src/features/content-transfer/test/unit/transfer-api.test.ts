@@ -4,7 +4,13 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+const mocked = vi.hoisted(() => ({ presign: vi.fn() }))
+
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn(), post: vi.fn() } }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { upload: { presign: { $post: mocked.presign } } } },
+}))
 
 import { api } from "@/lib/api"
 import { ApiError } from "@/lib/http/api-error"
@@ -15,6 +21,10 @@ import {
   readProblem,
   isStorageNotConfiguredError,
 } from "../../api/transfer.api"
+
+function presigned(key: string) {
+  return { json: async () => ({ uploadUrl: "https://r2.example/upload", key, expiresIn: 60 }) }
+}
 
 describe("downloadExport", () => {
   beforeEach(() => vi.clearAllMocks())
@@ -38,9 +48,7 @@ describe("presignImportObject", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("sends the ndjson MIME type even when the file's own type is text/plain", async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({
-      data: { uploadUrl: "https://r2.example/upload", key: "objects/1", expiresIn: 60 },
-    })
+    mocked.presign.mockResolvedValueOnce(presigned("objects/1"))
     globalThis.fetch = vi.fn().mockResolvedValueOnce({ ok: true }) as unknown as typeof fetch
     const file = new File(["a"], "rows.ndjson", { type: "text/plain" })
 
@@ -48,18 +56,18 @@ describe("presignImportObject", () => {
 
     // The upload allowlist has no application/x-ndjson entry, so the wizard presigns
     // under the format's canonical MIME type, never file.type (a browser reports "" for .ndjson).
-    expect(api.post).toHaveBeenCalledWith("/upload/presign", {
-      filename: "rows.ndjson",
-      mimeType: "application/json",
-      sizeBytes: file.size,
-      purpose: "import",
+    expect(mocked.presign).toHaveBeenCalledWith({
+      json: {
+        filename: "rows.ndjson",
+        mimeType: "application/json",
+        sizeBytes: file.size,
+        purpose: "import",
+      },
     })
   })
 
   it("sends a matching Content-Type on the PUT for csv", async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({
-      data: { uploadUrl: "https://r2.example/upload", key: "objects/2", expiresIn: 60 },
-    })
+    mocked.presign.mockResolvedValueOnce(presigned("objects/2"))
     const putMock = vi.fn().mockResolvedValueOnce({ ok: true })
     globalThis.fetch = putMock as unknown as typeof fetch
     const file = new File(["a,b"], "rows.csv", { type: "text/csv" })
@@ -74,9 +82,7 @@ describe("presignImportObject", () => {
   })
 
   it("rejects when the storage PUT answers a non-ok status", async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({
-      data: { uploadUrl: "https://r2.example/upload", key: "objects/3", expiresIn: 60 },
-    })
+    mocked.presign.mockResolvedValueOnce(presigned("objects/3"))
     globalThis.fetch = vi.fn().mockResolvedValueOnce({ ok: false, status: 500 }) as unknown as typeof fetch
     const file = new File(["a"], "rows.ndjson")
 

@@ -5,6 +5,7 @@
 import type { TransferFormat } from "@beechcms/core"
 
 import { api } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
 import { isApiError } from "@/lib/http/api-error"
 
 export type ImportJobState = "pending" | "processing" | "completed" | "failed"
@@ -31,12 +32,6 @@ export interface ImportJobResponse {
   createdAt: number
   updatedAt: number
   finishedAt: number | null
-}
-
-interface PresignResponse {
-  uploadUrl: string
-  key: string
-  expiresIn: number
 }
 
 /** RFC 7807, as `publicProblem()` emits it. `type` is the contract; `detail` is copy. */
@@ -133,21 +128,24 @@ export async function downloadExport(slug: string, format: TransferFormat): Prom
  * worker deletes it on a terminal job state — so a permanent media row would outlive the object.
  */
 export async function presignImportObject(file: File, format: TransferFormat): Promise<string> {
-  const presign = await api.post<PresignResponse>("/upload/presign", {
-    filename: file.name,
-    mimeType: PRESIGN_MIME_TYPES[format],
-    sizeBytes: file.size,
-    purpose: "import",
+  const presignResponse = await rpc.api.upload.presign.$post({
+    json: {
+      filename: file.name,
+      mimeType: PRESIGN_MIME_TYPES[format],
+      sizeBytes: file.size,
+      purpose: "import",
+    },
   })
+  const presign = await presignResponse.json()
 
-  const putResponse = await fetch(presign.data.uploadUrl, {
+  const putResponse = await fetch(presign.uploadUrl, {
     method: "PUT",
     headers: { "Content-Type": PRESIGN_MIME_TYPES[format] },
     body: file,
   })
   if (!putResponse.ok) throw new Error(`Storage PUT failed: ${putResponse.status}`)
 
-  return presign.data.key
+  return presign.key
 }
 
 export async function createImportJob(

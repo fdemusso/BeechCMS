@@ -6,8 +6,8 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Images, Trash2 } from '@/components/icons'
-import { api } from "@/lib/api"
 import { rpc } from "@/lib/rpc"
+import { deleteUpload } from "@/lib/upload"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -205,7 +205,7 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
 
   const deleteMutation = useMutation({
     mutationFn: async (key: string) => {
-      await api.delete(`/upload/${encodeURIComponent(key)}`)
+      await deleteUpload(key)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["widget", "media-library"] })
@@ -214,7 +214,7 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
 
   const deleteUnusedMutation = useMutation({
     mutationFn: async (key: string) => {
-      await api.delete(`/upload/${encodeURIComponent(key)}`)
+      await deleteUpload(key)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["widget", "media-gallery", seedSlug] })

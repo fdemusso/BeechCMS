@@ -6,20 +6,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { api } from "@/lib/api"
 import { MediaGalleryWidget } from "../../components/widgets/media-gallery-widget"
 
-const mocked = vi.hoisted(() => ({ unusedMedia: vi.fn(), mediaLibrary: vi.fn() }))
-
-vi.mock("@/lib/api", () => ({
-  api: { delete: vi.fn() },
-}))
+const mocked = vi.hoisted(() => ({ unusedMedia: vi.fn(), mediaLibrary: vi.fn(), deleteUpload: vi.fn() }))
 
 vi.mock("@/lib/rpc", () => ({
-  rpc: { api: { content: { stats: {
-    "unused-media": { $get: mocked.unusedMedia },
-    "media-library": { $get: mocked.mediaLibrary },
-  } } } },
+  rpc: { api: {
+    content: { stats: {
+      "unused-media": { $get: mocked.unusedMedia },
+      "media-library": { $get: mocked.mediaLibrary },
+    } },
+    upload: { ":key": { $delete: mocked.deleteUpload } },
+  } },
 }))
 
 // Wire format of GET /content/stats/unused-media: tracked upload records, not content entries.
@@ -45,7 +43,7 @@ describe("MediaGalleryWidget", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocked.unusedMedia.mockResolvedValue({ json: async () => ({ items: [unusedUpload] }) })
-    vi.mocked(api.delete).mockResolvedValue({ data: undefined })
+    mocked.deleteUpload.mockResolvedValue({ json: async () => ({ success: true }) })
     vi.stubGlobal("confirm", vi.fn(() => true))
   })
 
@@ -69,7 +67,7 @@ describe("MediaGalleryWidget", () => {
       await user.click(screen.getByRole("button", { name: /Elimina/ }))
 
       await waitFor(() => {
-        expect(api.delete).toHaveBeenCalledWith(`/upload/${encodeURIComponent(unusedUpload.key)}`)
+        expect(mocked.deleteUpload).toHaveBeenCalledWith({ param: { key: encodeURIComponent(unusedUpload.key) } })
       })
     })
   })
