@@ -2,38 +2,40 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { api } from '@/lib/api'
-import type { Automation, WhenNode } from '@beechcms/core'
+import type { InferRequestType } from 'hono/client'
+import { rpc } from '@/lib/rpc'
 
-// Local DTO types — mirror of API schema. Do not import API code directly.
-export interface CreateAutomationDto {
-  seed_slug: string
-  name: string
-  triggers: Array<{ event: 'create' | 'update' | 'delete' | 'cron'; cron?: string | null }>
-  trigger_conditions?: WhenNode | Array<{ field: string; op: string; value: unknown }> | null
-  actions: Array<unknown>
-}
+// Read off the routes, not restated: the API is the only place these shapes are defined.
+const automations = rpc.api.automations
 
-export type UpdateAutomationDto = Partial<Omit<CreateAutomationDto, 'seed_slug'>>
-
-const BASE = '/automations'
+export type CreateAutomationDto = InferRequestType<typeof automations.$post>['json']
+export type UpdateAutomationDto = InferRequestType<(typeof automations)[':id']['$put']>['json']
 
 export const automationsApi = {
-  list: (seedSlug: string) =>
-    api.get<Automation[]>(BASE, { params: { seed: seedSlug } }).then((r) => r.data),
+  list: async (seedSlug: string) => {
+    const response = await automations.$get({ query: { seed: seedSlug } })
+    return response.json()
+  },
 
-  get: (id: string) =>
-    api.get<Automation>(`${BASE}/${id}`).then((r) => r.data),
+  get: async (id: string) => {
+    const response = await automations[':id'].$get({ param: { id } })
+    return response.json()
+  },
 
-  create: (body: CreateAutomationDto) =>
-    api.post<{ id: string }>(BASE, body).then((r) => r.data),
+  create: async (body: CreateAutomationDto) => {
+    const response = await automations.$post({ json: body })
+    return response.json()
+  },
 
-  update: (id: string, body: UpdateAutomationDto) =>
-    api.put<void>(`${BASE}/${id}`, body),
+  update: async (id: string, body: UpdateAutomationDto): Promise<void> => {
+    await automations[':id'].$put({ param: { id }, json: body })
+  },
 
-  toggle: (id: string, enabled: boolean) =>
-    api.patch<void>(`${BASE}/${id}/toggle`, { enabled }),
+  toggle: async (id: string, enabled: boolean): Promise<void> => {
+    await automations[':id'].toggle.$patch({ param: { id }, json: { enabled } })
+  },
 
-  remove: (id: string) =>
-    api.delete<void>(`${BASE}/${id}`),
+  remove: async (id: string): Promise<void> => {
+    await automations[':id'].$delete({ param: { id } })
+  },
 }
