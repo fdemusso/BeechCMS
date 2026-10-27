@@ -7,7 +7,7 @@ import { renderHook, waitFor, act } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 
-// Mock dell'api axios
+// Mock del client api
 vi.mock("@/lib/api", () => ({
   api: {
     get: vi.fn(),

@@ -3,8 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import axios from 'axios'
-import { setAccessToken, clearAccessToken, refreshToken, decodeJwtPayload } from './api'
+import { api, setAccessToken, clearAccessToken, refreshToken, decodeJwtPayload } from './api'
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -67,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function recheckSetup() {
     try {
-      const { data } = await axios.get<{ needsSetup: boolean }>('/auth/setup')
+      const { data } = await api.get<{ needsSetup: boolean }>('/auth/setup', { baseURL: '/' })
       setNeedsSetup(data.needsSetup)
     } catch {
       // transient network/server error — keep last known state

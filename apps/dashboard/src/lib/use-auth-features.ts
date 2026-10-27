@@ -3,14 +3,14 @@
 // See LICENSE in the repository root for license terms.
 
 import { useQuery } from '@tanstack/react-query'
-import axios from 'axios'
+import { api } from './api'
 
 interface AuthFeatures {
   passwordReset: boolean
 }
 
 async function fetchAuthFeatures(): Promise<AuthFeatures> {
-  const { data } = await axios.get<AuthFeatures>('/auth/features')
+  const { data } = await api.get<AuthFeatures>('/auth/features', { baseURL: '/' })
   return data
 }
 

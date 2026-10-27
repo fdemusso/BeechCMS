@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import i18n from '@/lib/i18n'
-import axios from 'axios'
+import { api } from '@/lib/api'
+import { isApiError } from '@/lib/http/api-error'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -116,7 +117,7 @@ export function SetupPage() {
   }, [])
 
   useEffect(() => {
-    axios.get('/auth/setup').then((res) => {
+    api.get<{ environment: SetupEnvironment }>('/auth/setup', { baseURL: '/' }).then((res) => {
       const env: SetupEnvironment = res.data.environment
       setEnvironment(env)
       setTrack(env.isDeveloper ? 'developer' : 'normal')
@@ -211,15 +212,15 @@ export function SetupPage() {
         }
       }
 
-      await axios.post('/auth/setup', payload)
+      await api.post('/auth/setup', payload, { baseURL: '/' })
       // Stale needsSetup=true from the last poll would otherwise bounce us
       // straight back here via the RootLayout gate — refresh it first.
       await recheckSetup()
       navigate('/login', { replace: true })
     } catch (err: unknown) {
       setSubmitting(false)
-      if (axios.isAxiosError(err) && err.response?.data?.title) {
-        setError(err.response.data.title)
+      if (isApiError(err) && err.data?.title) {
+        setError(err.data.title)
       } else {
         setError(t('setup.errorFallback'))
       }

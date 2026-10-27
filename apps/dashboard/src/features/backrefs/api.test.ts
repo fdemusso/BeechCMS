@@ -5,13 +5,13 @@
 // See LICENSE in the repository root for license terms.
 
 /**
- * Tests for backrefs/api.ts — the thin axios wrappers around the backrefs endpoint.
+ * Tests for backrefs/api.ts — the thin `api` wrappers around the backrefs endpoint.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { backrefsApi } from "./api"
 
-// Mock the axios instance
+// Mock the api client
 vi.mock("@/lib/api", () => ({
   api: {
     get: vi.fn(),

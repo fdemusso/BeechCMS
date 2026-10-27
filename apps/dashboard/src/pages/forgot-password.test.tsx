@@ -7,10 +7,10 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import i18n from "i18next"
-import axios from "axios"
+import { api } from "@/lib/api"
 import { ForgotPasswordPage } from "@/pages/forgot-password/ForgotPasswordPage"
 
-vi.mock("axios")
+vi.mock("@/lib/api", () => ({ api: { post: vi.fn() } }))
 
 function renderComponent() {
   return render(
@@ -60,7 +60,7 @@ describe("ForgotPasswordPage", () => {
 
   it("shows localized success message after successful submission", async () => {
     const user = userEvent.setup()
-    vi.mocked(axios.post).mockResolvedValueOnce({ data: { success: true } })
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { success: true } })
 
     renderComponent()
 

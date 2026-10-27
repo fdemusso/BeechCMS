@@ -7,16 +7,11 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import axios from "axios"
+import { api } from "@/lib/api"
+import { ApiError } from "@/lib/http/api-error"
 import { AcceptInvitePage } from "@/pages/accept-invite/AcceptInvitePage"
 
-vi.mock("axios", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("axios")>()
-  return {
-    ...actual,
-    default: { ...actual.default, get: vi.fn(), post: vi.fn(), isAxiosError: actual.default.isAxiosError },
-  }
-})
+vi.mock("@/lib/api", () => ({ api: { get: vi.fn(), post: vi.fn() } }))
 
 function renderPage(initialPath: string) {
   const qc = new QueryClient()
@@ -40,16 +35,16 @@ describe("AcceptInvitePage", () => {
   })
 
   it("preview 404 ⇒ invalid-link card", async () => {
-    vi.mocked(axios.get).mockRejectedValueOnce({ isAxiosError: true, response: { status: 404 } })
+    vi.mocked(api.get).mockRejectedValueOnce(new ApiError(404, null))
     renderPage("/accept-invite?token=bad-token")
     expect(await screen.findByText(/invalid or has expired/i)).toBeInTheDocument()
   })
 
   it("happy path: preview renders, submit posts token and redirects to /login", async () => {
-    vi.mocked(axios.get).mockResolvedValueOnce({
+    vi.mocked(api.get).mockResolvedValueOnce({
       data: { email: "invitee@beech.local", roleName: "Editor", scope: "articles" },
     })
-    vi.mocked(axios.post).mockResolvedValueOnce({ data: { success: true } })
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { success: true } })
 
     const user = userEvent.setup()
     renderPage("/accept-invite?token=good-token")
@@ -67,15 +62,16 @@ describe("AcceptInvitePage", () => {
     await user.click(submitButton)
 
     await waitFor(() => {
-      expect(axios.post).toHaveBeenCalledWith(
+      expect(api.post).toHaveBeenCalledWith(
         "/auth/invitations/accept",
         expect.objectContaining({ token: "good-token", password: "supersecret1" }),
+        { baseURL: "/" },
       )
     })
   })
 
   it("shows password strength indicator when typing password", async () => {
-    vi.mocked(axios.get).mockResolvedValueOnce({
+    vi.mocked(api.get).mockResolvedValueOnce({
       data: { email: "invitee@beech.local", roleName: "Editor", scope: "articles" },
     })
 

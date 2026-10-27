@@ -6,7 +6,8 @@ import React, { useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
-import axios from "axios"
+import { api } from "@/lib/api"
+import { problemCode } from "@/lib/http/api-error"
 import { Eye, EyeOff } from '@/components/icons'
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -19,6 +20,9 @@ import { GLOBAL_SCOPE } from "@beechcms/core"
 
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 128
+
+// The invitee has no session; these `/auth/*` routes sit outside the `/api` prefix.
+const PUBLIC_AUTH = { baseURL: "/" } as const
 
 interface InvitationPreview {
   email: string
@@ -43,7 +47,7 @@ export function AcceptInvitePage() {
 
   const { data: preview, isError, isLoading } = useQuery<InvitationPreview>({
     queryKey: ["invitation-preview", token],
-    queryFn: async () => (await axios.get(`/auth/invitations/${token}`)).data,
+    queryFn: async () => (await api.get<InvitationPreview>(`/auth/invitations/${token}`, PUBLIC_AUTH)).data,
     enabled: !!token,
     retry: false,
   })
@@ -98,22 +102,17 @@ export function AcceptInvitePage() {
     setError(null)
     setIsSubmitting(true)
     try {
-      await axios.post("/auth/invitations/accept", { token, password, name, surname })
+      await api.post("/auth/invitations/accept", { token, password, name, surname }, PUBLIC_AUTH)
       toast.success(t("acceptInvite.success"))
       navigate("/login", { replace: true })
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const type = err.response?.data?.type as string | undefined
-        const code = type?.split("/").pop()
-        if (code === "invitation-invalid" || code === "invitation-revoked") {
-          setError(t("acceptInvite.invalidOrExpired"))
-        } else if (code === "email-taken") {
-          setError(t("acceptInvite.accountExists"))
-        } else if (code === "validation-failed") {
-          setError(t("acceptInvite.tooShort"))
-        } else {
-          setError(t("acceptInvite.genericError"))
-        }
+      const code = problemCode(err)
+      if (code === "invitation-invalid" || code === "invitation-revoked") {
+        setError(t("acceptInvite.invalidOrExpired"))
+      } else if (code === "email-taken") {
+        setError(t("acceptInvite.accountExists"))
+      } else if (code === "validation-failed") {
+        setError(t("acceptInvite.tooShort"))
       } else {
         setError(t("acceptInvite.genericError"))
       }
