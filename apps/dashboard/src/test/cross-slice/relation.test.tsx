@@ -18,6 +18,7 @@ vi.mock("@/features/shared", () => ({
 // ─── Mock @/lib/api ───────────────────────────────────────────────────────────
 import { useSchema } from "@/features/shared"
 import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
+import { ApiError } from "@/lib/http/api-error"
 import { RelationDisplay } from "@/components/fields/display/relation"
 import { RelationEdit } from "@/components/fields/edit/relation"
 import { FieldsProvider, type FieldsContextType } from "@/components/fields/context"
@@ -182,6 +183,21 @@ describe("RelationDisplay", () => {
 
     // Verify no extra fetch calls were made after first
     expect(get).toHaveBeenCalledTimes(1)
+  })
+
+  it("shows the label again once a target that was in the Trash is restored", async () => {
+    get.mockRejectedValueOnce(new ApiError(404, { type: "content-not-found" }))
+    render(
+      <RelationDisplay branch={relationBranch} value="author-1" />,
+      { wrapper: wrapper(queryClient) }
+    )
+    await waitFor(() => expect(screen.getByText("author-1")).toBeInTheDocument())
+    get.mockResolvedValueOnce({ data: authorEntry })
+
+    // What a restore does to the content cache (see invalidateTrashSurfaces).
+    queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.all })
+
+    await waitFor(() => expect(screen.getByText("Ada Lovelace")).toBeInTheDocument())
   })
 })
 
