@@ -13,7 +13,7 @@ import { apiFetch } from './api'
  * `apiFetch` throws an `ApiError` for every non-2xx, so only success statuses are exposed;
  * a response you get back is always a success and `await res.json()` is typed accordingly.
  */
-export const rpc = hc<PickResponseByStatusCode<AppType, 200 | 201 | 204>>('/', {
+export const rpc = hc<PickResponseByStatusCode<AppType, 200 | 201 | 202 | 204>>('/', {
   // Looked up per call, not captured at import: importing `rpc` must not need the whole api client
   // to be initialised (a module that only mocks `@/lib/api` partially still loads).
   fetch: (input: RequestInfo | URL, init?: RequestInit) => apiFetch(input, init),

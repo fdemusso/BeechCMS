@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 import { seedsApi } from "../api/seeds.api"
 import { contentApi } from "@/features/content-management/api/content.api"
-import type { Seed } from "@beechcms/core"
+import type { BranchType, Seed } from "@beechcms/core"
 import { isApiError } from "@/lib/http/api-error"
 
 function extractDetail(err: unknown): string {
@@ -117,7 +117,7 @@ export function useRetypeBranch() {
   const inv = useInvalidate()
   const { t } = useTranslation()
   return useMutation({
-    mutationFn: ({ slug, branchId, newType, confirm }: { slug: string; branchId: string; newType: string; confirm: string }) =>
+    mutationFn: ({ slug, branchId, newType, confirm }: { slug: string; branchId: string; newType: BranchType; confirm: string }) =>
       seedsApi.retypeBranch(slug, branchId, newType, confirm),
     onSuccess: inv,
     onError: (err) => toast.error(t("seedBuilder.dangerZone.errors.retypeFailed"), { description: extractDetail(err) }),

@@ -2,40 +2,72 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { api } from "../../../lib/api"
-import type { Seed, Branch } from "@beechcms/core"
+import type { InferResponseType } from "hono/client"
+import { rpc } from "@/lib/rpc"
+import type { Seed, Branch, BranchType } from "@beechcms/core"
 
-export interface SeedRecordDTO {
-  slug: string
+/**
+ * One row of `GET /api/seeds`, inferred from the route. The definition stays the shared `Seed`:
+ * the serialized form widens `layout?: unknown` to `JSONValue`, which makes every `Seed` fixture
+ * and every `Seed` consumer a mismatch without saying anything the type did not already say.
+ */
+export type SeedRecordDTO = Omit<InferResponseType<typeof rpc.api.seeds.$get>[number], "definition"> & {
   definition: Seed
-  status: "active" | "deleted"
-  source: "code" | "runtime"
-  createdAt: number
-  updatedAt: number
 }
 
 export const seedsApi = {
-  list: async () => (await api.get<SeedRecordDTO[]>("/seeds")).data,
-  get: async (slug: string) => (await api.get<SeedRecordDTO>(`/seeds/${slug}`)).data,
-  create: async (seed: Seed) => (await api.post<{ slug: string }>("/seeds", seed)).data,
-  update: async (slug: string, seed: Seed) => (await api.put(`/seeds/${slug}`, seed)).data,
-  addBranch: async (slug: string, branch: Omit<Branch, "id">) =>
-    (await api.post<{ id: string }>(`/seeds/${slug}/branches`, branch)).data,
-  remove: async (slug: string) => (await api.delete(`/seeds/${slug}`)).data,
+  list: async (): Promise<SeedRecordDTO[]> => {
+    const response = await rpc.api.seeds.$get()
+    return response.json()
+  },
+  get: async (slug: string) => {
+    const response = await rpc.api.seeds[":slug"].$get({ param: { slug } })
+    return response.json()
+  },
+  create: async (seed: Seed) => {
+    const response = await rpc.api.seeds.$post({ json: seed })
+    return response.json()
+  },
+  update: async (slug: string, seed: Seed) => {
+    const response = await rpc.api.seeds[":slug"].$put({ param: { slug }, json: seed })
+    return response.json()
+  },
+  addBranch: async (slug: string, branch: Omit<Branch, "id">) => {
+    const response = await rpc.api.seeds[":slug"].branches.$post({ param: { slug }, json: branch })
+    return response.json()
+  },
+  remove: async (slug: string) => {
+    const response = await rpc.api.seeds[":slug"].$delete({ param: { slug } })
+    return response.json()
+  },
 
   // --- Sprint 06: Danger Zone ---
-  hardDelete: async (slug: string, confirm: string) =>
-    (await api.delete<{ jobId: string; status: "pending" }>(`/seeds/${slug}/hard`, { data: { confirm } })).data,
-  dropBranch: async (slug: string, branchId: string, confirm: string) =>
-    (await api.delete<{ success: boolean }>(`/seeds/${slug}/branches/${branchId}`, { data: { confirm } })).data,
-  dropOrphan: async (slug: string, column: string, confirm: string) =>
-    (await api.delete<{ success: boolean }>(`/seeds/${slug}/orphans/${column}`, { data: { confirm } })).data,
-  renameBranch: async (slug: string, branchId: string, newAlias: string, confirm: string) =>
-    (await api.patch<{ success: boolean; affectedAutomations: string[] }>(`/seeds/${slug}/branches/${branchId}/rename`, { newAlias, confirm })).data,
-  retypeBranch: async (slug: string, branchId: string, newType: string, confirm: string) =>
-    (await api.patch<{ success: boolean }>(`/seeds/${slug}/branches/${branchId}/retype`, { newType, confirm })).data,
-  rebuildFts: async (slug: string) =>
-    (await api.post<{ success: boolean }>(`/seeds/${slug}/fts/rebuild`)).data,
-  getOrphans: async (slug: string) =>
-    (await api.get<{ orphans: string[] }>(`/seeds/${slug}/orphans`)).data,
+  hardDelete: async (slug: string, confirm: string) => {
+    const response = await rpc.api.seeds[":slug"].hard.$delete({ param: { slug }, json: { confirm } })
+    return response.json()
+  },
+  dropBranch: async (slug: string, branchId: string, confirm: string) => {
+    const response = await rpc.api.seeds[":slug"].branches[":branchId"].$delete({ param: { slug, branchId }, json: { confirm } })
+    return response.json()
+  },
+  dropOrphan: async (slug: string, column: string, confirm: string) => {
+    const response = await rpc.api.seeds[":slug"].orphans[":column"].$delete({ param: { slug, column }, json: { confirm } })
+    return response.json()
+  },
+  renameBranch: async (slug: string, branchId: string, newAlias: string, confirm: string) => {
+    const response = await rpc.api.seeds[":slug"].branches[":branchId"].rename.$patch({ param: { slug, branchId }, json: { newAlias, confirm } })
+    return response.json()
+  },
+  retypeBranch: async (slug: string, branchId: string, newType: BranchType, confirm: string) => {
+    const response = await rpc.api.seeds[":slug"].branches[":branchId"].retype.$patch({ param: { slug, branchId }, json: { newType, confirm } })
+    return response.json()
+  },
+  rebuildFts: async (slug: string) => {
+    const response = await rpc.api.seeds[":slug"].fts.rebuild.$post({ param: { slug } })
+    return response.json()
+  },
+  getOrphans: async (slug: string) => {
+    const response = await rpc.api.seeds[":slug"].orphans.$get({ param: { slug } })
+    return response.json()
+  },
 }
