@@ -290,9 +290,6 @@ importers:
       lowlight:
         specifier: ^3.3.0
         version: 3.3.0
-      next-themes:
-        specifier: ^0.4.6
-        version: 0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       radix-ui:
         specifier: ^1.5.0
         version: 1.8.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -311,9 +308,6 @@ importers:
       react-i18next:
         specifier: ^17.0.4
         version: 17.1.0(i18next@26.5.2(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
-      react-medium-image-zoom:
-        specifier: ^5.4.3
-        version: 5.4.9(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react-router-dom:
         specifier: ^7.18.0
         version: 7.18.4(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -6340,12 +6334,6 @@ packages:
     resolution: {integrity: sha512-iGBUfFB7yPczHHtA8dksKTJ9E8TESNTAx1UQWW6TzMF280vo9jdPYpLUXrMN1BCkPdHFdNG3fxOt2CUad8KhAw==}
     engines: {node: '>=18'}
 
-  next-themes@0.4.6:
-    resolution: {integrity: sha512-pZvgD5L0IEvX5/9GWyHMf3m8BKiVQwsCMHfoFosXtXBMnaS0ZnIJ9ST4b4NqLVKDEm8QBxoNNGNaBv2JNF6XNA==}
-    peerDependencies:
-      react: ^19.2.7
-      react-dom: ^19.2.7
-
   node-releases@2.0.54:
     resolution: {integrity: sha512-YHs7BmmcsdAI5Ozuf8JZo6PT0mv2GIWC9vMfvUC3dp65M8hn7Ux8CPL+2oBI7juNuj9d0ndhTcznq2ODBps9cQ==}
     engines: {node: '>=18'}
@@ -6744,12 +6732,6 @@ packages:
 
   react-is@19.2.7:
     resolution: {integrity: sha512-kZFnouyVv7eP/Phmrlo9FK+zcAdriZJvzxXHF1Sl1P377WSGe2G/JxVolhTrB/jeV47lKImhNUsijjHAAbcl/A==}
-
-  react-medium-image-zoom@5.4.9:
-    resolution: {integrity: sha512-czBdTbJI6JEbqeRIT5M8D3j7TrffBfo00U0P0lzzd19usj8PiR1yPH7PK/vQlwBE/Sv9YFdJGN6XauJPi4jRyg==}
-    peerDependencies:
-      react: ^19.2.7
-      react-dom: ^19.2.7
 
   react-reconciler@0.33.0:
     resolution: {integrity: sha512-KetWRytFv1epdpJc3J4G75I4WrplZE5jOL7Yq0p34+OVOKF4Se7WrdIdVC45XsSSmUTlht2FM/fM1FZb1mfQeA==}
@@ -13201,11 +13183,6 @@ snapshots:
 
   neverthrow@7.2.0: {}
 
-  next-themes@0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
-    dependencies:
-      react: 19.3.1
-      react-dom: 19.3.1(react@19.3.1)
-
   node-releases@2.0.54: {}
 
   npm-run-path@4.0.1:
@@ -13768,11 +13745,6 @@ snapshots:
   react-is@17.0.2: {}
 
   react-is@19.2.7: {}
-
-  react-medium-image-zoom@5.4.9(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
-    dependencies:
-      react: 19.3.1
-      react-dom: 19.3.1(react@19.3.1)
 
   react-reconciler@0.33.0(react@19.3.1):
     dependencies:

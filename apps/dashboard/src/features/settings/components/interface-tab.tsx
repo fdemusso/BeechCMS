@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from 'react'
-import { useTheme } from 'next-themes'
+import { useTheme } from '@/lib/theme'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Monitor, Moon, Sun } from '@/components/icons'

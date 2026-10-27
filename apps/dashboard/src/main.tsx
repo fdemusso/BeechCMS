@@ -14,7 +14,7 @@ if (typeof window !== 'undefined' && import.meta.env.DEV && import.meta.env.VITE
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ThemeProvider } from 'next-themes'
+import { ThemeProvider } from '@/lib/theme'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import 'katex/dist/katex.min.css'
@@ -31,7 +31,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <WidgetSdkProvider client={api}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange enableColorScheme storageKey="beech-theme">
+        <ThemeProvider>
           <TooltipProvider>
             <App />
             <Toaster />

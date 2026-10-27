@@ -10,7 +10,7 @@ import { json, jsonParseLinter } from "@codemirror/lang-json"
 import { linter, lintGutter } from "@codemirror/lint"
 import { syntaxHighlighting } from "@codemirror/language"
 import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
 export interface JsonCodeEditorProps {

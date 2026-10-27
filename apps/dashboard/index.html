@@ -11,6 +11,15 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Apply the stored theme before first paint to avoid a light flash (mirrors src/lib/theme.tsx).
+      try {
+        var t = localStorage.getItem('beech-theme');
+        var dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', dark);
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+      } catch (e) {}
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
