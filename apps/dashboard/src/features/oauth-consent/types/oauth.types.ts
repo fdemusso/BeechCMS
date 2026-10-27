@@ -2,38 +2,17 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-/** Scope vocabulary mirrored from the authorization server (`@beechcms/core` OAUTH_SCOPES). */
-export type OAuthScope = 'schema:read' | 'schema:write'
+import type { InferRequestType, InferResponseType } from 'hono/client'
+import type { rpc } from '@/lib/rpc'
 
 /** Response of `GET /oauth/authorize/request`. */
-export interface AuthorizationRequestMetadata {
-  client: { clientId: string; name: string }
-  requestedScopes: OAuthScope[]
-  newScopes: OAuthScope[]
-  consentRequired: boolean
-  redirectUri: string
-  state: string
-}
+export type AuthorizationRequestMetadata = InferResponseType<typeof rpc.oauth.authorize.request.$get>
+
+/** Scope vocabulary of the authorization server (`@beechcms/core` OAUTH_SCOPES). */
+export type OAuthScope = AuthorizationRequestMetadata['requestedScopes'][number]
 
 /** Body of `POST /oauth/authorize/consent` (OAuth params stay snake_case on the wire). */
-export interface ConsentDecisionBody {
-  response_type: string
-  client_id: string
-  redirect_uri: string
-  scope: string
-  state: string
-  code_challenge: string
-  code_challenge_method: string
-  approved: boolean
-}
+export type ConsentDecisionBody = InferRequestType<typeof rpc.oauth.authorize.consent.$post>['json']
 
 /** One row of `GET /oauth/consents`. */
-export interface ConnectedApp {
-  clientId: string
-  name: string
-  scopes: OAuthScope[]
-  grantedAt: number
-  updatedAt: number
-  lastIssuedAt: number | null
-  hasActiveTokens: boolean
-}
+export type ConnectedApp = InferResponseType<typeof rpc.oauth.consents.$get>[number]
