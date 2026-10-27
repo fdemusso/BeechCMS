@@ -9,17 +9,9 @@ import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 import { EntryNotFoundError, ActorContext } from '@beechcms/core'
 
-export async function getByIdHandler(context: Context<AppEnv>) {
+export async function getByIdHandler(context: Context<AppEnv, '/:slug/:id'>) {
   const slug = context.req.param('slug')
   const id = context.req.param('id')
-  if (!slug || !id) {
-    return publicProblem(context, { 
-      type: 'content-invalid-slug-or-id', 
-      title: 'Bad Request', 
-      status: 400, 
-      detail: CONTENT_ERRORS.INVALID_SLUG_OR_ID 
-    })
-  }
 
   const seed = context.get('getSeed')(slug)
   if (!seed) {
@@ -50,7 +42,7 @@ export async function getByIdHandler(context: Context<AppEnv>) {
     return context.json({
       ...toEntryEnvelope(item, seed, actor),
       has_pending_draft: hasPendingDraft,
-    })
+    }, 200)
   } catch (error) {
     if (error instanceof EntryNotFoundError) {
       return publicProblem(context, { 

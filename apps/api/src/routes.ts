@@ -23,6 +23,7 @@ import contentFeature from './features/content'
 import { contentTransferApp } from './features/content/transfer.router'
 import { contentViewsApp } from './features/content/views.router'
 import { contentTrashApp } from './features/content/trash.router'
+import { contentCrudApp } from './features/content/crud.router'
 import { widgetApp } from './features/widget/widget'
 import { rotateFieldApp } from './features/rotate-field'
 import { draftApp } from './features/draft'
@@ -71,6 +72,7 @@ export const protectedRoutes = new Hono<AppEnv>()
   .route('/content', contentTransferApp)
   .route('/content', contentViewsApp)
   .route('/content', contentTrashApp)
+  .route('/content', contentCrudApp)
   .route('/content', contentFeature)
   .route('/widget', widgetApp)
   .route('/automations', automationsApp)
