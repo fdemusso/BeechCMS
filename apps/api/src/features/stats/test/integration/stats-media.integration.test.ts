@@ -18,6 +18,7 @@ interface MediaItem {
   key: string
   size_bytes: number
   mime_type: string
+  url: string
 }
 
 // One more than the old fixed scan window, so the oldest upload sits outside it.
@@ -123,6 +124,16 @@ describe('stats slice — media endpoints (real D1)', () => {
       const body = await response.json<{ items: MediaItem[] }>()
       expect(body.items).toHaveLength(TRACKED_UPLOADS)
       expect(body.items.map(item => item.key)).toContain(OLDEST_KEY)
+    })
+
+    // The widget renders each item as <img src={url}>; without it every unused upload is a broken image.
+    it('gives every unreferenced upload the url it is served from', async () => {
+      const response = await admin.get('/api/content/stats/unused-media')
+
+      const body = await response.json<{ items: MediaItem[] }>()
+      const oldest = body.items.find(item => item.key === OLDEST_KEY)
+      expect(oldest?.url).toMatch(/^https?:\/\/[^/]+\/api\/media\//)
+      expect(oldest?.url.endsWith(`/api/media/${encodeURIComponent(OLDEST_KEY)}`)).toBe(true)
     })
   })
 })

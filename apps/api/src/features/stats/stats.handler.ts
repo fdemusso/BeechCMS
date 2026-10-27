@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { SystemClock, type MediaObject, type MediaRepository } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { publicProblem } from '../../public/errors/problem-details'
@@ -25,6 +25,15 @@ const DEFAULT_LIMIT = 12
 const MAX_LIMIT = 100
 const R2_STORAGE_LIMIT = 10 * 1024 * 1024 * 1024 // 10GB
 const D1_MONTHLY_REQUESTS_LIMIT = 1000000 // 1M requests/month
+
+/** Origin the media is served from: the configured media base URL, else the request's own origin. */
+function resolveMediaBaseUrl(context: Context<{ Bindings: Env; Variables: Variables }>): string {
+    return (context.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '')) ?? new URL(context.req.url).origin
+}
+
+function mediaUrl(mediaBaseUrl: string, key: string): string {
+    return `${mediaBaseUrl}/api/media/${encodeURIComponent(key)}`
+}
 
 function getMimeType(extension: string): string {
     if (extension === 'pdf') {
@@ -61,7 +70,7 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
         const limit = Math.min(parsePositiveInt(query.limit, DEFAULT_LIMIT), MAX_LIMIT)
         // parsePositiveInt rejects 0, which is also the fallback, so offset=0 and invalid values both give the first page.
         const offset = parsePositiveInt(query.offset, 0)
-        const mediaBaseUrl = (context.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '')) ?? new URL(context.req.url).origin
+        const mediaBaseUrl = resolveMediaBaseUrl(context)
 
         // 1. Files tracked in the media library
         const mediaRows = await listAllTrackedMedia(mediaRepository)
@@ -71,7 +80,7 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
         for (const mediaRow of mediaRows) {
             trackedKeys.add(mediaRow.key)
-            allItems.push({ ...mediaRow, url: `${mediaBaseUrl}/api/media/${encodeURIComponent(mediaRow.key)}` })
+            allItems.push({ ...mediaRow, url: mediaUrl(mediaBaseUrl, mediaRow.key) })
         }
 
         // 2. /api/media/ URLs in the file columns of each seed (v0.4.0 — real columns)
@@ -92,7 +101,7 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
                 mime_type: mimeType,
                 size_bytes: 0,
                 created_at: createdAt,
-                url: `${mediaBaseUrl}/api/media/${encodeURIComponent(key)}`
+                url: mediaUrl(mediaBaseUrl, key)
             })
         }
 
@@ -126,7 +135,11 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
         const contentScanRepository = context.get('contentScanRepository')
         const referencedKeys = await contentScanRepository.getReferencedMediaKeys(seeds)
 
-        const unusedMedia = mediaRows.filter(mediaItem => !referencedKeys.has(mediaItem.key))
+        // Every item carries the url it is served from, like media-library: the widget renders it as an <img src>.
+        const mediaBaseUrl = resolveMediaBaseUrl(context)
+        const unusedMedia = mediaRows
+            .filter(mediaItem => !referencedKeys.has(mediaItem.key))
+            .map(mediaItem => ({ ...mediaItem, url: mediaUrl(mediaBaseUrl, mediaItem.key) }))
         return context.json({ items: unusedMedia }, 200)
     } catch (error) {
         console.error('Unused media error:', error)
