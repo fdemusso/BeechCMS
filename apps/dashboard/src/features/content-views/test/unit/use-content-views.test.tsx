@@ -8,12 +8,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import * as React from "react"
 import { emptyViewConfig, type ContentView } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn().mockResolvedValue({ data: [] }), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
+const mocked = vi.hoisted(() => ({
+  list: vi.fn().mockResolvedValue({ json: async () => [] }),
+  reorder: vi.fn(),
+}))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { content: { ":slug": { views: { $get: mocked.list, order: { $put: mocked.reorder } } } } } },
 }))
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
-import { api } from "@/lib/api"
 import { toast } from "sonner"
 import { CONTENT_VIEWS_QUERY_KEY, useContentViews, useReorderContentViews } from "../../hooks/use-content-views"
 
@@ -52,7 +56,7 @@ describe("useReorderContentViews", () => {
   })
 
   it("reorders the cached views and rewrites their positions before the server answers", async () => {
-    vi.mocked(api.put).mockReturnValueOnce(new Promise(() => {}))
+    mocked.reorder.mockReturnValueOnce(new Promise(() => {}))
     const { result } = renderHook(() => useReorderContentViews("posts"), { wrapper: wrapper(queryClient) })
 
     result.current.mutate(["v3", "v1", "v2"])
@@ -66,17 +70,17 @@ describe("useReorderContentViews", () => {
   })
 
   it("refetches the views and reports the failure when the server rejects the order", async () => {
-    vi.mocked(api.put).mockRejectedValueOnce(new Error("boom"))
+    mocked.reorder.mockRejectedValueOnce(new Error("boom"))
     const { result } = renderHook(
       () => ({ query: useContentViews("posts"), reorder: useReorderContentViews("posts") }),
       { wrapper: wrapper(queryClient) }
     )
     await waitFor(() => expect(result.current.query.isSuccess).toBe(true))
-    vi.mocked(api.get).mockClear()
+    mocked.list.mockClear()
 
     result.current.reorder.mutate(["v3", "v1", "v2"])
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1))
-    expect(api.get).toHaveBeenCalledWith("/content/posts/views")
+    expect(mocked.list).toHaveBeenCalledWith({ param: { slug: "posts" } })
   })
 })

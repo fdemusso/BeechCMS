@@ -3,8 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 import type { TransferFormat } from "@beechcms/core"
+import type { InferResponseType } from "hono/client"
 
-import { api } from "@/lib/api"
+import { apiFetchUnbounded } from "@/lib/api"
 import { rpc } from "@/lib/rpc"
 import { isApiError } from "@/lib/http/api-error"
 
@@ -20,19 +21,7 @@ export interface ImportRowError {
 
 /** The wire shape of GET /api/content/import-jobs/:id. `objectKey` and `createdBy` are
  *  deliberately absent from the endpoint — do not add them here to "complete" the type. */
-export interface ImportJobResponse {
-  id: string
-  targetSeed: string
-  format: TransferFormat
-  state: ImportJobState
-  rowsRead: number
-  insertedRows: number
-  failedRows: number
-  errors: ImportRowError[]
-  createdAt: number
-  updatedAt: number
-  finishedAt: number | null
-}
+export type ImportJobResponse = InferResponseType<(typeof rpc.api.content)["import-jobs"][":id"]["$get"]>
 
 /** RFC 7807, as `publicProblem()` emits it. `type` is the contract; `detail` is copy. */
 export interface ProblemDetails {
@@ -96,22 +85,22 @@ export function isStorageNotConfiguredError(error: unknown): boolean {
 
 /**
  * Streams the export into a Blob and hands it to the browser as a download.
- * `timeout: 0` overrides the client's 30 s default: an export up to EXPORT_MAX_ROWS rows can
+ * `apiFetchUnbounded` replaces the client's 30 s budget: an export up to EXPORT_MAX_ROWS rows can
  * legitimately stream for longer, and aborting mid-stream is the corrupted-file failure the
  * server's 413 cap exists to prevent.
  */
 export async function downloadExport(slug: string, format: TransferFormat): Promise<void> {
-  const response = await api.get<Blob>(`/content/${slug}/export`, {
-    params: { format },
-    responseType: "blob",
-    timeout: 0,
-  })
+  const response = await rpc.api.content[":slug"].export.$get(
+    { param: { slug }, query: { format } },
+    { fetch: apiFetchUnbounded },
+  )
+  const data = await response.blob()
 
   // The filename the API sets in Content-Disposition; rebuilt rather than parsed, because the
   // header is not exposed to the browser on a cross-origin response and parsing it would be a
   // second, weaker source of truth.
   const filename = `${slug}.${FILE_EXTENSIONS[format]}`
-  const blob = new Blob([response.data], { type: CONTENT_TYPES[format] })
+  const blob = new Blob([data], { type: CONTENT_TYPES[format] })
   const url = URL.createObjectURL(blob)
   const downloadAnchor = document.createElement("a")
   downloadAnchor.href = url
@@ -153,11 +142,11 @@ export async function createImportJob(
   objectKey: string,
   format: TransferFormat,
 ): Promise<string> {
-  const response = await api.post<{ jobId: string }>(`/content/${slug}/import`, { objectKey, format })
-  return response.data.jobId
+  const response = await rpc.api.content[":slug"].import.$post({ param: { slug }, json: { objectKey, format } })
+  return (await response.json()).jobId
 }
 
 export async function fetchImportJob(jobId: string): Promise<ImportJobResponse> {
-  const response = await api.get<ImportJobResponse>(`/content/import-jobs/${jobId}`)
-  return response.data
+  const response = await rpc.api.content["import-jobs"][":id"].$get({ param: { id: jobId } })
+  return response.json()
 }

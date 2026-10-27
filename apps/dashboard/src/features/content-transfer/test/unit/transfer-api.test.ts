@@ -4,18 +4,20 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const mocked = vi.hoisted(() => ({ presign: vi.fn() }))
-
-vi.mock("@/lib/api", () => ({ api: { get: vi.fn(), post: vi.fn() } }))
+const mocked = vi.hoisted(() => ({ presign: vi.fn(), createJob: vi.fn(), readJob: vi.fn() }))
 
 vi.mock("@/lib/rpc", () => ({
-  rpc: { api: { upload: { presign: { $post: mocked.presign } } } },
+  rpc: {
+    api: {
+      upload: { presign: { $post: mocked.presign } },
+      content: { ":slug": { import: { $post: mocked.createJob } }, "import-jobs": { ":id": { $get: mocked.readJob } } },
+    },
+  },
 }))
 
-import { api } from "@/lib/api"
 import { ApiError } from "@/lib/http/api-error"
 import {
-  downloadExport,
+  fetchImportJob,
   presignImportObject,
   createImportJob,
   readProblem,
@@ -25,24 +27,6 @@ import {
 function presigned(key: string) {
   return { json: async () => ({ uploadUrl: "https://r2.example/upload", key, expiresIn: 60 }) }
 }
-
-describe("downloadExport", () => {
-  beforeEach(() => vi.clearAllMocks())
-
-  it("requests the export endpoint as a blob with an unbounded timeout", async () => {
-    vi.mocked(api.get).mockResolvedValueOnce({ data: new Blob(["a,b"]) })
-
-    await downloadExport("posts", "csv")
-
-    // Regression guard: the client's default 30s timeout truncates a large export mid-stream,
-    // which is exactly the corrupted-file failure the server's 413 cap exists to prevent.
-    expect(api.get).toHaveBeenCalledWith("/content/posts/export", {
-      params: { format: "csv" },
-      responseType: "blob",
-      timeout: 0,
-    })
-  })
-})
 
 describe("presignImportObject", () => {
   beforeEach(() => vi.clearAllMocks())
@@ -93,16 +77,30 @@ describe("presignImportObject", () => {
 describe("createImportJob", () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it("posts objectKey and format and returns the minted jobId", async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { jobId: "job-1" } })
+  it("posts objectKey and format for the slug and returns the minted jobId", async () => {
+    mocked.createJob.mockResolvedValueOnce({ json: async () => ({ jobId: "job-1" }) })
 
     const jobId = await createImportJob("posts", "objects/1", "csv")
 
-    expect(api.post).toHaveBeenCalledWith("/content/posts/import", {
-      objectKey: "objects/1",
-      format: "csv",
+    expect(mocked.createJob).toHaveBeenCalledWith({
+      param: { slug: "posts" },
+      json: { objectKey: "objects/1", format: "csv" },
     })
     expect(jobId).toBe("job-1")
+  })
+})
+
+describe("fetchImportJob", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it("reads the job by id and returns the payload unchanged", async () => {
+    const job = { id: "job-1", state: "completed" }
+    mocked.readJob.mockResolvedValueOnce({ json: async () => job })
+
+    const result = await fetchImportJob("job-1")
+
+    expect(mocked.readJob).toHaveBeenCalledWith({ param: { id: "job-1" } })
+    expect(result).toEqual(job)
   })
 })
 

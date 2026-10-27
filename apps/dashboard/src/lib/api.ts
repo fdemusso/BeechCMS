@@ -83,6 +83,9 @@ function buildFetch(timeoutMs?: number): typeof fetch {
 /** Authenticated fetch for the whole API surface (`/api/*` and `/auth/*`), 30 s budget. */
 export const apiFetch: typeof fetch = buildFetch()
 
+/** Same as `apiFetch` without the time budget: for downloads that may stream for minutes. */
+export const apiFetchUnbounded: typeof fetch = buildFetch(0)
+
 type QueryValue = string | number | boolean | null | undefined
 
 export interface RequestOptions {
