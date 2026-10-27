@@ -2,20 +2,13 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { api } from "@/lib/api"
 import { rpc } from "@/lib/rpc"
-import type { DashboardLayout } from "@beechcms/core"
 import type { DashboardStats, CloudflareStats, RecentActivity, SystemHealth, ContentBreakdown, SetupChecklist } from "../types/dashboard.types"
 
-export interface DashboardLayoutResponse {
-  scope: string
-  layout: DashboardLayout | null
-}
-
 export const dashboardApi = {
-  getDashboardLayout: async (): Promise<DashboardLayoutResponse> => {
-    const { data } = await api.get<DashboardLayoutResponse>("/dashboard-layout")
-    return data
+  getDashboardLayout: async () => {
+    const response = await rpc.api["dashboard-layout"].$get()
+    return response.json()
   },
   getTotalStats: async (): Promise<DashboardStats> => {
     const response = await rpc.api.content.stats.total.$get()

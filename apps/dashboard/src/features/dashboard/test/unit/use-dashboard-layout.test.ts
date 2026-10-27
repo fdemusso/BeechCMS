@@ -8,6 +8,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 import type { DashboardLayout } from "@beechcms/core"
 
+const mocked = vi.hoisted(() => ({ layout: vi.fn() }))
+
 vi.mock("@/lib/api", () => ({
   api: {
     get: vi.fn(),
@@ -15,6 +17,10 @@ vi.mock("@/lib/api", () => ({
     post: vi.fn(),
     delete: vi.fn(),
   },
+}))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { "dashboard-layout": { $get: mocked.layout } } },
 }))
 
 import { api } from "@/lib/api"
@@ -31,9 +37,11 @@ function wrapper(client: QueryClient) {
     React.createElement(QueryClientProvider, { client }, children)
 }
 
-function mockApiGet(responses: Record<string, unknown>) {
+/** `GET /dashboard-layout` goes through rpc; the schema call is still the plain api client. */
+function mockResponses({ layout, schema }: { layout: unknown; schema: unknown }) {
+  mocked.layout.mockResolvedValue({ json: async () => layout })
   ;(api.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-    if (url in responses) return Promise.resolve({ data: responses[url] })
+    if (url === "/schema") return Promise.resolve({ data: schema })
     throw new Error(`Unexpected api.get("${url}")`)
   })
 }
@@ -44,10 +52,7 @@ describe("useDashboardLayout", () => {
   })
 
   it("falls back to the generated default layout when none is stored", async () => {
-    mockApiGet({
-      "/dashboard-layout": { scope: "user", layout: null },
-      "/schema": [],
-    })
+    mockResponses({ layout: { scope: "user", layout: null }, schema: [] })
 
     const { result } = renderHook(() => useDashboardLayout(), {
       wrapper: wrapper(makeQueryClient()),
@@ -86,10 +91,7 @@ describe("useDashboardLayout", () => {
       ],
     }
 
-    mockApiGet({
-      "/dashboard-layout": { scope: "user", layout: storedLayout },
-      "/schema": [],
-    })
+    mockResponses({ layout: { scope: "user", layout: storedLayout }, schema: [] })
 
     const { result } = renderHook(() => useDashboardLayout(), {
       wrapper: wrapper(makeQueryClient()),
