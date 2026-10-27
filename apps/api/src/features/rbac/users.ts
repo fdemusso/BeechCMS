@@ -93,18 +93,12 @@ export const createUserHandler = async (context: JsonContext<typeof createUserSc
     throw error
   }
 
-  return context.json(
-    {
-      id,
-      email,
-      name: input.name ?? null,
-      surname: input.surname ?? null,
-      role: CREATED_ACCOUNT_ROLE,
-      isActive: true,
-      assignments: [],
-    },
-    201,
-  )
+  // Read back, not echoed: `createdAt` is stamped by the database, and the response is the same
+  // account the listings serve.
+  const created = await userRepository.findAccountById(id)
+  if (!created) throw new Error(`Account ${id} vanished right after it was created.`)
+
+  return context.json({ ...created, assignments: [] }, 201)
 }
 
 /**
