@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Link2 as Link2Icon } from 'reicon-react'
+import { Link2 as Link2Icon } from '@/components/icons'
 import { ToolbarButton } from "../toolbar-button"
 import { LinkEditBlock } from "./link-edit-block"
 

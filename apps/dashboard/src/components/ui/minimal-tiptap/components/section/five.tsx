@@ -8,7 +8,7 @@ import type { Editor } from "@tiptap/react"
 import type { FormatAction } from "../../types"
 import type { toggleVariants } from "@/components/ui/toggle"
 import type { VariantProps } from "class-variance-authority"
-import { ArrowDown as CaretDownIcon, Code as CodeIcon, Minus as DividerHorizontalIcon, Plus as PlusIcon, QuoteUp as QuoteIcon } from 'reicon-react'
+import { ArrowDown as CaretDownIcon, Code as CodeIcon, Minus as DividerHorizontalIcon, Plus as PlusIcon, QuoteUp as QuoteIcon } from '@/components/icons'
 import { LinkEditPopover } from "../link/link-edit-popover"
 import { ImageEditDialog } from "../image/image-edit-dialog"
 import { ToolbarSection } from "../toolbar-section"

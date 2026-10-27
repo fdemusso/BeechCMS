@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ChevronDown, ChevronRight, Plus } from 'reicon-react'
+import { ChevronDown, ChevronRight, Plus } from '@/components/icons'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'

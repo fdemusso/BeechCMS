@@ -43,7 +43,7 @@ const { register } = await import('tsx/esm/api')
 const unregister = register()
 
 try {
-  if (process.stdout.isTTY && !process.env.BEECH_DEV_PLAIN) {
+  if (process.stdout.isTTY && !process.env.BEECH_DEV_PLAIN && !process.argv.includes('--plain')) {
     await import('./dev-cli/index.tsx')
   } else {
     const { runLegacy } = await import('./dev-cli/legacy-runner.ts')

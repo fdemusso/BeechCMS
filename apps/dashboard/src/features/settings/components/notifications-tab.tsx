@@ -4,7 +4,7 @@
 
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
-import { Loader as Loader2 } from 'reicon-react'
+import { Loader as Loader2 } from '@/components/icons'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'

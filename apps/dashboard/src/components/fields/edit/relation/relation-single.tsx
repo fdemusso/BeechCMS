@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { Check, SortV as ChevronsUpDown, X } from 'reicon-react'
+import { Check, SortV as ChevronsUpDown, X } from '@/components/icons'
 
 import { useFieldsConfig } from "../../context"
 import { useRelationLabel } from "../../relation-label"

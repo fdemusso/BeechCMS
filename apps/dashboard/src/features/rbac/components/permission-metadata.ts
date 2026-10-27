@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { Permission } from "@beechcms/core"
-import { Eye, Plus, Edit, Trash2, Users, ShieldCheck, Chart } from "reicon-react"
+import { Eye, Plus, Edit, Trash2, Users, ShieldCheck, Chart } from "@/components/icons"
 import type { IconComponent } from "@/lib/icon-registry"
 
 export interface PermissionMeta {

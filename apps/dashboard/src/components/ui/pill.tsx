@@ -31,7 +31,7 @@
 
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { Loader as Loader2 } from "reicon-react"
+import { Loader as Loader2 } from "@/components/icons"
 
 import { cn } from "@/lib/utils"
 

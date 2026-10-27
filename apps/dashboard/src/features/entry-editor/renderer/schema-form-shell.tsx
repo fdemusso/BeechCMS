@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react"
 import type { ReactNode } from "react"
-import { ChevronDown, Loader as Loader2, Edit as Pencil, Trash2, Layout as LayoutTemplate } from 'reicon-react'
+import { ChevronDown, Loader as Loader2, Edit as Pencil, Trash2, Layout as LayoutTemplate } from '@/components/icons'
 import type { Seed } from "@beechcms/core"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 

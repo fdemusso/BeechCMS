@@ -10,7 +10,7 @@
  */
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { ArrowDown, ArrowUp, Loader as Loader2, Upload, X } from 'reicon-react'
+import { ArrowDown, ArrowUp, Loader as Loader2, Upload, X } from '@/components/icons'
 import { toast } from "sonner"
 import { uploadFile } from "@/lib/upload"
 import { Button } from "@/components/ui/button"

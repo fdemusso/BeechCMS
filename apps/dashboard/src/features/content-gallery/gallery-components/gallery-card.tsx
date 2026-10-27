@@ -4,7 +4,7 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Calendar, Image as ImageIcon, Image as ImageOff } from 'reicon-react'
+import { Calendar, Image as ImageIcon, Image as ImageOff } from '@/components/icons'
 
 import { FieldDisplay } from "@/components/fields"
 import { Badge } from "@/components/ui/badge"

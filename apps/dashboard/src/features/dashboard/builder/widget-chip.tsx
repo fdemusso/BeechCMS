@@ -6,7 +6,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { SortV as GripVertical, More as MoreHorizontal, Settings2, Trash2, AlertTriangle, ArrowSwapHorizontal as ArrowRightLeft, Box } from 'reicon-react'
+import { SortV as GripVertical, More as MoreHorizontal, Settings2, Trash2, AlertTriangle, ArrowSwapHorizontal as ArrowRightLeft, Box } from '@/components/icons'
 import type { DashboardWidgetInstance, DashboardPageLayout } from '@beechcms/core'
 
 import { Badge } from '@/components/ui/badge'

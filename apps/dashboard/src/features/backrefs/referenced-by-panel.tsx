@@ -5,7 +5,7 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronUp, Export as ExternalLink, Loader as Loader2 } from 'reicon-react'
+import { ChevronDown, ChevronUp, Export as ExternalLink, Loader as Loader2 } from '@/components/icons'
 import { formatDistanceToNow } from 'date-fns'
 import { it as itLocale, enUS, type Locale } from 'date-fns/locale'
 import {

@@ -4,7 +4,7 @@
 
 "use client"
 
-import { CheckCircle as BadgeCheck, More, Logout as LogOut } from 'reicon-react'
+import { CheckCircle as BadgeCheck, More, Logout as LogOut } from '@/components/icons'
 import { useNavigate } from "react-router-dom"
 
 import {

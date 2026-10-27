@@ -6,7 +6,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { Calendar as CalendarIcon } from 'reicon-react'
+import { Calendar as CalendarIcon } from '@/components/icons'
 import { format, parse, isValid } from "date-fns"
 
 import { Calendar } from "@/components/ui/calendar"

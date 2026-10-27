@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import type { Row, Table as TanstackTable } from "@tanstack/react-table"
-import { ChevronRight, ChevronDown } from "reicon-react"
+import { ChevronRight, ChevronDown } from "@/components/icons"
 import { TableCell, TableRow } from "@/components/ui/table"
 
 export interface DataTableGroupRowProps<TData> {

@@ -6,7 +6,7 @@ import type { Editor } from "@tiptap/react"
 import type { VariantProps } from "class-variance-authority"
 import type { toggleVariants } from "@/components/ui/toggle"
 import { useState } from "react"
-import { Image as ImageIcon } from 'reicon-react'
+import { Image as ImageIcon } from '@/components/icons'
 import { ToolbarButton } from "../toolbar-button"
 import {
   Dialog,

@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { ChartBarTrendUp as TrendingUp } from 'reicon-react'
+import { ChartBarTrendUp as TrendingUp } from '@/components/icons'
 import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardWidgetShell } from "../dashboard-widget-shell"
 import { useDashboardStats } from "../../hooks/use-dashboard-stats"

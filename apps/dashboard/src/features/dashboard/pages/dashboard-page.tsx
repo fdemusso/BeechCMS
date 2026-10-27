@@ -4,7 +4,7 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Settings } from 'reicon-react'
+import { Settings } from '@/components/icons'
 import { canEditDashboard } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"

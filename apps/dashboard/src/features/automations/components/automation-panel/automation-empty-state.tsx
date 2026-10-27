@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from 'react-i18next'
-import { Flash as Zap } from 'reicon-react'
+import { Flash as Zap } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { usePermissions } from '@/features/shared/hooks/use-permissions'

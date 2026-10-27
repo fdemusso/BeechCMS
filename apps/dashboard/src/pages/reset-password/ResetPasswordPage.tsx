@@ -6,7 +6,7 @@ import React, { useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import axios from "axios"
-import { Eye, EyeOff } from 'reicon-react'
+import { Eye, EyeOff } from '@/components/icons'
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"

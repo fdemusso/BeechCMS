@@ -15,7 +15,7 @@ import type {
 } from "@tanstack/react-table"
 import type { Seed } from "@beechcms/core"
 import { DataTable } from "@/components/ui/data-table"
-import { Copy, Pencil, Trash2 } from "lucide-react"
+import { Copy, Edit as Pencil, Trash2 } from "@/components/icons"
 import {
   ContextMenuItem,
   ContextMenuLabel,

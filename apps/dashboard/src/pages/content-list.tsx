@@ -6,7 +6,7 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
-import { Trash2 } from "reicon-react"
+import { Trash2 } from "@/components/icons"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { Button } from "@/components/ui/button"
 

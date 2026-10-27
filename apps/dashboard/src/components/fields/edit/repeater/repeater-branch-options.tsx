@@ -5,7 +5,7 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { LOCALIZABLE_BRANCH_TYPES, isSingleChoiceTags, resolvePolicies, tagOptionsIssues, TAG_OPTIONS_MAX_COUNT, type Branch, type DataClassification, type Seed } from "@beechcms/core"
-import { ChevronDown, ChevronUp, Trash2 } from "reicon-react"
+import { ChevronDown, ChevronUp, Trash2 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"

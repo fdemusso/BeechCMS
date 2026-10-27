@@ -4,7 +4,7 @@ import type { IconComponent } from '@/lib/icon-registry'
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Box } from 'reicon-react'
+import { Box } from '@/components/icons'
 import {
   Dialog,
   DialogContent,

@@ -5,7 +5,7 @@
 import { useTranslation } from "react-i18next"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { SortV as GripVertical, Trash2 } from 'reicon-react'
+import { SortV as GripVertical, Trash2 } from '@/components/icons'
 import type { Branch, BranchType } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"

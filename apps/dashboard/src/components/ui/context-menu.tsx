@@ -2,7 +2,7 @@ import * as React from "react"
 import { ContextMenu as ContextMenuPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
-import { ChevronRight as ChevronRightIcon, Check as CheckIcon } from 'reicon-react'
+import { ChevronRight as ChevronRightIcon, Check as CheckIcon } from '@/components/icons'
 
 function ContextMenu({
   ...props

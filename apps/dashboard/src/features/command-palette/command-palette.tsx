@@ -6,7 +6,7 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { useTheme } from "next-themes"
-import { ChevronRight } from 'reicon-react'
+import { ChevronRight } from '@/components/icons'
 import { useCommandState } from "cmdk" // only useCommandState is imported directly from cmdk
 
 import {

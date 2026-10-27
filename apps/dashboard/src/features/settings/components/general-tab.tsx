@@ -4,7 +4,7 @@
 
 import { useTranslation } from 'react-i18next'
 import { MAX_RETENTION_DAYS } from '@beechcms/core'
-import { Loader as Loader2 } from 'reicon-react'
+import { Loader as Loader2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

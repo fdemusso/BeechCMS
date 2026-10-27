@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { Star } from 'reicon-react'
+import { Star } from '@/components/icons'
 import { cn } from "@/lib/utils"
 import type { FieldEditProps } from "../../types"
 import { useNumberRating } from "./use-number-rating"

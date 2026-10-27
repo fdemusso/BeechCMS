@@ -4,7 +4,7 @@
 
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Loader } from 'reicon-react'
+import { Loader } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
