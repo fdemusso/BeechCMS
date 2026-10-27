@@ -38,8 +38,8 @@ describe("useNotificationsPopover", () => {
 
   it("filtra nuove notifiche e aggiorna stato seen/unseen/delete", async () => {
     const mockData = [
-      { id: "1", title: "New", message: "Msg 1", type: "info", is_read: 0, created_at: 1700000000 },
-      { id: "2", title: "Old", message: "Msg 2", type: "success", is_read: 1, created_at: 1700000000 },
+      { id: "1", title: "New", message: "Msg 1", type: "info", isRead: false, createdAt: 1700000000 },
+      { id: "2", title: "Old", message: "Msg 2", type: "success", isRead: true, createdAt: 1700000000 },
     ]
     ;(mockApi.get as any).mockResolvedValue({ data: mockData })
     ;(mockApi.patch as any).mockResolvedValue({ data: { success: true } })
@@ -56,6 +56,8 @@ describe("useNotificationsPopover", () => {
     expect(result.current.notifications).toHaveLength(2)
     expect(result.current.hasUnreadNotifications).toBe(true)
     expect(result.current.unreadCount).toBe(1)
+    // The API sends the creation time in epoch seconds; an unmapped field would surface as Invalid Date.
+    expect(result.current.notifications[0].createdAt).toEqual(new Date(1700000000 * 1000))
 
     const firstId = result.current.notifications[0].id
     

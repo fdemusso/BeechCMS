@@ -36,8 +36,8 @@ export function useNotificationsPopover() {
     title: n.title,
     description: n.message,
     icon: NOTIFICATION_ICONS[n.type] || Bell,
-    isNew: n.is_read === 0,
-    createdAt: new Date(n.created_at * 1000)
+    isNew: !n.isRead,
+    createdAt: new Date(n.createdAt * 1000)
   }))
 
   const markReadMutation = useMutation({
