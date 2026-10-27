@@ -4,9 +4,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const mocked = vi.hoisted(() => ({ schema: vi.fn(), draftGet: vi.fn(), draftPut: vi.fn(), publish: vi.fn(), discard: vi.fn() }))
-// The live entry read still goes through the `api` facade; the draft endpoints are typed.
-vi.mock("@/lib/api", () => ({ api: { get: vi.fn() } }))
+const mocked = vi.hoisted(() => ({ schema: vi.fn(), entryGet: vi.fn(), draftGet: vi.fn(), draftPut: vi.fn(), publish: vi.fn(), discard: vi.fn() }))
 vi.mock("@/lib/rpc", () => ({
   rpc: {
     api: {
@@ -14,6 +12,7 @@ vi.mock("@/lib/rpc", () => ({
       content: {
         ":slug": {
           ":id": {
+            $get: mocked.entryGet,
             draft: { $get: mocked.draftGet, $put: mocked.draftPut, $delete: mocked.discard, publish: { $post: mocked.publish } },
           },
         },
@@ -30,7 +29,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createMemoryRouter, RouterProvider } from "react-router-dom"
 import type { PropsWithChildren, SyntheticEvent } from "react"
 import { CANONICAL_SEEDS, CANONICAL_ENTRIES } from "@beechcms/testing"
-import { api } from "@/lib/api"
 import { ApiError } from "@/lib/http/api-error"
 import { toast } from "sonner"
 import { useEntryEditorDialog } from "../../hooks/use-entry-editor-dialog"
@@ -53,7 +51,7 @@ describe("useEntryEditorDialog", () => {
     onClose = vi.fn<() => void>()
     mocked.schema.mockResolvedValue({ json: async () => CANONICAL_SEEDS })
     mocked.draftGet.mockResolvedValue({ json: async () => ({ data: { title: "Draft" } }) })
-    vi.mocked(api.get).mockResolvedValue({ data: { id: entryId, data: CANONICAL_ENTRIES[0].data, status: "published", updated_at: 1 } })
+    mocked.entryGet.mockResolvedValue({ json: async () => ({ id: entryId, data: CANONICAL_ENTRIES[0].data, status: "published", updated_at: 1 }) })
   })
 
   function conflictAction(): () => void {
@@ -102,7 +100,7 @@ describe("useEntryEditorDialog", () => {
     const { result } = await editor()
     await act(async () => result.current.handleSubmit({ preventDefault() {} } as SyntheticEvent<HTMLFormElement>))
     mocked.draftGet.mockResolvedValue({ json: async () => ({ data: { title: "Latest draft" } }) })
-    vi.mocked(api.get).mockResolvedValue({ data: { id: entryId, data: { title: "Latest live", internal_note: "Latest note" }, status: "published", updated_at: 2 } })
+    mocked.entryGet.mockResolvedValue({ json: async () => ({ id: entryId, data: { title: "Latest live", internal_note: "Latest note" }, status: "published", updated_at: 2 }) })
     const recover = conflictAction()
 
     await act(async () => { recover() })
@@ -110,7 +108,7 @@ describe("useEntryEditorDialog", () => {
     await waitFor(() => expect(result.current.formData.title).toBe("Latest draft"))
     expect(result.current.formData.internal_note).toBe("Latest note")
     expect(mocked.draftGet).toHaveBeenLastCalledWith({ param: { slug: "posts", id: entryId } })
-    expect(api.get).toHaveBeenCalledWith(`/content/posts/${entryId}`)
+    expect(mocked.entryGet).toHaveBeenCalledWith({ param: { slug: "posts", id: entryId } })
   })
 
   it("opens discard confirmation when the publish conflict action is selected", async () => {

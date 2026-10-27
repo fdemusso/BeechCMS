@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next"
 import { formatDistanceToNow } from "date-fns"
 import { it as itLocale, enUS, type Locale } from "date-fns/locale"
 import { Clock, Image as FileImage } from '@/components/icons'
-import { api } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -56,11 +56,6 @@ function entryImageUrl(entry: ContentEntry): string | null {
   return null
 }
 
-interface ContentListResponse {
-  items: ContentEntry[]
-  total: number
-}
-
 export function RecentContentWidget({ seedSlug, variant = "list", title }: RecentContentWidgetProps) {
   const { t, i18n } = useTranslation()
   const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
@@ -74,10 +69,11 @@ export function RecentContentWidget({ seedSlug, variant = "list", title }: Recen
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["widget", "recent-content", seedSlug],
     queryFn: async (): Promise<ContentEntry[]> => {
-      const res = await api.get<ContentListResponse | ContentEntry[]>(`/content/${seedSlug}`, {
-        params: { limit: 5, sortBy: "updated_at", sortDir: "desc" },
+      const res = await rpc.api.content[":slug"].$get({
+        param: { slug: seedSlug },
+        query: { limit: "5", sortBy: "updated_at", sortDir: "desc" },
       })
-      const d = res.data
+      const d = await res.json()
       return Array.isArray(d) ? d : d.items
     },
     enabled: !!seedSlug,

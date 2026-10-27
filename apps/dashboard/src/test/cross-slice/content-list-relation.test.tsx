@@ -13,13 +13,10 @@ import { render, screen } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router-dom"
 
-vi.mock("@/lib/api", () => ({
-  api: {
-    get: vi.fn(),
-    put: vi.fn(),
-    post: vi.fn(),
-    delete: vi.fn(),
-  },
+const mocked = vi.hoisted(() => ({ list: vi.fn(), byId: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { content: { ":slug": { $get: mocked.list, ":id": { $get: mocked.byId } } } } },
 }))
 
 vi.mock("@/features/shared", () => ({
@@ -28,7 +25,8 @@ vi.mock("@/features/shared", () => ({
   useLocalizeEntryData: () => (_seed: unknown, data: Record<string, unknown>) => data,
 }))
 
-import { api } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
+import { toListQuery } from "@/lib/content-api"
 import { useSchema } from "@/features/shared"
 import { useContentList } from "@/features/content-management/hooks/use-content-list"
 import { RelationDisplay } from "@/components/fields/display/relation"
@@ -40,9 +38,11 @@ type RelationRecord = Awaited<ReturnType<FieldsContextType["fetchById"]>>
 const mockFieldsConfig: FieldsContextType = {
   useSchema,
   useLocaleConfig: () => undefined,
-  fetchById: async (slug, id) => (await api.get<RelationRecord>(`/content/${slug}/${id}`)).data,
-  searchRelations: async (slug, params) =>
-    (await api.get<{ items: RelationRecord[] }>(`/content/${slug}`, { params: { ...params, page: 1 } })).data.items,
+  fetchById: async (slug, id): Promise<RelationRecord> => (await rpc.api.content[":slug"][":id"].$get({ param: { slug, id } })).json(),
+  searchRelations: async (slug, params) => {
+    const response = await rpc.api.content[":slug"].$get({ param: { slug }, query: toListQuery({ ...params, page: 1 }) })
+    return ((await response.json()) as { items: RelationRecord[] }).items
+  },
   queryKeys: { detail: CONTENT_QUERY_KEYS.detail, lists: CONTENT_QUERY_KEYS.lists },
   components: { EntryEditorDialog: () => null, RichtextEditor: () => null },
 }
@@ -78,21 +78,21 @@ const listResponseWithRelations = {
   items: [
     {
       id: "article-1",
-      schema_slug: "articles",
       slug: "hello-world",
       status: "published",
       data: { title: "Hello World", author_id: "team-1" },
       created_at: 1000,
       updated_at: 1000,
+      has_pending_draft: false,
     },
     {
       id: "article-2",
-      schema_slug: "articles",
       slug: "second",
       status: "published",
       data: { title: "Second Post", author_id: "team-2" },
       created_at: 1000,
       updated_at: 1000,
+      has_pending_draft: false,
     },
   ],
   total: 2,
@@ -116,9 +116,7 @@ describe("useContentList — cache priming from relations", () => {
       data: [articlesSeed, teamSeed],
       isLoading: false,
     })
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: listResponseWithRelations,
-    })
+    mocked.list.mockResolvedValue({ json: async () => listResponseWithRelations })
   })
 
   it("primes relation detail caches after list fetch", async () => {
@@ -163,7 +161,6 @@ describe("RelationDisplay — resolves from primed cache synchronously", () => {
     // Prime the cache manually (simulates what useContentList does)
     queryClient.setQueryData(CONTENT_QUERY_KEYS.detail("team", "team-1"), {
       id: "team-1",
-      schema_slug: "team",
       slug: null,
       status: "published",
       data: { name: "Ada Lovelace" },
@@ -194,6 +191,6 @@ describe("RelationDisplay — resolves from primed cache synchronously", () => {
     expect(screen.getByText("Ada Lovelace")).toBeInTheDocument()
 
     // No extra fetchById calls fired
-    expect(api.get).not.toHaveBeenCalled()
+    expect(mocked.byId).not.toHaveBeenCalled()
   })
 })

@@ -7,7 +7,6 @@ import { useTranslation } from "react-i18next"
 import { formatDistanceToNow } from "date-fns"
 import { it as itLocale, enUS, type Locale } from "date-fns/locale"
 import { ClipboardList, Send } from '@/components/icons'
-import { api } from "@/lib/api"
 import { rpc } from "@/lib/rpc"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -28,11 +27,6 @@ export interface PendingDraftsWidgetProps {
   title?: string
 }
 
-interface ContentListResponse {
-  items: ContentEntry[]
-  total: number
-}
-
 const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
 
 function entryTitle(entry: ContentEntry): string {
@@ -50,10 +44,11 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, tit
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["widget", "pending-drafts", seedSlug],
     queryFn: async (): Promise<ContentEntry[]> => {
-      const res = await api.get<ContentListResponse | ContentEntry[]>(`/content/${seedSlug}`, {
-        params: { has_pending_draft: 1, limit: 10 },
+      const res = await rpc.api.content[":slug"].$get({
+        param: { slug: seedSlug },
+        query: { has_pending_draft: "1", limit: "10" },
       })
-      const d = res.data
+      const d = await res.json()
       return Array.isArray(d) ? d : d.items
     },
     enabled: !!seedSlug,

@@ -38,10 +38,11 @@ describe("getCardsFromCache", () => {
     queryClient.setQueryData(["kanban", "articles", "br_status", colValue, allFilters, search, null], {
       pageParams: [0],
       pages: [{
-        items: entries.map(e => ({ id: e.id, schema_slug: "articles", slug: null, status: "published", data: {}, created_at: null, updated_at: null, position: e.position })),
+        items: entries.map(e => ({ id: e.id, slug: null, status: "published", data: {}, created_at: null, updated_at: null, position: e.position })),
         total: entries.length,
         page: 0,
         limit: 20,
+        relations: {},
       } satisfies ContentListWithMeta],
     })
   }

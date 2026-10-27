@@ -31,7 +31,6 @@ function renderTable({
   const seed = makeSeed()
   const entry: ContentEntry = {
     id: "id-1",
-    schema_slug: "items",
     slug: "entry-1",
     status: "draft",
     data: {},

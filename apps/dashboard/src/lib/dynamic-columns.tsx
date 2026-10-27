@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { ColumnDef, GroupingColumnDef } from "@tanstack/react-table"
+import type { InferResponseType } from "hono/client"
 import { isSingleChoiceTags, type Seed } from "@beechcms/core"
 import { More as MoreHorizontal, Text as Type, Hashtag as Hash, ToggleOff as ToggleLeft, Calendar, Code, FileText, File, Link as LinkIcon } from '@/components/icons'
 import { toast } from "sonner"
@@ -26,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ALIGN_JUSTIFY_CLASS, getBranchAlign, type ColumnAlign } from "@/lib/column-alignment"
+import type { rpc } from "@/lib/rpc"
 import { pendingDraftBadgeClass, shouldShowPendingDraftBadge } from "@/lib/pending-draft"
 
 import {
@@ -49,28 +51,18 @@ export {
 export type { DateGroupPrecision } from "./dynamic-columns-aggregation"
 
 /**
- * Interface representing a CMS content entry.
- * Corresponds to the entry structure returned by the content management APIs.
+ * A CMS content entry as `GET /content/:slug/:id` (and the list items) send it: the system columns
+ * at top level, the seed's fields inside `data`. `data` is widened from the serialized JSON type
+ * because its keys are the seed's aliases, decided at runtime, and the dashboard derives new
+ * entries from it (localization, optimistic updates). `has_pending_draft` is optional because the
+ * client also builds entries itself (relation label stubs) that no server read produced.
  */
-export interface ContentEntry {
-  /** The unique identifier of the entry. */
-  id: string
-  /** The schema slug of the seed this entry belongs to. */
-  schema_slug: string
-  /** URL-friendly slug representing this entry, or null if unassigned. */
-  slug: string | null
-  /** The publication status (e.g. "draft", "published"). */
-  status: string
+type ContentEntryResponse = InferResponseType<(typeof rpc.api.content)[":slug"][":id"]["$get"]>
+
+export type ContentEntry = Omit<ContentEntryResponse, "data" | "has_pending_draft"> & {
+  data: Record<string, unknown>
   /** Flag showing if a newer draft exists that has not been published yet. */
   has_pending_draft?: boolean
-  /** Key-value dictionary containing the actual content fields values. */
-  data: Record<string, unknown>
-  /** Epoch timestamp of when this entry was created. */
-  created_at: number | null
-  /** Epoch timestamp of when this entry was last updated. */
-  updated_at: number | null
-  /** Epoch timestamp of the soft deletion. Present only on rows read from the Trash endpoint. */
-  deleted_at?: number | null
 }
 
 /**

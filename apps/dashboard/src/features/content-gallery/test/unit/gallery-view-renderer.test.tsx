@@ -17,7 +17,6 @@ const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts")!
 // stands in for that shape.
 const entry: ContentEntry = {
   id: "0f6a6f3e-2f8a-4e3a-9c3a-5f6b7c8d9e0f",
-  schema_slug: "posts",
   slug: "canonical-post",
   status: "published",
   data: CANONICAL_ENTRIES[0].data,

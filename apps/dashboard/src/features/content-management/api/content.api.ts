@@ -2,9 +2,12 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { api } from "@/lib/api"
+import type { InferResponseType } from "hono/client"
 import { rpc } from "@/lib/rpc"
+import { toListQuery, toListWithMeta, type ContentListQueryParams, type ContentListWithMeta } from "@/lib/content-api"
 import type { ContentEntry } from "@/lib/dynamic-columns"
+
+export type { ContentListQueryParams, ContentListWithMeta }
 
 export type BulkMultiRelMode = "replace" | "add" | "remove"
 
@@ -20,43 +23,9 @@ export interface BulkUpdateBody {
   fields: Record<string, BulkFieldValue>
 }
 
-interface BulkUpdateFailedItem {
-  id: string
-  problem: { status: number; type: string; detail: string }
-}
+export type BulkUpdateResult = InferResponseType<(typeof rpc.api.content)[":slug"]["bulk"]["$patch"]>
 
-export interface BulkUpdateResult {
-  updated: number
-  failed: BulkUpdateFailedItem[]
-}
-
-export interface ContentFacets {
-  statuses: string[]
-  tagsByColumnId: Record<string, string[]>
-}
-
-export interface ContentListQueryParams {
-  page?: number
-  limit?: number
-  search?: string
-  sortBy?: string
-  sortDir?: "asc" | "desc"
-  filters?: unknown
-}
-
-export interface ContentListWithMeta {
-  items: ContentEntry[]
-  total: number
-  page: number
-  limit: number
-  /**
-   * Compact relation label map emitted by the API list handler.
-   * Shape: { [branchAlias]: { [targetId]: labelString } }
-   * Used by the dashboard to prime the TanStack Query cache so RelationDisplay
-   * can resolve synchronously without firing per-row requests.
-   */
-  relations?: Record<string, Record<string, string>>
-}
+export type ContentFacets = InferResponseType<(typeof rpc.api.content)[":slug"]["facets"]["$get"]>
 
 /**
  * Content API within the Content Management Slice
@@ -69,29 +38,30 @@ export const contentApi = {
     slug: string,
     params: ContentListQueryParams
   ): Promise<ContentListWithMeta> => {
-    const response = await api.get<ContentListWithMeta>(`/content/${slug}`, {
-      params: {
+    const response = await rpc.api.content[":slug"].$get({
+      param: { slug },
+      query: toListQuery({
         ...params,
         filters: params.filters == null ? undefined : JSON.stringify(params.filters),
-      },
+      }),
     })
-    return response.data
+    return toListWithMeta(await response.json())
   },
 
   /**
    * Fetch available facets (statuses, tags) for a specific schema
    */
   fetchFacets: async (slug: string): Promise<ContentFacets> => {
-    const response = await api.get<ContentFacets>(`/content/${slug}/facets`)
-    return response.data
+    const response = await rpc.api.content[":slug"].facets.$get({ param: { slug } })
+    return response.json()
   },
 
   /**
    * Fetch single content entry by ID
    */
   fetchById: async (slug: string, id: string): Promise<ContentEntry> => {
-    const response = await api.get<ContentEntry>(`/content/${slug}/${id}`)
-    return response.data
+    const response = await rpc.api.content[":slug"][":id"].$get({ param: { slug, id } })
+    return response.json()
   },
 
   /**
@@ -101,8 +71,8 @@ export const contentApi = {
     slug: string,
     data: Record<string, unknown>
   ): Promise<{ id: string }> => {
-    const response = await api.post<{ id: string }>(`/content/${slug}`, data)
-    return response.data
+    const response = await rpc.api.content[":slug"].$post({ param: { slug }, json: data })
+    return response.json()
   },
 
   /**
@@ -116,10 +86,11 @@ export const contentApi = {
     data: Record<string, unknown>,
     ifMatch?: string
   ): Promise<{ success: boolean }> => {
-    const response = await api.put<{ success: boolean }>(`/content/${slug}/${id}`, data, {
-      headers: ifMatch !== undefined ? { "If-Match": ifMatch } : undefined,
-    })
-    return response.data
+    const response = await rpc.api.content[":slug"][":id"].$put(
+      { param: { slug, id }, json: data },
+      { headers: ifMatch !== undefined ? { "If-Match": ifMatch } : undefined },
+    )
+    return response.json()
   },
 
   /**
@@ -132,10 +103,11 @@ export const contentApi = {
     id: string,
     options?: { purge?: boolean }
   ): Promise<{ success: boolean; softDeleted?: boolean }> => {
-    const response = await api.delete<{ success: boolean; softDeleted?: boolean }>(
-      `/content/${slug}/${id}${options?.purge ? "?purge=true" : ""}`
-    )
-    return response.data
+    const response = await rpc.api.content[":slug"][":id"].$delete({
+      param: { slug, id },
+      query: options?.purge ? { purge: "true" } : {},
+    })
+    return response.json()
   },
 
   fetchDraft: async (slug: string, id: string): Promise<Record<string, unknown>> => {
@@ -164,7 +136,8 @@ export const contentApi = {
   },
 
   bulkUpdate: async (slug: string, body: BulkUpdateBody): Promise<BulkUpdateResult> => {
-    const response = await api.patch<BulkUpdateResult>(`/content/${slug}/bulk`, body)
-    return response.data
+    const response = await rpc.api.content[":slug"].bulk.$patch({ param: { slug }, json: body })
+    return response.json()
   },
+
 }

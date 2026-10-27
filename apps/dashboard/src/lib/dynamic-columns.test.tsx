@@ -44,10 +44,9 @@ function makeSeed({
   } as Seed
 }
 
-function makeEntry(id: string, schema_slug: string, data: Record<string, unknown>): ContentEntry {
+function makeEntry(id: string, data: Record<string, unknown>): ContentEntry {
   return {
     id,
-    schema_slug,
     slug: "slug-" + id,
     status: "published",
     data,
@@ -68,13 +67,13 @@ describe("dynamic-columns - computeMaxLengths", () => {
     })
 
     const data: ContentEntry[] = [
-      makeEntry("1", "items", {
+      makeEntry("1", {
         title: "short",
         body: '{"a":"b"}',
         tagsImages: '{"react":"#111"}',
         otherField: "hello",
       }),
-      makeEntry("2", "items", {
+      makeEntry("2", {
         title: "a bit longer than short",
         body: '{"a":"a","b":"b"}',
         tagsImages: '{"react":"#111","cms":"#222"}',
@@ -99,7 +98,7 @@ describe("dynamic-columns - computeMaxLengths", () => {
 
     const veryLong = "x".repeat(5000)
     const data: ContentEntry[] = [
-      makeEntry("1", "items", { body: veryLong }),
+      makeEntry("1", { body: veryLong }),
     ]
 
     const max = computeMaxLengths(data, seed, 10)
@@ -212,7 +211,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
   it("status: mostra il badge bozza in sospeso quando has_pending_draft è true", async () => {
     const seed = makeSeed({ branches: [] })
     const entry = {
-      ...makeEntry("id-1", "items", {}),
+      ...makeEntry("id-1", {}),
       status: "published",
       has_pending_draft: true,
     } as ContentEntry
@@ -231,7 +230,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
   it("status: non mostra il badge bozza in sospeso per entry archived", async () => {
     const seed = makeSeed({ branches: [] })
     const entry = {
-      ...makeEntry("id-1", "items", {}),
+      ...makeEntry("id-1", {}),
       status: "archived",
       has_pending_draft: true,
     } as ContentEntry
@@ -252,7 +251,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
   it("status: non mostra il badge bozza in sospeso per entry draft", async () => {
     const seed = makeSeed({ branches: [] })
     const entry = {
-      ...makeEntry("id-1", "items", {}),
+      ...makeEntry("id-1", {}),
       status: "draft",
       has_pending_draft: true,
     } as ContentEntry
@@ -290,7 +289,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
       const onBulkDelete = vi.fn()
 
       const seed = makeSeed({ branches: [] })
-      const entry = makeEntry("id-1", "items", {})
+      const entry = makeEntry("id-1", {})
       const t = (k: string) => {
         const m: any = {
           "common.openMenu": "Open menu",
@@ -338,7 +337,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
       const onDelete = vi.fn()
 
       const seed = makeSeed({ branches: [] })
-      const entry = makeEntry("id-1", "items", {})
+      const entry = makeEntry("id-1", {})
       const t = (k: string) => {
         const m: any = {
           "common.openMenu": "Open menu",
@@ -363,7 +362,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
       const onBulkDelete = vi.fn()
 
       const seed = makeSeed({ branches: [] })
-      const entry = makeEntry("id-1", "items", {})
+      const entry = makeEntry("id-1", {})
       const t = (k: string) => (k === "common.delete" || k === "common.openMenu") ? (k === "common.delete" ? "Delete" : "Open menu") : k
       const cols = generateColumns(seed, vi.fn(), onDelete, undefined, ["id-1", "id-2"], onBulkDelete, undefined, t)
 
@@ -382,7 +381,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
       const onBulkEdit = vi.fn()
 
       const seed = makeSeed({ branches: [] })
-      const entry = makeEntry("id-1", "items", {})
+      const entry = makeEntry("id-1", {})
       const t = (k: string) => {
         if (k === "common.openMenu") return "Open menu"
         if (k === "bulkEdit.trigger") return "Bulk edit"
@@ -445,8 +444,8 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
     it("getStatusBadgeVariant calcola varianti per status custom", async () => {
       const seed = makeSeed({ branches: [] })
       // "custom" non appartiene alle parole chiave speciali, quindi scatena l'hashing loop
-      const entry1 = { ...makeEntry("id-1", "items", {}), status: "customstatusa" } as ContentEntry
-      const entry2 = { ...makeEntry("id-2", "items", {}), status: "customstatusb" } as ContentEntry
+      const entry1 = { ...makeEntry("id-1", {}), status: "customstatusa" } as ContentEntry
+      const entry2 = { ...makeEntry("id-2", {}), status: "customstatusb" } as ContentEntry
 
       const cols = generateColumns(seed, vi.fn(), vi.fn())
       const { unmount } = render(<DataTable columns={cols} data={[entry1, entry2]} />)
@@ -464,7 +463,7 @@ describe("dynamic-columns - number decimals", () => {
   })
 
   it("computeMaxLengths returns the fraction digits for number branches, capped at 2", () => {
-    const rows = (...prices: unknown[]) => prices.map((p, i) => makeEntry(String(i), "items", { price: p }))
+    const rows = (...prices: unknown[]) => prices.map((p, i) => makeEntry(String(i), { price: p }))
 
     expect(computeMaxLengths(rows(12, 3.5, 7.25), seed, 10).price).toBe(2)
     expect(computeMaxLengths(rows(12, 3.5), seed, 10).price).toBe(1)
@@ -476,7 +475,7 @@ describe("dynamic-columns - number decimals", () => {
     const cols = generateColumns(seed, vi.fn(), vi.fn(), { price: 2 })
     const priceCol = cols.find((c) => c.id === "price") as any
 
-    render(<div>{priceCol.cell({ row: { original: makeEntry("1", "items", { price: 12 }) } })}</div>)
+    render(<div>{priceCol.cell({ row: { original: makeEntry("1", { price: 12 }) } })}</div>)
 
     expect(screen.getByText("12,00")).toBeInTheDocument()
   })

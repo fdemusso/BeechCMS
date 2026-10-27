@@ -70,7 +70,6 @@ export function DataTableWidget({ config, title }: { config: DataTableWidgetConf
       }
       return {
         id: entry.id,
-        schema_slug: config.seedSlug,
         slug: entry.slug,
         status: entry.status,
         data: entryData,
@@ -78,7 +77,7 @@ export function DataTableWidget({ config, title }: { config: DataTableWidgetConf
         updated_at: entry.updatedAt,
       }
     })
-  }, [data, config.seedSlug])
+  }, [data])
 
   if (isLoading || seedLoading) {
     return (

@@ -10,17 +10,12 @@ import { MemoryRouter } from "react-router-dom"
 import React from "react"
 import type { Seed } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
-}))
-
-const mocked = vi.hoisted(() => ({ schema: vi.fn() }))
+const mocked = vi.hoisted(() => ({ schema: vi.fn(), create: vi.fn() }))
 
 vi.mock("@/lib/rpc", () => ({
-  rpc: { api: { schema: { $get: mocked.schema } } },
+  rpc: { api: { schema: { $get: mocked.schema }, content: { ":slug": { $post: mocked.create } } } },
 }))
 
-import { api } from "@/lib/api"
 import { QuickDraftWidget } from "@/features/dashboard/components/widgets/quick-draft-widget"
 import { QuickDraftAdapter } from "@/features/dashboard/registry/builtin/quick-draft-adapters"
 
@@ -74,7 +69,7 @@ function renderWithClient(ui: React.ReactElement) {
 describe("QuickDraftWidget", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(api.post as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { id: "draft_123" } })
+    ;mocked.create.mockResolvedValue({ json: async () => ({ id: "draft_123" }) })
   })
 
   it("submits draft mutation for effective seed when seeds prop resolves after initial empty mount", async () => {
@@ -95,9 +90,9 @@ describe("QuickDraftWidget", () => {
     await userEvent.click(submitBtn)
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith("/content/posts", {
-        status: "draft",
-        title: "Async Seed Post",
+      expect(mocked.create).toHaveBeenCalledWith({
+        param: { slug: "posts" },
+        json: { status: "draft", title: "Async Seed Post" },
       })
     })
   })
@@ -119,9 +114,9 @@ describe("QuickDraftWidget", () => {
     await userEvent.click(submitBtn)
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith("/content/posts", {
-        status: "draft",
-        title: "Adapter Seed Post",
+      expect(mocked.create).toHaveBeenCalledWith({
+        param: { slug: "posts" },
+        json: { status: "draft", title: "Adapter Seed Post" },
       })
     })
   })
@@ -141,9 +136,9 @@ describe("QuickDraftWidget", () => {
     await userEvent.click(submitBtn)
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith("/content/authors", {
-        status: "draft",
-        name: "Jane Doe",
+      expect(mocked.create).toHaveBeenCalledWith({
+        param: { slug: "authors" },
+        json: { status: "draft", name: "Jane Doe" },
       })
     })
   })
@@ -160,6 +155,6 @@ describe("QuickDraftWidget", () => {
     const form = input.closest("form")!
     fireEvent.submit(form)
 
-    expect(api.post).not.toHaveBeenCalled()
+    expect(mocked.create).not.toHaveBeenCalled()
   })
 })

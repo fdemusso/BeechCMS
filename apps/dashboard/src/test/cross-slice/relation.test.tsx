@@ -96,7 +96,6 @@ const teamSeed = {
 
 const authorEntry = {
   id: "author-1",
-  schema_slug: "team",
   slug: null,
   status: "published",
   data: { name: "Ada Lovelace" },
@@ -155,7 +154,6 @@ describe("RelationDisplay", () => {
     ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       data: {
         id: "author-1",
-        schema_slug: "team",
         slug: null,
         status: "published",
         data: {},
@@ -208,7 +206,6 @@ describe("RelationEdit", () => {
       data: {
         items: [authorEntry, {
           id: "author-2",
-          schema_slug: "team",
           slug: null,
           status: "published",
           data: { name: "Grace Hopper" },
@@ -403,7 +400,6 @@ describe("RelationEdit (multiple: true)", () => {
       data: {
         items: [authorEntry, {
           id: "author-2",
-          schema_slug: "team",
           slug: null,
           status: "published",
           data: { name: "Grace Hopper" },
