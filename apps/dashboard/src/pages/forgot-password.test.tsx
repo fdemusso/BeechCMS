@@ -7,10 +7,14 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import i18n from "i18next"
-import { api } from "@/lib/api"
+import { ApiError } from "@/lib/http/api-error"
 import { ForgotPasswordPage } from "@/pages/forgot-password/ForgotPasswordPage"
 
-vi.mock("@/lib/api", () => ({ api: { post: vi.fn() } }))
+const mocked = vi.hoisted(() => ({ forgotPassword: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { auth: { "forgot-password": { $post: mocked.forgotPassword } } },
+}))
 
 function renderComponent() {
   return render(
@@ -60,7 +64,7 @@ describe("ForgotPasswordPage", () => {
 
   it("shows localized success message after successful submission", async () => {
     const user = userEvent.setup()
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { success: true } })
+    mocked.forgotPassword.mockResolvedValueOnce({ json: async () => ({ success: true }) })
 
     renderComponent()
 
@@ -72,5 +76,18 @@ describe("ForgotPasswordPage", () => {
       expect(screen.getByRole("heading", { level: 1, name: "Check your inbox" })).toBeInTheDocument()
       expect(screen.getByText("If an account exists for that email, you'll receive a reset link shortly.")).toBeInTheDocument()
     })
+    expect(mocked.forgotPassword).toHaveBeenCalledWith({ json: { email: "user@example.com", locale: "en" } })
+  })
+
+  it("shows the same success message when the request fails, so an address cannot be probed", async () => {
+    const user = userEvent.setup()
+    mocked.forgotPassword.mockRejectedValueOnce(new ApiError(503, null))
+
+    renderComponent()
+
+    await user.type(screen.getByLabelText("Email"), "user@example.com")
+    await user.click(screen.getByRole("button", { name: "Send reset link" }))
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Check your inbox" })).toBeInTheDocument()
   })
 })

@@ -3,15 +3,11 @@
 // See LICENSE in the repository root for license terms.
 
 import { useQuery } from '@tanstack/react-query'
-import { api } from './api'
+import { rpc } from './rpc'
 
-interface AuthFeatures {
-  passwordReset: boolean
-}
-
-async function fetchAuthFeatures(): Promise<AuthFeatures> {
-  const { data } = await api.get<AuthFeatures>('/auth/features', { baseURL: '/' })
-  return data
+async function fetchAuthFeatures() {
+  const response = await rpc.auth.features.$get()
+  return response.json()
 }
 
 export function useAuthFeatures() {

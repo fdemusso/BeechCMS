@@ -3,7 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { api, setAccessToken, clearAccessToken, refreshToken, decodeJwtPayload } from './api'
+import { setAccessToken, clearAccessToken, refreshToken, decodeJwtPayload } from './api'
+import { rpc } from './rpc'
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -66,8 +67,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function recheckSetup() {
     try {
-      const { data } = await api.get<{ needsSetup: boolean }>('/auth/setup', { baseURL: '/' })
-      setNeedsSetup(data.needsSetup)
+      const response = await rpc.auth.setup.$get()
+      const { needsSetup } = await response.json()
+      setNeedsSetup(needsSetup)
     } catch {
       // transient network/server error — keep last known state
     }

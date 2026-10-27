@@ -5,7 +5,7 @@
 import React, { useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { api } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
 import { isApiError } from "@/lib/http/api-error"
 import { Eye, EyeOff } from '@/components/icons'
 import { toast } from "sonner"
@@ -73,7 +73,7 @@ export function ResetPasswordPage() {
     setError(null)
     setIsLoading(true)
     try {
-      await api.post("/auth/reset-password", { token, password, locale: i18n.language }, { baseURL: "/" })
+      await rpc.auth["reset-password"].$post({ json: { token, password, locale: i18n.language } })
       toast.success(t("resetPassword.success"))
       navigate("/login", { replace: true })
     } catch (err) {
