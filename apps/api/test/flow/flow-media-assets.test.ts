@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi, type MockInstance } from 'vitest'
 import { createBeechApp } from '../../src/factory'
 import { TEST_ENV, TEST_USERS, TEST_SEEDS } from '../fixtures'
 import { D1TestDatabase } from '../helpers/d1-test-database'
@@ -775,7 +775,7 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
   describe('DELETE /api/content/:slug/:id (R2 cascade cleanup)', () => {
     let contentRepo: StaticContentRepository
     let contentApp: ReturnType<typeof createBeechApp>
-    let s3FetchSpy: ReturnType<typeof vi.spyOn>
+    let s3FetchSpy: MockInstance<typeof fetch>
 
     beforeEach(() => {
       contentRepo = new StaticContentRepository(TEST_SEEDS)

@@ -26,6 +26,7 @@ function fakeImagesBinding(info: ImageInfoResponse, recordedTransforms: ImageTra
       }),
     }),
     hosted: undefined as unknown as HostedImagesBinding,
+    text: undefined as unknown as ImagesBinding['text'],
   }
 }
 

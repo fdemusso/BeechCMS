@@ -40,9 +40,16 @@ describe('loadDisplayLocaleConfig', () => {
 
   it("resolves the stored settings when one seed's display-name branch is localized", async () => {
     const getAll = vi.fn<ISiteSettingsRepository['getAll']>().mockResolvedValue({
+      siteTitle: 'Beech',
+      defaultLanguage: 'it',
+      timezone: 'UTC',
+      currency: 'EUR',
+      companyName: null,
+      companyWebsite: null,
+      companyAbbreviation: null,
       locales: ['it', 'en'],
       defaultLocale: 'en',
-      defaultLanguage: 'it',
+      trashRetentionDays: 14,
     })
 
     const result = await loadDisplayLocaleConfig({ getAll }, [SEED_LOCALIZED_NON_DISPLAY, SEED_LOCALIZED_DISPLAY])

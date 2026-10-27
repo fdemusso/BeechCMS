@@ -3,6 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { readFileSync, readdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, it, expect, afterEach } from 'vitest'
 import { FixedClock, UUID_V4_PATTERN, CANONICAL_USERS, provisionSeeds } from '@beechcms/testing'
 import { createBeechApp } from '../../src/factory'
@@ -10,9 +12,11 @@ import { JoseTokenService } from '../../src/auth/providers/jwt-token.service'
 import { D1TestDatabase } from '../helpers/d1-test-database'
 import { TEST_ENV, TEST_SEEDS } from '../fixtures'
 
-const migrationsDir = new URL('../../migrations/', import.meta.url)
+// Plain paths: `new URL()` resolves to the Workers URL type, which node:fs does not accept.
+const testDir = dirname(fileURLToPath(import.meta.url))
+const migrationsDir = join(testDir, '../../migrations')
 const files = readdirSync(migrationsDir).filter(file => /^\d{4}_.+\.sql$/.test(file)).sort()
-const readMigration = (file: string) => readFileSync(new URL(file, migrationsDir), 'utf8')
+const readMigration = (file: string) => readFileSync(join(migrationsDir, file), 'utf8')
 const TEST_USERS = [CANONICAL_USERS.admin, CANONICAL_USERS.editor]
 const clock = new FixedClock(1700000000000)
 
@@ -23,7 +27,7 @@ describe('Flow: RBAC upgrade from legacy accounts', () => {
   async function legacyDatabase() {
     const db = new D1TestDatabase({ applyMigrations: false })
     databases.push(db)
-    await db.exec(readFileSync(new URL('../fixtures/legacy-migrations/0000_v040_base.sql', import.meta.url), 'utf8'))
+    await db.exec(readFileSync(join(testDir, '../fixtures/legacy-migrations/0000_v040_base.sql'), 'utf8'))
     await db.exec(readMigration('0030_test_seeds.sql'))
     await provisionSeeds(db, TEST_SEEDS, clock.nowSeconds())
     for (const [index, user] of TEST_USERS.entries()) {
