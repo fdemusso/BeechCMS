@@ -12,22 +12,18 @@ export type { Env, Variables, AppEnv } from './types'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 
 // Imports delle rotte e middleware
-import { authApp } from './auth'
 import { authMiddleware } from './middleware/auth.middleware'
 import { oauthScopeMiddleware } from './middleware/oauth-scope.middleware'
 import { permissionMiddleware, requireActiveAccount } from './middleware/permission.middleware'
 import contentFeature from './features/content'
 import { widgetApp } from './features/widget/widget'
 import { rotateFieldApp } from './features/rotate-field'
-import { passwordResetApp } from './features/password-reset'
-import { setupApp } from './features/setup'
 import { draftApp } from './features/draft'
 import { settingsApp } from './features/settings/settings.handler'
 import { schemaApp } from './features/schema/schema.handler'
 import { dashboardLayoutApp } from './features/dashboard-layout'
 import { seedsApp } from './features/seeds'
 import { rbacApp } from './features/rbac'
-import { rbacPublicApp } from './features/rbac/public'
 import { notificationsApp } from './features/notifications'
 import { automationsApp } from './features/automations/api/automations.handler'
 import { statsApp } from './features/stats'
@@ -41,9 +37,9 @@ import {
   schemaRevisionMiddleware,
 } from './public'
 import { searchRouter } from './features/search'
-import { oauthApp } from './features/oauth'
 import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository, IRoleGuard, IAntivirusProvider, IScheduler } from '@beechcms/core'
 import { repositoryMiddleware } from './middleware/repository.middleware'
+import { publicAuthRoutes } from './routes'
 import { seedRegistryMiddleware } from './middleware/seed-registry.middleware'
 import { storageMiddleware } from './middleware/storage.middleware'
 import { InMemorySeedRepository } from './shared/db/repositories/in-memory-seed.repository'
@@ -237,11 +233,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   })
 
   // 3. Auth, Setup & Password Reset
-  app.route('/', authApp)
-  app.route('/', setupApp)
-  app.route('/', passwordResetApp)
-  app.route('/', rbacPublicApp)   // unauthenticated invite preview + redeem
-  app.route('/', oauthApp)
+  app.route('/', publicAuthRoutes)  // auth, setup, password reset, invite redeem, oauth
 
   // 4. Protected CMS API
   const apiProtected = new Hono<{ Bindings: Env; Variables: Variables }>()

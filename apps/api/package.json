@@ -8,6 +8,9 @@
     ".": {
       "types": "./dist/factory.d.ts",
       "import": "./dist/index.js"
+    },
+    "./routes": {
+      "types": "./dist/routes.d.ts"
     }
   },
   "files": [
