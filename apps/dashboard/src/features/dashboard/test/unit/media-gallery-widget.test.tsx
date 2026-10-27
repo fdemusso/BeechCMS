@@ -9,8 +9,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { api } from "@/lib/api"
 import { MediaGalleryWidget } from "../../components/widgets/media-gallery-widget"
 
+const mocked = vi.hoisted(() => ({ unusedMedia: vi.fn(), mediaLibrary: vi.fn() }))
+
 vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), delete: vi.fn() },
+  api: { delete: vi.fn() },
+}))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { content: { stats: {
+    "unused-media": { $get: mocked.unusedMedia },
+    "media-library": { $get: mocked.mediaLibrary },
+  } } } },
 }))
 
 // Wire format of GET /content/stats/unused-media: tracked upload records, not content entries.
@@ -35,7 +44,7 @@ function renderWidget() {
 describe("MediaGalleryWidget", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(api.get).mockResolvedValue({ data: { items: [unusedUpload] } })
+    mocked.unusedMedia.mockResolvedValue({ json: async () => ({ items: [unusedUpload] }) })
     vi.mocked(api.delete).mockResolvedValue({ data: undefined })
     vi.stubGlobal("confirm", vi.fn(() => true))
   })

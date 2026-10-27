@@ -106,4 +106,32 @@ describe("rpc", () => {
       expect(rows).toHaveLength(1)
     })
   })
+
+  describe("rpc.api.content.stats", () => {
+    it("sends a query key only when it has a value, so an unscoped feed has no slug in its url", async () => {
+      fetchMock.mockResolvedValue(json(200, []))
+
+      await rpc.api.content.stats["recent-activity"].$get({ query: { slug: undefined } })
+      await rpc.api.content.stats["recent-activity"].$get({ query: { slug: "posts" } })
+
+      expect(String(fetchMock.mock.calls[0][0])).toBe("/api/content/stats/recent-activity")
+      expect(String(fetchMock.mock.calls[1][0])).toBe("/api/content/stats/recent-activity?slug=posts")
+    })
+
+    it("types the health status as the union the server computes, not a bare string", async () => {
+      fetchMock.mockResolvedValueOnce(
+        json(200, {
+          storage: { used: 0, limit: 1, percentage: 0 },
+          database: { requests30d: 0, limit: 1, percentage: 0 },
+          status: "healthy",
+          lastUpdate: 1,
+        }),
+      )
+
+      const response = await rpc.api.content.stats.health.$get()
+      const health = await response.json()
+
+      expectTypeOf(health.status).toEqualTypeOf<"healthy" | "warning">()
+    })
+  })
 })
