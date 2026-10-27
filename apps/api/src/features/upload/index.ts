@@ -7,11 +7,15 @@
  * The Worker never receives file bytes: it acts as auth gatekeeper and signer only.
  */
 import { Hono, type Context } from 'hono'
+import type { z } from 'zod'
 import { isMimeAccepted, parseMediaTransformQuery, SystemClock, type BeechBucket } from '@beechcms/core'
 import { AppEnv } from '../../types'
 import { deleteR2Objects } from '../../shared/storage/upload'
 import { importObjectKeyPrefix } from '../../shared/storage/import-object-key'
+import { zodJson, type ZodJsonRefusal } from '../../shared/utils/zod-json'
 import { mediaTransformError, serveTransformedMedia } from './media-transform'
+import { refuseProxiedUploadInProduction, requireUploadFile } from './upload.middleware'
+import { confirmRequestSchema, firstIssueMessage, presignRequestSchema } from './upload.schema'
 
 const DEFAULT_MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 const ABSOLUTE_MAX_UPLOAD_BYTES = 500 * 1024 * 1024
@@ -88,246 +92,225 @@ function isActiveMimeType(mime: string): boolean {
   return FORCE_DOWNLOAD_MIME_PREFIXES.some((prefix) => lower.startsWith(prefix))
 }
 
-export const uploadRoutes = new Hono<AppEnv>()
+/** A body that is not JSON and a body that breaks a rule are both 400; only the message differs. */
+function rejectInvalidBody(context: Context<AppEnv>, error: z.ZodError, cause: ZodJsonRefusal) {
+  return context.json({ error: cause === 'malformed' ? 'Invalid JSON body' : firstIssueMessage(error) }, 400)
+}
 
 /**
- * POST /upload — Dev-only proxied upload fallback (used when presigning is unconfigured).
- * Refused in production before the body is read: the Worker must never parse upload bytes there.
+ * Registered as one method chain so the route types reach `AppType` (see `../../routes.ts`).
  */
-uploadRoutes.post('/upload', async (c) => {
-  if (c.env.ENV === 'production') {
-    return c.json({ error: 'presigned_urls_required' }, 501)
-  }
+export const uploadRoutes = new Hono<AppEnv>()
 
-  const { bucket, mediaRepository: mediaRepo } = c.var
+  /**
+   * POST /upload — Dev-only proxied upload fallback (used when presigning is unconfigured).
+   * Refused in production before the body is read: the Worker must never parse upload bytes there.
+   */
+  .post('/upload', refuseProxiedUploadInProduction, requireUploadFile, async (c) => {
+    const { bucket, mediaRepository: mediaRepo } = c.var
 
-  let body: FormData
-  try {
-    body = await c.req.formData()
-  } catch {
-    return c.json({ error: 'Invalid multipart form data' }, 400)
-  }
+    const fileObj = c.req.valid('form').file
+    const filename = fileObj.name || 'upload'
+    const mimeType = fileObj.type || 'application/octet-stream'
+    const sizeBytes = fileObj.size
 
-  const file = body.get('file')
-  if (!file || typeof file === 'string') {
-    return c.json({ error: 'file is required' }, 400)
-  }
+    if (!sizeBytes || sizeBytes <= 0) {
+      return c.json({ error: 'File is empty' }, 400)
+    }
 
-  const fileObj = file as File
-  const filename = fileObj.name || 'upload'
-  const mimeType = fileObj.type || 'application/octet-stream'
-  const sizeBytes = fileObj.size
+    const maxBytes = resolveMaxUploadBytes(c.env)
+    if (sizeBytes > maxBytes) {
+      return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
+    }
 
-  if (!sizeBytes || sizeBytes <= 0) {
-    return c.json({ error: 'File is empty' }, 400)
-  }
+    if (!isMimeAccepted(mimeType, 'any')) {
+      return c.json({ error: 'File type not allowed' }, 400)
+    }
 
-  const maxBytes = resolveMaxUploadBytes(c.env)
-  if (sizeBytes > maxBytes) {
-    return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
-  }
+    const key = generateObjectKey(filename)
 
-  if (!isMimeAccepted(mimeType, 'any')) {
-    return c.json({ error: 'File type not allowed' }, 400)
-  }
-
-  const key = generateObjectKey(filename)
-
-  await bucket.put(key, fileObj.stream(), {
-    contentType: mimeType,
-  })
-
-  const uploadedBy = c.var.jwtPayload?.sub ?? ''
-  const sanitizedFilename = extractOriginalFilename(key)
-
-  await mediaRepo.registerUpload({
-    key,
-    filename: sanitizedFilename,
-    mime_type: mimeType,
-    size_bytes: sizeBytes,
-    uploaded_by: uploadedBy,
-  })
-
-  const jwtPayload = c.get('jwtPayload')
-  if (jwtPayload) {
-    c.get('activityLogger').log({
-      action: 'upload',
-      entityType: 'media',
-      entityId: key,
-      details: { name: sanitizedFilename, size: sizeBytes, type: mimeType },
-      actor: {
-        id: jwtPayload.sub,
-        email: jwtPayload.email ?? 'unknown',
-        name: [jwtPayload.name, jwtPayload.surname].filter(Boolean).join(' ') || null,
-      },
+    await bucket.put(key, fileObj.stream(), {
+      contentType: mimeType,
     })
-  }
 
-  return c.json({ url: bucket.getUrl(key), key }, 200)
-})
+    const uploadedBy = c.var.jwtPayload?.sub ?? ''
+    const sanitizedFilename = extractOriginalFilename(key)
 
-/** POST /upload/presign — Request a presigned URL for direct R2 upload. */
-uploadRoutes.post('/upload/presign', async (c) => {
-  let body: { filename?: unknown, mimeType?: unknown, sizeBytes?: unknown, purpose?: unknown }
-  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON body' }, 400) }
-
-  const { filename, mimeType, sizeBytes, purpose } = body
-  if (purpose !== undefined && purpose !== 'import') return c.json({ error: 'Invalid purpose' }, 400)
-  if (typeof filename !== 'string' || !filename.trim()) return c.json({ error: 'filename is required' }, 400)
-  if (typeof mimeType !== 'string' || !mimeType.trim()) return c.json({ error: 'mimeType is required' }, 400)
-  if (typeof sizeBytes !== 'number' || !Number.isFinite(sizeBytes) || sizeBytes <= 0) {
-    return c.json({ error: 'sizeBytes must be a positive number' }, 400)
-  }
-
-  const maxBytes = resolveMaxUploadBytes(c.env)
-  if (sizeBytes > maxBytes) return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
-  if (!isMimeAccepted(mimeType, 'any')) return c.json({ error: 'File type not allowed' }, 400)
-
-  const generated = generateObjectKey(filename)
-  const key = purpose === 'import' ? `${importObjectKeyPrefix(c.var.jwtPayload?.sub ?? '')}${generated}` : generated
-  const uploadUrl = await c.var.bucket.presignPut(key, {
-    expiresIn: PRESIGN_TTL_SECONDS,
-    contentType: mimeType,
-    contentLength: sizeBytes,
-  })
-
-  return c.json({ uploadUrl, key, expiresIn: PRESIGN_TTL_SECONDS }, 200)
-})
-
-/** POST /upload/confirm — Verify R2 object and record metadata. Idempotent on key. */
-uploadRoutes.post('/upload/confirm', async (c) => {
-  const { bucket, mediaRepository: mediaRepo } = c.var
-
-  let body: { key?: unknown }
-  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON body' }, 400) }
-  const { key } = body
-  if (typeof key !== 'string' || !key.trim()) return c.json({ error: 'key is required' }, 400)
-
-  const decoded = safeDecodeKey(key)
-  if (!decoded) {
-    return c.json({ error: 'Invalid key format' }, 400)
-  }
-
-  // Sanitize and validate key format to prevent arbitrary file adoption/traversal
-  const sanitizedKey = sanitizeStorageKey(decoded)
-  if (!sanitizedKey || !/^\d+(?:-[a-zA-Z0-9]+)?-[a-zA-Z0-9._-]+$/.test(sanitizedKey)) {
-    return c.json({ error: 'Invalid key format' }, 400)
-  }
-
-  const existing = await mediaRepo.getByKey(sanitizedKey)
-  if (existing) return c.json({ url: bucket.getUrl(sanitizedKey) }, 200)
-
-  const head = await bucket.head(sanitizedKey)
-  if (!head) return c.json({ error: 'Object not found in storage' }, 404)
-
-  const size = head.size ?? 0
-  const maxBytes = resolveMaxUploadBytes(c.env)
-  if (size > maxBytes) {
-    await discardRejectedUpload(bucket, sanitizedKey)
-    return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
-  }
-
-  const mime = head.contentType ?? 'application/octet-stream'
-  if (!isMimeAccepted(mime, 'any')) {
-    await discardRejectedUpload(bucket, sanitizedKey)
-    return c.json({ error: 'File type not allowed' }, 400)
-  }
-
-  const uploadedBy = c.var.jwtPayload?.sub ?? ''
-  const filename = extractOriginalFilename(sanitizedKey)
-
-  // A racing confirmation that lost the insert has nothing left to do; the winner logs the upload.
-  const registered = await mediaRepo.registerUpload({
-    key: sanitizedKey,
-    filename,
-    mime_type: mime,
-    size_bytes: size,
-    uploaded_by: uploadedBy,
-  })
-  if (!registered) return c.json({ url: bucket.getUrl(sanitizedKey) }, 200)
-
-  const jwtPayload = c.get('jwtPayload')
-  if (jwtPayload) {
-    c.get('activityLogger').log({
-      action: 'upload',
-      entityType: 'media',
-      entityId: sanitizedKey,
-      details: { name: filename, size, type: mime },
-      actor: {
-        id: jwtPayload.sub,
-        email: jwtPayload.email ?? 'unknown',
-        name: [jwtPayload.name, jwtPayload.surname].filter(Boolean).join(' ') || null,
-      },
+    await mediaRepo.registerUpload({
+      key,
+      filename: sanitizedFilename,
+      mime_type: mimeType,
+      size_bytes: sizeBytes,
+      uploaded_by: uploadedBy,
     })
-  }
 
-  return c.json({ url: bucket.getUrl(sanitizedKey) }, 200)
-})
+    const jwtPayload = c.get('jwtPayload')
+    if (jwtPayload) {
+      c.get('activityLogger').log({
+        action: 'upload',
+        entityType: 'media',
+        entityId: key,
+        details: { name: sanitizedFilename, size: sizeBytes, type: mimeType },
+        actor: {
+          id: jwtPayload.sub,
+          email: jwtPayload.email ?? 'unknown',
+          name: [jwtPayload.name, jwtPayload.surname].filter(Boolean).join(' ') || null,
+        },
+      })
+    }
 
-/** GET /upload/download-url/:key — Presigned read URL for private assets. */
-uploadRoutes.get('/upload/download-url/:key', async (c) => {
-  const rawKey = c.req.param('key')
-  if (!rawKey) return c.json({ error: 'Missing key' }, 400)
+    return c.json({ url: bucket.getUrl(key), key }, 200)
+  })
 
-  const decoded = safeDecodeKey(rawKey)
-  if (!decoded) return c.json({ error: 'Invalid key' }, 400)
+  /** POST /upload/presign — Request a presigned URL for direct R2 upload. */
+  .post('/upload/presign', zodJson(presignRequestSchema, rejectInvalidBody), async (c) => {
+    const { filename, mimeType, sizeBytes, purpose } = c.req.valid('json')
 
-  // Sanitize path parameter to prevent path traversal and restrict to standard storage characters
-  const key = sanitizeStorageKey(decoded)
-  if (!key) return c.json({ error: 'Invalid key' }, 400)
+    const maxBytes = resolveMaxUploadBytes(c.env)
+    if (sizeBytes > maxBytes) return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
+    if (!isMimeAccepted(mimeType, 'any')) return c.json({ error: 'File type not allowed' }, 400)
 
-  // Retrieve the file metadata to check existence and ownership
-  const media = await c.var.mediaRepository.getByKey(key).catch(() => null)
-  if (!media) {
-    return c.json({ error: 'Media not found' }, 404)
-  }
+    const generated = generateObjectKey(filename)
+    const key = purpose === 'import' ? `${importObjectKeyPrefix(c.var.jwtPayload?.sub ?? '')}${generated}` : generated
+    const uploadUrl = await c.var.bucket.presignPut(key, {
+      expiresIn: PRESIGN_TTL_SECONDS,
+      contentType: mimeType,
+      contentLength: sizeBytes,
+    })
 
-  // Access Control: check owner (uploaded_by) or administrative role
-  const jwtPayload = c.var.jwtPayload
-  const userId = jwtPayload?.sub
-  const isAdmin = jwtPayload?.role === 'admin'
+    return c.json({ uploadUrl, key, expiresIn: PRESIGN_TTL_SECONDS }, 200)
+  })
 
-  if (!isAdmin && userId !== media.uploaded_by) {
-    return c.json({ error: 'Forbidden' }, 403)
-  }
+  /** POST /upload/confirm — Verify R2 object and record metadata. Idempotent on key. */
+  .post('/upload/confirm', zodJson(confirmRequestSchema, rejectInvalidBody), async (c) => {
+    const { bucket, mediaRepository: mediaRepo } = c.var
+    const { key } = c.req.valid('json')
 
-  const head = await c.var.bucket.head(key)
-  if (!head) return c.json({ error: 'Object not found' }, 404)
+    const decoded = safeDecodeKey(key)
+    if (!decoded) {
+      return c.json({ error: 'Invalid key format' }, 400)
+    }
 
-  const downloadUrl = await c.var.bucket.presignGet(key, { expiresIn: PRESIGN_TTL_SECONDS })
-  return c.json({ downloadUrl, expiresIn: PRESIGN_TTL_SECONDS }, 200)
-})
+    // Sanitize and validate key format to prevent arbitrary file adoption/traversal
+    const sanitizedKey = sanitizeStorageKey(decoded)
+    if (!sanitizedKey || !/^\d+(?:-[a-zA-Z0-9]+)?-[a-zA-Z0-9._-]+$/.test(sanitizedKey)) {
+      return c.json({ error: 'Invalid key format' }, 400)
+    }
 
-/** DELETE /upload/:key */
-uploadRoutes.delete('/upload/:key', async (c) => {
-  const rawKey = c.req.param('key')
-  if (!rawKey) return c.json({ error: 'Missing key' }, 400)
+    const existing = await mediaRepo.getByKey(sanitizedKey)
+    if (existing) return c.json({ url: bucket.getUrl(sanitizedKey) }, 200)
 
-  const decoded = safeDecodeKey(rawKey)
-  if (!decoded) return c.json({ error: 'Invalid key' }, 400)
+    const head = await bucket.head(sanitizedKey)
+    if (!head) return c.json({ error: 'Object not found in storage' }, 404)
 
-  // Sanitize path parameter to prevent path traversal and restrict to standard storage characters
-  const key = sanitizeStorageKey(decoded)
-  if (!key) return c.json({ error: 'Invalid key' }, 400)
+    const size = head.size ?? 0
+    const maxBytes = resolveMaxUploadBytes(c.env)
+    if (size > maxBytes) {
+      await discardRejectedUpload(bucket, sanitizedKey)
+      return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
+    }
 
-  // Retrieve the file metadata to check existence
-  const media = await c.var.mediaRepository.getByKey(key).catch(() => null)
-  if (!media) {
-    return c.json({ error: 'Media not found' }, 404)
-  }
+    const mime = head.contentType ?? 'application/octet-stream'
+    if (!isMimeAccepted(mime, 'any')) {
+      await discardRejectedUpload(bucket, sanitizedKey)
+      return c.json({ error: 'File type not allowed' }, 400)
+    }
 
-  // Access Control: check owner (uploaded_by) or administrative role
-  const jwtPayload = c.var.jwtPayload
-  const userId = jwtPayload?.sub
-  const isAdmin = jwtPayload?.role === 'admin'
+    const uploadedBy = c.var.jwtPayload?.sub ?? ''
+    const filename = extractOriginalFilename(sanitizedKey)
 
-  if (!isAdmin && userId !== media.uploaded_by) {
-    return c.json({ error: 'Forbidden' }, 403)
-  }
+    // A racing confirmation that lost the insert has nothing left to do; the winner logs the upload.
+    const registered = await mediaRepo.registerUpload({
+      key: sanitizedKey,
+      filename,
+      mime_type: mime,
+      size_bytes: size,
+      uploaded_by: uploadedBy,
+    })
+    if (!registered) return c.json({ url: bucket.getUrl(sanitizedKey) }, 200)
 
-  await deleteR2Objects(c, [key])
-  return c.json({ success: true }, 200)
-})
+    const jwtPayload = c.get('jwtPayload')
+    if (jwtPayload) {
+      c.get('activityLogger').log({
+        action: 'upload',
+        entityType: 'media',
+        entityId: sanitizedKey,
+        details: { name: filename, size, type: mime },
+        actor: {
+          id: jwtPayload.sub,
+          email: jwtPayload.email ?? 'unknown',
+          name: [jwtPayload.name, jwtPayload.surname].filter(Boolean).join(' ') || null,
+        },
+      })
+    }
+
+    return c.json({ url: bucket.getUrl(sanitizedKey) }, 200)
+  })
+
+  /** GET /upload/download-url/:key — Presigned read URL for private assets. */
+  .get('/upload/download-url/:key', async (c) => {
+    const rawKey = c.req.param('key')
+    if (!rawKey) return c.json({ error: 'Missing key' }, 400)
+
+    const decoded = safeDecodeKey(rawKey)
+    if (!decoded) return c.json({ error: 'Invalid key' }, 400)
+
+    // Sanitize path parameter to prevent path traversal and restrict to standard storage characters
+    const key = sanitizeStorageKey(decoded)
+    if (!key) return c.json({ error: 'Invalid key' }, 400)
+
+    // Retrieve the file metadata to check existence and ownership
+    const media = await c.var.mediaRepository.getByKey(key).catch(() => null)
+    if (!media) {
+      return c.json({ error: 'Media not found' }, 404)
+    }
+
+    // Access Control: check owner (uploaded_by) or administrative role
+    const jwtPayload = c.var.jwtPayload
+    const userId = jwtPayload?.sub
+    const isAdmin = jwtPayload?.role === 'admin'
+
+    if (!isAdmin && userId !== media.uploaded_by) {
+      return c.json({ error: 'Forbidden' }, 403)
+    }
+
+    const head = await c.var.bucket.head(key)
+    if (!head) return c.json({ error: 'Object not found' }, 404)
+
+    const downloadUrl = await c.var.bucket.presignGet(key, { expiresIn: PRESIGN_TTL_SECONDS })
+    return c.json({ downloadUrl, expiresIn: PRESIGN_TTL_SECONDS }, 200)
+  })
+
+  /** DELETE /upload/:key */
+  .delete('/upload/:key', async (c) => {
+    const rawKey = c.req.param('key')
+    if (!rawKey) return c.json({ error: 'Missing key' }, 400)
+
+    const decoded = safeDecodeKey(rawKey)
+    if (!decoded) return c.json({ error: 'Invalid key' }, 400)
+
+    // Sanitize path parameter to prevent path traversal and restrict to standard storage characters
+    const key = sanitizeStorageKey(decoded)
+    if (!key) return c.json({ error: 'Invalid key' }, 400)
+
+    // Retrieve the file metadata to check existence
+    const media = await c.var.mediaRepository.getByKey(key).catch(() => null)
+    if (!media) {
+      return c.json({ error: 'Media not found' }, 404)
+    }
+
+    // Access Control: check owner (uploaded_by) or administrative role
+    const jwtPayload = c.var.jwtPayload
+    const userId = jwtPayload?.sub
+    const isAdmin = jwtPayload?.role === 'admin'
+
+    if (!isAdmin && userId !== media.uploaded_by) {
+      return c.json({ error: 'Forbidden' }, 403)
+    }
+
+    await deleteR2Objects(c, [key])
+    return c.json({ success: true }, 200)
+  })
 
 /** Serve a file from storage (used by the public /api/media/:key route). */
 export async function serveMediaHandler(c: Context<AppEnv>): Promise<Response> {
