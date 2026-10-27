@@ -78,10 +78,12 @@ interface PublicProblemDetailItem {
   message: string
 }
 
-type PublicProblemInput = {
+type PublicProblemStatus = 400 | 401 | 403 | 404 | 405 | 409 | 413 | 422 | 429 | 500 | 501 | 503
+
+type PublicProblemInput<S extends PublicProblemStatus = PublicProblemStatus> = {
   type: string
   title: string
-  status: 400 | 401 | 403 | 404 | 405 | 409 | 413 | 422 | 429 | 500 | 501 | 503
+  status: S
   detail: string
   errors?: PublicProblemDetailItem[]
   headers?: Record<string, string>
@@ -113,8 +115,12 @@ export function internalErrorDetail(env: { ENV?: string }, error: unknown): stri
 
 /**
  * Restituisce errori API in formato Problem Details (RFC 9457).
+ *
+ * The return type is inferred on purpose, not annotated `Response`: a plain `Response` in a
+ * handler's return union absorbs the typed variants next to it, and the route then reaches
+ * `AppType` with an empty output. The status stays a literal for the same reason.
  */
-export function publicProblem(c: Context, input: PublicProblemInput): Response {
+export function publicProblem<S extends PublicProblemStatus>(c: Context, input: PublicProblemInput<S>) {
   const body: Record<string, unknown> = {
     type: normalizeProblemType(input.type),
     title: input.title,

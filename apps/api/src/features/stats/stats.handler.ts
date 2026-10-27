@@ -8,6 +8,8 @@ import { SystemClock, type MediaObject, type MediaRepository } from '@beechcms/c
 import type { Env, Variables } from '../../types'
 import { publicProblem } from '../../public/errors/problem-details'
 import { cleanStr, parsePositiveInt } from '../../shared/utils/query-utils'
+import { zodQuery } from '../../shared/utils/zod-query'
+import { mediaLibraryQuerySchema, recentActivityQuerySchema } from './stats.schema'
 
 const DATABASE_ERROR = 'Database error'
 const INTERNAL_SERVER_ERROR = 'Internal Server Error'
@@ -48,16 +50,17 @@ async function listAllTrackedMedia(mediaRepository: MediaRepository): Promise<Me
 
 const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
-/**
- * GET /stats/media-library - Lists all files present in R2:
- * combines media_objects (tracked uploads) + /api/media/ URLs found in file columns of each seed
- */
-statsApp.get('/stats/media-library', async (context) => {
+  /**
+   * GET /stats/media-library - Lists all files present in R2:
+   * combines media_objects (tracked uploads) + /api/media/ URLs found in file columns of each seed
+   */
+  .get('/stats/media-library', zodQuery(mediaLibraryQuerySchema), async (context) => {
     try {
         const mediaRepository = context.get('mediaRepository')
-        const limit = Math.min(parsePositiveInt(context.req.query('limit'), DEFAULT_LIMIT), MAX_LIMIT)
+        const query = context.req.valid('query')
+        const limit = Math.min(parsePositiveInt(query.limit, DEFAULT_LIMIT), MAX_LIMIT)
         // parsePositiveInt rejects 0, which is also the fallback, so offset=0 and invalid values both give the first page.
-        const offset = parsePositiveInt(context.req.query('offset'), 0)
+        const offset = parsePositiveInt(query.offset, 0)
         const mediaBaseUrl = (context.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '')) ?? new URL(context.req.url).origin
 
         // 1. Files tracked in the media library
@@ -97,17 +100,17 @@ statsApp.get('/stats/media-library', async (context) => {
         const total = allItems.length
         const paginatedItems = allItems.slice(offset, offset + limit)
 
-        return context.json({ items: paginatedItems, total })
+        return context.json({ items: paginatedItems, total }, 200)
     } catch (error) {
         console.error('Media library error:', error)
         return context.json({ error: INTERNAL_SERVER_ERROR }, 500)
     }
-})
+  })
 
-/**
- * GET /stats/unused-media - Finds media in media_objects not referenced in any file column
- */
-statsApp.get('/stats/unused-media', async (context) => {
+  /**
+   * GET /stats/unused-media - Finds media in media_objects not referenced in any file column
+   */
+  .get('/stats/unused-media', async (context) => {
     try {
         const mediaRepository = context.get('mediaRepository')
         const seeds = context.get('seedRegistry').all()
@@ -116,7 +119,7 @@ statsApp.get('/stats/unused-media', async (context) => {
         const mediaRows = await listAllTrackedMedia(mediaRepository)
 
         if (mediaRows.length === 0) {
-            return context.json({ items: [] })
+            return context.json({ items: [] }, 200)
         }
 
         // Collect all referenced keys in the file columns of each seed
@@ -124,17 +127,17 @@ statsApp.get('/stats/unused-media', async (context) => {
         const referencedKeys = await contentScanRepository.getReferencedMediaKeys(seeds)
 
         const unusedMedia = mediaRows.filter(mediaItem => !referencedKeys.has(mediaItem.key))
-        return context.json({ items: unusedMedia })
+        return context.json({ items: unusedMedia }, 200)
     } catch (error) {
         console.error('Unused media error:', error)
         return context.json({ error: INTERNAL_SERVER_ERROR }, 500)
     }
-})
+  })
 
-/**
- * GET /stats/setup-checklist - Project setup status for "Project Health" widget
- */
-statsApp.get('/stats/setup-checklist', async (context) => {
+  /**
+   * GET /stats/setup-checklist - Project setup status for "Project Health" widget
+   */
+  .get('/stats/setup-checklist', async (context) => {
     try {
         const setupChecklistRepository = context.get('setupChecklistRepository')
         const seeds = context.get('seedRegistry').all()
@@ -174,17 +177,17 @@ statsApp.get('/stats/setup-checklist', async (context) => {
             adminExists,
             hasContent,
             firstSeedSlug,
-        })
+        }, 200)
     } catch (error) {
         console.error('Setup checklist error:', error)
         return context.json({ error: 'Failed to compute setup checklist' }, 500)
     }
-})
+  })
 
-/**
- * GET /stats/total - Global content statistics for dashboard
- */
-statsApp.get('/stats/total', async (context) => {
+  /**
+   * GET /stats/total - Global content statistics for dashboard
+   */
+  .get('/stats/total', async (context) => {
     try {
         const now = SystemClock.nowSeconds()
         const twentyFourHoursAgo = now - HOURS_24_IN_SECONDS
@@ -212,7 +215,7 @@ statsApp.get('/stats/total', async (context) => {
             today: todayCount,
             week: weekCount,
             month: monthCount,
-        })
+        }, 200)
     } catch (error) {
         console.error('Content stats error:', error)
         return publicProblem(context, {
@@ -222,17 +225,17 @@ statsApp.get('/stats/total', async (context) => {
             detail: DATABASE_ERROR,
         })
     }
-})
+  })
 
-/**
- * GET /stats/recent-activity - Latest activities registered in the system
- * No ETag on this endpoint: the activity feed must always be fresh after
- * every mutation. Cache-Control: no-store prevents the browser from keeping a
- * response that could be returned as a 304 stale.
- */
-statsApp.get('/stats/recent-activity', async (context) => {
+  /**
+   * GET /stats/recent-activity - Latest activities registered in the system
+   * No ETag on this endpoint: the activity feed must always be fresh after
+   * every mutation. Cache-Control: no-store prevents the browser from keeping a
+   * response that could be returned as a 304 stale.
+   */
+  .get('/stats/recent-activity', zodQuery(recentActivityQuerySchema), async (context) => {
     try {
-        const slug = cleanStr(context.req.query('slug'))
+        const slug = cleanStr(context.req.valid('query').slug)
 
         const entries = await context.get('activityLogRepository').list({
             entitySlug: slug ?? undefined,
@@ -257,7 +260,7 @@ statsApp.get('/stats/recent-activity', async (context) => {
 
         context.header('Cache-Control', 'no-store')
 
-        return context.json(activities)
+        return context.json(activities, 200)
     } catch (error) {
         console.error('Recent activity error:', error)
         return publicProblem(context, {
@@ -267,12 +270,12 @@ statsApp.get('/stats/recent-activity', async (context) => {
             detail: DATABASE_ERROR,
         })
     }
-})
+  })
 
-/**
- * GET /stats/health - System health status and Cloudflare quotas
- */
-statsApp.get('/stats/health', async (context) => {
+  /**
+   * GET /stats/health - System health status and Cloudflare quotas
+   */
+  .get('/stats/health', async (context) => {
     try {
         const systemStatsRepository = context.get('systemStatsRepository')
 
@@ -293,6 +296,9 @@ statsApp.get('/stats/health', async (context) => {
         const storagePercentage = Math.min(Math.round((storageUsedBytes / R2_STORAGE_LIMIT) * 1000) / 10, 100)
         const d1Percentage = Math.min(Math.round((totalRequests / D1_MONTHLY_REQUESTS_LIMIT) * 1000) / 10, 100)
 
+        // Annotated so the response type keeps the union; a bare conditional would widen to string.
+        const healthStatus: 'healthy' | 'warning' = (storagePercentage < 90 && d1Percentage < 90) ? 'healthy' : 'warning'
+
         return context.json({
             storage: {
                 used: storageUsedBytes,
@@ -304,19 +310,19 @@ statsApp.get('/stats/health', async (context) => {
                 limit: D1_MONTHLY_REQUESTS_LIMIT,
                 percentage: d1Percentage
             },
-            status: (storagePercentage < 90 && d1Percentage < 90) ? 'healthy' : 'warning',
+            status: healthStatus,
             lastUpdate: SystemClock.nowSeconds()
-        })
+        }, 200)
     } catch (error) {
         console.error('System health stats error:', error)
         return context.json({ error: 'Failed to calculate system health' }, 500)
     }
-})
+  })
 
-/**
- * GET /stats/cloudflare - Cloudflare-like metrics (Visitors, Requests, Bandwidth)
- */
-statsApp.get('/stats/cloudflare', async (context) => {
+  /**
+   * GET /stats/cloudflare - Cloudflare-like metrics (Visitors, Requests, Bandwidth)
+   */
+  .get('/stats/cloudflare', async (context) => {
     try {
         const thirtyDaysAgo = SystemClock.nowSeconds() - DAYS_30_IN_SECONDS
         const analyticsRepository = context.get('analyticsRepository')
@@ -371,7 +377,7 @@ statsApp.get('/stats/cloudflare', async (context) => {
                 unit: 'MB',
                 percentage: Math.round((storageUsedMB / storageLimitMB) * 1000) / 10
             }
-        })
+        }, 200)
     } catch (error) {
         console.error('Cloudflare stats error:', error)
         return publicProblem(context, {
@@ -381,12 +387,12 @@ statsApp.get('/stats/cloudflare', async (context) => {
             detail: DATABASE_ERROR,
         })
     }
-})
+  })
 
-/**
- * GET /stats/breakdown - Content distribution for "Content Pulse" widget
- */
-statsApp.get('/stats/breakdown', async (context) => {
+  /**
+   * GET /stats/breakdown - Content distribution for "Content Pulse" widget
+   */
+  .get('/stats/breakdown', async (context) => {
     try {
         const seeds = context.get('seedRegistry').all()
 
@@ -401,7 +407,7 @@ statsApp.get('/stats/breakdown', async (context) => {
             count: counts[index] ?? 0,
         }))
 
-        return context.json(breakdown)
+        return context.json(breakdown, 200)
     } catch (error) {
         console.error('Breakdown stats error:', error)
         return publicProblem(context, {
@@ -411,12 +417,12 @@ statsApp.get('/stats/breakdown', async (context) => {
             detail: DATABASE_ERROR,
         })
     }
-})
+  })
 
-/**
- * POST /stats/storage/sync - Recalculates space occupied on R2 (expensive operation, use with caution)
- */
-statsApp.post('/stats/storage/sync', async (context) => {
+  /**
+   * POST /stats/storage/sync - Recalculates space occupied on R2 (expensive operation, use with caution)
+   */
+  .post('/stats/storage/sync', async (context) => {
     try {
         const bucket = context.get('bucket')
         const systemStatsRepository = context.get('systemStatsRepository')
@@ -424,11 +430,11 @@ statsApp.post('/stats/storage/sync', async (context) => {
         const realSize = await bucket.getTotalSize()
         await systemStatsRepository.setStorage(realSize)
 
-        return context.json({ success: true, size: realSize })
+        return context.json({ success: true, size: realSize }, 200)
     } catch (error) {
         console.error('Storage sync error:', error)
         return context.json({ error: INTERNAL_SERVER_ERROR }, 500)
     }
-})
+  })
 
 export { statsApp }
