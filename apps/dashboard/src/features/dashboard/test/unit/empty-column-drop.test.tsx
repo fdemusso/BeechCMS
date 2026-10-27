@@ -23,15 +23,14 @@ vi.mock("@dnd-kit/core", async (importOriginal) => {
   }
 })
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
-}))
-
-import { api } from "@/lib/api"
+import { widgetClientFromGet, type WidgetGet } from "@/test/widget-client"
 import { WidgetSdkProvider } from "@beechcms/widget-sdk"
 import "@/features/dashboard/registry/builtin-widgets"
 import { BuilderPane } from "@/features/dashboard/builder/builder-pane"
 import { useDashboardBuilder } from "@/features/dashboard/builder/use-dashboard-builder"
+
+const widgetGet = vi.fn<WidgetGet>()
+const widgetClient = widgetClientFromGet((url, config) => widgetGet(url, config))
 
 const LAYOUT: DashboardLayout = {
   version: 1,
@@ -62,7 +61,7 @@ function Harness() {
 describe("dashboard builder: dropping a widget on an empty column", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [] })
+    ;widgetGet.mockResolvedValue({ data: [] })
   })
 
   it("moves the widget into the empty column", async () => {
@@ -70,7 +69,7 @@ describe("dashboard builder: dropping a widget on an empty column", () => {
     render(
       <MemoryRouter>
         <QueryClientProvider client={client}>
-          <WidgetSdkProvider client={api}>
+          <WidgetSdkProvider client={widgetClient}>
             <Harness />
           </WidgetSdkProvider>
         </QueryClientProvider>
@@ -95,7 +94,7 @@ describe("dashboard builder: dropping a widget on an empty column", () => {
 describe("dashboard builder: dropping a widget onto a widget of another column", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [] })
+    ;widgetGet.mockResolvedValue({ data: [] })
   })
 
   it("inserts the widget at the target widget's position instead of appending it", async () => {
@@ -135,7 +134,7 @@ describe("dashboard builder: dropping a widget onto a widget of another column",
     render(
       <MemoryRouter>
         <QueryClientProvider client={client}>
-          <WidgetSdkProvider client={api}>
+          <WidgetSdkProvider client={widgetClient}>
             <CapturingHarness />
           </WidgetSdkProvider>
         </QueryClientProvider>

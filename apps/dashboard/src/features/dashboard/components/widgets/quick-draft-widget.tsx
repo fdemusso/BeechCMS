@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router-dom"
 import { CheckCircle as CheckCircle2, FilePlus } from '@/components/icons'
-import { api } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
@@ -63,11 +63,12 @@ export function QuickDraftWidget({
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
-      const res = await api.post<{ id: string }>(`/content/${effectiveSeed}`, {
-        status: "draft",
-        [nameAlias]: title,
+      const res = await rpc.api.content[":slug"].$post({
+        param: { slug: effectiveSeed },
+        json: { status: "draft", [nameAlias]: title },
       })
-      return { id: res.data.id, seedSlug: effectiveSeed }
+      const { id } = await res.json()
+      return { id, seedSlug: effectiveSeed }
     },
     onSuccess: ({ id, seedSlug }) => {
       queryClient.invalidateQueries({ queryKey: ["content"] })

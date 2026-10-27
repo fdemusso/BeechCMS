@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query"
 import { CommandGroup, CommandItem } from "@/components/ui/command"
 import type { Seed } from "@beechcms/core"
 
-import { api } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
 import { useDebounce } from "@/hooks/use-debounce"
 
 function renderExcerpt(raw: string): React.ReactNode[] {
@@ -23,22 +23,6 @@ function renderExcerpt(raw: string): React.ReactNode[] {
     if (part) nodes.push(inMark ? <mark key={`mark-${nodes.length}-${part}`}>{part}</mark> : part)
   }
   return nodes
-}
-
-interface SearchResultItem {
-  id: string
-  schema_slug: string
-  slug: string | null
-  status: string
-  title: string
-  excerpt: string
-  data: Record<string, unknown>
-}
-
-interface SearchResponse {
-  items: SearchResultItem[]
-  nextCursor: string | null
-  total: number
 }
 
 interface SearchResultsViewProps {
@@ -57,11 +41,9 @@ export function SearchResultsView({
   const debouncedSearch = useDebounce(search, 300)
   const { data, isLoading } = useQuery({
     queryKey: ["cmd-search", debouncedSearch] as const,
-    queryFn: async (): Promise<SearchResponse> => {
-      const res = await api.get<SearchResponse>(
-        `/search?q=${encodeURIComponent(debouncedSearch)}&limit=8`
-      )
-      return res.data
+    queryFn: async () => {
+      const response = await rpc.api.search.$get({ query: { q: debouncedSearch, limit: "8" } })
+      return response.json()
     },
     enabled: debouncedSearch.length >= 2,
     staleTime: 30_000,

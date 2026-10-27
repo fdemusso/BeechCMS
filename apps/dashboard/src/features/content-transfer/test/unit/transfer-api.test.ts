@@ -4,42 +4,35 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-vi.mock("@/lib/api", () => ({ api: { get: vi.fn(), post: vi.fn() } }))
+const mocked = vi.hoisted(() => ({ presign: vi.fn(), createJob: vi.fn(), readJob: vi.fn() }))
 
-import { api } from "@/lib/api"
+vi.mock("@/lib/rpc", () => ({
+  rpc: {
+    api: {
+      upload: { presign: { $post: mocked.presign } },
+      content: { ":slug": { import: { $post: mocked.createJob } }, "import-jobs": { ":id": { $get: mocked.readJob } } },
+    },
+  },
+}))
+
+import { ApiError } from "@/lib/http/api-error"
 import {
-  downloadExport,
+  fetchImportJob,
   presignImportObject,
   createImportJob,
   readProblem,
   isStorageNotConfiguredError,
 } from "../../api/transfer.api"
 
-describe("downloadExport", () => {
-  beforeEach(() => vi.clearAllMocks())
-
-  it("requests the export endpoint as a blob with an unbounded timeout", async () => {
-    vi.mocked(api.get).mockResolvedValueOnce({ data: new Blob(["a,b"]) })
-
-    await downloadExport("posts", "csv")
-
-    // Regression guard: the client's default 30s timeout truncates a large export mid-stream,
-    // which is exactly the corrupted-file failure the server's 413 cap exists to prevent.
-    expect(api.get).toHaveBeenCalledWith("/content/posts/export", {
-      params: { format: "csv" },
-      responseType: "blob",
-      timeout: 0,
-    })
-  })
-})
+function presigned(key: string) {
+  return { json: async () => ({ uploadUrl: "https://r2.example/upload", key, expiresIn: 60 }) }
+}
 
 describe("presignImportObject", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("sends the ndjson MIME type even when the file's own type is text/plain", async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({
-      data: { uploadUrl: "https://r2.example/upload", key: "objects/1", expiresIn: 60 },
-    })
+    mocked.presign.mockResolvedValueOnce(presigned("objects/1"))
     globalThis.fetch = vi.fn().mockResolvedValueOnce({ ok: true }) as unknown as typeof fetch
     const file = new File(["a"], "rows.ndjson", { type: "text/plain" })
 
@@ -47,18 +40,18 @@ describe("presignImportObject", () => {
 
     // The upload allowlist has no application/x-ndjson entry, so the wizard presigns
     // under the format's canonical MIME type, never file.type (a browser reports "" for .ndjson).
-    expect(api.post).toHaveBeenCalledWith("/upload/presign", {
-      filename: "rows.ndjson",
-      mimeType: "application/json",
-      sizeBytes: file.size,
-      purpose: "import",
+    expect(mocked.presign).toHaveBeenCalledWith({
+      json: {
+        filename: "rows.ndjson",
+        mimeType: "application/json",
+        sizeBytes: file.size,
+        purpose: "import",
+      },
     })
   })
 
   it("sends a matching Content-Type on the PUT for csv", async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({
-      data: { uploadUrl: "https://r2.example/upload", key: "objects/2", expiresIn: 60 },
-    })
+    mocked.presign.mockResolvedValueOnce(presigned("objects/2"))
     const putMock = vi.fn().mockResolvedValueOnce({ ok: true })
     globalThis.fetch = putMock as unknown as typeof fetch
     const file = new File(["a,b"], "rows.csv", { type: "text/csv" })
@@ -73,9 +66,7 @@ describe("presignImportObject", () => {
   })
 
   it("rejects when the storage PUT answers a non-ok status", async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({
-      data: { uploadUrl: "https://r2.example/upload", key: "objects/3", expiresIn: 60 },
-    })
+    mocked.presign.mockResolvedValueOnce(presigned("objects/3"))
     globalThis.fetch = vi.fn().mockResolvedValueOnce({ ok: false, status: 500 }) as unknown as typeof fetch
     const file = new File(["a"], "rows.ndjson")
 
@@ -86,48 +77,56 @@ describe("presignImportObject", () => {
 describe("createImportJob", () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it("posts objectKey and format and returns the minted jobId", async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { jobId: "job-1" } })
+  it("posts objectKey and format for the slug and returns the minted jobId", async () => {
+    mocked.createJob.mockResolvedValueOnce({ json: async () => ({ jobId: "job-1" }) })
 
     const jobId = await createImportJob("posts", "objects/1", "csv")
 
-    expect(api.post).toHaveBeenCalledWith("/content/posts/import", {
-      objectKey: "objects/1",
-      format: "csv",
+    expect(mocked.createJob).toHaveBeenCalledWith({
+      param: { slug: "posts" },
+      json: { objectKey: "objects/1", format: "csv" },
     })
     expect(jobId).toBe("job-1")
   })
 })
 
-describe("readProblem", () => {
-  it("parses the RFC 7807 body out of a blob error response and returns its type", async () => {
-    const body = { type: "content-import-file-too-large", title: "t", status: 413, detail: "d" }
-    const error = {
-      isAxiosError: true,
-      response: { data: new Blob([JSON.stringify(body)]) },
-    }
+describe("fetchImportJob", () => {
+  beforeEach(() => vi.clearAllMocks())
 
-    const problem = await readProblem(error)
+  it("reads the job by id and returns the payload unchanged", async () => {
+    const job = { id: "job-1", state: "completed" }
+    mocked.readJob.mockResolvedValueOnce({ json: async () => job })
+
+    const result = await fetchImportJob("job-1")
+
+    expect(mocked.readJob).toHaveBeenCalledWith({ param: { id: "job-1" } })
+    expect(result).toEqual(job)
+  })
+})
+
+describe("readProblem", () => {
+  it("returns the RFC 7807 body of an ApiError, including its type", () => {
+    const body = { type: "content-import-file-too-large", title: "t", status: 413, detail: "d" }
+    const error = new ApiError(413, body)
+
+    const problem = readProblem(error)
 
     expect(problem?.type).toBe("content-import-file-too-large")
   })
 
-  it("returns null for an error that is not an axios error", async () => {
-    const problem = await readProblem(new Error("boom"))
+  it("returns null for an error that is not an ApiError", () => {
+    const problem = readProblem(new Error("boom"))
 
     expect(problem).toBeNull()
   })
 })
 
 describe("isStorageNotConfiguredError", () => {
-  it("recognizes the native-R2Bucket 501 body, which readProblem cannot parse", async () => {
-    const error = {
-      isAxiosError: true,
-      response: { status: 501, data: { error: "presigned_urls_require_s3_credentials", message: "m" } },
-    }
+  it("recognizes the native-R2Bucket 501 body, which readProblem cannot parse", () => {
+    const error = new ApiError(501, { error: "presigned_urls_require_s3_credentials", message: "m" })
 
     const result = isStorageNotConfiguredError(error)
-    const problem = await readProblem(error)
+    const problem = readProblem(error)
 
     // Regression guard: this body has no `type` field, so readProblem must return null for it —
     // the wizard's not-configured branch has to check isStorageNotConfiguredError separately.
@@ -136,7 +135,7 @@ describe("isStorageNotConfiguredError", () => {
   })
 
   it("returns false for an unrelated 501", () => {
-    const error = { isAxiosError: true, response: { status: 501, data: { error: "something_else" } } }
+    const error = new ApiError(501, { error: "something_else" })
 
     expect(isStorageNotConfiguredError(error)).toBe(false)
   })

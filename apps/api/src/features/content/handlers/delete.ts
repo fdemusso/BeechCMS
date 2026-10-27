@@ -3,6 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
+import type { ZodQueryInput } from '../../../shared/utils/zod-query'
+import type { contentDeleteQuerySchema } from '../crud.schema'
 import { deleteR2Objects } from '../../../shared/storage/upload'
 import { extractMediaKeysFromData } from '../../../shared/utils/media-utils'
 import { publicProblem } from '../../../public/errors/problem-details'
@@ -14,17 +16,9 @@ import {
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 
-export async function deleteHandler(context: Context<AppEnv>) {
+export async function deleteHandler(context: Context<AppEnv, '/:slug/:id', ZodQueryInput<typeof contentDeleteQuerySchema>>) {
   const schemaSlug = context.req.param('slug')
   const entryId = context.req.param('id')
-  if (!schemaSlug || !entryId) {
-    return publicProblem(context, { 
-      type: 'content-invalid-slug-or-id', 
-      title: 'Bad Request', 
-      status: 400, 
-      detail: CONTENT_ERRORS.INVALID_SLUG_OR_ID 
-    })
-  }
 
   const seed = context.get('getSeed')(schemaSlug)
   if (!seed) {
@@ -41,7 +35,7 @@ export async function deleteHandler(context: Context<AppEnv>) {
     const jwtPayload = context.get('jwtPayload')
     const actor = { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
 
-    const forcePurge = context.req.query('purge') === 'true'
+    const forcePurge = context.req.valid('query').purge === 'true'
 
     const { row } = forcePurge
       ? await repository.purge(seed, entryId, { actor })
@@ -66,7 +60,7 @@ export async function deleteHandler(context: Context<AppEnv>) {
       }
     }
 
-    return context.json({ success: true, softDeleted: !forcePurge })
+    return context.json({ success: true, softDeleted: !forcePurge }, 200)
   } catch (error) {
     return handleContentDatabaseError(context, error)
   }

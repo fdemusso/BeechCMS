@@ -17,6 +17,8 @@
 
 import type { Context } from 'hono'
 import type { AppEnv } from '../../../types'
+import type { ZodQueryInput } from '../../../shared/utils/zod-query'
+import type { fullTextSearchQuerySchema } from '../search.schema'
 import { SEARCH_ERRORS, SEARCH_LIMITS } from '../constants'
 import type { SearchResponse } from '../types'
 import { encodeCursor, mapSearchResultRow } from '../utils/search-utils'
@@ -37,7 +39,7 @@ import { loadDisplayLocaleConfig, resolveDisplayName } from '../../../shared/loc
  * @param c - Hono context with typed `AppEnv` bindings and variables.
  * @returns A JSON {@link SearchResponse} with items, nextCursor, and total.
  */
-export async function fullTextSearchHandler(c: Context<AppEnv>): Promise<Response> {
+export async function fullTextSearchHandler(c: Context<AppEnv, '/', ZodQueryInput<typeof fullTextSearchQuerySchema>>) {
   const queryText    = c.req.query('q')?.trim() ?? ''
   const schemaSlug   = c.req.query('schema_slug') ?? null
   const statusFilter = c.req.query('status') ?? null
@@ -66,7 +68,7 @@ export async function fullTextSearchHandler(c: Context<AppEnv>): Promise<Respons
     : readableSeeds.filter(seed => seed.slug === schemaSlug)
 
   if (searchableSeeds.length === 0) {
-    return c.json({ items: [], nextCursor: null, total: 0 } satisfies SearchResponse)
+    return c.json({ items: [], nextCursor: null, total: 0 } satisfies SearchResponse, 200)
   }
 
   const searchRepository = c.get('searchRepository')
@@ -87,7 +89,7 @@ export async function fullTextSearchHandler(c: Context<AppEnv>): Promise<Respons
     : null
 
   if (pageRows.length === 0) {
-    return c.json({ items: [], nextCursor: null, total: countResult.total } satisfies SearchResponse)
+    return c.json({ items: [], nextCursor: null, total: countResult.total } satisfies SearchResponse, 200)
   }
 
   const localeConfig = await loadDisplayLocaleConfig(c.get('siteSettingsRepository'), searchableSeeds)
@@ -97,5 +99,5 @@ export async function fullTextSearchHandler(c: Context<AppEnv>): Promise<Respons
     return mapSearchResultRow(seed ? { ...row, title: resolveDisplayName(seed, row.title, localeConfig) } : row)
   })
 
-  return c.json({ items, nextCursor, total: countResult.total } satisfies SearchResponse)
+  return c.json({ items, nextCursor, total: countResult.total } satisfies SearchResponse, 200)
 }

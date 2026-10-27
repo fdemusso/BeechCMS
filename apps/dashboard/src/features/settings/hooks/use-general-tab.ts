@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { DEFAULT_TRASH_RETENTION_DAYS, MAX_RETENTION_DAYS, isValidRetentionDays } from '@beechcms/core'
 import { useGeneralSettings, useUpdateGeneralSettings } from './use-settings'
+import { isApiError } from '@/lib/http/api-error'
 
 export function useGeneralTabLogic() {
   const { t } = useTranslation()
@@ -68,8 +69,7 @@ export function useGeneralTabLogic() {
       })
       toast.success(t('settings.general.savedSuccess'))
     } catch (err) {
-      const axiosError = err as { response?: { data?: { detail?: string } } }
-      const detail = axiosError?.response?.data?.detail ?? t('settings.general.savedError')
+      const detail = (isApiError(err) ? err.data?.detail : undefined) ?? t('settings.general.savedError')
       toast.error(detail)
     }
   }

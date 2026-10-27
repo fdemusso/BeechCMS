@@ -4,141 +4,67 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { clearAccessToken } from "@/lib/api"
+import { fetchKanbanColumn, moveKanbanCard } from "@/lib/content-api"
 
-vi.mock("@/lib/api", () => ({
-  api: {
-    get: vi.fn(),
-    post: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
-  },
-}))
+function json(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } })
+}
 
-import { api } from "@/lib/api"
-import {
-  createContent,
-  deleteContent,
-  fetchContentById,
-  fetchContentFacets,
-  fetchContentList,
-  fetchContentListServer,
-  updateContent,
-} from "@/lib/content-api"
+describe("content-api (kanban)", () => {
+  let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>
 
-describe("content-api", () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    clearAccessToken()
+    fetchMock = vi.fn<typeof fetch>()
+    vi.stubGlobal("fetch", fetchMock)
+    vi.stubGlobal("window", {})
+    vi.stubGlobal("location", { pathname: "/admin/login", replace: vi.fn() })
   })
 
-  it("fetchContentList: chiama GET /content/:slug e ritorna response.data", async () => {
-    const payload = [{ id: "1", schema_slug: "items", slug: null, status: "draft", data: {}, created_at: null, updated_at: null }]
-    ;(api.get as any).mockResolvedValueOnce({ data: payload })
-
-    const res = await fetchContentList("items")
-
-    expect(api.get).toHaveBeenCalledWith("/content/items")
-    expect(res).toEqual(payload)
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
-  it("fetchContentListServer: serializza filters quando presente", async () => {
-    const payload = {
-      items: [{ id: "1", schema_slug: "items", slug: null, status: "draft", data: {}, created_at: null, updated_at: null }],
-      total: 10,
-      page: 1,
-      limit: 25,
-    }
+  describe("fetchKanbanColumn", () => {
+    it("requests the column with the axis, page window and filters as a JSON string, leaving unset params out", async () => {
+      const envelope = { items: [], total: 0, page: 1, limit: 20, relations: {} }
+      fetchMock.mockResolvedValueOnce(json(200, envelope))
+      const filters = [{ column: "br_11", type: "tags" as const, conditions: [{ op: "eq" as const, value: "low" }] }]
 
-    ;(api.get as any).mockResolvedValueOnce({ data: payload })
+      const result = await fetchKanbanColumn("posts", { kanbanAxis: "br_11", limit: 20, offset: 40, filters })
 
-    const filters = { some: "filter", op: "eq", value: 1 }
-    const res = await fetchContentListServer("items", {
-      page: 1,
-      limit: 25,
-      search: "hello",
-      sortBy: "title",
-      sortDir: "asc",
-      filters,
+      const [url, init] = fetchMock.mock.calls[0]
+      const { pathname, searchParams } = new URL(String(url), "http://x")
+      expect(pathname).toBe("/api/content/posts")
+      expect([...searchParams.keys()]).toEqual(["kanbanAxis", "limit", "offset", "filters"])
+      expect(searchParams.get("offset")).toBe("40")
+      expect(JSON.parse(searchParams.get("filters") ?? "")).toEqual(filters)
+      expect(init?.method).toBe("GET")
+      expect(result).toEqual(envelope)
     })
 
-    expect(api.get).toHaveBeenCalledWith(
-      "/content/items",
-      expect.objectContaining({
-        params: expect.objectContaining({
-          page: 1,
-          limit: 25,
-          search: "hello",
-          sortBy: "title",
-          sortDir: "asc",
-          filters: JSON.stringify(filters),
-        }),
-      })
-    )
+    it("sends search and sort when they are set", async () => {
+      fetchMock.mockResolvedValueOnce(json(200, { items: [], total: 0, page: 1, limit: 20, relations: {} }))
 
-    expect(res).toEqual(payload)
+      await fetchKanbanColumn("posts", { kanbanAxis: "br_11", limit: 20, offset: 0, search: "x", sortBy: "br_01", sortDir: "desc" })
+
+      expect(String(fetchMock.mock.calls[0][0])).toBe("/api/content/posts?kanbanAxis=br_11&limit=20&offset=0&search=x&sortBy=br_01&sortDir=desc")
+    })
   })
 
-  it("fetchContentListServer: filters null/undefined => filters undefined", async () => {
-    const payload = {
-      items: [],
-      total: 0,
-      page: 1,
-      limit: 10,
-    }
+  describe("moveKanbanCard", () => {
+    it("patches the move body as JSON to the kanban-move route of the entry", async () => {
+      fetchMock.mockResolvedValueOnce(json(200, { success: true }))
 
-    ;(api.get as any).mockResolvedValueOnce({ data: payload })
+      const result = await moveKanbanCard("posts", "entry-1", { axisBranchId: "br_11", position: "a0", axis: { value: null } })
 
-    await fetchContentListServer("items", { page: 1, limit: 10, filters: undefined })
-
-    const [, config] = (api.get as any).mock.calls[0]
-    expect(config.params.filters).toBeUndefined()
-  })
-
-  it("fetchContentFacets: GET /content/:slug/facets", async () => {
-    const payload = { statuses: ["draft"], tagsByColumnId: { tags: ["react"] } }
-    ;(api.get as any).mockResolvedValueOnce({ data: payload })
-
-    const res = await fetchContentFacets("items")
-
-    expect(api.get).toHaveBeenCalledWith("/content/items/facets")
-    expect(res).toEqual(payload)
-  })
-
-  it("fetchContentById: GET /content/:slug/:id", async () => {
-    const payload = { id: "id-1", schema_slug: "items", slug: "s", status: "draft", data: {}, created_at: null, updated_at: null }
-    ;(api.get as any).mockResolvedValueOnce({ data: payload })
-
-    const res = await fetchContentById("items", "id-1")
-
-    expect(api.get).toHaveBeenCalledWith("/content/items/id-1")
-    expect(res).toEqual(payload)
-  })
-
-  it("createContent: POST /content/:slug con body data", async () => {
-    const payload = { id: "new-id" }
-    ;(api.post as any).mockResolvedValueOnce({ data: payload })
-
-    const res = await createContent("items", { title: "Hello" })
-    expect(api.post).toHaveBeenCalledWith("/content/items", { title: "Hello" })
-    expect(res).toEqual(payload)
-  })
-
-  it("updateContent: PUT /content/:slug/:id con body data", async () => {
-    const payload = { success: true }
-    ;(api.put as any).mockResolvedValueOnce({ data: payload })
-
-    const res = await updateContent("items", "id-1", { title: "Updated" })
-    expect(api.put).toHaveBeenCalledWith("/content/items/id-1", { title: "Updated" })
-    expect(res).toEqual(payload)
-  })
-
-  it("deleteContent: DELETE /content/:slug/:id", async () => {
-    const payload = { success: true }
-    ;(api.delete as any).mockResolvedValueOnce({ data: payload })
-
-    const res = await deleteContent("items", "id-1")
-    expect(api.delete).toHaveBeenCalledWith("/content/items/id-1")
-    expect(res).toEqual(payload)
+      const [url, init] = fetchMock.mock.calls[0]
+      expect(String(url)).toBe("/api/content/posts/entry-1/kanban-move")
+      expect(init?.method).toBe("PATCH")
+      expect(init?.body).toBe(JSON.stringify({ axisBranchId: "br_11", position: "a0", axis: { value: null } }))
+      expect(result).toEqual({ success: true })
+    })
   })
 })
-

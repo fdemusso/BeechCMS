@@ -2,14 +2,10 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { api } from "./api"
+import type { InferResponseType } from "hono/client"
+import type { FilterGroup, KanbanMoveBody } from "@beechcms/core"
+import { rpc } from "./rpc"
 import type { ContentEntry } from "./dynamic-columns"
-import type { FilterGroup } from "@beechcms/core"
-
-export interface ContentFacets {
-  statuses: string[]
-  tagsByColumnId: Record<string, string[]>
-}
 
 export interface ContentListQueryParams {
   page?: number
@@ -20,100 +16,36 @@ export interface ContentListQueryParams {
   filters?: unknown
 }
 
-export interface ContentListWithMeta {
+/**
+ * The list answers a bare array when the request carries no query parameter (legacy contract) and
+ * this envelope otherwise. `relations` is the compact label map the dashboard uses to prime the
+ * TanStack Query cache so RelationDisplay can resolve synchronously without per-row requests:
+ * `{ [branchAlias]: { [targetId]: labelString } }`.
+ */
+export type ContentListResponse = InferResponseType<(typeof rpc.api.content)[":slug"]["$get"]>
+
+export type ContentListWithMeta = Omit<Extract<ContentListResponse, { items: unknown }>, "items"> & {
   items: ContentEntry[]
-  total: number
-  page: number
-  limit: number
 }
 
-/**
- * Content API Helper Functions
- * Funzioni wrapper per le chiamate API CRUD a /api/content/:slug
- */
-
-/**
- * Recupera la lista di tutte le entry per uno specifico slug.
- * TODO: Passare a fetch paginato (page, limit) quando si implementa server-side pagination.
- */
-export async function fetchContentList(slug: string): Promise<ContentEntry[]> {
-  const response = await api.get<ContentEntry[]>(`/content/${slug}`)
-  return response.data
+/** `page`, `limit`, ... as the query string carries them: `hc` takes strings only, undefined and null are dropped. */
+export function toListQuery(params: object): Record<string, string> {
+  const query: Record<string, string> = {}
+  for (const [key, value] of Object.entries(params) as [string, string | number | null | undefined][]) {
+    if (value !== undefined && value !== null) query[key] = String(value)
+  }
+  return query
 }
 
-export async function fetchContentListServer(
-  slug: string,
-  params: ContentListQueryParams
-): Promise<ContentListWithMeta> {
-  const response = await api.get<ContentListWithMeta>(`/content/${slug}`, {
-    params: {
-      ...params,
-      filters:
-        params.filters != null ? JSON.stringify(params.filters) : undefined,
-    },
-  })
-  return response.data
+/** Always the envelope: a bare array (a request with no query parameter) is wrapped as one page. */
+export function toListWithMeta(response: ContentListResponse): ContentListWithMeta {
+  if (!Array.isArray(response)) return response
+  return { items: response, total: response.length, page: 1, limit: response.length, relations: {} }
 }
 
-export async function fetchContentFacets(slug: string): Promise<ContentFacets> {
-  const response = await api.get<ContentFacets>(`/content/${slug}/facets`)
-  return response.data
-}
-
-/**
- * Recupera i dettagli di una singola entry.
- */
-export async function fetchContentById(
-  slug: string,
-  id: string
-): Promise<ContentEntry> {
-  const response = await api.get<ContentEntry>(`/content/${slug}/${id}`)
-  return response.data
-}
-
-/**
- * Crea una nuova entry.
- * Restituisce l'ID della entry creata.
- */
-export async function createContent(
-  slug: string,
-  data: Record<string, unknown>
-): Promise<{ id: string }> {
-  const response = await api.post<{ id: string }>(`/content/${slug}`, data)
-  return response.data
-}
-
-/**
- * Aggiorna una entry esistente.
- */
-export async function updateContent(
-  slug: string,
-  id: string,
-  data: Record<string, unknown>
-): Promise<{ success: boolean }> {
-  const response = await api.put<{ success: boolean }>(
-    `/content/${slug}/${id}`,
-    data
-  )
-  return response.data
-}
-
-/**
- * Elimina una entry.
- */
-export async function deleteContent(
-  slug: string,
-  id: string
-): Promise<{ success: boolean }> {
-  const response = await api.delete<{ success: boolean }>(
-    `/content/${slug}/${id}`
-  )
-  return response.data
-}
-
-export async function moveKanbanCard(slug: string, id: string, body: import('@beechcms/core').KanbanMoveBody): Promise<{ success: boolean }> {
-  const res = await api.patch<{ success: boolean }>(`/content/${slug}/${id}/kanban-move`, body)
-  return res.data
+export async function moveKanbanCard(slug: string, id: string, body: KanbanMoveBody): Promise<{ success: boolean }> {
+  const response = await rpc.api.content[":slug"][":id"]["kanban-move"].$patch({ param: { slug, id }, json: body })
+  return response.json()
 }
 
 export interface KanbanColumnQueryParams {
@@ -127,8 +59,9 @@ export interface KanbanColumnQueryParams {
 }
 
 export async function fetchKanbanColumn(slug: string, params: KanbanColumnQueryParams): Promise<ContentListWithMeta> {
-  const res = await api.get<ContentListWithMeta>(`/content/${slug}`, {
-    params: {
+  const response = await rpc.api.content[":slug"].$get({
+    param: { slug },
+    query: toListQuery({
       kanbanAxis: params.kanbanAxis,
       limit: params.limit,
       offset: params.offset,
@@ -136,8 +69,7 @@ export async function fetchKanbanColumn(slug: string, params: KanbanColumnQueryP
       sortBy: params.sortBy,
       sortDir: params.sortDir,
       filters: params.filters ? JSON.stringify(params.filters) : undefined,
-    },
+    }),
   })
-  return res.data
+  return toListWithMeta(await response.json())
 }
-

@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardWidgetShell } from "../dashboard-widget-shell"
 import { useRecentActivity } from "../../hooks/use-dashboard-stats"
+import { activityTarget } from "../../utils/activity-target"
 import { cn } from "@/lib/utils"
 import { WidgetEmpty } from "./_parts/widget-empty"
 import { WidgetError } from "./_parts/widget-error"
@@ -97,7 +98,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: Activi
                   <span className="font-medium text-foreground">{displayName(log.user_name, log.user_email)}</span>{" "}
                   {t(`dashboard.recentActivity.actions.${log.action}`, { defaultValue: log.action })}{" "}
                   <span className="font-medium text-foreground">
-                    {log.details?.title || log.details?.name || log.entity_slug || log.entity_id}
+                    {activityTarget(log)}
                   </span>
                 </span>
                 <span className="text-[10px] text-muted-foreground/60 shrink-0">{relativeTime(log.created_at)}</span>
@@ -138,7 +139,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: Activi
                       {t(`dashboard.recentActivity.actions.${log.action}`, { defaultValue: log.action })}
                     </span>{" "}
                     <span className="font-medium">
-                      {log.details?.title || log.details?.name || log.entity_slug || log.entity_id}
+                      {activityTarget(log)}
                     </span>
                   </p>
                   <p className="text-xs text-muted-foreground/70">{relativeTime(log.created_at)}</p>

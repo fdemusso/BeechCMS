@@ -399,4 +399,37 @@ describe('content slice — views (real D1)', () => {
       expect(distinctPositions?.n).toBe(4)
     })
   })
+
+  describe('refusal order on view writes', () => {
+    const PROBLEM = 'https://beechcms.dev/problems/'
+
+    it('a body that is not JSON is refused 400 content-invalid-body and stores nothing', async () => {
+      const response = await admin.post('/api/content/posts/views', undefined, { body: '{not json' })
+
+      expect(response.status).toBe(400)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toBe(`${PROBLEM}content-invalid-body`)
+      const row = await harness.db.prepare("SELECT COUNT(*) AS n FROM seed_views WHERE seed_slug = 'posts'").first<{ n: number }>()
+      expect(row?.n).toBe(0)
+    })
+
+    it('an unknown seed answers 404 content-seed-not-found before the body is read', async () => {
+      // Regression guard: the seed lookup is a middleware ahead of zodJson. Swapped, a malformed
+      // body would answer 400 here and a writer would learn the body contract of a missing seed.
+      const response = await admin.put('/api/content/no-such-seed/views/order', undefined, { body: '{not json' })
+
+      expect(response.status).toBe(404)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toBe(`${PROBLEM}content-seed-not-found`)
+    })
+
+    it('an unknown view answers 404 content-view-not-found before the body is read', async () => {
+      // Same mechanism as above, for the view lookup that precedes the body of a PATCH.
+      const response = await admin.patch('/api/content/posts/views/no-such-view', undefined, { body: '{not json' })
+
+      expect(response.status).toBe(404)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toBe(`${PROBLEM}content-view-not-found`)
+    })
+  })
 })

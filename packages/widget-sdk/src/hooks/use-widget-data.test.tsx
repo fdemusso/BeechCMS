@@ -8,6 +8,21 @@ import type { ReactNode } from 'react'
 import { WidgetSdkProvider, type WidgetSdkClient } from '../provider.js'
 import { useWidgetAggregate, useWidgetList } from './use-widget-data.js'
 
+/** A client whose `route` answers with `body`; the spy records the arguments of the call. */
+function clientAnswering(route: keyof WidgetSdkClient, body: unknown) {
+  const get = vi.fn().mockResolvedValue({ json: async () => body })
+  const unused = { ':seed': { $get: vi.fn() } }
+  const client = {
+    aggregate: unused,
+    growth: unused,
+    timeseries: unused,
+    distribution: unused,
+    list: unused,
+    [route]: { ':seed': { $get: get } },
+  } as WidgetSdkClient
+  return { client, get }
+}
+
 function wrapperWith(client: WidgetSdkClient) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -21,8 +36,7 @@ function wrapperWith(client: WidgetSdkClient) {
 
 describe('SDK data hooks', () => {
   it('fetches widget aggregate data through the injected client', async () => {
-    const get = vi.fn().mockResolvedValue({ data: { value: 42, window: 'month' } })
-    const client: WidgetSdkClient = { get }
+    const { client, get } = clientAnswering('aggregate', { value: 42, window: 'month' })
 
     const { result } = renderHook(() => useWidgetAggregate('articoli', { op: 'count' }, 'month'), {
       wrapper: wrapperWith(client),
@@ -30,22 +44,37 @@ describe('SDK data hooks', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data).toEqual({ value: 42, window: 'month' })
-    expect(get).toHaveBeenCalledWith('/widget/aggregate/articoli', {
-      params: { formula: JSON.stringify({ op: 'count' }), window: 'month' },
+    expect(get).toHaveBeenCalledWith({
+      param: { seed: 'articoli' },
+      query: { formula: JSON.stringify({ op: 'count' }), window: 'month' },
     })
   })
 
   it('fetches widget list data through the injected client', async () => {
-    const get = vi.fn().mockResolvedValue({ data: { entries: [], total: 0 } })
-    const client: WidgetSdkClient = { get }
+    const { client, get } = clientAnswering('list', { entries: [], total: 0 })
 
     const { result } = renderHook(() => useWidgetList('articoli', { limit: 10, offset: 0 }), {
       wrapper: wrapperWith(client),
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(get).toHaveBeenCalledWith('/widget/list/articoli', {
-      params: { limit: 10, offset: 0, search: undefined, orderBy: undefined, orderDir: undefined },
+    expect(get).toHaveBeenCalledWith({
+      param: { seed: 'articoli' },
+      query: { limit: '10', offset: '0', search: undefined, orderBy: undefined, orderDir: undefined },
+    })
+  })
+
+  it('serialises a date range as unix-second from/to instead of a preset', async () => {
+    const { client, get } = clientAnswering('aggregate', { value: 1, window: { from: 100, to: 200 } })
+
+    const { result } = renderHook(() => useWidgetAggregate('articoli', { op: 'count' }, { from: 100, to: 200 }), {
+      wrapper: wrapperWith(client),
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(get).toHaveBeenCalledWith({
+      param: { seed: 'articoli' },
+      query: { formula: JSON.stringify({ op: 'count' }), from: '100', to: '200' },
     })
   })
 

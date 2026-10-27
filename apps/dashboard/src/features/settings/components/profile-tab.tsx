@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { isApiError } from '@/lib/http/api-error'
 import { useProfile, useUpdateProfile, useChangePassword, useUpdateAvatar } from '../hooks/use-settings'
 
 function getInitials(name: string | null, surname: string | null, email: string): string {
@@ -57,8 +58,7 @@ export function ProfileTab() {
       })
       toast.success(t('settings.profile.savedSuccess'))
     } catch (err) {
-      const axiosError = err as { response?: { data?: { detail?: string } } }
-      const detail = axiosError?.response?.data?.detail ?? t('settings.profile.savedError')
+      const detail = (isApiError(err) ? err.data?.detail : undefined) ?? t('settings.profile.savedError')
       toast.error(detail)
     }
   }
@@ -76,8 +76,7 @@ export function ProfileTab() {
       setNewPassword('')
       setConfirmPassword('')
     } catch (err) {
-      const axiosError = err as { response?: { data?: { detail?: string } } }
-      const detail = axiosError?.response?.data?.detail ?? t('settings.profile.passwordError')
+      const detail = (isApiError(err) ? err.data?.detail : undefined) ?? t('settings.profile.passwordError')
       toast.error(detail)
     }
   }

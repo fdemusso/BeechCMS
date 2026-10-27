@@ -10,18 +10,14 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono, type Context } from 'hono'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
-import { sha256hex } from '@beechcms/core'
+import { loginRequestSchema, sha256hex } from '@beechcms/core'
 import type { Env, Variables } from '../types'
 import { AUTH_ERRORS } from './constants'
-import {
-  parseLoginBody,
-  validateLoginInput,
-  verifyPassword,
-  DUMMY_PASSWORD_HASH,
-} from './utils/login-helpers'
+import { verifyPassword, DUMMY_PASSWORD_HASH } from './utils/login-helpers'
 import { generateOpaqueToken } from '../shared/utils/opaque-token'
 import { getClientIp } from '../shared/utils/request-utils'
 import { checkDualKeyRateLimit, normalizeAccountKey } from '../shared/utils/dual-key-rate-limiter'
+import { zodJson, type ZodJsonInput } from '../shared/utils/zod-json'
 
 /** Refresh token expiration duration in days (7 days). */
 const REFRESH_TOKEN_EXPIRY_DAYS = 7
@@ -32,8 +28,11 @@ const SECONDS_PER_DAY = 24 * 60 * 60
 /** Path scope for auth refresh cookies. */
 const AUTH_COOKIE_PATH = '/auth'
 
+/** Environment of the authentication sub-application. */
+type AuthEnv = { Bindings: Env; Variables: Variables }
+
 /** Context type specialized for the authentication sub-application. */
-type AuthContext = Context<{ Bindings: Env; Variables: Variables }>
+type AuthContext = Context<AuthEnv>
 
 /**
  * Determines whether the incoming request URL was transmitted over HTTPS.
@@ -83,7 +82,7 @@ function getRefreshTokenDeleteCookieOptions(secure: boolean) {
  * @param retryAfterSeconds - Optional seconds to wait before retrying.
  * @returns Standard HTTP 429 response.
  */
-function createRateLimitResponse(context: AuthContext, retryAfterSeconds?: number): Response {
+function createRateLimitResponse(context: AuthContext, retryAfterSeconds?: number) {
   const headers: Record<string, string> = {}
   if (retryAfterSeconds !== undefined) {
     headers['Retry-After'] = String(retryAfterSeconds)
@@ -100,7 +99,7 @@ function createRateLimitResponse(context: AuthContext, retryAfterSeconds?: numbe
  * @param operationName - Human-readable operation name for diagnostic logging.
  * @returns Standard HTTP 500 response.
  */
-function handleAuthError(context: AuthContext, error: unknown, operationName: string): Response {
+function handleAuthError(context: AuthContext, error: unknown, operationName: string) {
   if (context.env.ENV !== 'production') {
     console.error(`${operationName} error:`, error)
   }
@@ -108,9 +107,14 @@ function handleAuthError(context: AuthContext, error: unknown, operationName: st
 }
 
 /**
- * Hono router for all authentication endpoints (`/auth/login`, `/auth/refresh`, `/auth/logout`).
+ * Malformed or out-of-bounds login input. It still counts against the IP limiter, so a client
+ * cannot probe the validator for free.
  */
-export const authApp = new Hono<{ Bindings: Env; Variables: Variables }>()
+async function rejectInvalidLogin(context: AuthContext) {
+  const ipLimit = await context.get('rateLimiters').getLimiter('login').checkLimit(getClientIp(context.req))
+  if (!ipLimit.isAllowed) return createRateLimitResponse(context, ipLimit.retryAfterSeconds)
+  return context.json({ error: AUTH_ERRORS.INVALID_REQUEST }, 400)
+}
 
 /**
  * POST /auth/login
@@ -118,22 +122,10 @@ export const authApp = new Hono<{ Bindings: Env; Variables: Variables }>()
  * Authenticates user credentials via dual-key rate limiting, constant-time password hash comparison,
  * and issues a short-lived access JWT token plus a rotated HTTP-only refresh cookie.
  */
-authApp.post('/auth/login', async (context) => {
+async function loginHandler(context: Context<AuthEnv, string, ZodJsonInput<typeof loginRequestSchema>>) {
   try {
     const clientIp = getClientIp(context.req)
-
-    const rawBody: unknown = await context.req.json().catch(() => null)
-    const credentials = parseLoginBody(rawBody)
-
-    if (!credentials || !validateLoginInput(credentials.email, credentials.password)) {
-      const ipLimit = await context.get('rateLimiters').getLimiter('login').checkLimit(clientIp)
-      if (!ipLimit.isAllowed) {
-        return createRateLimitResponse(context, ipLimit.retryAfterSeconds)
-      }
-      return context.json({ error: AUTH_ERRORS.INVALID_REQUEST }, 400)
-    }
-
-    const { email, password } = credentials
+    const { email, password } = context.req.valid('json')
 
     // Dual-Key Rate Limit Check (pre-database, pre-crypto)
     const dualKeyResult = await checkDualKeyRateLimit({
@@ -177,7 +169,7 @@ authApp.post('/auth/login', async (context) => {
   } catch (error) {
     return handleAuthError(context, error, 'Login')
   }
-})
+}
 
 /**
  * POST /auth/refresh
@@ -185,7 +177,7 @@ authApp.post('/auth/login', async (context) => {
  * Rotates an existing refresh token session, issuing a new JWT access token and replacing
  * the refresh token cookie with automatic single-use rotation and atomic revocation rollback.
  */
-authApp.post('/auth/refresh', async (context) => {
+async function refreshHandler(context: AuthContext) {
   try {
     const clientIp = getClientIp(context.req)
     const refreshRateLimit = await context.get('rateLimiters').getLimiter('tokenRefresh').checkLimit(clientIp)
@@ -245,14 +237,14 @@ authApp.post('/auth/refresh', async (context) => {
   } catch (error) {
     return handleAuthError(context, error, 'Refresh')
   }
-})
+}
 
 /**
  * POST /auth/logout
  *
  * Revokes the active session associated with the provided refresh token cookie and clears the cookie.
  */
-authApp.post('/auth/logout', async (context) => {
+async function logoutHandler(context: AuthContext) {
   try {
     const refreshToken = getCookie(context, 'refresh_token')
     if (refreshToken) {
@@ -265,4 +257,13 @@ authApp.post('/auth/logout', async (context) => {
   } catch (error) {
     return handleAuthError(context, error, 'Logout')
   }
-})
+}
+
+/**
+ * Hono router for all authentication endpoints (`/auth/login`, `/auth/refresh`, `/auth/logout`).
+ * Registered as one chain so the route types reach `AppType` (see `../routes.ts`).
+ */
+export const authApp = new Hono<{ Bindings: Env; Variables: Variables }>()
+  .post('/auth/login', zodJson(loginRequestSchema, rejectInvalidLogin), loginHandler)
+  .post('/auth/refresh', refreshHandler)
+  .post('/auth/logout', logoutHandler)

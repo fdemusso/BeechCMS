@@ -5,7 +5,8 @@
 import React, { useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import axios from "axios"
+import { rpc } from "@/lib/rpc"
+import { isApiError } from "@/lib/http/api-error"
 import { Eye, EyeOff } from '@/components/icons'
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -72,11 +73,11 @@ export function ResetPasswordPage() {
     setError(null)
     setIsLoading(true)
     try {
-      await axios.post("/auth/reset-password", { token, password, locale: i18n.language })
+      await rpc.auth["reset-password"].$post({ json: { token, password, locale: i18n.language } })
       toast.success(t("resetPassword.success"))
       navigate("/login", { replace: true })
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 400) {
+      if (isApiError(err) && err.status === 400) {
         setError(t("resetPassword.invalidToken"))
       } else {
         setError(t("resetPassword.genericError"))

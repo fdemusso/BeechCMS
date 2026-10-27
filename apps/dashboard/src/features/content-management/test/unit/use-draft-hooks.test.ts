@@ -7,16 +7,21 @@ import { renderHook, waitFor, act } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 
-vi.mock("@/lib/api", () => ({
-  api: {
-    get: vi.fn(),
-    put: vi.fn(),
-    post: vi.fn(),
-    delete: vi.fn(),
+const mocked = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), publish: vi.fn(), discard: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: {
+    api: {
+      content: {
+        ":slug": {
+          ":id": {
+            draft: { $get: mocked.get, $put: mocked.put, $delete: mocked.discard, publish: { $post: mocked.publish } },
+          },
+        },
+      },
+    },
   },
 }))
-
-import { api } from "@/lib/api"
 import {
   useDraftEntry,
   useSaveDraft,
@@ -56,7 +61,7 @@ describe("useDraftEntry", () => {
     )
 
     expect(result.current.fetchStatus).toBe("idle")
-    expect(api.get).not.toHaveBeenCalled()
+    expect(mocked.get).not.toHaveBeenCalled()
   })
 
   it("rimane idle quando id è undefined", () => {
@@ -66,7 +71,7 @@ describe("useDraftEntry", () => {
     )
 
     expect(result.current.fetchStatus).toBe("idle")
-    expect(api.get).not.toHaveBeenCalled()
+    expect(mocked.get).not.toHaveBeenCalled()
   })
 
   it("rimane idle quando sia slug che id sono undefined", () => {
@@ -76,12 +81,12 @@ describe("useDraftEntry", () => {
     )
 
     expect(result.current.fetchStatus).toBe("idle")
-    expect(api.get).not.toHaveBeenCalled()
+    expect(mocked.get).not.toHaveBeenCalled()
   })
 
   it("fetcha e restituisce i dati quando slug e id sono entrambi definiti", async () => {
     const draftFields = { title: "Titolo bozza", body: "Corpo bozza" }
-    ;(api.get as any).mockResolvedValueOnce({ data: { data: draftFields } })
+    mocked.get.mockResolvedValueOnce({ json: async () => ({ data: draftFields }) })
 
     const { result } = renderHook(
       () => useDraftEntry("posts", "entry-1"),
@@ -90,12 +95,12 @@ describe("useDraftEntry", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(api.get).toHaveBeenCalledWith("/content/posts/entry-1/draft")
+    expect(mocked.get).toHaveBeenCalledWith({ param: { slug: "posts", id: "entry-1" } })
     expect(result.current.data).toEqual(draftFields)
   })
 
   it("va in error state senza riprovare quando il server risponde 404 (retry: false)", async () => {
-    ;(api.get as any).mockRejectedValue(new Error("404 Not Found"))
+    mocked.get.mockRejectedValue(new Error("404 Not Found"))
 
     const { result } = renderHook(
       () => useDraftEntry("posts", "entry-1"),
@@ -105,17 +110,17 @@ describe("useDraftEntry", () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
 
     // retry: false → esattamente un tentativo
-    expect(api.get).toHaveBeenCalledTimes(1)
+    expect(mocked.get).toHaveBeenCalledTimes(1)
   })
 
   it("usa la query key corretta", async () => {
-    ;(api.get as any).mockResolvedValueOnce({ data: { data: {} } })
+    mocked.get.mockResolvedValueOnce({ json: async () => ({ data: {} }) })
 
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
 
     renderHook(() => useDraftEntry("news", "abc"), { wrapper: wrapper(queryClient) })
 
-    await waitFor(() => expect((api.get as any).mock.calls.length).toBeGreaterThan(0))
+    await waitFor(() => expect(mocked.get.mock.calls.length).toBeGreaterThan(0))
 
     // Invalida la chiave draft per verificare che il listener agisce sulla chiave giusta
     await act(async () => {
@@ -142,8 +147,8 @@ describe("useSaveDraft", () => {
     queryClient = makeQueryClient()
   })
 
-  it("chiama PUT /content/:slug/:id/draft con il payload e torna { success: true }", async () => {
-    ;(api.put as any).mockResolvedValueOnce({ data: { success: true } })
+  it("chiama PUT /content/:slug/:id/draft col payload come json e torna { success: true }", async () => {
+    mocked.put.mockResolvedValueOnce({ json: async () => ({ success: true }) })
 
     const { result } = renderHook(() => useSaveDraft(), { wrapper: wrapper(queryClient) })
 
@@ -156,12 +161,12 @@ describe("useSaveDraft", () => {
       })
     })
 
-    expect(api.put).toHaveBeenCalledWith("/content/posts/entry-1/draft", { title: "Nuovo titolo" })
+    expect(mocked.put).toHaveBeenCalledWith({ param: { slug: "posts", id: "entry-1" }, json: { title: "Nuovo titolo" } })
     expect(returned).toEqual({ success: true })
   })
 
   it("invalida draft, detail e all content keys al successo", async () => {
-    ;(api.put as any).mockResolvedValueOnce({ data: { success: true } })
+    mocked.put.mockResolvedValueOnce({ json: async () => ({ success: true }) })
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
 
     const { result } = renderHook(() => useSaveDraft(), { wrapper: wrapper(queryClient) })
@@ -182,7 +187,7 @@ describe("useSaveDraft", () => {
   })
 
   it("NON invalida activity né stats (operazione narrowed, non publish)", async () => {
-    ;(api.put as any).mockResolvedValueOnce({ data: { success: true } })
+    mocked.put.mockResolvedValueOnce({ json: async () => ({ success: true }) })
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
 
     const { result } = renderHook(() => useSaveDraft(), { wrapper: wrapper(queryClient) })
@@ -216,7 +221,7 @@ describe("usePublishDraft", () => {
   })
 
   it("chiama POST /content/:slug/:id/draft/publish", async () => {
-    ;(api.post as any).mockResolvedValueOnce({ data: { success: true } })
+    mocked.publish.mockResolvedValueOnce({ json: async () => ({ success: true }) })
 
     const { result } = renderHook(() => usePublishDraft(), { wrapper: wrapper(queryClient) })
 
@@ -224,12 +229,12 @@ describe("usePublishDraft", () => {
       await result.current.mutateAsync({ slug: "posts", id: "entry-1" })
     })
 
-    expect(api.post).toHaveBeenCalledWith("/content/posts/entry-1/draft/publish")
-    expect(api.post).toHaveBeenCalledTimes(1)
+    expect(mocked.publish).toHaveBeenCalledWith({ param: { slug: "posts", id: "entry-1" } })
+    expect(mocked.publish).toHaveBeenCalledTimes(1)
   })
 
   it("invalida il set ampio di chiavi al successo (content, facets, draft, activity, stats)", async () => {
-    ;(api.post as any).mockResolvedValueOnce({ data: { success: true } })
+    mocked.publish.mockResolvedValueOnce({ json: async () => ({ success: true }) })
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
 
     const { result } = renderHook(() => usePublishDraft(), { wrapper: wrapper(queryClient) })
@@ -250,7 +255,7 @@ describe("usePublishDraft", () => {
   })
 
   it("invalida più chiavi di useSaveDraft (differenza semantica publish vs save)", async () => {
-    ;(api.post as any).mockResolvedValueOnce({ data: { success: true } })
+    mocked.publish.mockResolvedValueOnce({ json: async () => ({ success: true }) })
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
 
     const { result } = renderHook(() => usePublishDraft(), { wrapper: wrapper(queryClient) })
@@ -277,7 +282,7 @@ describe("useDiscardDraft", () => {
   })
 
   it("chiama DELETE /content/:slug/:id/draft", async () => {
-    ;(api.delete as any).mockResolvedValueOnce({ data: { success: true } })
+    mocked.discard.mockResolvedValueOnce({ json: async () => ({ success: true }) })
 
     const { result } = renderHook(() => useDiscardDraft(), { wrapper: wrapper(queryClient) })
 
@@ -285,11 +290,11 @@ describe("useDiscardDraft", () => {
       await result.current.mutateAsync({ slug: "posts", id: "entry-1" })
     })
 
-    expect(api.delete).toHaveBeenCalledWith("/content/posts/entry-1/draft")
+    expect(mocked.discard).toHaveBeenCalledWith({ param: { slug: "posts", id: "entry-1" } })
   })
 
   it("invalida draft, detail e all content keys al successo", async () => {
-    ;(api.delete as any).mockResolvedValueOnce({ data: { success: true } })
+    mocked.discard.mockResolvedValueOnce({ json: async () => ({ success: true }) })
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
 
     const { result } = renderHook(() => useDiscardDraft(), { wrapper: wrapper(queryClient) })
@@ -310,7 +315,7 @@ describe("useDiscardDraft", () => {
   })
 
   it("NON invalida facets né activity né stats (discard non pubblica live)", async () => {
-    ;(api.delete as any).mockResolvedValueOnce({ data: { success: true } })
+    mocked.discard.mockResolvedValueOnce({ json: async () => ({ success: true }) })
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
 
     const { result } = renderHook(() => useDiscardDraft(), { wrapper: wrapper(queryClient) })

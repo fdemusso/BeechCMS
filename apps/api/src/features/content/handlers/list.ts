@@ -8,6 +8,8 @@ import { applyVisibility, toEntryEnvelope } from '../../../shared/policies/apply
 import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
+import type { ZodQueryInput } from '../../../shared/utils/zod-query'
+import type { contentListQuerySchema } from '../crud.schema'
 import { resolveKanbanConfig, type FilterGroup, type ActorContext, type LocaleConfig, type Seed } from '@beechcms/core'
 import { loadLocaleConfig } from '../../../shared/localization/locale-config'
 import { loadDisplayLocaleConfig, resolveDisplayName } from '../../../shared/localization/display-name'
@@ -98,17 +100,8 @@ async function buildRelationsMap(
   return relations
 }
 
-export async function listHandler(context: Context<AppEnv>) {
+export async function listHandler(context: Context<AppEnv, '/:slug', ZodQueryInput<typeof contentListQuerySchema>>) {
   const slug = context.req.param('slug')
-  if (!slug) {
-    return publicProblem(context, {
-      type: 'content-invalid-slug',
-      title: 'Bad Request',
-      status: 400,
-      detail: CONTENT_ERRORS.INVALID_SLUG
-    })
-  }
-
   const seed = context.get('getSeed')(slug)
   if (!seed) {
     return publicProblem(context, {
@@ -120,7 +113,7 @@ export async function listHandler(context: Context<AppEnv>) {
   }
 
   try {
-    const query = context.req.query()
+    const query = context.req.valid('query')
     const search = cleanStr(query.search) ?? ''
     const sortBy = cleanStr(query.sortBy) ?? ''
     const sortDirRaw = cleanStr(query.sortDir)?.toLowerCase() ?? 'asc'
@@ -134,7 +127,9 @@ export async function listHandler(context: Context<AppEnv>) {
 
     const page = parsePositiveInt(query.page, 1)
     const limit = Math.min(parsePositiveInt(query.limit, 25), 100)
-    const offset = (page - 1) * limit
+    // The kanban board reads a column as a window (`offset` = cards already fetched), not by page number.
+    const requestedOffset = Number.parseInt(query.offset ?? '', 10)
+    const offset = Number.isInteger(requestedOffset) && requestedOffset >= 0 ? requestedOffset : (page - 1) * limit
 
     const orderBy = sortBy
       ? { column: sortBy, dir: (sortDirRaw === 'desc' ? 'DESC' : 'ASC') as 'ASC' | 'DESC' }
@@ -211,15 +206,15 @@ export async function listHandler(context: Context<AppEnv>) {
     }))
 
     // If no query params (except slug), return array directly (legacy compatibility)
-    const hasQueryParams = Boolean(search) || Boolean(sortBy) || Boolean(query.filters) || Boolean(kanbanAxis) || query.page !== undefined || query.limit !== undefined
+    const hasQueryParams = Boolean(search) || Boolean(sortBy) || Boolean(query.filters) || Boolean(kanbanAxis) || query.page !== undefined || query.limit !== undefined || query.offset !== undefined
     if (!hasQueryParams) {
-      return context.json(entries)
+      return context.json(entries, 200)
     }
 
     // Build compact relation labels map for N+1 mitigation
     const relations = await buildRelationsMap(context, seed, entries, localeConfig, actor)
 
-    return context.json({ items: entries, total, page, limit, relations })
+    return context.json({ items: entries, total, page, limit, relations }, 200)
   } catch (error) {
     console.error('Content list error:', error)
     return publicProblem(context, {

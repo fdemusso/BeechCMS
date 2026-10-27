@@ -6,8 +6,8 @@
 import type { AccountSummary, PermissionAssignment } from '@beechcms/core'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { RBAC_ERRORS } from './constants'
-import { canAdministerAccount, rbacProblem, readJson, readPage, type AppContext } from './guards'
-import { createUserSchema, setActiveSchema } from './rbac.schema'
+import { canAdministerAccount, pageOf, rbacProblem, type AppContext, type JsonContext, type PageContext } from './guards'
+import type { createUserSchema, setActiveSchema } from './rbac.schema'
 
 /**
  * The developer/owner axis (`users.role`) is NOT grantable from the dashboard:
@@ -30,11 +30,8 @@ type AccountView = AccountSummary & { assignments: PermissionAssignment[] }
  * Paged over the accounts table; the visibility filter applies to each page afterwards, so a
  * page may hold fewer than `limit` rows. `nextOffset` is null on the last page.
  */
-export const listUsersHandler = async (context: AppContext) => {
-  const page = readPage(context)
-  if (!page) {
-    return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', 'Invalid limit or offset.')
-  }
+export const listUsersHandler = async (context: PageContext) => {
+  const page = pageOf(context.req.valid('query'))
 
   const actor = await resolveEffectivePermissions(context)
   const actorId = context.get('jwtPayload')?.sub ?? ''
@@ -58,7 +55,7 @@ export const listUsersHandler = async (context: AppContext) => {
     users.push({ ...account, assignments })
   }
 
-  return context.json({ users, nextOffset: fetched.length > page.limit ? page.offset + page.limit : null })
+  return context.json({ users, nextOffset: fetched.length > page.limit ? page.offset + page.limit : null }, 200)
 }
 
 /**
@@ -66,18 +63,10 @@ export const listUsersHandler = async (context: AppContext) => {
  * Creates a ZERO-TRUST account: no role, no scope, no visibility until assigned
  * (brief §2). Any `manage_users` holder may create one; only assignment is scope-gated.
  */
-export const createUserHandler = async (context: AppContext) => {
-  const body = await readJson(context)
-  if (body === undefined) {
-    return rbacProblem(context, RBAC_ERRORS.INVALID_JSON, 400, 'Bad Request', 'Request body is not valid JSON.')
-  }
+export const createUserHandler = async (context: JsonContext<typeof createUserSchema>) => {
+  const input = context.req.valid('json')
 
-  const parsed = createUserSchema.safeParse(body)
-  if (!parsed.success) {
-    return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', parsed.error.message)
-  }
-
-  const email = parsed.data.email.toLowerCase()
+  const email = input.email.toLowerCase()
   const userRepository = context.get('userRepository')
 
   if (await userRepository.findByEmail(email)) {
@@ -85,7 +74,7 @@ export const createUserHandler = async (context: AppContext) => {
   }
 
   const id = context.get('idGenerator').uuid()
-  const passwordHash = await context.get('hashProvider').hash(parsed.data.password)
+  const passwordHash = await context.get('hashProvider').hash(input.password)
 
   try {
     await userRepository.create({
@@ -93,8 +82,8 @@ export const createUserHandler = async (context: AppContext) => {
       email,
       passwordHash,
       role: CREATED_ACCOUNT_ROLE,
-      name: parsed.data.name ?? null,
-      surname: parsed.data.surname ?? null,
+      name: input.name ?? null,
+      surname: input.surname ?? null,
     })
   } catch (error) {
     // Race backstop: two concurrent creates with the same email.
@@ -104,18 +93,12 @@ export const createUserHandler = async (context: AppContext) => {
     throw error
   }
 
-  return context.json(
-    {
-      id,
-      email,
-      name: parsed.data.name ?? null,
-      surname: parsed.data.surname ?? null,
-      role: CREATED_ACCOUNT_ROLE,
-      isActive: true,
-      assignments: [],
-    },
-    201,
-  )
+  // Read back, not echoed: `createdAt` is stamped by the database, and the response is the same
+  // account the listings serve.
+  const created = await userRepository.findAccountById(id)
+  if (!created) throw new Error(`Account ${id} vanished right after it was created.`)
+
+  return context.json({ ...created, assignments: [] }, 201)
 }
 
 /**
@@ -139,7 +122,7 @@ export const getUserHandler = async (context: AppContext) => {
   const assignments = await context.get('roleAssignmentRepository').listAllForUser(userId)
   if (account.id !== actorId && !canAdministerAccount(actor, assignments)) return notFound()
 
-  return context.json({ ...account, assignments })
+  return context.json({ ...account, assignments }, 200)
 }
 
 /**
@@ -149,23 +132,12 @@ export const getUserHandler = async (context: AppContext) => {
  * `permissionMiddleware()` already refuses the still-unexpired access JWT with 403
  * `account_disabled`.
  */
-export const setUserActiveHandler = async (context: AppContext) => {
+export const setUserActiveHandler = async (context: JsonContext<typeof setActiveSchema, '/users/:userId/active'>) => {
   const userId = context.req.param('userId')
-  const idGenerator = context.get('idGenerator')
+  const { isActive } = context.req.valid('json')
 
   const notFound = () =>
     rbacProblem(context, RBAC_ERRORS.NOT_FOUND, 404, 'Not Found', 'No such account.')
-
-  if (!idGenerator.isValid(userId)) return notFound()
-
-  const body = await readJson(context)
-  if (body === undefined) {
-    return rbacProblem(context, RBAC_ERRORS.INVALID_JSON, 400, 'Bad Request', 'Request body is not valid JSON.')
-  }
-  const parsed = setActiveSchema.safeParse(body)
-  if (!parsed.success) {
-    return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', parsed.error.message)
-  }
 
   const userRepository = context.get('userRepository')
   const assignmentRepository = context.get('roleAssignmentRepository')
@@ -177,7 +149,7 @@ export const setUserActiveHandler = async (context: AppContext) => {
   const actor = await resolveEffectivePermissions(context)
   if (!canAdministerAccount(actor, assignments)) return notFound()
 
-  if (!parsed.data.isActive && target.role === 'admin') {
+  if (!isActive && target.role === 'admin') {
     // The Developer is usually also the sole administrator; that is the more fundamental refusal.
     if (await userRepository.isLastGlobalAdmin(userId)) return lastAdminProblem(context)
     return rbacProblem(
@@ -192,15 +164,15 @@ export const setUserActiveHandler = async (context: AppContext) => {
   // LAST-ADMIN GUARDRAIL, enforced inside the UPDATE itself (brief §4: no self-revocation, so
   // the refusal applies to the holder too). A count read beforehand would let two concurrent
   // deactivations of different administrators both pass.
-  const result = await userRepository.setActive(userId, parsed.data.isActive)
+  const result = await userRepository.setActive(userId, isActive)
   if (result === 'not-found') return notFound()
   if (result === 'last-global-admin') return lastAdminProblem(context)
 
-  if (!parsed.data.isActive) {
+  if (!isActive) {
     await context.get('sessionRepository').revokeAllForUser(userId, context.get('clock').nowSeconds())
   }
 
-  return context.json({ id: userId, isActive: parsed.data.isActive })
+  return context.json({ id: userId, isActive }, 200)
 }
 
 function lastAdminProblem(context: AppContext) {

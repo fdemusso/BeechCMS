@@ -3,12 +3,12 @@
 // See LICENSE in the repository root for license terms.
 
 /**
- * Client HTTP per le API Beech.
- * - baseURL '/api': in dev il proxy Vite inoltra al Worker locale
- * - JWT: interceptor aggiunge Authorization Bearer
- * - FormData: interceptor rimuove Content-Type per far impostare il boundary al browser
+ * Sessione e trasporto per le API Beech: il client tipizzato (`./rpc`) chiama `apiFetch`.
+ * - JWT: Authorization Bearer dal token in memoria, refresh single-flight su 401
+ * - errori: ogni risposta non-2xx lancia `ApiError` (vedi ./http/api-error)
  */
-import axios, { type AxiosError } from 'axios';
+import { apiErrorFromResponse } from './http/api-error'
+import { createApiFetch } from './http/api-fetch'
 
 const LOGIN_PATH = '/admin/login';
 
@@ -37,26 +37,6 @@ function getAccessToken(): string | null { return _accessToken }
 export function setAccessToken(token: string): void { _accessToken = token }
 export function clearAccessToken(): void { _accessToken = null }
 
-export const api = axios.create({
-  baseURL: '/api',
-  timeout: 30_000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
-});
-
-api.interceptors.request.use((config) => {
-  const token = getAccessToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  if (config.data instanceof FormData) {
-    delete config.headers['Content-Type'];
-  }
-  return config;
-});
-
 let refreshPromise: Promise<string> | null = null;
 
 /**
@@ -70,12 +50,12 @@ export async function refreshToken(): Promise<string> {
 
   refreshPromise = (async () => {
     try {
-      const { data } = await axios.post<LoginResponse>('/auth/refresh', {}, {
-        withCredentials: true,
-      });
-      const newToken = data.token;
-      setAccessToken(newToken);
-      return newToken;
+      // Bare fetch: this call must not re-enter the 401 → refresh path of `apiFetch`.
+      const response = await fetch('/auth/refresh', { method: 'POST', credentials: 'include' })
+      if (!response.ok) throw await apiErrorFromResponse(response)
+      const data = (await response.json()) as LoginResponse
+      setAccessToken(data.token);
+      return data.token;
     } catch (error) {
       clearAccessToken();
       throw error;
@@ -87,35 +67,21 @@ export async function refreshToken(): Promise<string> {
   return refreshPromise;
 }
 
-api.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const originalRequest = error.config as any;
-
-    if (error.response?.status === 401 && globalThis.window !== undefined) {
-      const requestUrl = originalRequest?.url || '';
-      const isLoginRequest = requestUrl.includes('/auth/login');
-      const isRefreshRequest = requestUrl.includes('/auth/refresh');
-
-      if (isLoginRequest || isRefreshRequest) {
-        throw error;
-      }
-
-      try {
-        const newToken = await refreshToken();
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return api(originalRequest);
-      } catch (refreshError) {
-        if (!globalThis.location.pathname.startsWith(LOGIN_PATH)) {
-          globalThis.location.replace(LOGIN_PATH);
-        }
-        throw refreshError;
-      }
-    }
-
-    throw error;
+function onSessionExpired(): void {
+  if (!globalThis.location.pathname.startsWith(LOGIN_PATH)) {
+    globalThis.location.replace(LOGIN_PATH);
   }
-);
+}
+
+function buildFetch(timeoutMs?: number): typeof fetch {
+  return createApiFetch({ getAccessToken, refreshAccessToken: refreshToken, onSessionExpired, timeoutMs })
+}
+
+/** Authenticated fetch for the whole API surface (`/api/*` and `/auth/*`), 30 s budget. */
+export const apiFetch: typeof fetch = buildFetch()
+
+/** Same as `apiFetch` without the time budget: for downloads that may stream for minutes. */
+export const apiFetchUnbounded: typeof fetch = buildFetch(0)
 
 export function isTokenValid(token: string | null): boolean {
   if (!token) return false
@@ -131,7 +97,7 @@ export function isTokenValid(token: string | null): boolean {
 export async function logout(): Promise<void> {
   if (globalThis.window !== undefined) {
     try {
-      await axios.post('/auth/logout', {}, { withCredentials: true });
+      await fetch('/auth/logout', { method: 'POST', credentials: 'include' })
     } catch (err) {
       console.error('Logout error:', err);
     }

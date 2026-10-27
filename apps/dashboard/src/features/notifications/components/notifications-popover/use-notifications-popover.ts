@@ -4,7 +4,7 @@
 
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { api } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
 import { Bell, InfoCircle as Info, CheckCircle, AlertTriangle, XCircle } from '@/components/icons'
 import type { Notification, NotificationFilter } from "./types"
 
@@ -22,8 +22,8 @@ export function useNotificationsPopover() {
   const { data: rawNotifications = [], isLoading } = useQuery({
     queryKey: ["notifications"],
     queryFn: async () => {
-      const { data } = await api.get<any[]>("/content/notifications")
-      return data
+      const response = await rpc.api.content.notifications.$get()
+      return response.json()
     },
     refetchInterval: 5 * 60 * 1000, // 5 minuti
     staleTime: 60 * 1000, // 1 minuto
@@ -36,13 +36,13 @@ export function useNotificationsPopover() {
     title: n.title,
     description: n.message,
     icon: NOTIFICATION_ICONS[n.type] || Bell,
-    isNew: n.is_read === 0,
-    createdAt: new Date(n.created_at * 1000)
+    isNew: !n.isRead,
+    createdAt: new Date(n.createdAt * 1000)
   }))
 
   const markReadMutation = useMutation({
     mutationFn: async (id: string) => {
-      await api.patch(`/content/notifications/${id}/read`)
+      await rpc.api.content.notifications[":id"].read.$patch({ param: { id } })
     },
     // A 404 means another session already removed it; refetch so the stale row disappears.
     onSettled: () => {
@@ -52,7 +52,7 @@ export function useNotificationsPopover() {
 
   const markUnreadMutation = useMutation({
     mutationFn: async (id: string) => {
-      await api.patch(`/content/notifications/${id}/unread`)
+      await rpc.api.content.notifications[":id"].unread.$patch({ param: { id } })
     },
     // A 404 means another session already removed it; refetch so the stale row disappears.
     onSettled: () => {
@@ -62,7 +62,7 @@ export function useNotificationsPopover() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await api.delete(`/content/notifications/${id}`)
+      await rpc.api.content.notifications[":id"].$delete({ param: { id } })
     },
     // A 404 means another session already removed it; refetch so the stale row disappears.
     onSettled: () => {
@@ -72,7 +72,7 @@ export function useNotificationsPopover() {
 
   const markAllReadMutation = useMutation({
     mutationFn: async () => {
-      await api.post("/content/notifications/mark-all-read")
+      await rpc.api.content.notifications["mark-all-read"].$post()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] })

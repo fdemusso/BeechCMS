@@ -4,8 +4,10 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
+import type { ZodJsonInput } from '../../shared/utils/zod-json'
+import type { ZodQueryInput } from '../../shared/utils/zod-query'
 import { sha256hex, type OAuthScope } from '@beechcms/core'
-import type { Env, Variables } from '../../types'
+import type { AppEnv, Env, Variables } from '../../types'
 import { generateOpaqueToken } from '../../shared/utils/opaque-token'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { AUTHORIZATION_CODE_TTL_SECONDS, CONSENT_SCREEN_PATH, OAUTH_ERRORS } from './constants'
@@ -16,6 +18,7 @@ import {
   validateAuthorizationRequest,
   type ValidAuthorizationRequest,
 } from './authorization-request'
+import type { authorizationRequestQuerySchema, ConsentDecisionBody, consentDecisionBodySchema } from './oauth.schema'
 
 /** Context type alias for OAuth route handlers. */
 type OAuthContext = Context<{ Bindings: Env; Variables: Variables }>
@@ -38,29 +41,6 @@ interface AuthorizationRequestMetadata {
   redirectUri: string
   /** Opaque client CSRF state string. */
   state: string
-}
-
-/**
- * Request body sent by the dashboard SPA consent screen when the user
- * submits an authorization decision (approval or rejection).
- */
-interface ConsentDecisionBody {
-  /** OAuth response_type ('code'). */
-  response_type: string
-  /** The requesting client identifier. */
-  client_id: string
-  /** The redirection target URL. */
-  redirect_uri: string
-  /** Space-separated scope string. */
-  scope: string
-  /** Client state string. */
-  state: string
-  /** PKCE code challenge. */
-  code_challenge: string
-  /** PKCE code challenge method ('S256'). */
-  code_challenge_method: string
-  /** True if the resource owner approved the grant; false if denied. */
-  approved: boolean
 }
 
 /**
@@ -128,7 +108,7 @@ export async function authorizeHandler(context: OAuthContext): Promise<Response>
  * @param context - Hono request context with authenticated JWT claims in `jwtPayload`.
  * @returns JSON response containing `AuthorizationRequestMetadata`.
  */
-export async function authorizeRequestHandler(context: OAuthContext): Promise<Response> {
+export async function authorizeRequestHandler(context: Context<AppEnv, '/oauth/authorize/request', ZodQueryInput<typeof authorizationRequestQuerySchema>>) {
   const url = new URL(context.req.url)
   const raw = readAuthorizationRequestFromQuery(url.searchParams)
 
@@ -181,16 +161,13 @@ export async function authorizeRequestHandler(context: OAuthContext): Promise<Re
  * @param context - Hono request context with authenticated JWT claims in `jwtPayload`.
  * @returns JSON response containing `{ redirectTo: string }`.
  */
-export async function consentHandler(context: OAuthContext): Promise<Response> {
-  let body: Partial<ConsentDecisionBody>
-  try {
-    body = await context.req.json<Partial<ConsentDecisionBody>>()
-  } catch {
-    return context.json({ error: OAUTH_ERRORS.INVALID_REQUEST, error_description: 'request body must be valid JSON' }, 400)
-  }
-  if (typeof body !== 'object' || body === null) {
+export async function consentHandler(context: Context<AppEnv, '/oauth/authorize/consent', ZodJsonInput<typeof consentDecisionBodySchema>>) {
+  // The schema only types the request: whatever JSON the caller sent arrives here.
+  const parsed: unknown = context.req.valid('json')
+  if (typeof parsed !== 'object' || parsed === null) {
     return context.json({ error: OAUTH_ERRORS.INVALID_REQUEST, error_description: 'request body must be a JSON object' }, 400)
   }
+  const body = parsed as Partial<ConsentDecisionBody>
 
   // Every field is read through a type guard: the body is attacker-controlled JSON, and a
   // wrong-typed value (e.g. a numeric `scope`) must fall through as "missing", not crash

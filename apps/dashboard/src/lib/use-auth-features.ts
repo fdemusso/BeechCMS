@@ -3,15 +3,11 @@
 // See LICENSE in the repository root for license terms.
 
 import { useQuery } from '@tanstack/react-query'
-import axios from 'axios'
+import { rpc } from './rpc'
 
-interface AuthFeatures {
-  passwordReset: boolean
-}
-
-async function fetchAuthFeatures(): Promise<AuthFeatures> {
-  const { data } = await axios.get<AuthFeatures>('/auth/features')
-  return data
+async function fetchAuthFeatures() {
+  const response = await rpc.auth.features.$get()
+  return response.json()
 }
 
 export function useAuthFeatures() {

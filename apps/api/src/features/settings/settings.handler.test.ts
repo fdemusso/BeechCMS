@@ -158,6 +158,30 @@ describe('Settings Handler', () => {
       expect(body.detail).toContain('Invalid default language')
     })
 
+    it('answers a defaultLocale that is not a locale code with its own problem type', async () => {
+      const app = buildApp()
+      const res = await app.request('/', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ defaultLocale: 'not a locale' }),
+      })
+      expect(res.status).toBe(400)
+      const body = await res.json() as any
+      expect(body.type).toBe('settings-invalid-default-locale')
+    })
+
+    it('refuses a field of the wrong type instead of ignoring it, and writes nothing', async () => {
+      const setMany = vi.fn().mockResolvedValue(undefined)
+      const app = buildApp({ siteSettingsRepository: { getAll: vi.fn().mockResolvedValue({}), setMany } })
+      const res = await app.request('/', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteTitle: 5 }),
+      })
+      expect(res.status).toBe(400)
+      expect(setMany).not.toHaveBeenCalled()
+    })
+
     it('returns 400 for invalid company website URL', async () => {
       const app = buildApp()
       const res = await app.request('/', {
@@ -414,6 +438,17 @@ describe('Settings Handler', () => {
         body: JSON.stringify({ currentPassword: 'pwd', newPassword: 'short' }),
       })
       expect(res.status).toBe(400)
+      expect(await res.json()).toEqual({ error: 'Password must be at least 8 characters long' })
+    })
+
+    it('answers a missing password with the "both required" message, not a schema message', async () => {
+      const app = buildApp()
+      const res = await app.request('/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword: 'new-valid-pwd' }),
+      })
+      expect(await res.json()).toEqual({ error: 'Both currentPassword and newPassword are required' })
     })
 
     it('returns 400 if newPassword is too long', async () => {
@@ -512,6 +547,20 @@ describe('Settings Handler', () => {
       })
       expect(res.status).toBe(200)
       expect(updateAvatarSpy).toHaveBeenCalledWith('u1', 'https://beechcms.com/avatar.png')
+    })
+  })
+
+  describe('PUT /avatar without avatarUrl', () => {
+    it('returns 400 and leaves the avatar alone, instead of clearing it', async () => {
+      const updateAvatarSpy = vi.fn().mockResolvedValue(undefined)
+      const app = buildApp({ userRepository: { updateAvatarUrl: updateAvatarSpy } })
+      const res = await app.request('/avatar', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      expect(res.status).toBe(400)
+      expect(updateAvatarSpy).not.toHaveBeenCalled()
     })
   })
 

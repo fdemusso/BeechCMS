@@ -9,13 +9,14 @@ import React from "react"
 import { CANONICAL_SEEDS } from "@beechcms/testing"
 import type { Seed } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), post: vi.fn(), delete: vi.fn() },
+const mocked = vi.hoisted(() => ({ remove: vi.fn(), restore: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { content: { ":slug": { ":id": { $delete: mocked.remove, restore: { $post: mocked.restore } } } } } },
 }))
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: vi.fn() }))
 
-import { api } from "@/lib/api"
 import { toast } from "sonner"
 import { usePermissions, type PermissionsApi } from "@/features/shared/hooks/use-permissions"
 import type { ContentEntry } from "@/lib/dynamic-columns"
@@ -35,11 +36,11 @@ const ENTRY_B = "7c1d8e4f-3a5f-4d2b-8b64-1d0e4a2f8b02"
 const ENTRY_C = "9d2e9f50-4b60-4e3c-9c75-2e1f5b3a9c03"
 
 function entryOf(id: string): ContentEntry {
-  return { id, schema_slug: posts.slug, slug: `slug-${id.slice(0, 4)}`, status: "published", data: {}, created_at: 1, updated_at: 1 }
+  return { id, slug: `slug-${id.slice(0, 4)}`, status: "published", data: {}, created_at: 1, updated_at: 1 }
 }
 
 function pageOf(page: number, items: ContentEntry[]): ContentListWithMeta {
-  return { items, total: 3, page, limit: 2 }
+  return { items, total: 3, page, limit: 2, relations: {} }
 }
 
 const PAGE_ONE_KEY = CONTENT_QUERY_KEYS.list(posts.slug, { page: 1 })
@@ -83,8 +84,8 @@ describe("useDeleteWithUndo", () => {
     vi.clearAllMocks()
     queryClient = makeQueryClient()
     permissionsWith(() => true)
-    vi.mocked(api.delete).mockResolvedValue({ data: { success: true, softDeleted: true } })
-    vi.mocked(api.post).mockResolvedValue({ data: { success: true, slug: posts.slug } })
+    mocked.remove.mockResolvedValue({ json: async () => ({ success: true, softDeleted: true }) })
+    mocked.restore.mockResolvedValue({ json: async () => ({ success: true, slug: posts.slug }) })
   })
 
   function renderDeleteHook() {
@@ -103,8 +104,8 @@ describe("useDeleteWithUndo", () => {
   }
 
   it("removes the entry from every cached list page of its seed before the DELETE resolves", async () => {
-    const pendingDelete = deferred<{ data: { success: boolean } }>()
-    vi.mocked(api.delete).mockReturnValueOnce(pendingDelete.promise)
+    const pendingDelete = deferred<{ json: () => Promise<{ success: boolean }> }>()
+    mocked.remove.mockReturnValueOnce(pendingDelete.promise)
     queryClient.setQueryData(PAGE_TWO_KEY, pageOf(2, [entryOf(ENTRY_A), entryOf(ENTRY_C)]))
     const { result } = renderDeleteHook()
 
@@ -117,7 +118,7 @@ describe("useDeleteWithUndo", () => {
     })
     expect(queryClient.getQueryData<ContentListWithMeta>(PAGE_TWO_KEY)?.items.map((e) => e.id)).toEqual([ENTRY_C])
 
-    await act(async () => pendingDelete.resolve({ data: { success: true } }))
+    await act(async () => pendingDelete.resolve({ json: async () => ({ success: true }) }))
   })
 
   it("decrements total only on the page that contained the entry", async () => {
@@ -134,8 +135,8 @@ describe("useDeleteWithUndo", () => {
 
     await runDelete(result, { slug: posts.slug, id: ENTRY_A })
 
-    expect(api.delete).toHaveBeenCalledTimes(1)
-    expect(api.delete).toHaveBeenCalledWith(`/content/${posts.slug}/${ENTRY_A}`)
+    expect(mocked.remove).toHaveBeenCalledTimes(1)
+    expect(mocked.remove).toHaveBeenCalledWith({ param: { slug: posts.slug, id: ENTRY_A }, query: {} })
   })
 
   it("on success raises one toast lasting UNDO_DELETE_TOAST_MS with an Undo action", async () => {
@@ -171,8 +172,8 @@ describe("useDeleteWithUndo", () => {
 
     act(() => undoActionOf(0)?.onClick())
 
-    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1))
-    expect(api.post).toHaveBeenCalledWith(`/content/${posts.slug}/${ENTRY_A}/restore`)
+    await waitFor(() => expect(mocked.restore).toHaveBeenCalledTimes(1))
+    expect(mocked.restore).toHaveBeenCalledWith({ param: { slug: posts.slug, id: ENTRY_A } })
   })
 
   it("a successful undo invalidates the content and trash key spaces and confirms the restore", async () => {
@@ -188,7 +189,7 @@ describe("useDeleteWithUndo", () => {
   })
 
   it("a failed undo shows restoreFailed and does not throw", async () => {
-    vi.mocked(api.post).mockRejectedValueOnce(new Error("restore refused"))
+    mocked.restore.mockRejectedValueOnce(new Error("restore refused"))
     const { result } = renderDeleteHook()
     await runDelete(result, { slug: posts.slug, id: ENTRY_A })
 
@@ -213,7 +214,7 @@ describe("useDeleteWithUndo", () => {
   })
 
   it("a failed DELETE puts the row back in every cached page, shows deleteFailed and resolves false", async () => {
-    vi.mocked(api.delete).mockRejectedValueOnce(new Error("server down"))
+    mocked.remove.mockRejectedValueOnce(new Error("server down"))
     const { result } = renderDeleteHook()
 
     const deleted = await runDelete(result, { slug: posts.slug, id: ENTRY_A })
@@ -228,18 +229,18 @@ describe("useDeleteWithUndo", () => {
   })
 
   it("raises the undo toast even when the calling component has unmounted before the DELETE resolves", async () => {
-    const pendingDelete = deferred<{ data: { success: boolean } }>()
-    vi.mocked(api.delete).mockReturnValueOnce(pendingDelete.promise)
+    const pendingDelete = deferred<{ json: () => Promise<{ success: boolean }> }>()
+    mocked.remove.mockReturnValueOnce(pendingDelete.promise)
     const { result, unmount } = renderDeleteHook()
     act(() => {
       void result.current.deleteWithUndo({ slug: posts.slug, id: ENTRY_A })
     })
-    await waitFor(() => expect(api.delete).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(mocked.remove).toHaveBeenCalledTimes(1))
 
     // Regression guard: callbacks passed to `mutate(vars, {...})` are dropped on unmount,
     // mutation-level options are not. The entry editor unmounts right after calling delete.
     unmount()
-    pendingDelete.resolve({ data: { success: true } })
+    pendingDelete.resolve({ json: async () => ({ success: true }) })
 
     await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1))
     expect(toast.success).toHaveBeenCalledWith(

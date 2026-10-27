@@ -2,14 +2,50 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { createContext, useContext, type ReactNode } from 'react'
+import type {
+  WidgetAggregateResponse,
+  WidgetDistributionResponse,
+  WidgetGrowthResponse,
+  WidgetListResponse,
+  WidgetTimeseriesResponse,
+} from './hooks/use-widget-data.js'
+
+/** The time window of every widget route, as the query string carries it. */
+export interface WidgetWindowQuery {
+  window?: string
+  from?: string
+  to?: string
+}
+
+/** One widget route as the typed `hc` client exposes it: `client.<route>[':seed'].$get(...)`. */
+export interface WidgetRoute<Query, Response> {
+  $get(args: { param: { seed: string }; query: Query }): Promise<{ json(): Promise<Response> }>
+}
 
 /**
- * Minimal HTTP client contract the SDK's data hooks depend on. The
- * dashboard's Axios instance satisfies this shape — no Axios import lives
- * in this package.
+ * Typed client contract the SDK's data hooks depend on: the `widget` subtree of the dashboard's
+ * `hc` client (`rpc.api.widget`). It is declared here, structurally, so the SDK imports nothing
+ * from the API; the host's `<WidgetSdkProvider client={...}>` only compiles while the server routes
+ * still answer these shapes.
  */
 export interface WidgetSdkClient {
-  get<T>(url: string, config?: { params?: Record<string, unknown> }): Promise<{ data: T }>
+  aggregate: { ':seed': WidgetRoute<{ formula: string } & WidgetWindowQuery, WidgetAggregateResponse> }
+  growth: { ':seed': WidgetRoute<{ formula: string } & WidgetWindowQuery, WidgetGrowthResponse> }
+  timeseries: {
+    ':seed': WidgetRoute<
+      { formula: string; valueColumn?: string; groupColumn: string } & WidgetWindowQuery,
+      WidgetTimeseriesResponse
+    >
+  }
+  distribution: {
+    ':seed': WidgetRoute<{ column: string; limit: string } & WidgetWindowQuery, WidgetDistributionResponse>
+  }
+  list: {
+    ':seed': WidgetRoute<
+      { limit: string; offset: string; search?: string; orderBy?: string; orderDir?: string },
+      WidgetListResponse
+    >
+  }
 }
 
 const WidgetSdkContext = createContext<WidgetSdkClient | null>(null)
@@ -19,7 +55,7 @@ export interface WidgetSdkProviderProps {
   children: ReactNode
 }
 
-/** Mounted once by the host app, carrying its authenticated HTTP client. */
+/** Mounted once by the host app, carrying its authenticated typed client. */
 export function WidgetSdkProvider({ client, children }: WidgetSdkProviderProps) {
   return <WidgetSdkContext.Provider value={client}>{children}</WidgetSdkContext.Provider>
 }

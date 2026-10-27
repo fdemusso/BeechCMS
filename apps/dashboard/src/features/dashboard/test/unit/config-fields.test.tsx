@@ -9,11 +9,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 import type { AggregateFormula, Seed } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
+const mocked = vi.hoisted(() => ({ schema: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { schema: { $get: mocked.schema } } },
 }))
 
-import { api } from "@/lib/api"
 import {
   FieldRow,
   TextField,
@@ -58,7 +59,7 @@ const SEEDS: Seed[] = [
 describe("config-fields", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: SEEDS })
+    mocked.schema.mockResolvedValue({ json: async () => SEEDS })
   })
 
   it("FieldRow renders label and children", () => {

@@ -8,16 +8,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 import type { DashboardLayout } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: {
-    get: vi.fn(),
-    put: vi.fn(),
-    post: vi.fn(),
-    delete: vi.fn(),
-  },
+const mocked = vi.hoisted(() => ({ layout: vi.fn(), schema: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { "dashboard-layout": { $get: mocked.layout }, schema: { $get: mocked.schema } } },
 }))
 
-import { api } from "@/lib/api"
 import { useDashboardLayout } from "@/features/dashboard/hooks/use-dashboard-layout"
 
 function makeQueryClient() {
@@ -31,11 +27,10 @@ function wrapper(client: QueryClient) {
     React.createElement(QueryClientProvider, { client }, children)
 }
 
-function mockApiGet(responses: Record<string, unknown>) {
-  ;(api.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-    if (url in responses) return Promise.resolve({ data: responses[url] })
-    throw new Error(`Unexpected api.get("${url}")`)
-  })
+/** The layout and the schema are both read through rpc. */
+function mockResponses({ layout, schema }: { layout: unknown; schema: unknown }) {
+  mocked.layout.mockResolvedValue({ json: async () => layout })
+  mocked.schema.mockResolvedValue({ json: async () => schema })
 }
 
 describe("useDashboardLayout", () => {
@@ -44,10 +39,7 @@ describe("useDashboardLayout", () => {
   })
 
   it("falls back to the generated default layout when none is stored", async () => {
-    mockApiGet({
-      "/dashboard-layout": { scope: "user", layout: null },
-      "/schema": [],
-    })
+    mockResponses({ layout: { scope: "user", layout: null }, schema: [] })
 
     const { result } = renderHook(() => useDashboardLayout(), {
       wrapper: wrapper(makeQueryClient()),
@@ -86,10 +78,7 @@ describe("useDashboardLayout", () => {
       ],
     }
 
-    mockApiGet({
-      "/dashboard-layout": { scope: "user", layout: storedLayout },
-      "/schema": [],
-    })
+    mockResponses({ layout: { scope: "user", layout: storedLayout }, schema: [] })
 
     const { result } = renderHook(() => useDashboardLayout(), {
       wrapper: wrapper(makeQueryClient()),

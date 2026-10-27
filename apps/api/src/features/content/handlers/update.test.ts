@@ -3,12 +3,10 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi } from 'vitest'
+import { Hono } from 'hono'
 import type { Seed, SiteSettings } from '@beechcms/core'
-import { updateHandler } from './update'
-
-vi.mock('../../../public/errors/problem-details', () => ({
-  publicProblem: vi.fn((_ctx, details) => ({ mockProblem: true, ...details })),
-}))
+import type { AppEnv } from '../../../types'
+import { contentCrudApp } from '../crud.router'
 
 const SEED: Seed = {
   slug: 'articles',
@@ -42,47 +40,41 @@ const SETTINGS: SiteSettings = {
   trashRetentionDays: 14,
 }
 
-function makeContext(overrides: {
+// The handler is mounted through the real router so the seed and body checks that precede it run too.
+async function put(overrides: {
   body?: unknown
   ifMatchHeader?: string
 } = {}) {
   const { body, ifMatchHeader } = overrides
 
   const update = vi.fn().mockResolvedValue(undefined)
-  const jsonMock = vi.fn((data: unknown) => ({ json: data }))
-  const ctx = {
-    req: {
-      param: vi.fn((key: string) => {
-        if (key === 'slug') return 'articles'
-        if (key === 'id') return 'entry-1'
-        return undefined
-      }),
-      json: vi.fn().mockResolvedValue(body),
-      header: vi.fn((key: string) => (key === 'If-Match' ? ifMatchHeader : undefined)),
-    },
-    get: vi.fn((key: string) => {
-      if (key === 'getSeed') return () => SEED
-      if (key === 'repository') return { findById: vi.fn().mockResolvedValue({ ...CURRENT_ENTRY }), update, existsSlug: vi.fn().mockResolvedValue(false) }
-      if (key === 'siteSettingsRepository') return { getAll: vi.fn().mockResolvedValue(SETTINGS) }
-      if (key === 'idGenerator') return { uuid: () => 'gen-id' }
-      if (key === 'jwtPayload') return { sub: 'user-1', role: 'admin', email: 'user@x.test' }
-      if (key === 'activityLogger') return { log: vi.fn() }
-      if (key === 'scheduler') return { waitUntil: vi.fn() }
-      if (key === 'automationRunner') return { run: vi.fn().mockResolvedValue(undefined) }
-      return undefined
-    }),
-    json: jsonMock,
-  }
-  return { ctx, jsonMock, update }
+  const app = new Hono<AppEnv>()
+  app.use('*', async (context, next) => {
+    context.set('getSeed', () => SEED)
+    context.set('repository', { findById: vi.fn().mockResolvedValue({ ...CURRENT_ENTRY }), update, existsSlug: vi.fn().mockResolvedValue(false) } as never)
+    context.set('siteSettingsRepository', { getAll: vi.fn().mockResolvedValue(SETTINGS) } as never)
+    context.set('idGenerator', { uuid: () => 'gen-id' } as never)
+    context.set('jwtPayload', { sub: 'user-1', role: 'admin', email: 'user@x.test' } as never)
+    context.set('activityLogger', { log: vi.fn() } as never)
+    context.set('scheduler', { waitUntil: vi.fn() } as never)
+    context.set('automationRunner', { run: vi.fn().mockResolvedValue(undefined) } as never)
+    await next()
+  })
+  app.route('/api/content', contentCrudApp)
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (ifMatchHeader !== undefined) headers['If-Match'] = ifMatchHeader
+  const response = await app.request('/api/content/articles/entry-1', { method: 'PUT', headers, body: JSON.stringify(body) })
+  return { response, update }
 }
 
 describe('updateHandler — localized fields', () => {
   // Regression guard: the read-modify-write race. Without an implicit guard, a concurrent write
   // landing between the read and the update would silently drop the translation it wrote.
   it('merges a localized write into the stored dictionary and guards it with the stored updated_at', async () => {
-    const { ctx, update } = makeContext({ body: { title: { en: 'Shoe' } } })
+    const { response, update } = await put({ body: { title: { en: 'Shoe' } } })
 
-    await updateHandler(ctx as never)
+    expect(response.status).toBe(200)
 
     expect(update).toHaveBeenCalledWith(
       SEED,
@@ -94,9 +86,9 @@ describe('updateHandler — localized fields', () => {
   })
 
   it('keeps the client If-Match over the implicit guard', async () => {
-    const { ctx, update } = makeContext({ body: { title: { en: 'Shoe' } }, ifMatchHeader: '"1699999999"' })
+    const { response, update } = await put({ body: { title: { en: 'Shoe' } }, ifMatchHeader: '"1699999999"' })
 
-    await updateHandler(ctx as never)
+    expect(response.status).toBe(200)
 
     expect(update).toHaveBeenCalledWith(
       SEED,
@@ -108,9 +100,9 @@ describe('updateHandler — localized fields', () => {
   })
 
   it('adds no implicit guard to a write that touches no localized branch', async () => {
-    const { ctx, update } = makeContext({ body: { code: 'Y' } })
+    const { response, update } = await put({ body: { code: 'Y' } })
 
-    await updateHandler(ctx as never)
+    expect(response.status).toBe(200)
 
     expect(update).toHaveBeenCalledWith(
       SEED,

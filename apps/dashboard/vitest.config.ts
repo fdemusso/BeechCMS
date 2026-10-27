@@ -42,7 +42,6 @@ export default defineConfig({
         "src/lib/i18n.ts",
         "src/vite-env.d.ts",
         "src/config/**",
-        "src/lib/api.ts",      // axios client factory — no unit testable logic
         "src/lib/query-client.ts",
         "src/lib/icon-registry.ts",
         "src/lib/upload.ts",

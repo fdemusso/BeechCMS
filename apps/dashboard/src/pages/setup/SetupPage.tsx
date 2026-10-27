@@ -6,7 +6,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import i18n from '@/lib/i18n'
-import axios from 'axios'
+import type { InferRequestType, InferResponseType } from 'hono/client'
+import { rpc } from '@/lib/rpc'
+import { isApiError } from '@/lib/http/api-error'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,10 +24,8 @@ import { LanguageSelect } from '@/components/ui/language-select'
 
 import { PasswordStrengthIndicator } from '@/components/ui/password-strength-indicator'
 
-interface SetupEnvironment {
-  isDeveloper: boolean
-  services: { mail: boolean; qstash: boolean }
-}
+type SetupPayload = InferRequestType<typeof rpc.auth.setup.$post>['json']
+type SetupEnvironment = Extract<InferResponseType<typeof rpc.auth.setup.$get>, { environment: unknown }>['environment']
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
   return (
@@ -116,10 +116,12 @@ export function SetupPage() {
   }, [])
 
   useEffect(() => {
-    axios.get('/auth/setup').then((res) => {
-      const env: SetupEnvironment = res.data.environment
-      setEnvironment(env)
-      setTrack(env.isDeveloper ? 'developer' : 'normal')
+    rpc.auth.setup.$get().then(async (response) => {
+      const status = await response.json()
+      // Once an admin exists the server withholds the environment; the root gate sends the user away.
+      if (!('environment' in status)) return
+      setEnvironment(status.environment)
+      setTrack(status.environment.isDeveloper ? 'developer' : 'normal')
     })
   }, [])
 
@@ -192,34 +194,34 @@ export function SetupPage() {
     }
 
     try {
-      const payload: Record<string, unknown> = {
+      const account = {
         name: name.trim(),
         surname: surname.trim(),
         email: email.trim().toLowerCase(),
         password,
         settings: { language, timezone, currency },
-        track,
       }
+      const payload: SetupPayload = track === 'developer'
+        ? { ...account, track, loadDemoData }
+        : {
+            ...account,
+            track,
+            company: {
+              name: companyName.trim(),
+              website: companyWebsite.trim(),
+              abbreviation: companyAbbreviation.trim() || undefined,
+            },
+          }
 
-      if (track === 'developer') {
-        payload.loadDemoData = loadDemoData
-      } else {
-        payload.company = {
-          name: companyName.trim(),
-          website: companyWebsite.trim(),
-          abbreviation: companyAbbreviation.trim() || undefined,
-        }
-      }
-
-      await axios.post('/auth/setup', payload)
+      await rpc.auth.setup.$post({ json: payload })
       // Stale needsSetup=true from the last poll would otherwise bounce us
       // straight back here via the RootLayout gate — refresh it first.
       await recheckSetup()
       navigate('/login', { replace: true })
     } catch (err: unknown) {
       setSubmitting(false)
-      if (axios.isAxiosError(err) && err.response?.data?.title) {
-        setError(err.response.data.title)
+      if (isApiError(err) && err.data?.title) {
+        setError(err.data.title)
       } else {
         setError(t('setup.errorFallback'))
       }

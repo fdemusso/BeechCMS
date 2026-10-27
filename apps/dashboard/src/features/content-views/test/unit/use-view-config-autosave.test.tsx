@@ -14,11 +14,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import * as React from "react"
 import { emptyViewConfig, type ContentViewConfig } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn().mockResolvedValue({ data: {} }), delete: vi.fn() },
+const mocked = vi.hoisted(() => ({ patch: vi.fn().mockResolvedValue({ json: async () => ({}) }) }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { content: { ":slug": { views: { ":viewId": { $patch: mocked.patch } } } } } },
 }))
 
-import { api } from "@/lib/api"
 import { useViewConfigAutosave } from "../../hooks/use-view-config-autosave"
 
 function makeQueryClient() {
@@ -49,7 +50,7 @@ describe("useViewConfigAutosave", () => {
 
     unmount()
 
-    expect(api.patch).not.toHaveBeenCalled()
+    expect(mocked.patch).not.toHaveBeenCalled()
   })
 
   it("flushes the latest config on unmount instead of dropping it", async () => {
@@ -62,12 +63,12 @@ describe("useViewConfigAutosave", () => {
     rerender({ config: CONFIG_C })
     unmount()
 
-    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(1))
-    expect(api.patch).toHaveBeenCalledWith("/content/posts/views/v1", { config: CONFIG_C })
+    await waitFor(() => expect(mocked.patch).toHaveBeenCalledTimes(1))
+    expect(mocked.patch).toHaveBeenCalledWith({ param: { slug: "posts", viewId: "v1" }, json: { config: CONFIG_C } })
   })
 
   it("retries a config whose save failed instead of treating it as saved", async () => {
-    vi.mocked(api.patch).mockRejectedValueOnce(new Error("network down"))
+    mocked.patch.mockRejectedValueOnce(new Error("network down"))
     const { result, rerender, unmount } = renderHook(
       ({ config }) => useViewConfigAutosave({ slug: "posts", viewId: "v1", config, enabled: true }),
       { wrapper: wrapper(queryClient), initialProps: { config: CONFIG_A } }
@@ -75,12 +76,12 @@ describe("useViewConfigAutosave", () => {
 
     // Debounced save fires on the real timer and is rejected by the network.
     rerender({ config: CONFIG_B })
-    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(1), { timeout: 3000 })
+    await waitFor(() => expect(mocked.patch).toHaveBeenCalledTimes(1), { timeout: 3000 })
     await waitFor(() => expect(result.current.isSaving).toBe(false))
     unmount()
 
-    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(2))
-    expect(api.patch).toHaveBeenLastCalledWith("/content/posts/views/v1", { config: CONFIG_B })
+    await waitFor(() => expect(mocked.patch).toHaveBeenCalledTimes(2))
+    expect(mocked.patch).toHaveBeenLastCalledWith({ param: { slug: "posts", viewId: "v1" }, json: { config: CONFIG_B } })
   })
 
   it("never writes when disabled for a user without content:update", () => {
@@ -92,6 +93,6 @@ describe("useViewConfigAutosave", () => {
     rerender({ config: CONFIG_B })
     unmount()
 
-    expect(api.patch).not.toHaveBeenCalled()
+    expect(mocked.patch).not.toHaveBeenCalled()
   })
 })

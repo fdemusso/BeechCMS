@@ -73,7 +73,6 @@ export function useContentList(slug: string | undefined, params: ContentListQuer
         if (!existing) {
           queryClient.setQueryData<ContentEntry>(cacheKey, {
             id,
-            schema_slug: targetSlug,
             slug: null,
             status: "published",
             data: { [labelAlias]: label },

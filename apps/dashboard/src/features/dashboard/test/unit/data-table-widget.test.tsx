@@ -9,13 +9,18 @@ import { MemoryRouter } from "react-router-dom"
 import React from "react"
 import type { Seed } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
+const mocked = vi.hoisted(() => ({ schema: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { schema: { $get: mocked.schema } } },
 }))
 
-import { api } from "@/lib/api"
+import { widgetClientFromGet, type WidgetGet } from "@/test/widget-client"
 import { WidgetSdkProvider } from "@beechcms/widget-sdk"
 import { DataTableWidget } from "@/features/dashboard/components/widgets/data-table-widget"
+
+const widgetGet = vi.fn<WidgetGet>()
+const widgetClient = widgetClientFromGet((url, config) => widgetGet(url, config))
 
 const seed: Seed = {
   slug: "posts",
@@ -36,17 +41,19 @@ function renderWithProviders(ui: React.ReactElement) {
   const client = makeQueryClient()
   return render(
     <QueryClientProvider client={client}>
-      <WidgetSdkProvider client={api}>
+      <WidgetSdkProvider client={widgetClient}>
         <MemoryRouter>{ui}</MemoryRouter>
       </WidgetSdkProvider>
     </QueryClientProvider>,
   )
 }
 
-function mockApiGet(responses: Record<string, unknown>) {
-  ;(api.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+/** `GET /schema` goes through rpc; the widget list is read by the SDK client, which is the api client. */
+function mockApiGet({ "/schema": seeds, ...responses }: Record<string, unknown>) {
+  mocked.schema.mockResolvedValue({ json: async () => seeds })
+  ;widgetGet.mockImplementation((url: string) => {
     if (url in responses) return Promise.resolve({ data: responses[url] })
-    throw new Error(`Unexpected api.get("${url}")`)
+    throw new Error(`Unexpected widget get("${url}")`)
   })
 }
 

@@ -2,71 +2,15 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-export interface DashboardStats {
-  total: number
-  today: number
-  week: number
-  month: number
-}
+import type { InferResponseType } from "hono/client"
+import type { rpc } from "@/lib/rpc"
 
-interface CloudflareMetric {
-  value: number
-  unit?: string
-  trend: number
-  isPositive: boolean
-}
+// Read off the routes, not restated: the API is the only place these shapes are defined.
+type Stats = typeof rpc.api.content.stats
 
-export interface CloudflareStats {
-  visitors: CloudflareMetric
-  requests: CloudflareMetric
-  bandwidth: CloudflareMetric
-  cacheRate: CloudflareMetric
-  storage: {
-    used: number
-    limit: number
-    unit: string
-    percentage: number
-  }
-}
-export interface RecentActivity {
-  id: string
-  user_id: string
-  user_email: string
-  user_name?: string | null
-  action: 'create' | 'update' | 'delete' | 'upload'
-  entity_type: 'content' | 'media' | 'seed'
-  entity_id: string
-  entity_slug?: string
-  details?: Record<string, any>
-  created_at: number
-}
-export interface SystemHealth {
-  storage: {
-    used: number
-    limit: number
-    percentage: number
-  }
-  database: {
-    requests30d: number
-    limit: number
-    percentage: number
-  }
-  status: 'healthy' | 'warning' | 'critical'
-  lastUpdate: number
-}
-
-export interface ContentBreakdown {
-  slug: string
-  label: string
-  count: number
-  color?: string
-}
-
-export interface SetupChecklist {
-  systemTablesOk: boolean
-  seedsCount: number
-  contentTablesOk: boolean
-  adminExists: boolean
-  hasContent: boolean
-  firstSeedSlug: string | null
-}
+export type DashboardStats = InferResponseType<Stats["total"]["$get"]>
+export type CloudflareStats = InferResponseType<Stats["cloudflare"]["$get"]>
+export type RecentActivity = InferResponseType<Stats["recent-activity"]["$get"]>[number]
+export type SystemHealth = InferResponseType<Stats["health"]["$get"]>
+export type ContentBreakdown = InferResponseType<Stats["breakdown"]["$get"]>[number]
+export type SetupChecklist = InferResponseType<Stats["setup-checklist"]["$get"]>

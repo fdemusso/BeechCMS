@@ -4,8 +4,8 @@
 
 import React, { useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import axios from "axios"
-import { type LoginResponse } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
+import { isApiError } from "@/lib/http/api-error"
 import { useAuth } from "@/lib/auth-context"
 
 /** Regex for email format validation */
@@ -97,17 +97,16 @@ export function useLoginForm() {
 
     setIsLoading(true)
     try {
-      // Use direct axios for /auth/login (does not go through baseURL '/api')
-      const { data } = await axios.post<LoginResponse>('/auth/login', { email, password }, {
-        withCredentials: true, // Required to receive refresh_token cookie
-      })
+      // The refresh_token cookie is set by this response; `apiFetch` always sends credentials.
+      const response = await rpc.auth.login.$post({ json: { email, password } })
+      const data = await response.json()
       setToken(data.token)
       setIsLoading(false)
       navigate(safeReturnTo(searchParams.get('returnTo')), { replace: true })
     } catch (error) {
       setIsLoading(false)
-      if (axios.isAxiosError(error)) {
-        if (error.response?.status === 401) {
+      if (isApiError(error)) {
+        if (error.status === 401) {
           setPasswordError(ERROR_MESSAGES.CREDENTIALS_INVALID)
         } else {
           // Handle other errors (network, 500, etc.)

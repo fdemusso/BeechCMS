@@ -2,38 +2,27 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { api } from "@/lib/api"
-import type { ContentEntry } from "@/lib/dynamic-columns"
+import type { InferResponseType } from "hono/client"
+import { rpc } from "@/lib/rpc"
 
 export interface TrashListParams {
   page: number
   limit: number
 }
 
-export interface TrashListResponse {
-  items: ContentEntry[]
-  total: number
-  page: number
-  limit: number
-  /** Effective retention for this seed (seed override, else global setting). 0 = never purged. */
-  retentionDays: number
-}
+/** `retentionDays` is the effective retention for this seed (seed override, else global setting); 0 = never purged. */
+export type TrashListResponse = InferResponseType<(typeof rpc.api.content)[":slug"]["trash"]["$get"]>
 
-interface BulkTrashFailedItem {
-  id: string
-  problem: { status: number; type: string; detail: string }
-}
+/**
+ * A row of the Trash list. Not a `ContentEntry`: the Trash envelope carries the system columns and
+ * `data`, with no `schema_slug` and no `has_pending_draft`.
+ */
+export type TrashEntry = TrashListResponse["items"][number]
 
-export interface BulkTrashResult {
-  succeeded: string[]
-  failed: BulkTrashFailedItem[]
-}
+export type BulkTrashResult = InferResponseType<(typeof rpc.api.content)[":slug"]["trash"]["bulk-restore"]["$post"]>
 
-export interface RestoreResult {
-  success: boolean
-  /** The slug the entry actually ended up with — auto-renamed when the original was reassigned. */
-  slug: string | null
-}
+/** `slug` is the one the entry actually ended up with, auto-renamed when the original was reassigned. */
+export type RestoreResult = InferResponseType<(typeof rpc.api.content)[":slug"][":id"]["restore"]["$post"]>
 
 /**
  * Trash API within the Content Management Slice.
@@ -42,22 +31,25 @@ export interface RestoreResult {
  */
 export const trashApi = {
   fetchTrash: async (slug: string, params: TrashListParams): Promise<TrashListResponse> => {
-    const response = await api.get<TrashListResponse>(`/content/${slug}/trash`, { params })
-    return response.data
+    const response = await rpc.api.content[":slug"].trash.$get({
+      param: { slug },
+      query: { page: String(params.page), limit: String(params.limit) },
+    })
+    return response.json()
   },
 
   restore: async (slug: string, id: string): Promise<RestoreResult> => {
-    const response = await api.post<RestoreResult>(`/content/${slug}/${id}/restore`)
-    return response.data
+    const response = await rpc.api.content[":slug"][":id"].restore.$post({ param: { slug, id } })
+    return response.json()
   },
 
   bulkRestore: async (slug: string, ids: string[]): Promise<BulkTrashResult> => {
-    const response = await api.post<BulkTrashResult>(`/content/${slug}/trash/bulk-restore`, { ids })
-    return response.data
+    const response = await rpc.api.content[":slug"].trash["bulk-restore"].$post({ param: { slug }, json: { ids } })
+    return response.json()
   },
 
   bulkPurge: async (slug: string, ids: string[]): Promise<BulkTrashResult> => {
-    const response = await api.post<BulkTrashResult>(`/content/${slug}/trash/bulk-purge`, { ids })
-    return response.data
+    const response = await rpc.api.content[":slug"].trash["bulk-purge"].$post({ param: { slug }, json: { ids } })
+    return response.json()
   },
 }

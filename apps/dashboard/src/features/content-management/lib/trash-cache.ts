@@ -36,7 +36,10 @@ export async function removeEntryFromCachedLists(
   const snapshot = queryClient.getQueriesData<ContentListWithMeta>({ queryKey: listsPrefix })
 
   queryClient.setQueriesData<ContentListWithMeta>({ queryKey: listsPrefix }, (page) => {
-    if (!page?.items.some((entry) => entry.id === id)) return page
+    // Not every query under the prefix is a list page: the relation picker caches a bare array of
+    // entries at [...lists(), slug, "relation-search", term]. Touching it threw inside `onMutate`,
+    // which failed the delete before the request left the browser.
+    if (!Array.isArray(page?.items) || !page.items.some((entry) => entry.id === id)) return page
     return { ...page, items: page.items.filter((entry) => entry.id !== id), total: page.total - 1 }
   })
 

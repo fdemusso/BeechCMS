@@ -24,7 +24,7 @@ import './index.css'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/query-client'
 import { WidgetSdkProvider } from '@beechcms/widget-sdk'
-import { api } from '@/lib/api'
+import { rpc } from '@/lib/rpc'
 import '@/lib/i18n'
 import App from './App.tsx'
 import './widgets.custom'
@@ -32,7 +32,7 @@ import './widgets.custom'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <WidgetSdkProvider client={api}>
+      <WidgetSdkProvider client={rpc.api.widget}>
         <ThemeProvider>
           <TooltipProvider>
             <App />

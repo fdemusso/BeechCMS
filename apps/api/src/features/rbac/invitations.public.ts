@@ -3,12 +3,14 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import type { MiddlewareHandler } from 'hono'
 import { GLOBAL_SCOPE, buildEffectivePermissions, canGrant, hasPermission, isValidAccountEmail, sha256hex, type EffectivePermissions } from '@beechcms/core'
 import { getClientIp } from '../../shared/utils/request-utils'
 import { publicProblem } from '../../public/errors/problem-details'
 import { RBAC_ERRORS } from './constants'
-import { rbacProblem, readJson, type AppContext } from './guards'
-import { acceptInvitationSchema } from './rbac.schema'
+import type { AppEnv } from '../../types'
+import { rbacProblem, type AppContext, type JsonContext } from './guards'
+import type { acceptInvitationSchema } from './rbac.schema'
 
 /** Issuer authority resolved WITHOUT a JWT: the redeem path has no authenticated
  *  subject, so `resolveEffectivePermissions` (which reads `jwtPayload`) cannot be used.
@@ -23,19 +25,25 @@ async function resolveIssuerAuthority(
   return buildEffectivePermissions(assignments, roles)
 }
 
-async function checkInviteRateLimit(context: AppContext): Promise<Response | null> {
+/**
+ * Per-IP rate limit shared by both public routes. A middleware so that on `accept` it runs before
+ * the body is read: a throttled caller learns nothing about the body contract.
+ */
+export const limitInvitationRequests: MiddlewareHandler<AppEnv> = async (context, next) => {
   const ip = getClientIp(context.req)
   const limit = await context.get('rateLimiters').getLimiter('acceptInvitation').checkLimit(ip)
-  if (limit.isAllowed) return null
-  const headers: Record<string, string> = {}
-  if (limit.retryAfterSeconds !== undefined) headers['Retry-After'] = String(limit.retryAfterSeconds)
-  return publicProblem(context, {
-    type: 'too-many-requests',
-    title: 'Too Many Requests',
-    status: 429,
-    detail: 'Too many requests.',
-    headers,
-  })
+  if (!limit.isAllowed) {
+    const headers: Record<string, string> = {}
+    if (limit.retryAfterSeconds !== undefined) headers['Retry-After'] = String(limit.retryAfterSeconds)
+    return publicProblem(context, {
+      type: 'too-many-requests',
+      title: 'Too Many Requests',
+      status: 429,
+      detail: 'Too many requests.',
+      headers,
+    })
+  }
+  await next()
 }
 
 /**
@@ -44,9 +52,6 @@ async function checkInviteRateLimit(context: AppContext): Promise<Response | nul
  * for a password.
  */
 export const previewInvitationHandler = async (context: AppContext) => {
-  const limited = await checkInviteRateLimit(context)
-  if (limited) return limited
-
   const invalid = () => rbacProblem(context, RBAC_ERRORS.INVITATION_INVALID, 404, 'Not Found', 'Invitation is unknown, expired or already used.')
 
   const tokenHash = await sha256hex(context.req.param('token') ?? '')
@@ -56,7 +61,7 @@ export const previewInvitationHandler = async (context: AppContext) => {
   const role = await context.get('roleRepository').findById(invitation.roleId)
   if (!role) return invalid()
 
-  return context.json({ email: invitation.email, roleName: role.name, scope: invitation.scope })
+  return context.json({ email: invitation.email, roleName: role.name, scope: invitation.scope }, 200)
 }
 
 /**
@@ -65,24 +70,14 @@ export const previewInvitationHandler = async (context: AppContext) => {
  * write, so a failure never burns the invitation or strands an account without a role.
  * No token, no session: the activated account logs in through `POST /auth/login` like any other.
  */
-export const acceptInvitationHandler = async (context: AppContext) => {
-  const limited = await checkInviteRateLimit(context)
-  if (limited) return limited
-
-  const body = await readJson(context)
-  if (body === undefined) {
-    return rbacProblem(context, RBAC_ERRORS.INVALID_JSON, 400, 'Bad Request', 'Request body is not valid JSON.')
-  }
-  const parsed = acceptInvitationSchema.safeParse(body)
-  if (!parsed.success) {
-    return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', parsed.error.message)
-  }
+export const acceptInvitationHandler = async (context: JsonContext<typeof acceptInvitationSchema>) => {
+  const input = context.req.valid('json')
 
   const invalid = () => rbacProblem(context, RBAC_ERRORS.INVITATION_INVALID, 404, 'Not Found', 'Invitation is unknown, expired or already used.')
 
   const now = context.get('clock').nowSeconds()
   const invitationRepository = context.get('invitationRepository')
-  const tokenHash = await sha256hex(parsed.data.token)
+  const tokenHash = await sha256hex(input.token)
   const invitation = await invitationRepository.findValidByHash(tokenHash, now)
   if (!invitation) return invalid()
   // Legacy invitations may predate validation parity with login.
@@ -113,7 +108,7 @@ export const acceptInvitationHandler = async (context: AppContext) => {
   if (await userRepository.findByEmail(invitation.email)) return emailTaken()
 
   const userId = context.get('idGenerator').uuid()
-  const passwordHash = await context.get('hashProvider').hash(parsed.data.password)
+  const passwordHash = await context.get('hashProvider').hash(input.password)
 
   try {
     const redeemed = await invitationRepository.redeem({
@@ -123,8 +118,8 @@ export const acceptInvitationHandler = async (context: AppContext) => {
         email: invitation.email,
         passwordHash,
         role: 'editor',
-        name: parsed.data.name ?? null,
-        surname: parsed.data.surname ?? null,
+        name: input.name ?? null,
+        surname: input.surname ?? null,
       },
       assignmentId: context.get('idGenerator').uuid(),
       roleId: invitation.roleId,

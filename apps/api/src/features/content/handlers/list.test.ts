@@ -3,12 +3,11 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi } from 'vitest'
-import { listHandler } from './list'
+import { Hono } from 'hono'
+import type { AppEnv } from '../../../types'
+import { contentCrudApp } from '../crud.router'
 
-vi.mock('../../../public/errors/problem-details', () => ({
-  publicProblem: vi.fn((_ctx, details) => ({ mockProblem: true, ...details })),
-}))
-
+// The visibility policy is not under test here: the envelope keeps the flat row readable as `data`.
 vi.mock('../../../shared/policies/apply-policies', () => ({
   toEntryEnvelope: vi.fn((item: Record<string, unknown>) => ({ ...item, data: item })),
   applyVisibility: vi.fn((item: Record<string, unknown>) => item),
@@ -31,7 +30,8 @@ const AUTHOR_SEED_DEF = {
   branches: [{ id: 'br_a1', alias: 'name', label: 'Name', type: 'text' }],
 }
 
-function makeContext() {
+// The handler is mounted through the real router so the seed and query checks that precede it run too.
+async function list(query: string) {
   const listItems = [{ id: 'entry-1', title: 'Post', author: 'author-1' }]
   const targetItems = [{ id: 'author-1', name: 'Jane Doe' }]
 
@@ -39,33 +39,33 @@ function makeContext() {
     .mockResolvedValueOnce({ items: listItems, total: 1 })
     .mockResolvedValueOnce({ items: targetItems, total: 1 })
 
-  const jsonMock = vi.fn((data: unknown) => ({ json: data }))
-  const ctx = {
-    req: {
-      param: vi.fn(() => 'articles'),
-      query: vi.fn(() => ({ page: '1' })),
-    },
-    get: vi.fn((key: string) => {
-      if (key === 'getSeed') return () => SEED
-      if (key === 'repository') return { findMany, hasDraft: vi.fn().mockResolvedValue(false) }
-      if (key === 'seedRegistry') return { get: (s: string) => (s === 'authors' ? AUTHOR_SEED_DEF : undefined) }
-      return undefined
-    }),
-    json: jsonMock,
-  }
-  return { ctx, jsonMock }
+  const app = new Hono<AppEnv>()
+  app.use('*', async (context, next) => {
+    context.set('getSeed', () => SEED as never)
+    context.set('repository', { findMany, hasDraft: vi.fn().mockResolvedValue(false) } as never)
+    context.set('seedRegistry', { get: (s: string) => (s === 'authors' ? AUTHOR_SEED_DEF : undefined) } as never)
+    context.set('jwtPayload', { sub: 'user-1', role: 'admin' } as never)
+    await next()
+  })
+  app.route('/api/content', contentCrudApp)
+
+  const response = await app.request(`/api/content/articles${query}`)
+  return { response, findMany }
 }
 
 describe('listHandler relations map', () => {
   it('resolves relation labels from flat rows instead of item.data', async () => {
-    const { ctx, jsonMock } = makeContext()
+    const { response } = await list('?page=1')
 
-    await listHandler(ctx as never)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ relations: { author: { 'author-1': 'Jane Doe' } } })
+  })
 
-    expect(jsonMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        relations: { author: { 'author-1': 'Jane Doe' } },
-      }),
-    )
+  // Legacy contract: a bare request answers the array, any query parameter answers the envelope.
+  it('answers a bare array when the request carries no query parameter', async () => {
+    const { response } = await list('')
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual([{ id: 'entry-1', title: 'Post', author: 'author-1', data: expect.any(Object), has_pending_draft: false }])
   })
 })

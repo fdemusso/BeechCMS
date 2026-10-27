@@ -16,18 +16,9 @@ vi.mock("@/features/shared", () => ({
 }))
 
 // ─── Mock @/lib/api ───────────────────────────────────────────────────────────
-vi.mock("@/lib/api", () => ({
-  api: {
-    get: vi.fn(),
-    put: vi.fn(),
-    post: vi.fn(),
-    delete: vi.fn(),
-  },
-}))
-
 import { useSchema } from "@/features/shared"
-import { api } from "@/lib/api"
 import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
+import { ApiError } from "@/lib/http/api-error"
 import { RelationDisplay } from "@/components/fields/display/relation"
 import { RelationEdit } from "@/components/fields/edit/relation"
 import { FieldsProvider, type FieldsContextType } from "@/components/fields/context"
@@ -43,12 +34,17 @@ function makeQueryClient() {
   })
 }
 
+type RelationRecord = Awaited<ReturnType<FieldsContextType["fetchById"]>>
+
+/** Stands in for the content API behind the fields context: `get(url, { params })` answers `{ data }`. */
+const get = vi.fn<(url: string, config?: { params: object }) => Promise<{ data: unknown }>>()
+
 const mockFieldsConfig: FieldsContextType = {
   useSchema,
   useLocaleConfig: () => undefined,
-  fetchById: async (slug, id) => (await api.get(`/content/${slug}/${id}`)).data,
+  fetchById: async (slug, id) => (await get(`/content/${slug}/${id}`)).data as RelationRecord,
   searchRelations: async (slug, params) =>
-    (await api.get(`/content/${slug}`, { params: { ...params, page: 1 } })).data.items,
+    ((await get(`/content/${slug}`, { params: { ...params, page: 1 } })).data as { items: RelationRecord[] }).items,
   queryKeys: { detail: CONTENT_QUERY_KEYS.detail, lists: CONTENT_QUERY_KEYS.lists },
   components: { EntryEditorDialog: () => null, RichtextEditor: () => null },
 }
@@ -94,7 +90,6 @@ const teamSeed = {
 
 const authorEntry = {
   id: "author-1",
-  schema_slug: "team",
   slug: null,
   status: "published",
   data: { name: "Ada Lovelace" },
@@ -150,10 +145,9 @@ describe("RelationDisplay", () => {
 
   it("falls back to id when cache is empty and fetch yields no label", async () => {
     // Simulate fetchById returning entry with no name field
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    ;get.mockResolvedValueOnce({
       data: {
         id: "author-1",
-        schema_slug: "team",
         slug: null,
         status: "published",
         data: {},
@@ -174,7 +168,7 @@ describe("RelationDisplay", () => {
   })
 
   it("renders correct label from fetch when cache is empty", async () => {
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    ;get.mockResolvedValueOnce({
       data: authorEntry,
     })
 
@@ -188,7 +182,22 @@ describe("RelationDisplay", () => {
     })
 
     // Verify no extra fetch calls were made after first
-    expect(api.get).toHaveBeenCalledTimes(1)
+    expect(get).toHaveBeenCalledTimes(1)
+  })
+
+  it("shows the label again once a target that was in the Trash is restored", async () => {
+    get.mockRejectedValueOnce(new ApiError(404, { type: "content-not-found" }))
+    render(
+      <RelationDisplay branch={relationBranch} value="author-1" />,
+      { wrapper: wrapper(queryClient) }
+    )
+    await waitFor(() => expect(screen.getByText("author-1")).toBeInTheDocument())
+    get.mockResolvedValueOnce({ data: authorEntry })
+
+    // What a restore does to the content cache (see invalidateTrashSurfaces).
+    queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.all })
+
+    await waitFor(() => expect(screen.getByText("Ada Lovelace")).toBeInTheDocument())
   })
 })
 
@@ -202,11 +211,10 @@ describe("RelationEdit", () => {
     vi.clearAllMocks()
     queryClient = makeQueryClient()
     ;(useSchema as ReturnType<typeof vi.fn>).mockReturnValue({ data: [teamSeed], isLoading: false })
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+    ;get.mockResolvedValue({
       data: {
         items: [authorEntry, {
           id: "author-2",
-          schema_slug: "team",
           slug: null,
           status: "published",
           data: { name: "Grace Hopper" },
@@ -397,11 +405,10 @@ describe("RelationEdit (multiple: true)", () => {
     vi.clearAllMocks()
     queryClient = makeQueryClient()
     ;(useSchema as ReturnType<typeof vi.fn>).mockReturnValue({ data: [teamSeed], isLoading: false })
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+    ;get.mockResolvedValue({
       data: {
         items: [authorEntry, {
           id: "author-2",
-          schema_slug: "team",
           slug: null,
           status: "published",
           data: { name: "Grace Hopper" },

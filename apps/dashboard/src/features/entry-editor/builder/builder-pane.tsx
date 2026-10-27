@@ -24,7 +24,7 @@ import { Plus, Loader as Loader2, More as MoreHorizontal, Edit as Pencil } from 
 import { toast } from 'sonner'
 import type { Seed, FormLayout, Branch } from '@beechcms/core'
 import { generateDefaultLayout, reconcileLayoutWithSeed } from '@beechcms/core'
-import type { AxiosError } from 'axios'
+import { isApiError } from '@/lib/http/api-error'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -97,8 +97,8 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
       queryClient.invalidateQueries({ queryKey: ['schema'] })
       onClose()
     } catch (err) {
-      const ax = err as AxiosError<{ title?: string; detail?: string }>
-      toast.error(ax.response?.data?.detail ?? ax.response?.data?.title ?? t('layoutBuilder.saveError'))
+      const body = isApiError(err) ? err.data : null
+      toast.error(body?.detail ?? body?.title ?? t('layoutBuilder.saveError'))
     } finally {
       setIsSaving(false)
     }

@@ -19,7 +19,16 @@ vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
   useBlocker: () => ({ state: "unblocked", reset: vi.fn(), proceed: vi.fn() }),
 }))
-vi.mock("@/lib/api", () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }))
+const mocked = vi.hoisted(() => ({ settings: vi.fn(), schema: vi.fn(), entryGet: vi.fn(), entryPut: vi.fn(), entryPost: vi.fn() }))
+vi.mock("@/lib/rpc", () => ({
+  rpc: {
+    api: {
+      settings: { $get: mocked.settings },
+      schema: { $get: mocked.schema },
+      content: { ":slug": { $post: mocked.entryPost, ":id": { $get: mocked.entryGet, $put: mocked.entryPut } } },
+    },
+  },
+}))
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { id: "u1", role: "editor" }, status: "authenticated" }) }))
 vi.mock("@/features/shared/hooks/use-permissions", () => ({
   usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }),
@@ -60,7 +69,6 @@ vi.mock("@/components/ui/select", async () => {
   }
 })
 
-import { api } from "@/lib/api"
 import { EntryEditorDialog } from "@/features/entry-editor"
 
 const ENTRY_ID = "3f1c2a4e-9b7d-4c1e-8a2f-5d6e7f8a9b0c"
@@ -74,18 +82,18 @@ const SEED: Seed = {
 }
 const BILINGUAL: LocaleSettings = { locales: ["it", "en"], defaultLocale: "it", defaultLanguage: "it" }
 const ENTRY = {
-  id: ENTRY_ID, schema_slug: "loc_posts", slug: "scarpa", status: "published", has_pending_draft: false,
+  id: ENTRY_ID, slug: "scarpa", status: "published", has_pending_draft: false,
   data: { title: { it: "Scarpa" }, summary: { it: "Comoda", en: "Comfy" }, sku: "S-1" },
   created_at: 1700000000, updated_at: 1700000100,
 }
 
 function routeApi(settings: LocaleSettings) {
-  vi.mocked(api.get).mockImplementation(async (url: string) => {
-    if (url === "/schema") return { data: [SEED] }
-    if (url === "/settings") return { data: settings }
-    if (url === `/content/loc_posts/${ENTRY_ID}`) return { data: ENTRY }
-    throw new Error(`unexpected request: ${url}`)
+  mocked.entryGet.mockImplementation(async ({ param }: { param: { slug: string; id: string } }) => {
+    if (param.slug === "loc_posts" && param.id === ENTRY_ID) return { json: async () => ENTRY }
+    throw new Error(`unexpected request: ${param.slug}/${param.id}`)
   })
+  mocked.schema.mockResolvedValue({ json: async () => [SEED] })
+  mocked.settings.mockResolvedValue({ json: async () => settings })
 }
 
 function renderEditor(entryId?: string): RenderResult {
@@ -106,15 +114,15 @@ function renderEditor(entryId?: string): RenderResult {
 }
 
 function payloadOf(mock: { mock: { calls: unknown[][] } }): Record<string, unknown> {
-  return mock.mock.calls[0][1] as Record<string, unknown>
+  return (mock.mock.calls[0][0] as { json: Record<string, unknown> }).json
 }
 
 describe("EntryEditorDialog — content localization", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     routeApi(BILINGUAL)
-    vi.mocked(api.put).mockResolvedValue({ data: { success: true } } as never)
-    vi.mocked(api.post).mockResolvedValue({ data: { id: ENTRY_ID } } as never)
+    mocked.entryPut.mockResolvedValue({ json: async () => ({ success: true }) })
+    mocked.entryPost.mockResolvedValue({ json: async () => ({ id: ENTRY_ID }) })
   })
 
   it("switching to EN shows each localized field's EN value and leaves non-localized fields unchanged", async () => {
@@ -139,9 +147,9 @@ describe("EntryEditorDialog — content localization", () => {
 
     // Regression guard for carried-in (a): a top-level null, or a resend of every field, would
     // overwrite translations the editor never touched.
-    await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(api.put).mock.calls[0][0]).toBe(`/content/loc_posts/${ENTRY_ID}`)
-    const payload = payloadOf(vi.mocked(api.put))
+    await waitFor(() => expect(mocked.entryPut).toHaveBeenCalledTimes(1))
+    expect(mocked.entryPut.mock.calls[0][0].param).toEqual({ slug: "loc_posts", id: ENTRY_ID })
+    const payload = payloadOf(mocked.entryPut)
     expect(payload.title).toEqual({ en: "Shoe" })
     expect(payload.sku).toBe("S-1")
     expect(payload).not.toHaveProperty("summary")
@@ -155,8 +163,8 @@ describe("EntryEditorDialog — content localization", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }))
 
-    await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1))
-    const payload = payloadOf(vi.mocked(api.put))
+    await waitFor(() => expect(mocked.entryPut).toHaveBeenCalledTimes(1))
+    const payload = payloadOf(mocked.entryPut)
     expect(payload.summary).toEqual({ en: null })
     expect(payload).not.toHaveProperty("title")
   })
@@ -214,9 +222,9 @@ describe("EntryEditorDialog — content localization", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create" }))
 
     // Regression guard: the auto-slug used to receive a dictionary object and produce "".
-    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(api.post).mock.calls[0][0]).toBe("/content/loc_posts")
-    const payload = payloadOf(vi.mocked(api.post))
+    await waitFor(() => expect(mocked.entryPost).toHaveBeenCalledTimes(1))
+    expect(mocked.entryPost.mock.calls[0][0].param).toEqual({ slug: "loc_posts" })
+    const payload = payloadOf(mocked.entryPost)
     expect(payload.title).toEqual({ it: "Scarpa Rossa" })
     expect(payload.slug).toBe("scarpa-rossa")
     expect(payload).not.toHaveProperty("summary")

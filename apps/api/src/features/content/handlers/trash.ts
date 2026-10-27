@@ -2,18 +2,22 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { Context } from 'hono'
+import type { Context } from 'hono'
+import type { z } from 'zod'
 import { EntryNotFoundError, resolveRetentionDays, type ActorContext } from '@beechcms/core'
 import { toEntryEnvelope } from '../../../shared/policies/apply-policies'
 import { deleteR2Objects } from '../../../shared/storage/upload'
 import { extractMediaKeysFromData } from '../../../shared/utils/media-utils'
 import { parsePositiveInt } from '../../../shared/utils/query-utils'
+import type { ZodJsonInput, ZodJsonRefusal } from '../../../shared/utils/zod-json'
+import type { ZodQueryInput } from '../../../shared/utils/zod-query'
 import { publicProblem } from '../../../public/errors/problem-details'
 import { logContentActivity, dispatchContentAutomation, handleContentDatabaseError } from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
+import type { bulkIdsSchema, trashListQuerySchema } from '../trash.schema'
 
-const MAX_BULK_SIZE = 500
+type BulkIdsContext<P extends string> = Context<AppEnv, P, ZodJsonInput<typeof bulkIdsSchema>>
 
 function resolveSeedOrProblem(context: Context<AppEnv>) {
   const slug = context.req.param('slug')
@@ -32,31 +36,31 @@ function actorFrom(context: Context<AppEnv>) {
   return { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
 }
 
-async function readBulkIds(context: Context<AppEnv>): Promise<{ ids: string[] } | { problem: Response }> {
-  let body: Record<string, unknown>
-  try {
-    body = await context.req.json<Record<string, unknown>>()
-  } catch {
-    return { problem: publicProblem(context, { type: 'content-invalid-json', title: 'Bad Request', status: 400, detail: CONTENT_ERRORS.INVALID_JSON_BODY }) }
+/**
+ * The body of a bulk restore/purge: not JSON at all is `content-invalid-json`, a well-typed `ids`
+ * that is too long (the schema's only `custom` issue) is `bulk-size-exceeded`, anything else the schema refuses (missing, empty, non-string) is
+ * `bulk-invalid-ids`. A size overrun alongside a bad id still reads as a bad id, as before.
+ */
+export function rejectInvalidBulkIds(context: Context, error: z.ZodError, cause: ZodJsonRefusal) {
+  if (cause === 'malformed') {
+    return publicProblem(context, { type: 'content-invalid-json', title: 'Bad Request', status: 400, detail: CONTENT_ERRORS.INVALID_JSON_BODY })
   }
-
-  const ids = body.ids
-  if (!Array.isArray(ids) || ids.length === 0 || ids.some((id) => typeof id !== 'string')) {
-    return { problem: publicProblem(context, { type: 'bulk-invalid-ids', title: 'Bad Request', status: 400, detail: 'ids must be a non-empty array of strings' }) }
+  if (error.issues.every((issue) => issue.code === 'custom')) {
+    return publicProblem(context, { type: 'bulk-size-exceeded', title: 'Bad Request', status: 400, detail: CONTENT_ERRORS.BULK_SIZE_EXCEEDED })
   }
-  if (ids.length > MAX_BULK_SIZE) {
-    return { problem: publicProblem(context, { type: 'bulk-size-exceeded', title: 'Bad Request', status: 400, detail: CONTENT_ERRORS.BULK_SIZE_EXCEEDED }) }
-  }
-  return { ids: ids as string[] }
+  return publicProblem(context, { type: 'bulk-invalid-ids', title: 'Bad Request', status: 400, detail: 'ids must be a non-empty array of strings' })
 }
 
-export async function trashListHandler(context: Context<AppEnv>) {
-  const resolved = resolveSeedOrProblem(context)
-  if ('problem' in resolved) return resolved.problem
-  const { seed } = resolved
+function seedNotFound(context: Context) {
+  return publicProblem(context, { type: 'content-seed-not-found', title: 'Not Found', status: 404, detail: CONTENT_ERRORS.SEED_NOT_FOUND })
+}
+
+export async function trashListHandler(context: Context<AppEnv, '/:slug/trash', ZodQueryInput<typeof trashListQuerySchema>>) {
+  const seed = context.get('getSeed')(context.req.param('slug'))
+  if (!seed) return seedNotFound(context)
 
   try {
-    const query = context.req.query()
+    const query = context.req.valid('query')
     const page = parsePositiveInt(query.page, 1)
     const limit = Math.min(parsePositiveInt(query.limit, 25), 100)
     const offset = (page - 1) * limit
@@ -83,20 +87,17 @@ export async function trashListHandler(context: Context<AppEnv>) {
     const settings = await context.get('siteSettingsRepository').getAll()
     const retentionDays = resolveRetentionDays(seed, settings.trashRetentionDays)
 
-    return context.json({ items: entries, total, page, limit, retentionDays })
+    return context.json({ items: entries, total, page, limit, retentionDays }, 200)
   } catch (error) {
     return handleContentDatabaseError(context, error)
   }
 }
 
-export async function restoreHandler(context: Context<AppEnv>) {
-  const resolved = resolveSeedOrProblem(context)
-  if ('problem' in resolved) return resolved.problem
-  const { seed, slug: schemaSlug } = resolved
+export async function restoreHandler(context: Context<AppEnv, '/:slug/:id/restore'>) {
+  const schemaSlug = context.req.param('slug')
+  const seed = context.get('getSeed')(schemaSlug)
+  if (!seed) return seedNotFound(context)
   const entryId = context.req.param('id')
-  if (!entryId) {
-    return publicProblem(context, { type: 'content-invalid-slug-or-id', title: 'Bad Request', status: 400, detail: CONTENT_ERRORS.INVALID_SLUG_OR_ID })
-  }
 
   try {
     const repository = context.get('repository')
@@ -105,41 +106,35 @@ export async function restoreHandler(context: Context<AppEnv>) {
     logContentActivity(context, 'update', entryId, schemaSlug, String(row.title || row.name || entryId))
     dispatchContentAutomation(context, schemaSlug, 'update', { ...row, id: entryId })
 
-    return context.json({ success: true, slug: row.slug })
+    return context.json({ success: true, slug: row.slug }, 200)
   } catch (error) {
     return handleContentDatabaseError(context, error)
   }
 }
 
-export async function bulkRestoreHandler(context: Context<AppEnv>) {
-  const resolved = resolveSeedOrProblem(context)
-  if ('problem' in resolved) return resolved.problem
-  const { seed } = resolved
-
-  const parsed = await readBulkIds(context)
-  if ('problem' in parsed) return parsed.problem
+export async function bulkRestoreHandler(context: BulkIdsContext<'/:slug/trash/bulk-restore'>) {
+  const seed = context.get('getSeed')(context.req.param('slug'))
+  if (!seed) return seedNotFound(context)
+  const { ids } = context.req.valid('json')
 
   const repository = context.get('repository')
-  const { succeeded, failed } = await repository.bulkRestore(seed, parsed.ids, { actor: actorFrom(context) })
+  const { succeeded, failed } = await repository.bulkRestore(seed, ids, { actor: actorFrom(context) })
 
   const failedProblems = failed.map(({ id, reason }) => ({
     id,
     problem: { status: reason === 'not-found' ? 404 : 500, type: reason === 'not-found' ? 'content-not-found' : 'bulk-restore-error', detail: reason },
   }))
 
-  return context.json({ succeeded, failed: failedProblems })
+  return context.json({ succeeded, failed: failedProblems }, 200)
 }
 
-export async function bulkPurgeHandler(context: Context<AppEnv>) {
-  const resolved = resolveSeedOrProblem(context)
-  if ('problem' in resolved) return resolved.problem
-  const { seed } = resolved
-
-  const parsed = await readBulkIds(context)
-  if ('problem' in parsed) return parsed.problem
+export async function bulkPurgeHandler(context: BulkIdsContext<'/:slug/trash/bulk-purge'>) {
+  const seed = context.get('getSeed')(context.req.param('slug'))
+  if (!seed) return seedNotFound(context)
+  const { ids } = context.req.valid('json')
 
   const repository = context.get('repository')
-  const { succeeded, failed, rows } = await repository.bulkPurge(seed, parsed.ids, { actor: actorFrom(context) })
+  const { succeeded, failed, rows } = await repository.bulkPurge(seed, ids, { actor: actorFrom(context) })
 
   const cdnUrl = context.env.MEDIA_CDN_URL
   const allKeys = rows.flatMap((row) => extractMediaKeysFromData(seed, row, cdnUrl))
@@ -156,7 +151,7 @@ export async function bulkPurgeHandler(context: Context<AppEnv>) {
     problem: { status: reason === 'not-found' ? 404 : 500, type: reason === 'not-found' ? 'content-not-found' : 'bulk-purge-error', detail: reason },
   }))
 
-  return context.json({ succeeded, failed: failedProblems })
+  return context.json({ succeeded, failed: failedProblems }, 200)
 }
 
 export async function reconcilePurgesHandler(context: Context<AppEnv>) {

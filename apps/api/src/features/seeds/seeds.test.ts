@@ -1679,3 +1679,190 @@ describe('POST /:slug/mcp-apply', () => {
     expect(activityLogger.log.mock.calls[0][0].details.changedBranches).toEqual(['body'])
   })
 })
+
+// ─── Request bodies: order of checks ─────────────────────────────────────────
+
+describe('Request body contract — order of checks', () => {
+  function send(app: Hono, method: string, path: string, body?: unknown) {
+    return app.request(path, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: typeof body === 'string' ? body : JSON.stringify(body),
+    })
+  }
+
+  describe('admin gate', () => {
+    it('answers 403 to a non-admin whose body is not even JSON, before the body is read', async () => {
+      const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+      const { app } = buildApp({ role: 'editor', repo })
+
+      const res = await send(app, 'PUT', '/articles', '{not valid json')
+
+      expect(res.status).toBe(403)
+      expect(repo.get).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('POST /', () => {
+    it.each([[5], [true], [null], [['articles']]])('refuses the non-string slug %j with 400 invalid-json and applies nothing', async (slug) => {
+      const repo = makeRepo()
+      const { app } = buildApp({ role: 'admin', repo })
+
+      const res = await send(app, 'POST', '/', { slug, label: 'Articles', branches: [] })
+
+      expect(res.status).toBe(400)
+      expect(((await res.json()) as { type: string }).type).toContain('invalid-json')
+      expect(repo.applyAtomic).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('PUT /:slug and POST /:slug/branches', () => {
+    it.each([
+      ['PUT', '/ghost'],
+      ['POST', '/ghost/branches'],
+    ])('%s %s reads the body before it looks for the seed: malformed JSON is 400, not 404', async (method, path) => {
+      const repo = makeRepo()
+      const { app } = buildApp({ role: 'admin', repo })
+
+      const res = await send(app, method, path, '{not valid json')
+
+      expect(res.status).toBe(400)
+      expect(((await res.json()) as { type: string }).type).toContain('invalid-json')
+      expect(repo.get).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['PUT', '/articles'],
+      ['POST', '/articles/branches'],
+    ])('%s %s refuses a JSON body that is not an object with 400 invalid-json', async (method, path) => {
+      const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+      const { app } = buildApp({ role: 'admin', repo })
+
+      const res = await send(app, method, path, [])
+
+      expect(res.status).toBe(400)
+      expect(((await res.json()) as { type: string }).type).toContain('invalid-json')
+      expect(repo.applyAtomic).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('DELETE /:slug/hard', () => {
+    it.each([[null], [[]], [5]])('refuses the body %j with 400 confirmation-required and starts no purge', async (body) => {
+      const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+      const purgeRepo = makePurgeRepo()
+      const { app } = buildApp({ role: 'admin', repo, purgeRepo })
+
+      const res = await send(app, 'DELETE', '/articles/hard', body)
+
+      expect(res.status).toBe(400)
+      expect(((await res.json()) as { type: string }).type).toContain('confirmation-required')
+      expect(purgeRepo.begin).not.toHaveBeenCalled()
+    })
+
+    it('checks the confirmation before it looks for the seed: a wrong token on a missing seed is 400, not 404', async () => {
+      const repo = makeRepo()
+      const { app } = buildApp({ role: 'admin', repo })
+
+      const res = await send(app, 'DELETE', '/ghost/hard', { confirm: 'wrong' })
+
+      expect(res.status).toBe(400)
+      expect(((await res.json()) as { type: string }).type).toContain('confirmation-required')
+      expect(repo.get).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('DELETE /:slug/branches/:branchId', () => {
+    it('looks for the seed before it checks the confirmation: no token on a missing seed is 404', async () => {
+      const repo = makeRepo()
+      const { app } = buildApp({ role: 'admin', repo })
+
+      const res = await send(app, 'DELETE', '/ghost/branches/br_02', {})
+
+      expect(res.status).toBe(404)
+      expect(((await res.json()) as { type: string }).type).toContain('seed-not-found')
+    })
+
+    it.each([[null], [[]], [5]])('refuses the body %j on an existing seed with 400 confirmation-required and drops nothing', async (body) => {
+      const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+      const { app } = buildApp({ role: 'admin', repo })
+
+      const res = await send(app, 'DELETE', '/articles/branches/br_02', body)
+
+      expect(res.status).toBe(400)
+      expect(((await res.json()) as { type: string }).type).toContain('confirmation-required')
+      expect(repo.applyDestructiveAtomic).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('PATCH /:slug/branches/:branchId/rename', () => {
+    it.each([[null], [[]], ['"body"'], [{}], [{ newAlias: 5 }]])('refuses the body %j with 400 invalid-json before it looks for the seed', async (body) => {
+      const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+      const { app } = buildApp({ role: 'admin', repo })
+
+      const res = await send(app, 'PATCH', '/articles/branches/br_02/rename', body)
+
+      expect(res.status).toBe(400)
+      const problem = (await res.json()) as { type: string; detail: string }
+      expect(problem.type).toContain('invalid-json')
+      expect(problem.detail).toContain('newAlias must match')
+      expect(repo.get).not.toHaveBeenCalled()
+    })
+
+    it('looks for the seed before it checks the confirmation: no token on a missing seed is 404', async () => {
+      const repo = makeRepo()
+      const { app } = buildApp({ role: 'admin', repo })
+
+      const res = await send(app, 'PATCH', '/ghost/branches/br_02/rename', { newAlias: 'text' })
+
+      expect(res.status).toBe(404)
+      expect(((await res.json()) as { type: string }).type).toContain('seed-not-found')
+    })
+
+    it('reports a duplicate alias before a missing confirmation', async () => {
+      const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+      const { app } = buildApp({ role: 'admin', repo })
+
+      const res = await send(app, 'PATCH', '/articles/branches/br_02/rename', { newAlias: 'title' })
+
+      expect(res.status).toBe(409)
+      expect(((await res.json()) as { type: string }).type).toContain('duplicate-alias')
+      expect(repo.applyDestructiveAtomic).not.toHaveBeenCalled()
+    })
+
+    it('refuses a missing confirmation with 400 confirmation-required once the branch is found', async () => {
+      const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+      const { app } = buildApp({ role: 'admin', repo })
+
+      const res = await send(app, 'PATCH', '/articles/branches/br_02/rename', { newAlias: 'text' })
+
+      expect(res.status).toBe(400)
+      expect(((await res.json()) as { type: string }).type).toContain('confirmation-required')
+      expect(repo.applyDestructiveAtomic).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('PATCH /:slug/branches/:branchId/retype', () => {
+    it.each([[null], [[]], [{}], [{ newType: 5 }], [{ newType: 'varchar' }]])('refuses the body %j with 400 invalid-json before it looks for the seed', async (body) => {
+      const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+      const { app } = buildApp({ role: 'admin', repo })
+
+      const res = await send(app, 'PATCH', '/articles/branches/br_01/retype', body)
+
+      expect(res.status).toBe(400)
+      const problem = (await res.json()) as { type: string; detail: string }
+      expect(problem.type).toContain('invalid-json')
+      expect(problem.detail).toContain('newType must be one of')
+      expect(repo.get).not.toHaveBeenCalled()
+    })
+
+    it('looks for the seed before it checks the confirmation: no token on a missing seed is 404', async () => {
+      const repo = makeRepo()
+      const { app } = buildApp({ role: 'admin', repo })
+
+      const res = await send(app, 'PATCH', '/ghost/branches/br_01/retype', { newType: 'number' })
+
+      expect(res.status).toBe(404)
+      expect(((await res.json()) as { type: string }).type).toContain('seed-not-found')
+    })
+  })
+})

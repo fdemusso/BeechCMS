@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
-import { api } from '@/lib/api'
+import { rpc } from '@/lib/rpc'
 import type { FormLayout } from '@beechcms/core'
 
 export async function saveLayout(slug: string, layout: FormLayout): Promise<FormLayout> {
-  const { data } = await api.put<{ ok: true; layout: FormLayout }>(`/schema/${slug}/layout`, layout)
-  return data.layout
+  const response = await rpc.api.schema[':slug'].layout.$put({ param: { slug }, json: layout })
+  const { layout: saved } = await response.json()
+  return saved
 }
 
 export async function resetLayout(slug: string): Promise<void> {
-  await api.delete(`/schema/${slug}/layout`)
+  await rpc.api.schema[':slug'].layout.$delete({ param: { slug } })
 }

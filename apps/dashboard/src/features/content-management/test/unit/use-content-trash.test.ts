@@ -7,11 +7,21 @@ import { renderHook, act } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), post: vi.fn(), delete: vi.fn() },
+const mocked = vi.hoisted(() => ({ list: vi.fn(), restore: vi.fn(), bulkPurge: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: {
+    api: {
+      content: {
+        ":slug": {
+          trash: { $get: mocked.list, "bulk-purge": { $post: mocked.bulkPurge } },
+          ":id": { restore: { $post: mocked.restore } },
+        },
+      },
+    },
+  },
 }))
 
-import { api } from "@/lib/api"
 import {
   useContentTrash,
   useRestoreContent,
@@ -38,7 +48,7 @@ describe("useRestoreContent", () => {
   })
 
   it("a successful restore invalidates both the trash and the content list key spaces", async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { success: true, slug: "posts" } })
+    mocked.restore.mockResolvedValueOnce({ json: async () => ({ success: true, slug: "posts" }) })
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
 
     const { result } = renderHook(() => useRestoreContent("posts"), { wrapper: wrapper(queryClient) })
@@ -62,7 +72,7 @@ describe("useBulkPurgeContent", () => {
   })
 
   it("a successful bulk purge invalidates both the trash and the content list key spaces", async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { succeeded: ["entry-1"], failed: [] } })
+    mocked.bulkPurge.mockResolvedValueOnce({ json: async () => ({ succeeded: ["entry-1"], failed: [] }) })
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
 
     const { result } = renderHook(() => useBulkPurgeContent("posts"), { wrapper: wrapper(queryClient) })
@@ -87,6 +97,6 @@ describe("useContentTrash", () => {
       wrapper: wrapper(queryClient),
     })
 
-    expect(api.get).not.toHaveBeenCalled()
+    expect(mocked.list).not.toHaveBeenCalled()
   })
 })

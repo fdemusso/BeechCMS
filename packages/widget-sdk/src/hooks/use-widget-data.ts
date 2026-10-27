@@ -13,8 +13,8 @@ export interface WidgetAggregateResponse {
 }
 
 /** Serialises a {@link WidgetWindow} into the route's `window` or `from`/`to` query params. */
-function windowParams(window: WidgetWindow): Record<string, string | number> {
-  return isDateRange(window) ? { from: window.from, to: window.to } : { window }
+function windowParams(window: WidgetWindow): { window?: string; from?: string; to?: string } {
+  return isDateRange(window) ? { from: String(window.from), to: String(window.to) } : { window }
 }
 
 export interface WidgetGrowthResponse {
@@ -71,10 +71,11 @@ async function fetchWidgetAggregate(
   formula: AggregateFormula,
   window: WidgetWindow,
 ): Promise<WidgetAggregateResponse> {
-  const res = await client.get<WidgetAggregateResponse>(`/widget/aggregate/${seedSlug}`, {
-    params: { formula: JSON.stringify(formula), ...windowParams(window) },
+  const res = await client.aggregate[':seed'].$get({
+    param: { seed: seedSlug },
+    query: { formula: JSON.stringify(formula), ...windowParams(window) },
   })
-  return res.data
+  return res.json()
 }
 
 async function fetchWidgetGrowth(
@@ -83,10 +84,11 @@ async function fetchWidgetGrowth(
   formula: AggregateFormula,
   window: WidgetWindow,
 ): Promise<WidgetGrowthResponse> {
-  const res = await client.get<WidgetGrowthResponse>(`/widget/growth/${seedSlug}`, {
-    params: { formula: JSON.stringify(formula), ...windowParams(window) },
+  const res = await client.growth[':seed'].$get({
+    param: { seed: seedSlug },
+    query: { formula: JSON.stringify(formula), ...windowParams(window) },
   })
-  return res.data
+  return res.json()
 }
 
 async function fetchWidgetTimeseries(
@@ -96,10 +98,11 @@ async function fetchWidgetTimeseries(
   window: WidgetWindow,
   groupColumn: string,
 ): Promise<WidgetTimeseriesResponse> {
-  const res = await client.get<WidgetTimeseriesResponse>(`/widget/timeseries/${seedSlug}`, {
-    params: { ...timeseriesFormulaParams(formula), groupColumn, ...windowParams(window) },
+  const res = await client.timeseries[':seed'].$get({
+    param: { seed: seedSlug },
+    query: { ...timeseriesFormulaParams(formula), groupColumn, ...windowParams(window) },
   })
-  return res.data
+  return res.json()
 }
 
 async function fetchWidgetDistribution(
@@ -109,10 +112,11 @@ async function fetchWidgetDistribution(
   window: WidgetWindow,
   limit: number,
 ): Promise<WidgetDistributionResponse> {
-  const res = await client.get<WidgetDistributionResponse>(`/widget/distribution/${seedSlug}`, {
-    params: { column, limit, ...windowParams(window) },
+  const res = await client.distribution[':seed'].$get({
+    param: { seed: seedSlug },
+    query: { column, limit: String(limit), ...windowParams(window) },
   })
-  return res.data
+  return res.json()
 }
 
 async function fetchWidgetList(
@@ -120,16 +124,17 @@ async function fetchWidgetList(
   seedSlug: string,
   params: WidgetListParams,
 ): Promise<WidgetListResponse> {
-  const res = await client.get<WidgetListResponse>(`/widget/list/${seedSlug}`, {
-    params: {
-      limit: params.limit,
-      offset: params.offset,
+  const res = await client.list[':seed'].$get({
+    param: { seed: seedSlug },
+    query: {
+      limit: String(params.limit),
+      offset: String(params.offset),
       search: params.search,
       orderBy: params.orderByColumn,
       orderDir: params.orderDirection?.toLowerCase(),
     },
   })
-  return res.data
+  return res.json()
 }
 
 export function useWidgetAggregate(seedSlug: string, formula: AggregateFormula, window: WidgetWindow) {

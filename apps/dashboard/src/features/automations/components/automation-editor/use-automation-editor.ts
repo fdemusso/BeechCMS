@@ -322,7 +322,7 @@ export function useAutomationEditor({
     if (isEdit && automation) {
       await updateMutation.mutateAsync({ id: automation.id, body: payload })
     } else {
-      await createMutation.mutateAsync(payload as any)
+      await createMutation.mutateAsync(payload)
     }
     onSuccess()
   }

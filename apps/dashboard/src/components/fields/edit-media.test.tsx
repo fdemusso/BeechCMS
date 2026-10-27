@@ -6,12 +6,6 @@ import { describe, it, expect, vi, beforeEach, afterAll } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { MediaEdit } from "@/components/fields/edit/media"
 
-vi.mock("@/lib/api", () => ({
-  api: {
-    post: vi.fn(),
-  },
-}))
-
 vi.mock("@/lib/upload", () => ({
   uploadFile: vi.fn(),
 }))

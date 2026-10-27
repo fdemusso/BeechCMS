@@ -6,7 +6,8 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Images, Trash2 } from '@/components/icons'
-import { api } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
+import { deleteUpload } from "@/lib/upload"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -185,10 +186,8 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
   const mediaQuery = useQuery({
     queryKey: ["widget", "media-library"],
     queryFn: async (): Promise<MediaObject[]> => {
-      const res = await api.get<{ items: MediaObject[]; total: number }>("/content/stats/media-library", {
-        params: { limit: 12 },
-      })
-      return res.data.items
+      const response = await rpc.api.content.stats["media-library"].$get({ query: { limit: "12" } })
+      return (await response.json()).items
     },
     staleTime: 3 * 60 * 1000,
     enabled: variant === "grid",
@@ -197,10 +196,8 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
   const unusedQuery = useQuery({
     queryKey: ["widget", "media-gallery", seedSlug, "unused"],
     queryFn: async (): Promise<MediaObject[]> => {
-      const res = await api.get<{ items: MediaObject[] }>("/content/stats/unused-media", {
-        params: { seedSlug, limit: 12 },
-      })
-      return res.data.items
+      const response = await rpc.api.content.stats["unused-media"].$get()
+      return (await response.json()).items
     },
     staleTime: 0,
     enabled: variant === "unused" && !!seedSlug,
@@ -208,7 +205,7 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
 
   const deleteMutation = useMutation({
     mutationFn: async (key: string) => {
-      await api.delete(`/upload/${encodeURIComponent(key)}`)
+      await deleteUpload(key)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["widget", "media-library"] })
@@ -217,7 +214,7 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
 
   const deleteUnusedMutation = useMutation({
     mutationFn: async (key: string) => {
-      await api.delete(`/upload/${encodeURIComponent(key)}`)
+      await deleteUpload(key)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["widget", "media-gallery", seedSlug] })

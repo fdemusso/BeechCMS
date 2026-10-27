@@ -5,7 +5,7 @@
 import * as React from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { isAxiosError } from 'axios'
+import { isApiError } from '@/lib/http/api-error'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useAuthorizationRequest, useSubmitConsent } from '../hooks/use-oauth-consent'
@@ -48,7 +48,7 @@ export function ConsentPage() {
   if (isLoading) return <ConsentSplash />
 
   if (error) {
-    const description = isAxiosError(error) ? error.response?.data?.error_description : undefined
+    const description = isApiError(error) ? error.data?.error_description : undefined
     return (
       <div className="flex min-h-svh w-full items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">

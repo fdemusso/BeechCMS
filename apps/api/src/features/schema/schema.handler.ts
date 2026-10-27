@@ -6,12 +6,15 @@
 import { Hono } from 'hono'
 import { canEditLayout, formLayoutSchema, reconcileLayoutWithSeed, validateLayoutAgainstSeed } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
-import type { Context } from 'hono'
-import type { Env, Variables } from '../../types'
+import { zodJson, type ZodJsonInput, type ZodJsonRefusal } from '../../shared/utils/zod-json'
+import type { Context, MiddlewareHandler } from 'hono'
+import type { z } from 'zod'
+import type { AppEnv, Env, Variables } from '../../types'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { filterSeedsByPermission } from '../../shared/rbac/scoped-projection'
 
 type AppContext = Context<{ Bindings: Env; Variables: Variables }>
+const LAYOUT_PATH = '/:slug/layout'
 
 /** Returns a 403 response if the caller lacks layout-edit permission, otherwise undefined. */
 function requireLayoutEditPermission(context: AppContext) {
@@ -44,47 +47,26 @@ function requireSeedBySlug(context: AppContext, slug: string) {
   return { seed, error: null }
 }
 
-const schemaApp = new Hono<{ Bindings: Env; Variables: Variables }>()
-
 /**
- * Returns the full CMS schema (all configured Seeds), each optionally enriched
- * with a stored custom FormLayout. Used by the Dashboard to drive menus and forms.
+ * The two gates of the layout routes as middlewares, in the order the handler used to apply them:
+ * the edit permission, then the seed. Both have to run before the body is read, so a caller who may
+ * not edit, or who names no seed, learns nothing about the layout contract.
  */
-schemaApp.get('/', async (context) => {
-  const registry = context.get('seedRegistry')
-  const effective = await resolveEffectivePermissions(context)
-  // Seed isolation is per-seed, never row-level (brief §2): a caller who cannot read a
-  // seed must not learn it exists. `content:read` is the visibility floor — every other
-  // content permission is useless without it.
-  const visible = filterSeedsByPermission(registry.all(), effective, 'content:read')
-
-  const layouts = await context.get('seedLayoutRepository').getAllAsMap()
-
-  const enriched = visible.map((seed) => {
-    const stored = layouts.get(seed.slug)
-    if (!stored) return seed
-    return { ...seed, layout: reconcileLayoutWithSeed(stored, seed) }
-  })
-
-  return context.json(enriched)
-})
-
-/**
- * Upserts a custom FormLayout for a Seed.
- * Admin-only. Validates shape (Zod) then semantic constraints against the Seed.
- */
-schemaApp.put('/:slug/layout', async (context) => {
+const requireLayoutEdit: MiddlewareHandler<AppEnv, typeof LAYOUT_PATH> = async (context, next) => {
   const forbidden = requireLayoutEditPermission(context)
   if (forbidden) return forbidden
+  await next()
+}
 
-  const slug = context.req.param('slug')
-  const { seed, error: seedError } = requireSeedBySlug(context, slug)
-  if (seedError) return seedError
+const requireKnownSeed: MiddlewareHandler<AppEnv, typeof LAYOUT_PATH> = async (context, next) => {
+  const { error } = requireSeedBySlug(context, context.req.param('slug'))
+  if (error) return error
+  await next()
+}
 
-  let body: unknown
-  try {
-    body = await context.req.json()
-  } catch {
+/** The body of a PUT: not JSON at all is a 400, JSON that is not a layout is a 422. */
+function rejectInvalidLayoutBody(context: AppContext, error: z.ZodError, cause: ZodJsonRefusal) {
+  if (cause === 'malformed') {
     return publicProblem(context, {
       type: 'invalid-json',
       title: 'Invalid JSON',
@@ -92,18 +74,20 @@ schemaApp.put('/:slug/layout', async (context) => {
       detail: 'Body must be valid JSON.',
     })
   }
+  return publicProblem(context, {
+    type: 'invalid-layout',
+    title: 'Invalid layout',
+    status: 422,
+    detail: error.issues.map((issue) => `${issue.path.join('.') || 'layout'}: ${issue.message}`).join('; '),
+  })
+}
 
-  const parsed = formLayoutSchema.safeParse(body)
-  if (!parsed.success) {
-    return publicProblem(context, {
-      type: 'invalid-layout',
-      title: 'Invalid layout',
-      status: 422,
-      detail: parsed.error.issues.map((issue) => `${issue.path.join('.') || 'layout'}: ${issue.message}`).join('; '),
-    })
-  }
+async function putLayout(context: Context<AppEnv, typeof LAYOUT_PATH, ZodJsonInput<typeof formLayoutSchema>>) {
+  const slug = context.req.param('slug')
+  // requireKnownSeed has already answered 404 for an unknown slug.
+  const seed = context.get('seedRegistry').get(slug)!
 
-  const semantic = validateLayoutAgainstSeed(parsed.data, seed!)
+  const semantic = validateLayoutAgainstSeed(context.req.valid('json'), seed)
   if (!semantic.ok) {
     return publicProblem(context, {
       type: 'invalid-layout',
@@ -116,23 +100,47 @@ schemaApp.put('/:slug/layout', async (context) => {
   const userId = context.get('jwtPayload')?.sub ?? 'unknown'
   await context.get('seedLayoutRepository').upsert(slug, semantic.cleaned, userId)
 
-  return context.json({ ok: true, layout: semantic.cleaned })
-})
+  return context.json({ ok: true, layout: semantic.cleaned }, 200)
+}
 
 /**
- * Removes the stored layout for a Seed, reverting to the generated default.
- * Admin-only. The "Reset" action in the Layout Builder calls this endpoint.
+ * Registered as one method chain so the route types reach `AppType` (see `../../routes.ts`).
  */
-schemaApp.delete('/:slug/layout', async (context) => {
-  const forbidden = requireLayoutEditPermission(context)
-  if (forbidden) return forbidden
+const schemaApp = new Hono<{ Bindings: Env; Variables: Variables }>()
+  /**
+   * Returns the full CMS schema (all configured Seeds), each optionally enriched
+   * with a stored custom FormLayout. Used by the Dashboard to drive menus and forms.
+   */
+  .get('/', async (context) => {
+    const registry = context.get('seedRegistry')
+    const effective = await resolveEffectivePermissions(context)
+    // Seed isolation is per-seed, never row-level (brief §2): a caller who cannot read a
+    // seed must not learn it exists. `content:read` is the visibility floor — every other
+    // content permission is useless without it.
+    const visible = filterSeedsByPermission(registry.all(), effective, 'content:read')
 
-  const slug = context.req.param('slug')
-  const { error: seedError } = requireSeedBySlug(context, slug)
-  if (seedError) return seedError
+    const layouts = await context.get('seedLayoutRepository').getAllAsMap()
 
-  await context.get('seedLayoutRepository').remove(slug)
-  return context.json({ ok: true })
-})
+    const enriched = visible.map((seed) => {
+      const stored = layouts.get(seed.slug)
+      if (!stored) return seed
+      return { ...seed, layout: reconcileLayoutWithSeed(stored, seed) }
+    })
+
+    return context.json(enriched, 200)
+  })
+  /**
+   * Upserts a custom FormLayout for a Seed.
+   * Admin-only. Validates shape (Zod) then semantic constraints against the Seed.
+   */
+  .put(LAYOUT_PATH, requireLayoutEdit, requireKnownSeed, zodJson(formLayoutSchema, rejectInvalidLayoutBody), putLayout)
+  /**
+   * Removes the stored layout for a Seed, reverting to the generated default.
+   * Admin-only. The "Reset" action in the Layout Builder calls this endpoint.
+   */
+  .delete(LAYOUT_PATH, requireLayoutEdit, requireKnownSeed, async (context) => {
+    await context.get('seedLayoutRepository').remove(context.req.param('slug'))
+    return context.json({ ok: true }, 200)
+  })
 
 export { schemaApp }

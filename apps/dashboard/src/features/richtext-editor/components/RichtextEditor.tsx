@@ -5,8 +5,7 @@
 import { useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { MinimalTiptapEditor } from "@/components/ui/minimal-tiptap"
-import { api } from "@/lib/api"
-import { uploadFile } from "@/lib/upload"
+import { deleteUpload, uploadFile } from "@/lib/upload"
 import type { Content } from "@tiptap/react"
 
 interface RichtextEditorProps {
@@ -48,7 +47,7 @@ export function RichtextEditor({ value, onChange, placeholder }: RichtextEditorP
             // Extract the filename/key from the URL (e.g. /api/media/123-img.jpg -> 123-img.jpg)
             const key = url.split('/').pop()
             if (key) {
-              await api.delete(`/upload/${decodeURIComponent(key)}`)
+              await deleteUpload(decodeURIComponent(key))
             }
           } catch (e) {
             console.error("Session image cleanup failed for:", url, e)
