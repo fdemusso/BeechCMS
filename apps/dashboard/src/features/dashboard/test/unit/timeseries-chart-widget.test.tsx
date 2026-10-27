@@ -8,13 +8,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 import { ChartLine as LineChart } from '@/components/icons'
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
-}))
-
-import { api } from "@/lib/api"
+import { widgetClientFromGet, type WidgetGet } from "@/test/widget-client"
 import { WidgetSdkProvider } from "@beechcms/widget-sdk"
 import { TimeseriesChartWidget } from "@/features/dashboard/components/widgets/timeseries-chart-widget"
+
+const widgetGet = vi.fn<WidgetGet>()
+const widgetClient = widgetClientFromGet((url, config) => widgetGet(url, config))
 
 function makeQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
@@ -24,7 +23,7 @@ function renderWithClient(ui: React.ReactElement) {
   const client = makeQueryClient()
   return render(
     <QueryClientProvider client={client}>
-      <WidgetSdkProvider client={api}>
+      <WidgetSdkProvider client={widgetClient}>
         {ui}
       </WidgetSdkProvider>
     </QueryClientProvider>,
@@ -37,7 +36,7 @@ describe("TimeseriesChartWidget", () => {
   })
 
   it("shows the empty state when there are no points", async () => {
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { points: [] } })
+    ;widgetGet.mockResolvedValue({ data: { points: [] } })
 
     renderWithClient(
       <TimeseriesChartWidget
@@ -52,7 +51,7 @@ describe("TimeseriesChartWidget", () => {
   })
 
   it("renders the chart shell once data is loaded", async () => {
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+    ;widgetGet.mockResolvedValue({
       data: { points: [{ label: "2026-06-01", value: 1 }, { label: "2026-06-02", value: 3 }] },
     })
 
@@ -70,7 +69,7 @@ describe("TimeseriesChartWidget", () => {
   })
 
   it("renders an error state with retry on failure", async () => {
-    ;(api.get as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("network error"))
+    ;widgetGet.mockRejectedValue(new Error("network error"))
 
     renderWithClient(
       <TimeseriesChartWidget

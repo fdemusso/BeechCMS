@@ -15,15 +15,6 @@ const mocked = vi.hoisted(() => ({
   resetScope: vi.fn(),
 }))
 
-vi.mock("@/lib/api", () => ({
-  api: {
-    get: vi.fn(),
-    put: vi.fn(),
-    post: vi.fn(),
-    delete: vi.fn(),
-  },
-}))
-
 vi.mock("@/lib/rpc", () => ({
   rpc: { api: { "dashboard-layout": {
     scopes: { $get: mocked.scopes },
@@ -39,11 +30,14 @@ vi.mock("sonner", () => ({
   },
 }))
 
-import { api } from "@/lib/api"
+import { widgetClientFromGet } from "@/test/widget-client"
 import { ApiError } from "@/lib/http/api-error"
 import { toast } from "sonner"
 import { WidgetSdkProvider } from "@beechcms/widget-sdk"
 import { DashboardBuilderDialog } from "@/features/dashboard/builder"
+
+// The widgets in these layouts (core/text) never read the client; it only has to exist.
+const widgetClient = widgetClientFromGet(async () => ({ data: [] }))
 
 function makeQueryClient() {
   return new QueryClient({
@@ -54,7 +48,7 @@ function makeQueryClient() {
 function wrapper(client: QueryClient) {
   return ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={client}>
-      <WidgetSdkProvider client={api}>
+      <WidgetSdkProvider client={widgetClient}>
         {children}
       </WidgetSdkProvider>
     </QueryClientProvider>
@@ -84,7 +78,6 @@ function makeLayout(): DashboardLayout {
 describe("DashboardBuilderDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [] })
     mocked.scopes.mockResolvedValue({ json: async () => [] })
   })
 

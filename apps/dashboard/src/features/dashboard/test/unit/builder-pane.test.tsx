@@ -10,13 +10,15 @@ import { MemoryRouter } from "react-router-dom"
 import React from "react"
 import type { DashboardLayout } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: {
-    get: vi.fn(),
-    put: vi.fn(),
-    post: vi.fn(),
-    delete: vi.fn(),
-  },
+// The builder reads the schema and the layout scopes through rpc; neither is under test here.
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: {
+    schema: { $get: async () => ({ json: async () => [] }) },
+    "dashboard-layout": {
+      scopes: { $get: async () => ({ json: async () => [] }) },
+      ":scope": { $put: vi.fn(), $delete: vi.fn() },
+    },
+  } },
 }))
 
 vi.mock("sonner", () => ({
@@ -42,11 +44,14 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenuSubContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 
-import { api } from "@/lib/api"
+import { widgetClientFromGet } from "@/test/widget-client"
 import { toast } from "sonner"
 import { WidgetSdkProvider } from "@beechcms/widget-sdk"
 import "@/features/dashboard/registry/builtin-widgets"
 import { DashboardBuilderDialog } from "@/features/dashboard/builder"
+
+// The widgets in these layouts (core/text) never read the client; it only has to exist.
+const widgetClient = widgetClientFromGet(async () => ({ data: [] }))
 
 function makeQueryClient() {
   return new QueryClient({
@@ -58,7 +63,7 @@ function wrapper(client: QueryClient) {
   return ({ children }: { children: React.ReactNode }) => (
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <WidgetSdkProvider client={api}>
+        <WidgetSdkProvider client={widgetClient}>
           {children}
         </WidgetSdkProvider>
       </QueryClientProvider>
@@ -101,7 +106,6 @@ function makeLayout(): DashboardLayout {
 describe("BuilderPane (via DashboardBuilderDialog)", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [] })
   })
 
   it("toggles preview mode and renders the layout renderer", async () => {
@@ -264,8 +268,6 @@ describe("BuilderPane (via DashboardBuilderDialog)", () => {
   })
 
   it("triggers the reset confirm dialog from the Reset button", async () => {
-    ;(api.delete as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} })
-
     render(
       <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
       { wrapper: wrapper(makeQueryClient()) },
