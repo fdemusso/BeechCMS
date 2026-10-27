@@ -21,7 +21,12 @@ interface ThemeContextValue {
 const STORAGE_KEY = 'beech-theme'
 const DARK_QUERY = '(prefers-color-scheme: dark)'
 
-const ThemeContext = React.createContext<ThemeContextValue | null>(null)
+// Outside a provider (isolated component tests, Storybook-like renders) fall back to inert defaults.
+const ThemeContext = React.createContext<ThemeContextValue>({
+  theme: 'system',
+  resolvedTheme: 'light',
+  setTheme: () => {},
+})
 
 function readStoredTheme(): Theme {
   try {
@@ -89,7 +94,5 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useTheme(): ThemeContextValue {
-  const context = React.useContext(ThemeContext)
-  if (!context) throw new Error('useTheme must be used within a ThemeProvider')
-  return context
+  return React.useContext(ThemeContext)
 }
