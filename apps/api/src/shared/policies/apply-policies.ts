@@ -51,6 +51,21 @@ export function applyVisibility(
 const ENVELOPE_COLUMNS = ['id', 'slug', 'status', 'created_at', 'updated_at', 'deleted_at'] as const
 
 /**
+ * The entry a content response carries. Declared (not left as `Record<string, unknown>`) so the
+ * typed client sees the columns instead of an open record.
+ */
+export interface EntryEnvelope {
+  id: string
+  slug: string | null
+  status: string
+  created_at: number | null
+  updated_at: number | null
+  /** Present only on rows read from the Trash. */
+  deleted_at?: number | null
+  data: Record<string, unknown>
+}
+
+/**
  * Builds a content response entry: system columns at top level, visibility-filtered fields
  * only inside `data`. Never spread the raw row — hidden/masked values would leak.
  *
@@ -63,11 +78,12 @@ export function toEntryEnvelope(
   item: Record<string, unknown>,
   seed: Seed,
   actor?: ActorContext,
-): Record<string, unknown> {
+): EntryEnvelope {
   const envelope: Record<string, unknown> = {}
   for (const column of ENVELOPE_COLUMNS) {
     if (Object.hasOwn(item, column)) envelope[column] = item[column]
   }
   envelope.data = applyVisibility(item, seed, actor)
-  return envelope
+  // Repository rows are untyped records; these columns are what every content table carries.
+  return envelope as unknown as EntryEnvelope
 }
