@@ -2,26 +2,26 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { api } from '@/lib/api'
+import { rpc } from '@/lib/rpc'
 import { uploadFile } from '@/lib/upload'
-import type { UserProfile, NotificationPrefs, Session, ActivityEntry, StorageStats, GeneralSettings } from '../types/settings.types'
+import type { NotificationPrefs, UserProfile, Session, ActivityEntry, StorageStats, GeneralSettings } from '../types/settings.types'
 
 export const settingsApi = {
   getProfile: async (): Promise<UserProfile> => {
-    const { data } = await api.get<UserProfile>('/settings/me')
-    return data
+    const response = await rpc.api.settings.me.$get()
+    return response.json()
   },
 
   updateProfile: async (payload: { name?: string; surname?: string; email?: string }): Promise<void> => {
-    await api.put('/settings/profile', payload)
+    await rpc.api.settings.profile.$put({ json: payload })
   },
 
   changePassword: async (payload: { currentPassword: string; newPassword: string }): Promise<void> => {
-    await api.put('/settings/password', payload)
+    await rpc.api.settings.password.$put({ json: payload })
   },
 
   updateAvatar: async (avatarUrl: string | null): Promise<void> => {
-    await api.put('/settings/avatar', { avatarUrl })
+    await rpc.api.settings.avatar.$put({ json: { avatarUrl } })
   },
 
   uploadAvatar: async (file: File): Promise<string> => {
@@ -29,43 +29,43 @@ export const settingsApi = {
   },
 
   getSessions: async (): Promise<Session[]> => {
-    const { data } = await api.get<Session[]>('/settings/sessions')
-    return data
+    const response = await rpc.api.settings.sessions.$get()
+    return response.json()
   },
 
   revokeSession: async (id: string): Promise<void> => {
-    await api.delete(`/settings/sessions/${id}`)
+    await rpc.api.settings.sessions[':id'].$delete({ param: { id } })
   },
 
   getActivity: async (): Promise<ActivityEntry[]> => {
-    const { data } = await api.get<ActivityEntry[]>('/settings/activity')
-    return data
+    const response = await rpc.api.settings.activity.$get()
+    return response.json()
   },
 
   getStorage: async (offset = 0): Promise<StorageStats> => {
-    const { data } = await api.get<StorageStats>(`/settings/storage?offset=${offset}`)
-    return data
+    const response = await rpc.api.settings.storage.$get({ query: { offset: String(offset) } })
+    return response.json()
   },
 
   deleteOrphans: async (keys: string[]): Promise<void> => {
-    await api.post('/settings/storage/orphans/delete', { keys })
+    await rpc.api.settings.storage.orphans.delete.$post({ json: { keys } })
   },
 
   getNotifications: async (): Promise<NotificationPrefs> => {
-    const { data } = await api.get<NotificationPrefs>('/settings/notifications')
-    return data
+    const response = await rpc.api.settings.notifications.$get()
+    return response.json()
   },
 
   updateNotifications: async (prefs: NotificationPrefs): Promise<void> => {
-    await api.put('/settings/notifications', prefs)
+    await rpc.api.settings.notifications.$put({ json: prefs })
   },
 
   getGeneralSettings: async (): Promise<GeneralSettings> => {
-    const { data } = await api.get<GeneralSettings>('/settings')
-    return data
+    const response = await rpc.api.settings.$get()
+    return response.json()
   },
 
   updateGeneralSettings: async (payload: Partial<GeneralSettings>): Promise<void> => {
-    await api.put('/settings', payload)
+    await rpc.api.settings.$put({ json: payload })
   },
 }

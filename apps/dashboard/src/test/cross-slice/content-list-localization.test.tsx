@@ -14,8 +14,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createElement, type ReactNode } from "react"
 import type { Seed } from "@beechcms/core"
 
+const mocked = vi.hoisted(() => ({ settings: vi.fn() }))
+
 vi.mock("@/lib/api", () => ({
   api: { get: vi.fn() },
+}))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { settings: { $get: mocked.settings } } },
 }))
 
 import { api } from "@/lib/api"
@@ -43,12 +49,14 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe("useContentList — localized items", () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocked.settings.mockResolvedValue({ json: async () => SETTINGS })
+  })
 
   it("exposes list items with localized fields resolved to the default locale", async () => {
     vi.mocked(api.get).mockImplementation(async (url: string) => {
       if (url === "/schema") return { data: [LOCALIZED_SEED] }
-      if (url === "/settings") return { data: SETTINGS }
       if (url === "/content/loc_items") {
         return {
           data: {
@@ -88,6 +96,6 @@ describe("useContentList — localized items", () => {
     const { result } = renderHook(() => useContentList("plain_items", { page: 1, limit: 25 }), { wrapper })
 
     await waitFor(() => expect(result.current.data?.items[0]?.data.title).toBe("Hello"))
-    expect(api.get).not.toHaveBeenCalledWith("/settings")
+    expect(mocked.settings).not.toHaveBeenCalled()
   })
 })

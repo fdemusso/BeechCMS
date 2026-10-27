@@ -2,81 +2,18 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-export interface NotificationPrefs {
-  contentCreate: boolean
-  contentUpdate: boolean
-  contentDelete: boolean
-  mediaUpload: boolean
-}
+import type { InferResponseType } from 'hono/client'
+import type { rpc } from '@/lib/rpc'
 
-export interface UserProfile {
-  id: string
-  email: string
-  name: string | null
-  surname: string | null
-  avatarUrl: string | null
-  notificationPrefs: NotificationPrefs
-}
+// Read off the routes, not restated: the API is the only place these shapes are defined.
+type Settings = typeof rpc.api.settings
 
-export interface Session {
-  id: string
-  created_at: number
-  expires_at: number
-}
-
-export interface ActivityEntry {
-  id: string
-  action: string
-  entity_type: string
-  entity_slug: string | null
-  details: string | null
-  created_at: number
-}
-
-interface OrphanFile {
-  key: string
-  filename: string
-  mime_type: string
-  size_bytes: number
-  created_at: number
-}
-
-export interface StorageStats {
-  totalBytes: number
-  fileCount: number
-  orphans: OrphanFile[]
-  orphanTotal: number
-  orphanBytes: number
-  orphanOffset: number
-  orphanLimit: number
-}
-
-export interface GeneralSettings {
-  siteTitle: string
-  siteLogo?: string
-  defaultLanguage: string
-  /** Content locales (never empty: the API resolves an unconfigured project to `[defaultLanguage]`). */
-  locales: string[]
-  /** Content default locale; always one of `locales`. */
-  defaultLocale: string
-  timezone: string
-  currency: string
-  company: {
-    name: string | null
-    website: string | null
-    abbreviation: string | null
-  }
-  dateFormat: string
-  /** Global Trash retention in days (seed `retentionDays` overrides it). 0 = never purge. Integer 0..MAX_RETENTION_DAYS. */
-  trashRetentionDays: number
-  features?: {
-    drafts?: boolean
-    media?: boolean
-    search?: boolean
-    activityLog?: boolean
-    email?: boolean
-  }
-}
+export type NotificationPrefs = InferResponseType<Settings['notifications']['$get']>
+export type UserProfile = InferResponseType<Settings['me']['$get']>
+export type Session = InferResponseType<Settings['sessions']['$get']>[number]
+export type ActivityEntry = InferResponseType<Settings['activity']['$get']>[number]
+export type StorageStats = InferResponseType<Settings['storage']['$get']>
+export type GeneralSettings = InferResponseType<Settings['$get']>
 
 export type SettingsTab =
   | 'profile' | 'interface' | 'security' | 'storage' | 'notifications'

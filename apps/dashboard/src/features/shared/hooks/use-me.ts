@@ -3,50 +3,29 @@
 // See LICENSE in the repository root for license terms.
 
 import { useQuery } from "@tanstack/react-query"
-import type { Permission, Scope } from "@beechcms/core"
-import { api } from "@/lib/api"
+import type { InferResponseType } from "hono/client"
+import { rpc } from "@/lib/rpc"
 
 /** Single cache entry for `GET /api/settings/me`. `features/settings` re-uses this key
  *  through `SETTINGS_QUERY_KEYS.profile()` so the endpoint is fetched exactly once. */
 export const ME_QUERY_KEY = ["settings", "profile"] as const
 
-/** Wire mirror of `apps/api/src/shared/rbac/scoped-projection.ts#EffectivePermissionsPayload`. */
-export interface EffectivePermissionsPayload {
-  global: Permission[]
-  byScope: Record<Scope, Permission[]>
-}
+/**
+ * Full `GET /api/settings/me` payload, read off the route. `isDeveloper` is the developer/owner axis
+ * (`users.role === 'admin'`), NOT an RBAC permission: it gates the Seed Builder, while an editor's
+ * rights come from `permissions`.
+ */
+export type MeResponse = InferResponseType<typeof rpc.api.settings.me.$get>
 
-interface MeNotificationPrefs {
-  contentCreate: boolean
-  contentUpdate: boolean
-  contentDelete: boolean
-  mediaUpload: boolean
-}
-
-/** Full `GET /api/settings/me` payload. Superset of the legacy `UserProfile`. */
-export interface MeResponse {
-  id: string
-  email: string
-  name: string | null
-  surname: string | null
-  avatarUrl: string | null
-  notificationPrefs: MeNotificationPrefs
-  permissions: EffectivePermissionsPayload
-  /**
-   * Developer/owner axis (`users.role === 'admin'`), NOT an RBAC permission.
-   * - 'admin': Developer / instance owner with access to Seed Builder and system configs.
-   * - 'editor': Generic Beech user whose rights are determined by RBAC permissions.
-   */
-  isDeveloper: boolean
-  manageableScopes: Scope[]
-}
+/** What the API sends as a caller's authority: global permissions plus those held per seed slug. */
+export type EffectivePermissionsPayload = MeResponse["permissions"]
 
 export function useMe() {
   return useQuery<MeResponse>({
     queryKey: ME_QUERY_KEY,
     queryFn: async () => {
-      const { data } = await api.get<MeResponse>("/settings/me")
-      return data
+      const response = await rpc.api.settings.me.$get()
+      return response.json()
     },
     staleTime: 5 * 60 * 1000,
   })

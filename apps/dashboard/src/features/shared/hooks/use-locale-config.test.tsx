@@ -8,8 +8,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createElement, type ReactNode } from "react"
 import type { Seed } from "@beechcms/core"
 
+const mocked = vi.hoisted(() => ({ settings: vi.fn() }))
+
 vi.mock("@/lib/api", () => ({
   api: { get: vi.fn() },
+}))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { settings: { $get: mocked.settings } } },
 }))
 
 import { api } from "@/lib/api"
@@ -36,12 +42,13 @@ function wrapper({ children }: { children: ReactNode }) {
   return createElement(QueryClientProvider, { client: qc }, children)
 }
 
+/** `GET /schema` is still the plain api client; `GET /settings` goes through rpc. */
 function mockApiRoutes(seeds: Seed[]) {
   vi.mocked(api.get).mockImplementation(async (url: string) => {
     if (url === "/schema") return { data: seeds }
-    if (url === "/settings") return { data: SETTINGS }
     throw new Error(`unexpected request: ${url}`)
   })
+  mocked.settings.mockResolvedValue({ json: async () => SETTINGS })
 }
 
 describe("useLocaleConfig", () => {
@@ -53,7 +60,7 @@ describe("useLocaleConfig", () => {
     const { result } = renderHook(() => useLocaleConfig(), { wrapper })
 
     await waitFor(() => expect(api.get).toHaveBeenCalledWith("/schema"))
-    expect(api.get).not.toHaveBeenCalledWith("/settings")
+    expect(mocked.settings).not.toHaveBeenCalled()
     expect(result.current).toBeUndefined()
   })
 

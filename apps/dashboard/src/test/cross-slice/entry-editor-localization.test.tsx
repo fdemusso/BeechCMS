@@ -19,7 +19,9 @@ vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
   useBlocker: () => ({ state: "unblocked", reset: vi.fn(), proceed: vi.fn() }),
 }))
+const mocked = vi.hoisted(() => ({ settings: vi.fn() }))
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }))
+vi.mock("@/lib/rpc", () => ({ rpc: { api: { settings: { $get: mocked.settings } } } }))
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { id: "u1", role: "editor" }, status: "authenticated" }) }))
 vi.mock("@/features/shared/hooks/use-permissions", () => ({
   usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }),
@@ -82,10 +84,10 @@ const ENTRY = {
 function routeApi(settings: LocaleSettings) {
   vi.mocked(api.get).mockImplementation(async (url: string) => {
     if (url === "/schema") return { data: [SEED] }
-    if (url === "/settings") return { data: settings }
     if (url === `/content/loc_posts/${ENTRY_ID}`) return { data: ENTRY }
     throw new Error(`unexpected request: ${url}`)
   })
+  mocked.settings.mockResolvedValue({ json: async () => settings })
 }
 
 function renderEditor(entryId?: string): RenderResult {
