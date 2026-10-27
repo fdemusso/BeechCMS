@@ -7,11 +7,29 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { api } from "@/lib/api"
 import { ApiError } from "@/lib/http/api-error"
 import { AcceptInvitePage } from "@/pages/accept-invite/AcceptInvitePage"
 
-vi.mock("@/lib/api", () => ({ api: { get: vi.fn(), post: vi.fn() } }))
+const mocked = vi.hoisted(() => ({ preview: vi.fn(), accept: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { auth: { invitations: { ":token": { $get: mocked.preview }, accept: { $post: mocked.accept } } } },
+}))
+
+const INVITEE = { email: "invitee@beech.local", roleName: "Editor", scope: "articles" }
+
+function previewResponse(body: typeof INVITEE) {
+  return { json: async () => body }
+}
+
+async function fillAndSubmit(user: ReturnType<typeof userEvent.setup>) {
+  await waitFor(() => {
+    expect(screen.getByDisplayValue(INVITEE.email)).toBeInTheDocument()
+  })
+  await user.type(screen.getByLabelText(/^password$/i), "supersecret1")
+  await user.type(screen.getByLabelText(/confirm password/i), "supersecret1")
+  await user.click(screen.getByRole("button", { name: /activate account/i }))
+}
 
 function renderPage(initialPath: string) {
   const qc = new QueryClient()
@@ -35,51 +53,51 @@ describe("AcceptInvitePage", () => {
   })
 
   it("preview 404 ⇒ invalid-link card", async () => {
-    vi.mocked(api.get).mockRejectedValueOnce(new ApiError(404, null))
+    mocked.preview.mockRejectedValueOnce(new ApiError(404, null))
     renderPage("/accept-invite?token=bad-token")
     expect(await screen.findByText(/invalid or has expired/i)).toBeInTheDocument()
+    expect(mocked.preview).toHaveBeenCalledWith({ param: { token: "bad-token" } })
   })
 
   it("happy path: preview renders, submit posts token and redirects to /login", async () => {
-    vi.mocked(api.get).mockResolvedValueOnce({
-      data: { email: "invitee@beech.local", roleName: "Editor", scope: "articles" },
-    })
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { success: true } })
+    mocked.preview.mockResolvedValueOnce(previewResponse(INVITEE))
+    mocked.accept.mockResolvedValueOnce({ json: async () => ({ id: "u1", email: INVITEE.email }) })
 
     const user = userEvent.setup()
     renderPage("/accept-invite?token=good-token")
+    await fillAndSubmit(user)
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue("invitee@beech.local")).toBeInTheDocument()
-    })
-
-    const passwordInput = screen.getByLabelText(/^password$/i)
-    const confirmInput = screen.getByLabelText(/confirm password/i)
-    await user.type(passwordInput, "supersecret1")
-    await user.type(confirmInput, "supersecret1")
-
-    const submitButton = screen.getByRole("button", { name: /activate account/i })
-    await user.click(submitButton)
-
-    await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith(
-        "/auth/invitations/accept",
-        expect.objectContaining({ token: "good-token", password: "supersecret1" }),
-        { baseURL: "/" },
-      )
+      expect(mocked.accept).toHaveBeenCalledWith({
+        json: expect.objectContaining({ token: "good-token", password: "supersecret1" }),
+      })
     })
   })
 
+  it.each([
+    ["invitation-invalid", /invalid or has expired/i],
+    ["invitation-revoked", /invalid or has expired/i],
+    ["email-taken", /account with this email already exists/i],
+    ["validation-failed", /at least 8 characters/i],
+  ])("accept refused with %s shows its own message", async (code, message) => {
+    mocked.preview.mockResolvedValueOnce(previewResponse(INVITEE))
+    mocked.accept.mockRejectedValueOnce(new ApiError(409, { type: `https://beechcms.dev/problems/${code}` }))
+
+    const user = userEvent.setup()
+    renderPage("/accept-invite?token=good-token")
+    await fillAndSubmit(user)
+
+    expect(await screen.findByText(message)).toBeInTheDocument()
+  })
+
   it("shows password strength indicator when typing password", async () => {
-    vi.mocked(api.get).mockResolvedValueOnce({
-      data: { email: "invitee@beech.local", roleName: "Editor", scope: "articles" },
-    })
+    mocked.preview.mockResolvedValueOnce(previewResponse(INVITEE))
 
     const user = userEvent.setup()
     renderPage("/accept-invite?token=good-token")
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue("invitee@beech.local")).toBeInTheDocument()
+      expect(screen.getByDisplayValue(INVITEE.email)).toBeInTheDocument()
     })
 
     const strengthIndicator = screen.getByTestId("password-strength-indicator")

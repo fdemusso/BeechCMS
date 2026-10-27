@@ -6,7 +6,8 @@ import React, { useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
-import { api } from "@/lib/api"
+import type { InferResponseType } from "hono/client"
+import { rpc } from "@/lib/rpc"
 import { problemCode } from "@/lib/http/api-error"
 import { Eye, EyeOff } from '@/components/icons'
 import { toast } from "sonner"
@@ -21,14 +22,7 @@ import { GLOBAL_SCOPE } from "@beechcms/core"
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 128
 
-// The invitee has no session; these `/auth/*` routes sit outside the `/api` prefix.
-const PUBLIC_AUTH = { baseURL: "/" } as const
-
-interface InvitationPreview {
-  email: string
-  roleName: string
-  scope: string
-}
+type InvitationPreview = InferResponseType<(typeof rpc.auth.invitations)[":token"]["$get"]>
 
 export function AcceptInvitePage() {
   const { t } = useTranslation()
@@ -47,7 +41,7 @@ export function AcceptInvitePage() {
 
   const { data: preview, isError, isLoading } = useQuery<InvitationPreview>({
     queryKey: ["invitation-preview", token],
-    queryFn: async () => (await api.get<InvitationPreview>(`/auth/invitations/${token}`, PUBLIC_AUTH)).data,
+    queryFn: async () => (await rpc.auth.invitations[":token"].$get({ param: { token: token ?? "" } })).json(),
     enabled: !!token,
     retry: false,
   })
@@ -102,7 +96,7 @@ export function AcceptInvitePage() {
     setError(null)
     setIsSubmitting(true)
     try {
-      await api.post("/auth/invitations/accept", { token, password, name, surname }, PUBLIC_AUTH)
+      await rpc.auth.invitations.accept.$post({ json: { token, password, name, surname } })
       toast.success(t("acceptInvite.success"))
       navigate("/login", { replace: true })
     } catch (err) {

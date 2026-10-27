@@ -33,8 +33,8 @@ describe("UsersTab", () => {
   it("renders rows from the mocked hook, disables the switch on caller's own row, and renders manage roles icon button", () => {
     mockUsers.mockReturnValue({
       data: [
-        { id: "u1", email: "me@beech.local", name: "Me", surname: null, isActive: true, assignments: [] },
-        { id: "u2", email: "other@beech.local", name: "Other", surname: null, isActive: true, assignments: [] },
+        { id: "u1", email: "me@beech.local", name: "Me", surname: null, role: "editor", isActive: true, createdAt: 0, assignments: [] },
+        { id: "u2", email: "other@beech.local", name: "Other", surname: null, role: "editor", isActive: true, createdAt: 0, assignments: [] },
       ],
       isLoading: false,
     })
@@ -60,9 +60,9 @@ describe("UsersTab", () => {
   it("always renders the current user in the first position even if returned later in the list", () => {
     mockUsers.mockReturnValue({
       data: [
-        { id: "u2", email: "other@beech.local", name: "Other", surname: null, isActive: true, assignments: [] },
-        { id: "u3", email: "third@beech.local", name: "Third", surname: null, isActive: true, assignments: [] },
-        { id: "u1", email: "me@beech.local", name: "Me", surname: null, isActive: true, assignments: [] },
+        { id: "u2", email: "other@beech.local", name: "Other", surname: null, role: "editor", isActive: true, createdAt: 0, assignments: [] },
+        { id: "u3", email: "third@beech.local", name: "Third", surname: null, role: "editor", isActive: true, createdAt: 0, assignments: [] },
+        { id: "u1", email: "me@beech.local", name: "Me", surname: null, role: "editor", isActive: true, createdAt: 0, assignments: [] },
       ],
       isLoading: false,
     })
@@ -76,8 +76,8 @@ describe("UsersTab", () => {
   it("disables status switch for a developer account (role === 'admin')", () => {
     mockUsers.mockReturnValue({
       data: [
-        { id: "u2", email: "dev@beech.local", role: "admin", name: "Dev", surname: null, isActive: true, assignments: [] },
-        { id: "u3", email: "editor@beech.local", role: "editor", name: "Editor", surname: null, isActive: true, assignments: [] },
+        { id: "u2", email: "dev@beech.local", role: "admin", name: "Dev", surname: null, isActive: true, createdAt: 0, assignments: [] },
+        { id: "u3", email: "editor@beech.local", role: "editor", name: "Editor", surname: null, isActive: true, createdAt: 0, assignments: [] },
       ],
       isLoading: false,
     })
