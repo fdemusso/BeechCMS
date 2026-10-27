@@ -8,11 +8,6 @@ import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
-}))
-
-import { api } from "@/lib/api"
 import "@/features/dashboard/registry/builtin-widgets"
 import { WidgetConfigSheet } from "@/features/dashboard/builder/widget-config-sheet"
 
@@ -28,7 +23,6 @@ function renderWithClient(ui: React.ReactElement) {
 describe("WidgetConfigSheet", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [] })
   })
 
   it("renders nothing (closed sheet) when widget is null", () => {

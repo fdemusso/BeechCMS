@@ -3,17 +3,14 @@
 // See LICENSE in the repository root for license terms.
 
 /**
- * Client HTTP per le API Beech.
- * - base '/api': in dev il proxy Vite inoltra al Worker locale
+ * Sessione e trasporto per le API Beech: il client tipizzato (`./rpc`) chiama `apiFetch`.
  * - JWT: Authorization Bearer dal token in memoria, refresh single-flight su 401
- * - FormData: nessun Content-Type manuale, il browser imposta il boundary
  * - errori: ogni risposta non-2xx lancia `ApiError` (vedi ./http/api-error)
  */
 import { apiErrorFromResponse } from './http/api-error'
 import { createApiFetch } from './http/api-fetch'
 
 const LOGIN_PATH = '/admin/login';
-const API_BASE = '/api'
 
 /** Decodifica il payload JWT: il backend (jose) emette base64url (-/_, no padding),
  *  atob() capisce solo base64 standard (+//) e lancia InvalidCharacterError altrimenti.
@@ -85,92 +82,6 @@ export const apiFetch: typeof fetch = buildFetch()
 
 /** Same as `apiFetch` without the time budget: for downloads that may stream for minutes. */
 export const apiFetchUnbounded: typeof fetch = buildFetch(0)
-
-type QueryValue = string | number | boolean | null | undefined
-
-export interface RequestOptions {
-  /** Flat scalars only: undefined/null are skipped, nested values must be stringified by the caller. */
-  params?: object
-  /** Request body for DELETE, which has no positional body argument. */
-  data?: unknown
-  headers?: Record<string, string | undefined>
-  signal?: AbortSignal
-  /** Overrides the '/api' prefix, e.g. '/' for the OAuth server which lives at '/oauth/*'. */
-  baseURL?: string
-  /** 'blob' for downloads; anything else is parsed as JSON. */
-  responseType?: 'json' | 'blob'
-  /** Request budget in ms. `0` disables it (long streaming downloads). Default 30 s. */
-  timeout?: number
-}
-
-export interface ApiResponse<T> {
-  data: T
-}
-
-function buildUrl(path: string, options: RequestOptions): string {
-  const query = new URLSearchParams()
-  for (const [key, value] of Object.entries(options.params ?? {}) as [string, QueryValue][]) {
-    if (value !== undefined && value !== null) query.set(key, String(value))
-  }
-  const search = query.toString()
-  const base = (options.baseURL ?? API_BASE).replace(/\/$/, '')
-  return `${base}${path}${search ? `?${search}` : ''}`
-}
-
-function encodeBody(body: unknown): { body?: BodyInit; contentType?: string } {
-  if (body === undefined) return {}
-  if (body instanceof FormData || body instanceof Blob || body instanceof URLSearchParams || typeof body === 'string') {
-    return { body }
-  }
-  return { body: JSON.stringify(body), contentType: 'application/json' }
-}
-
-async function parseBody<T>(response: Response, responseType: RequestOptions['responseType']): Promise<T> {
-  if (responseType === 'blob') return (await response.blob()) as T
-  const text = await response.text()
-  if (text === '') return undefined as T
-  try {
-    return JSON.parse(text) as T
-  } catch {
-    return text as T
-  }
-}
-
-async function request<T>(
-  method: string,
-  path: string,
-  body: unknown,
-  options: RequestOptions = {},
-): Promise<ApiResponse<T>> {
-  const encoded = encodeBody(body)
-  const headers = new Headers()
-  if (encoded.contentType) headers.set('Content-Type', encoded.contentType)
-  for (const [name, value] of Object.entries(options.headers ?? {})) {
-    if (value !== undefined) headers.set(name, value)
-  }
-
-  const send = options.timeout === undefined ? apiFetch : buildFetch(options.timeout)
-  const response = await send(buildUrl(path, options), {
-    method,
-    headers,
-    body: encoded.body,
-    signal: options.signal,
-  })
-  return { data: await parseBody<T>(response, options.responseType) }
-}
-
-/**
- * Axios-shaped facade over `apiFetch`, kept while features move to the typed `hc` client.
- * Same call shape (`api.get<T>(path, { params })` → `{ data }`), so unmigrated call sites and
- * their `vi.mock('@/lib/api')` tests are untouched.
- */
-export const api = {
-  get: <T = unknown>(path: string, options?: RequestOptions) => request<T>('GET', path, undefined, options),
-  delete: <T = unknown>(path: string, options?: RequestOptions) => request<T>('DELETE', path, options?.data, options),
-  post: <T = unknown>(path: string, body?: unknown, options?: RequestOptions) => request<T>('POST', path, body, options),
-  put: <T = unknown>(path: string, body?: unknown, options?: RequestOptions) => request<T>('PUT', path, body, options),
-  patch: <T = unknown>(path: string, body?: unknown, options?: RequestOptions) => request<T>('PATCH', path, body, options),
-}
 
 export function isTokenValid(token: string | null): boolean {
   if (!token) return false

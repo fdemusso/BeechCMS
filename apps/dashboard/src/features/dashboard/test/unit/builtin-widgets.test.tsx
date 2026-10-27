@@ -9,10 +9,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 import type { Seed } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
-}))
-
 const mocked = vi.hoisted(() => ({ schema: vi.fn() }))
 
 vi.mock("@/lib/rpc", () => ({

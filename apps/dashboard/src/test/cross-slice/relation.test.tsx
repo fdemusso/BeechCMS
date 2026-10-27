@@ -16,17 +16,7 @@ vi.mock("@/features/shared", () => ({
 }))
 
 // ─── Mock @/lib/api ───────────────────────────────────────────────────────────
-vi.mock("@/lib/api", () => ({
-  api: {
-    get: vi.fn(),
-    put: vi.fn(),
-    post: vi.fn(),
-    delete: vi.fn(),
-  },
-}))
-
 import { useSchema } from "@/features/shared"
-import { api } from "@/lib/api"
 import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
 import { RelationDisplay } from "@/components/fields/display/relation"
 import { RelationEdit } from "@/components/fields/edit/relation"
@@ -45,12 +35,15 @@ function makeQueryClient() {
 
 type RelationRecord = Awaited<ReturnType<FieldsContextType["fetchById"]>>
 
+/** Stands in for the content API behind the fields context: `get(url, { params })` answers `{ data }`. */
+const get = vi.fn<(url: string, config?: { params: object }) => Promise<{ data: unknown }>>()
+
 const mockFieldsConfig: FieldsContextType = {
   useSchema,
   useLocaleConfig: () => undefined,
-  fetchById: async (slug, id) => (await api.get<RelationRecord>(`/content/${slug}/${id}`)).data,
+  fetchById: async (slug, id) => (await get(`/content/${slug}/${id}`)).data as RelationRecord,
   searchRelations: async (slug, params) =>
-    (await api.get<{ items: RelationRecord[] }>(`/content/${slug}`, { params: { ...params, page: 1 } })).data.items,
+    ((await get(`/content/${slug}`, { params: { ...params, page: 1 } })).data as { items: RelationRecord[] }).items,
   queryKeys: { detail: CONTENT_QUERY_KEYS.detail, lists: CONTENT_QUERY_KEYS.lists },
   components: { EntryEditorDialog: () => null, RichtextEditor: () => null },
 }
@@ -151,7 +144,7 @@ describe("RelationDisplay", () => {
 
   it("falls back to id when cache is empty and fetch yields no label", async () => {
     // Simulate fetchById returning entry with no name field
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    ;get.mockResolvedValueOnce({
       data: {
         id: "author-1",
         slug: null,
@@ -174,7 +167,7 @@ describe("RelationDisplay", () => {
   })
 
   it("renders correct label from fetch when cache is empty", async () => {
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    ;get.mockResolvedValueOnce({
       data: authorEntry,
     })
 
@@ -188,7 +181,7 @@ describe("RelationDisplay", () => {
     })
 
     // Verify no extra fetch calls were made after first
-    expect(api.get).toHaveBeenCalledTimes(1)
+    expect(get).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -202,7 +195,7 @@ describe("RelationEdit", () => {
     vi.clearAllMocks()
     queryClient = makeQueryClient()
     ;(useSchema as ReturnType<typeof vi.fn>).mockReturnValue({ data: [teamSeed], isLoading: false })
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+    ;get.mockResolvedValue({
       data: {
         items: [authorEntry, {
           id: "author-2",
@@ -396,7 +389,7 @@ describe("RelationEdit (multiple: true)", () => {
     vi.clearAllMocks()
     queryClient = makeQueryClient()
     ;(useSchema as ReturnType<typeof vi.fn>).mockReturnValue({ data: [teamSeed], isLoading: false })
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+    ;get.mockResolvedValue({
       data: {
         items: [authorEntry, {
           id: "author-2",

@@ -10,10 +10,6 @@ import type { Seed } from "@beechcms/core"
 
 const mocked = vi.hoisted(() => ({ settings: vi.fn(), schema: vi.fn() }))
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn() },
-}))
-
 vi.mock("@/lib/rpc", () => ({
   rpc: { api: { settings: { $get: mocked.settings }, schema: { $get: mocked.schema } } },
 }))

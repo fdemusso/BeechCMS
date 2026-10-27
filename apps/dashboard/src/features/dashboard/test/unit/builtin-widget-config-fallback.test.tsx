@@ -9,11 +9,6 @@ import { MemoryRouter } from "react-router-dom"
 import React from "react"
 import type { DashboardLayout } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
-}))
-
-import { api } from "@/lib/api"
 import "@/features/dashboard/registry/builtin-widgets"
 import { DashboardLayoutRenderer } from "@/features/dashboard/renderer/dashboard-layout-renderer"
 
@@ -37,7 +32,6 @@ describe("core/text config fallback", () => {
 
   it("falls back to defaultConfig when the stored config fails validation", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [] })
 
     const layout: DashboardLayout = {
       version: 1,
