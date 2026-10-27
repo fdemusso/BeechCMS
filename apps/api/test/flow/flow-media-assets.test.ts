@@ -9,7 +9,7 @@ import { D1TestDatabase } from '../helpers/d1-test-database'
 import { seedTestUsers } from '../helpers/seed-fixtures'
 import { JoseTokenService } from '../../src/auth/providers/jwt-token.service'
 import { SystemClock } from '@beechcms/core'
-import { S3Client, HeadObjectCommand, PutObjectCommand, type HeadObjectCommandOutput } from '@aws-sdk/client-s3'
+import { S3Client, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import * as uploadModule from '../../src/shared/storage/upload'
 import { StaticContentRepository } from '../mocks/static-content.repository'
 import { __resetSeedRegistryCache } from '../../src/shared/services/cache/seed-registry-cache'
@@ -775,21 +775,25 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
   describe('DELETE /api/content/:slug/:id (R2 cascade cleanup)', () => {
     let contentRepo: StaticContentRepository
     let contentApp: ReturnType<typeof createBeechApp>
-    let s3SendSpy: ReturnType<typeof vi.spyOn>
+    let s3FetchSpy: ReturnType<typeof vi.spyOn>
 
     beforeEach(() => {
       contentRepo = new StaticContentRepository(TEST_SEEDS)
       contentApp = createBeechApp({ seeds: TEST_SEEDS, repository: contentRepo })
       __resetSeedRegistryCache()
-      s3SendSpy = vi.spyOn(S3Client.prototype, 'send')
-      s3SendSpy.mockReset()
+      // S3Bucket talks to MinIO through global fetch (aws4fetch); intercept it to observe cleanup calls.
+      s3FetchSpy = vi.spyOn(globalThis, 'fetch')
+      s3FetchSpy.mockReset()
     })
 
     it('purging a trashed entry removes it and triggers R2 cleanup for its tracked media field', async () => {
       await db.prepare(
         'INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)'
       ).bind('f.png', 'f.png', 'image/png', 100, TEST_USERS[0].id).run()
-      s3SendSpy.mockResolvedValue({ ContentLength: 100 } satisfies Partial<HeadObjectCommandOutput>)
+      s3FetchSpy.mockImplementation(async (input: RequestInfo | URL) => {
+        const method = (input as Request).method
+        return new Response(null, method === 'HEAD' ? { status: 200, headers: { 'content-length': '100' } } : { status: 204 })
+      })
       contentRepo.load('posts', [{ id: 'p_del', status: 'published', deleted_at: 1, image: 'https://ex.com/api/media/f.png' }])
 
       const res = await contentApp.request('/api/content/posts/p_del?purge=true', {
@@ -798,7 +802,8 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(200)
-      expect(s3SendSpy).toHaveBeenCalled()
+      const methods = s3FetchSpy.mock.calls.map(([request]) => (request as Request).method)
+      expect(methods).toContain('DELETE')
     })
 
     it('logs but does not fail the request when R2 cleanup on purge fails', async () => {

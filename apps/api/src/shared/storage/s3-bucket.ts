@@ -2,8 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { AwsClient } from 'aws4fetch'
 import { BeechBucket, PutBucketOptions, GetBucketResult, PresignOptions } from '@beechcms/core'
 
 /**
@@ -25,7 +24,7 @@ export interface S3BucketConfig {
 }
 
 /**
- * Implementation of {@link BeechBucket} using an S3-compatible API via the AWS SDK.
+ * Implementation of {@link BeechBucket} using an S3-compatible API via SigV4-signed `fetch` requests (`aws4fetch`).
  *
  * @remarks
  * Used in production and staging when connecting to Cloudflare R2 or other S3-compatible providers (such as MinIO) over HTTP.
@@ -33,13 +32,13 @@ export interface S3BucketConfig {
  * deletion (`delete`), pagination (`list`), total size calculation (`getTotalSize`), and presigned URL generation (`presignPut`, `presignGet`).
  */
 export class S3Bucket implements BeechBucket {
-  /** AWS SDK S3 client configured with custom endpoint, credentials, and path-style addressing. */
-  private client: S3Client
-  /** Name of the target S3/R2 bucket. */
-  private bucketName: string
+  /** SigV4 signing client configured with the S3 credentials. */
+  private client: AwsClient
+  /** Path-style bucket URL (`${endpoint}/${bucketName}`) all object URLs are built from. */
+  private bucketUrl: string
   /** Base URL of the API server used as the fallback origin for media asset URLs. */
   private baseUrl: string
-  /** Optional custom CDN base URL used to serve media assets directly from a CDN. */
+  /** Optional CDN base URL; when set, media URLs are served from the CDN instead of the API. */
   private cdnUrl: string | null
 
   /**
@@ -48,24 +47,22 @@ export class S3Bucket implements BeechBucket {
    * @param config - The S3 client and bucket configuration options.
    */
   constructor(config: S3BucketConfig) {
-    // requestChecksumCalculation/responseChecksumValidation exist at runtime in AWS SDK v3
-    // but are not yet in the TypeScript types for this version. Casting via unknown to pass them
-    // through: without them the SDK adds x-amz-checksum-crc32 to presigned URLs, which causes
-    // R2 to reject PUT requests when the CRC32 of the uploaded file doesn't match.
-    this.client = new S3Client({
+    this.client = new AwsClient({
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+      service: 's3',
       region: 'auto',
-      endpoint: config.endpoint,
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-      },
-      forcePathStyle: true,
-      requestChecksumCalculation: 'when_required',
-      responseChecksumValidation: 'when_required',
-    } as unknown as import('@aws-sdk/client-s3').S3ClientConfig)
-    this.bucketName = config.bucketName
+      retries: 3,
+    })
+    this.bucketUrl = `${config.endpoint.replace(/\/+$/, '')}/${encodeURIComponent(config.bucketName)}`
     this.baseUrl = config.baseUrl.replace(/\/+$/, '')
     this.cdnUrl = config.cdnUrl ? config.cdnUrl.replace(/\/+$/, '') : null
+  }
+
+  /** Builds the path-style URL of an object, encoding each key segment. */
+  private objectUrl(key: string): string {
+    const cleanKey = key.replace(/^\/+/, '')
+    return `${this.bucketUrl}/${cleanKey.split('/').map(encodeURIComponent).join('/')}`
   }
 
   /**
@@ -78,21 +75,19 @@ export class S3Bucket implements BeechBucket {
    * @returns A promise that resolves when the upload completes.
    */
   async put(key: string, body: ArrayBuffer | Uint8Array | ReadableStream, options?: PutBucketOptions): Promise<void> {
-    const cleanKey = key.replace(/^\/+/, '')
-    const payload = body instanceof ReadableStream
-      ? body
-      : body instanceof Uint8Array
-        ? body
-        : new Uint8Array(body)
-
-    const putCommand = new PutObjectCommand({
-      Bucket: this.bucketName,
-      Key: cleanKey,
-      Body: payload,
-      ContentType: options?.contentType,
-      Metadata: options?.metadata,
-    })
-    await this.client.send(putCommand)
+    const headers: Record<string, string> = {}
+    if (options?.contentType) headers['Content-Type'] = options.contentType
+    for (const [name, value] of Object.entries(options?.metadata ?? {})) {
+      headers[`x-amz-meta-${name}`] = value
+    }
+    const response = await this.client.fetch(this.objectUrl(key), {
+      method: 'PUT',
+      headers,
+      body: body instanceof ReadableStream ? body : body instanceof Uint8Array ? body : new Uint8Array(body),
+      // Streaming bodies require half-duplex in undici/Workers.
+      ...(body instanceof ReadableStream ? { duplex: 'half' } : {}),
+    } as RequestInit)
+    await assertOk(response)
   }
 
   /**
@@ -103,36 +98,18 @@ export class S3Bucket implements BeechBucket {
    * @throws {Error} If an S3 error other than `NoSuchKey` or `NotFound` occurs (e.g. `AccessDenied`, timeout).
    */
   async get(key: string): Promise<GetBucketResult | null> {
-    const cleanKey = key.replace(/^\/+/, '')
-    try {
-      const getCommand = new GetObjectCommand({
-        Bucket: this.bucketName,
-        Key: cleanKey,
-      })
-      const response = await this.client.send(getCommand)
-      
-      if (!response.Body) return null
-
-      const rawResponseBody = response.Body as { transformToWebStream?: () => ReadableStream }
-      const bodyStream: ReadableStream = typeof rawResponseBody.transformToWebStream === 'function'
-        ? rawResponseBody.transformToWebStream()
-        : response.Body as unknown as ReadableStream
-
-      return {
-        body: bodyStream,
-        contentType: response.ContentType,
-        size: response.ContentLength ?? 0,
-        metadata: response.Metadata,
-      }
-    } catch (error: unknown) {
-      const errorName = (error as { name?: string })?.name
-      const errorMessage = (error as { message?: string })?.message
-      const httpStatusCode = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode
-      if (errorName === 'NoSuchKey' || errorName === 'NotFound' || errorMessage === 'NoSuchKey' || httpStatusCode === 404) {
-        return null
-      }
-      // Rethrow other errors (AccessDenied, Timeout, etc.)
-      throw error
+    const response = await this.client.fetch(this.objectUrl(key))
+    if (response.status === 404) {
+      await response.body?.cancel()
+      return null
+    }
+    await assertOk(response)
+    if (!response.body) return null
+    return {
+      body: response.body,
+      contentType: response.headers.get('content-type') ?? undefined,
+      size: Number(response.headers.get('content-length') ?? 0),
+      metadata: readMetadata(response.headers),
     }
   }
 
@@ -144,12 +121,8 @@ export class S3Bucket implements BeechBucket {
    * @returns A promise that resolves when the object has been deleted.
    */
   async delete(key: string): Promise<void> {
-    const cleanKey = key.replace(/^\/+/, '')
-    const deleteCommand = new DeleteObjectCommand({
-      Bucket: this.bucketName,
-      Key: cleanKey,
-    })
-    await this.client.send(deleteCommand)
+    const response = await this.client.fetch(this.objectUrl(key), { method: 'DELETE' })
+    await assertOk(response)
   }
 
   /**
@@ -160,26 +133,13 @@ export class S3Bucket implements BeechBucket {
    * @throws {Error} If an S3 error other than `NoSuchKey` or `NotFound` occurs.
    */
   async head(key: string): Promise<{ size: number; contentType?: string; metadata?: Record<string, string> } | null> {
-    const cleanKey = key.replace(/^\/+/, '')
-    try {
-      const headCommand = new HeadObjectCommand({
-        Bucket: this.bucketName,
-        Key: cleanKey,
-      })
-      const response = await this.client.send(headCommand)
-      return {
-        size: response.ContentLength ?? 0,
-        contentType: response.ContentType,
-        metadata: response.Metadata,
-      }
-    } catch (error: unknown) {
-      const errorName = (error as { name?: string })?.name
-      const errorMessage = (error as { message?: string })?.message
-      const httpStatusCode = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode
-      if (errorName === 'NoSuchKey' || errorName === 'NotFound' || errorMessage === 'NoSuchKey' || httpStatusCode === 404) {
-        return null
-      }
-      throw error
+    const response = await this.client.fetch(this.objectUrl(key), { method: 'HEAD' })
+    if (response.status === 404) return null
+    await assertOk(response)
+    return {
+      size: Number(response.headers.get('content-length') ?? 0),
+      contentType: response.headers.get('content-type') ?? undefined,
+      metadata: readMetadata(response.headers),
     }
   }
 
@@ -212,18 +172,12 @@ export class S3Bucket implements BeechBucket {
    */
   async getTotalSize(): Promise<number> {
     let totalSizeBytes = 0
-    let continuationToken: string | undefined
+    let cursor: string | undefined
     do {
-      const listCommand = new ListObjectsV2Command({
-        Bucket: this.bucketName,
-        ContinuationToken: continuationToken,
-      })
-      const response = await this.client.send(listCommand)
-      for (const objectItem of response.Contents ?? []) {
-        totalSizeBytes += objectItem.Size ?? 0
-      }
-      continuationToken = response.NextContinuationToken
-    } while (continuationToken)
+      const page = await this.list({ cursor })
+      for (const objectItem of page.objects) totalSizeBytes += objectItem.size
+      cursor = page.cursor
+    } while (cursor)
     return totalSizeBytes
   }
 
@@ -238,19 +192,19 @@ export class S3Bucket implements BeechBucket {
    * @returns A promise resolving to the presigned PUT URL.
    */
   async presignPut(key: string, options: PresignOptions): Promise<string> {
-    const cleanKey = key.replace(/^\/+/, '')
-    // ContentLength is included to enforce expected size constraints via signature/policy
-    // headers on direct PUT uploads, ensuring the client cannot upload a different size.
-    const putCommand = new PutObjectCommand({
-      Bucket: this.bucketName,
-      Key: cleanKey,
-      ContentType: options.contentType,
-      ContentLength: options.contentLength,
+    // `allHeaders` makes aws4fetch sign Content-Type and Content-Length (it treats them as
+    // unsignable by default). Binding them into the signature stops a client from uploading a
+    // different MIME type (bypassing the allowlist checked at presign time) or a different size.
+    // No checksum header is added, so R2 does not reject the PUT on a CRC32 mismatch.
+    const headers: Record<string, string> = {}
+    if (options.contentType) headers['Content-Type'] = options.contentType
+    if (options.contentLength !== undefined) headers['Content-Length'] = String(options.contentLength)
+    const signed = await this.client.sign(this.objectUrl(key) + `?X-Amz-Expires=${options.expiresIn}`, {
+      method: 'PUT',
+      headers,
+      aws: { signQuery: true, allHeaders: true },
     })
-    // The presigner marks content-type unsignable by default, so a client could PUT any
-    // Content-Type under a valid signature and bypass the MIME allowlist. Re-sign it explicitly.
-    const signableHeaders = new Set(['content-type'])
-    return getSignedUrl(this.client, putCommand, { expiresIn: options.expiresIn, signableHeaders })
+    return signed.url
   }
 
   /**
@@ -261,12 +215,11 @@ export class S3Bucket implements BeechBucket {
    * @returns A promise resolving to the presigned GET URL.
    */
   async presignGet(key: string, options: PresignOptions): Promise<string> {
-    const cleanKey = key.replace(/^\/+/, '')
-    const getCommand = new GetObjectCommand({
-      Bucket: this.bucketName,
-      Key: cleanKey,
+    const signed = await this.client.sign(this.objectUrl(key) + `?X-Amz-Expires=${options.expiresIn}`, {
+      method: 'GET',
+      aws: { signQuery: true },
     })
-    return getSignedUrl(this.client, getCommand, { expiresIn: options.expiresIn })
+    return signed.url
   }
 
   /**
@@ -276,20 +229,61 @@ export class S3Bucket implements BeechBucket {
    * @returns A promise resolving to an array of object summaries (key and size) and an optional continuation cursor.
    */
   async list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<{ objects: Array<{ key: string; size: number }>; cursor?: string }> {
-    const listCommand = new ListObjectsV2Command({
-      Bucket: this.bucketName,
-      Prefix: options?.prefix,
-      MaxKeys: options?.limit,
-      ContinuationToken: options?.cursor,
-    })
-    const response = await this.client.send(listCommand)
-    return {
-      objects: (response.Contents ?? []).map((objectItem) => ({
-        key: objectItem.Key ?? '',
-        size: objectItem.Size ?? 0,
-      })),
-      cursor: response.NextContinuationToken,
-    }
+    const url = new URL(this.bucketUrl)
+    url.searchParams.set('list-type', '2')
+    if (options?.prefix) url.searchParams.set('prefix', options.prefix)
+    if (options?.limit) url.searchParams.set('max-keys', String(options.limit))
+    if (options?.cursor) url.searchParams.set('continuation-token', options.cursor)
+    const response = await this.client.fetch(url.toString())
+    await assertOk(response)
+    const xml = await response.text()
+
+    const objects = [...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map((match) => ({
+      key: xmlTag(match[1], 'Key') ?? '',
+      size: Number(xmlTag(match[1], 'Size') ?? 0),
+    }))
+    return { objects, cursor: xmlTag(xml, 'NextContinuationToken') }
   }
 }
 
+/** Error raised for a non-2xx S3 response; `code` is the S3 error code (e.g. `AccessDenied`). */
+export class S3Error extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: string,
+  ) {
+    super(message)
+    this.name = code ?? 'S3Error'
+  }
+}
+
+async function assertOk(response: Response): Promise<void> {
+  if (response.ok) return
+  const body = await response.text().catch(() => '')
+  const code = xmlTag(body, 'Code')
+  const detail = xmlTag(body, 'Message')
+  throw new S3Error(`S3 request failed (${response.status}${code ? ` ${code}` : ''})${detail ? `: ${detail}` : ''}`, response.status, code)
+}
+
+/** Collects `x-amz-meta-*` response headers into a plain metadata record. */
+function readMetadata(headers: Headers): Record<string, string> {
+  const metadata: Record<string, string> = {}
+  headers.forEach((value, name) => {
+    if (name.startsWith('x-amz-meta-')) metadata[name.slice('x-amz-meta-'.length)] = value
+  })
+  return metadata
+}
+
+const XML_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }
+
+/** Extracts and entity-decodes the first `<tag>` text in an S3 XML response. */
+function xmlTag(xml: string, tag: string): string | undefined {
+  const match = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`).exec(xml)
+  if (!match) return undefined
+  return match[1].replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (_, entity: string) => {
+    if (entity.startsWith('#x') || entity.startsWith('#X')) return String.fromCodePoint(parseInt(entity.slice(2), 16))
+    if (entity.startsWith('#')) return String.fromCodePoint(parseInt(entity.slice(1), 10))
+    return XML_ENTITIES[entity.toLowerCase()]
+  })
+}
