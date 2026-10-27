@@ -20,6 +20,8 @@ import { passwordResetApp } from './features/password-reset'
 import { rbacPublicApp } from './features/rbac/public'
 import { oauthApp } from './features/oauth'
 import contentFeature from './features/content'
+import { contentTransferApp } from './features/content/transfer.router'
+import { contentViewsApp } from './features/content/views.router'
 import { widgetApp } from './features/widget/widget'
 import { rotateFieldApp } from './features/rotate-field'
 import { draftApp } from './features/draft'
@@ -65,6 +67,8 @@ export const protectedRoutes = new Hono<AppEnv>()
   .route('/content', rotateFieldApp)
   .route('/content', draftApp)
   .route('/content', backrefsApp)
+  .route('/content', contentTransferApp)
+  .route('/content', contentViewsApp)
   .route('/content', contentFeature)
   .route('/widget', widgetApp)
   .route('/automations', automationsApp)

@@ -2,13 +2,15 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { Context } from 'hono'
+import type { Context } from 'hono'
 import { checkFormatCompatibility, isTransferFormat, type TransferFormat } from '@beechcms/core'
 import { cleanStr } from '../../../shared/utils/query-utils'
 import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 import { normalizeBody } from './helpers'
+import type { ZodJsonInput } from '../../../shared/utils/zod-json'
+import type { importRequestSchema } from '../transfer.schema'
 import { isImportObjectKeyOwnedBy } from '../../../shared/storage/import-object-key'
 import {
   CONTENT_IMPORT_CHUNK_JOB,
@@ -18,19 +20,14 @@ import {
   type ImportChunkPayload,
 } from '../import-job'
 
-export async function importHandler(context: Context<AppEnv>) {
+export async function importHandler(context: Context<AppEnv, '/:slug/import', ZodJsonInput<typeof importRequestSchema>>) {
   const slug = context.req.param('slug')
   if (!slug) return problem(context, 'content-invalid-slug', 'Bad Request', 400, CONTENT_ERRORS.INVALID_SLUG)
 
   const seed = context.get('getSeed')(slug)
   if (!seed) return problem(context, 'content-seed-not-found', 'Not Found', 404, CONTENT_ERRORS.SEED_NOT_FOUND)
 
-  let body: Record<string, unknown>
-  try {
-    body = normalizeBody(await context.req.json<unknown>())
-  } catch {
-    return problem(context, 'content-invalid-json', 'Bad Request', 400, CONTENT_ERRORS.INVALID_JSON_BODY)
-  }
+  const body = normalizeBody(context.req.valid('json'))
 
   const objectKey = cleanStr(body['objectKey'])
   if (!objectKey) {
@@ -118,6 +115,11 @@ export async function importHandler(context: Context<AppEnv>) {
   await context.get('queue').enqueue(CONTENT_IMPORT_CHUNK_JOB, payload)
 
   return context.json({ jobId }, 202, { Location: `/api/content/import-jobs/${jobId}` })
+}
+
+/** The body of an import that is not JSON at all: 400, answered once the seed is known. */
+export function rejectInvalidImportBody(context: Context<AppEnv>) {
+  return problem(context, 'content-invalid-json', 'Bad Request', 400, CONTENT_ERRORS.INVALID_JSON_BODY)
 }
 
 function problem(context: Context<AppEnv>, type: string, title: string,
