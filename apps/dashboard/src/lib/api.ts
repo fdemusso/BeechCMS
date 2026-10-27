@@ -4,13 +4,16 @@
 
 /**
  * Client HTTP per le API Beech.
- * - baseURL '/api': in dev il proxy Vite inoltra al Worker locale
- * - JWT: interceptor aggiunge Authorization Bearer
- * - FormData: interceptor rimuove Content-Type per far impostare il boundary al browser
+ * - base '/api': in dev il proxy Vite inoltra al Worker locale
+ * - JWT: Authorization Bearer dal token in memoria, refresh single-flight su 401
+ * - FormData: nessun Content-Type manuale, il browser imposta il boundary
+ * - errori: ogni risposta non-2xx lancia `ApiError` (vedi ./http/api-error)
  */
-import axios, { type AxiosError } from 'axios';
+import { apiErrorFromResponse } from './http/api-error'
+import { createApiFetch } from './http/api-fetch'
 
 const LOGIN_PATH = '/admin/login';
+const API_BASE = '/api'
 
 /** Decodifica il payload JWT: il backend (jose) emette base64url (-/_, no padding),
  *  atob() capisce solo base64 standard (+//) e lancia InvalidCharacterError altrimenti.
@@ -37,26 +40,6 @@ function getAccessToken(): string | null { return _accessToken }
 export function setAccessToken(token: string): void { _accessToken = token }
 export function clearAccessToken(): void { _accessToken = null }
 
-export const api = axios.create({
-  baseURL: '/api',
-  timeout: 30_000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
-});
-
-api.interceptors.request.use((config) => {
-  const token = getAccessToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  if (config.data instanceof FormData) {
-    delete config.headers['Content-Type'];
-  }
-  return config;
-});
-
 let refreshPromise: Promise<string> | null = null;
 
 /**
@@ -70,12 +53,12 @@ export async function refreshToken(): Promise<string> {
 
   refreshPromise = (async () => {
     try {
-      const { data } = await axios.post<LoginResponse>('/auth/refresh', {}, {
-        withCredentials: true,
-      });
-      const newToken = data.token;
-      setAccessToken(newToken);
-      return newToken;
+      // Bare fetch: this call must not re-enter the 401 → refresh path of `apiFetch`.
+      const response = await fetch('/auth/refresh', { method: 'POST', credentials: 'include' })
+      if (!response.ok) throw await apiErrorFromResponse(response)
+      const data = (await response.json()) as LoginResponse
+      setAccessToken(data.token);
+      return data.token;
     } catch (error) {
       clearAccessToken();
       throw error;
@@ -87,35 +70,104 @@ export async function refreshToken(): Promise<string> {
   return refreshPromise;
 }
 
-api.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const originalRequest = error.config as any;
-
-    if (error.response?.status === 401 && globalThis.window !== undefined) {
-      const requestUrl = originalRequest?.url || '';
-      const isLoginRequest = requestUrl.includes('/auth/login');
-      const isRefreshRequest = requestUrl.includes('/auth/refresh');
-
-      if (isLoginRequest || isRefreshRequest) {
-        throw error;
-      }
-
-      try {
-        const newToken = await refreshToken();
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return api(originalRequest);
-      } catch (refreshError) {
-        if (!globalThis.location.pathname.startsWith(LOGIN_PATH)) {
-          globalThis.location.replace(LOGIN_PATH);
-        }
-        throw refreshError;
-      }
-    }
-
-    throw error;
+function onSessionExpired(): void {
+  if (!globalThis.location.pathname.startsWith(LOGIN_PATH)) {
+    globalThis.location.replace(LOGIN_PATH);
   }
-);
+}
+
+function buildFetch(timeoutMs?: number): typeof fetch {
+  return createApiFetch({ getAccessToken, refreshAccessToken: refreshToken, onSessionExpired, timeoutMs })
+}
+
+/** Authenticated fetch for the whole API surface (`/api/*` and `/auth/*`), 30 s budget. */
+export const apiFetch: typeof fetch = buildFetch()
+
+type QueryValue = string | number | boolean | null | undefined
+
+export interface RequestOptions {
+  /** Flat scalars only: undefined/null are skipped, nested values must be stringified by the caller. */
+  params?: object
+  /** Request body for DELETE, which has no positional body argument. */
+  data?: unknown
+  headers?: Record<string, string | undefined>
+  signal?: AbortSignal
+  /** Overrides the '/api' prefix, e.g. '/' for the OAuth server which lives at '/oauth/*'. */
+  baseURL?: string
+  /** 'blob' for downloads; anything else is parsed as JSON. */
+  responseType?: 'json' | 'blob'
+  /** Request budget in ms. `0` disables it (long streaming downloads). Default 30 s. */
+  timeout?: number
+}
+
+export interface ApiResponse<T> {
+  data: T
+}
+
+function buildUrl(path: string, options: RequestOptions): string {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(options.params ?? {}) as [string, QueryValue][]) {
+    if (value !== undefined && value !== null) query.set(key, String(value))
+  }
+  const search = query.toString()
+  const base = (options.baseURL ?? API_BASE).replace(/\/$/, '')
+  return `${base}${path}${search ? `?${search}` : ''}`
+}
+
+function encodeBody(body: unknown): { body?: BodyInit; contentType?: string } {
+  if (body === undefined) return {}
+  if (body instanceof FormData || body instanceof Blob || body instanceof URLSearchParams || typeof body === 'string') {
+    return { body }
+  }
+  return { body: JSON.stringify(body), contentType: 'application/json' }
+}
+
+async function parseBody<T>(response: Response, responseType: RequestOptions['responseType']): Promise<T> {
+  if (responseType === 'blob') return (await response.blob()) as T
+  const text = await response.text()
+  if (text === '') return undefined as T
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    return text as T
+  }
+}
+
+async function request<T>(
+  method: string,
+  path: string,
+  body: unknown,
+  options: RequestOptions = {},
+): Promise<ApiResponse<T>> {
+  const encoded = encodeBody(body)
+  const headers = new Headers()
+  if (encoded.contentType) headers.set('Content-Type', encoded.contentType)
+  for (const [name, value] of Object.entries(options.headers ?? {})) {
+    if (value !== undefined) headers.set(name, value)
+  }
+
+  const send = options.timeout === undefined ? apiFetch : buildFetch(options.timeout)
+  const response = await send(buildUrl(path, options), {
+    method,
+    headers,
+    body: encoded.body,
+    signal: options.signal,
+  })
+  return { data: await parseBody<T>(response, options.responseType) }
+}
+
+/**
+ * Axios-shaped facade over `apiFetch`, kept while features move to the typed `hc` client.
+ * Same call shape (`api.get<T>(path, { params })` → `{ data }`), so unmigrated call sites and
+ * their `vi.mock('@/lib/api')` tests are untouched.
+ */
+export const api = {
+  get: <T = unknown>(path: string, options?: RequestOptions) => request<T>('GET', path, undefined, options),
+  delete: <T = unknown>(path: string, options?: RequestOptions) => request<T>('DELETE', path, options?.data, options),
+  post: <T = unknown>(path: string, body?: unknown, options?: RequestOptions) => request<T>('POST', path, body, options),
+  put: <T = unknown>(path: string, body?: unknown, options?: RequestOptions) => request<T>('PUT', path, body, options),
+  patch: <T = unknown>(path: string, body?: unknown, options?: RequestOptions) => request<T>('PATCH', path, body, options),
+}
 
 export function isTokenValid(token: string | null): boolean {
   if (!token) return false
@@ -131,7 +183,7 @@ export function isTokenValid(token: string | null): boolean {
 export async function logout(): Promise<void> {
   if (globalThis.window !== undefined) {
     try {
-      await axios.post('/auth/logout', {}, { withCredentials: true });
+      await fetch('/auth/logout', { method: 'POST', credentials: 'include' })
     } catch (err) {
       console.error('Logout error:', err);
     }

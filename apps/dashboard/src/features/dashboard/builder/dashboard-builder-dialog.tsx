@@ -14,7 +14,7 @@ import {
 } from '@beechcms/core'
 import { toast } from 'sonner'
 import { Loader as Loader2 } from '@/components/icons'
-import type { AxiosError } from 'axios'
+import { isApiError } from '@/lib/http/api-error'
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -195,8 +195,8 @@ function BuilderPaneController({ scope, initialLayout, onDirtyChange, onClose, o
       onScopeMutated()
       onClose()
     } catch (err) {
-      const ax = err as AxiosError<{ title?: string; detail?: string }>
-      toast.error(ax.response?.data?.detail ?? ax.response?.data?.title ?? t('dashboard.builder.saveError'))
+      const body = isApiError(err) ? err.data : null
+      toast.error(body?.detail ?? body?.title ?? t('dashboard.builder.saveError'))
     } finally {
       setIsSaving(false)
     }

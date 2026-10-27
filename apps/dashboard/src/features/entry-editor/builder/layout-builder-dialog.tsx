@@ -22,7 +22,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { Plus, Loader as Loader2, More as MoreHorizontal, Edit as Pencil } from '@/components/icons'
 import { toast } from 'sonner'
-import type { AxiosError } from 'axios'
+import { isApiError } from '@/lib/http/api-error'
 import type { Seed, FormLayout, Branch } from '@beechcms/core'
 import { generateDefaultLayout } from '@beechcms/core'
 
@@ -106,8 +106,8 @@ export function LayoutBuilderDialog({ seed, open, onClose, onSaved }: Readonly<L
       onSaved(saved)
       onClose()
     } catch (err) {
-      const ax = err as AxiosError<{ title?: string; detail?: string }>
-      toast.error(ax.response?.data?.detail ?? ax.response?.data?.title ?? t('layoutBuilder.saveError'))
+      const body = isApiError(err) ? err.data : null
+      toast.error(body?.detail ?? body?.title ?? t('layoutBuilder.saveError'))
     } finally {
       setIsSaving(false)
     }

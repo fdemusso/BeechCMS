@@ -49,7 +49,7 @@ describe("publishDraft", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("calls POST /content/:slug/:id/draft/publish", async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({})
+    vi.mocked(api.post).mockResolvedValueOnce({ data: undefined })
 
     await publishDraft("posts", "d1")
 
@@ -67,7 +67,7 @@ describe("discardDraft", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("calls DELETE /content/:slug/:id/draft", async () => {
-    vi.mocked(api.delete).mockResolvedValueOnce({})
+    vi.mocked(api.delete).mockResolvedValueOnce({ data: undefined })
 
     await discardDraft("articles", "d2")
 

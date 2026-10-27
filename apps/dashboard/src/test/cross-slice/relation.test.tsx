@@ -43,12 +43,14 @@ function makeQueryClient() {
   })
 }
 
+type RelationRecord = Awaited<ReturnType<FieldsContextType["fetchById"]>>
+
 const mockFieldsConfig: FieldsContextType = {
   useSchema,
   useLocaleConfig: () => undefined,
-  fetchById: async (slug, id) => (await api.get(`/content/${slug}/${id}`)).data,
+  fetchById: async (slug, id) => (await api.get<RelationRecord>(`/content/${slug}/${id}`)).data,
   searchRelations: async (slug, params) =>
-    (await api.get(`/content/${slug}`, { params: { ...params, page: 1 } })).data.items,
+    (await api.get<{ items: RelationRecord[] }>(`/content/${slug}`, { params: { ...params, page: 1 } })).data.items,
   queryKeys: { detail: CONTENT_QUERY_KEYS.detail, lists: CONTENT_QUERY_KEYS.lists },
   components: { EntryEditorDialog: () => null, RichtextEditor: () => null },
 }

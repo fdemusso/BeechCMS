@@ -90,7 +90,7 @@ export function ImportWizardDialog({ open, onOpenChange, seed, onImportCompleted
         setStep("pick")
         return
       }
-      const problem = await readProblem(error)
+      const problem = readProblem(error)
       toast.error(problem?.detail ?? t("transfer.import.errors.unknown"))
       setStep("pick")
     }

@@ -15,6 +15,7 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom"
 import type { PropsWithChildren, SyntheticEvent } from "react"
 import { CANONICAL_SEEDS, CANONICAL_ENTRIES } from "@beechcms/testing"
 import { api } from "@/lib/api"
+import { ApiError } from "@/lib/http/api-error"
 import { toast } from "sonner"
 import { useEntryEditorDialog } from "../../hooks/use-entry-editor-dialog"
 
@@ -52,7 +53,7 @@ describe("useEntryEditorDialog", () => {
   }
 
   it.each(["save", "publish"])("highlights fields when draft %s returns validation errors", async (operation) => {
-    const rejection = { response: { status: 400, data: { type: "https://beechcms.dev/problems/content-validation-failed", errors: [{ field: "title", message: "Invalid title" }] } } }
+    const rejection = new ApiError(400, { type: "https://beechcms.dev/problems/content-validation-failed", errors: [{ field: "title", message: "Invalid title" }] })
     vi.mocked(operation === "save" ? api.put : api.post).mockRejectedValueOnce(rejection)
     const { result } = await editor()
 
@@ -64,7 +65,7 @@ describe("useEntryEditorDialog", () => {
   })
 
   it.each(["save", "publish"])("shows API detail and a recovery action when draft %s conflicts", async (operation) => {
-    vi.mocked(operation === "save" ? api.put : api.post).mockRejectedValueOnce({ response: { status: 409, data: { type: `https://beechcms.dev/problems/draft-${operation}-conflict`, detail } } })
+    vi.mocked(operation === "save" ? api.put : api.post).mockRejectedValueOnce(new ApiError(409, { type: `https://beechcms.dev/problems/draft-${operation}-conflict`, detail }))
     const { result } = await editor()
 
     await act(async () => operation === "save" ? result.current.handleSubmit({ preventDefault() {} } as SyntheticEvent<HTMLFormElement>) : result.current.handlePublishDraft())
@@ -75,7 +76,7 @@ describe("useEntryEditorDialog", () => {
   })
 
   it("reloads live and draft values when the save conflict action is selected", async () => {
-    vi.mocked(api.put).mockRejectedValueOnce({ response: { status: 409, data: { type: "https://beechcms.dev/problems/draft-save-conflict", detail } } })
+    vi.mocked(api.put).mockRejectedValueOnce(new ApiError(409, { type: "https://beechcms.dev/problems/draft-save-conflict", detail }))
     const { result } = await editor()
     await act(async () => result.current.handleSubmit({ preventDefault() {} } as SyntheticEvent<HTMLFormElement>))
     vi.mocked(api.get).mockImplementation(async (url) => ({ data: url.endsWith("/draft") ? { data: { title: "Latest draft" } } : { id: entryId, data: { title: "Latest live", internal_note: "Latest note" }, status: "published", updated_at: 2 } }))
@@ -90,7 +91,7 @@ describe("useEntryEditorDialog", () => {
   })
 
   it("opens discard confirmation when the publish conflict action is selected", async () => {
-    vi.mocked(api.post).mockRejectedValueOnce({ response: { status: 409, data: { type: "https://beechcms.dev/problems/draft-publish-conflict", detail } } })
+    vi.mocked(api.post).mockRejectedValueOnce(new ApiError(409, { type: "https://beechcms.dev/problems/draft-publish-conflict", detail }))
     const { result } = await editor()
     await act(async () => result.current.handlePublishDraft())
     const recover = conflictAction()
@@ -102,7 +103,7 @@ describe("useEntryEditorDialog", () => {
   })
 
   it.each(["save", "publish"])("keeps draft %s open and shows a generic error for unrecognized failures", async (operation) => {
-    vi.mocked(operation === "save" ? api.put : api.post).mockRejectedValueOnce({ response: { status: 500, data: {} } })
+    vi.mocked(operation === "save" ? api.put : api.post).mockRejectedValueOnce({ status: 500 })
     const { result } = await editor()
 
     await act(async () => operation === "save" ? result.current.handleSubmit({ preventDefault() {} } as SyntheticEvent<HTMLFormElement>) : result.current.handlePublishDraft())

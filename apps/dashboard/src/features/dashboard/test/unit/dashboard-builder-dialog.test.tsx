@@ -27,6 +27,7 @@ vi.mock("sonner", () => ({
 }))
 
 import { api } from "@/lib/api"
+import { ApiError } from "@/lib/http/api-error"
 import { toast } from "sonner"
 import { WidgetSdkProvider } from "@beechcms/widget-sdk"
 import { DashboardBuilderDialog } from "@/features/dashboard/builder"
@@ -97,10 +98,7 @@ describe("DashboardBuilderDialog", () => {
   })
 
   it("shows an error toast and does not close the dialog when the save request fails", async () => {
-    ;(api.put as ReturnType<typeof vi.fn>).mockRejectedValue({
-      isAxiosError: true,
-      response: { data: { detail: "boom" } },
-    })
+    ;(api.put as ReturnType<typeof vi.fn>).mockRejectedValue(new ApiError(500, { detail: "boom" }))
 
     const onOpenChange = vi.fn()
     render(

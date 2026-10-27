@@ -30,22 +30,12 @@ export function ImportJobPanel({ jobId, onCompleted }: ImportJobPanelProps) {
   const query = useImportJob(jobId)
   const job = query.data
 
-  const [problemDetail, setProblemDetail] = React.useState<string | null>(null)
-  React.useEffect(() => {
-    if (!query.error) {
-      setProblemDetail(null)
-      return
-    }
-    let cancelled = false
-    readProblem(query.error).then((problem) => {
-      if (cancelled) return
-      if (problem?.status === 403) setProblemDetail(t("transfer.job.errors.forbidden"))
-      else if (problem?.status === 404) setProblemDetail(t("transfer.job.errors.notFound"))
-      else setProblemDetail(problem?.detail ?? t("transfer.job.errors.unknown"))
-    })
-    return () => {
-      cancelled = true
-    }
+  const problemDetail = React.useMemo(() => {
+    if (!query.error) return null
+    const problem = readProblem(query.error)
+    if (problem?.status === 403) return t("transfer.job.errors.forbidden")
+    if (problem?.status === 404) return t("transfer.job.errors.notFound")
+    return problem?.detail ?? t("transfer.job.errors.unknown")
   }, [query.error, t])
 
   const completedFiredRef = React.useRef(false)

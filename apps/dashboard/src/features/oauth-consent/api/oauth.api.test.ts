@@ -55,7 +55,7 @@ describe("oauthApi", () => {
   })
 
   it("revokeConnectedApp DELETEs /oauth/consents/:clientId with the id URI-encoded", async () => {
-    vi.mocked(api.delete).mockResolvedValueOnce({})
+    vi.mocked(api.delete).mockResolvedValueOnce({ data: undefined })
 
     await oauthApi.revokeConnectedApp("beech mcp/cli")
 

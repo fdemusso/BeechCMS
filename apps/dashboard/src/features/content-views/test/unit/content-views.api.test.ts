@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() } }))
 
 import { api } from "@/lib/api"
+import { ApiError, type ApiErrorBody } from "@/lib/http/api-error"
 import {
   createContentView,
   deleteContentView,
@@ -89,10 +90,7 @@ describe("viewProblemType", () => {
     // Regression guard: BeechCMS API wraps problem types via normalizeProblemType into full URIs
     // (e.g. https://beechcms.dev/problems/content-view-last-table), while dashboard call sites
     // compare against bare problem slugs.
-    const error = {
-      isAxiosError: true,
-      response: { data: { type: "https://beechcms.dev/problems/content-view-last-table" } },
-    }
+    const error = new ApiError(409, { type: "https://beechcms.dev/problems/content-view-last-table" })
 
     const result = viewProblemType(error)
 
@@ -100,14 +98,14 @@ describe("viewProblemType", () => {
   })
 
   it("returns the problem slug unchanged when given a bare slug", () => {
-    const error = { isAxiosError: true, response: { data: { type: "content-view-last-table" } } }
+    const error = new ApiError(409, { type: "content-view-last-table" })
 
     const result = viewProblemType(error)
 
     expect(result).toBe("content-view-last-table")
   })
 
-  it("returns null for a non-Axios error", () => {
+  it("returns null for an error that is not an ApiError", () => {
     const error = new Error("boom")
 
     const result = viewProblemType(error)
@@ -116,9 +114,9 @@ describe("viewProblemType", () => {
   })
 
   it.each([
-    ["null response data", { isAxiosError: true, response: { data: null } }],
-    ["empty response object", { isAxiosError: true, response: { data: {} } }],
-    ["non-string problem type", { isAxiosError: true, response: { data: { type: 123 } } }],
+    ["null response data", new ApiError(409, null)],
+    ["empty response object", new ApiError(409, {})],
+    ["non-string problem type", new ApiError(409, { type: 123 } as unknown as ApiErrorBody)],
   ])("returns null when the response body is %s", (_, error) => {
     const result = viewProblemType(error)
 

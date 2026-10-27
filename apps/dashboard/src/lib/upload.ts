@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { api } from './api'
-import { isAxiosError } from 'axios'
+import { isApiError } from './http/api-error'
 
 export async function uploadFile(file: File): Promise<string> {
   try {
@@ -25,8 +25,8 @@ export async function uploadFile(file: File): Promise<string> {
   } catch (err) {
     // If presign is unsupported or unconfigured (501 / presigned_urls_require_s3_credentials), fallback to proxied /upload
     if (
-      isAxiosError(err) &&
-      (err.response?.status === 501 || err.response?.data?.error === 'presigned_urls_require_s3_credentials')
+      isApiError(err) &&
+      (err.status === 501 || err.data?.error === 'presigned_urls_require_s3_credentials')
     ) {
       const formData = new FormData()
       formData.append('file', file)
@@ -34,8 +34,8 @@ export async function uploadFile(file: File): Promise<string> {
       return res.data.url
     }
 
-    if (isAxiosError(err) && err.response?.data?.message) {
-      throw new Error(err.response.data.message)
+    if (isApiError(err) && err.data?.message) {
+      throw new Error(err.data.message)
     }
     throw err
   }

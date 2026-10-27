@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { useGeneralSettings, useUpdateGeneralSettings } from "./use-settings"
+import { isApiError } from "@/lib/http/api-error"
 import { addContentLanguage, removeContentLanguage, type AddContentLanguageError } from "../lib/content-languages"
 
 export function useContentLanguages() {
@@ -48,8 +49,7 @@ export function useContentLanguages() {
       await updateSettings.mutateAsync({ locales, defaultLocale })
       toast.success(t("settings.contentLanguages.savedSuccess"))
     } catch (err) {
-      const axiosError = err as { response?: { data?: { detail?: string } } }
-      toast.error(axiosError?.response?.data?.detail ?? t("settings.contentLanguages.savedError"))
+      toast.error((isApiError(err) ? err.data?.detail : undefined) ?? t("settings.contentLanguages.savedError"))
     }
   }
 

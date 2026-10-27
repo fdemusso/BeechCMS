@@ -8,8 +8,8 @@ import type { AuthorizationRequestMetadata, ConsentDecisionBody, ConnectedApp } 
 /**
  * The authorization server lives at `/oauth/*`, outside the `/api` prefix that
  * `api` is configured with. Overriding `baseURL` per request keeps the bearer
- * injection and the single-flight 401 refresh/retry interceptor in `lib/api.ts`,
- * which a bare `axios` call (as used by `/auth/login`) would lose.
+ * injection and the single-flight 401 refresh/retry of `lib/api.ts`, which a bare
+ * `fetch` (as used by the `/auth/*` calls) would lose.
  */
 const AUTH_SERVER = { baseURL: '/' } as const
 

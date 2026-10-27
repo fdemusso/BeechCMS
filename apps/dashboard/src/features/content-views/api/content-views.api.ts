@@ -2,8 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { isAxiosError } from "axios"
 import { api } from "@/lib/api"
+import { problemCode } from "@/lib/http/api-error"
 import type { ContentView, ContentViewConfig, DashboardView } from "@beechcms/core"
 
 export interface CreateContentViewBody {
@@ -48,8 +48,5 @@ export async function deleteContentView(slug: string, viewId: string): Promise<v
 
 /** The RFC 9457 `type` of a failed views request (e.g. "content-view-last-table"), or null. */
 export function viewProblemType(error: unknown): string | null {
-  if (!isAxiosError(error)) return null
-  const data: unknown = error.response?.data
-  if (typeof data !== "object" || data === null || !("type" in data)) return null
-  return typeof data.type === "string" ? data.type.split("/").pop() ?? null : null
+  return problemCode(error)
 }

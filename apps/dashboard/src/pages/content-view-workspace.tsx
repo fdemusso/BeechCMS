@@ -51,7 +51,7 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
       try {
         await downloadExport(slug, format)
       } catch (error) {
-        const problem = await readProblem(error)
+        const problem = readProblem(error)
         toast.error(problem?.detail ?? t("transfer.export.errors.unknown"))
       } finally {
         setIsExportPending(false)

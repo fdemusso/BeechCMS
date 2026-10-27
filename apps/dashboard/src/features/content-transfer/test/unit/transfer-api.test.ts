@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn(), post: vi.fn() } }))
 
 import { api } from "@/lib/api"
+import { ApiError } from "@/lib/http/api-error"
 import {
   downloadExport,
   presignImportObject,
@@ -100,34 +101,28 @@ describe("createImportJob", () => {
 })
 
 describe("readProblem", () => {
-  it("parses the RFC 7807 body out of a blob error response and returns its type", async () => {
+  it("returns the RFC 7807 body of an ApiError, including its type", () => {
     const body = { type: "content-import-file-too-large", title: "t", status: 413, detail: "d" }
-    const error = {
-      isAxiosError: true,
-      response: { data: new Blob([JSON.stringify(body)]) },
-    }
+    const error = new ApiError(413, body)
 
-    const problem = await readProblem(error)
+    const problem = readProblem(error)
 
     expect(problem?.type).toBe("content-import-file-too-large")
   })
 
-  it("returns null for an error that is not an axios error", async () => {
-    const problem = await readProblem(new Error("boom"))
+  it("returns null for an error that is not an ApiError", () => {
+    const problem = readProblem(new Error("boom"))
 
     expect(problem).toBeNull()
   })
 })
 
 describe("isStorageNotConfiguredError", () => {
-  it("recognizes the native-R2Bucket 501 body, which readProblem cannot parse", async () => {
-    const error = {
-      isAxiosError: true,
-      response: { status: 501, data: { error: "presigned_urls_require_s3_credentials", message: "m" } },
-    }
+  it("recognizes the native-R2Bucket 501 body, which readProblem cannot parse", () => {
+    const error = new ApiError(501, { error: "presigned_urls_require_s3_credentials", message: "m" })
 
     const result = isStorageNotConfiguredError(error)
-    const problem = await readProblem(error)
+    const problem = readProblem(error)
 
     // Regression guard: this body has no `type` field, so readProblem must return null for it —
     // the wizard's not-configured branch has to check isStorageNotConfiguredError separately.
@@ -136,7 +131,7 @@ describe("isStorageNotConfiguredError", () => {
   })
 
   it("returns false for an unrelated 501", () => {
-    const error = { isAxiosError: true, response: { status: 501, data: { error: "something_else" } } }
+    const error = new ApiError(501, { error: "something_else" })
 
     expect(isStorageNotConfiguredError(error)).toBe(false)
   })

@@ -2,10 +2,10 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { isAxiosError } from "axios"
 import type { TransferFormat } from "@beechcms/core"
 
 import { api } from "@/lib/api"
+import { isApiError } from "@/lib/http/api-error"
 
 export type ImportJobState = "pending" | "processing" | "completed" | "failed"
 
@@ -80,22 +80,12 @@ const CONTENT_TYPES: Record<TransferFormat, string> = {
 }
 
 /**
- * Reads the problem body out of an axios error, including the blob case: with
- * `responseType: "blob"` axios hands back a Blob even on 4xx, so `error.response.data` is not
- * the parsed JSON the rest of the app expects.
+ * Reads the RFC 7807 body out of an `ApiError`. The client parses error bodies as JSON whatever
+ * the `responseType`, so a failed `blob` download needs no special handling here.
  */
-export async function readProblem(error: unknown): Promise<ProblemDetails | null> {
-  if (!isAxiosError(error) || !error.response) return null
-  const data: unknown = error.response.data
-  if (data instanceof Blob) {
-    try {
-      return JSON.parse(await data.text()) as ProblemDetails
-    } catch {
-      return null
-    }
-  }
-  if (typeof data === "object" && data !== null && "type" in data) return data as ProblemDetails
-  return null
+export function readProblem(error: unknown): ProblemDetails | null {
+  if (!isApiError(error) || error.data === null) return null
+  return "type" in error.data ? (error.data as unknown as ProblemDetails) : null
 }
 
 /**
@@ -105,9 +95,8 @@ export async function readProblem(error: unknown): Promise<ProblemDetails | null
  * so callers that only care about the RFC 7807 contract are not forced to widen their type.
  */
 export function isStorageNotConfiguredError(error: unknown): boolean {
-  if (!isAxiosError(error) || error.response?.status !== 501) return false
-  const data: unknown = error.response.data
-  return typeof data === "object" && data !== null && (data as StorageNotConfiguredProblem).error === "presigned_urls_require_s3_credentials"
+  if (!isApiError(error) || error.status !== 501) return false
+  return (error.data as StorageNotConfiguredProblem | null)?.error === "presigned_urls_require_s3_credentials"
 }
 
 /**
