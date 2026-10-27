@@ -5,20 +5,16 @@
 // See LICENSE in the repository root for license terms.
 
 /**
- * Tests for backrefs/api.ts — the thin `api` wrappers around the backrefs endpoint.
+ * Tests for backrefs/api.ts: the real `hc` client against a stubbed `fetch`, so the URL, the verb
+ * and the query string of the backrefs endpoint are pinned.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { backrefsApi } from "./api"
 
-// Mock the api client
-vi.mock("@/lib/api", () => ({
-  api: {
-    get: vi.fn(),
-  },
-}))
-
-import { api } from "@/lib/api"
+function json(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } })
+}
 
 const mockGroups = [
   {
@@ -33,57 +29,65 @@ const mockGroups = [
   },
 ]
 
-describe("backrefsApi.fetch", () => {
+describe("backrefsApi", () => {
+  let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>
+
   beforeEach(() => {
     vi.clearAllMocks()
+    fetchMock = vi.fn<typeof fetch>()
+    vi.stubGlobal("fetch", fetchMock)
   })
 
-  it("calls the correct endpoint and returns groups", async () => {
-    vi.mocked(api.get).mockResolvedValueOnce({ data: { groups: mockGroups } })
-
-    const result = await backrefsApi.fetch("team", "member-1")
-
-    expect(api.get).toHaveBeenCalledWith("/content/team/member-1/backrefs")
-    expect(result.groups).toEqual(mockGroups)
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
-  it("propagates errors from the API", async () => {
-    vi.mocked(api.get).mockRejectedValueOnce(new Error("Network error"))
+  describe("fetch", () => {
+    it("requests the preview of every group and returns them", async () => {
+      fetchMock.mockResolvedValueOnce(json(200, { groups: mockGroups }))
 
-    await expect(backrefsApi.fetch("team", "member-1")).rejects.toThrow("Network error")
-  })
-})
+      const result = await backrefsApi.fetch("team", "member-1")
 
-describe("backrefsApi.fetchGroup", () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
+      const [url, init] = fetchMock.mock.calls[0]
+      expect(String(url)).toBe("/api/content/team/member-1/backrefs")
+      expect(init?.method).toBe("GET")
+      expect(result.groups).toEqual(mockGroups)
+    })
 
-  it("calls the endpoint with group query param", async () => {
-    vi.mocked(api.get).mockResolvedValueOnce({ data: { groups: mockGroups } })
+    it("propagates errors from the API", async () => {
+      fetchMock.mockRejectedValueOnce(new Error("Network error"))
 
-    await backrefsApi.fetchGroup("team", "member-1", "articles", "author_id", 2, 10)
-
-    expect(api.get).toHaveBeenCalledWith("/content/team/member-1/backrefs", {
-      params: { group: "articles:author_id", page: 2, limit: 10 },
+      await expect(backrefsApi.fetch("team", "member-1")).rejects.toThrow("Network error")
     })
   })
 
-  it("defaults to page 1 and limit 20", async () => {
-    vi.mocked(api.get).mockResolvedValueOnce({ data: { groups: [] } })
+  describe("fetchGroup", () => {
+    it("requests one group with the page and the limit", async () => {
+      fetchMock.mockResolvedValueOnce(json(200, { groups: mockGroups }))
 
-    await backrefsApi.fetchGroup("team", "member-1", "articles", "author_id")
+      await backrefsApi.fetchGroup("team", "member-1", "articles", "author_id", 2, 10)
 
-    expect(api.get).toHaveBeenCalledWith("/content/team/member-1/backrefs", {
-      params: { group: "articles:author_id", page: 1, limit: 20 },
+      const url = new URL(String(fetchMock.mock.calls[0][0]), "http://localhost")
+      expect(url.pathname).toBe("/api/content/team/member-1/backrefs")
+      expect(Object.fromEntries(url.searchParams)).toEqual({ group: "articles:author_id", page: "2", limit: "10" })
     })
-  })
 
-  it("returns the response data", async () => {
-    vi.mocked(api.get).mockResolvedValueOnce({ data: { groups: mockGroups } })
+    it("defaults to page 1 and limit 20", async () => {
+      fetchMock.mockResolvedValueOnce(json(200, { groups: [] }))
 
-    const result = await backrefsApi.fetchGroup("team", "member-1", "articles", "author_id")
-    expect(result.groups).toHaveLength(1)
-    expect(result.groups[0].sourceSlug).toBe("articles")
+      await backrefsApi.fetchGroup("team", "member-1", "articles", "author_id")
+
+      const url = new URL(String(fetchMock.mock.calls[0][0]), "http://localhost")
+      expect(Object.fromEntries(url.searchParams)).toEqual({ group: "articles:author_id", page: "1", limit: "20" })
+    })
+
+    it("returns the groups of the response", async () => {
+      fetchMock.mockResolvedValueOnce(json(200, { groups: mockGroups }))
+
+      const result = await backrefsApi.fetchGroup("team", "member-1", "articles", "author_id")
+
+      expect(result.groups).toHaveLength(1)
+      expect(result.groups[0].sourceSlug).toBe("articles")
+    })
   })
 })
