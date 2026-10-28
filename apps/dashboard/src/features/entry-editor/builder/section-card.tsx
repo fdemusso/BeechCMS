@@ -5,7 +5,8 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSortable, SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Check, SortV as GripVertical, More as MoreHorizontal } from '@/components/icons'
+import { Check, More as MoreHorizontal } from '@/components/icons'
+import { GripDots } from '@/components/ui/grip-dots'
 import { toast } from 'sonner'
 import type { LayoutSection, Branch } from '@beechcms/core'
 import { isFullWidthBranch } from '@beechcms/core'
@@ -79,14 +80,14 @@ export function SectionCard({
   return (
     <div ref={setNodeRef} style={style} className="rounded-lg border min-w-0 max-w-full">
       {/* Section header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b">
+      <div className="flex items-center gap-2 px-3 py-2">
         <button
           type="button"
           className="cursor-grab text-muted-foreground hover:text-foreground"
           {...attributes}
           {...listeners}
         >
-          <GripVertical className="size-4" />
+          <GripDots className="size-4" />
         </button>
 
         {isRenaming ? (
@@ -192,7 +193,7 @@ export function SectionCard({
       </div>
 
       {/* Columns */}
-      <div className="p-3 grid gap-2 min-w-0 max-w-full" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
+      <div className="px-3 pb-3 grid gap-3 min-w-0 max-w-full" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
         <SortableContext items={colDragIds} strategy={horizontalListSortingStrategy}>
           {section.columns.map((col) => {
             const colDragId = `column:${tabId}:${section.id}:${col.id}`
@@ -207,6 +208,7 @@ export function SectionCard({
                 availableBranches={availableBranches}
                 ops={ops}
                 dragId={colDragId}
+                reorderable={columnCount > 1}
               />
             )
           })}

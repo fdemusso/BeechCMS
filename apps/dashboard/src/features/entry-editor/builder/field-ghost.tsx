@@ -8,7 +8,6 @@ import { resolvePolicies, type Branch } from '@beechcms/core'
 import { Calendar as CalendarIcon, Plus, Trash2, Upload } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { GripDots } from '@/components/ui/grip-dots'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -27,15 +26,15 @@ import { FieldEdit, MultiRelationSkeleton } from '@/components/fields'
 /** Lengths of the skeleton text lines, cycled so a block does not look like a bar chart. */
 const LINE_WIDTHS = ['w-11/12', 'w-4/5', 'w-full', 'w-2/3', 'w-5/6', 'w-1/2'] as const
 
-/** A real, disabled input with a skeleton where the value would be. */
+/**
+ * A textbox with its skeleton text inside. It is a plain bordered box at the real input's size, not a
+ * disabled `Input`: a faded input with a skeleton on top reads as two ghosts, one inside the other.
+ */
 function GhostInput({ width = 'w-1/3', trailing }: { readonly width?: string; readonly trailing?: React.ReactNode }) {
   return (
-    <div className="relative">
-      <Input disabled readOnly tabIndex={-1} />
-      <Skeleton className={cn('absolute left-2.5 top-1/2 h-3 -translate-y-1/2', width)} />
-      {trailing ? (
-        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">{trailing}</span>
-      ) : null}
+    <div className="flex h-8 w-full min-w-0 items-center gap-2 rounded-lg border border-input px-2.5">
+      <Skeleton className={cn('h-3', width)} />
+      {trailing ? <span className="ml-auto text-muted-foreground">{trailing}</span> : null}
     </div>
   )
 }
