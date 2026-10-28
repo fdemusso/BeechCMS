@@ -13,22 +13,15 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowLeft, Plus, Loader as Loader2, More as MoreHorizontal, Edit as Pencil } from '@/components/icons'
+import { ArrowLeft, Plus, Loader as Loader2, Edit as Pencil, Home, Trash2, X } from '@/components/icons'
 import { toast } from 'sonner'
 import type { Seed, FormLayout, Branch } from '@beechcms/core'
 import { generateDefaultLayout, reconcileLayoutWithSeed } from '@beechcms/core'
 import { isApiError } from '@/lib/http/api-error'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { Input } from '@/components/ui/input'
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -188,7 +181,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
   return (
     <>
       {/* ── Scrollable body ── */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 pt-4 pb-4 space-y-4 min-w-0 max-w-full">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 pt-1 pb-4 space-y-4 min-w-0 max-w-full">
         <DndContext
           sensors={dnd.sensors}
           collisionDetection={builderCollisionDetection}
@@ -201,7 +194,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
 
           {/* Tab strip */}
           <SortableContext items={tabDragIds} strategy={horizontalListSortingStrategy}>
-            <div className="flex items-center gap-1 flex-wrap">
+            <div className="flex items-center gap-0.5 flex-wrap">
               {draft.tabs.map((tab, idx) => (
                 <TabPill
                   key={tab.id}
@@ -216,6 +209,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
                   onRenameChange={setRenameTabValue}
                   onRenameCommit={commitTabRename}
                   onRenameCancel={() => setRenamingTabId(null)}
+                  onSetDefault={() => ops.reorderTabs(idx, 0)}
                   onDelete={() => {
                     if (draft.tabs.length <= 1) return
                     const nextTab = draft.tabs.find((t) => t.id !== tab.id)
@@ -316,6 +310,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
 interface TabPillProps {
   tab: { id: string; label: string }
   isActive: boolean
+  /** The first tab is the one the entry opens on. */
   isDefault: boolean
   dragId: string
   isRenaming: boolean
@@ -325,6 +320,7 @@ interface TabPillProps {
   onRenameChange: (v: string) => void
   onRenameCommit: () => void
   onRenameCancel: () => void
+  onSetDefault: () => void
   onDelete: () => void
   canDelete: boolean
 }
@@ -341,6 +337,7 @@ function TabPill({
   onRenameChange,
   onRenameCommit,
   onRenameCancel,
+  onSetDefault,
   onDelete,
   canDelete,
 }: Readonly<TabPillProps>) {
@@ -362,60 +359,77 @@ function TabPill({
   }
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      role="button"
-      tabIndex={0}
-      className={`flex items-center gap-1 rounded px-3 py-1.5 text-sm cursor-pointer select-none border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isActive ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted/50 border-transparent'}`}
-      onClick={onSetActive}
-      onKeyDown={handleKeyDown}
-      {...restAttributes}
-      {...listeners}
-    >
-      {isRenaming ? (
-        <Input autoFocus className="h-6 text-sm w-24 px-1" value={renameValue}
-          onChange={(e) => onRenameChange(e.target.value)}
-          onBlur={onRenameCommit}
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => {
-            e.stopPropagation()
-            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-              onRenameCommit()
-            }
-            if (e.key === 'Escape') {
-              onRenameCancel()
-            }
-          }}
-        />
-      ) : (
-        <span>{tab.label}</span>
-      )}
-      {isDefault && !isRenaming && (
-        <Badge variant="secondary" className="text-[10px] px-1 py-0 ml-1">
-          {t('layoutBuilder.defaultTabBadge')}
-        </Badge>
-      )}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button type="button" className="ml-1 opacity-60 hover:opacity-100" onClick={(e) => e.stopPropagation()}>
-            <MoreHorizontal className="size-3" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={onStartRename}>
-            <Pencil className="size-3 mr-2" />{t('layoutBuilder.tabMenu.rename')}
-          </DropdownMenuItem>
-          {canDelete && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive" onSelect={onDelete}>
-                {t('layoutBuilder.tabMenu.delete')}
-              </DropdownMenuItem>
-            </>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          ref={setNodeRef}
+          style={style}
+          role="button"
+          tabIndex={0}
+          className={`group/tab flex h-8 shrink-0 items-center rounded-full px-3 text-sm cursor-pointer select-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            isActive ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'
+          }`}
+          onClick={onSetActive}
+          onDoubleClick={onStartRename}
+          onKeyDown={handleKeyDown}
+          {...restAttributes}
+          {...listeners}
+        >
+          {isDefault && !isRenaming && (
+            <Home className="mr-1.5 size-3.5 shrink-0" aria-label={t('layoutBuilder.defaultTabBadge')} />
           )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+          {isRenaming ? (
+            <Input autoFocus className="h-6 text-sm w-24 px-1" value={renameValue}
+              onChange={(e) => onRenameChange(e.target.value)}
+              onBlur={onRenameCommit}
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  onRenameCommit()
+                }
+                if (e.key === 'Escape') {
+                  onRenameCancel()
+                }
+              }}
+            />
+          ) : (
+            <span className="truncate max-w-32">{tab.label}</span>
+          )}
+          {canDelete && !isRenaming && (
+            // The slot is 0 wide until the pill is hovered, then opens to the button's width, so the label
+            // does not sit off-centre while the X is hidden.
+            <span className="grid grid-cols-[0fr] transition-[grid-template-columns,margin] duration-150 group-hover/tab:ml-1.5 group-hover/tab:grid-cols-[1fr] group-focus-within/tab:ml-1.5 group-focus-within/tab:grid-cols-[1fr]">
+              <span className="overflow-hidden">
+                <button
+                  type="button"
+                  aria-label={t('layoutBuilder.tabMenu.delete')}
+                  className="flex size-4 items-center justify-center rounded-full text-destructive opacity-0 transition-opacity hover:bg-destructive/15 group-hover/tab:opacity-100 focus-visible:opacity-100 group-focus-within/tab:opacity-100"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); onDelete() }}
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            </span>
+          )}
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onSelect={onStartRename}>
+          <Pencil className="size-4" />
+          {t('layoutBuilder.tabMenu.rename')}
+        </ContextMenuItem>
+        <ContextMenuItem disabled={isDefault} onSelect={onSetDefault}>
+          <Home className="size-4" />
+          {t('layoutBuilder.tabMenu.setDefault')}
+        </ContextMenuItem>
+        <ContextMenuItem variant="destructive" disabled={!canDelete} onSelect={onDelete}>
+          <Trash2 className="size-4" />
+          {t('layoutBuilder.tabMenu.delete')}
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

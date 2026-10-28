@@ -1376,6 +1376,7 @@
     },
     "tabMenu": {
       "rename": "Rinomina tab",
+      "setDefault": "Imposta come predefinita",
       "delete": "Elimina tab"
     },
     "warnFullWidth": "{{label}} richiede una sezione full-width dedicata.",
