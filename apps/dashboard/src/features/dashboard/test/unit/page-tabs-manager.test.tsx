@@ -4,174 +4,171 @@
 
 import { describe, it, expect, vi, afterEach } from "vitest"
 import type React from "react"
-import { render, screen, within, fireEvent, cleanup } from "@testing-library/react"
+import { render, screen, fireEvent, cleanup, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { DndContext } from "@dnd-kit/core"
+import { DndContext, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
 import type { DashboardPageLayout } from "@beechcms/core"
 import { PageTabsManager } from "@/features/dashboard/builder/page-tabs-manager"
 
-// Radix DropdownMenu relies on pointer-event timing that jsdom doesn't
-// replicate well; render a plain, always-open menu instead so item
-// callbacks (onSelect) can be exercised directly via click.
-vi.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuItem: ({ children, onSelect, className }: { children: React.ReactNode; onSelect?: () => void; className?: string }) => (
-    <div role="menuitem" className={className} onClick={() => onSelect?.()}>
-      {children}
-    </div>
-  ),
-  DropdownMenuSeparator: () => <hr />,
-  DropdownMenuSub: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuSubTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuSubContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}))
-
 afterEach(cleanup)
 
-function makePages(): DashboardPageLayout[] {
+// The builder starts a drag only after a 5px move, so a click stays a click; the bare default would drag at once.
+function Host({ children }: { children: React.ReactNode }) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  return <DndContext sensors={sensors}>{children}</DndContext>
+}
+
+function makePages(count = 2): DashboardPageLayout[] {
   return [
     { id: "page-1", slug: "overview", label: "Overview", sections: [] },
     { id: "page-2", slug: "second", label: "Second", sections: [] },
-  ]
+    { id: "page-3", slug: "third", label: "Third", sections: [] },
+  ].slice(0, count)
 }
 
-function renderManager(pages: DashboardPageLayout[], activePageId = "page-1") {
+function renderManager(pages: DashboardPageLayout[], activePageId = "page-1", canAdd = true) {
   const onSetActive = vi.fn()
   const onAddPage = vi.fn()
   const onRenamePage = vi.fn()
   const onRemovePage = vi.fn()
+  const onSetDefault = vi.fn()
 
   render(
-    <DndContext onDragEnd={() => {}}>
+    <Host>
       <PageTabsManager
         pages={pages}
         activePageId={activePageId}
+        canAdd={canAdd}
         onSetActive={onSetActive}
         onAddPage={onAddPage}
         onRenamePage={onRenamePage}
         onRemovePage={onRemovePage}
+        onSetDefault={onSetDefault}
       />
-    </DndContext>,
+    </Host>,
   )
 
-  return { onSetActive, onAddPage, onRenamePage, onRemovePage }
+  return { onSetActive, onAddPage, onRenamePage, onRemovePage, onSetDefault }
 }
 
+const tab = (name: string) => screen.getByText(name).closest("[role='button']") as HTMLElement
+
 describe("PageTabsManager", () => {
-  it("renders a tab for each page and highlights the active one", () => {
+  it("renders one pill per page", () => {
     renderManager(makePages())
+
     expect(screen.getByText("Overview")).toBeInTheDocument()
     expect(screen.getByText("Second")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Add Page" })).toBeInTheDocument()
   })
 
-  it("calls onSetActive when clicking a tab", () => {
+  it("marks only the first page as the default one", () => {
+    renderManager(makePages())
+
+    expect(screen.getAllByLabelText("Default page")).toHaveLength(1)
+    expect(tab("Overview").querySelector("svg")).not.toBeNull()
+  })
+
+  it("calls onSetActive when a pill is clicked", async () => {
     const { onSetActive } = renderManager(makePages())
-    fireEvent.click(screen.getByText("Second"))
+
+    await userEvent.click(screen.getByText("Second"))
+
     expect(onSetActive).toHaveBeenCalledWith("page-2")
   })
 
-  it("calls onSetActive on Enter key press", () => {
-    const { onSetActive } = renderManager(makePages())
-    const tab = screen.getByText("Second").closest('[role="button"]') as HTMLElement
-    fireEvent.keyDown(tab, { key: "Enter" })
-    expect(onSetActive).toHaveBeenCalledWith("page-2")
-  })
-
-  it("calls onSetActive on Space key press", () => {
-    const { onSetActive } = renderManager(makePages())
-    const tab = screen.getByText("Second").closest('[role="button"]') as HTMLElement
-    fireEvent.keyDown(tab, { key: " " })
-    expect(onSetActive).toHaveBeenCalledWith("page-2")
-  })
-
-  it("does not call onSetActive on other key presses", () => {
-    const { onSetActive } = renderManager(makePages())
-    const tab = screen.getByText("Second").closest('[role="button"]') as HTMLElement
-    fireEvent.keyDown(tab, { key: "Tab" })
-    expect(onSetActive).not.toHaveBeenCalled()
-  })
-
-  it("calls onAddPage when clicking the add button", async () => {
+  it("calls onAddPage with no arguments when the add button is clicked", async () => {
     const { onAddPage } = renderManager(makePages())
-    await userEvent.click(screen.getByRole("button", { name: "Add Page" }))
-    expect(onAddPage).toHaveBeenCalledTimes(1)
+
+    await userEvent.click(screen.getByRole("button", { name: /Add Page/i }))
+
+    expect(onAddPage).toHaveBeenCalledWith()
   })
 
-  it("renames a page via the dropdown menu and input commit", () => {
-    const { onRenamePage } = renderManager(makePages())
+  it("disables the add button, rather than hiding it, at the page limit", () => {
+    renderManager(makePages(), "page-1", false)
 
-    const overviewTab = screen.getByText("Overview").closest('[role="button"]') as HTMLElement
-    const renameItem = within(overviewTab).getByText("Rename page")
-    fireEvent.click(renameItem)
-
-    const input = screen.getByDisplayValue("Overview")
-    fireEvent.change(input, { target: { value: "Renamed" } })
-    fireEvent.keyDown(input, { key: "Enter" })
-
-    expect(onRenamePage).toHaveBeenCalledWith("page-1", "Renamed")
+    expect(screen.getByRole("button", { name: /Add Page/i })).toBeDisabled()
   })
 
-  it("cancels rename on Escape without calling onRenamePage", () => {
+  it("renames a page on double click and commits with Enter", async () => {
     const { onRenamePage } = renderManager(makePages())
 
-    const overviewTab = screen.getByText("Overview").closest('[role="button"]') as HTMLElement
-    fireEvent.click(within(overviewTab).getByText("Rename page"))
+    await userEvent.dblClick(screen.getByText("Second"))
+    const input = screen.getByDisplayValue("Second")
+    await userEvent.clear(input)
+    await userEvent.type(input, "Renamed{Enter}")
 
-    const input = screen.getByDisplayValue("Overview")
-    fireEvent.change(input, { target: { value: "X" } })
-    fireEvent.keyDown(input, { key: "Escape" })
-
-    expect(onRenamePage).not.toHaveBeenCalled()
-    expect(screen.getByText("Overview")).toBeInTheDocument()
+    expect(onRenamePage).toHaveBeenCalledWith("page-2", "Renamed")
   })
 
-  it("does not commit rename when the value is blank", () => {
+  it("commits a rename when the input loses focus", async () => {
     const { onRenamePage } = renderManager(makePages())
 
-    const overviewTab = screen.getByText("Overview").closest('[role="button"]') as HTMLElement
-    fireEvent.click(within(overviewTab).getByText("Rename page"))
-
-    const input = screen.getByDisplayValue("Overview")
-    fireEvent.change(input, { target: { value: "" } })
-    fireEvent.keyDown(input, { key: "Enter" })
-
-    expect(onRenamePage).not.toHaveBeenCalled()
-  })
-
-  it("commits rename on input blur", () => {
-    const { onRenamePage } = renderManager(makePages())
-
-    const overviewTab = screen.getByText("Overview").closest('[role="button"]') as HTMLElement
-    fireEvent.click(within(overviewTab).getByText("Rename page"))
-
-    const input = screen.getByDisplayValue("Overview")
-    fireEvent.change(input, { target: { value: "Blurred" } })
+    await userEvent.dblClick(screen.getByText("Second"))
+    const input = screen.getByDisplayValue("Second")
+    await userEvent.clear(input)
+    await userEvent.type(input, "Blurred")
     fireEvent.blur(input)
 
-    expect(onRenamePage).toHaveBeenCalledWith("page-1", "Blurred")
+    expect(onRenamePage).toHaveBeenCalledWith("page-2", "Blurred")
   })
 
-  it("shows the delete option only when there is more than one page", () => {
+  it("cancels a rename on Escape without calling onRenamePage", async () => {
+    const { onRenamePage } = renderManager(makePages())
+
+    await userEvent.dblClick(screen.getByText("Second"))
+    await userEvent.type(screen.getByDisplayValue("Second"), "x{Escape}")
+
+    expect(onRenamePage).not.toHaveBeenCalled()
+  })
+
+  it("does not commit a blank rename", async () => {
+    const { onRenamePage } = renderManager(makePages())
+
+    await userEvent.dblClick(screen.getByText("Second"))
+    const input = screen.getByDisplayValue("Second")
+    await userEvent.clear(input)
+    await userEvent.type(input, "   {Enter}")
+
+    expect(onRenamePage).not.toHaveBeenCalled()
+  })
+
+  it("limits the rename input to the page label maximum", async () => {
     renderManager(makePages())
-    const overviewTab = screen.getByText("Overview").closest('[role="button"]') as HTMLElement
-    expect(within(overviewTab).getByText("Delete page")).toBeInTheDocument()
+
+    await userEvent.dblClick(screen.getByText("Second"))
+
+    expect(screen.getByDisplayValue("Second")).toHaveAttribute("maxlength", "60")
   })
 
-  it("hides the delete option when there is only one page", () => {
-    const onePage = [makePages()[0]]
-    renderManager(onePage)
-    const overviewTab = screen.getByText("Overview").closest('[role="button"]') as HTMLElement
-    expect(within(overviewTab).getByText("Rename page")).toBeInTheDocument()
-    expect(within(overviewTab).queryByText("Delete page")).not.toBeInTheDocument()
-  })
-
-  it("calls onRemovePage when delete is selected", () => {
+  it("deletes a page from the red X on its pill", async () => {
     const { onRemovePage } = renderManager(makePages())
-    const overviewTab = screen.getByText("Overview").closest('[role="button"]') as HTMLElement
-    fireEvent.click(within(overviewTab).getByText("Delete page"))
-    expect(onRemovePage).toHaveBeenCalledWith("page-1")
+
+    await userEvent.click(within(tab("Second")).getByRole("button", { name: "Delete page" }))
+
+    expect(onRemovePage).toHaveBeenCalledWith("page-2")
+  })
+
+  it("renders no delete control when there is only one page", () => {
+    renderManager(makePages(1))
+
+    expect(screen.queryByRole("button", { name: "Delete page" })).not.toBeInTheDocument()
+  })
+
+  it("offers rename, set default and delete in the right-click menu, and sets the default", async () => {
+    const { onSetDefault } = renderManager(makePages())
+
+    fireEvent.contextMenu(tab("Second"))
+    await userEvent.click(await screen.findByRole("menuitem", { name: /Set as default/i }))
+
+    expect(onSetDefault).toHaveBeenCalledWith("page-2")
+  })
+
+  it("disables 'Set as default' on the page that already is the default", async () => {
+    renderManager(makePages())
+
+    fireEvent.contextMenu(tab("Overview"))
+
+    expect(await screen.findByRole("menuitem", { name: /Set as default/i })).toHaveAttribute("data-disabled")
   })
 })

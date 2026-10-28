@@ -501,7 +501,8 @@ export function useDashboardBuilder({ initialLayout, restoredDraft }: UseDashboa
     setActivePageId(initialLayout.pages[0]?.id ?? '')
   }, [initialLayout])
 
-  return {
+  // Stable between renders that change nothing, so memoised blocks are not redrawn on every drag move.
+  return useMemo(() => ({
     draft,
     saved: storedInitial,
     activePageId,
@@ -530,5 +531,34 @@ export function useDashboardBuilder({ initialLayout, restoredDraft }: UseDashboa
     replaceWidget,
     restoreDraft,
     reset,
-  }
+  }), [
+    draft,
+    storedInitial,
+    activePageId,
+    setActivePageId,
+    isDirty,
+    addPage,
+    renamePage,
+    removePage,
+    movePage,
+    addSection,
+    updateSection,
+    removeSection,
+    moveSection,
+    duplicateSection,
+    toggleSectionFlag,
+    setColumnPreset,
+    moveColumn,
+    addWidget,
+    duplicateWidget,
+    reorderWidgetsInColumn,
+    updateWidgetConfig,
+    updateWidgetTitle,
+    moveWidget,
+    moveWidgetToPage,
+    removeWidget,
+    replaceWidget,
+    restoreDraft,
+    reset,
+  ])
 }

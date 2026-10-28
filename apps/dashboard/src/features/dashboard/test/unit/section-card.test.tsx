@@ -4,19 +4,37 @@
 
 import { describe, it, expect, vi, afterEach } from "vitest"
 import type React from "react"
-import { render, screen, fireEvent, cleanup } from "@testing-library/react"
+import { render, screen, fireEvent, cleanup, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { DndContext } from "@dnd-kit/core"
-import type { DashboardPageLayout, DashboardSection } from "@beechcms/core"
+import type { DashboardSection } from "@beechcms/core"
 import "@/features/dashboard/registry/builtin-widgets"
 import { SectionCard } from "@/features/dashboard/builder/section-card"
+import type { UseDashboardBuilderResult } from "@/features/dashboard/builder"
 
+// Radix DropdownMenu relies on pointer-event timing that jsdom doesn't replicate well; render a plain,
+// always-open menu instead so item callbacks (onSelect) can be exercised directly via click.
 vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuItem: ({ children, onSelect, className }: { children: React.ReactNode; onSelect?: () => void; className?: string }) => (
-    <div role="menuitem" className={className} onClick={() => onSelect?.()}>
+  DropdownMenuItem: ({
+    children,
+    onSelect,
+    disabled,
+    className,
+  }: {
+    children: React.ReactNode
+    onSelect?: (event: { preventDefault: () => void }) => void
+    disabled?: boolean
+    className?: string
+  }) => (
+    <div
+      role="menuitem"
+      aria-disabled={disabled || undefined}
+      className={className}
+      onClick={() => { if (!disabled) onSelect?.({ preventDefault: () => {} }) }}
+    >
       {children}
     </div>
   ),
@@ -40,225 +58,172 @@ function makeSection(overrides: Partial<DashboardSection> = {}): DashboardSectio
   }
 }
 
-function renderCard(section: DashboardSection, extra: Partial<Parameters<typeof SectionCard>[0]> = {}, otherPages: DashboardPageLayout[] = []) {
-  const onUpdate = vi.fn()
-  const onSetColumnPreset = vi.fn()
-  const onDuplicate = vi.fn()
-  const onRemove = vi.fn()
-  const onAddWidget = vi.fn()
+function makeOps() {
+  return {
+    updateSection: vi.fn(),
+    toggleSectionFlag: vi.fn(),
+    setColumnPreset: vi.fn(),
+    duplicateSection: vi.fn(),
+    removeSection: vi.fn(),
+    addWidget: vi.fn(() => true),
+    removeWidget: vi.fn(),
+    updateWidgetTitle: vi.fn(),
+    duplicateWidget: vi.fn(() => true),
+    replaceWidget: vi.fn(),
+    moveWidgetToPage: vi.fn(() => true),
+  }
+}
+
+function renderCard(section: DashboardSection, extra: { canRemove?: boolean } = {}) {
+  const ops = makeOps()
   const onConfigureWidget = vi.fn()
-  const onRemoveWidget = vi.fn()
-  const onMoveWidgetToPage = vi.fn()
 
   render(
-    <DndContext onDragEnd={() => {}}>
+    <DndContext>
       <SectionCard
         pageId="page-1"
         section={section}
-        dragId={`section:page-1:${section.id}`}
-        otherPages={otherPages}
-        canRemove
-        onUpdate={onUpdate}
-        onSetColumnPreset={onSetColumnPreset}
-        onDuplicate={onDuplicate}
-        onRemove={onRemove}
-        onAddWidget={onAddWidget}
+        otherPages={[]}
+        ops={ops as unknown as UseDashboardBuilderResult}
+        canRemove={extra.canRemove ?? true}
         onConfigureWidget={onConfigureWidget}
-        onRemoveWidget={onRemoveWidget}
-        onMoveWidgetToPage={onMoveWidgetToPage}
-        {...extra}
       />
     </DndContext>,
   )
 
-  return { onUpdate, onSetColumnPreset, onDuplicate, onRemove, onAddWidget, onConfigureWidget, onRemoveWidget, onMoveWidgetToPage }
+  return { ops, onConfigureWidget }
 }
+
+const menuItem = (name: RegExp | string) => screen.getByRole("menuitem", { name })
 
 describe("SectionCard", () => {
   it("renders the section label when set", () => {
     renderCard(makeSection({ label: "My Section" }))
+
     expect(screen.getByText("My Section")).toBeInTheDocument()
   })
 
-  it("renders the placeholder label when no label is set", () => {
-    renderCard(makeSection({ label: undefined }))
+  it("renders a placeholder when the section has no label", () => {
+    renderCard(makeSection())
+
     expect(screen.getByText("No Label")).toBeInTheDocument()
   })
 
-  it("gives every column of a five-column section without explicit spans an integer grid span", () => {
-    const columns = Array.from({ length: 5 }, (_, i) => ({ id: `col-${i}`, widgets: [] }))
-    const { container } = render(
-      <DndContext onDragEnd={() => {}}>
-        <SectionCard
-          pageId="page-1"
-          section={{ id: "section-5", columns }}
-          dragId="section:page-1:section-5"
-          otherPages={[]}
-          canRemove
-          onUpdate={vi.fn()}
-          onSetColumnPreset={vi.fn()}
-          onDuplicate={vi.fn()}
-          onRemove={vi.fn()}
-          onAddWidget={vi.fn()}
-          onConfigureWidget={vi.fn()}
-          onRemoveWidget={vi.fn()}
-          onMoveWidgetToPage={vi.fn()}
-        />
-      </DndContext>,
-    )
-
-    const spans = Array.from(container.querySelectorAll<HTMLElement>("[style*='grid-column']"), (el) => el.style.gridColumn)
-
-    expect(spans).toHaveLength(5)
-    expect(spans.every((span) => /^span \d+ \/ span \d+$/.test(span))).toBe(true)
-  })
-
-  it("renders one ColumnStack per column", () => {
+  it("counts the section's widgets in a badge", () => {
     renderCard(makeSection())
-    expect(screen.getAllByRole("button", { name: /Add Widget/i })).toHaveLength(2)
+
+    expect(screen.getByText("1 widget")).toBeInTheDocument()
   })
 
-  it("enters rename mode on double-click and commits on Enter", () => {
-    const { onUpdate } = renderCard(makeSection({ label: "Old" }))
+  it("renames on double click and commits with Enter", async () => {
+    const { ops } = renderCard(makeSection({ label: "Old" }))
 
-    fireEvent.doubleClick(screen.getByText("Old"))
+    await userEvent.dblClick(screen.getByText("Old"))
     const input = screen.getByDisplayValue("Old")
-    fireEvent.change(input, { target: { value: "New Label" } })
-    fireEvent.keyDown(input, { key: "Enter" })
+    await userEvent.clear(input)
+    await userEvent.type(input, "New{Enter}")
 
-    expect(onUpdate).toHaveBeenCalledWith({ label: "New Label" })
+    expect(ops.updateSection).toHaveBeenCalledWith("page-1", "section-1", { label: "New" })
   })
 
-  it("commits an empty rename as undefined label", () => {
-    const { onUpdate } = renderCard(makeSection({ label: "Old" }))
+  it("commits an empty rename as no label", async () => {
+    const { ops } = renderCard(makeSection({ label: "Old" }))
 
-    fireEvent.doubleClick(screen.getByText("Old"))
-    const input = screen.getByDisplayValue("Old")
-    fireEvent.change(input, { target: { value: "   " } })
-    fireEvent.keyDown(input, { key: "Enter" })
+    await userEvent.dblClick(screen.getByText("Old"))
+    await userEvent.clear(screen.getByDisplayValue("Old"))
+    await userEvent.keyboard("{Enter}")
 
-    expect(onUpdate).toHaveBeenCalledWith({ label: undefined })
+    expect(ops.updateSection).toHaveBeenCalledWith("page-1", "section-1", { label: undefined })
   })
 
-  it("cancels rename on Escape", () => {
-    const { onUpdate } = renderCard(makeSection({ label: "Old" }))
-
-    fireEvent.doubleClick(screen.getByText("Old"))
-    const input = screen.getByDisplayValue("Old")
-    fireEvent.change(input, { target: { value: "New Label" } })
-    fireEvent.keyDown(input, { key: "Escape" })
-
-    expect(onUpdate).not.toHaveBeenCalled()
-    expect(screen.getByText("Old")).toBeInTheDocument()
-  })
-
-  it("enters rename mode via Enter/Space key on the label", () => {
+  it("limits the rename input to the section label maximum", async () => {
     renderCard(makeSection({ label: "Old" }))
-    const label = screen.getByText("Old")
-    fireEvent.keyDown(label, { key: "Enter" })
-    expect(screen.getByDisplayValue("Old")).toBeInTheDocument()
+
+    await userEvent.dblClick(screen.getByText("Old"))
+
+    expect(screen.getByDisplayValue("Old")).toHaveAttribute("maxlength", "60")
   })
 
-  it("toggles hideLabel via the dropdown menu", () => {
-    const { onUpdate } = renderCard(makeSection({ hideLabel: false }))
-    const menuItem = screen.getByText("Hide Label")
-    fireEvent.click(menuItem)
-    expect(onUpdate).toHaveBeenCalledWith({ hideLabel: true })
+  it.each([
+    ["Hide Label", "hideLabel"],
+    ["Collapsible", "collapsible"],
+  ])("toggles %s from the menu", async (label, flag) => {
+    const { ops } = renderCard(makeSection())
+
+    await userEvent.click(menuItem(label))
+
+    expect(ops.toggleSectionFlag).toHaveBeenCalledWith("page-1", "section-1", flag)
   })
 
-  it("toggles collapsible via the dropdown menu", () => {
-    const { onUpdate } = renderCard(makeSection({ collapsible: false }))
-    const menuItem = screen.getByText("Collapsible")
-    fireEvent.click(menuItem)
-    expect(onUpdate).toHaveBeenCalledWith({ collapsible: true })
+  it("sets a column preset from the menu", async () => {
+    const { ops } = renderCard(makeSection())
+    const preset = document.querySelector("[data-spans='8,4']")?.closest("[role='menuitem']") as HTMLElement
+
+    await userEvent.click(preset)
+
+    expect(ops.setColumnPreset).toHaveBeenCalledWith("page-1", "section-1", [8, 4])
   })
 
-  it("calls onSetColumnPreset with the selected preset", () => {
-    const { onSetColumnPreset } = renderCard(makeSection())
-    const presetItem = screen.getByText("[4, 4, 4]")
-    fireEvent.click(presetItem)
-    expect(onSetColumnPreset).toHaveBeenCalledWith([4, 4, 4])
+  it("duplicates the section from the menu", async () => {
+    const { ops } = renderCard(makeSection())
+
+    await userEvent.click(menuItem("Duplicate"))
+
+    expect(ops.duplicateSection).toHaveBeenCalledWith("page-1", "section-1")
   })
 
-  it("calls onDuplicate from the dropdown menu", () => {
-    const { onDuplicate } = renderCard(makeSection())
-    fireEvent.click(screen.getByText("Duplicate"))
-    expect(onDuplicate).toHaveBeenCalledTimes(1)
+  it("removes a section with no widgets at once, without asking", async () => {
+    const { ops } = renderCard(makeSection({ columns: [{ id: "col-1", widgets: [] }], columnSpans: [12] }))
+
+    await userEvent.click(menuItem("Remove"))
+
+    expect(ops.removeSection).toHaveBeenCalledWith("page-1", "section-1")
   })
 
-  it("calls onRemove from the dropdown menu when canRemove is true", () => {
-    const emptySection = makeSection({ columns: [{ id: "col-1", widgets: [] }, { id: "col-2", widgets: [] }] })
-    const { onRemove } = renderCard(emptySection, { canRemove: true })
-    fireEvent.click(screen.getByText("Remove"))
-    expect(onRemove).toHaveBeenCalledTimes(1)
+  it("asks before removing a section that holds widgets, and removes on confirm", async () => {
+    const { ops } = renderCard(makeSection())
+
+    await userEvent.click(menuItem("Remove"))
+    expect(ops.removeSection).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole("button", { name: "Confirm" }))
+
+    expect(ops.removeSection).toHaveBeenCalledWith("page-1", "section-1")
   })
 
-  it("does not render the remove option when canRemove is false", () => {
-    const emptySection = makeSection({ columns: [{ id: "col-1", widgets: [] }, { id: "col-2", widgets: [] }] })
-    renderCard(emptySection, { canRemove: false })
-    expect(screen.queryByText("Remove")).not.toBeInTheDocument()
+  it("keeps the Remove item but disables it on a page's only section", async () => {
+    const { ops } = renderCard(makeSection(), { canRemove: false })
+
+    await userEvent.click(menuItem("Remove"))
+
+    expect(menuItem("Remove")).toHaveAttribute("aria-disabled", "true")
+    expect(ops.removeSection).not.toHaveBeenCalled()
   })
 
-  it("derives column spans evenly when columnSpans is not set", () => {
-    const section = makeSection({ columnSpans: undefined })
+  it("lays the columns out on the 12-unit grid using their spans", () => {
     const { container } = render(
-      <DndContext onDragEnd={() => {}}>
+      <DndContext>
         <SectionCard
           pageId="page-1"
-          section={section}
-          dragId="section:page-1:section-1"
+          section={makeSection({ columnSpans: [8, 4] })}
           otherPages={[]}
+          ops={makeOps() as unknown as UseDashboardBuilderResult}
           canRemove
-          onUpdate={vi.fn()}
-          onSetColumnPreset={vi.fn()}
-          onDuplicate={vi.fn()}
-          onRemove={vi.fn()}
-          onAddWidget={vi.fn()}
           onConfigureWidget={vi.fn()}
-          onRemoveWidget={vi.fn()}
-          onMoveWidgetToPage={vi.fn()}
         />
       </DndContext>,
     )
-    const columns = container.querySelectorAll(".grid.grid-cols-12 > div")
-    expect(columns[0]).toHaveStyle({ gridColumn: "span 6 / span 6" })
+
+    const spans = Array.from(container.querySelectorAll<HTMLElement>("[style*='grid-column']")).map((el) => el.style.gridColumn)
+    expect(spans).toEqual(["span 8 / span 8", "span 4 / span 4"])
   })
 
-  it("forwards add/configure/remove widget callbacks per column", async () => {
-    const { onAddWidget, onConfigureWidget, onRemoveWidget } = renderCard(makeSection())
+  it("adds a widget to the column whose button was used", async () => {
+    const { ops } = renderCard(makeSection())
+    const secondColumnAdd = screen.getAllByRole("button", { name: /Add Widget/i })[1]
 
-    const addButtons = screen.getAllByRole("button", { name: /Add Widget/i })
-    await userEvent.click(addButtons[1])
-    expect(onAddWidget).toHaveBeenCalledWith("col-2")
+    await userEvent.click(secondColumnAdd)
+    fireEvent.click(within(document.body).getAllByRole("option", { name: "Text" })[1])
 
-    // Configure via clicking the widget label button in col-1.
-    const configureButton = screen.getByRole("button", { name: "Text" })
-    await userEvent.click(configureButton)
-    expect(onConfigureWidget).toHaveBeenCalledWith("col-1", "w1")
-
-    expect(onRemoveWidget).not.toHaveBeenCalled()
-  })
-
-  it("forwards onMoveWidgetToPage with column and widget context", () => {
-    const otherPages: DashboardPageLayout[] = [
-      { id: "page-2", slug: "second", label: "Second Page", sections: [] },
-    ]
-    const { onMoveWidgetToPage } = renderCard(makeSection(), {}, otherPages)
-
-    const moveItem = screen.getByText("Move to page…")
-    fireEvent.click(moveItem)
-    const target = screen.getByText("Second Page")
-    fireEvent.click(target)
-
-    expect(onMoveWidgetToPage).toHaveBeenCalledWith("col-1", "w1", "page-2")
-  })
-
-  it("marks the currently active column preset", () => {
-    renderCard(makeSection({
-      columns: [{ id: "col-1", widgets: [] }, { id: "col-2", widgets: [] }, { id: "col-3", widgets: [] }],
-      columnSpans: [4, 4, 4],
-    }))
-    const activePreset = screen.getByText("[4, 4, 4]")
-    expect(activePreset).toHaveClass("font-semibold")
+    expect(ops.addWidget).toHaveBeenCalledWith("page-1", "section-1", "col-2", "core/text")
   })
 })

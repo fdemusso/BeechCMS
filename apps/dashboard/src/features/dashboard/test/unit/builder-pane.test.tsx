@@ -11,12 +11,19 @@ import React from "react"
 import type { DashboardLayout } from "@beechcms/core"
 
 // The builder reads the schema and the layout scopes through rpc; neither is under test here.
+// What the server holds for every scope; set per test, before the dialog opens.
+const server = vi.hoisted(() => ({ layout: null as unknown }))
+
 vi.mock("@/lib/rpc", () => ({
   rpc: { api: {
     schema: { $get: async () => ({ json: async () => [] }) },
     "dashboard-layout": {
       scopes: { $get: async () => ({ json: async () => [] }) },
-      ":scope": { $put: vi.fn(), $delete: vi.fn() },
+      ":scope": {
+        $get: async () => ({ json: async () => ({ layout: server.layout }) }),
+        $put: vi.fn(),
+        $delete: vi.fn(),
+      },
     },
   } },
 }))
@@ -106,6 +113,7 @@ function makeLayout(): DashboardLayout {
 describe("BuilderPane (via DashboardBuilderDialog)", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    server.layout = makeLayout()
   })
 
   it("toggles preview mode and renders the layout renderer", async () => {
@@ -140,86 +148,67 @@ describe("BuilderPane (via DashboardBuilderDialog)", () => {
     expect(after.length).toBeGreaterThan(before)
   })
 
-  it("opens the widget picker and adds a widget to a column", async () => {
+  it("adds the picked widget to the column whose Add Widget button was used", async () => {
     render(
       <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
       { wrapper: wrapper(makeQueryClient()) },
     )
+    await screen.findAllByRole("button", { name: /Add Widget/i })
 
-    const addWidgetButtons = await screen.findAllByRole("button", { name: /Add Widget/i })
-    await userEvent.click(addWidgetButtons[0])
+    await userEvent.click(screen.getAllByRole("option", { name: "Text" })[0])
 
-    // Picker dialog opens with category headings.
-    expect(await screen.findByRole("heading", { name: "Charts" })).toBeInTheDocument()
-    expect(await screen.findByRole("heading", { name: "Stats" })).toBeInTheDocument()
-    expect(await screen.findByRole("heading", { name: "System" })).toBeInTheDocument()
-
-    // Pick the "Text" widget.
-    await userEvent.click(screen.getByText("Text"))
-
-    // The new widget chip should now be present (Text widget label).
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Text" })).toBeInTheDocument()
-    })
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Text" })).toHaveLength(2))
   })
 
-  it("opens the config sheet when a widget is clicked and removes it from there", async () => {
+  it("groups the catalogue by category in the picker", async () => {
     render(
       <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
       { wrapper: wrapper(makeQueryClient()) },
     )
 
-    // Add a "Text" widget so we have a known widget to configure.
-    const addWidgetButtons = await screen.findAllByRole("button", { name: /Add Widget/i })
-    await userEvent.click(addWidgetButtons[0])
-    expect(await screen.findByRole("heading", { name: "Charts" })).toBeInTheDocument()
-    await userEvent.click(screen.getByText("Text"))
+    await screen.findAllByRole("button", { name: /Add Widget/i })
 
-    const widgetButton = await screen.findByRole("button", { name: "Text" })
-    await userEvent.click(widgetButton)
+    for (const heading of ["Charts", "Stats", "System"]) {
+      expect(screen.getAllByText(heading).length).toBeGreaterThan(0)
+    }
+  })
 
-    // Config sheet should open with a Title field.
+  it("opens the config sheet from a widget's gear and removes the widget from there", async () => {
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    await screen.findAllByRole("button", { name: /Add Widget/i })
+
+    await userEvent.click(screen.getByRole("button", { name: "Configure" }))
     expect(await screen.findByText("Title")).toBeInTheDocument()
+    const removeButtons = screen.getAllByRole("button", { name: /Remove/i })
+    await userEvent.click(removeButtons[removeButtons.length - 1])
 
-    // Remove the widget from within the sheet.
-    const removeButton = screen.getByRole("button", { name: /Remove/i })
-    await userEvent.click(removeButton)
-
-    // Sheet closes and the widget chip is gone.
     await waitFor(() => expect(screen.queryByRole("button", { name: "Text" })).not.toBeInTheDocument())
   })
 
-  it("shows a discard confirmation when closing with unsaved changes", async () => {
-    const onOpenChange = vi.fn()
+  it("removes a widget from the red X on the widget", async () => {
     render(
-      <DashboardBuilderDialog open onOpenChange={onOpenChange} initialLayout={makeLayout()} />,
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
       { wrapper: wrapper(makeQueryClient()) },
     )
+    await screen.findAllByRole("button", { name: /Add Widget/i })
 
-    const addSectionButton = await screen.findByRole("button", { name: "Add Section" })
-    await userEvent.click(addSectionButton)
+    await userEvent.click(screen.getByRole("button", { name: "Remove" }))
 
-    const cancelButton = screen.getByRole("button", { name: "Cancel" })
-    await userEvent.click(cancelButton)
-
-    const dialog = await screen.findByRole("alertdialog")
-    expect(within(dialog).getByText("Discard changes?")).toBeInTheDocument()
-
-    const confirmButton = within(dialog).getByRole("button", { name: "Confirm" })
-    await userEvent.click(confirmButton)
-
-    expect(onOpenChange).toHaveBeenCalledWith(false)
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Text" })).not.toBeInTheDocument())
   })
 
-  it("closes immediately without a confirmation dialog when there are no unsaved changes", async () => {
+  it("closes with Back at once, even with unsaved changes: the draft is dropped, not confirmed", async () => {
     const onOpenChange = vi.fn()
     render(
       <DashboardBuilderDialog open onOpenChange={onOpenChange} initialLayout={makeLayout()} />,
       { wrapper: wrapper(makeQueryClient()) },
     )
+    await userEvent.click(await screen.findByRole("button", { name: "Add Section" }))
 
-    const cancelButton = await screen.findByRole("button", { name: "Cancel" })
-    await userEvent.click(cancelButton)
+    await userEvent.click(screen.getByRole("button", { name: "Back" }))
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
     expect(onOpenChange).toHaveBeenCalledWith(false)
@@ -238,33 +227,33 @@ describe("BuilderPane (via DashboardBuilderDialog)", () => {
     expect(saveButton).toBeEnabled()
   })
 
-  it("moves a widget to another page via the chip's dropdown menu", async () => {
+  it("moves a widget to another page from its right-click menu", async () => {
     render(
       <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
       { wrapper: wrapper(makeQueryClient()) },
     )
+    await screen.findAllByRole("button", { name: /Add Widget/i })
 
-    // Add a "Text" widget to a fresh, empty column, then a second page to move it to.
-    const addWidgetButtons = await screen.findAllByRole("button", { name: /Add Widget/i })
-    await userEvent.click(addWidgetButtons[addWidgetButtons.length - 1])
-    expect(await screen.findByRole("heading", { name: "Charts" })).toBeInTheDocument()
-    await userEvent.click(screen.getByText("Text"))
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Text" }))
+    await userEvent.click(await screen.findByRole("menuitem", { name: /Move to page/i }))
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Second Page" }))
 
-    await userEvent.click(await screen.findByRole("button", { name: "Add Page" }))
-    // Switch back to the Overview page where the widget lives.
-    await userEvent.click(screen.getByText("Overview"))
-
-    // Scope to the "Text" widget's chip and trigger its "Move to page…" item.
-    const textChip = (await screen.findByRole("button", { name: "Text" })).closest(".group") as HTMLElement
-    const moveItem = within(textChip).getByText("Move to page…")
-    fireEvent.click(moveItem)
-    const targetItem = within(textChip).getByText("New Page")
-    fireEvent.click(targetItem)
-
-    // Switch to the second page tab and verify the widget moved there.
-    const newPageTab = screen.getAllByText("New Page")[0].closest('[role="button"]') as HTMLElement
-    fireEvent.click(newPageTab)
+    await userEvent.click(screen.getByText("Second Page"))
     await waitFor(() => expect(screen.getByRole("button", { name: "Text" })).toBeInTheDocument())
+  })
+
+  it("leaves the source page without the widget once it has been moved", async () => {
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    await screen.findAllByRole("button", { name: /Add Widget/i })
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Text" }))
+    await userEvent.click(await screen.findByRole("menuitem", { name: /Move to page/i }))
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Second Page" }))
+
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Text" })).not.toBeInTheDocument())
   })
 
   it("triggers the reset confirm dialog from the Reset button", async () => {

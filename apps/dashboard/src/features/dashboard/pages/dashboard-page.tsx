@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Settings } from '@/components/icons'
 import { canEditDashboard } from "@beechcms/core"
@@ -13,13 +13,28 @@ import { useAuth } from "@/lib/auth-context"
 import { useDashboardLayout } from "../hooks/use-dashboard-layout"
 import { DashboardLayoutRenderer } from "../renderer/dashboard-layout-renderer"
 import { DashboardBuilderDialog } from "../builder/dashboard-builder-dialog"
+import { listDashboardDraftScopes } from "../builder/dashboard-draft-storage"
 
 export default function DashboardPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
   const { layout } = useDashboardLayout()
   const [builderOpen, setBuilderOpen] = useState(false)
+  // Set when the builder was opened by a draft a reload interrupted, not by the Customize button.
+  const [recoveryScope, setRecoveryScope] = useState<string | undefined>()
   const canEdit = canEditDashboard(user?.role)
+
+  // Unsaved builder work survives a reload: when one is waiting, the builder comes back without asking.
+  // A reload never closes the builder on purpose, so a draft at load time means the work was cut short.
+  const [recoveryChecked, setRecoveryChecked] = useState(false)
+  useEffect(() => {
+    if (!canEdit || recoveryChecked) return
+    setRecoveryChecked(true)
+    const [scope] = listDashboardDraftScopes()
+    if (scope === undefined) return
+    setRecoveryScope(scope)
+    setBuilderOpen(true)
+  }, [canEdit, recoveryChecked])
   const hour = new Date().getHours()
   const greeting = hour >= 5 && hour < 12
     ? t("dashboard.greeting.morning")
@@ -58,7 +73,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   {canEdit && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => setBuilderOpen(true)}>
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setRecoveryScope(undefined); setBuilderOpen(true) }}>
                       <Settings className="size-4 mr-2" />
                       {t("dashboard.builder.customize")}
                     </Button>
@@ -72,7 +87,13 @@ export default function DashboardPage() {
         </div>
       </SidebarProvider>
       {canEdit && (
-        <DashboardBuilderDialog open={builderOpen} onOpenChange={setBuilderOpen} initialLayout={layout} />
+        <DashboardBuilderDialog
+          open={builderOpen}
+          onOpenChange={setBuilderOpen}
+          initialLayout={layout}
+          initialScope={recoveryScope}
+          recovering={recoveryScope !== undefined}
+        />
       )}
     </div>
   )
