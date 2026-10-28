@@ -225,6 +225,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                   type="button"
                   variant="ghost"
                   size="icon-sm"
+                  disabled={builderMode}
                   onClick={() => setBuilderMode(true)}
                 >
                   <LayoutTemplate className="size-4" />

@@ -13,7 +13,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, Loader as Loader2, More as MoreHorizontal, Edit as Pencil } from '@/components/icons'
+import { ArrowLeft, Plus, Loader as Loader2, More as MoreHorizontal, Edit as Pencil } from '@/components/icons'
 import { toast } from 'sonner'
 import type { Seed, FormLayout, Branch } from '@beechcms/core'
 import { generateDefaultLayout, reconcileLayoutWithSeed } from '@beechcms/core'
@@ -21,6 +21,7 @@ import { isApiError } from '@/lib/http/api-error'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ButtonGroup } from '@/components/ui/button-group'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +38,13 @@ import { BuilderDragContext, builderCollisionDetection, dragIds, useBuilderDnd }
 import { clearLayoutDraft, fingerprintLayout, loadLayoutDraft, saveLayoutDraft } from './layout-draft-storage'
 import { useLayoutBuilder } from './use-layout-builder'
 import { saveLayout, resetLayout } from '../api/layout.api'
+
+/**
+ * Corner radius of the footer buttons. `rounded-lg` is 16px in this theme, which turns a 32px-high button
+ * into a pill; the footer caps it at 10px, the radius of the smallest buttons. The same value is given to
+ * the group (`--button-group-radius`), whose last button would otherwise be forced back to `rounded-lg`.
+ */
+const FOOTER_RADIUS = 'rounded-[min(var(--radius-md),10px)]'
 
 /** How long after the last change the draft is written; changes in quick succession share one write. */
 const DRAFT_SAVE_DELAY_MS = 400
@@ -85,7 +93,6 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
 
   const [isSaving, setIsSaving] = React.useState(false)
   const [showResetConfirm, setShowResetConfirm] = React.useState(false)
-  const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false)
 
   const [renamingTabId, setRenamingTabId] = React.useState<string | null>(null)
   const [renameTabValue, setRenameTabValue] = React.useState('')
@@ -142,11 +149,6 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
 
   const tabDragIds = draft.tabs.map((t) => dragIds.tab(t.id))
   const sectionDragIds = (activeTab?.sections ?? []).map((s) => dragIds.section(activeTab?.id ?? '', s.id))
-
-  function handleAttemptClose() {
-    if (!isDirty) { onClose(); return }
-    setShowDiscardConfirm(true)
-  }
 
   async function handleSave() {
     setIsSaving(true)
@@ -269,17 +271,31 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
       </div>
 
       {/* ── Footer — same layout as the form footer ── */}
-      <div className="flex-shrink-0 flex items-center justify-end gap-2 px-6 pt-4 pb-6 border-t">
-        <Button type="button" variant="ghost" onClick={handleAttemptClose} disabled={isDragging}>
-          {t('common.cancel')}
-        </Button>
-        <Button type="button" variant="outline" onClick={() => setShowResetConfirm(true)} disabled={isDragging}>
-          {t('layoutBuilder.reset')}
-        </Button>
-        <Button type="button" onClick={handleSave} disabled={!isDirty || isSaving || isDragging}>
-          {isSaving && <Loader2 className="size-4 animate-spin mr-1" />}
-          {t('layoutBuilder.save')}
-        </Button>
+      <div className="flex-shrink-0 flex items-center justify-end px-6 pt-4 pb-6 border-t">
+        <ButtonGroup className="[--button-group-radius:min(var(--radius-md),10px)]">
+          <ButtonGroup>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className={FOOTER_RADIUS}
+              aria-label={t('common.back')}
+              onClick={onClose}
+              disabled={isDragging}
+            >
+              <ArrowLeft />
+            </Button>
+          </ButtonGroup>
+          <ButtonGroup>
+            <Button type="button" variant="outline" className={FOOTER_RADIUS} onClick={() => setShowResetConfirm(true)} disabled={isDragging}>
+              {t('layoutBuilder.reset')}
+            </Button>
+            <Button type="button" variant="outline" className={FOOTER_RADIUS} onClick={handleSave} disabled={!isDirty || isSaving || isDragging}>
+              {isSaving && <Loader2 className="size-4 animate-spin" />}
+              {t('layoutBuilder.save')}
+            </Button>
+          </ButtonGroup>
+        </ButtonGroup>
       </div>
 
       {/* Reset confirm */}
@@ -291,15 +307,6 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
         onConfirm={handleResetConfirmed}
       />
 
-      {/* Discard confirm */}
-      <ConfirmDialog
-        open={showDiscardConfirm}
-        onOpenChange={setShowDiscardConfirm}
-        title={t('layoutBuilder.discardTitle')}
-        description={t('layoutBuilder.discardDesc')}
-        confirmVariant="destructive"
-        onConfirm={() => { setShowDiscardConfirm(false); onClose() }}
-      />
     </>
   )
 }

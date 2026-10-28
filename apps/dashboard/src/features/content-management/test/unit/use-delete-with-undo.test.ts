@@ -40,7 +40,7 @@ function entryOf(id: string): ContentEntry {
 }
 
 function pageOf(page: number, items: ContentEntry[]): ContentListWithMeta {
-  return { items, total: 3, page, limit: 2, relations: {} }
+  return { items, total: 3, page, limit: 2, relations: {}, relationAvatars: {} }
 }
 
 const PAGE_ONE_KEY = CONTENT_QUERY_KEYS.list(posts.slug, { page: 1 })

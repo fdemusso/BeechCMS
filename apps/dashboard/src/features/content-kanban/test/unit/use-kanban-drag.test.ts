@@ -43,6 +43,7 @@ describe("getCardsFromCache", () => {
         page: 0,
         limit: 20,
         relations: {},
+        relationAvatars: {},
       } satisfies ContentListWithMeta],
     })
   }
