@@ -111,32 +111,55 @@ export function ChartGhost({ seed, variant, shell }: ArchetypeProps) {
   )
 }
 
+/** The real donut: radii as a share of the half side, as in `pie-chart-recharts.tsx` (inner 55%, outer 80%). */
+const PIE_OUTER = 40
+const PIE_INNER = PIE_OUTER * 0.55
+const PIE_RADIUS = (PIE_OUTER + PIE_INNER) / 2
+const PIE_STROKE = PIE_OUTER - PIE_INNER
+const PIE_GAP = 1.2
+const PIE_SHADES = ['opacity-25', 'opacity-[0.16]', 'opacity-10', 'opacity-[0.06]']
+
+/** Slice shares that add up to exactly 100, so the arcs close the ring with no hole and no overlap. */
+export function pieShares(seed: string): number[] {
+  const raw = seededSeries(seed, PIE_SHADES.length, 12, 40)
+  const total = raw.reduce((sum, v) => sum + v, 0)
+  return raw.map((v) => (v / total) * 100)
+}
+
 export function PieGhost({ seed, shell }: ArchetypeProps) {
-  const [a, b] = seededSeries(seed, 2, 25, 40)
-  const circ = 2 * Math.PI * 38
-  const segments = [a, b, 100 - a - b - 12].map((v) => (v / 100) * circ)
-  const opacities = ['opacity-20', 'opacity-10', 'opacity-[0.06]']
+  const shares = pieShares(seed)
+  const circ = 2 * Math.PI * PIE_RADIUS
+  let start = 0
   return (
-    <GhostShell {...shell} minHeight={260}>
-      <div className="flex h-full items-center gap-6">
-        <svg viewBox="0 0 100 100" className="size-32 shrink-0 -rotate-90 text-foreground">
-          {segments.map((len, i) => {
-            const offset = segments.slice(0, i).reduce((sum, v) => sum + v + 4, 0)
-            return (
-              <circle
-                key={i}
-                cx="50" cy="50" r="38" fill="none" stroke="currentColor" strokeWidth="14"
-                strokeDasharray={`${len} ${circ - len}`} strokeDashoffset={-offset}
-                className={opacities[i]}
-              />
-            )
-          })}
-        </svg>
-        <div className="min-w-0 flex-1 space-y-3">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="flex items-center gap-2">
-              <Skeleton className="size-2.5 shrink-0 rounded-full" />
-              <Skeleton className="h-3 flex-1" style={{ maxWidth: `${85 - i * 18}%` }} />
+    <GhostShell {...shell} action={<FilterPill />} minHeight={300}>
+      {/* Same structure as the card: a square chart in the middle, the legend under it. */}
+      <div className="flex h-full flex-col justify-center gap-2">
+        <div className="mx-auto aspect-square max-h-44 w-full min-h-0">
+          <svg viewBox="0 0 100 100" className="size-full -rotate-90 text-foreground">
+            {shares.map((share, i) => {
+              const length = (share / 100) * circ
+              const offset = start
+              start += length
+              return (
+                <circle
+                  key={i}
+                  data-share={share.toFixed(2)}
+                  cx="50" cy="50" r={PIE_RADIUS} fill="none" stroke="currentColor" strokeWidth={PIE_STROKE}
+                  // The gap is cut from the slice's ends, so its pitch on the ring stays its true share.
+                  strokeDasharray={`${length - PIE_GAP} ${circ - length + PIE_GAP}`}
+                  strokeDashoffset={-(offset + PIE_GAP / 2)}
+                  className={PIE_SHADES[i]}
+                />
+              )
+            })}
+          </svg>
+        </div>
+        <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
+          {shares.map((_, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <Skeleton className="size-2 shrink-0 rounded-[2px]" />
+              <Skeleton className="h-2.5 w-10" />
+              <Skeleton className="h-2.5 w-5" />
             </div>
           ))}
         </div>
@@ -264,16 +287,41 @@ export function ChecklistGhost({ seed, shell }: ArchetypeProps) {
 
 // ── system ──────────────────────────────────────────────────────────────────
 
-export function MeterGhost({ seed, shell }: ArchetypeProps) {
+/** The storage card: a thin bar under a title line and a percentage, or (gauge) a ring beside the text. */
+export function MeterGhost({ seed, variant, shell }: ArchetypeProps) {
   const [fill] = seededSeries(seed, 1, 25, 70)
+  if (variant === 'gauge') {
+    const circ = 2 * Math.PI * 38
+    return (
+      <GhostShell {...shell} minHeight={132}>
+        <div className="flex h-full items-center gap-3">
+          <svg viewBox="0 0 104 104" className="size-[104px] shrink-0 -rotate-90 text-foreground">
+            <circle cx="52" cy="52" r="38" fill="none" stroke="currentColor" strokeWidth="8" className="opacity-[0.07]" />
+            <circle
+              cx="52" cy="52" r="38" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round"
+              strokeDasharray={circ} strokeDashoffset={circ - (fill / 100) * circ} className="opacity-20"
+            />
+          </svg>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <Skeleton className="h-2.5 w-16" />
+            <Skeleton className="h-5 w-20" />
+            <Skeleton className="h-2.5 w-24" />
+          </div>
+        </div>
+      </GhostShell>
+    )
+  }
   return (
     <GhostShell {...shell} minHeight={132}>
-      <div className="flex h-full flex-col justify-center gap-3">
-        <Skeleton className="h-8 w-24" />
-        <div className="h-2 w-full overflow-hidden rounded-full bg-foreground/5">
+      <div className="flex h-full flex-col justify-center gap-2">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-3 w-14" />
+          <Skeleton className="h-3 w-7" />
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/5">
           <div className="h-full rounded-full bg-foreground/15" style={{ width: `${fill}%` }} />
         </div>
-        <Skeleton className="h-2.5 w-32" />
+        <Skeleton className="h-3 w-28" />
       </div>
     </GhostShell>
   )

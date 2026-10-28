@@ -8,6 +8,7 @@ import type { DashboardWidgetInstance } from "@beechcms/core"
 import "@/features/dashboard/registry/builtin-widgets"
 import { WidgetGhost, widgetNeedsSetup } from "@/features/dashboard/builder/ghosts/widget-ghost"
 import { seededSeries } from "@/features/dashboard/builder/ghosts/ghost-parts"
+import { pieShares } from "@/features/dashboard/builder/ghosts/archetypes"
 
 const widget = (over: Partial<DashboardWidgetInstance> & Pick<DashboardWidgetInstance, "type">): DashboardWidgetInstance => ({
   id: "w1",
@@ -32,6 +33,26 @@ describe("seededSeries", () => {
 
   it("differs between seeds", () => {
     expect(seededSeries("widget-a", 8, 0, 100)).not.toEqual(seededSeries("widget-c", 8, 0, 100))
+  })
+})
+
+describe("pie ghost", () => {
+  it("draws slices whose shares add up to the whole ring", () => {
+    const shares = pieShares("w1")
+
+    expect(shares.reduce((sum, v) => sum + v, 0)).toBeCloseTo(100, 5)
+  })
+
+  it("sizes each arc by its share of the circumference", () => {
+    const { container } = render(<WidgetGhost widget={widget({ type: "core/pie-chart", config: { seedSlug: "posts" } })} />)
+
+    const arcs = Array.from(container.querySelectorAll("circle[data-share]"))
+    const lengths = arcs.map((arc) => Number(arc.getAttribute("stroke-dasharray")?.split(" ")[0]))
+    const shares = arcs.map((arc) => Number(arc.getAttribute("data-share")))
+    const circumference = 2 * Math.PI * (40 * 0.775)
+
+    // Each dash is its share of the ring minus the same small gap.
+    arcs.forEach((_, i) => expect(lengths[i] + 1.2).toBeCloseTo((shares[i] / 100) * circumference, 1))
   })
 })
 
