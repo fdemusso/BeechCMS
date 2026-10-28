@@ -156,14 +156,14 @@ describe("SchemaFormShell", () => {
     })
     render(<SchemaFormShell vm={vm} open />)
 
-    expect(screen.queryByText("common.delete")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "common.delete" })).not.toBeInTheDocument()
   })
 
   it("the Delete button calls handleDelete directly and mounts no confirmation dialog", () => {
     const handleDelete = vi.fn()
     render(<SchemaFormShell vm={buildViewModel({ handleDelete })} open />)
 
-    fireEvent.click(screen.getByText("common.delete"))
+    fireEvent.click(screen.getByRole("button", { name: "common.delete" }))
 
     expect(handleDelete).toHaveBeenCalledTimes(1)
     expect(screen.queryByText("content.editor.deleteTitle")).not.toBeInTheDocument()

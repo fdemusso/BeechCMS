@@ -33,6 +33,9 @@ import {
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { BuilderPane } from "../builder/builder-pane"
+import { FOOTER_RADIUS } from "../builder/footer-style"
+import { ButtonGroup } from "@/components/ui/button-group"
+import { useAnimatedModeHeight } from "./use-animated-mode-height"
 import { clearLayoutDraft, loadLayoutDraft } from "../builder/layout-draft-storage"
 import { ReferencedByPanel } from "@/features/backrefs"
 import {
@@ -140,6 +143,24 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
     headerSlot,
     localization,
   } = vm
+
+  const modeHeightRef = useAnimatedModeHeight(builderMode)
+
+  // Closing by X, overlay or Esc plays the exit fade before the route changes: the route change unmounts
+  // the dialog, which would otherwise vanish at once. `goBack` can be refused (unsaved changes), and then
+  // the dialog has to come back.
+  const FADE_MS = 200
+  const [closing, setClosing] = useState(false)
+  const closeTimerRef = useRef<number | undefined>(undefined)
+  const requestClose = () => {
+    setClosing(true)
+    window.clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = window.setTimeout(goBack, FADE_MS)
+  }
+  useEffect(() => {
+    if (blocker.state === "blocked") setClosing(false)
+  }, [blocker.state])
+  useEffect(() => () => window.clearTimeout(closeTimerRef.current), [])
 
   const [activeTabId, setActiveTabId] = useState(() => layout?.tabs[0]?.id ?? "")
 
@@ -306,6 +327,9 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
 
             {capabilities.backrefs && !isCreate && schemaSlug && entryId && (
               <ReferencedByPanel
+                // The form stays mounted (hidden) while the layout builder is open; remounting on each switch
+                // brings the panel back closed instead of as the user left it.
+                key={builderMode ? "builder" : "form"}
                 targetSlug={schemaSlug}
                 targetId={entryId}
                 onRestrictsChange={setHasRestrictedRefs}
@@ -315,73 +339,68 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
           </ScrollArea>
 
           {activeTabId !== "__danger_zone__" && !vm.isReadOnly && (
-            <div className="flex-shrink-0 flex items-center justify-end gap-2 px-6 pt-4 pb-6">
-              {capabilities.delete && !isCreate && !effectiveDraftContext && (
-                hasRestrictedRefs ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex">
-                        <Button type="button" variant="destructive" size="sm" disabled>
-                          <Trash2 className="mr-1 size-4" />
-                          {t("common.delete", "Delete")}
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {t("backrefs.deleteBlocked", { count: "?" })}
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    disabled={isDeleting}
-                    onClick={handleDelete}
-                  >
-                    <Trash2 className="mr-1 size-4" />
-                    {t("common.delete", "Delete")}
-                  </Button>
-                )
-              )}
-
-              <div className="flex items-center">
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isBusy}
-                  className={capabilities.drafts && hasSaveDropdown ? "rounded-r-none border-r border-r-primary-foreground/20 pr-3" : ""}
-                >
-                  {saveLabel}
-                </Button>
-                {capabilities.drafts && hasSaveDropdown && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+            // Same row as the layout builder's footer: outline buttons, normal weight, capped radius.
+            <div className="flex-shrink-0 flex items-center justify-end px-6 py-4 border-t">
+              <ButtonGroup className="[--button-group-radius:min(var(--radius-md),10px)]">
+                {capabilities.delete && !isCreate && !effectiveDraftContext && (
+                  <ButtonGroup>
+                    {hasRestrictedRefs ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <Button type="button" variant="outline" size="icon" className={FOOTER_RADIUS} disabled aria-label={t("common.delete", "Delete")}>
+                              <Trash2 />
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t("backrefs.deleteBlocked", { count: "?" })}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
                       <Button
                         type="button"
-                        size="sm"
-                        disabled={isBusy}
-                        className="rounded-l-none px-2 border-l-0"
+                        variant="outline"
+                        size="icon"
+                        className={`${FOOTER_RADIUS} hover:[&_svg]:text-destructive [&_svg]:transition-colors`}
+                        aria-label={t("common.delete", "Delete")}
+                        disabled={isDeleting}
+                        onClick={handleDelete}
                       >
-                        <ChevronDown className="size-3" />
-                        <span className="sr-only">{t("common.openMenu")}</span>
+                        <Trash2 />
                       </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={handlePublishDraft} disabled={isPublishing}>
-                        {isPublishing && <Loader2 className="mr-2 size-3 animate-spin" />}
-                        {t("content.editor.publishDraft")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => setShowDiscardConfirm(true)}
-                      >
-                        {t("content.editor.discardDraft")}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                    )}
+                  </ButtonGroup>
                 )}
-              </div>
+
+                <ButtonGroup>
+                  <Button type="submit" variant="outline" className={`${FOOTER_RADIUS} font-normal`} disabled={isBusy}>
+                    {saveLabel}
+                  </Button>
+                  {capabilities.drafts && hasSaveDropdown && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="outline" size="icon" className={FOOTER_RADIUS} disabled={isBusy}>
+                          <ChevronDown />
+                          <span className="sr-only">{t("common.openMenu")}</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handlePublishDraft} disabled={isPublishing}>
+                          {isPublishing && <Loader2 className="mr-2 size-3 animate-spin" />}
+                          {t("content.editor.publishDraft")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => setShowDiscardConfirm(true)}
+                        >
+                          {t("content.editor.discardDraft")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </ButtonGroup>
+              </ButtonGroup>
             </div>
           )}
         </form>
@@ -391,9 +410,9 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) goBack() }}>
+      <Dialog open={open && !closing} onOpenChange={(isOpen) => { if (!isOpen) requestClose() }}>
         <DialogContent
-          className="flex flex-col max-h-[calc(100vh-2rem)] p-0 sm:max-w-2xl md:max-w-4xl"
+          className="flex flex-col max-h-[calc(100vh-2rem)] p-0 duration-200 data-open:zoom-in-100 data-closed:zoom-out-100 sm:max-w-2xl md:max-w-4xl"
           onOpenAutoFocus={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => { if (isBuilderDragging) e.preventDefault() }}
         >
@@ -402,7 +421,15 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
               {isLoading ? <Skeleton className="h-6 w-48" /> : (title || t("common.error"))}
             </DialogTitle>
           </DialogHeader>
-          {body}
+          <div
+            // Keyed on loading: when the data arrives the content fades in over the skeleton instead of
+            // popping in, which also hides how long the load took.
+            key={isLoading ? "loading" : "ready"}
+            ref={modeHeightRef}
+            className="flex min-h-0 flex-col animate-in fade-in-0 duration-200 data-[resizing]:[&_.overflow-y-auto]:overflow-y-hidden! data-[resizing]:[&_[data-slot=scroll-area-viewport]]:overflow-hidden! data-[resizing]:[&_[data-slot=scroll-area-scrollbar]]:hidden"
+          >
+            {body}
+          </div>
         </DialogContent>
       </Dialog>
 
