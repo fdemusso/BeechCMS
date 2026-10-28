@@ -16,7 +16,10 @@ import type { Seed } from '@beechcms/core'
 
 export interface UseLayoutBuilderArgs {
   seed: Seed
+  /** The saved layout: what `isDirty` and "discard" compare against. */
   initialLayout: FormLayout
+  /** Unsaved work to resume from: the draft starts here instead of at `initialLayout`. */
+  restoredDraft?: FormLayout
 }
 
 interface MoveFieldArgs {
@@ -27,6 +30,8 @@ interface MoveFieldArgs {
 
 export interface UseLayoutBuilderResult {
   draft: FormLayout
+  /** The saved layout the draft is measured against. */
+  saved: FormLayout
   activeTabId: string
   setActiveTabId: (id: string) => void
   isDirty: boolean
@@ -126,10 +131,10 @@ export function getFullWidthWarningLabel(
   return branch.label
 }
 
-export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs): UseLayoutBuilderResult {
-  const [draft, setDraft] = useState<FormLayout>(() => structuredClone(initialLayout))
+export function useLayoutBuilder({ seed, initialLayout, restoredDraft }: UseLayoutBuilderArgs): UseLayoutBuilderResult {
+  const [draft, setDraft] = useState<FormLayout>(() => structuredClone(restoredDraft ?? initialLayout))
   const [storedInitial, setStoredInitial] = useState<FormLayout>(() => structuredClone(initialLayout))
-  const [activeTabId, setActiveTabId] = useState<string>(() => initialLayout.tabs[0]?.id ?? '')
+  const [activeTabId, setActiveTabId] = useState<string>(() => (restoredDraft ?? initialLayout).tabs[0]?.id ?? '')
 
   // The saved layout only changes on save/reset; serialising it once keeps a draft edit (one per live move
   // while dragging) down to a single stringify.
@@ -444,7 +449,7 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
   }, [seed, getUsedBranchIds])
 
   return {
-    draft, activeTabId, setActiveTabId, isDirty,
+    draft, saved: storedInitial, activeTabId, setActiveTabId, isDirty,
     addTab, renameTab, removeTab, reorderTabs,
     addSection, removeSection, reorderSections, toggleSectionFlag, renameSection, setSectionColumnCount,
     reorderColumns,

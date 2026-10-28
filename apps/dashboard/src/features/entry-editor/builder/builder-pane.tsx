@@ -34,21 +34,37 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionCard } from './section-card'
 import { DragPreview } from './drag-preview'
 import { BuilderDragContext, builderCollisionDetection, dragIds, useBuilderDnd } from './use-builder-dnd'
+import { clearLayoutDraft, fingerprintLayout, loadLayoutDraft, saveLayoutDraft } from './layout-draft-storage'
 import { useLayoutBuilder } from './use-layout-builder'
 import { saveLayout, resetLayout } from '../api/layout.api'
+
+/** How long after the last change the draft is written; changes in quick succession share one write. */
+const DRAFT_SAVE_DELAY_MS = 400
 
 export interface BuilderPaneProps {
   seed: Seed
   branchById: Record<string, Branch>
   onClose: () => void
+  /** Told when a drag starts and ends, so the host can keep `Esc` (which cancels a drag) from closing it. */
+  onDraggingChange?: (dragging: boolean) => void
 }
 
-export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneProps>) {
+export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Readonly<BuilderPaneProps>) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 
+  // Unsaved work from a previous visit (or before a reload), if the server layout has not moved on since.
+  const draftLookup = React.useMemo(
+    () => loadLayoutDraft(seed),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [seed.slug]
+  )
+  const restored = draftLookup.status === 'ready' ? draftLookup.draft : null
+
   const initialLayout = React.useMemo(
     () => {
+      // A restored draft keeps the saved layout it was measured against, so "unsaved" stays accurate.
+      if (restored) return reconcileLayoutWithSeed(restored.saved, seed)
       const stored = seed.layout as FormLayout | undefined
       if (stored) {
         return reconcileLayoutWithSeed(stored, seed)
@@ -58,8 +74,13 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [seed.slug]
   )
+  const restoredLayout = React.useMemo(
+    () => (restored ? reconcileLayoutWithSeed(restored.layout, seed) : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [seed.slug]
+  )
 
-  const ops = useLayoutBuilder({ seed, initialLayout })
+  const ops = useLayoutBuilder({ seed, initialLayout, restoredDraft: restoredLayout })
   const { draft, activeTabId, isDirty } = ops
 
   const [isSaving, setIsSaving] = React.useState(false)
@@ -70,6 +91,50 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
   const [renameTabValue, setRenameTabValue] = React.useState('')
 
   const dnd = useBuilderDnd({ ops, branchById })
+  // Any drag — field, column, section or tab — freezes the footer: a click mid-drag would save, reset or
+  // close a layout that is half-moved. At the drop the buttons go back to their own rules.
+  const isDragging = dnd.preview !== null
+
+  React.useEffect(() => {
+    onDraggingChange?.(isDragging)
+    return () => onDraggingChange?.(false)
+  }, [isDragging, onDraggingChange])
+
+  // ── Draft persistence ────────────────────────────────────────────────────
+  // Unsaved work is kept in the tab's session storage so a reload resumes it (the entry editor shell reopens
+  // the builder when a draft is waiting). It is written shortly after each change, but never mid-drag (a
+  // field half-way between columns is not a state worth coming back to), and straight away when the page
+  // goes away, which a pending timer would not survive.
+  const base = React.useMemo(() => fingerprintLayout(seed.layout as FormLayout | undefined), [seed.layout])
+  const latestRef = React.useRef({ draft, saved: ops.saved, isDirty, isDragging })
+  React.useEffect(() => {
+    latestRef.current = { draft, saved: ops.saved, isDirty, isDragging }
+  })
+
+  const writeDraftNow = React.useCallback(() => {
+    const latest = latestRef.current
+    if (!latest.isDirty || latest.isDragging) return
+    saveLayoutDraft(seed.slug, { base, saved: latest.saved, layout: latest.draft })
+  }, [seed.slug, base])
+
+  React.useEffect(() => {
+    if (isDragging) return
+    if (!isDirty) {
+      clearLayoutDraft(seed.slug)
+      return
+    }
+    const timer = window.setTimeout(writeDraftNow, DRAFT_SAVE_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [draft, isDirty, isDragging, seed.slug, writeDraftNow])
+
+  React.useEffect(() => {
+    window.addEventListener('pagehide', writeDraftNow)
+    return () => window.removeEventListener('pagehide', writeDraftNow)
+  }, [writeDraftNow])
+
+  // Leaving the builder — cancel, closing the dialog, save — is not an interruption: it drops the draft.
+  // A reload never runs this (the page is torn down without unmounting), which is the whole point.
+  React.useEffect(() => () => clearLayoutDraft(seed.slug), [seed.slug])
 
   const activeTab = draft.tabs.find((t) => t.id === activeTabId) ?? draft.tabs[0]
   const { getAvailableBranches } = ops
@@ -205,13 +270,13 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
 
       {/* ── Footer — same layout as the form footer ── */}
       <div className="flex-shrink-0 flex items-center justify-end gap-2 px-6 pt-4 pb-6 border-t">
-        <Button type="button" variant="ghost" onClick={handleAttemptClose}>
+        <Button type="button" variant="ghost" onClick={handleAttemptClose} disabled={isDragging}>
           {t('common.cancel')}
         </Button>
-        <Button type="button" variant="outline" onClick={() => setShowResetConfirm(true)}>
+        <Button type="button" variant="outline" onClick={() => setShowResetConfirm(true)} disabled={isDragging}>
           {t('layoutBuilder.reset')}
         </Button>
-        <Button type="button" onClick={handleSave} disabled={!isDirty || isSaving}>
+        <Button type="button" onClick={handleSave} disabled={!isDirty || isSaving || isDragging}>
           {isSaving && <Loader2 className="size-4 animate-spin mr-1" />}
           {t('layoutBuilder.save')}
         </Button>

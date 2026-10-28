@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useLayoutEffect, useRef } from "react"
 import type { ReactNode } from "react"
 import { ChevronDown, Loader as Loader2, Edit as Pencil, Trash2, Layout as LayoutTemplate } from '@/components/icons'
 import type { Seed } from "@beechcms/core"
@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { BuilderPane } from "../builder/builder-pane"
+import { clearLayoutDraft, loadLayoutDraft } from "../builder/layout-draft-storage"
 import { ReferencedByPanel } from "@/features/backrefs"
 import {
   Tooltip,
@@ -93,6 +94,8 @@ function ShellMessageBody({ message, onClose, t }: ShellMessageBodyProps) {
 // ============================================================================
 
 export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
+  // `Esc` cancels a layout-builder drag; without this it would also close the dialog and drop the layout.
+  const [isBuilderDragging, setIsBuilderDragging] = useState(false)
   const {
     t,
     title,
@@ -154,6 +157,19 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
 
   const { can } = usePermissions()
   const canUpdate = can('content:update', seed?.slug ?? vm.schemaSlug)
+
+  // A reload cuts layout work short and leaves its draft in session storage (leaving the builder on purpose
+  // removes it). Pick the work up where it stopped: reopen the builder, which restores the draft. Once per
+  // dialog, before paint, so the form never flashes. A draft the server layout has outgrown is dropped.
+  const resumedLayoutRef = useRef(false)
+  useLayoutEffect(() => {
+    if (resumedLayoutRef.current || !seed || builderMode) return
+    if (!capabilities.layoutBuilder || !canEditLayoutFlag) return
+    resumedLayoutRef.current = true
+    const { status } = loadLayoutDraft(seed as Seed)
+    if (status === "ready") setBuilderMode(true)
+    else if (status === "stale") clearLayoutDraft(seed.slug)
+  }, [seed, builderMode, capabilities.layoutBuilder, canEditLayoutFlag, setBuilderMode])
 
   let body: ReactNode
   if (isLoading) {
@@ -227,6 +243,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
             seed={seed as Seed}
             branchById={branchById}
             onClose={() => setBuilderMode(false)}
+            onDraggingChange={setIsBuilderDragging}
           />
         ) : null}
 
@@ -377,6 +394,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
         <DialogContent
           className="flex flex-col max-h-[calc(100vh-2rem)] p-0 sm:max-w-2xl md:max-w-4xl"
           onOpenAutoFocus={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => { if (isBuilderDragging) e.preventDefault() }}
         >
           <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
             <DialogTitle>

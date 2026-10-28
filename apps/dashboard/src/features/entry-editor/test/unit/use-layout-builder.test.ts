@@ -66,6 +66,19 @@ describe("useLayoutBuilder", () => {
     expect(result.current.activeTabId).toBe("tab-main")
   })
 
+  it("starts from a restored draft while still measuring unsaved work against the saved layout", () => {
+    const restored: FormLayout = structuredClone(mockInitialLayout)
+    restored.tabs[0].sections[0].columns[0].fields = []
+
+    const { result } = renderHook(() =>
+      useLayoutBuilder({ seed: mockSeed, initialLayout: mockInitialLayout, restoredDraft: restored })
+    )
+
+    expect(result.current.draft).toEqual(restored)
+    expect(result.current.saved).toEqual(mockInitialLayout)
+    expect(result.current.isDirty).toBe(true)
+  })
+
   describe("Tab operations", () => {
     it("adds, renames, reorders, and removes tabs", () => {
       const { result } = renderHook(() =>
