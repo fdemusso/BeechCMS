@@ -112,8 +112,9 @@ export function SectionCard({
         {isRenaming ? (
           <Input
             autoFocus
-            className="h-7 text-sm flex-1"
+            className="h-7 flex-1 rounded-md text-sm focus-visible:ring-1 focus-visible:ring-ring/30"
             value={renameValue}
+            maxLength={50}
             onChange={(e) => setRenameValue(e.target.value)}
             onBlur={commitRename}
             onKeyDown={(e) => {

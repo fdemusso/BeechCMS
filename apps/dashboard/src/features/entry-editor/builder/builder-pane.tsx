@@ -246,7 +246,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
             </SortableContext>
           )}
 
-          <Button type="button" variant="outline" className="w-full"
+          <Button type="button" variant="outline" className={`w-full ${FOOTER_RADIUS}`}
             onClick={() => activeTab && ops.addSection(activeTab.id, 2)}>
             <Plus className="size-4 mr-2" />
             {t('layoutBuilder.addSection')}
@@ -379,7 +379,7 @@ function TabPill({
             <Home className="mr-1.5 size-3.5 shrink-0" aria-label={t('layoutBuilder.defaultTabBadge')} />
           )}
           {isRenaming ? (
-            <Input autoFocus className="h-6 text-sm w-24 px-1" value={renameValue}
+            <Input autoFocus maxLength={15} className="h-6 w-24 rounded-md px-1 text-sm focus-visible:ring-1 focus-visible:ring-ring/30" value={renameValue}
               onChange={(e) => onRenameChange(e.target.value)}
               onBlur={onRenameCommit}
               onClick={(e) => e.stopPropagation()}
