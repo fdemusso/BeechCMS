@@ -71,6 +71,21 @@ export const MAX_SECTIONS_PER_PAGE = 50
 export const MAX_WIDGETS_PER_COLUMN = 50
 const ID_MAX = 64
 
+/**
+ * Label limits. The dashboard builder puts the same numbers on its inputs; the server enforces them for
+ * real: a longer label can only come from another client and is refused (422), not shortened.
+ */
+export const DASHBOARD_PAGE_LABEL_MAX = 60
+export const DASHBOARD_SECTION_LABEL_MAX = 60
+export const DASHBOARD_WIDGET_TITLE_MAX = 80
+
+/** A label: trimmed, then checked. Control characters (newlines included) are refused; markup is not stripped
+ *  because labels are only rendered as text. */
+const dashboardLabel = (max: number, min: number) =>
+  z.string().trim().min(min).max(max).refine((value) => !/\p{Cc}/u.test(value), {
+    message: 'Label must not contain control characters.',
+  })
+
 // ---------------------------------------------------------------------------
 // Zod schemas for shape validation
 // ---------------------------------------------------------------------------
@@ -78,7 +93,7 @@ const ID_MAX = 64
 export const dashboardWidgetInstanceSchema = z.object({
   id: z.string().min(1).max(ID_MAX),
   type: z.string().regex(WIDGET_TYPE_REGEX),
-  title: z.string().max(80).optional(),
+  title: dashboardLabel(DASHBOARD_WIDGET_TITLE_MAX, 0).optional(),
   config: z.record(z.string(), z.unknown()),
 })
 export const dashboardColumnSchema = z.object({
@@ -87,7 +102,7 @@ export const dashboardColumnSchema = z.object({
 })
 export const dashboardSectionSchema = z.object({
   id: z.string().min(1).max(ID_MAX),
-  label: z.string().max(60).optional(),
+  label: dashboardLabel(DASHBOARD_SECTION_LABEL_MAX, 0).optional(),
   hideLabel: z.boolean().optional(),
   collapsible: z.boolean().optional(),
   columns: z.array(dashboardColumnSchema).min(1).max(4),
@@ -96,7 +111,7 @@ export const dashboardSectionSchema = z.object({
 export const dashboardPageSchema = z.object({
   id: z.string().min(1).max(ID_MAX),
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(40),
-  label: z.string().min(1).max(60),
+  label: dashboardLabel(DASHBOARD_PAGE_LABEL_MAX, 1),
   icon: z.string().max(40).optional(),
   sections: z.array(dashboardSectionSchema).min(1).max(MAX_SECTIONS_PER_PAGE),
 })

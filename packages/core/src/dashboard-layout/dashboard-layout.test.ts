@@ -4,6 +4,9 @@
 import { describe, expect, it } from 'vitest'
 import type { Seed } from '../engine/types.js'
 import {
+  DASHBOARD_PAGE_LABEL_MAX,
+  DASHBOARD_SECTION_LABEL_MAX,
+  DASHBOARD_WIDGET_TITLE_MAX,
   MAX_DASHBOARD_LAYOUT_BYTES,
   MAX_SECTIONS_PER_PAGE,
   MAX_WIDGETS_PER_COLUMN,
@@ -384,6 +387,39 @@ describe('dashboardLayoutSchema', () => {
     const layout = generateDefaultDashboardLayout([seedStub('articoli')])
 
     expect(dashboardLayoutSchema.safeParse(layout).success).toBe(true)
+  })
+
+  describe('labels', () => {
+    const withLabels = (labels: { page?: string; section?: string; title?: string }) => {
+      const layout = singleSectionLayout([[{ ...widget('w-1', 'core/site-status'), title: labels.title }]])
+      layout.pages[0].label = labels.page ?? 'Overview'
+      layout.pages[0].sections[0].label = labels.section
+      return layout
+    }
+
+    it('trims page, section and widget labels before storing them', () => {
+      const res = dashboardLayoutSchema.safeParse(withLabels({ page: '  Home  ', section: ' Intro ', title: ' Hi ' }))
+
+      expect(res.success).toBe(true)
+      if (!res.success) throw new Error('expected success')
+      const page = res.data.pages[0]
+      expect([page.label, page.sections[0].label, page.sections[0].columns[0].widgets[0].title]).toEqual([
+        'Home',
+        'Intro',
+        'Hi',
+      ])
+    })
+
+    it.each([
+      ['a page label of only spaces', { page: '   ' }],
+      ['a page label over the limit', { page: 'x'.repeat(DASHBOARD_PAGE_LABEL_MAX + 1) }],
+      ['a section label over the limit', { section: 'x'.repeat(DASHBOARD_SECTION_LABEL_MAX + 1) }],
+      ['a widget title over the limit', { title: 'x'.repeat(DASHBOARD_WIDGET_TITLE_MAX + 1) }],
+      ['a page label holding a newline', { page: 'Home\nPage' }],
+      ['a section label holding a NUL', { section: 'a\u0000b' }],
+    ])('refuses %s', (_name, labels) => {
+      expect(dashboardLayoutSchema.safeParse(withLabels(labels)).success).toBe(false)
+    })
   })
 })
 
