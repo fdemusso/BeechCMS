@@ -3,20 +3,31 @@
 // See LICENSE in the repository root for license terms.
 
 import { useCallback, useMemo, useState } from 'react'
-import type {
-  DashboardLayout,
-  DashboardPageLayout,
-  DashboardSection,
-  DashboardColumn,
-  DashboardWidgetInstance,
+import {
+  MAX_SECTIONS_PER_PAGE,
+  MAX_WIDGETS_PER_COLUMN,
+  type DashboardLayout,
+  type DashboardPageLayout,
+  type DashboardSection,
+  type DashboardColumn,
+  type DashboardWidgetInstance,
 } from '@beechcms/core'
+import { resolveColumnSpans } from '../renderer/dashboard-section'
 import { getWidgetDefinition } from '../registry/widget-registry'
 
 type DashboardColumnCount = 1 | 2 | 3 | 4
 
+/** A dashboard has at most this many pages (mirrors the server's schema). */
+export const MAX_PAGES = 8
+
 export interface UseDashboardBuilderArgs {
+  /** The layout the draft is measured against: what counts as saved. */
   initialLayout: DashboardLayout
+  /** Unsaved work recovered after a reload; when set the draft starts here and `initialLayout` stays the baseline. */
+  restoredDraft?: DashboardLayout
 }
+
+export type SectionFlag = 'hideLabel' | 'collapsible'
 
 export interface MoveWidgetArgs {
   from: { pageId: string; sectionId: string; columnId: string; widgetId: string }
@@ -25,16 +36,18 @@ export interface MoveWidgetArgs {
 
 export interface UseDashboardBuilderResult {
   draft: DashboardLayout
+  /** What counts as saved: `isDirty` is the draft differing from it. */
+  saved: DashboardLayout
   activePageId: string
   setActivePageId: (id: string) => void
   isDirty: boolean
 
-  addPage(): void
+  addPage(label?: string): boolean
   renamePage(pageId: string, label: string): void
   removePage(pageId: string): void
   movePage(fromIndex: number, toIndex: number): void
 
-  addSection(pageId: string, columnCount?: DashboardColumnCount): void
+  addSection(pageId: string, columnCount?: DashboardColumnCount): boolean
   updateSection(
     pageId: string,
     sectionId: string,
@@ -43,9 +56,20 @@ export interface UseDashboardBuilderResult {
   removeSection(pageId: string, sectionId: string): void
   moveSection(pageId: string, fromIndex: number, toIndex: number): void
   duplicateSection(pageId: string, sectionId: string): void
+  toggleSectionFlag(pageId: string, sectionId: string, flag: SectionFlag): void
   setColumnPreset(pageId: string, sectionId: string, spans: number[]): void
+  /** Swaps a column's place within its section; its span travels with it. */
+  moveColumn(pageId: string, sectionId: string, fromIndex: number, toIndex: number): void
 
-  addWidget(pageId: string, sectionId: string, columnId: string, type: string): void
+  addWidget(pageId: string, sectionId: string, columnId: string, type: string): boolean
+  duplicateWidget(pageId: string, sectionId: string, columnId: string, widgetId: string): boolean
+  reorderWidgetsInColumn(
+    pageId: string,
+    sectionId: string,
+    columnId: string,
+    fromIndex: number,
+    toIndex: number,
+  ): void
   updateWidgetConfig(
     pageId: string,
     sectionId: string,
@@ -71,6 +95,8 @@ export interface UseDashboardBuilderResult {
     newType: string,
   ): void
 
+  /** Replaces the draft without touching what counts as saved (a cancelled drag puts the layout back). */
+  restoreDraft(layout: DashboardLayout): void
   reset(): void
 }
 
@@ -108,10 +134,12 @@ function makePage(label: string): DashboardPageLayout {
   }
 }
 
-export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs): UseDashboardBuilderResult {
-  const [draft, setDraft] = useState<DashboardLayout>(() => structuredClone(initialLayout))
+export function useDashboardBuilder({ initialLayout, restoredDraft }: UseDashboardBuilderArgs): UseDashboardBuilderResult {
+  const [draft, setDraft] = useState<DashboardLayout>(() => structuredClone(restoredDraft ?? initialLayout))
   const [storedInitial, setStoredInitial] = useState<DashboardLayout>(() => structuredClone(initialLayout))
-  const [activePageId, setActivePageId] = useState<string>(() => initialLayout.pages[0]?.id ?? '')
+  const [activePageId, setActivePageId] = useState<string>(
+    () => (restoredDraft ?? initialLayout).pages[0]?.id ?? '',
+  )
 
   const isDirty = useMemo(
     () => JSON.stringify(draft) !== JSON.stringify(storedInitial),
@@ -123,24 +151,27 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
   }, [])
 
   // ── Page ops ─────────────────────────────────────────────────────────────
-  const addPage = useCallback(() => {
-    const page = makePage('New Page')
+  const addPage = useCallback((label = 'New Page'): boolean => {
+    if (draft.pages.length >= MAX_PAGES) return false
+    const page = makePage(label)
     mutate((d) => ({ ...d, pages: [...d.pages, page] }))
     setActivePageId(page.id)
-  }, [mutate])
+    return true
+  }, [mutate, draft.pages.length])
 
   const renamePage = useCallback((pageId: string, label: string) => {
     mutate((d) => ({ ...d, pages: d.pages.map((p) => (p.id === pageId ? { ...p, label } : p)) }))
   }, [mutate])
 
   const removePage = useCallback((pageId: string) => {
-    mutate((d) => {
-      if (d.pages.length <= 1) return d
-      return { ...d, pages: d.pages.filter((p) => p.id !== pageId) }
-    })
+    if (draft.pages.length <= 1) return
+    mutate((d) => ({ ...d, pages: d.pages.filter((p) => p.id !== pageId) }))
+    // The neighbour that takes its place opens, so removing the open tab never leaves nothing selected.
     setActivePageId((current) => {
-      if (current !== pageId || draft.pages.length <= 1) return current
-      return draft.pages.find((p) => p.id !== pageId)?.id ?? current
+      if (current !== pageId) return current
+      const index = draft.pages.findIndex((p) => p.id === pageId)
+      const next = draft.pages[index + 1] ?? draft.pages[index - 1]
+      return next?.id ?? current
     })
   }, [mutate, draft.pages])
 
@@ -154,15 +185,15 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
   }, [mutate])
 
   // ── Section ops ──────────────────────────────────────────────────────────
-  const addSection = useCallback((pageId: string, columnCount: DashboardColumnCount = 1) => {
+  const addSection = useCallback((pageId: string, columnCount: DashboardColumnCount = 1): boolean => {
+    const target = draft.pages.find((p) => p.id === pageId)
+    if (!target || target.sections.length >= MAX_SECTIONS_PER_PAGE) return false
     mutate((d) => {
-      const page = d.pages.find((p) => p.id === pageId)
-      if (page) {
-        page.sections.push(makeSection(columnCount))
-      }
+      d.pages.find((p) => p.id === pageId)?.sections.push(makeSection(columnCount))
       return d
     })
-  }, [mutate])
+    return true
+  }, [mutate, draft.pages])
 
   const updateSection = useCallback(
     (
@@ -248,8 +279,34 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
     })
   }, [mutate])
 
+  const toggleSectionFlag = useCallback((pageId: string, sectionId: string, flag: SectionFlag) => {
+    mutate((d) => {
+      const section = d.pages.find((p) => p.id === pageId)?.sections.find((s) => s.id === sectionId)
+      if (section) section[flag] = section[flag] ? undefined : true
+      return d
+    })
+  }, [mutate])
+
+  const moveColumn = useCallback((pageId: string, sectionId: string, fromIndex: number, toIndex: number) => {
+    mutate((d) => {
+      const section = d.pages.find((p) => p.id === pageId)?.sections.find((s) => s.id === sectionId)
+      if (!section || fromIndex === toIndex) return d
+      if (!section.columns[fromIndex] || !section.columns[toIndex]) return d
+      // A column's width belongs to it: both lists move together.
+      const spans = [...resolveColumnSpans(section)]
+      const [column] = section.columns.splice(fromIndex, 1)
+      const [span] = spans.splice(fromIndex, 1)
+      section.columns.splice(toIndex, 0, column)
+      spans.splice(toIndex, 0, span)
+      section.columnSpans = spans
+      return d
+    })
+  }, [mutate])
+
   // ── Widget ops ───────────────────────────────────────────────────────────
-  const addWidget = useCallback((pageId: string, sectionId: string, columnId: string, type: string) => {
+  const addWidget = useCallback((pageId: string, sectionId: string, columnId: string, type: string): boolean => {
+    const target = draft.pages.find((p) => p.id === pageId)?.sections.find((s) => s.id === sectionId)?.columns.find((c) => c.id === columnId)
+    if (!target || target.widgets.length >= MAX_WIDGETS_PER_COLUMN) return false
     const def = getWidgetDefinition(type)
     const instance: DashboardWidgetInstance = {
       id: crypto.randomUUID(),
@@ -265,7 +322,36 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
       }
       return d
     })
-  }, [mutate])
+    return true
+  }, [mutate, draft.pages])
+
+  const duplicateWidget = useCallback((pageId: string, sectionId: string, columnId: string, widgetId: string): boolean => {
+    const source = draft.pages.find((p) => p.id === pageId)?.sections.find((s) => s.id === sectionId)?.columns.find((c) => c.id === columnId)
+    if (!source || source.widgets.length >= MAX_WIDGETS_PER_COLUMN) return false
+    mutate((d) => {
+      const column = d.pages.find((p) => p.id === pageId)?.sections.find((s) => s.id === sectionId)?.columns.find((c) => c.id === columnId)
+      const index = column?.widgets.findIndex((w) => w.id === widgetId) ?? -1
+      if (column && index !== -1) {
+        column.widgets.splice(index + 1, 0, { ...structuredClone(column.widgets[index]), id: crypto.randomUUID() })
+      }
+      return d
+    })
+    return true
+  }, [mutate, draft.pages])
+
+  const reorderWidgetsInColumn = useCallback(
+    (pageId: string, sectionId: string, columnId: string, fromIndex: number, toIndex: number) => {
+      mutate((d) => {
+        const column = d.pages.find((p) => p.id === pageId)?.sections.find((s) => s.id === sectionId)?.columns.find((c) => c.id === columnId)
+        if (column?.widgets[fromIndex] && column.widgets[toIndex]) {
+          const [moved] = column.widgets.splice(fromIndex, 1)
+          column.widgets.splice(toIndex, 0, moved)
+        }
+        return d
+      })
+    },
+    [mutate],
+  )
 
   const updateWidgetConfig = useCallback(
     (pageId: string, sectionId: string, columnId: string, widgetId: string, config: Record<string, unknown>) => {
@@ -310,6 +396,7 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
       if (!fromColumn || !toColumn) return false
       const widgetIdx = fromColumn.widgets.findIndex((w) => w.id === from.widgetId)
       if (widgetIdx === -1) return false
+      if (fromColumn !== toColumn && toColumn.widgets.length >= MAX_WIDGETS_PER_COLUMN) return false
 
       mutate((d) => {
         const fPage = d.pages.find((p) => p.id === from.pageId)
@@ -404,6 +491,10 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
     [mutate],
   )
 
+  const restoreDraft = useCallback((layout: DashboardLayout) => {
+    setDraft(structuredClone(layout))
+  }, [])
+
   const reset = useCallback(() => {
     setDraft(structuredClone(initialLayout))
     setStoredInitial(structuredClone(initialLayout))
@@ -412,6 +503,7 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
 
   return {
     draft,
+    saved: storedInitial,
     activePageId,
     setActivePageId,
     isDirty,
@@ -424,14 +516,19 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
     removeSection,
     moveSection,
     duplicateSection,
+    toggleSectionFlag,
     setColumnPreset,
+    moveColumn,
     addWidget,
+    duplicateWidget,
+    reorderWidgetsInColumn,
     updateWidgetConfig,
     updateWidgetTitle,
     moveWidget,
     moveWidgetToPage,
     removeWidget,
     replaceWidget,
+    restoreDraft,
     reset,
   }
 }

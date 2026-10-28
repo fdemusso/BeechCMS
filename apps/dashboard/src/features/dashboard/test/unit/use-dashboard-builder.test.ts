@@ -328,4 +328,117 @@ describe("useDashboardBuilder", () => {
     expect(result.current.isDirty).toBe(false)
     expect(result.current.draft).toEqual(initialLayout)
   })
+
+  it("moveColumn carries each column's span with it", () => {
+    const layout = makeLayout()
+    layout.pages[0].sections[0].columnSpans = [8, 4]
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+    act(() => result.current.moveColumn("page-1", "section-1", 0, 1))
+
+    const section = result.current.draft.pages[0].sections[0]
+    expect(section.columns.map((c) => c.id)).toEqual(["col-2", "col-1"])
+    expect(section.columnSpans).toEqual([4, 8])
+  })
+
+  it("moveColumn on a section without explicit spans keeps the equal split", () => {
+    const layout = makeLayout()
+    delete layout.pages[0].sections[0].columnSpans
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+    act(() => result.current.moveColumn("page-1", "section-1", 1, 0))
+
+    expect(result.current.draft.pages[0].sections[0].columnSpans).toEqual([6, 6])
+  })
+
+  it("toggleSectionFlag turns a flag on and clears it again", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    act(() => result.current.toggleSectionFlag("page-1", "section-1", "collapsible"))
+    expect(result.current.draft.pages[0].sections[0].collapsible).toBe(true)
+
+    act(() => result.current.toggleSectionFlag("page-1", "section-1", "collapsible"))
+    expect(result.current.draft.pages[0].sections[0].collapsible).toBeUndefined()
+  })
+
+  it("duplicateWidget inserts a copy with a fresh id right after the original", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    let ok = false
+    act(() => { ok = result.current.duplicateWidget("page-1", "section-1", "col-1", "widget-1") })
+
+    const widgets = result.current.draft.pages[0].sections[0].columns[0].widgets
+    expect(ok).toBe(true)
+    expect(widgets).toHaveLength(2)
+    expect(widgets[1].id).not.toBe("widget-1")
+    expect(widgets[1].config).toEqual(widgets[0].config)
+  })
+
+  it("reorderWidgetsInColumn moves a widget to the given index", () => {
+    const layout = makeLayout()
+    layout.pages[0].sections[0].columns[0].widgets.push({ id: "widget-3", type: "core/text", config: {} })
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+    act(() => result.current.reorderWidgetsInColumn("page-1", "section-1", "col-1", 0, 1))
+
+    expect(result.current.draft.pages[0].sections[0].columns[0].widgets.map((w) => w.id)).toEqual(["widget-3", "widget-1"])
+  })
+
+  it("refuses to add a widget to a column that is full, and to move one into it", () => {
+    const layout = makeLayout()
+    layout.pages[0].sections[0].columns[0].widgets = Array.from({ length: 50 }, (_, i) => ({
+      id: `full-${i}`,
+      type: "core/text",
+      config: {},
+    }))
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+    let added = true
+    let moved = true
+    act(() => { added = result.current.addWidget("page-1", "section-1", "col-1", "core/text") })
+    act(() => {
+      moved = result.current.moveWidget({
+        from: { pageId: "page-1", sectionId: "section-1", columnId: "col-2", widgetId: "widget-2" },
+        to: { pageId: "page-1", sectionId: "section-1", columnId: "col-1" },
+      })
+    })
+
+    expect(added).toBe(false)
+    expect(moved).toBe(false)
+    expect(result.current.draft.pages[0].sections[0].columns[0].widgets).toHaveLength(50)
+  })
+
+  it("refuses a ninth page", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    for (let i = 0; i < 7; i += 1) act(() => { result.current.addPage() })
+    let ninth = true
+    act(() => { ninth = result.current.addPage() })
+
+    expect(result.current.draft.pages).toHaveLength(8)
+    expect(ninth).toBe(false)
+  })
+
+  it("starts from a restored draft while the initial layout stays the saved baseline", () => {
+    const saved = makeLayout()
+    const restored = makeLayout()
+    restored.pages[0].label = "Edited"
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: saved, restoredDraft: restored }))
+
+    expect(result.current.draft.pages[0].label).toBe("Edited")
+    expect(result.current.saved).toEqual(saved)
+    expect(result.current.isDirty).toBe(true)
+  })
+
+  it("restoreDraft puts a snapshot back without changing what counts as saved", () => {
+    const initialLayout = makeLayout()
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout }))
+    const snapshot = structuredClone(result.current.draft)
+
+    act(() => result.current.addSection("page-1"))
+    act(() => result.current.restoreDraft(snapshot))
+
+    expect(result.current.draft).toEqual(initialLayout)
+    expect(result.current.isDirty).toBe(false)
+  })
 })

@@ -68,7 +68,7 @@ export function PageTabsManager({
             canDelete={pages.length > 1}
           />
         ))}
-        <Button type="button" variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={onAddPage}>
+        <Button type="button" variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => onAddPage()}>
           <Plus className="size-4" />
           {t('dashboard.builder.page.add')}
         </Button>
