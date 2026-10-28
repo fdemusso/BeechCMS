@@ -94,9 +94,16 @@ normal font weight and a corner radius capped at 10px (`FOOTER_RADIUS`; `--radiu
 which turns a 32px button into a pill). **Add section** uses the same radius.
 
 > **Decision: this is the reference style for action rows.** The group structure (icon-only Back set apart,
-> then the two actions together), the shared `outline` variant, normal weight and the 10px radius cap are the
-> ones to reuse in other dialogs and panes. Copy `FOOTER_RADIUS` and the `--button-group-radius` override on the
-> outer group as they are; do not tune them per screen.
+> then the two actions together), the shared `outline` variant, normal weight and the 10px radius are the
+> ones to reuse in other dialogs and panes. `FOOTER_RADIUS` (`builder/footer-style.ts`) is now just
+> `rounded-control`, the project-wide control radius (see "Radii: controls and surfaces"); do not tune it per
+> screen.
+
+The **entry dialog's footer** has the same shape: a `border-t` row with `py-4` (equal space above and below
+the buttons, in both screens), an icon-only **Delete** in its own group next to **Save** (with the draft
+menu chevron attached to Save when drafts are on). Delete is an `outline` icon button; only its icon turns
+red on hover (`hover:[&_svg]:text-destructive`), the border and background stay neutral. When references
+block the deletion it stays disabled with the same tooltip.
 
 - `Back` leaves the builder and discards the draft. There is deliberately **no** "unsaved changes" dialog: the
   draft is recovered instead (see below). Do not bring `handleAttemptClose` or a discard confirmation back.
@@ -134,6 +141,67 @@ the dashboard also imports for its `maxLength`, so the numbers cannot drift:
 - Markup is not stripped: labels are rendered as text only, never as HTML.
 - A layout stored before this limit may hold longer labels. They are served as they are, but saving that layout
   again is refused until the label is shortened.
+
+## The entry dialog around the builder
+
+The builder lives **inside** the entry dialog (`schema-form-shell.tsx`), which stays mounted: the form is only
+hidden (`hidden`) while the builder is open. Three things follow from that.
+
+### Resizing between the form and the builder
+
+`use-animated-mode-height.ts` eases the dialog's height when `builderMode` flips (Edit layout, Back):
+
+- It animates a **wrapper around the body** (`flex min-h-0 flex-col`), never the dialog itself. The wrapper
+  is pinned to the old height, then eased (200ms, `ease-out`) to the new one and handed back to `auto`.
+- **The wrapper must not be `flex-1`.** A flex item's size comes from `flex-basis`; with `flex-1`
+  (`flex-basis: 0%`) the inline `height` is silently ignored and the switch stays instant. This was the first
+  reason the animation "did nothing".
+- The resting height is recorded with a **callback ref** plus a `ResizeObserver`. An effect on mount does not
+  work: the dialog's content mounts after the hook first runs, so it never finds the element.
+- The new view keeps settling a beat after the switch, so before releasing the box it re-measures and eases
+  the rest of the way (at most twice, so a view that never settles cannot leave the box clipped).
+- A second flip while moving retargets from where the box is; repeated clicks read as one motion.
+- While it moves the wrapper carries `data-resizing`, and the shell turns off the scrolling inside
+  (builder scroll area, `ScrollArea` viewport and bar): a box briefly shorter than its content would flash
+  scrollbars. Scrolling comes back when it stops.
+- Reduced motion skips all of it.
+
+### Nothing may grow after the switch
+
+The builder's scroll container used to have `space-y-4`. dnd-kit appends its own elements (screen-reader text,
+live region) after the content inside `DndContext`, and they took part in that spacing, so the content grew
+16px a moment after mounting and the dialog widened a second time. The spacing now sits on an inner wrapper
+around tabs, sections and Add section. Keep `DndContext`'s own nodes out of any `space-*`/`gap-*` flow.
+
+### Open, close, and the panels inside
+
+- **Fade.** The dialog fades in and out (200ms, no zoom). Closing by X, overlay or Esc plays the exit before
+  the route changes (`requestClose` waits for the fade, then calls `goBack`); if `goBack` is refused by the
+  unsaved-changes blocker, the dialog comes back. The body is keyed on loading, so when data arrives the
+  content fades in over the skeleton instead of popping in.
+- **Referenced by** starts **closed every time**: the panel is remounted when the builder opens and closes
+  (`key={builderMode ? "builder" : "form"}`), because the form is only hidden and would keep its state.
+  It opens and closes with an animated height (`collapsible-down/up`, defined once in `index.css` and applied
+  in `ui/collapsible.tsx`, so every `Collapsible` has it) and a rotating chevron. The `published` tag is not
+  shown (it is the normal state); other statuses still are. Rows are table rows with the creation time in a
+  shrink-wrapped right cell, and the table bleeds `-mx-3` so names line up with the title and times sit on the
+  panel's right edge.
+
+## Radii: controls and surfaces
+
+One scalable language of corners, defined in `index.css` and used by the components, not per screen:
+
+| Level | Token | Value | Used by |
+| --- | --- | --- | --- |
+| Control | `--radius-control` (`rounded-control`) | `min(var(--radius-md), 10px)` = 10px | buttons, button groups, inputs, textareas, selects, input groups, the JSON editor |
+| Surface | `rounded-lg` | 16px | dialog, alert dialog, card, layout sections and tabs box, repeater/relation boxes |
+
+- The 10px control radius is the footer buttons' radius, now applied project-wide. Change a level in
+  `index.css`, not in a component.
+- Controls inside a surface differ on purpose (10 inside 16): a control as round as its container looks like a
+  pill. The number input's spin buttons use `calc(var(--radius-control) - 1px)` so they follow the field's corner.
+- The scale comments in `index.css` now state the real values (`--radius` is 0.875rem: sm 12, md 14, lg 16,
+  xl 18).
 
 ## Relation fields
 
@@ -301,8 +369,13 @@ user learns the control exists.
 (footer), and `Esc` belongs to the drag.
 
 **One style per row of controls.** Footer buttons share variant, weight and radius; the icon-only Back button is
-set apart in its own `ButtonGroup`, not given a different colour. Radii are capped locally rather than changed in
-the theme (see invariants).
+set apart in its own `ButtonGroup`, not given a different colour. Two corner levels only, control and surface,
+as tokens (see "Radii: controls and surfaces").
+
+**Say nothing about the normal state.** A tag exists for what is unusual: `published` is not shown, a draft is.
+
+**Hide the wait, do not decorate it.** Dialogs fade in and the content fades in over its skeleton; the fade is
+what covers the load, not a spinner.
 
 **Menus for secondary actions, direct manipulation for primary ones.** Double click renames, right click opens
 the menu, hover reveals the destructive X. No permanent "..." buttons. Toggles inside a menu keep it open;
@@ -311,8 +384,9 @@ a choice that ends a task closes it.
 **Small, reversible shortcuts.** Skipping the confirmation for an empty section is safe because nothing is lost;
 anything that holds content still asks.
 
-**Animate only what removes a jump.** Section height and the tab X use short eased transitions (150-180ms) and
-respect reduced motion; nothing animates for decoration.
+**Animate only what removes a jump.** Section height, the tab X, the dialog's height between form and builder,
+panels opening and the dialog's fade use short eased transitions (150-200ms) and respect reduced motion;
+nothing animates for decoration. Animate the element that really owns the size (check `flex-basis`).
 
 ### Reusing this elsewhere
 
@@ -341,12 +415,17 @@ To build another nested drag editor (the dashboard builder is the next candidate
 | Drop areas | Thin, continuous, grey, no accent | Product decision |
 | Ghosts | Bordered box with one skeleton; random text width 30-80% | Two nested ghosts looked wrong; variety per seed |
 | Menus | Toggles and column counts keep the menu open | Setting several flags in a row |
-| Radii | Footer and Add section cap at 10px; reference style for action rows | `--radius` makes `rounded-lg` 16px |
+| Radii | Controls `rounded-control` (10px), surfaces `rounded-lg` (16px); tokens in `index.css` | One language; a control as round as its surface looks like a pill |
+| Dialog height | The animated wrapper is not `flex-1`; content that settles late is re-measured | `flex-basis` beats `height` |
+| Builder body | No `space-*`/`gap-*` on the node that holds `DndContext`'s own elements | They added 16px after mounting |
+| Referenced by | Starts closed after every builder round trip | The form stays mounted, hidden |
 | Labels | Tab 15 / section 50, enforced by the API with 422, trimmed on save | Anything longer is not from the dashboard |
 | Avatar | Opt-in per field, never in the entry editor | It is a content-type setting |
 | Search | Relation display name only; icon disabled when unsupported | Correct behaviour over a hidden control |
 
 ## Known open points
 
-- `--radius` is 0.875rem while comments in the theme still say 6px; the builder works around it locally.
+- Surfaces not listed under "Radii" (popovers, dropdowns, sidebar inset, sheets) still use their own radius;
+  moving them to `rounded-lg` would finish the pass.
+- Inputs inside portalled popovers get the control radius like any other, but nobody has looked at every one.
 - The column drag handle's long-term fate (keep, remove, or move to the column's side edge) is undecided.

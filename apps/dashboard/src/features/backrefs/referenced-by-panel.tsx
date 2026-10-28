@@ -5,7 +5,7 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronUp, Export as ExternalLink, Loader as Loader2 } from '@/components/icons'
+import { ChevronDown, Export as ExternalLink, Loader as Loader2 } from '@/components/icons'
 import { formatDistanceToNow } from 'date-fns'
 import { it as itLocale, enUS, type Locale } from 'date-fns/locale'
 import {
@@ -151,12 +151,15 @@ function ItemRow({ item, sourceSlug, locale }: { item: BackrefItem; sourceSlug: 
           <ExternalLink className="size-3 text-muted-foreground" />
         </Link>
       </td>
-      <td className="py-2">
-        <Badge variant={item.status === 'published' ? 'default' : 'secondary'} className="text-xs">
-          {item.status}
-        </Badge>
+      <td className="w-px py-2 pr-3 whitespace-nowrap">
+        {/* Published is the normal state and says nothing; only a different status is worth a tag. */}
+        {item.status !== 'published' && (
+          <Badge variant="secondary" className="text-xs">
+            {item.status}
+          </Badge>
+        )}
       </td>
-      <td className="py-2 pr-3 text-right">
+      <td className="w-px py-2 pr-3 text-right whitespace-nowrap">
         <RelativeTime timestamp={item.updated_at} locale={locale} />
       </td>
     </tr>
@@ -183,7 +186,9 @@ function GroupSection({ group, targetSlug, targetId, locale }: GroupSectionProps
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
         {group.sourceLabel} · {group.branchLabel}
       </p>
-      <table className="w-full text-sm">
+      {/* -mx-3: the rows' own padding bleeds into the panel's, so the name lines up with the title above and
+          the creation time sits on the panel's right edge, like the rest of the content. */}
+      <table className="-mx-3 w-[calc(100%+1.5rem)] text-sm">
         <tbody>
           {group.items.map(item => (
             <ItemRow key={item.id} item={item} sourceSlug={group.sourceSlug} locale={locale} />
@@ -257,7 +262,7 @@ export function ReferencedByPanel({ targetSlug, targetId, onRestrictsChange }: R
             <Badge variant="secondary" className="text-xs">{summary}</Badge>
           ) : null}
         </div>
-        {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        <ChevronDown className={`size-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </CollapsibleTrigger>
 
       <CollapsibleContent>
