@@ -5,12 +5,36 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { Check, SortV as ChevronsUpDown, X, ChevronUp, ChevronDown } from '@/components/icons'
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import { resolveRelationAvatar, type Branch } from "@beechcms/core"
+import { Check, Plus, X } from "@/components/icons"
+import { GripDots } from "@/components/ui/grip-dots"
 
 import { useFieldsConfig } from "../../context"
+import { FieldLabelAside } from "../../field-label-row"
 import { useRelationLabel } from "../../relation-label"
+import { useRelationIdentity } from "../../display/relation-identity"
+import { RelationAvatarMark } from "./relation-avatar-mark"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Command,
   CommandEmpty,
@@ -26,11 +50,9 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
-/** Stale time for relation details query (5 minutes). */
-const RELATION_STALE_MS = 5 * 60 * 1000
 /** Debounce time for server-side autocomplete search (250ms). */
 const SEARCH_DEBOUNCE_MS = 250
-/** Maximum number of search results to fetch in one search query. */
+/** Results fetched per page of the picker; "load more" grows the window by this much. */
 const LIST_LIMIT = 20
 /** Static reference for empty array to prevent unnecessary re-renders. */
 const EMPTY_IDS: string[] = []
@@ -47,95 +69,98 @@ type BranchLike = {
   requiredOnUpdate?: boolean
 }
 
-interface ChipLabelProps {
-  /** Slug of the target seed the related entry belongs to. */
-  targetSlug: string
-  /** Id of the related entry to resolve a label for. */
-  targetId: string
-  /** Field alias used to read the display label from the entry's data. */
-  labelAlias: string
-}
-
-/**
- * Fetches the related entry by id and resolves its display label, falling back
- * to the raw id while the entry is loading or has no value for `labelAlias`.
- */
-function useChipLabel({ targetSlug, targetId, labelAlias }: ChipLabelProps): string {
-  const { fetchById, queryKeys } = useFieldsConfig()
-  const labelOf = useRelationLabel(targetSlug)
-  const { data: entry } = useQuery({
-    queryKey: queryKeys.detail(targetSlug, targetId),
-    queryFn: () => fetchById(targetSlug, targetId),
-    enabled: Boolean(targetSlug && targetId),
-    staleTime: RELATION_STALE_MS,
-  })
-  return String(labelOf(entry?.data, labelAlias) ?? targetId)
-}
-
-interface SortableChipProps {
-  /** Id of the related entry represented by this chip. */
+interface SelectedRowProps {
+  /** Id of the related entry; also the sortable id. */
   id: string
-  /** Position of this chip within the selected list (0-based). */
-  index: number
-  /** Total number of selected chips, used to disable move-down at the end. */
-  total: number
   /** Slug of the target seed the related entry belongs to. */
   targetSlug: string
   /** Field alias used to read the display label from the entry's data. */
   labelAlias: string
-  /** Swaps this chip with the previous one. */
-  onMoveUp: () => void
-  /** Swaps this chip with the next one. */
-  onMoveDown: () => void
-  /** Removes this chip from the selection. */
-  onRemove: () => void
+  /** Target branch supplying the avatar image; absent = no avatar on the row. */
+  avatarAlias: string | undefined
+  /** Freezes dragging and removal. */
+  disabled: boolean | undefined
+  /** Removes this entry from the selection. */
+  onRemove: (id: string) => void
 }
 
-/** A single reorderable, removable chip representing one selected relation entry. */
-function SortableChip({
-  id,
-  index,
-  total,
-  targetSlug,
-  labelAlias,
-  onMoveUp,
-  onMoveDown,
-  onRemove,
-}: SortableChipProps) {
+/** One selected entry: drag handle, optional avatar, display name, remove button. */
+function SelectedRow({ id, targetSlug, labelAlias, avatarAlias, disabled, onRemove }: SelectedRowProps) {
   const { t: translate } = useTranslation()
-  const label = useChipLabel({ targetSlug, targetId: id, labelAlias })
+  const identity = useRelationIdentity(targetSlug, id, labelAlias, avatarAlias)
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled })
 
   return (
-    <div className="flex items-center gap-0.5 rounded-md border bg-secondary/50 px-1.5 py-0.5 text-sm">
-      <span className="max-w-[160px] truncate">{label}</span>
-      <div className="flex items-center ml-1 gap-0.5 shrink-0">
-        <button
-          type="button"
-          aria-label={translate("content.editor.relationMulti.moveUp")}
-          disabled={index === 0}
-          onClick={onMoveUp}
-          className="rounded p-0.5 hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          <ChevronUp className="size-3" />
-        </button>
-        <button
-          type="button"
-          aria-label={translate("content.editor.relationMulti.moveDown")}
-          disabled={index === total - 1}
-          onClick={onMoveDown}
-          className="rounded p-0.5 hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          <ChevronDown className="size-3" />
-        </button>
-        <button
-          type="button"
-          aria-label={translate("content.editor.relationMulti.remove")}
-          onClick={onRemove}
-          className="rounded p-0.5 hover:bg-destructive/20 hover:text-destructive"
-        >
-          <X className="size-3" />
-        </button>
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        "group flex h-9 items-center gap-2 bg-card px-1.5 text-sm",
+        isDragging && "relative z-10 shadow-md opacity-90",
+      )}
+    >
+      <button
+        type="button"
+        aria-label={translate("content.editor.relationMulti.dragHandle")}
+        disabled={disabled}
+        className="flex shrink-0 cursor-grab touch-none items-center rounded p-0.5 text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+        {...attributes}
+        {...listeners}
+      >
+        <GripDots className="size-4" />
+      </button>
+      {avatarAlias ? <RelationAvatarMark identity={identity} /> : null}
+      <span className="min-w-0 flex-1 truncate">{identity.label}</span>
+      {/* Red but hidden until the row is hovered or the button focused; touch screens have no hover, so it stays visible there.
+          The 5px right margin keeps it clear of the ScrollArea scrollbar overlaying the row's edge. */}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={translate("content.editor.relationMulti.remove")}
+        disabled={disabled}
+        onClick={() => onRemove(id)}
+        className="mr-[5px] text-destructive opacity-0 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-0 [@media(hover:none)]:opacity-100"
+      >
+        <X />
+      </Button>
+    </li>
+  )
+}
+
+/** Rows the selected list shows before it scrolls; the `max-h` class on the list below encodes the same number. */
+const VISIBLE_ROWS = 3
+
+/**
+ * Inert stand-in for a full multi-relation field, for previews that have no data (the layout builder):
+ * same structure and measurements as {@link MultiRelationEdit} with a full list — count on the label's
+ * line, bordered list of {@link VISIBLE_ROWS} rows, add button — so a column laid out here matches the
+ * real editor.
+ */
+export function MultiRelationSkeleton({ avatar = false }: { readonly avatar?: boolean }) {
+  const { t: translate } = useTranslation()
+  return (
+    <div className="space-y-2" aria-hidden>
+      <div className="space-y-1">
+        <FieldLabelAside>
+          {translate("content.editor.relationMulti.selectedCount", { count: VISIBLE_ROWS })}
+        </FieldLabelAside>
+        <div className="overflow-hidden rounded-md border">
+          <ul className="divide-y">
+            {Array.from({ length: VISIBLE_ROWS }, (_, row) => (
+              <li key={row} className="flex h-9 items-center gap-2 bg-card px-1.5">
+                <Skeleton className="size-4 shrink-0" />
+                {avatar ? <Skeleton className="size-6 shrink-0 rounded-full" /> : null}
+                <Skeleton className="h-3 w-2/5" />
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
+      <Button type="button" variant="outline" disabled className="w-full font-normal">
+        <Plus className="size-4 shrink-0" />
+        <span className="truncate">{translate("content.editor.relationMulti.add")}</span>
+      </Button>
     </div>
   )
 }
@@ -154,8 +179,14 @@ interface MultiRelationEditProps {
 }
 
 /**
- * Multi-value relation field editor: renders selected entries as reorderable,
- * removable chips plus a searchable popover to add more entries.
+ * Multi-value relation field editor.
+ *
+ * - Selected entries are a vertical list, reorderable by drag and drop (pointer or keyboard) and
+ *   scrollable past a few rows; the order is persisted by the junction table.
+ * - The picker toggles entries and stays open, so several can be added in one visit; selected
+ *   entries stay in the results with a check. "Load more" widens the result window.
+ * - Avatars appear only when the relation configures an `avatarSource`, and only on the selected rows,
+ *   never in the picker.
  */
 export function MultiRelationEdit({
   branch,
@@ -168,8 +199,8 @@ export function MultiRelationEdit({
   const { useSchema, searchRelations, queryKeys } = useFieldsConfig()
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
+  const [limit, setLimit] = React.useState(LIST_LIMIT)
   const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE_MS)
-  const addPopoverId = React.useId()
 
   const targetSlug = branch.targetSeed
   const selectedIds = Array.isArray(value) ? value : EMPTY_IDS
@@ -177,21 +208,26 @@ export function MultiRelationEdit({
   const { data: seeds } = useSchema()
   const targetSeed = seeds?.find((schemaSeed) => schemaSeed.slug === targetSlug)
   const labelAlias = targetSeed?.displayNameAlias ?? "title"
+  const avatarAlias = resolveRelationAvatar(
+    branch as Branch,
+    (slug) => seeds?.find((schemaSeed) => schemaSeed.slug === slug),
+  )?.alias
   const labelOf = useRelationLabel(targetSlug)
 
   const { data: entriesData, isFetching } = useQuery({
-    queryKey: [...queryKeys.lists(), targetSlug, "relation-multi-search", debouncedSearch],
+    queryKey: [...queryKeys.lists(), targetSlug, "relation-multi-search", debouncedSearch, limit],
     queryFn: () =>
       searchRelations(targetSlug!, {
         search: debouncedSearch || undefined,
-        limit: LIST_LIMIT,
+        limit,
       }),
     enabled: Boolean(targetSlug && open),
     staleTime: 10 * 1000,
     placeholderData: (prev) => prev,
   })
 
-  const entries = (entriesData ?? []).filter((item) => !selectedIds.includes(item.id))
+  const entries = entriesData ?? []
+  const hasMore = entries.length >= limit
 
   const resolveLabel = (item: (typeof entries)[0]): string => {
     const raw = labelOf(item.data, labelAlias)
@@ -200,103 +236,115 @@ export function MultiRelationEdit({
     return typeof slug === "string" ? slug : item.id
   }
 
-  const handleAdd = React.useCallback(
+  // Two entries with the same name are told apart by the tail of their id; unique names stay clean.
+  const labels = entries.map(resolveLabel)
+  const duplicateLabels = new Set(labels.filter((label, index) => labels.indexOf(label) !== index))
+
+  const selectedSet = new Set(selectedIds)
+
+  const handleToggle = React.useCallback(
     (entryId: string) => {
-      if (!selectedIds.includes(entryId)) {
-        onChange([...selectedIds, entryId])
-      }
-      setOpen(false)
-      setSearch("")
+      onChange(
+        selectedIds.includes(entryId)
+          ? selectedIds.filter((id) => id !== entryId)
+          : [...selectedIds, entryId],
+      )
     },
-    [selectedIds, onChange]
+    [selectedIds, onChange],
   )
 
   const handleRemove = React.useCallback(
-    (indexToRemove: number) => {
-      onChange(selectedIds.filter((_, currentIndex) => currentIndex !== indexToRemove))
-    },
-    [selectedIds, onChange]
+    (entryId: string) => onChange(selectedIds.filter((id) => id !== entryId)),
+    [selectedIds, onChange],
   )
 
-  const handleMoveUp = React.useCallback(
-    (index: number) => {
-      if (index === 0) return
-      const nextSelectedIds = [...selectedIds]
-      ;[nextSelectedIds[index - 1], nextSelectedIds[index]] = [
-        nextSelectedIds[index],
-        nextSelectedIds[index - 1],
-      ]
-      onChange(nextSelectedIds)
-    },
-    [selectedIds, onChange]
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const handleMoveDown = React.useCallback(
-    (index: number) => {
-      if (index === selectedIds.length - 1) return
-      const nextSelectedIds = [...selectedIds]
-      ;[nextSelectedIds[index], nextSelectedIds[index + 1]] = [
-        nextSelectedIds[index + 1],
-        nextSelectedIds[index],
-      ]
-      onChange(nextSelectedIds)
+  const handleDragEnd = React.useCallback(
+    ({ active, over }: DragEndEvent) => {
+      if (!over || active.id === over.id) return
+      const from = selectedIds.indexOf(String(active.id))
+      const to = selectedIds.indexOf(String(over.id))
+      if (from === -1 || to === -1) return
+      onChange(arrayMove(selectedIds, from, to))
     },
-    [selectedIds, onChange]
+    [selectedIds, onChange],
   )
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next)
+    if (!next) {
+      setSearch("")
+      setLimit(LIST_LIMIT)
+    }
+  }
 
   const isRequired = isCreate ? branch.requiredOnCreate === true : branch.requiredOnUpdate === true
 
   return (
     <div className="space-y-2">
-      {/* Chip row */}
       {selectedIds.length > 0 && (
-        <div
-          className="flex flex-wrap gap-1.5"
-          aria-label={translate("content.editor.relationMulti.selectedItems")}
-        >
-          {selectedIds.map((id, index) => (
-            <SortableChip
-              key={id}
-              id={id}
-              index={index}
-              total={selectedIds.length}
-              targetSlug={targetSlug ?? ""}
-              labelAlias={labelAlias}
-              onMoveUp={() => handleMoveUp(index)}
-              onMoveDown={() => handleMoveDown(index)}
-              onRemove={() => handleRemove(index)}
-            />
-          ))}
+        <div className="space-y-1">
+          <FieldLabelAside>
+            {translate("content.editor.relationMulti.selectedCount", { count: selectedIds.length })}
+          </FieldLabelAside>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={selectedIds} strategy={verticalListSortingStrategy}>
+              {/* The border and radius live on a clipping wrapper, not on the ScrollArea: its viewport inherits the
+                  root's max-height (`max-h-[inherit]`), so a border on the root would let the viewport overflow it
+                  and paint over the bottom edge. Height: three 2.25rem rows plus their two 1px dividers.
+                  Radix also wraps the content in a `display: table` div, which would stop `truncate` from working. */}
+              <div className="overflow-hidden rounded-md border">
+                <ScrollArea className="max-h-[calc(3*2.25rem+2px)] [&_[data-slot=scroll-area-viewport]>div]:!block">
+                  <ul className="divide-y" aria-label={translate("content.editor.relationMulti.selectedItems")}>
+                    {selectedIds.map((id) => (
+                      <SelectedRow
+                        key={id}
+                        id={id}
+                        targetSlug={targetSlug ?? ""}
+                        labelAlias={labelAlias}
+                        avatarAlias={avatarAlias}
+                        disabled={disabled}
+                        onRemove={handleRemove}
+                      />
+                    ))}
+                  </ul>
+                </ScrollArea>
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       )}
 
-      {/* Add button */}
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             type="button"
             variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            aria-controls={addPopoverId}
             aria-label={translate("content.editor.relationMulti.add")}
             disabled={disabled || !targetSlug}
-            className={cn("w-full justify-between font-normal", "text-muted-foreground")}
+            className="w-full font-normal"
           >
+            <Plus className="size-4 shrink-0" />
             <span className="truncate">
               {isRequired && selectedIds.length === 0
                 ? translate("content.editor.relation.placeholder")
                 : translate("content.editor.relationMulti.add")}
             </span>
-            <ChevronsUpDown className="size-4 opacity-50 ml-2 shrink-0" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent id={addPopoverId} className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput
               placeholder={translate("content.editor.relation.search")}
               value={search}
-              onValueChange={setSearch}
+              onValueChange={(next) => {
+                setSearch(next)
+                setLimit(LIST_LIMIT)
+              }}
               aria-label={translate("content.editor.relation.search")}
             />
             <CommandList>
@@ -306,26 +354,52 @@ export function MultiRelationEdit({
                 <CommandEmpty>{translate("content.editor.relation.empty")}</CommandEmpty>
               ) : (
                 <CommandGroup>
-                  {entries.map((item) => {
-                    const label = resolveLabel(item)
+                  {entries.map((item, index) => {
+                    const label = labels[index]!
+                    const isSelected = selectedSet.has(item.id)
                     return (
                       <CommandItem
                         key={item.id}
                         value={item.id}
-                        onSelect={() => handleAdd(item.id)}
+                        onSelect={() => handleToggle(item.id)}
+                        aria-selected={isSelected}
                         className="flex items-center gap-2"
                       >
-                        <Check className="size-4 shrink-0 opacity-0" />
+                        <Check className={cn("size-4 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
                         <span className="flex-1 truncate">{label}</span>
-                        <span className="text-xs text-muted-foreground font-mono shrink-0 max-w-[6rem] truncate">
-                          {item.id}
-                        </span>
+                        {duplicateLabels.has(label) && (
+                          <span className="max-w-[6rem] shrink-0 truncate font-mono text-xs text-muted-foreground">
+                            …{item.id.slice(-4)}
+                          </span>
+                        )}
                       </CommandItem>
                     )
                   })}
                 </CommandGroup>
               )}
+              {hasMore && (
+                <div className="p-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                    disabled={isFetching}
+                    onClick={() => setLimit((current) => current + LIST_LIMIT)}
+                  >
+                    {translate("content.editor.relationMulti.loadMore")}
+                  </Button>
+                </div>
+              )}
             </CommandList>
+            <div className="flex items-center justify-between border-t p-1.5">
+              <span className="px-1 text-xs text-muted-foreground">
+                {translate("content.editor.relationMulti.selectedCount", { count: selectedIds.length })}
+              </span>
+              <Button type="button" size="sm" onClick={() => handleOpenChange(false)}>
+                {translate("content.editor.relationMulti.done")}
+              </Button>
+            </div>
           </Command>
         </PopoverContent>
       </Popover>

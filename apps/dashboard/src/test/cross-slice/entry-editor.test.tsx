@@ -210,7 +210,8 @@ vi.mock("@/features/navigation", () => ({
   SiteHeader: () => <div>SITE_HEADER</div>,
 }))
 
-vi.mock("@/components/fields", () => ({
+vi.mock("@/components/fields", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/fields")>()),
   FieldEdit: ({ branch, value, onChange }: any) => (
     <input
       aria-label={`field-${branch.alias}`}

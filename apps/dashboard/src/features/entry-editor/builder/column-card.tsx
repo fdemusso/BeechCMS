@@ -27,7 +27,7 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { toast } from 'sonner'
-import { FieldEdit } from '@/components/fields'
+import { FieldEdit, FieldLabelRow, MultiRelationSkeleton } from '@/components/fields'
 import { getFullWidthWarningLabel, type UseLayoutBuilderResult } from './use-layout-builder'
 
 // ============================================================================
@@ -93,10 +93,17 @@ function FieldItem({ tabId, sectionId, columnId, field, branch, ops, dragId }: F
           <GripVertical className="size-4" />
         </button>
 
-        <div className="flex-1 min-w-0 max-w-full space-y-1.5 pointer-events-none select-none opacity-70 overflow-hidden">
-          <Label className="text-xs font-medium">{branch.label}</Label>
-          <FieldEdit branch={branch as any} value={emptyValue(branch)} onChange={() => {}} />
-        </div>
+        <FieldLabelRow
+          className="flex-1 min-w-0 max-w-full space-y-1.5 pointer-events-none select-none opacity-70 overflow-hidden"
+          label={<Label className="text-xs font-medium">{branch.label}</Label>}
+        >
+          {branch.type === 'relation' && branch.multiple === true ? (
+            // The empty value would collapse a multi-relation to its add button; the skeleton keeps the full-size footprint.
+            <MultiRelationSkeleton avatar={Boolean(branch.avatarSource)} />
+          ) : (
+            <FieldEdit branch={branch as any} value={emptyValue(branch)} onChange={() => {}} />
+          )}
+        </FieldLabelRow>
 
         <Button
           type="button"

@@ -9,7 +9,7 @@ import type { LayoutSection, LayoutTab, LayoutColumn } from "@beechcms/core"
 import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
-import { FieldEdit } from "@/components/fields"
+import { FieldEdit, FieldLabelRow } from "@/components/fields"
 import type { RendererBranchMap, RendererLocalization } from "./layout-renderer"
 
 function Asterisk({ className }: { className?: string }) {
@@ -97,27 +97,31 @@ function ColumnRenderer({
         if (branch == null) return null
         const localizedState = localization?.fields[branch.alias]
         return (
-          <div key={field.branchId} className="space-y-2">
-            <Label htmlFor={branch.alias} className="flex items-center gap-1">
-              {branch.hint ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="cursor-help">{branch.label}</span>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-64">
-                    {branch.hint}
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                branch.label
-              )}
-              {branch.requiredOnCreate && <Asterisk className="inline size-3 text-destructive" />}
-              {localizedState && localization && (
-                <span className="ml-1 rounded border px-1 text-[10px] font-medium uppercase text-muted-foreground">
-                  {localization.activeLocale}
-                </span>
-              )}
-            </Label>
+          <FieldLabelRow
+            key={field.branchId}
+            label={
+              <Label htmlFor={branch.alias} className="flex items-center gap-1">
+                {branch.hint ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help">{branch.label}</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-64">
+                      {branch.hint}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  branch.label
+                )}
+                {branch.requiredOnCreate && <Asterisk className="inline size-3 text-destructive" />}
+                {localizedState && localization && (
+                  <span className="ml-1 rounded border px-1 text-[10px] font-medium uppercase text-muted-foreground">
+                    {localization.activeLocale}
+                  </span>
+                )}
+              </Label>
+            }
+          >
             <FieldEdit
               // TipTap and CodeMirror keep internal state and ignore a null value: remount per locale so each
               // language opens on its own value instead of the previous language's text.
@@ -151,7 +155,7 @@ function ColumnRenderer({
             {fieldErrors[branch.alias] && (
               <p className="text-xs text-destructive">{fieldErrors[branch.alias]}</p>
             )}
-          </div>
+          </FieldLabelRow>
         )
       })}
     </div>

@@ -501,7 +501,7 @@ describe("RelationEdit (multiple: true)", () => {
       { wrapper: wrapper(queryClient) }
     )
 
-    const trigger = screen.getByRole("combobox")
+    const trigger = screen.getByRole("button", { name: "Add…" })
     fireEvent.click(trigger)
 
     await waitFor(() => {
@@ -525,7 +525,7 @@ describe("RelationEdit (multiple: true)", () => {
     expect(mockOnChange).toHaveBeenCalledWith([])
   })
 
-  it("already-selected ids are filtered from combobox list", async () => {
+  it("keeps already-selected entries in the picker, checked", async () => {
     queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
 
     render(
@@ -533,16 +533,47 @@ describe("RelationEdit (multiple: true)", () => {
       { wrapper: wrapper(queryClient) }
     )
 
-    fireEvent.click(screen.getByRole("combobox"))
+    fireEvent.click(screen.getByRole("button", { name: "Add…" }))
 
-    await waitFor(() => {
-      // author-1 already selected — should not appear in dropdown
-      // Grace Hopper (author-2) should still be visible
-      expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
-    })
+    await waitFor(() => expect(screen.getByText("Grace Hopper")).toBeInTheDocument())
+    const options = screen.getAllByRole("option")
+    expect(options.map((option) => [option.textContent, option.getAttribute("aria-selected")])).toEqual([
+      ["Ada Lovelace", "true"],
+      ["Grace Hopper", "false"],
+    ])
   })
 
-  it("move-up button reorders ids", () => {
+  it("clicking a selected entry in the picker removes it", async () => {
+    queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
+
+    render(
+      <RelationEdit branch={multiRelationBranch} value={["author-1"]} onChange={mockOnChange} />,
+      { wrapper: wrapper(queryClient) }
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Add…" }))
+    await waitFor(() => expect(screen.getAllByText("Ada Lovelace")).toHaveLength(2))
+
+    fireEvent.click(screen.getAllByText("Ada Lovelace")[1])
+
+    expect(mockOnChange).toHaveBeenCalledWith([])
+  })
+
+  it("stays open after a pick and closes with the Done button", async () => {
+    render(
+      <RelationEdit branch={multiRelationBranch} value={[]} onChange={mockOnChange} />,
+      { wrapper: wrapper(queryClient) }
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Add…" }))
+    await waitFor(() => expect(screen.getByText("Grace Hopper")).toBeInTheDocument())
+
+    fireEvent.click(screen.getByText("Grace Hopper"))
+
+    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Done" }))
+    await waitFor(() => expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument())
+  })
+
+  it("shows how many entries are selected and a drag handle per row", () => {
     const entry2 = { ...authorEntry, id: "author-2", data: { name: "Grace Hopper" } }
     queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
     queryClient.setQueryData(["content", "detail", "team", "author-2"], entry2)
@@ -552,9 +583,18 @@ describe("RelationEdit (multiple: true)", () => {
       { wrapper: wrapper(queryClient) }
     )
 
-    const upBtns = screen.getAllByLabelText("Move up")
-    // Second chip's "Move up" button moves author-2 before author-1
-    fireEvent.click(upBtns[1])
-    expect(mockOnChange).toHaveBeenCalledWith(["author-2", "author-1"])
+    expect(screen.getByText("2 selected")).toBeInTheDocument()
+    expect(screen.getAllByLabelText("Drag to reorder")).toHaveLength(2)
+  })
+
+  it("renders no avatar on rows when the relation has no avatar source", () => {
+    queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
+
+    render(
+      <RelationEdit branch={multiRelationBranch} value={["author-1"]} onChange={mockOnChange} />,
+      { wrapper: wrapper(queryClient) }
+    )
+
+    expect(document.querySelector('[data-slot="avatar"]')).toBeNull()
   })
 })

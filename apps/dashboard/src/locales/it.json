@@ -671,10 +671,12 @@
       },
       "relationMulti": {
         "add": "Aggiungi…",
-        "moveUp": "Sposta su",
-        "moveDown": "Sposta giù",
+        "dragHandle": "Trascina per riordinare",
         "remove": "Rimuovi",
-        "selectedItems": "Elementi selezionati"
+        "selectedItems": "Elementi selezionati",
+        "selectedCount": "{{count}} selezionati",
+        "loadMore": "Carica altri",
+        "done": "Fatto"
       }
     },
     "trash": {
