@@ -14,6 +14,7 @@ import {
 import type { DataTableSelection } from "../hooks/use-data-table-selection"
 import type { DataTableProps } from "../types"
 import { CELL_CLICK_DELAY_MS } from "../types"
+import { COLUMN_SEPARATOR_CLASS, FOCUSED_ROW_CLASS, ROW_SEPARATOR_CLASS } from "../styles"
 
 const HIT_TOLERANCE_PX = 2
 const VISUAL_CONTENT_SELECTOR = "img, svg, canvas, [data-slot='badge']"
@@ -103,7 +104,9 @@ function DataTableRowInner<TData, TValue>({
       data-row-id={row.id}
       data-focused={selection.focusedRowId === row.id || undefined}
       className={cn(
-        "border-border/60 transition-colors group-focus-within/dt:data-[focused]:outline group-focus-within/dt:data-[focused]:-outline-offset-2 group-focus-within/dt:data-[focused]:outline-1 group-focus-within/dt:data-[focused]:outline-ring",
+        ROW_SEPARATOR_CLASS,
+        "transition-colors",
+        FOCUSED_ROW_CLASS,
         onRowDoubleClick && "cursor-pointer select-none",
         rowStyles?.rowClassName ?? getRowClassName?.(row.original)
       )}
@@ -125,7 +128,7 @@ function DataTableRowInner<TData, TValue>({
         const canActivateCell = !!onCellActivate && !cellActivateExcludedColumnIdSet.has(cell.column.id)
         const cellClassName = cn(
           cellPadding,
-          "border-r border-border/60 last:border-r-0",
+          COLUMN_SEPARATOR_CLASS,
           rowStyles?.cellClassNameByColumnId?.[cell.column.id] ?? getCellClassName?.(row.original, cell.column.id),
           canActivateCell && "cursor-pointer"
         )

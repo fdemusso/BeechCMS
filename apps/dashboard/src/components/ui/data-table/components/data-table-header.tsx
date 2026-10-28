@@ -21,6 +21,7 @@ import {
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import { TableHead, TableRow } from "@/components/ui/table"
+import { COLUMN_SEPARATOR_CLASS } from "../styles"
 
 interface DataTableHeaderProps<TData> {
   table: TanstackTable<TData>
@@ -53,7 +54,8 @@ function HeaderCell<TData>({ header, enableColumnResizing, sortable }: HeaderCel
         ...(isDragging ? { zIndex: 10, opacity: 0.85 } : undefined),
       }}
       className={cn(
-        "border-r border-border/60 bg-border/40 last:border-r-0",
+        COLUMN_SEPARATOR_CLASS,
+        "bg-border/40",
         sortable && "cursor-grab select-none touch-none",
         isDragging && "cursor-grabbing bg-muted shadow-sm"
       )}

@@ -40,8 +40,11 @@ function DataTablePaginationInner<TData>({
   const canPreviousPage = pageIndex > 0
   const canNextPage = pageIndex < pageCount - 1
   const { t } = useTranslation()
+  // Walks every row, so only computed when the counter is actually shown.
   const totalCount =
-    totalRows ?? table.getFilteredRowModel().flatRows.filter((r) => !r.getIsGrouped()).length
+    selectedCount > 0
+      ? (totalRows ?? table.getFilteredRowModel().flatRows.filter((r) => !r.getIsGrouped()).length)
+      : 0
 
   return (
     <div className="flex shrink-0 items-center justify-between gap-4 py-4">

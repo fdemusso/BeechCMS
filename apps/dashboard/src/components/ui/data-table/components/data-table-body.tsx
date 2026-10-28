@@ -32,6 +32,8 @@ import { DataTableRow } from "./data-table-row"
 import type { DataTableSelection } from "../hooks/use-data-table-selection"
 import type { DataTableProps } from "../types"
 import { VIRTUAL_CONTAINER_HEIGHT } from "../types"
+import { COLUMN_SEPARATOR_CLASS, ROW_SEPARATOR_CLASS } from "../styles"
+import { cn } from "@/lib/utils"
 
 export interface DataTableBodyProps<TData, TValue> {
   table: TanstackTable<TData>
@@ -62,12 +64,15 @@ function VirtualSpacerRow({ height, colSpan }: Readonly<{ height: number; colSpa
   )
 }
 
-/** Dashed empty rows that keep a short last page the same height as a full one. */
+/**
+ * Empty rows that keep a short last page the same height as a full one.
+ * Drawn exactly like data rows (same grid lines) but inert: no hover highlight.
+ */
 function PlaceholderRows({ count, columnCount, rowHeight }: Readonly<{ count: number; columnCount: number; rowHeight: number }>) {
   return Array.from({ length: count }, (_, i) => (
-    <TableRow key={`placeholder-${i}`} className="border-dashed" style={{ height: rowHeight }}>
+    <TableRow key={`placeholder-${i}`} className={cn(ROW_SEPARATOR_CLASS, "hover:bg-transparent")} style={{ height: rowHeight }} aria-hidden>
       {Array.from({ length: columnCount }, (_, colIndex) => (
-        <TableCell key={colIndex} />
+        <TableCell key={colIndex} className={COLUMN_SEPARATOR_CLASS} />
       ))}
     </TableRow>
   ))
@@ -92,7 +97,7 @@ export function DataTableBody<TData, TValue>({
     overscan: 5,
   })
 
-  const { emptyState, enableColumnResizing, manualPagination, data } = props
+  const { emptyState, enableColumnResizing, manualPagination, data, totalRows: totalRowsProp } = props
   const enableColumnReorder = props.columnOrder !== undefined || props.onColumnOrderChange !== undefined
 
   const renderRow = (row: (typeof rows)[number]) =>
@@ -124,7 +129,11 @@ export function DataTableBody<TData, TValue>({
 
   const renderPaginatedRows = () => {
     const { pageSize } = table.getState().pagination
-    const totalRows = manualPagination ? data.length : table.getFilteredRowModel().rows.length
+    // Dataset size across ALL pages. With server-side pagination `data` holds only the current
+    // page, so the real total must come from `totalRows`; `data.length` would shrink the last
+    // page and make the footer jump.
+    const totalRows = totalRowsProp ?? (manualPagination ? data.length : table.getFilteredRowModel().rows.length)
+    // A page that can be full is always padded to `pageSize` rows so the table height never changes between pages.
     const placeholderCount = totalRows >= pageSize && rows.length < pageSize ? pageSize - rows.length : 0
     return (
       <>
@@ -134,29 +143,24 @@ export function DataTableBody<TData, TValue>({
     )
   }
 
-  const paginatedMinHeight = isGroupingActive
-    ? undefined
-    : Math.min(manualPagination ? data.length : table.getFilteredRowModel().rows.length, table.getState().pagination.pageSize) * rowHeight
+  const renderTableRows = () => {
+    if (rows.length === 0) {
+      return <EmptyRow colSpan={columnCount} isCustom={!!emptyState}>{emptyState ?? "Nessun risultato."}</EmptyRow>
+    }
+    return isGroupingActive ? renderGroupedRows() : renderPaginatedRows()
+  }
 
   return (
     <ScrollArea
       ref={scrollContainerRef}
       className="h-full w-full"
-      style={isGroupingActive ? { maxHeight: VIRTUAL_CONTAINER_HEIGHT } : { minHeight: paginatedMinHeight }}
+      style={isGroupingActive ? { maxHeight: VIRTUAL_CONTAINER_HEIGHT } : undefined}
     >
       <Table>
         <TableHeader>
           <DataTableHeader table={table} enableColumnResizing={enableColumnResizing} enableColumnReorder={enableColumnReorder} />
         </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <EmptyRow colSpan={columnCount} isCustom={!!emptyState}>{emptyState ?? "Nessun risultato."}</EmptyRow>
-          ) : isGroupingActive ? (
-            renderGroupedRows()
-          ) : (
-            renderPaginatedRows()
-          )}
-        </TableBody>
+        <TableBody>{renderTableRows()}</TableBody>
       </Table>
       <ScrollBar orientation="horizontal" />
     </ScrollArea>

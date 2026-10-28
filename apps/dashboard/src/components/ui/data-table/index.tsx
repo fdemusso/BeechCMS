@@ -2,6 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+// Layout invariants (frame clipping, stable page height, memoized footer props): read ./README.md before changing the structure.
+
 import * as React from "react"
 import { useDataTableState } from "./hooks/use-data-table-state"
 import { useDataTableSelection } from "./hooks/use-data-table-selection"
