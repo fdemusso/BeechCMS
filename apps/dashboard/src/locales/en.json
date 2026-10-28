@@ -571,6 +571,7 @@
   },
   "content": {
     "list": {
+      "subtitle": "Manage \"{{slug}}\" content",
       "table": "Table",
       "gallery": "Gallery",
       "kanban": "Kanban",

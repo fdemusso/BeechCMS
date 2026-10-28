@@ -571,6 +571,7 @@
   },
   "content": {
     "list": {
+      "subtitle": "Gestisci i contenuti di \"{{slug}}\"",
       "table": "Tabella",
       "gallery": "Galleria",
       "kanban": "Kanban",
