@@ -52,6 +52,8 @@ function DataTableInner<TData, TValue>(
         totalRows={props.totalRows}
         selectedCount={selectedCount}
         hidePagination={isGroupingActive}
+        pageIndex={table.getState().pagination.pageIndex}
+        pageCount={table.getPageCount()}
       />
     </div>
   )

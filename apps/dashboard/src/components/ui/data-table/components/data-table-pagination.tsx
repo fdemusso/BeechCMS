@@ -21,6 +21,12 @@ export interface DataTablePaginationProps<TData> {
   selectedCount: number
   /** Hides the page controls (grouping mode), keeping the selection counter. */
   hidePagination?: boolean
+  /**
+   * Current page and page count. `table` is a stable reference, so the memoized footer only
+   * re-renders on prop changes: without these it would never repaint on page change.
+   */
+  pageIndex: number
+  pageCount: number
 }
 
 function DataTablePaginationInner<TData>({
@@ -28,7 +34,11 @@ function DataTablePaginationInner<TData>({
   totalRows,
   selectedCount,
   hidePagination = false,
+  pageIndex,
+  pageCount,
 }: DataTablePaginationProps<TData>) {
+  const canPreviousPage = pageIndex > 0
+  const canNextPage = pageIndex < pageCount - 1
   const { t } = useTranslation()
   const totalCount =
     totalRows ?? table.getFilteredRowModel().flatRows.filter((r) => !r.getIsGrouped()).length
@@ -49,9 +59,9 @@ function DataTablePaginationInner<TData>({
               href="#"
               onClick={(e) => {
                 e.preventDefault()
-                if (table.getCanPreviousPage()) table.previousPage()
+                if (canPreviousPage) table.previousPage()
               }}
-              className={table.getCanPreviousPage() ? undefined : "pointer-events-none opacity-50"}
+              className={canPreviousPage ? undefined : "pointer-events-none opacity-50"}
             />
           </PaginationItem>
           <PaginationItem>
@@ -61,7 +71,7 @@ function DataTablePaginationInner<TData>({
               onClick={(e) => e.preventDefault()}
               className="pointer-events-none select-none tabular-nums"
             >
-              {table.getState().pagination.pageIndex + 1}
+              {pageIndex + 1}
             </PaginationLink>
           </PaginationItem>
           <PaginationItem>
@@ -70,9 +80,9 @@ function DataTablePaginationInner<TData>({
               href="#"
               onClick={(e) => {
                 e.preventDefault()
-                if (table.getCanNextPage()) table.nextPage()
+                if (canNextPage) table.nextPage()
               }}
-              className={table.getCanNextPage() ? undefined : "pointer-events-none opacity-50"}
+              className={canNextPage ? undefined : "pointer-events-none opacity-50"}
             />
           </PaginationItem>
         </PaginationContent>
