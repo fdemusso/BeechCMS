@@ -11,8 +11,8 @@ const isRouteErrorResponseMock = vi.fn()
 vi.mock("react-router-dom", () => ({
   useRouteError: () => useRouteErrorMock(),
   isRouteErrorResponse: (e: unknown) => isRouteErrorResponseMock(e),
-  Link: ({ to, children }: { to: string; children: React.ReactNode }) => (
-    <a href={to}>{children}</a>
+  Link: ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
+    <a href={to} className={className}>{children}</a>
   ),
 }))
 
@@ -35,6 +35,17 @@ describe("ErrorPage", () => {
     expect(screen.getByText("404")).toBeInTheDocument()
     expect(screen.getByText("Not Found")).toBeInTheDocument()
     expect(screen.getByRole("link", { name: /Back to home/i })).toHaveAttribute("href", "/")
+  })
+
+  it("il testo del bottone vince sulla regola globale `a { color }` (altrimenti nero su nero)", () => {
+    useRouteErrorMock.mockReturnValueOnce(new Error("Custom error"))
+    isRouteErrorResponseMock.mockReturnValueOnce(false)
+
+    render(<ErrorPage />)
+
+    const link = screen.getByRole("link", { name: /Back to home/i })
+    expect(link.classList.contains("text-background!")).toBe(true)
+    expect(link.classList.contains("bg-foreground")).toBe(true)
   })
 
   it("mostra messaggio da Error standard", () => {
