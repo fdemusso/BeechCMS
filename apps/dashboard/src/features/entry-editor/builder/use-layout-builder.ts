@@ -21,7 +21,8 @@ export interface UseLayoutBuilderArgs {
 
 interface MoveFieldArgs {
   from: { tabId: string; sectionId: string; columnId: string; branchId: string }
-  to: { tabId: string; sectionId: string; columnId: string }
+  /** `index` is where the field lands in the destination column; omitted, it is appended. */
+  to: { tabId: string; sectionId: string; columnId: string; index?: number }
 }
 
 export interface UseLayoutBuilderResult {
@@ -44,6 +45,8 @@ export interface UseLayoutBuilderResult {
   clearField(tabId: string, sectionId: string, columnId: string, branchId: string): void
   reorderFieldsInColumn(tabId: string, sectionId: string, columnId: string, fromIndex: number, toIndex: number): void
   moveField(args: MoveFieldArgs): boolean
+  /** Puts the draft back to an earlier snapshot without touching what counts as saved (drag cancel). */
+  restoreDraft(layout: FormLayout): void
   reset(): void
   replace(layout: FormLayout): void
   getUsedBranchIds(): Set<string>
@@ -362,7 +365,16 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
 
       const toTab = draft.tabs.find((t) => t.id === to.tabId)
       const toSection = toTab?.sections.find((s) => s.id === to.sectionId)
-      if (!toSection || wouldViolateFullWidthWithMap(toSection, branch, branchMap)) {
+      // Inside its own section the field does not count against itself.
+      const sameSection = from.tabId === to.tabId && from.sectionId === to.sectionId
+      if (
+        !toSection ||
+        wouldViolateFullWidthWithMap(
+          toSection, branch, branchMap,
+          sameSection ? from.columnId : undefined,
+          sameSection ? from.branchId : undefined,
+        )
+      ) {
         return false
       }
 
@@ -377,9 +389,13 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
               if (t.id === from.tabId && s.id === from.sectionId && c.id === from.columnId) {
                 return { ...c, fields: c.fields.filter((f) => f.branchId !== from.branchId) }
               }
-              // Append to destination
+              // Insert at the destination index (append when none). Removal above happens on the source
+              // column only, so an index computed against the destination column stays valid.
               if (t.id === to.tabId && s.id === to.sectionId && c.id === to.columnId) {
-                return { ...c, fields: [...c.fields, { branchId: from.branchId }] }
+                const fields = [...c.fields]
+                const index = Math.min(Math.max(to.index ?? fields.length, 0), fields.length)
+                fields.splice(index, 0, { branchId: from.branchId })
+                return { ...c, fields }
               }
               return c
             }),
@@ -397,6 +413,10 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
     setStoredInitial(structuredClone(fresh))
     setActiveTabId(fresh.tabs[0]?.id ?? '')
   }, [seed])
+
+  const restoreDraft = useCallback((layout: FormLayout) => {
+    setDraft(structuredClone(layout))
+  }, [])
 
   const replace = useCallback((layout: FormLayout) => {
     setDraft(structuredClone(layout))
@@ -428,7 +448,7 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
     addTab, renameTab, removeTab, reorderTabs,
     addSection, removeSection, reorderSections, toggleSectionFlag, renameSection, setSectionColumnCount,
     reorderColumns,
-    assignField, clearField, reorderFieldsInColumn, moveField,
+    assignField, clearField, reorderFieldsInColumn, moveField, restoreDraft,
     reset, replace, getUsedBranchIds, getAvailableBranches,
   }
 }

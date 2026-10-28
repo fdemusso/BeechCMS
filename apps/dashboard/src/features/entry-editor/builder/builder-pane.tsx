@@ -4,19 +4,11 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core'
+import { DndContext, DragOverlay } from '@dnd-kit/core'
 import {
   SortableContext,
   verticalListSortingStrategy,
   horizontalListSortingStrategy,
-  arrayMove,
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -39,6 +31,8 @@ import { Input } from '@/components/ui/input'
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionCard } from './section-card'
+import { DragPreview } from './drag-preview'
+import { BuilderDragContext, builderCollisionDetection, dragIds, useBuilderDnd } from './use-builder-dnd'
 import { useLayoutBuilder } from './use-layout-builder'
 import { saveLayout, resetLayout } from '../api/layout.api'
 
@@ -74,15 +68,13 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
   const [renamingTabId, setRenamingTabId] = React.useState<string | null>(null)
   const [renameTabValue, setRenameTabValue] = React.useState('')
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const dnd = useBuilderDnd({ ops, branchById })
 
   const activeTab = draft.tabs.find((t) => t.id === activeTabId) ?? draft.tabs[0]
   const availableBranches = ops.getAvailableBranches()
 
-  const tabDragIds = draft.tabs.map((t) => `tab:${t.id}`)
-  const sectionDragIds = (activeTab?.sections ?? []).map(
-    (s) => `section:${activeTab?.id}:${s.id}`
-  )
+  const tabDragIds = draft.tabs.map((t) => dragIds.tab(t.id))
+  const sectionDragIds = (activeTab?.sections ?? []).map((s) => dragIds.section(activeTab?.id ?? '', s.id))
 
   function handleAttemptClose() {
     if (!isDirty) { onClose(); return }
@@ -124,103 +116,19 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
     setRenamingTabId(null)
   }
 
-  function handleFieldDrag(activeId: string, overId: string) {
-    // field:<tabId>:<sectionId>:<columnId>:<branchId>
-    const [, aTabId, aSectionId, aColId, aBranchId] = activeId.split(':')
-    const [, oTabId, oSectionId, oColId, oBranchId] = overId.split(':')
-
-    if (aColId === oColId && aSectionId === oSectionId && aTabId === oTabId) {
-      // Same column — reorder
-      const col = draft.tabs.find((t) => t.id === aTabId)
-        ?.sections.find((s) => s.id === aSectionId)
-        ?.columns.find((c) => c.id === aColId)
-      if (!col) return
-      const fromIndex = col.fields.findIndex((f) => f.branchId === aBranchId)
-      const toIndex   = col.fields.findIndex((f) => f.branchId === oBranchId)
-      if (fromIndex !== -1 && toIndex !== -1) {
-        ops.reorderFieldsInColumn(aTabId, aSectionId, aColId, fromIndex, toIndex)
-      }
-    } else {
-      // Different column — move
-      const ok = ops.moveField({
-        from: { tabId: aTabId, sectionId: aSectionId, columnId: aColId, branchId: aBranchId },
-        to:   { tabId: oTabId, sectionId: oSectionId, columnId: oColId },
-      })
-      if (!ok) {
-        const branch = branchById[aBranchId]
-        toast.warning(t('layoutBuilder.warnFullWidth', { label: branch?.label ?? '' }))
-      }
-    }
-  }
-
-  function handleTabDrag(activeId: string, overId: string) {
-    const fromIndex = draft.tabs.findIndex((t) => `tab:${t.id}` === activeId)
-    const toIndex   = draft.tabs.findIndex((t) => `tab:${t.id}` === overId)
-    if (fromIndex !== -1 && toIndex !== -1) {
-      ops.reorderTabs(fromIndex, toIndex)
-      const newTabs = arrayMove(draft.tabs, fromIndex, toIndex)
-      ops.setActiveTabId(newTabs[0]?.id ?? '')
-    }
-  }
-
-  function handleSectionDrag(activeId: string, overId: string) {
-    const [, aTabId, aSectionId] = activeId.split(':')
-    const [, oTabId] = overId.split(':')
-    if (aTabId !== oTabId) {
-      toast.warning(t('layoutBuilder.warnNoCrossTabSection'))
-      return
-    }
-    const tab = draft.tabs.find((t) => t.id === aTabId)
-    if (!tab) return
-    const fromIndex = tab.sections.findIndex((s) => s.id === aSectionId)
-    const toIndex   = tab.sections.findIndex((s) => `section:${aTabId}:${s.id}` === overId)
-    if (fromIndex !== -1 && toIndex !== -1) {
-      ops.reorderSections(aTabId, fromIndex, toIndex)
-    }
-  }
-
-  function handleColumnDrag(activeId: string, overId: string) {
-    const [, aTabId, aSectionId, aColId] = activeId.split(':')
-    const [, oTabId, oSectionId, oColId] = overId.split(':')
-    if (aTabId === oTabId && aSectionId === oSectionId) {
-      const section = draft.tabs.find((t) => t.id === aTabId)?.sections.find((s) => s.id === aSectionId)
-      if (!section) return
-      const fromIndex = section.columns.findIndex((c) => c.id === aColId)
-      const toIndex   = section.columns.findIndex((c) => c.id === oColId)
-      if (fromIndex !== -1 && toIndex !== -1) {
-        ops.reorderColumns(aTabId, aSectionId, fromIndex, toIndex)
-      }
-    }
-  }
-
-  function onDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-
-    const activeId = String(active.id)
-    const overId = String(over.id)
-
-    const isTab     = (id: string) => id.startsWith('tab:')
-    const isSection = (id: string) => id.startsWith('section:')
-    const isColumn  = (id: string) => id.startsWith('column:')
-    const isField   = (id: string) => id.startsWith('field:')
-
-    if (isField(activeId) && isField(overId)) {
-      handleFieldDrag(activeId, overId)
-    } else if (isTab(activeId) && isTab(overId)) {
-      handleTabDrag(activeId, overId)
-    } else if (isSection(activeId) && isSection(overId)) {
-      handleSectionDrag(activeId, overId)
-    } else if (isColumn(activeId) && isColumn(overId)) {
-      handleColumnDrag(activeId, overId)
-    }
-  }
-
   return (
     <>
       {/* ── Scrollable body ── */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 pt-4 pb-4 space-y-4 min-w-0 max-w-full">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <DndContext
+          sensors={dnd.sensors}
+          collisionDetection={builderCollisionDetection}
+          onDragStart={dnd.onDragStart}
+          onDragOver={dnd.onDragOver}
+          onDragEnd={dnd.onDragEnd}
+          onDragCancel={dnd.onDragCancel}
+        >
+          <BuilderDragContext.Provider value={dnd.dragState}>
 
           {/* Tab strip */}
           <SortableContext items={tabDragIds} strategy={horizontalListSortingStrategy}>
@@ -231,7 +139,7 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
                   tab={tab}
                   isActive={tab.id === activeTabId}
                   isDefault={idx === 0}
-                  dragId={`tab:${tab.id}`}
+                  dragId={dragIds.tab(tab.id)}
                   isRenaming={renamingTabId === tab.id}
                   renameValue={renameTabValue}
                   onSetActive={() => ops.setActiveTabId(tab.id)}
@@ -268,7 +176,7 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
                     branchById={branchById}
                     availableBranches={availableBranches}
                     ops={ops}
-                    dragId={`section:${activeTab.id}:${section.id}`}
+                    dragId={dragIds.section(activeTab.id, section.id)}
                   />
                 ))}
               </div>
@@ -280,7 +188,11 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
             <Plus className="size-4 mr-2" />
             {t('layoutBuilder.addSection')}
           </Button>
+          </BuilderDragContext.Provider>
 
+          <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
+            {dnd.preview ? <DragPreview info={dnd.preview} /> : null}
+          </DragOverlay>
         </DndContext>
       </div>
 
@@ -354,7 +266,7 @@ function TabPill({
   canDelete,
 }: Readonly<TabPillProps>) {
   const { t } = useTranslation()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId, data: { type: 'tab' } })
   const { role: _role, tabIndex: _tabIndex, ...restAttributes } = attributes
 
   const style: React.CSSProperties = {

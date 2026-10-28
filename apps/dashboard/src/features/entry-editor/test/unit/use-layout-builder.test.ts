@@ -244,6 +244,50 @@ describe("useLayoutBuilder", () => {
       ])
     })
 
+    it("moveField lands the field at the requested index of the destination column", () => {
+      const { result } = renderHook(() =>
+        useLayoutBuilder({ seed: mockSeed, initialLayout: mockInitialLayout })
+      )
+      act(() => {
+        result.current.assignField("tab-main", "sec-general", "col-right", "b-published")
+      })
+
+      act(() => {
+        result.current.moveField({
+          from: { tabId: "tab-main", sectionId: "sec-general", columnId: "col-left", branchId: "b-title" },
+          to: { tabId: "tab-main", sectionId: "sec-general", columnId: "col-right", index: 1 },
+        })
+      })
+
+      expect(result.current.draft.tabs[0].sections[0].columns[1].fields).toEqual([
+        { branchId: "b-content" },
+        { branchId: "b-title" },
+        { branchId: "b-published" },
+      ])
+    })
+
+    it("restoreDraft puts the layout back without marking it saved", () => {
+      const { result } = renderHook(() =>
+        useLayoutBuilder({ seed: mockSeed, initialLayout: mockInitialLayout })
+      )
+      const snapshot = structuredClone(result.current.draft)
+      act(() => {
+        result.current.moveField({
+          from: { tabId: "tab-main", sectionId: "sec-general", columnId: "col-left", branchId: "b-title" },
+          to: { tabId: "tab-main", sectionId: "sec-general", columnId: "col-right" },
+        })
+      })
+      const dirtyAfterMove = result.current.isDirty
+
+      act(() => {
+        result.current.restoreDraft(snapshot)
+      })
+
+      expect(dirtyAfterMove).toBe(true)
+      expect(result.current.isDirty).toBe(false)
+      expect(result.current.draft).toEqual(mockInitialLayout)
+    })
+
     it("respects full-width constraints and rejects layouts violating them", () => {
       const { result } = renderHook(() =>
         useLayoutBuilder({ seed: mockSeed, initialLayout: mockInitialLayout })

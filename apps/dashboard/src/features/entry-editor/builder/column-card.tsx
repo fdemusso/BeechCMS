@@ -4,6 +4,7 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { useDroppable } from '@dnd-kit/core'
 import {
   SortableContext,
   useSortable,
@@ -32,6 +33,7 @@ import { FieldLabelRow } from '@/components/fields'
 import { GripDots } from '@/components/ui/grip-dots'
 import { FieldGhost } from './field-ghost'
 import { getFullWidthWarningLabel, type UseLayoutBuilderResult } from './use-layout-builder'
+import { BuilderDragContext, dragIds } from './use-builder-dnd'
 
 // ============================================================================
 // FieldItem
@@ -63,7 +65,10 @@ interface FieldItemProps {
  * @param props - Component properties conforming to {@link FieldItemProps}.
  */
 function FieldItem({ tabId, sectionId, columnId, field, branch, ops, dragId }: FieldItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: dragId,
+    data: { type: 'field', tabId, sectionId, columnId },
+  })
   const { t: translate } = useTranslation()
 
   const style: React.CSSProperties = {
@@ -135,7 +140,7 @@ interface ColumnCardProps {
   /** Drag ID for the column itself (used when the column is dragged as a whole). */
   readonly dragId: string
   /** Whether the column can be dragged to swap places: false when it is its section's only column. */
-  readonly reorderable: boolean
+  readonly reorderable?: boolean
 }
 
 /**
@@ -154,13 +159,24 @@ export function ColumnCard({
   availableBranches,
   ops,
   dragId,
-  reorderable,
+  reorderable = true,
 }: ColumnCardProps) {
   const { t: translate } = useTranslation()
   const [open, setOpen] = React.useState(false)
 
   // The column itself is sortable (for column reordering)
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: dragId,
+    data: { type: 'column' },
+  })
+
+  // Its body is also a drop zone, so a field can land in a column that has no field to drop on.
+  const { setNodeRef: setZoneRef } = useDroppable({
+    id: dragIds.zone(tabId, sectionId, columnId),
+    data: { type: 'zone', tabId, sectionId, columnId },
+  })
+  const { draggingField, activeColumnKey } = React.useContext(BuilderDragContext)
+  const isActiveColumn = draggingField && activeColumnKey === `${tabId}:${sectionId}:${columnId}`
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -168,7 +184,7 @@ export function ColumnCard({
     opacity: isDragging ? 0.4 : 1,
   }
 
-  const fieldDragIds = fields.map((field) => `field:${tabId}:${sectionId}:${columnId}:${field.branchId}`)
+  const fieldDragIds = fields.map((field) => dragIds.field(field.branchId))
 
   return (
     <div
@@ -177,8 +193,10 @@ export function ColumnCard({
       // Borderless: the column is only outlined while it has nothing in it, so there is a visible place to
       // add or drop a field. Otherwise the section's own border is the only frame.
       className={cn(
-        'group/column relative flex min-h-[48px] min-w-0 max-w-full flex-col gap-0.5 rounded-lg',
-        fields.length === 0 && 'border border-dashed',
+        'group/column relative flex min-h-[48px] min-w-0 max-w-full flex-col gap-0.5 rounded-lg border border-transparent transition-colors',
+        // Dragging a field: every column is outlined, the one holding it is tinted.
+        (fields.length === 0 || draggingField) && 'border-dashed border-border',
+        isActiveColumn && 'border-primary/50 bg-primary/5',
       )}
     >
       {/* Column drag handle: only offered when there is a sibling column to swap with, and only on hover. */}
@@ -194,13 +212,14 @@ export function ColumnCard({
         </button>
       )}
 
-      {/* Field items */}
+      {/* Field items; the whole body is the drop zone */}
+      <div ref={setZoneRef} className="flex min-h-[48px] flex-1 flex-col gap-0.5">
       <SortableContext items={fieldDragIds} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-0.5">
           {fields.map((field) => {
             const branch = branchById[field.branchId]
             if (!branch) return null
-            const fieldDragId = `field:${tabId}:${sectionId}:${columnId}:${field.branchId}`
+            const fieldDragId = dragIds.field(field.branchId)
             return (
               <FieldItem
                 key={field.branchId}
@@ -261,6 +280,7 @@ export function ColumnCard({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+      </div>
     </div>
   )
 }

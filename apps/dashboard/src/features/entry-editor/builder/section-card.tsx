@@ -50,6 +50,7 @@ export function SectionCard({
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: dragId,
+    data: { type: 'section' },
   })
 
   const style: React.CSSProperties = {
