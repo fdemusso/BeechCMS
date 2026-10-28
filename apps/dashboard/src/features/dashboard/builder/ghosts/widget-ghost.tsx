@@ -4,9 +4,9 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { DashboardWidgetInstance } from '@beechcms/core'
-import { AlertTriangle, Box } from '@/components/icons'
+import { AlertTriangle } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
-import { resolveIcon } from '@/lib/icon-registry'
+import { resolveWidgetIcon } from '../widget-icon'
 import { getWidgetDefinition, isWidgetDisabled } from '../../registry/widget-registry'
 import {
   ActionsGhost,
@@ -101,7 +101,7 @@ export const WidgetGhost = React.memo(
       <Badge variant="secondary" className="text-[10px]">{seedSlug}</Badge>
     ) : undefined
 
-    const Icon = resolveIcon(def.icon ?? '') ?? Box
+    const Icon = resolveWidgetIcon(def.icon)
     return (
       <div aria-hidden className="pointer-events-none select-none">
         <Ghost

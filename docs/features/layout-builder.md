@@ -390,7 +390,7 @@ nothing animates for decoration. Animate the element that really owns the size (
 
 ### Reusing this elsewhere
 
-To build another nested drag editor (the dashboard builder is the next candidate):
+To build another nested drag editor (the dashboard builder is the worked example: see [Dashboard Builder](./dashboard-builder.md)):
 
 1. Pick id prefixes per kind and an `ACCEPTS` table; keep ids stable across containers where the item can move.
 2. Write one collision function: filter, `pointerWithin`, specific item beats its container, `closestCenter`

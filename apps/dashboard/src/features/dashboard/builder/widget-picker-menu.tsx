@@ -3,8 +3,7 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Box } from '@/components/icons'
-import { resolveIcon } from '@/lib/icon-registry'
+import { resolveWidgetIcon } from './widget-icon'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import {
   Command,
@@ -54,7 +53,7 @@ export function WidgetPickerMenu({ children, onSelect }: WidgetPickerMenuProps) 
             {groups.map(({ category, defs }) => (
               <CommandGroup key={category} heading={t(`dashboard.builder.picker.categories.${category}`)}>
                 {defs.map((def) => {
-                  const Icon = resolveIcon(def.icon ?? '') ?? Box
+                  const Icon = resolveWidgetIcon(def.icon)
                   const label = t(def.labelKey)
                   const disabled = isWidgetDisabled(def.type)
                   return (
