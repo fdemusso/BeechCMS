@@ -21,6 +21,7 @@ import { isApiError } from '@/lib/http/api-error'
 
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
+import { FOOTER_RADIUS } from './footer-style'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { Input } from '@/components/ui/input'
 
@@ -37,7 +38,6 @@ import { saveLayout, resetLayout } from '../api/layout.api'
  * into a pill; the footer caps it at 10px, the radius of the smallest buttons. The same value is given to
  * the group (`--button-group-radius`), whose last button would otherwise be forced back to `rounded-lg`.
  */
-const FOOTER_RADIUS = 'rounded-[min(var(--radius-md),10px)]'
 
 /** How long after the last change the draft is written; changes in quick succession share one write. */
 const DRAFT_SAVE_DELAY_MS = 400
@@ -181,7 +181,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
   return (
     <>
       {/* ── Scrollable body ── */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 pt-1 pb-4 space-y-4 min-w-0 max-w-full">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 pt-1 pb-4 min-w-0 max-w-full">
         <DndContext
           sensors={dnd.sensors}
           collisionDetection={builderCollisionDetection}
@@ -191,6 +191,10 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
           onDragCancel={dnd.onDragCancel}
         >
           <BuilderDragContext.Provider value={dnd.dragState}>
+          {/* The spacing lives on this wrapper, not on the scroll container: DndContext appends its own
+              elements (screen reader text, live region) after the content, and with `space-y` on the
+              container they took part in the spacing and the box grew by 16px a moment after mounting. */}
+          <div className="space-y-4">
 
           {/* Tab strip */}
           <SortableContext items={tabDragIds} strategy={horizontalListSortingStrategy}>
@@ -251,6 +255,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
             <Plus className="size-4 mr-2" />
             {t('layoutBuilder.addSection')}
           </Button>
+          </div>
           </BuilderDragContext.Provider>
 
           {/* In a portal on <body>: the builder sits inside a dialog positioned with a CSS transform, which
@@ -265,7 +270,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
       </div>
 
       {/* ── Footer — same layout as the form footer ── */}
-      <div className="flex-shrink-0 flex items-center justify-end px-6 pt-4 pb-6 border-t">
+      <div className="flex-shrink-0 flex items-center justify-end px-6 py-4 border-t">
         <ButtonGroup className="[--button-group-radius:min(var(--radius-md),10px)]">
           <ButtonGroup>
             <Button

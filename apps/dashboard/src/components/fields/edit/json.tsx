@@ -13,7 +13,7 @@ export function JsonEdit({ branch, value, onChange, disabled, readOnly: propRead
   const isReadOnly = Boolean(propReadOnly || disabled || (branch as unknown as { readOnly?: boolean }).readOnly)
 
   return (
-    <React.Suspense fallback={<div className="h-40 w-full animate-pulse rounded-md bg-muted/50 border border-input" />}>
+    <React.Suspense fallback={<div className="h-40 w-full animate-pulse rounded-control bg-muted/50 border border-input" />}>
       <LazyJsonCodeEditor
         id={branch.alias}
         value={value}

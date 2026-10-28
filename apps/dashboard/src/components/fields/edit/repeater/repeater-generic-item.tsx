@@ -61,7 +61,7 @@ export function GenericItemRow({ id, subBranches, value, onChange, onRemove, dis
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded-md border bg-background p-3 space-y-3">
+    <div ref={setNodeRef} style={style} className="rounded-lg border bg-background p-3 space-y-3">
       <div className="flex items-center gap-2">
         <button
           type="button"

@@ -145,7 +145,7 @@ export function MultiRelationSkeleton({ avatar = false }: { readonly avatar?: bo
         <FieldLabelAside>
           {translate("content.editor.relationMulti.selectedCount", { count: VISIBLE_ROWS })}
         </FieldLabelAside>
-        <div className="overflow-hidden rounded-md border">
+        <div className="overflow-hidden rounded-lg border">
           <ul className="divide-y">
             {Array.from({ length: VISIBLE_ROWS }, (_, row) => (
               <li key={row} className="flex h-9 items-center gap-2 bg-card px-1.5">
@@ -297,7 +297,7 @@ export function MultiRelationEdit({
                   root's max-height (`max-h-[inherit]`), so a border on the root would let the viewport overflow it
                   and paint over the bottom edge. Height: three 2.25rem rows plus their two 1px dividers.
                   Radix also wraps the content in a `display: table` div, which would stop `truncate` from working. */}
-              <div className="overflow-hidden rounded-md border">
+              <div className="overflow-hidden rounded-lg border">
                 <ScrollArea className="max-h-[calc(3*2.25rem+2px)] [&_[data-slot=scroll-area-viewport]>div]:!block">
                   <ul className="divide-y" aria-label={translate("content.editor.relationMulti.selectedItems")}>
                     {selectedIds.map((id) => (

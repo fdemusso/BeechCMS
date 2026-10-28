@@ -72,7 +72,7 @@ export function NumberInput({ branch, value, onChange }: FieldEditProps) {
           type="button"
           tabIndex={-1}
           onClick={increment}
-          className="flex-1 flex items-center justify-center pl-0.5 pr-2 text-muted-foreground hover:text-foreground transition-colors rounded-tr-md"
+          className="flex-1 flex items-center justify-center pl-0.5 pr-2 text-muted-foreground hover:text-foreground transition-colors rounded-tr-[calc(var(--radius-control)-1px)]"
         >
           <ChevronUp className="size-3" />
         </button>
@@ -81,7 +81,7 @@ export function NumberInput({ branch, value, onChange }: FieldEditProps) {
           type="button"
           tabIndex={-1}
           onClick={decrement}
-          className="flex-1 flex items-center justify-center pl-0.5 pr-2 text-muted-foreground hover:text-foreground transition-colors rounded-br-md"
+          className="flex-1 flex items-center justify-center pl-0.5 pr-2 text-muted-foreground hover:text-foreground transition-colors rounded-br-[calc(var(--radius-control)-1px)]"
         >
           <ChevronDown className="size-3" />
         </button>

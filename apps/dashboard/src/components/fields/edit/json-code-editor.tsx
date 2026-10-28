@@ -220,7 +220,7 @@ export function JsonCodeEditor({
       data-testid="json-code-editor"
       ref={containerRef}
       className={cn(
-        "relative w-full rounded-lg border border-input bg-transparent text-foreground shadow-xs transition-colors",
+        "relative w-full rounded-control border border-input bg-transparent text-foreground shadow-xs transition-colors",
         "focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 focus-within:outline-hidden",
         readOnly && "cursor-not-allowed opacity-75 bg-muted/30",
         className

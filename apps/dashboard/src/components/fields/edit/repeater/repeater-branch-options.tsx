@@ -47,7 +47,7 @@ export function RelationOptionsForm({
   const avatarCandidates = (activeSeedsForRelation.find(s => s.slug === branch.targetSeed)?.branches ?? []).filter(isImageMediaBranch)
 
   return (
-    <div className="space-y-2 rounded-md border p-2">
+    <div className="space-y-2 rounded-lg border p-2">
       <p className="text-xs font-medium">{t("seedBuilder.branchEditor.relationOptions")}</p>
       <div className="space-y-1">
         <Label className="text-xs">{t("seedBuilder.branchEditor.targetSeed")}</Label>
@@ -132,7 +132,7 @@ export function NumberOptionsForm({ branch, onChange }: NumberOptionsFormProps) 
   const { t } = useTranslation()
 
   return (
-    <div className="space-y-2 rounded-md border p-2">
+    <div className="space-y-2 rounded-lg border p-2">
       <p className="text-xs font-medium">{t("seedBuilder.branchEditor.numberOptions")}</p>
       <div className="grid grid-cols-3 gap-2">
         <div className="space-y-1">
@@ -199,7 +199,7 @@ export function FileOptionsForm({ branch, onChange }: FileOptionsFormProps) {
   }
 
   return (
-    <div className="space-y-2 rounded-md border p-2">
+    <div className="space-y-2 rounded-lg border p-2">
       <p className="text-xs font-medium">{t("seedBuilder.branchEditor.fileOptions")}</p>
       <div className="flex items-center gap-2">
         <Checkbox
@@ -275,7 +275,7 @@ export function TagOptionsForm({ branch, onChange }: TagOptionsFormProps) {
   }
 
   return (
-    <div className="space-y-2 rounded-md border p-2">
+    <div className="space-y-2 rounded-lg border p-2">
       <p className="text-xs font-medium">{t("seedBuilder.branchEditor.options")}</p>
       <div className="flex items-center gap-2">
         <Checkbox
@@ -383,7 +383,7 @@ export function RepeaterOptionsForm({ branch, onChange, subField }: RepeaterOpti
   if (subField) return null
 
   return (
-    <div className="space-y-2 rounded-md border p-2">
+    <div className="space-y-2 rounded-lg border p-2">
       <p className="text-xs font-medium">{t("seedBuilder.branchEditor.repeaterFields")}</p>
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
@@ -535,7 +535,7 @@ export function PoliciesOptionsForm({
   }
 
   return (
-    <div className="space-y-3 rounded-md border p-2.5">
+    <div className="space-y-3 rounded-lg border p-2.5">
       <p className="text-xs font-medium">{t("seedBuilder.branchEditor.policies")}</p>
 
       {/* Primary Selector: Data Classification */}
@@ -664,7 +664,7 @@ export function LocalizedOptionsForm({
   if (blocker === "classification") hint = t("seedBuilder.branchEditor.localizedBlockedClassification")
 
   return (
-    <div className="space-y-1 rounded-md border p-2">
+    <div className="space-y-1 rounded-lg border p-2">
       <div className="flex items-center gap-2">
         <Checkbox
           id={checkboxId}

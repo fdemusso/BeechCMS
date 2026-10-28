@@ -136,7 +136,7 @@ export function BranchItemRow({
       style={style}
       open={open}
       onOpenChange={setOpen}
-      className="rounded-md border bg-background"
+      className="rounded-lg border bg-background"
     >
       <div className="flex items-center gap-2 p-3">
         <button
