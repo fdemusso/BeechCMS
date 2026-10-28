@@ -3,6 +3,7 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { DndContext, DragOverlay } from '@dnd-kit/core'
 import {
@@ -190,9 +191,14 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
           </Button>
           </BuilderDragContext.Provider>
 
-          <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
-            {dnd.preview ? <DragPreview info={dnd.preview} /> : null}
-          </DragOverlay>
+          {/* In a portal on <body>: the builder sits inside a dialog positioned with a CSS transform, which
+              becomes the reference of the overlay's `position: fixed` and shifts it away from the pointer. */}
+          {createPortal(
+            <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
+              {dnd.preview ? <DragPreview info={dnd.preview} /> : null}
+            </DragOverlay>,
+            document.body,
+          )}
         </DndContext>
       </div>
 

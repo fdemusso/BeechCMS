@@ -101,7 +101,10 @@ export interface DragPreviewInfo {
   /** Width of the dragged element, so the overlay matches what the user grabbed. */
   readonly width: number
   readonly label: string
+  /** The dragged field, for `kind: 'field'`. */
   readonly branch?: Branch
+  /** The fields of the dragged column, in order, for `kind: 'column'`. */
+  readonly fields?: readonly Branch[]
 }
 
 export interface BuilderDragState {
@@ -165,7 +168,12 @@ export function useBuilderDnd({ ops, branchById }: UseBuilderDndArgs) {
       } else if (kind === 'tab') {
         setPreview({ kind, width, label: draft.tabs.find((tab) => `tab:${tab.id}` === id)?.label ?? '' })
       } else {
-        setPreview({ kind, width, label: '' })
+        const [, tabId, sectionId, columnId] = id.split(':')
+        const column = draft.tabs
+          .find((tab) => tab.id === tabId)?.sections.find((s) => s.id === sectionId)
+          ?.columns.find((c) => c.id === columnId)
+        const fields = (column?.fields ?? []).flatMap((field) => branchById[field.branchId] ?? [])
+        setPreview({ kind, width, label: '', fields })
       }
     },
     [draft, branchById, t],
