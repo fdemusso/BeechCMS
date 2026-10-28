@@ -53,6 +53,7 @@ function HeaderCell<TData>({ header, enableColumnResizing, sortable }: HeaderCel
         ...(isDragging ? { zIndex: 10, opacity: 0.85 } : undefined),
       }}
       className={cn(
+        "border-r border-border/60 bg-border/40 last:border-r-0",
         sortable && "cursor-grab select-none touch-none",
         isDragging && "cursor-grabbing bg-muted shadow-sm"
       )}

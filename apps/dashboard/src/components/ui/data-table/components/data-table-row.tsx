@@ -103,7 +103,7 @@ function DataTableRowInner<TData, TValue>({
       data-row-id={row.id}
       data-focused={selection.focusedRowId === row.id || undefined}
       className={cn(
-        "transition-colors group-focus-within/dt:data-[focused]:outline group-focus-within/dt:data-[focused]:-outline-offset-2 group-focus-within/dt:data-[focused]:outline-1 group-focus-within/dt:data-[focused]:outline-ring",
+        "border-border/60 transition-colors group-focus-within/dt:data-[focused]:outline group-focus-within/dt:data-[focused]:-outline-offset-2 group-focus-within/dt:data-[focused]:outline-1 group-focus-within/dt:data-[focused]:outline-ring",
         onRowDoubleClick && "cursor-pointer select-none",
         rowStyles?.rowClassName ?? getRowClassName?.(row.original)
       )}
@@ -125,6 +125,7 @@ function DataTableRowInner<TData, TValue>({
         const canActivateCell = !!onCellActivate && !cellActivateExcludedColumnIdSet.has(cell.column.id)
         const cellClassName = cn(
           cellPadding,
+          "border-r border-border/60 last:border-r-0",
           rowStyles?.cellClassNameByColumnId?.[cell.column.id] ?? getCellClassName?.(row.original, cell.column.id),
           canActivateCell && "cursor-pointer"
         )
