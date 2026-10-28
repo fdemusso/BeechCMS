@@ -18,6 +18,16 @@ Human-readable alias, used in the API payload and as the SQL column name in the 
 
 ***
 
+### avatarSource?
+
+> `optional` **avatarSource?**: `string`
+
+Alias of a single image `file` branch on the target seed whose URL is the avatar of this relation's
+entries. `relation` only; absent = no avatar. Presentation metadata: never emits DDL, never touches rows.
+Validated by seed-validation.ts (must be an image `file` branch of the target).
+
+***
+
 ### fields?
 
 > `optional` **fields?**: `Branch`[]

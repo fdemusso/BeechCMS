@@ -28,7 +28,7 @@
 
 ### ~~load\_type?~~
 
-> `optional` **load\_type?**: `"fruit"` \| `"branch"`
+> `optional` **load\_type?**: `"branch"` \| `"fruit"`
 
 #### Deprecated
 
