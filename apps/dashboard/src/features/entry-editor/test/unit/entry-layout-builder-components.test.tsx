@@ -28,6 +28,7 @@ vi.mock("@/components/ui/command", () => ({
   CommandInput: () => null,
   CommandList: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   CommandEmpty: () => null,
+  CommandGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   CommandItem: ({ children, onSelect }: { children: React.ReactNode; onSelect?: () => void }) => (
     <div role="option" onClick={() => onSelect?.()}>{children}</div>
   ),

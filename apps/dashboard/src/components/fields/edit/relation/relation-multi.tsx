@@ -149,9 +149,9 @@ export function MultiRelationSkeleton({ avatar = false }: { readonly avatar?: bo
           <ul className="divide-y">
             {Array.from({ length: VISIBLE_ROWS }, (_, row) => (
               <li key={row} className="flex h-9 items-center gap-2 bg-card px-1.5">
-                <Skeleton className="size-4 shrink-0" />
-                {avatar ? <Skeleton className="size-6 shrink-0 rounded-full" /> : null}
-                <Skeleton className="h-3 w-2/5" />
+                <Skeleton className="bg-foreground/10 size-4 shrink-0" />
+                {avatar ? <Skeleton className="bg-foreground/10 size-6 shrink-0 rounded-full" /> : null}
+                <Skeleton className="bg-foreground/10 h-3 w-2/5" />
               </li>
             ))}
           </ul>

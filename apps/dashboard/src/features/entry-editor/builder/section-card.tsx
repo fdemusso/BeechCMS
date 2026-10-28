@@ -28,6 +28,13 @@ import { BuilderDragContext } from './use-builder-dnd'
 import { useAnimatedSectionHeight } from './use-animated-section-height'
 import type { UseLayoutBuilderResult } from './use-layout-builder'
 
+/**
+ * Flush menu: no inner padding and square items, so the window's own rounded corners (it clips its content)
+ * are the only rounding, and only the first and last item, the ones touching them, show it.
+ */
+const FLUSH_MENU = 'p-0 [&_[data-slot=dropdown-menu-item]]:rounded-none [&_[data-slot=dropdown-menu-item]]:px-3 [&_[data-slot=dropdown-menu-sub-trigger]]:rounded-none [&_[data-slot=dropdown-menu-sub-trigger]]:px-3 [&_[data-slot=dropdown-menu-separator]]:mx-0 [&_[data-slot=dropdown-menu-separator]]:my-0'
+
+
 interface SectionCardProps {
   readonly tabId: string
   readonly section: LayoutSection
@@ -155,7 +162,7 @@ export function SectionCard({
               <MoreHorizontal className="size-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className={FLUSH_MENU}>
             <DropdownMenuItem
               onSelect={() => {
                 setRenameValue(section.label ?? '')
@@ -165,15 +172,16 @@ export function SectionCard({
               {t('layoutBuilder.sectionMenu.rename')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => ops.toggleSectionFlag(tabId, section.id, 'hideLabel')}>
+            {/* The toggles keep the menu open so several flags can be set in a row. */}
+            <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(tabId, section.id, 'hideLabel') }}>
               <Check className={section.hideLabel ? 'opacity-100' : 'opacity-0'} />
               {t('layoutBuilder.sectionMenu.hideLabel')}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => ops.toggleSectionFlag(tabId, section.id, 'hideBorder')}>
+            <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(tabId, section.id, 'hideBorder') }}>
               <Check className={section.hideBorder ? 'opacity-100' : 'opacity-0'} />
               {t('layoutBuilder.sectionMenu.hideBorder')}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => ops.toggleSectionFlag(tabId, section.id, 'collapsible')}>
+            <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(tabId, section.id, 'collapsible') }}>
               <Check className={section.collapsible ? 'opacity-100' : 'opacity-0'} />
               {t('layoutBuilder.sectionMenu.collapsible')}
             </DropdownMenuItem>
@@ -188,14 +196,14 @@ export function SectionCard({
             ) : (
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>{t('layoutBuilder.sectionMenu.columns')}</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
+              <DropdownMenuSubContent className={FLUSH_MENU}>
                 {([1, 2, 3, 4] as const).map((n) => (
                   <DropdownMenuItem
                     key={n}
-                    onSelect={() => ops.setSectionColumnCount(tabId, section.id, n)}
-                    className={columnCount === n ? 'font-semibold' : ''}
+                    onSelect={(event) => { event.preventDefault(); ops.setSectionColumnCount(tabId, section.id, n) }}
                   >
-                    {n}
+                    <Check className={columnCount === n ? 'opacity-100' : 'opacity-0'} />
+                    <span className="ml-auto">{n}</span>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuSubContent>
@@ -204,7 +212,8 @@ export function SectionCard({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive"
-              onSelect={() => setShowRemoveConfirm(true)}
+              // An empty section has nothing to lose: no confirmation.
+              onSelect={() => (fieldCount === 0 ? ops.removeSection(tabId, section.id) : setShowRemoveConfirm(true))}
             >
               {t('layoutBuilder.sectionMenu.remove')}
             </DropdownMenuItem>

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { GripDots } from '@/components/ui/grip-dots'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Skeleton as BaseSkeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Toggle } from '@/components/ui/toggle'
 import { cn } from '@/lib/utils'
@@ -23,6 +23,11 @@ import { FieldEdit, MultiRelationSkeleton } from '@/components/fields'
  * mounted: a ghost only reproduces their footprint.
  */
 
+/** The skeleton of a ghost: a notch darker than the default so it holds up against the dialog background. */
+function Skeleton({ className, ...props }: React.ComponentProps<typeof BaseSkeleton>) {
+  return <BaseSkeleton className={cn('bg-foreground/10', className)} {...props} />
+}
+
 /** Lengths of the skeleton text lines, cycled so a block does not look like a bar chart. */
 const LINE_WIDTHS = ['w-11/12', 'w-4/5', 'w-full', 'w-2/3', 'w-5/6', 'w-1/2'] as const
 
@@ -30,13 +35,36 @@ const LINE_WIDTHS = ['w-11/12', 'w-4/5', 'w-full', 'w-2/3', 'w-5/6', 'w-1/2'] as
  * A textbox with its skeleton text inside. It is a plain bordered box at the real input's size, not a
  * disabled `Input`: a faded input with a skeleton on top reads as two ghosts, one inside the other.
  */
-function GhostInput({ width = 'w-1/3', trailing }: { readonly width?: string; readonly trailing?: React.ReactNode }) {
+function GhostInput({
+  width = 'w-1/3',
+  widthPercent,
+  trailing,
+}: {
+  readonly width?: string
+  /** Overrides `width` with a share of the box's inner width. */
+  readonly widthPercent?: number
+  readonly trailing?: React.ReactNode
+}) {
   return (
     <div className="flex h-8 w-full min-w-0 items-center gap-2 rounded-lg border border-input px-2.5">
-      <Skeleton className={cn('h-3', width)} />
+      <Skeleton
+        className={cn('h-3', widthPercent === undefined && width)}
+        style={widthPercent === undefined ? undefined : { width: `${widthPercent}%` }}
+      />
       {trailing ? <span className="ml-auto text-muted-foreground">{trailing}</span> : null}
     </div>
   )
+}
+
+const TEXT_MIN_PERCENT = 30
+const TEXT_MAX_PERCENT = 80
+
+/** A text box whose imaginary line of text is a different length on every mount, so a seed with many text fields does not look stamped. */
+function TextGhost() {
+  const [percent] = React.useState(
+    () => TEXT_MIN_PERCENT + Math.round(Math.random() * (TEXT_MAX_PERCENT - TEXT_MIN_PERCENT)),
+  )
+  return <GhostInput widthPercent={percent} />
 }
 
 /** Rich text: the editor's frame (400px, like the real one), its toolbar of real toggles, and text lines. */
@@ -198,6 +226,6 @@ function ghostFor(branch: Branch): React.ReactNode {
         ? <MultiRelationSkeleton avatar={Boolean(branch.avatarSource)} />
         : <FieldEdit branch={branch} value="" onChange={() => {}} />
     default:
-      return <GhostInput />
+      return <TextGhost />
   }
 }

@@ -281,10 +281,10 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
             </Button>
           </ButtonGroup>
           <ButtonGroup>
-            <Button type="button" variant="outline" className={FOOTER_RADIUS} onClick={() => setShowResetConfirm(true)} disabled={isDragging}>
+            <Button type="button" variant="outline" className={`${FOOTER_RADIUS} font-normal`} onClick={() => setShowResetConfirm(true)} disabled={isDragging}>
               {t('layoutBuilder.reset')}
             </Button>
-            <Button type="button" variant="outline" className={FOOTER_RADIUS} onClick={handleSave} disabled={!isDirty || isSaving || isDragging}>
+            <Button type="button" variant="outline" className={`${FOOTER_RADIUS} font-normal`} onClick={handleSave} disabled={!isDirty || isSaving || isDragging}>
               {isSaving && <Loader2 className="size-4 animate-spin" />}
               {t('layoutBuilder.save')}
             </Button>

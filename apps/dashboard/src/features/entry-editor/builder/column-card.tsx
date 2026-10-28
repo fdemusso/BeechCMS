@@ -23,6 +23,7 @@ import {
 import {
   Command,
   CommandEmpty,
+  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
@@ -157,6 +158,8 @@ export function ColumnCard({
 }: ColumnCardProps) {
   const { t: translate } = useTranslation()
   const [open, setOpen] = React.useState(false)
+  // cmdk keeps the last highlighted item once the pointer leaves it; the highlight is cleared on leave.
+  const [highlighted, setHighlighted] = React.useState('')
 
   // The column itself is sortable (for column reordering)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -188,9 +191,9 @@ export function ColumnCard({
       // add or drop a field. Otherwise the section's own border is the only frame.
       className={cn(
         'group/column relative flex min-h-[48px] min-w-0 max-w-full flex-col gap-0.5 rounded-lg border border-transparent transition-colors',
-        // Dragging a field: every column is outlined, the one holding it is tinted.
-        (fields.length === 0 || draggingField) && 'border-dashed border-border',
-        isActiveColumn && 'border-primary/50 bg-primary/5',
+        // Dragging a field: every column gets a thin solid outline, the one under it a darker grey and a faint fill.
+        (fields.length === 0 || draggingField) && 'border-border',
+        isActiveColumn && 'border-foreground/25 bg-muted/50',
       )}
     >
       {/* Column drag handle: only offered when there is a sibling column to swap with, and only on hover. */}
@@ -207,7 +210,9 @@ export function ColumnCard({
       )}
 
       {/* Field items; the whole body is the drop zone */}
-      <div ref={setZoneRef} className="flex min-h-[48px] flex-1 flex-col gap-0.5">
+      {/* The zone fills the column's inside (its 48px minimum already includes the border). An empty column
+          holds only the Add Field button, which gets a margin so its hover does not touch the outline. */}
+      <div ref={setZoneRef} className={cn('flex flex-1 flex-col gap-0.5', fields.length === 0 && 'justify-center p-1.5')}>
       <SortableContext items={fieldDragIds} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-0.5">
           {fields.map((field) => {
@@ -245,14 +250,18 @@ export function ColumnCard({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="p-0 w-64" align="start">
-            <Command>
+            <Command value={highlighted} onValueChange={setHighlighted}>
               <CommandInput placeholder={translate('layoutBuilder.searchFields')} />
-              <CommandList>
+              <CommandList onMouseLeave={() => setHighlighted('')}>
                 <CommandEmpty>{translate('layoutBuilder.noFields')}</CommandEmpty>
+                {/* The group supplies the list's padding; bare items sit flush against the search box. */}
+                <CommandGroup>
                 {availableBranches.map((branch) => (
                   <CommandItem
                     key={branch.id}
                     value={branch.label}
+                    // The item's built-in check mark is unused here and would keep the type off the right edge.
+                    className="[&>svg]:hidden"
                     onSelect={() => {
                       const isAssigned = ops.assignField(tabId, sectionId, columnId, branch.id)
                       setOpen(false)
@@ -265,10 +274,11 @@ export function ColumnCard({
                       }
                     }}
                   >
-                    <span>{branch.label}</span>
-                    <span className="text-muted-foreground ml-2 text-xs">{branch.type}</span>
+                    <span className="min-w-0 flex-1 truncate">{branch.label}</span>
+                    <span className="text-muted-foreground text-xs">{branch.type}</span>
                   </CommandItem>
                 ))}
+                </CommandGroup>
               </CommandList>
             </Command>
           </DropdownMenuContent>
