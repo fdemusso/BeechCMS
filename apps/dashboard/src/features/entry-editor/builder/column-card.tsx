@@ -27,7 +27,8 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { toast } from 'sonner'
-import { FieldEdit, FieldLabelRow, MultiRelationSkeleton } from '@/components/fields'
+import { FieldLabelRow } from '@/components/fields'
+import { FieldGhost } from './field-ghost'
 import { getFullWidthWarningLabel, type UseLayoutBuilderResult } from './use-layout-builder'
 
 // ============================================================================
@@ -50,19 +51,6 @@ interface FieldItemProps {
   readonly ops: UseLayoutBuilderResult
   /** The unique drag identifier used by dnd-kit. */
   readonly dragId: string
-}
-
-/**
- * Returns a default mock value for schema fields based on their type,
- * used for rendering inactive field previews in the layout builder.
- *
- * @param branch - The schema branch definition.
- * @returns A placeholder default value.
- */
-function emptyValue(branch: Branch): unknown {
-  if (branch.type === 'boolean') return false
-  if (branch.type === 'richtext') return { type: 'doc', content: [{ type: 'paragraph' }] }
-  return ''
 }
 
 /**
@@ -97,12 +85,7 @@ function FieldItem({ tabId, sectionId, columnId, field, branch, ops, dragId }: F
           className="flex-1 min-w-0 max-w-full space-y-1.5 pointer-events-none select-none opacity-70 overflow-hidden"
           label={<Label className="text-xs font-medium">{branch.label}</Label>}
         >
-          {branch.type === 'relation' && branch.multiple === true ? (
-            // The empty value would collapse a multi-relation to its add button; the skeleton keeps the full-size footprint.
-            <MultiRelationSkeleton avatar={Boolean(branch.avatarSource)} />
-          ) : (
-            <FieldEdit branch={branch as any} value={emptyValue(branch)} onChange={() => {}} />
-          )}
+          <FieldGhost branch={branch} />
         </FieldLabelRow>
 
         <Button
