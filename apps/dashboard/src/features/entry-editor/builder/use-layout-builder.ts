@@ -131,10 +131,10 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
   const [storedInitial, setStoredInitial] = useState<FormLayout>(() => structuredClone(initialLayout))
   const [activeTabId, setActiveTabId] = useState<string>(() => initialLayout.tabs[0]?.id ?? '')
 
-  const isDirty = useMemo(
-    () => JSON.stringify(draft) !== JSON.stringify(storedInitial),
-    [draft, storedInitial]
-  )
+  // The saved layout only changes on save/reset; serialising it once keeps a draft edit (one per live move
+  // while dragging) down to a single stringify.
+  const storedJson = useMemo(() => JSON.stringify(storedInitial), [storedInitial])
+  const isDirty = useMemo(() => JSON.stringify(draft) !== storedJson, [draft, storedJson])
 
   const branchMap = useMemo<Map<string, Branch>>(
     () => new Map(seed.branches.map((b) => [b.id, b])),

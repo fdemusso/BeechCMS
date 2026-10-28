@@ -13,6 +13,7 @@ import {
   useSensors,
   type Collision,
   type CollisionDetection,
+  type DroppableContainer,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -50,15 +51,35 @@ const ACCEPTS: Record<DragKind, readonly string[]> = {
 }
 
 /**
+ * The droppables a kind of drag may land on, per kind, cached on the list dnd-kit hands over. That list
+ * is rebuilt only when droppables mount, unmount or toggle — not on pointer moves — so keying a WeakMap
+ * by it means the filtering runs once per kind instead of on every move, and a stale entry can never
+ * outlive its list.
+ */
+const acceptedByList = new WeakMap<object, Map<DragKind, DroppableContainer[]>>()
+
+function acceptedContainers(all: DroppableContainer[], kind: DragKind): DroppableContainer[] {
+  let byKind = acceptedByList.get(all)
+  if (!byKind) {
+    byKind = new Map()
+    acceptedByList.set(all, byKind)
+  }
+  let accepted = byKind.get(kind)
+  if (!accepted) {
+    const types = ACCEPTS[kind]
+    accepted = all.filter((container) => types.includes(String(container.data.current?.type)))
+    byKind.set(kind, accepted)
+  }
+  return accepted
+}
+
+/**
  * The droppable under the pointer, restricted to what the drag can land on, so a field never "collides"
  * with a section or a tab. A field under the pointer wins over the column zone that surrounds it;
  * without a pointer (keyboard) or a hit, the nearest accepted droppable decides.
  */
 export const builderCollisionDetection: CollisionDetection = (args) => {
-  const accepted = ACCEPTS[kindOf(String(args.active.id))]
-  const droppableContainers = args.droppableContainers.filter((container) =>
-    accepted.includes(String(container.data.current?.type)),
-  )
+  const droppableContainers = acceptedContainers(args.droppableContainers, kindOf(String(args.active.id)))
   const scoped = { ...args, droppableContainers }
 
   const hits = pointerWithin(scoped)
@@ -105,6 +126,8 @@ export interface DragPreviewInfo {
   readonly branch?: Branch
   /** The fields of the dragged column, in order, for `kind: 'column'`. */
   readonly fields?: readonly Branch[]
+  /** The dragged section's columns, each with its fields in order, for `kind: 'section'`. */
+  readonly columns?: readonly (readonly Branch[])[]
 }
 
 export interface BuilderDragState {
@@ -164,7 +187,10 @@ export function useBuilderDnd({ ops, branchById }: UseBuilderDndArgs) {
       } else if (kind === 'section') {
         const [, tabId, sectionId] = id.split(':')
         const section = draft.tabs.find((tab) => tab.id === tabId)?.sections.find((s) => s.id === sectionId)
-        setPreview({ kind, width, label: section?.label ?? t('layoutBuilder.noLabel') })
+        const columns = (section?.columns ?? []).map((column) =>
+          column.fields.flatMap((field) => branchById[field.branchId] ?? []),
+        )
+        setPreview({ kind, width, label: section?.label ?? '', columns })
       } else if (kind === 'tab') {
         setPreview({ kind, width, label: draft.tabs.find((tab) => `tab:${tab.id}` === id)?.label ?? '' })
       } else {

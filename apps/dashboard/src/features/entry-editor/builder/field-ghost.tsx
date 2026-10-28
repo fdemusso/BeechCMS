@@ -167,10 +167,9 @@ function RepeaterGhost({ branch }: { readonly branch: Branch }) {
  * The builder's preview of one field's editor. Restricted (hashed) fields and single relations keep their
  * real editor, which is already cheap and shows its own placeholder.
  */
-export function FieldGhost({ branch }: { readonly branch: Branch }) {
-  const ghost = ghostFor(branch)
-  return <div aria-hidden>{ghost}</div>
-}
+export const FieldGhost = React.memo(function FieldGhost({ branch }: { readonly branch: Branch }) {
+  return <div aria-hidden>{ghostFor(branch)}</div>
+})
 
 function ghostFor(branch: Branch): React.ReactNode {
   if (resolvePolicies(branch).privacy === 'hash') {

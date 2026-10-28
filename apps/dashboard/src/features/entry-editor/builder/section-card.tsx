@@ -24,6 +24,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ColumnCard } from './column-card'
+import { BuilderDragContext } from './use-builder-dnd'
+import { useAnimatedSectionHeight } from './use-animated-section-height'
 import type { UseLayoutBuilderResult } from './use-layout-builder'
 
 interface SectionCardProps {
@@ -53,10 +55,25 @@ export function SectionCard({
     data: { type: 'section' },
   })
 
+  // While a field is in flight the section may only grow, so lifting a field out of its column does not
+  // shrink it under the pointer; it eases to its real height at the drop.
+  const { draggingField } = React.useContext(BuilderDragContext)
+  const heightLock = useAnimatedSectionHeight(draggingField)
+  const setRefs = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      setNodeRef(node)
+      heightLock.outerRef.current = node
+    },
+    [setNodeRef, heightLock.outerRef],
+  )
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    // The sortable's own transition (while another section is dragged past) and the height's, together.
+    transition: [transition, heightLock.style?.transition].filter(Boolean).join(', ') || undefined,
     opacity: isDragging ? 0.5 : 1,
+    height: heightLock.style?.height,
+    overflow: heightLock.style?.overflow,
   }
 
   const fieldCount = section.columns.reduce((sum, c) => sum + c.fields.length, 0)
@@ -79,7 +96,8 @@ export function SectionCard({
   )
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded-lg border min-w-0 max-w-full">
+    <div ref={setRefs} style={style} className="rounded-lg border min-w-0 max-w-full">
+      <div ref={heightLock.innerRef as React.RefObject<HTMLDivElement>}>
       {/* Section header */}
       <div className="flex items-center gap-2 px-3 py-2">
         <button
@@ -241,6 +259,7 @@ export function SectionCard({
           </Button>
         </div>
       )}
+      </div>
     </div>
   )
 }

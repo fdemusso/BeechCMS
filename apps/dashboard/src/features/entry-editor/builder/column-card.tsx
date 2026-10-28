@@ -15,7 +15,6 @@ import { X, Plus } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import type { Branch, LayoutField } from '@beechcms/core'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,9 +28,8 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { toast } from 'sonner'
-import { FieldLabelRow } from '@/components/fields'
 import { GripDots } from '@/components/ui/grip-dots'
-import { FieldGhost } from './field-ghost'
+import { FieldBlock } from './field-block'
 import { getFullWidthWarningLabel, type UseLayoutBuilderResult } from './use-layout-builder'
 import { BuilderDragContext, dragIds } from './use-builder-dnd'
 
@@ -85,23 +83,19 @@ function FieldItem({ tabId, sectionId, columnId, field, branch, ops, dragId }: F
       style={style}
       className="group/field relative flex min-w-0 max-w-full items-start gap-1 rounded-lg p-1.5 transition-colors hover:bg-muted/40"
     >
-      {/* The whole left strip is the handle: a big target that does not compete with the field's content. */}
+      {/* The whole left strip is the handle: a big target that does not compete with the field's content.
+          Its look never changes on hover; only the cursor does. The icon sits at the strip's vertical centre. */}
       <button
         type="button"
         aria-label={translate('layoutBuilder.dragHandle')}
-        className="flex w-6 shrink-0 cursor-grab touch-none items-start justify-center self-stretch rounded-md pt-1 text-muted-foreground opacity-40 transition-opacity hover:bg-muted hover:opacity-100 focus-visible:opacity-100 group-hover/field:opacity-100"
+        className="flex w-6 shrink-0 cursor-grab touch-none items-center justify-center self-stretch rounded-md text-muted-foreground/60 outline-none focus-visible:ring-2 focus-visible:ring-ring"
         {...attributes}
         {...listeners}
       >
         <GripDots className="size-4" />
       </button>
 
-      <FieldLabelRow
-        className="min-w-0 max-w-full flex-1 space-y-1.5 overflow-hidden pointer-events-none select-none opacity-80"
-        label={<Label className="text-xs font-medium">{branch.label}</Label>}
-      >
-        <FieldGhost branch={branch} />
-      </FieldLabelRow>
+      <FieldBlock branch={branch} />
 
       <Button
         type="button"

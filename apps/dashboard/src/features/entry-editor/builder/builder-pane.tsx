@@ -72,7 +72,8 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
   const dnd = useBuilderDnd({ ops, branchById })
 
   const activeTab = draft.tabs.find((t) => t.id === activeTabId) ?? draft.tabs[0]
-  const availableBranches = ops.getAvailableBranches()
+  const { getAvailableBranches } = ops
+  const availableBranches = React.useMemo(() => getAvailableBranches(), [getAvailableBranches])
 
   const tabDragIds = draft.tabs.map((t) => dragIds.tab(t.id))
   const sectionDragIds = (activeTab?.sections ?? []).map((s) => dragIds.section(activeTab?.id ?? '', s.id))
