@@ -366,7 +366,7 @@ describe("RelationDisplay (multiple: true)", () => {
     expect(screen.getByText("—")).toBeInTheDocument()
   })
 
-  it("renders a chip for each primed id", () => {
+  it("shows a name badge per primed id when the relation has no avatar source", () => {
     const entry2 = { ...authorEntry, id: "author-2", data: { name: "Grace Hopper" } }
     queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
     queryClient.setQueryData(["content", "detail", "team", "author-2"], entry2)
@@ -376,12 +376,11 @@ describe("RelationDisplay (multiple: true)", () => {
       { wrapper: wrapper(queryClient) }
     )
 
-    // avatars display initials in AvatarFallback
-    expect(screen.getByText("AL")).toBeInTheDocument()
-    expect(screen.getByText("GH")).toBeInTheDocument()
+    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument()
+    expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
   })
 
-  it("renders correct chip count", () => {
+  it("renders no avatar for a relation without an avatar source", () => {
     queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
 
     render(
@@ -389,9 +388,70 @@ describe("RelationDisplay (multiple: true)", () => {
       { wrapper: wrapper(queryClient) }
     )
 
-    const fallbacks = screen.getAllByText("AL")
-    expect(fallbacks).toHaveLength(1)
-    expect(fallbacks[0]).toHaveAttribute("data-slot", "avatar-fallback")
+    expect(document.querySelector('[data-slot="avatar"]')).toBeNull()
+  })
+
+  describe("with an avatar source", () => {
+    const teamWithPhoto = {
+      ...teamSeed,
+      branches: [...teamSeed.branches, { id: "br_03", alias: "photo", label: "Photo", type: "file", fileOptions: { accept: "image" } }],
+    }
+    const avatarBranch = { ...multiRelationBranch, avatarSource: "photo" } as unknown as Branch
+
+    beforeEach(() => {
+      ;(useSchema as ReturnType<typeof vi.fn>).mockReturnValue({ data: [teamWithPhoto], isLoading: false })
+    })
+
+    it("shows the initials of the display name as avatar fallback and no name text", () => {
+      queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
+
+      render(
+        <RelationDisplay branch={avatarBranch} value={["author-1"]} />,
+        { wrapper: wrapper(queryClient) }
+      )
+
+      const fallback = screen.getByText("AL")
+      expect(fallback).toHaveAttribute("data-slot", "avatar-fallback")
+      expect(screen.queryByText("Ada Lovelace")).toBeNull()
+    })
+
+    it("falls back to the last two characters of the id when the entry has no display name", () => {
+      queryClient.setQueryData(["content", "detail", "team", "author-1"], { ...authorEntry, data: {} })
+
+      render(
+        <RelationDisplay branch={avatarBranch} value={["author-1"]} />,
+        { wrapper: wrapper(queryClient) }
+      )
+
+      expect(screen.getByText("-1")).toHaveAttribute("data-slot", "avatar-fallback")
+    })
+
+    it("collapses entries beyond the visible slots into a +N counter", () => {
+      for (const n of [1, 2, 3, 4]) {
+        queryClient.setQueryData(["content", "detail", "team", `author-${n}`], { ...authorEntry, id: `author-${n}`, data: { name: `Person ${n}` } })
+      }
+
+      render(
+        <RelationDisplay branch={avatarBranch} value={["author-1", "author-2", "author-3", "author-4"]} options={{ compact: true }} />,
+        { wrapper: wrapper(queryClient) }
+      )
+
+      expect(screen.getByText("+2")).toBeInTheDocument()
+      expect(screen.getAllByText(/^P\d$/)).toHaveLength(2)
+    })
+
+    it("does not resolve the overflow entries until the counter is opened", () => {
+      for (const n of [1, 2, 3, 4]) {
+        queryClient.setQueryData(["content", "detail", "team", `author-${n}`], { ...authorEntry, id: `author-${n}`, data: { name: `Person ${n}` } })
+      }
+
+      render(
+        <RelationDisplay branch={avatarBranch} value={["author-1", "author-2", "author-3", "author-4"]} options={{ compact: true }} />,
+        { wrapper: wrapper(queryClient) }
+      )
+
+      expect(queryClient.getQueryCache().find({ queryKey: ["content", "detail", "team", "author-4"] })?.getObserversCount()).toBe(0)
+    })
   })
 })
 

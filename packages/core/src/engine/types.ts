@@ -171,6 +171,13 @@ export interface Branch {
   targetSeed?: string
 
   /**
+   * Alias of a single image `file` branch on the target seed whose URL is the avatar of this relation's
+   * entries. `relation` only; absent = no avatar. Presentation metadata: never emits DDL, never touches rows.
+   * Validated by seed-validation.ts (must be an image `file` branch of the target).
+   */
+  avatarSource?: string
+
+  /**
    * SQLite ON DELETE rule applied to the foreign-key constraint.
    * Defaults to 'SET NULL' when `type === 'relation'` and no value is provided.
    * - CASCADE  : delete dependent rows when the parent is deleted.
@@ -359,6 +366,8 @@ export interface SelectOptions {
   trashed?: TrashedMode
   /** Full-text search — uses FTS5 if the seed has indexable richtext/text branches. */
   search?: string
+  /** Resolves relation targets so `search` can match a relation display name (see `resolveSearchSupport`). */
+  resolveSeed?: (slug: string) => Seed | null | undefined
   /** Column projection. Empty = SELECT *. */
   fields?: string[]
   /** When set, LEFT JOIN kanban_positions and order by fractional index (KB-S04c/S05).

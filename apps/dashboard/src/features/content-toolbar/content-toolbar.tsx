@@ -256,6 +256,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                 handleSearchBlur={handleSearchBlur}
                 handleSearchClose={handleSearchClose}
                 handleSearchOpen={handleSearchOpen}
+                disabled={props.searchDisabled}
               />
             )}
 

@@ -4,7 +4,7 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { LOCALIZABLE_BRANCH_TYPES, isSingleChoiceTags, resolvePolicies, tagOptionsIssues, TAG_OPTIONS_MAX_COUNT, type Branch, type DataClassification, type Seed } from "@beechcms/core"
+import { LOCALIZABLE_BRANCH_TYPES, isImageMediaBranch, isSingleChoiceTags, resolvePolicies, tagOptionsIssues, TAG_OPTIONS_MAX_COUNT, type Branch, type DataClassification, type Seed } from "@beechcms/core"
 import { ChevronDown, ChevronUp, Trash2 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -13,6 +13,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FieldEditRepeater } from "./repeater"
 import { localizationBlocker, type LocalizationBlocker } from "./repeater-localization"
+
+/** Select item value standing for "no avatar": a Radix Select item cannot carry an empty string. */
+const NO_AVATAR = "__none__"
 
 /**
  * Properties for the {@link RelationOptionsForm} component.
@@ -40,12 +43,16 @@ export function RelationOptionsForm({
     onChange({ ...branch, [key]: value })
   }
 
+  // Only a single image file of the target can supply an avatar; none → the selector is not offered.
+  const avatarCandidates = (activeSeedsForRelation.find(s => s.slug === branch.targetSeed)?.branches ?? []).filter(isImageMediaBranch)
+
   return (
     <div className="space-y-2 rounded-md border p-2">
       <p className="text-xs font-medium">{t("seedBuilder.branchEditor.relationOptions")}</p>
       <div className="space-y-1">
         <Label className="text-xs">{t("seedBuilder.branchEditor.targetSeed")}</Label>
-        <Select value={branch.targetSeed ?? ""} onValueChange={v => set("targetSeed", v)}>
+        {/* A new target invalidates the avatar source: it names a field of the previous target. */}
+        <Select value={branch.targetSeed ?? ""} onValueChange={v => onChange({ ...branch, targetSeed: v, avatarSource: undefined })}>
           <SelectTrigger>
             <SelectValue placeholder={t("seedBuilder.branchEditor.targetSeedPlaceholder")} />
           </SelectTrigger>
@@ -79,6 +86,30 @@ export function RelationOptionsForm({
             <SelectItem value="SET NULL" disabled={!!branch.multiple}>{t("seedBuilder.branchEditor.onDeleteSetNull")}</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">{t("seedBuilder.branchEditor.avatarSource")}</Label>
+        <Select
+          value={branch.avatarSource ?? NO_AVATAR}
+          onValueChange={v => set("avatarSource", v === NO_AVATAR ? undefined : v)}
+          disabled={avatarCandidates.length === 0}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_AVATAR}>{t("seedBuilder.branchEditor.avatarSourceNone")}</SelectItem>
+            {avatarCandidates.map(b => (
+              <SelectItem key={b.alias} value={b.alias}>{b.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {/* Always rendered: a control that appears only when the target qualifies cannot be discovered. */}
+        <p className="text-xs text-muted-foreground">
+          {t(branch.targetSeed && avatarCandidates.length === 0
+            ? "seedBuilder.branchEditor.avatarSourceUnavailable"
+            : "seedBuilder.branchEditor.avatarSourceHint")}
+        </p>
       </div>
     </div>
   )

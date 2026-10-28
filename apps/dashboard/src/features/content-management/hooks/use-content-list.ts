@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { isLocalizedBranch } from "@beechcms/core"
+import { isLocalizedBranch, resolveRelationAvatar } from "@beechcms/core"
 import { useLocalizeEntryData, useSchema } from "@/features/shared"
 import { contentApi, type ContentListQueryParams, type ContentListWithMeta } from "../api/content.api"
 import { CONTENT_QUERY_KEYS } from "../consts/content.keys"
@@ -65,17 +65,21 @@ export function useContentList(slug: string | undefined, params: ContentListQuer
 
       const targetSeed = seeds.find((s) => s.slug === targetSlug)
       const labelAlias = targetSeed?.displayNameAlias ?? "title"
+      // The avatar URL rides in the same stub, so a relation avatar costs no per-row fetchById either.
+      const avatarAlias = resolveRelationAvatar(branch, (candidate) => seeds.find((s) => s.slug === candidate))?.alias
+      const avatars = avatarAlias ? response.relationAvatars?.[alias] : undefined
 
       for (const [id, label] of Object.entries(idLabelMap)) {
         const cacheKey = CONTENT_QUERY_KEYS.detail(targetSlug, id)
         // Only prime if not already in cache to avoid overwriting fresh data
         const existing = queryClient.getQueryData<ContentEntry>(cacheKey)
         if (!existing) {
+          const avatar = avatarAlias ? avatars?.[id] : undefined
           queryClient.setQueryData<ContentEntry>(cacheKey, {
             id,
             slug: null,
             status: "published",
-            data: { [labelAlias]: label },
+            data: avatarAlias && avatar ? { [labelAlias]: label, [avatarAlias]: avatar } : { [labelAlias]: label },
             created_at: null,
             updated_at: null, // stub marker read by isRelationLabelStub (use-content-item.ts)
           })

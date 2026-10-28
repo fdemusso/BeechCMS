@@ -18,6 +18,8 @@ interface SearchBarProps {
   readonly handleSearchBlur: () => void
   readonly handleSearchClose: () => void
   readonly handleSearchOpen: () => void
+  /** The seed has nothing a search could match: the icon stays but cannot open the field. */
+  readonly disabled?: boolean
 }
 
 export function SearchBar({
@@ -29,8 +31,32 @@ export function SearchBar({
   handleSearchBlur,
   handleSearchClose,
   handleSearchOpen,
+  disabled = false,
 }: SearchBarProps) {
   const { t } = useTranslation()
+
+  if (disabled) {
+    return (
+      <Tooltip>
+        {/* A disabled button swallows pointer events, so the tooltip hangs off a wrapper. */}
+        <TooltipTrigger asChild>
+          <span className="inline-flex h-8 w-8 shrink-0" tabIndex={0}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="h-8 w-8 shrink-0"
+              aria-label={t("toolbar.search.ariaLabel")}
+              disabled
+            >
+              <Search className="size-4" />
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top">{t("toolbar.search.unavailable")}</TooltipContent>
+      </Tooltip>
+    )
+  }
+
   return (
     <div
       className="overflow-hidden rounded-md bg-transparent transition-[width] duration-200 ease-out"

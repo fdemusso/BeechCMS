@@ -113,7 +113,7 @@ export async function exportHandler(context: Context<AppEnv, '/:slug/export', Zo
       filters,
       fields: ['id'],
       pagination: { limit: 1, offset: 0 },
-      ...(search ? { search } : {}),
+      ...(search ? { search, resolveSeed: context.get('getSeed') } : {}),
     })
 
     const maxRows = resolveExportMaxRows(context.env)
@@ -139,7 +139,7 @@ export async function exportHandler(context: Context<AppEnv, '/:slug/export', Zo
       role: jwtPayload?.role,
     }
 
-    const stream = createContentExportStream({ repository, seed, format, actor, filters, search: search || undefined })
+    const stream = createContentExportStream({ repository, seed, format, actor, filters, search: search || undefined, resolveSeed: context.get('getSeed') })
 
     return context.body(stream, 200, {
       'Content-Type': CONTENT_TYPES[format],

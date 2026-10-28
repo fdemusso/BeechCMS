@@ -20,7 +20,8 @@ export interface ContentListQueryParams {
  * The list answers a bare array when the request carries no query parameter (legacy contract) and
  * this envelope otherwise. `relations` is the compact label map the dashboard uses to prime the
  * TanStack Query cache so RelationDisplay can resolve synchronously without per-row requests:
- * `{ [branchAlias]: { [targetId]: labelString } }`.
+ * `{ [branchAlias]: { [targetId]: labelString } }`. `relationAvatars` has the same shape for the
+ * relations that configure an `avatarSource`: the target's avatar URL, only for entries that have one.
  */
 export type ContentListResponse = InferResponseType<(typeof rpc.api.content)[":slug"]["$get"]>
 
@@ -40,7 +41,7 @@ export function toListQuery(params: object): Record<string, string> {
 /** Always the envelope: a bare array (a request with no query parameter) is wrapped as one page. */
 export function toListWithMeta(response: ContentListResponse): ContentListWithMeta {
   if (!Array.isArray(response)) return response
-  return { items: response, total: response.length, page: 1, limit: response.length, relations: {} }
+  return { items: response, total: response.length, page: 1, limit: response.length, relations: {}, relationAvatars: {} }
 }
 
 export async function moveKanbanCard(slug: string, id: string, body: KanbanMoveBody): Promise<{ success: boolean }> {

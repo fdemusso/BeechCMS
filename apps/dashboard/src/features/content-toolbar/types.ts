@@ -37,6 +37,8 @@ export interface ContentToolbarProps {
   searchValue?: string
   onSearchChange?: (value: string) => void
   onSubmitSearch?: (value: string) => void
+  /** True when the seed has nothing a search could match: the search icon is shown disabled. */
+  searchDisabled?: boolean
   isFilterActive?: boolean
   isSortActive?: boolean
   isAutomationActive?: boolean

@@ -11,6 +11,7 @@ import {
   type ActorContext,
   type ContentRepository,
   type FilterGroup,
+  type SelectOptions,
   type Seed,
   type TransferFormat,
 } from '@beechcms/core'
@@ -30,6 +31,8 @@ export interface ExportStreamOptions {
   /** Caller-supplied filter groups, already converted to engine shape by `toEngineFilters`. */
   filters: FilterGroup[]
   search?: string
+  /** Resolves relation targets so `search` matches the same rows as the list endpoint. */
+  resolveSeed?: SelectOptions['resolveSeed']
   /** Rows per repository round-trip. Defaults to DEFAULT_EXPORT_PAGE_SIZE. */
   pageSize?: number
 }
@@ -49,7 +52,7 @@ export interface ExportStreamOptions {
  * written the status is committed, and a failure past that point can only truncate the file.
  */
 export function createContentExportStream(options: ExportStreamOptions): ReadableStream<Uint8Array> {
-  const { repository, seed, format, actor, filters, search } = options
+  const { repository, seed, format, actor, filters, search, resolveSeed } = options
   const pageSize = options.pageSize ?? DEFAULT_EXPORT_PAGE_SIZE
   const columns = exportColumns(seed)
   const encoder = new TextEncoder()
@@ -86,7 +89,7 @@ export function createContentExportStream(options: ExportStreamOptions): Readabl
         filters: pageFilters(),
         orderBy: { column: 'id', dir: 'ASC' },
         pagination: { limit: pageSize, offset: 0 },
-        ...(search ? { search } : {}),
+        ...(search ? { search, resolveSeed } : {}),
       })
 
       if (items.length === 0) {

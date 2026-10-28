@@ -740,7 +740,8 @@
       "placeholder": "Cerca...",
       "ariaLabel": "Cerca",
       "close": "Chiudi ricerca",
-      "open": "Apri ricerca"
+      "open": "Apri ricerca",
+      "unavailable": "La ricerca non è disponibile per questo tipo di contenuto"
     },
     "sort": {
       "tooltip": "Ordina",
@@ -1388,6 +1389,9 @@
       "notInOptions": "{{value}} — non presente nelle opzioni"
     },
     "restricted": "Riservato",
+    "relation": {
+      "moreItems": "altri {{count}}"
+    },
     "repeater": {
       "addItem": "Aggiungi elemento",
       "removeItem": "Rimuovi elemento",
@@ -1486,6 +1490,10 @@
       "onDeleteCascade": "Cascade — elimina le voci collegate",
       "onDeleteRestrict": "Restrict — blocca se ci sono voci collegate",
       "onDeleteSetNull": "Set null — azzera il riferimento",
+      "avatarSource": "Immagine avatar",
+      "avatarSourceNone": "Nessun avatar",
+      "avatarSourceUnavailable": "Il seed di destinazione non ha un campo immagine singolo. Aggiungine uno per usarlo come avatar.",
+      "avatarSourceHint": "Campo immagine del target mostrato come avatar. In mancanza, le iniziali del display name.",
       "numberOptions": "Opzioni numero",
       "min": "Min",
       "max": "Max",

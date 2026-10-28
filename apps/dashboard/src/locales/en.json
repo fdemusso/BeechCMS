@@ -740,7 +740,8 @@
       "placeholder": "Search...",
       "ariaLabel": "Search",
       "close": "Close search",
-      "open": "Open search"
+      "open": "Open search",
+      "unavailable": "Search is not available for this content type"
     },
     "sort": {
       "tooltip": "Sort",
@@ -1388,6 +1389,9 @@
       "notInOptions": "{{value}} — not in the options"
     },
     "restricted": "Restricted",
+    "relation": {
+      "moreItems": "{{count}} more"
+    },
     "repeater": {
       "addItem": "Add item",
       "removeItem": "Remove item",
@@ -1486,6 +1490,10 @@
       "onDeleteCascade": "Cascade — delete linked entries",
       "onDeleteRestrict": "Restrict — block deletion if linked",
       "onDeleteSetNull": "Set null — clear the reference",
+      "avatarSource": "Avatar image",
+      "avatarSourceNone": "No avatar",
+      "avatarSourceUnavailable": "The target seed has no single image field. Add one to use it as avatar.",
+      "avatarSourceHint": "Image field of the target shown as avatar. Falls back to the initials of the display name.",
       "numberOptions": "Number options",
       "min": "Min",
       "max": "Max",

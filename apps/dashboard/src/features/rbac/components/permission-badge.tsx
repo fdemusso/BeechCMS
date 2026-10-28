@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { useHoverPopover } from "@/hooks/use-hover-popover"
 import { resolveIcon } from "@/lib/icon-registry"
 import { useSchema } from "@/features/shared"
 import { PERMISSION_METADATA } from "./permission-metadata"
@@ -68,50 +69,7 @@ export function PermissionBadgeGroup({
   className,
 }: PermissionBadgeGroupProps) {
   const { t } = useTranslation()
-  const [open, setOpen] = React.useState(false)
-  const openTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const clearTimers = React.useCallback(() => {
-    if (openTimerRef.current) {
-      clearTimeout(openTimerRef.current)
-      openTimerRef.current = null
-    }
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current)
-      closeTimerRef.current = null
-    }
-  }, [])
-
-  React.useEffect(() => {
-    return () => clearTimers()
-  }, [clearTimers])
-
-  const handlePointerEnter = React.useCallback(() => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current)
-      closeTimerRef.current = null
-    }
-    if (!openTimerRef.current) {
-      openTimerRef.current = setTimeout(() => {
-        setOpen(true)
-        openTimerRef.current = null
-      }, 200)
-    }
-  }, [])
-
-  const handlePointerLeave = React.useCallback(() => {
-    if (openTimerRef.current) {
-      clearTimeout(openTimerRef.current)
-      openTimerRef.current = null
-    }
-    if (!closeTimerRef.current) {
-      closeTimerRef.current = setTimeout(() => {
-        setOpen(false)
-        closeTimerRef.current = null
-      }, 250)
-    }
-  }, [])
+  const { open, onOpenChange, triggerProps } = useHoverPopover()
 
   if (permissions.length === 0) {
     return <span className="text-xs text-muted-foreground">—</span>
@@ -136,18 +94,11 @@ export function PermissionBadgeGroup({
       ))}
 
       {shouldTruncate && (
-        <Popover
-          open={open}
-          onOpenChange={(next) => {
-            clearTimers()
-            setOpen(next)
-          }}
-        >
+        <Popover open={open} onOpenChange={onOpenChange}>
           <PopoverTrigger asChild>
             <button
               type="button"
-              onPointerEnter={handlePointerEnter}
-              onPointerLeave={handlePointerLeave}
+              {...triggerProps}
               className="relative z-0 ring-1 ring-border size-6 rounded-md bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground text-[10px] font-semibold inline-flex items-center justify-center transition-transform hover:z-10 hover:scale-105 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={t("rbac.roles.morePermissions", "+{{count}} more", { count: remaining.length })}
             >
@@ -158,8 +109,7 @@ export function PermissionBadgeGroup({
           <PopoverContent
             align="start"
             side="top"
-            onPointerEnter={handlePointerEnter}
-            onPointerLeave={handlePointerLeave}
+            {...triggerProps}
             className="w-auto p-2 shadow-lg border-border/80 bg-popover"
           >
             <div className="flex items-center gap-1.5">

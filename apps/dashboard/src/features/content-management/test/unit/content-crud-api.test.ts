@@ -67,7 +67,7 @@ describe("contentApi — CRUD", () => {
       const result = await contentApi.fetchList("posts", {})
 
       expect(String(fetchMock.mock.calls[0][0])).toBe("/api/content/posts")
-      expect(result).toEqual({ items: [entry], total: 1, page: 1, limit: 1, relations: {} })
+      expect(result).toEqual({ items: [entry], total: 1, page: 1, limit: 1, relations: {}, relationAvatars: {} })
     })
 
     it("throws an ApiError for an unknown seed", async () => {

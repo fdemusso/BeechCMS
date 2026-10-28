@@ -6,7 +6,8 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
-import type { ContentView, DashboardView, Seed, TransferFormat } from "@beechcms/core"
+import { isSearchSupported, type ContentView, type DashboardView, type Seed, type TransferFormat } from "@beechcms/core"
+import { useSchema } from "@/features/shared/hooks/use-schema"
 import type { ViewEntryActions, ViewEntrySavedInfo } from "@/features/shared"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { ContentToolbar, type UserViewInstance } from "@/features/content-toolbar"
@@ -42,6 +43,13 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
   const [initial] = React.useState(() => toViewToolbarState(view.config, seed))
 
   const modals = useContentListModals(slug)
+
+  // The API searches the display name; a relation display name needs its target seed to be searchable.
+  const { data: seeds } = useSchema()
+  const searchDisabled = React.useMemo(
+    () => !isSearchSupported(seed, (targetSlug) => seeds?.find((s) => s.slug === targetSlug)),
+    [seed, seeds]
+  )
 
   const [isExportPending, setIsExportPending] = React.useState(false)
   const handleExport = React.useCallback(
@@ -162,6 +170,7 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
         onCreate={handleToolbarCreate}
         searchValue={query.tableSearch}
         onSearchChange={query.setTableSearch}
+        searchDisabled={searchDisabled}
         sortState={{
           columnId: query.singleSort?.id ?? null,
           desc: query.singleSort?.desc ?? true,
