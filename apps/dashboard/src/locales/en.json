@@ -273,7 +273,10 @@
       "page": {
         "add": "Add Page",
         "rename": "Rename page",
-        "delete": "Delete page"
+        "delete": "Delete page",
+        "defaultBadge": "Default page",
+        "setDefault": "Set as default",
+        "newPage": "New page"
       },
       "section": {
         "add": "Add Section",
@@ -283,14 +286,29 @@
         "collapsible": "Collapsible",
         "columns": "Columns",
         "duplicate": "Duplicate",
-        "remove": "Remove"
+        "remove": "Remove",
+        "widgetCount_one": "{{count}} widget",
+        "widgetCount_other": "{{count}} widgets",
+        "widgetCount": "{{count}} widgets",
+        "removeConfirm": "Remove this section and its widgets?",
+        "dragHandle": "Drag to move the section",
+        "presetHint": "Column widths"
       },
       "widget": {
         "add": "Add Widget",
         "configure": "Configure",
         "moveToPage": "Move to page…",
         "remove": "Remove",
-        "unavailable": "Unavailable"
+        "unavailable": "Unavailable",
+        "needsSetup": "Needs setup",
+        "duplicate": "Duplicate",
+        "replaceWith": "Replace with…",
+        "rename": "Rename",
+        "dragHandle": "Drag to move the widget",
+        "tooNarrow": "This widget works best in a wider column.",
+        "warnFull": "That column is full.",
+        "searchPlaceholder": "Search widgets…",
+        "noResults": "No widgets found."
       },
       "picker": {
         "title": "Add Widget",
@@ -364,6 +382,14 @@
           "asc": "Ascending",
           "desc": "Descending"
         }
+      },
+      "back": "Back",
+      "warnPageLimit": "A dashboard can have at most 8 pages.",
+      "warnSectionLimit": "A page can have at most 50 sections.",
+      "warnColumnFull": "That column is full.",
+      "loadingLabel": "Loading the dashboard layout",
+      "column": {
+        "drag": "Drag to move the column"
       }
     }
   },

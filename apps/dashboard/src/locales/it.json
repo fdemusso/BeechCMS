@@ -273,7 +273,10 @@
       "page": {
         "add": "Aggiungi pagina",
         "rename": "Rinomina pagina",
-        "delete": "Elimina pagina"
+        "delete": "Elimina pagina",
+        "defaultBadge": "Pagina predefinita",
+        "setDefault": "Imposta come predefinita",
+        "newPage": "Nuova pagina"
       },
       "section": {
         "add": "Aggiungi sezione",
@@ -283,14 +286,29 @@
         "collapsible": "Comprimibile",
         "columns": "Colonne",
         "duplicate": "Duplica",
-        "remove": "Rimuovi"
+        "remove": "Rimuovi",
+        "widgetCount_one": "{{count}} widget",
+        "widgetCount_other": "{{count}} widget",
+        "widgetCount": "{{count}} widget",
+        "removeConfirm": "Rimuovere questa sezione e i suoi widget?",
+        "dragHandle": "Trascina per spostare la sezione",
+        "presetHint": "Larghezza delle colonne"
       },
       "widget": {
         "add": "Aggiungi widget",
         "configure": "Configura",
         "moveToPage": "Sposta in pagina…",
         "remove": "Rimuovi",
-        "unavailable": "Non disponibile"
+        "unavailable": "Non disponibile",
+        "needsSetup": "Da configurare",
+        "duplicate": "Duplica",
+        "replaceWith": "Sostituisci con…",
+        "rename": "Rinomina",
+        "dragHandle": "Trascina per spostare il widget",
+        "tooNarrow": "Questo widget rende meglio in una colonna più larga.",
+        "warnFull": "Quella colonna è piena.",
+        "searchPlaceholder": "Cerca widget…",
+        "noResults": "Nessun widget trovato."
       },
       "picker": {
         "title": "Aggiungi widget",
@@ -364,6 +382,14 @@
           "asc": "Crescente",
           "desc": "Decrescente"
         }
+      },
+      "back": "Indietro",
+      "warnPageLimit": "Una dashboard può avere al massimo 8 pagine.",
+      "warnSectionLimit": "Una pagina può avere al massimo 50 sezioni.",
+      "warnColumnFull": "Quella colonna è piena.",
+      "loadingLabel": "Caricamento del layout della dashboard",
+      "column": {
+        "drag": "Trascina per spostare la colonna"
       }
     }
   },
