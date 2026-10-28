@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# Regenerates docs/api (full monorepo build + typedoc: slow) once per push instead of once per commit.
+# A push cannot carry files added by its own hook, so if the generated docs differ from what is
+# committed the push is stopped: commit docs/api and push again.
+# Skip with:   SKIP_DOCS=1 git push
+# (.github/workflows/generate-docs.yml also regenerates and commits docs/api, so skipping is safe.)
+
+if [ -n "$SKIP_DOCS" ]; then
+  echo "pre-push: SKIP_DOCS set, skipping docs:generate"
+  exit 0
+fi
+
+pnpm docs:generate || exit 1
+
+if [ -n "$(git status --porcelain docs/api)" ]; then
+  echo "pre-push: docs/api is out of date. Commit the regenerated docs, then push again:"
+  echo "  git add docs/api && git commit -m \"docs: regenerate api\""
+  exit 1
+fi
