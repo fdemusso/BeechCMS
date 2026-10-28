@@ -9,7 +9,7 @@ import { Check, More as MoreHorizontal } from '@/components/icons'
 import { GripDots } from '@/components/ui/grip-dots'
 import { toast } from 'sonner'
 import type { LayoutSection, Branch } from '@beechcms/core'
-import { isFullWidthBranch } from '@beechcms/core'
+import { LAYOUT_SECTION_LABEL_MAX, isFullWidthBranch } from '@beechcms/core'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -121,7 +121,7 @@ export function SectionCard({
             autoFocus
             className="h-7 flex-1 rounded-md text-sm focus-visible:ring-1 focus-visible:ring-ring/30"
             value={renameValue}
-            maxLength={50}
+            maxLength={LAYOUT_SECTION_LABEL_MAX}
             onChange={(e) => setRenameValue(e.target.value)}
             onBlur={commitRename}
             onKeyDown={(e) => {

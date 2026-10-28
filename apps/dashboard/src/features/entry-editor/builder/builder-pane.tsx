@@ -16,7 +16,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { ArrowLeft, Plus, Loader as Loader2, Edit as Pencil, Home, Trash2, X } from '@/components/icons'
 import { toast } from 'sonner'
 import type { Seed, FormLayout, Branch } from '@beechcms/core'
-import { generateDefaultLayout, reconcileLayoutWithSeed } from '@beechcms/core'
+import { LAYOUT_TAB_LABEL_MAX, generateDefaultLayout, reconcileLayoutWithSeed } from '@beechcms/core'
 import { isApiError } from '@/lib/http/api-error'
 
 import { Button } from '@/components/ui/button'
@@ -379,7 +379,7 @@ function TabPill({
             <Home className="mr-1.5 size-3.5 shrink-0" aria-label={t('layoutBuilder.defaultTabBadge')} />
           )}
           {isRenaming ? (
-            <Input autoFocus maxLength={15} className="h-6 w-24 rounded-md px-1 text-sm focus-visible:ring-1 focus-visible:ring-ring/30" value={renameValue}
+            <Input autoFocus maxLength={LAYOUT_TAB_LABEL_MAX} className="h-6 w-24 rounded-md px-1 text-sm focus-visible:ring-1 focus-visible:ring-ring/30" value={renameValue}
               onChange={(e) => onRenameChange(e.target.value)}
               onBlur={onRenameCommit}
               onClick={(e) => e.stopPropagation()}

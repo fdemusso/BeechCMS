@@ -92,6 +92,36 @@ describe('schema slice — seed form layout (real D1)', () => {
       expect(row?.n).toBe(1)
     })
 
+    it('refuses a tab label over 15 characters and stores nothing', async () => {
+      const layout: LayoutShape = { ...SMALL_LAYOUT, tabs: [{ ...SMALL_LAYOUT.tabs[0], label: 'x'.repeat(16) }] }
+
+      const response = await admin.put('/api/schema/posts/layout', layout)
+
+      expect(response.status).toBe(422)
+      expect(await storedLayoutCount('posts')).toBe(0)
+    })
+
+    it('refuses a section label over 50 characters and stores nothing', async () => {
+      const section = { ...SMALL_LAYOUT.tabs[0].sections[0], label: 'x'.repeat(51) }
+      const layout: LayoutShape = { ...SMALL_LAYOUT, tabs: [{ ...SMALL_LAYOUT.tabs[0], sections: [section] }] }
+
+      const response = await admin.put('/api/schema/posts/layout', layout)
+
+      expect(response.status).toBe(422)
+      expect(await storedLayoutCount('posts')).toBe(0)
+    })
+
+    it('stores labels trimmed', async () => {
+      const section = { ...SMALL_LAYOUT.tabs[0].sections[0], label: '  Intro  ' }
+      const layout: LayoutShape = { ...SMALL_LAYOUT, tabs: [{ ...SMALL_LAYOUT.tabs[0], label: ' Main ', sections: [section] }] }
+
+      const response = await admin.put('/api/schema/posts/layout', layout)
+
+      expect(response.status).toBe(200)
+      const body = await response.json<{ layout: { tabs: Array<{ label: string; sections: Array<{ label?: string }> }> } }>()
+      expect([body.layout.tabs[0].label, body.layout.tabs[0].sections[0].label]).toEqual(['Main', 'Intro'])
+    })
+
     it('forbids a non-admin and stores nothing', async () => {
       const editor = await harness.asUser('editor')
 
