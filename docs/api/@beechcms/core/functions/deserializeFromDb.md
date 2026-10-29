@@ -1,0 +1,33 @@
+[**BeechCMS**](../../../index.md)
+
+***
+
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / deserializeFromDb
+
+# Function: deserializeFromDb()
+
+> **deserializeFromDb**(`branch`, `value`): `unknown`
+
+Deserializes a value read from the DB to its API/JS representation.
+0/1 → boolean | Unix timestamp → ISO 8601 | JSON string → object/array
+Localized branches: locale dictionary ↔ compact JSON.
+
+## Parameters
+
+### branch
+
+[`Branch`](../interfaces/Branch.md)
+
+The branch definition.
+
+### value
+
+`unknown`
+
+The raw database value.
+
+## Returns
+
+`unknown`
+
+The deserialized value.

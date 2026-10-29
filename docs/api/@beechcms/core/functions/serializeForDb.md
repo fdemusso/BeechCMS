@@ -1,0 +1,33 @@
+[**BeechCMS**](../../../index.md)
+
+***
+
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / serializeForDb
+
+# Function: serializeForDb()
+
+> **serializeForDb**(`branch`, `value`): `string` \| `number` \| `null`
+
+Serializes a value for writing to the DB.
+boolean → 0/1 | date → Unix timestamp | json/tags/richtext/repeater → JSON string
+Localized branches: locale dictionary ↔ compact JSON.
+
+## Parameters
+
+### branch
+
+[`Branch`](../interfaces/Branch.md)
+
+The branch definition.
+
+### value
+
+`unknown`
+
+The value to serialize.
+
+## Returns
+
+`string` \| `number` \| `null`
+
+The serialized DB value (string, number, or null).
