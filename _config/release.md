@@ -175,7 +175,7 @@ When executed, the script performs the following atomic steps:
 
 1. **Diff Detection & Plan Display**: Analyzes git history and prints a table of changes and planned version increments.
 2. **Version Bump & Dependency Sync**: Updates `"version"` in manifests and syncs all internal `workspace:^<version>` references.
-3. **License Update**: Updates the Change Date in `.github/LICENSE`.
+3. **License Update**: Updates the Change Date in `LICENSE`.
 4. **Lockfile Refresh**: Runs `pnpm install --no-frozen-lockfile` to ensure lockfile integrity.
 5. **Build & Validation**: Runs `turbo run type-check --force` and `turbo run build --force`.
 6. **Dashboard Asset Copy**: Copies compiled admin dashboard (`apps/dashboard/dist/admin`) into `@beechcms/api/assets/dashboard`.
@@ -192,7 +192,7 @@ When executed, the script performs the following atomic steps:
 ## 🛡️ Atomic Rollback Safety
 
 If any failure occurs during type checking, building, or lockfile installation:
-- The script automatically **restores all `package.json` files and `.github/LICENSE`** to their exact pre-release snapshot.
+- The script automatically **restores all `package.json` files and `LICENSE`** to their exact pre-release snapshot.
 - No partial file changes are left behind.
 
 ---
