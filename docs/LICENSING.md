@@ -27,7 +27,7 @@ The BSL is a source-available license that allows free use for almost all purpos
 
 ### The "Change Date"
 
-The BSL is temporary. On the **Change Date** (which is 2030-09-09 for the current version, per `LICENSE`), the license for these components automatically converts to the **GNU General Public License v2.0 or later (GPLv2+)**, which is a fully Open Source Initiative (OSI) approved license. 
+The BSL is temporary. On the **Change Date** (set per release in the root `LICENSE` file), the license for these components automatically converts to the **GNU General Public License v2.0 or later (GPLv2+)**, which is a fully Open Source Initiative (OSI) approved license. 
 Every new release will have its own 4-year rolling Change Date.
 
 ---
@@ -50,7 +50,7 @@ Every new release will have its own 4-year rolling Change Date.
 **NO**. This requires a commercial license. Offering a hosted version of BeechCMS as a service to third parties is restricted.
 
 ### When does the code become fully open source? 
-The code converts to GPL v2.0 or later on **2030-09-09** (the "Change Date").
+The code converts to GPL v2.0 or later on the **Change Date** stated in the root `LICENSE` file.
 
 ---
 
