@@ -27,7 +27,7 @@ The BSL is a source-available license that allows free use for almost all purpos
 
 ### The "Change Date"
 
-The BSL is temporary. On the **Change Date** (which is 2030-09-09 for the current version, per `.github/LICENSE`), the license for these components automatically converts to the **GNU General Public License v2.0 or later (GPLv2+)**, which is a fully Open Source Initiative (OSI) approved license. 
+The BSL is temporary. On the **Change Date** (which is 2030-09-09 for the current version, per `LICENSE`), the license for these components automatically converts to the **GNU General Public License v2.0 or later (GPLv2+)**, which is a fully Open Source Initiative (OSI) approved license. 
 Every new release will have its own 4-year rolling Change Date.
 
 ---
