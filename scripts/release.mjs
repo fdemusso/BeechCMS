@@ -494,7 +494,7 @@ if (!validBumps.includes(bump)) {
 
 const snapshots = [
   ...PACKAGES.map(pkg => ({ path: pkg.path, content: readRaw(pkg.path) })),
-  { path: resolve(ROOT, '.github/LICENSE'), content: readRaw(resolve(ROOT, '.github/LICENSE')) }
+  { path: resolve(ROOT, 'LICENSE'), content: readRaw(resolve(ROOT, 'LICENSE')) }
 ]
 
 function rollback(reason) {
@@ -704,7 +704,7 @@ if (isCurrent) {
   log('')
   log('1b/4  Updating LICENSE change date...')
 
-  const licensePath = resolve(ROOT, '.github/LICENSE')
+  const licensePath = resolve(ROOT, 'LICENSE')
   let licenseContent = readRaw(licensePath)
   const changeDate = new Date()
   changeDate.setFullYear(changeDate.getFullYear() + 4)
@@ -864,7 +864,7 @@ if (isCurrent) {
 
     // Add all modified package.json files
     for (const pkg of PACKAGES) run(`git add ${pkg.path}`, { isDryRun })
-    run(`git add .github/LICENSE`, { isDryRun })
+    run(`git add LICENSE`, { isDryRun })
     run(`git add pnpm-lock.yaml`, { isDryRun })
 
     if (packagesToBumpForTag.length > 0) {
