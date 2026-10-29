@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/api",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/factory.d.ts",
@@ -42,7 +42,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@beechcms/search-client": "workspace:^0.2.3",
+    "@beechcms/search-client": "workspace:^0.2.4",
     "@beechcms/testing": "workspace:*",
     "@cloudflare/vitest-pool-workers": "^0.23.0",
     "@cloudflare/workers-types": "^5.20260911.1",
