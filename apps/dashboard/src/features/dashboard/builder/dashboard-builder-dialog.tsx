@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useSchema } from '@/features/shared'
 import { DASHBOARD_QUERY_KEYS } from '@/features/shared'
 import { BuilderPane } from './builder-pane'
+import { builderDialogWidth } from './builder-size'
 import { useDashboardBuilder } from './use-dashboard-builder'
 import { dashboardBuilderApi } from './api/dashboard-layout.api'
 import { clearAllDashboardDrafts, clearDashboardDraft, loadDashboardDraft } from './dashboard-draft-storage'
@@ -30,6 +31,8 @@ export interface DashboardBuilderDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly initialLayout: DashboardLayout
+  /** Width of the dashboard's content area on screen, which the dialog is sized from (see `builderDialogWidth`). */
+  readonly referenceWidth?: number
   /** Open on this scope instead of the default one (a draft left by a reload is waiting there). */
   readonly initialScope?: string
   /** Opened because a draft was found after a reload: if it turns out to be stale the dialog closes again. */
@@ -69,6 +72,7 @@ export function DashboardBuilderDialog({
   open,
   onOpenChange,
   initialLayout,
+  referenceWidth,
   initialScope,
   recovering = false,
 }: Readonly<DashboardBuilderDialogProps>) {
@@ -144,7 +148,9 @@ export function DashboardBuilderDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="flex h-[90vh] max-h-[90vh] w-[80vw] flex-col gap-0 p-0 duration-200 data-open:zoom-in-100 data-closed:zoom-out-100 sm:max-w-[80vw]"
+        className="flex h-[90vh] max-h-[90vh] flex-col gap-0 p-0 duration-200 data-open:zoom-in-100 data-closed:zoom-out-100"
+        // Inline, and with the max-width lifted: the width is measured, and the default `sm:max-w-*` would cap it.
+        style={{ width: builderDialogWidth(referenceWidth), maxWidth: "96vw" }}
         showCloseButton={false}
         // Esc belongs to a drag in flight (it cancels it); it must not also close the builder.
         onEscapeKeyDown={(event) => { if (isDragging) event.preventDefault() }}

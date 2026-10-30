@@ -3,8 +3,7 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+import { useDraggable, useDroppable } from '@dnd-kit/core'
 import {
   AlertTriangle,
   ArrowSwapHorizontal as ArrowRightLeft,
@@ -31,7 +30,7 @@ import { Input } from '@/components/ui/input'
 import { getWidgetDefinition, isWidgetDisabled, listWidgetDefinitions } from '../registry/widget-registry'
 import { WidgetGhost } from './ghosts/widget-ghost'
 import { dragIds } from './use-dashboard-dnd'
-import type { UseDashboardBuilderResult } from './use-dashboard-builder'
+import type { DashboardBuilderActions } from './use-dashboard-builder'
 
 export interface ConfigureTarget {
   readonly sectionId: string
@@ -47,16 +46,154 @@ export interface WidgetBlockProps {
   /** The column's width on the 12-unit grid, to tell when the widget is cramped. */
   readonly span: number
   readonly otherPages: readonly DashboardPageLayout[]
-  readonly ops: UseDashboardBuilderResult
+  readonly ops: DashboardBuilderActions
   readonly onConfigure: (target: ConfigureTarget) => void
   readonly onNotice: (message: string) => void
 }
 
+interface WidgetMenuProps {
+  readonly pageId: string
+  readonly sectionId: string
+  readonly columnId: string
+  readonly widget: DashboardWidgetInstance
+  readonly otherPages: readonly DashboardPageLayout[]
+  readonly ops: DashboardBuilderActions
+  readonly onConfigure: () => void
+  readonly onRename: () => void
+  readonly onRemove: () => void
+  readonly onNotice: (message: string) => void
+}
+
+/**
+ * The widget's right-click menu. Apart from the block on purpose: dnd-kit redraws every sortable on every
+ * pointer move, and with the menu inline each of those redraws rebuilt a dozen menu elements and the list of
+ * replaceable widgets for every widget on the page. Here it is built only when the widget itself changes.
+ * (dnd-kit redraws every sortable when the drop target changes and after droppables are re-measured, which a
+ * live move to another column triggers more than once.)
+ */
+const WidgetMenu = React.memo(function WidgetMenu({
+  pageId,
+  sectionId,
+  columnId,
+  widget,
+  otherPages,
+  ops,
+  onConfigure,
+  onRename,
+  onRemove,
+  onNotice,
+}: Readonly<WidgetMenuProps>) {
+  const { t } = useTranslation()
+  const replaceable = React.useMemo(
+    () => listWidgetDefinitions().filter((candidate) => !isWidgetDisabled(candidate.type) && candidate.type !== widget.type),
+    [widget.type],
+  )
+
+  return (
+    <ContextMenuContent>
+      <ContextMenuItem onSelect={onConfigure}>
+        <Settings2 className="size-4" />
+        {t('dashboard.builder.widget.configure')}
+      </ContextMenuItem>
+      <ContextMenuItem onSelect={onRename}>
+        <Pencil className="size-4" />
+        {t('dashboard.builder.widget.rename')}
+      </ContextMenuItem>
+      <ContextMenuItem
+        onSelect={() => { if (!ops.duplicateWidget(pageId, sectionId, columnId, widget.id)) onNotice(t('dashboard.builder.widget.warnFull')) }}
+      >
+        <Copy className="size-4" />
+        {t('dashboard.builder.widget.duplicate')}
+      </ContextMenuItem>
+      {replaceable.length > 0 && (
+        <ContextMenuSub>
+          <ContextMenuSubTrigger>{t('dashboard.builder.widget.replaceWith')}</ContextMenuSubTrigger>
+          <ContextMenuSubContent className="max-h-72 overflow-y-auto">
+            {replaceable.map((candidate) => (
+              <ContextMenuItem
+                key={candidate.type}
+                onSelect={() => ops.replaceWidget(pageId, sectionId, columnId, widget.id, candidate.type)}
+              >
+                {t(candidate.labelKey)}
+              </ContextMenuItem>
+            ))}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+      )}
+      {otherPages.length > 0 && (
+        <ContextMenuSub>
+          <ContextMenuSubTrigger>
+            <ArrowRightLeft className="size-4" />
+            {t('dashboard.builder.widget.moveToPage')}
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent>
+            {otherPages.map((page) => (
+              <ContextMenuItem
+                key={page.id}
+                onSelect={() => {
+                  if (!ops.moveWidgetToPage({ pageId, sectionId, columnId, widgetId: widget.id }, page.id)) {
+                    onNotice(t('dashboard.builder.errorMoveWidget'))
+                  }
+                }}
+              >
+                {page.label}
+              </ContextMenuItem>
+            ))}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+      )}
+      <ContextMenuSeparator />
+      <ContextMenuItem variant="destructive" onSelect={onRemove}>
+        <Trash2 className="size-4" />
+        {t('dashboard.builder.widget.remove')}
+      </ContextMenuItem>
+    </ContextMenuContent>
+  )
+})
+
+/** The gear and the red X shown on hover. Memoised for the same reason as the menu. */
+const WidgetControls = React.memo(function WidgetControls({
+  onConfigure,
+  onRemove,
+}: Readonly<{ onConfigure: () => void; onRemove: () => void }>) {
+  const { t } = useTranslation()
+  return (
+    <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-control bg-background/80 opacity-0 backdrop-blur-sm transition-opacity focus-within:opacity-100 group-hover/widget:opacity-100">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t('dashboard.builder.widget.configure')}
+        className="text-muted-foreground"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onConfigure() }}
+      >
+        <Settings2 />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t('dashboard.builder.widget.remove')}
+        className="text-muted-foreground hover:text-destructive"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onRemove() }}
+      >
+        <X />
+      </Button>
+    </div>
+  )
+})
+
 /**
  * A widget in a column: its ghost with the controls the builder adds around it. The whole card is the drag
  * handle (a 5px move starts a drag, so a click stays a click); the gear and the red X appear on hover,
- * double click renames the title, right click opens the menu. Memoised: while something is dragged, dnd-kit
- * re-renders every sortable on every pointer move, and the props here keep their identity between moves.
+ * double click renames the title, right click opens the menu.
+ *
+ * While something is dragged dnd-kit redraws every draggable whenever the drop target changes, and memoising the
+ * block does not stop that (the redraw comes from its context, not its props). So what runs on each of those
+ * redraws is kept to the block's own box; the ghost, the controls and the menu are memoised parts with stable
+ * props.
  */
 export const WidgetBlock = React.memo(function WidgetBlock({
   pageId,
@@ -73,33 +210,46 @@ export const WidgetBlock = React.memo(function WidgetBlock({
   const [renaming, setRenaming] = React.useState(false)
   const [renameValue, setRenameValue] = React.useState('')
   const def = getWidgetDefinition(widget.type)
+  const widgetId = widget.id
+  const title = widget.title
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: dragIds.widget(widget.id),
-    data: { type: 'widget', pageId, sectionId, columnId },
-  })
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  }
+  // Draggable and droppable, not sortable: a widget never moves while it is dragged (the column marks where it
+  // would land), so there are no positions to recompute and nothing to animate.
+  const id = dragIds.widget(widgetId)
+  const data = React.useMemo(
+    () => ({ type: 'widget', rootId: pageId, sectionId, columnId }),
+    [pageId, sectionId, columnId],
+  )
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id, data })
+  const { setNodeRef: setDropRef } = useDroppable({ id, data })
+  const setNodeRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      setDragRef(node)
+      setDropRef(node)
+    },
+    [setDragRef, setDropRef],
+  )
+  const style: React.CSSProperties = { opacity: isDragging ? 0.4 : 1 }
 
-  const label = widget.title || (def ? t(def.labelKey) : widget.type)
+  const label = title || (def ? t(def.labelKey) : widget.type)
   const tooNarrow = def?.minColumnSpan !== undefined && span < def.minColumnSpan
 
-  function startRename() {
-    setRenameValue(widget.title ?? '')
+  const configure = React.useCallback(
+    () => onConfigure({ sectionId, columnId, widgetId }),
+    [onConfigure, sectionId, columnId, widgetId],
+  )
+  const startRename = React.useCallback(() => {
+    setRenameValue(title ?? '')
     setRenaming(true)
-  }
+  }, [title])
+  const remove = React.useCallback(
+    () => ops.removeWidget(pageId, sectionId, columnId, widgetId),
+    [ops, pageId, sectionId, columnId, widgetId],
+  )
   function commitRename() {
-    ops.updateWidgetTitle(pageId, sectionId, columnId, widget.id, renameValue.trim() || undefined)
+    ops.updateWidgetTitle(pageId, sectionId, columnId, widgetId, renameValue.trim() || undefined)
     setRenaming(false)
   }
-  function remove() {
-    ops.removeWidget(pageId, sectionId, columnId, widget.id)
-  }
-
-  const replaceable = listWidgetDefinitions().filter((candidate) => !isWidgetDisabled(candidate.type) && candidate.type !== widget.type)
 
   return (
     <ContextMenu>
@@ -113,7 +263,7 @@ export const WidgetBlock = React.memo(function WidgetBlock({
           onKeyDown={(e) => {
             if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
               e.preventDefault()
-              onConfigure({ sectionId, columnId, widgetId: widget.id })
+              configure()
             }
           }}
           {...attributes}
@@ -122,7 +272,9 @@ export const WidgetBlock = React.memo(function WidgetBlock({
           <WidgetGhost widget={widget} />
 
           {/* The handle's only visible hint: it appears with the other controls, on hover. */}
-          <GripDots className="pointer-events-none absolute left-2 top-2 size-4 text-muted-foreground/60 opacity-0 transition-opacity group-hover/widget:opacity-100" />
+          <span className="absolute left-2 top-1/2 z-10 flex -translate-y-1/2 cursor-grab items-center rounded-control border bg-background px-0.5 py-3 text-muted-foreground opacity-0 transition-opacity hover:bg-muted group-hover/widget:opacity-100">
+            <GripDots className="size-6" />
+          </span>
 
           {tooNarrow && (
             <span
@@ -133,32 +285,7 @@ export const WidgetBlock = React.memo(function WidgetBlock({
             </span>
           )}
 
-          {!renaming && (
-            <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-control bg-background/80 opacity-0 backdrop-blur-sm transition-opacity focus-within:opacity-100 group-hover/widget:opacity-100">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={t('dashboard.builder.widget.configure')}
-                className="text-muted-foreground"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => { e.stopPropagation(); onConfigure({ sectionId, columnId, widgetId: widget.id }) }}
-              >
-                <Settings2 />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={t('dashboard.builder.widget.remove')}
-                className="text-muted-foreground hover:text-destructive"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => { e.stopPropagation(); remove() }}
-              >
-                <X />
-              </Button>
-            </div>
-          )}
+          {!renaming && <WidgetControls onConfigure={configure} onRemove={remove} />}
 
           {renaming && (
             <Input
@@ -181,64 +308,18 @@ export const WidgetBlock = React.memo(function WidgetBlock({
           )}
         </div>
       </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem onSelect={() => onConfigure({ sectionId, columnId, widgetId: widget.id })}>
-          <Settings2 className="size-4" />
-          {t('dashboard.builder.widget.configure')}
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={startRename}>
-          <Pencil className="size-4" />
-          {t('dashboard.builder.widget.rename')}
-        </ContextMenuItem>
-        <ContextMenuItem
-          onSelect={() => { if (!ops.duplicateWidget(pageId, sectionId, columnId, widget.id)) onNotice(t('dashboard.builder.widget.warnFull')) }}
-        >
-          <Copy className="size-4" />
-          {t('dashboard.builder.widget.duplicate')}
-        </ContextMenuItem>
-        {replaceable.length > 0 && (
-          <ContextMenuSub>
-            <ContextMenuSubTrigger>{t('dashboard.builder.widget.replaceWith')}</ContextMenuSubTrigger>
-            <ContextMenuSubContent className="max-h-72 overflow-y-auto">
-              {replaceable.map((candidate) => (
-                <ContextMenuItem
-                  key={candidate.type}
-                  onSelect={() => ops.replaceWidget(pageId, sectionId, columnId, widget.id, candidate.type)}
-                >
-                  {t(candidate.labelKey)}
-                </ContextMenuItem>
-              ))}
-            </ContextMenuSubContent>
-          </ContextMenuSub>
-        )}
-        {otherPages.length > 0 && (
-          <ContextMenuSub>
-            <ContextMenuSubTrigger>
-              <ArrowRightLeft className="size-4" />
-              {t('dashboard.builder.widget.moveToPage')}
-            </ContextMenuSubTrigger>
-            <ContextMenuSubContent>
-              {otherPages.map((page) => (
-                <ContextMenuItem
-                  key={page.id}
-                  onSelect={() => {
-                    if (!ops.moveWidgetToPage({ pageId, sectionId, columnId, widgetId: widget.id }, page.id)) {
-                      onNotice(t('dashboard.builder.errorMoveWidget'))
-                    }
-                  }}
-                >
-                  {page.label}
-                </ContextMenuItem>
-              ))}
-            </ContextMenuSubContent>
-          </ContextMenuSub>
-        )}
-        <ContextMenuSeparator />
-        <ContextMenuItem variant="destructive" onSelect={remove}>
-          <Trash2 className="size-4" />
-          {t('dashboard.builder.widget.remove')}
-        </ContextMenuItem>
-      </ContextMenuContent>
+      <WidgetMenu
+        pageId={pageId}
+        sectionId={sectionId}
+        columnId={columnId}
+        widget={widget}
+        otherPages={otherPages}
+        ops={ops}
+        onConfigure={configure}
+        onRename={startRename}
+        onRemove={remove}
+        onNotice={onNotice}
+      />
     </ContextMenu>
   )
 })

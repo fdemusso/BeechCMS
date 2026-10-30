@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar, SiteHeader } from "@/features/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { useElementWidth } from "@/hooks/use-element-width"
 import { useDashboardLayout } from "../hooks/use-dashboard-layout"
 import { DashboardLayoutRenderer } from "../renderer/dashboard-layout-renderer"
 import { DashboardBuilderDialog } from "../builder/dashboard-builder-dialog"
@@ -23,6 +24,8 @@ export default function DashboardPage() {
   // Set when the builder was opened by a draft a reload interrupted, not by the Customize button.
   const [recoveryScope, setRecoveryScope] = useState<string | undefined>()
   const canEdit = canEditDashboard(user?.role)
+  // The builder sizes itself from the dashboard's content width, so its ghosts have the shape of the real cards.
+  const { ref: contentRef, width: contentWidth } = useElementWidth<HTMLDivElement>()
 
   // Unsaved builder work survives a reload: when one is waiting, the builder comes back without asking.
   // A reload never closes the builder on purpose, so a draft at load time means the work was cut short.
@@ -61,7 +64,7 @@ export default function DashboardPage() {
             <main className="flex flex-1 flex-col gap-8 p-6 md:p-8 lg:p-10">
               {/* Contenitore interno: limita la larghezza massima a 2200px
                   per una lettura ottimale sia su 16:9 che su 21:9. */}
-              <div className="content-area-inner flex flex-col gap-8">
+              <div ref={contentRef} className="content-area-inner flex flex-col gap-8">
                 {/* Welcome Header */}
                 <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between">
                   <div className="flex flex-col gap-1.5">
@@ -91,6 +94,7 @@ export default function DashboardPage() {
           open={builderOpen}
           onOpenChange={setBuilderOpen}
           initialLayout={layout}
+          referenceWidth={contentWidth}
           initialScope={recoveryScope}
           recovering={recoveryScope !== undefined}
         />

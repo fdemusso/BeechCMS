@@ -1384,6 +1384,7 @@
     "dragHandle": "Trascina per spostare il campo",
     "removeField": "Rimuovi dal layout",
     "dragColumn": "Trascina per spostare la colonna",
+    "dragSection": "Trascina per spostare la sezione",
     "addTab": "Aggiungi tab",
     "newTab": "Nuova tab",
     "searchFields": "Cerca campi…",

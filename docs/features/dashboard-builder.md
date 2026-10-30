@@ -17,13 +17,26 @@ opens on (home icon, "Set as default" moves a page first).
 
 ## What is shared with the entry builder
 
-Extracted to `src/components/builder/` and imported by both builders (the entry builder's behaviour did not
-change):
+Everything below lives in `src/components/builder/` (and `src/hooks/`) and is imported by both builders, so they
+are the same system with a small adapter each (`features/entry-editor/builder/` and
+`features/dashboard/builder/`; neither imports the other):
 
+- **Drag engine**: `layout-dnd.ts` (drag ids, what each kind may land on, collision detection, the drag-state
+  context) and `use-layout-dnd.ts` (`useLayoutDnd(adapter)`: drop-only drag, one move at the drop). Each builder's
+  `use-*-dnd.ts` only says how its layout is shaped and what its rules are.
+- **Frames**: `SectionShell` (sortable, header with inline rename, count, menu, remove confirmation, optional
+  `animateHeight`) and `ColumnShell` (sortable, drop zone, outlines, top handle, drop marker).
+- **Drafts**: `draft-storage.ts` (`createDraftStorage`, `fingerprintLayout`); each builder wraps it with its key
+  prefix and the shape of its layout.
+- **Render stability**: `share-structure.ts` (`shareStructure`: an edited clone keeps the identity of what did not
+  change, so memoised blocks skip the redraw) and `use-animated-section-height.ts`.
 - `BuilderTabPill`: pill tabs (muted selection, double click renames, right click menu, red X on hover).
 - `FLUSH_MENU`: the flush menu style.
 - `GhostSkeleton`: the `bg-foreground/10` skeleton.
-- `useAnimatedSectionHeight`: the section height lock during a drag.
+
+What stays specific: the dashboard's 12-unit grid, widgets and ghosts, caps per column; the entry builder's
+equal-width grid, the full-width field rule, the "Add field" list, the left handle strip and the section height
+ease (`animateHeight`, on for entries only: the dashboard builder leaves it off, as before).
 
 ## Widget ghosts
 
@@ -60,7 +73,8 @@ A widget in the builder is a **ghost**: inert, data-less, shaped like the card t
 
 ## Drag and drop
 
-Same shape as the entry builder (`use-dashboard-dnd.ts`), with four kinds:
+The engine is shared (`src/components/builder/`: `layout-dnd.ts`, `use-layout-dnd.ts`, `column-shell.tsx`,
+`section-shell.tsx`); `use-dashboard-dnd.ts` only tells it how a dashboard layout is shaped. Four kinds:
 
 | Kind | Id | Lands on |
 | --- | --- | --- |
@@ -69,12 +83,15 @@ Same shape as the entry builder (`use-dashboard-dnd.ts`), with four kinds:
 | `column` | `column:<p>:<s>:<c>` | other columns of the same section |
 | `widget` | `widget:<widgetId>` | other widgets, or a column's `zone` |
 
-- Widgets move between columns and sections **while dragging** (on drag over); same-column reordering is
-  finished on drop; `Esc` restores the snapshot.
+- **Nothing moves while dragging.** The draft is left alone; the pointer decides a drop target (a column and
+  the position in it), the column under it gets the darker outline and a thin marker is drawn between the
+  items where the widget would land, and the move is made once, at the drop. The dragged widget stays in place
+  at reduced opacity and the overlay follows the pointer. `Esc` and a drop outside any column change nothing.
+- Over a column's body but not over a widget (the gap between two, below the last) the nearest widget of that
+  column decides, so the marker does not jump to the end.
 - A full column (`MAX_WIDGETS_PER_COLUMN`) refuses the move: the widget stays, **one** toast at the drop.
 - **A column's span travels with it** when columns are swapped (`[8, 4]` becomes `[4, 8]`), see `moveColumn`.
 - The overlay is portalled to `document.body` and draws the real ghost(s) at the grabbed width.
-- Section heights are locked while a widget is dragged (shared hook).
 - Cross-page moves are **not** drag: use the widget's right-click "Move to page".
 
 ## Footer, scopes, drafts
@@ -108,7 +125,8 @@ widget title `DASHBOARD_WIDGET_TITLE_MAX` (80). The builder imports the same con
 | Widget block | Single click does nothing, double click renames | A click action would fire on every double click |
 | Columns | Span travels with its column | A column's width is part of what is moved |
 | Drag preview | Portal on `document.body` | A transformed dialog offsets `position: fixed` |
-| Section height | Only grows during a drag | Shrinking moves the targets |
+| Drag | The draft is not touched until the drop | Every live move redrew the whole page and re-measured every droppable; it was the cost of the builder |
+| Drop marker | Takes no room (negative margins cancel the gaps) | Showing it must not move the targets under the pointer |
 | Drafts | Kept per scope while open, all dropped on leaving | Exit is not an interruption; a reload is |
 | Footer | Preview, Reset and Save in one group; disabled while dragging | One style per row; no half-moved saves |
 | Page | At least one section per page, at most 8 pages | Server schema |

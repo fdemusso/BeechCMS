@@ -10,6 +10,11 @@ relation field work, and **why** each non-obvious choice was made. The builder i
 what looks like an oversight below is a decision taken after trying the alternative. Read the
 [invariants](#invariants-do-not-change-without-a-new-decision) before changing any of it.
 
+The builder is one of two that share an engine: the dashboard builder ([Dashboard Builder](./dashboard-builder.md))
+runs on the same drag logic, section and column frames and draft storage (`src/components/builder/`). What is
+specific to entries (the full-width rule, the field list, the left handle strip, equal-width columns) lives in an
+adapter in `features/entry-editor/builder/`.
+
 ## Layout builder
 
 The builder replaces the entry form inside the entry dialog (the pencil-and-template icon at the top right,
@@ -37,7 +42,7 @@ disabled while the builder is already open). A layout is a list of **tabs**, eac
   `onSelect`) so several can be set in a row. Rename and Remove close it.
 - The current column count is marked with a check on the left and the number sits on the right.
 - Removing a section with **no fields** happens immediately; with fields it asks for confirmation.
-- The menu is **flush** (`FLUSH_MENU` in `section-card.tsx`): no inner padding, square items and no margin on
+- The menu is **flush** (`FLUSH_MENU` in `components/builder/flush-menu.ts`): no inner padding, square items and no margin on
   separators, so the window's own rounded corners (it clips its content) are the only rounding and only the
   first and last item show it. Items have `px-3` so the text is not against the edge.
 
@@ -55,8 +60,8 @@ A field in the builder is drawn as a **ghost**: inert, data-less, at the real co
   untouched.
 - The multi-relation ghost reproduces the real editor's footprint (label row, scroll area, add button).
 - Restricted (hashed) fields and single relations keep their real editor.
-- `FieldGhost` and `FieldBlock` are memoised: while a drag is in progress every sortable re-renders on each
-  pointer move, and re-rendering ghosts is what made it heavy.
+- `FieldGhost` and `FieldBlock` are memoised: dnd-kit redraws every draggable and droppable whenever the drop
+  target changes, and re-rendering ghosts (dozens of inputs and skeletons per redraw) is what made it heavy.
 
 ### Columns and drop areas
 
@@ -72,20 +77,29 @@ A field in the builder is drawn as a **ghost**: inert, data-less, at the real co
 
 ### Drag and drop
 
-- Fields move between columns and sections **while the pointer is moving** (the draft is updated on drag over),
-  so the target shows the real result. Same-column reordering is finished on drop. `Esc` restores the layout as
-  it was when the drag started.
+- **Nothing moves while dragging.** The draft is left alone; the pointer decides a drop target (a column and the
+  position in it), the column under it gets the darker outline and a thin **marker** is drawn between the fields
+  where the dragged one would land, and the move is made once, at the drop. The dragged field stays in place at
+  reduced opacity and the overlay follows the pointer. `Esc` and a drop outside any column change nothing, so
+  there is no snapshot to restore. Live moves (the target opening a gap) were the first design and were
+  **replaced**: every one redrew the whole page and re-measured every droppable.
+- A column under the pointer but not over a field (the gap between two, below the last) is decided by the
+  **nearest field of that column**, so the marker does not jump to the end.
 - The drag preview (`DragOverlay`) is rendered in a **portal on `document.body`**: the entry dialog is
   positioned with a CSS transform, which would otherwise become the reference of the overlay's
   `position: fixed` and shift it away from the pointer. The preview draws the real item, not a generic chip.
-- **Section heights are stable during a drag** (`use-animated-section-height.ts`): a section keeps the height
-  it had when the drag began, grows if its content outgrows it, never shrinks while dragging (whichever section
-  the field goes to next), and eases to its real height at the drop. The dialog is as tall as its content and
-  vertically centred, so a section shrinking mid-drag moves every target under the pointer. Shrink-on-exit and
-  grace-period variants were tried and **rejected**.
+- **Section height: eased at the drop, never touched during the drag** (`use-animated-section-height.ts`, switched
+  on by the entry builder's `SectionCard` with `animateHeight`). Nothing changes size while a field is dragged, but
+  the dialog is as tall as its content and vertically centred, so at the drop two sections change height in one
+  frame and everything recentres. Each section reads its height once at pick-up and, when the drop leaves it
+  at another height, eases between the two (a Web Animation, 160ms; reduced motion skips it). The dashboard builder
+  does not turn it on. Locking sections during the drag (the previous design) is **not** needed any more.
 - Drag-time cost is kept low: the list of droppables a kind of drag may land on is cached per drag kind (the
   droppable list is stable across pointer moves), and collision detection stops at the first accepted hit.
 - A column also has a drag handle (visible on hover, only when a sibling column exists to swap with).
+- A move the layout rules refuse (a full-width field needs a section of its own; a full-width field cannot go
+  into a multi-column section) leaves the field where it was and shows **one** toast at the drop, naming the
+  full-width field in the way.
 
 ### Footer
 
@@ -114,7 +128,8 @@ block the deletion it stays disabled with the same tooltip.
 
 ### Draft recovery
 
-Unsaved work survives a **reload** (`layout-draft-storage.ts`):
+Unsaved work survives a **reload** (`layout-draft-storage.ts`, a thin wrapper over the shared
+`createDraftStorage`: it only names the key and says what a `FormLayout` looks like):
 
 - Stored in `sessionStorage`, one draft per seed, validated structurally on read (not with the strict layout
   schema), with a fingerprint of the layout stored on the server; a draft whose base no longer matches is stale
@@ -240,12 +255,15 @@ For `multiple: true` relations:
 
 ## Drag and drop in depth
 
-This is the part to reuse: the same shape works for any nested, sortable structure edited in a dialog.
+This is the part to reuse: the same shape works for any nested, sortable structure edited in a dialog. The engine
+is shared with the dashboard builder (`src/components/builder/`: `layout-dnd.ts`, `use-layout-dnd.ts`,
+`column-shell.tsx`, `section-shell.tsx`); `use-builder-dnd.ts` is the entry builder's **adapter**: it tells the
+engine how a form layout is shaped and what the entry rules are.
 
 ### One `DndContext`, four kinds of drag
 
-Everything (tabs, sections, columns, fields) lives under a single `DndContext` in `builder-pane.tsx`; all the
-logic is in `use-builder-dnd.ts`. Items are told apart by their **id prefix**, never by where they render:
+Everything (tabs, sections, columns, fields) lives under a single `DndContext` in `builder-pane.tsx`. Items are
+told apart by their **id prefix**, never by where they render:
 
 | Kind | Id | Lands on |
 | --- | --- | --- |
@@ -254,44 +272,46 @@ logic is in `use-builder-dnd.ts`. Items are told apart by their **id prefix**, n
 | `column` | `column:<tab>:<section>:<column>` | other columns |
 | `field` | `field:<branchId>` | other fields, or a column's `zone` |
 
-- A field's id is its **branch id alone**. It must stay the same while the field changes column in the middle
-  of a drag, and an id qualified by its container would change. Where a field sits is looked up in the draft
-  (`locateField`), and each sortable also carries `type`, `tabId`, `sectionId`, `columnId` in its `data`.
-- `ACCEPTS` says what each kind may land on, so a field never collides with a section or a tab.
+- A field's id is its **branch id alone**, not qualified by its container, so it does not depend on where it
+  sits. Where a field sits is looked up in the draft (`locateField`), and each field's draggable and droppable
+  carry `type`, `rootId` (the tab), `sectionId`, `columnId` in their `data`.
+- `makeAccepts('tab', 'field')` says what each kind may land on, so a field never collides with a section or a tab.
 - Each column has an invisible `zone` droppable covering its whole body, so a field can be dropped in an empty
   column or below the last field.
+- Fields are **draggable + droppable, not sortable**: nothing moves, so there are no positions to compute and no
+  `SortableContext` per column. Sections, columns and tabs stay sortable (they do reorder on screen).
+- While a field is dragged, sections and columns **disable their own droppable** (an item lands on a field or a
+  zone, never on a section): fewer rects to measure and fewer candidates per pass.
 
 ### Collision detection: cheap and predictable
 
-`builderCollisionDetection` does three things, in order:
+`createCollisionDetection` does four things, in order:
 
 1. **Filter** the droppables to what the dragged kind accepts. The result is cached in a `WeakMap` keyed by the
    list dnd-kit passes in; that list is only rebuilt when droppables mount, unmount or toggle, not on pointer
    moves, so the filtering runs once per kind instead of on every move and a stale entry cannot outlive its list.
 2. Use `pointerWithin`: whatever is under the pointer. If several overlap, a **field wins over the column
    zone** that surrounds it (that is what makes insertion between two fields precise).
-3. With no pointer (keyboard) or no hit, fall back to `closestCenter` on the accepted droppables.
+3. Over a zone but not over one of its fields, the **nearest field of that column** decides.
+4. With no pointer (keyboard) or no hit, fall back to `closestCenter` on the accepted droppables.
 
-### Live moves between columns
+### Drop-only moves
 
-A field is moved **while dragging**, not at the drop:
+- On `onDragStart`: build the preview. Nothing is snapshotted: the draft does not change.
+- On `onDragMove`: compute the target (column and index). Over a field, the index is that field's, plus one when
+  the dragged item's centre is in its lower half. Over a zone, the index is the end of the column. The target is
+  kept in a ref (read at the drop) and in state, but state is set **only when it changes**, so the page redraws
+  when the marker moves, not on every pointer move.
+- On `onDragEnd`: finish per kind. A field in its own column is reordered (an index after the dragged field counts
+  one place further than where it ends up); in another column it goes through `ops.moveField`, which returns
+  `false` when a rule refuses (one toast, with the label from `getFullWidthWarningLabel`). Sections and columns
+  only reorder within their parent (a cross-tab section drop shows `warnNoCrossTabSection`). Reordering tabs
+  must not change which tab is open.
+- `onDragCancel` (`Esc`) clears the target and nothing else.
 
-- On `onDragStart`: snapshot the draft (`structuredClone`) and build the preview.
-- On `onDragOver` (dnd-kit fires it only when the `over` target changes, so it is cheap): compute the target
-  column and index. Over a field, the index is that field's, plus one when the dragged item's centre is in its
-  lower half. Over a zone, the index is the end of the column. Then call `ops.moveField`.
-- If the target is **the same column**, do nothing: the sortable already animates it and the drop finishes the
-  reorder (`reorderFieldsInColumn`). Do not also move it live.
-- `moveField` returns `false` when a layout rule refuses (a full-width field needs a section of its own). The
-  field stays where it was, the reason is stored in `rejectedRef`, and **one** toast is shown at the drop, not on
-  every pointer move.
-- `onDragCancel` (`Esc`) restores the snapshot with `ops.restoreDraft`, which does not touch what counts as
-  saved.
-- `onDragEnd` finishes per kind. Sections and columns only reorder within their parent (a cross-tab section
-  drop shows a warning). Reordering tabs must not change which tab is open.
-
-Why live and not on drop: the target opens a gap and the user sees the real result, instead of guessing from a
-line. It costs one extra rule: everything that depends on the draft must tolerate it changing mid-drag.
+Why drop-only and not live: a live move re-rendered every block and made dnd-kit re-measure every droppable, more
+than once per move; that was the cost of the builder. A marker costs one small redraw per target change. The price
+is that the user sees where the field will land, not the finished result.
 
 ### The overlay
 
@@ -306,40 +326,43 @@ line. It costs one extra rule: everything that depends on the draft must tolerat
 
 Two channels, kept apart on purpose:
 
-- **`BuilderDragContext`** (`draggingField`, `activeColumnKey`): a small context memoised on `preview` and
-  `draft`. Columns read it to outline themselves and tint the active one; sections read it to lock their
-  height. Because it is a context, no props are threaded through `SectionCard` and `ColumnCard`.
+- **`BuilderDragContext`** (`draggingItem`, `activeColumnKey`, `dropIndex`): a small context memoised on those
+  three primitives, so consumers are redrawn when the drop target changes and not on every pointer move. Columns
+  read it to outline themselves, tint the active one and draw the marker; sections read it to disable their
+  droppable (and to ease their height at the drop). Because it is a context, no props are threaded through
+  `SectionCard` and `ColumnCard`.
 - **`onDraggingChange`** to the host (`schema-form-shell`): used only to stop `Esc` from closing the dialog.
   The footer derives `isDragging` from `dnd.preview !== null`, so it freezes for a drag of **any** kind.
 
 ### Performance rules
 
-While something is dragged dnd-kit re-renders **every** `useSortable` consumer on every pointer move. So:
+dnd-kit redraws the draggables and droppables **when the drop target changes** and after droppables are
+re-measured; it does not redraw them on every pointer move, and a drop-only drag asks for no re-measure while the
+pointer moves. What is left is kept cheap:
 
 - `FieldBlock` and `FieldGhost` are `React.memo`; their `branch` prop keeps its identity (it comes from the
-  seed), so a block re-renders only when its own field changes.
-- Nothing in the drag path reads layout (`offsetHeight`, `getBoundingClientRect`) per move. The height lock uses
-  a `ResizeObserver`, whose entry already carries the size, and it touches state only when the content actually
-  outgrew the section.
+  seed), so a block re-renders only when its own field changes. What a field redraws on its own is its box.
+- **Stable inputs for memoised blocks.** `useLayoutBuilder` returns an `actions` object that does not change
+  while the draft does (`ColumnCard`, `SectionCard`, `FieldItem` take it instead of the whole result), and
+  `mutate` runs the edited clone through `shareStructure`, which hands back the old object for every tab,
+  section and column that did not change. Moves that must validate against the draft (`moveField`,
+  `assignField`) read it from a ref, so they do not depend on it. `SectionCard` and `ColumnCard` are `React.memo`.
+- `getAvailableBranches()` keeps its identity while fields only move around (it is keyed on the sorted set of
+  placed ids), so no column's "Add field" list is rebuilt by a move.
+- The "Add field" list (one item per free branch, in every column) and the section menu are **memoised
+  components** apart from the column and the section, so the redraws a drag causes do not rebuild them.
+- Nothing in the drag path reads layout (`offsetHeight`, `getBoundingClientRect`) per move.
 - Drag handlers are `useCallback`s over `draft`; the expensive work (filtering droppables) is cached as above.
-- The draft is not persisted mid-drag (a field half-way between columns is not a state worth coming back to).
+- The draft is not persisted mid-drag (the layout does not change then; a drop is persisted by the normal timer).
 
-### Stable section heights
+### Section height at the drop
 
-`use-animated-section-height.ts`, used by `SectionCard`:
-
-1. When a field drag starts, measure the section and **lock its height** (`overflow: hidden`). Attach
-   `outerRef` to the bordered box and `innerRef` to a wrapper around all its content: the wrapper's height is
-   the natural height, which the fixed outer height hides. The border is measured once as
-   `outer.offsetHeight - inner.offsetHeight`.
-2. During the drag the height **only rises**, when the content outgrows it (a field dragged in).
-3. At the drop it **eases to the real height** (160ms, 0 with `prefers-reduced-motion`) and then returns to
-   `auto` after the transition.
-
-Reason: the dialog is as tall as its content and vertically centred, so any section that shrinks mid-drag moves
-every target under the pointer and drags the whole dialog with it. If no section can shrink, neither can the
-dialog. Shrinking when the pointer leaves a section, and a grace period before shrinking, were both tried and
-rejected: the first made the layout jump, the second only delayed the jump.
+See "Drag and drop" above. `useAnimatedSectionHeight(dragging, enabled)` reads the section's height once when
+`draggingItem` turns on and, when it turns off, animates from that height to the current one with
+`element.animate()` if they differ. The earlier hook locked every section's height for the whole drag (and grew it
+with a `ResizeObserver`), because a live move shrank the section the field left; with drop-only there is nothing
+to hold. Shrinking when the pointer leaves a section, and a grace period before shrinking, were both tried with
+live moves and rejected.
 
 ## UI principles and simplifications
 
@@ -392,24 +415,27 @@ nothing animates for decoration. Animate the element that really owns the size (
 
 To build another nested drag editor (the dashboard builder is the worked example: see [Dashboard Builder](./dashboard-builder.md)):
 
-1. Pick id prefixes per kind and an `ACCEPTS` table; keep ids stable across containers where the item can move.
-2. Write one collision function: filter, `pointerWithin`, specific item beats its container, `closestCenter`
-   fallback; cache the filtering by the droppable list.
-3. Snapshot on start, move live on over (skip same-container moves), finish same-container reorder on drop,
-   restore on cancel; report refused moves once, at the drop.
-4. Share the "something is being dragged" state through a context, and expose a boolean for the host to freeze
-   `Esc` and the footer.
-5. Memoise the heavy leaves and give them stable props before touching anything else.
+1. Write an adapter for `useLayoutDnd`: id prefixes per kind (`makeDragIds`, `makeAccepts`), how to locate an
+   item, move or reorder it, and the message a refused move gives. Keep ids stable across containers.
+2. Use `createCollisionDetection` (filter, `pointerWithin`, specific item beats its container, nearest item of
+   the column, `closestCenter` fallback), cached by the droppable list.
+3. Do not move anything while dragging: compute a target, draw a marker that takes no room, move once at the
+   drop, report refused moves once, at the drop.
+4. Build the frames from `SectionShell` and `ColumnShell`; share the "something is being dragged" state through
+   `BuilderDragContext` and expose a boolean for the host to freeze `Esc` and the footer.
+5. Memoise the heavy leaves and give them stable props (`actions`, `shareStructure`, a draft ref) before touching
+   anything else.
 6. Portal the overlay to `document.body`, render the real item, size it from `active.rect.current.initial`.
-7. Lock container heights while dragging and ease them at the drop.
-8. Keep the draft out of storage during the drag and recover it after a reload.
+7. If the host is as tall as its content and centred, turn on `animateHeight` on the section.
+8. Wrap `createDraftStorage` for the draft and keep it out of storage during the drag.
 
 ## Invariants (do not change without a new decision)
 
 | Area | Invariant | Reason |
 | --- | --- | --- |
 | Drag preview | Portal on `document.body` | A transformed dialog offsets `position: fixed` |
-| Section height | Only grows during a drag, shrinks at the drop | Shrinking moves targets and the centred dialog |
+| Drag | The draft is not touched until the drop; a marker shows the target and takes no room | Every live move redrew the page and re-measured every droppable |
+| Section height | Not touched during a drag; eased from the pick-up height to the new one at the drop | A centred, content-tall dialog recentres when two sections change in one frame |
 | Footer | Disabled while dragging; Back only closes | No half-moved saves; recovery replaces the discard dialog |
 | Draft | `sessionStorage`, cleared on exit, not on reload | Exit is not an interruption |
 | Drop areas | Thin, continuous, grey, no accent | Product decision |

@@ -8,9 +8,10 @@ import { DndContext, DragOverlay } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ArrowLeft, Eye, EyeOff, Loader as Loader2, Plus } from '@/components/icons'
 import { toast } from 'sonner'
-import type { DashboardLayout } from '@beechcms/core'
+import type { DashboardLayout, DashboardPageLayout } from '@beechcms/core'
 
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DashboardLayoutRenderer } from '../renderer/dashboard-layout-renderer'
@@ -110,10 +111,18 @@ export function BuilderPane({
   }, [writeDraftNow])
 
   const activePage = draft.pages.find((p) => p.id === activePageId) ?? draft.pages[0]
-  const otherPages = React.useMemo(
-    () => draft.pages.filter((p) => p.id !== activePage?.id),
-    [draft.pages, activePage?.id],
-  )
+  // The blocks only use the other pages' ids and names (the "Move to page" menu), so the list keeps its identity
+  // until one of those changes; otherwise every move would redraw every widget.
+  const otherPagesRef = React.useRef<readonly DashboardPageLayout[]>([])
+  const otherPagesNow = draft.pages.filter((p) => p.id !== activePage?.id)
+  const previousOtherPages = otherPagesRef.current
+  if (
+    previousOtherPages.length !== otherPagesNow.length ||
+    otherPagesNow.some((p, i) => p.id !== previousOtherPages[i].id || p.label !== previousOtherPages[i].label)
+  ) {
+    otherPagesRef.current = otherPagesNow
+  }
+  const otherPages = otherPagesRef.current
   const sectionDragIds = (activePage?.sections ?? []).map((s) => dragIds.section(activePage?.id ?? '', s.id))
 
   const configWidget = React.useMemo(() => {
@@ -128,12 +137,15 @@ export function BuilderPane({
 
   return (
     <>
-      <div className="min-w-0 max-w-full flex-1 overflow-y-auto overflow-x-hidden px-6 pb-4 pt-1">
+      {/* The viewport's inner box is `display: table` in Radix, which lets wide content push past the dialog; forcing
+          it to block keeps the columns' `min-w-0` and `truncate` working (same override as relation-multi). */}
+      <ScrollArea className="min-h-0 min-w-0 max-w-full flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
+        <div className="min-w-0 max-w-full px-6 pb-4 pt-1">
         <DndContext
           sensors={dnd.sensors}
           collisionDetection={dashboardCollisionDetection}
           onDragStart={dnd.onDragStart}
-          onDragOver={dnd.onDragOver}
+          onDragMove={dnd.onDragMove}
           onDragEnd={dnd.onDragEnd}
           onDragCancel={dnd.onDragCancel}
         >
@@ -168,7 +180,7 @@ export function BuilderPane({
                             pageId={activePage.id}
                             section={section}
                             otherPages={otherPages}
-                            ops={ops}
+                            ops={ops.actions}
                             canRemove={activePage.sections.length > 1}
                             onConfigureWidget={setConfigTarget}
                           />
@@ -200,6 +212,7 @@ export function BuilderPane({
           )}
         </DndContext>
       </div>
+      </ScrollArea>
 
       {/* ── Footer: Back set apart, then Preview, Reset and Save together ── */}
       <div className="flex shrink-0 items-center justify-end border-t px-6 py-4">

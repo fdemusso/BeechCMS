@@ -2,7 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { shareStructure } from '@/components/builder/share-structure'
 import {
   MAX_SECTIONS_PER_PAGE,
   MAX_WIDGETS_PER_COLUMN,
@@ -34,13 +35,12 @@ export interface MoveWidgetArgs {
   to: { pageId: string; sectionId: string; columnId: string; index?: number }
 }
 
-export interface UseDashboardBuilderResult {
-  draft: DashboardLayout
-  /** What counts as saved: `isDirty` is the draft differing from it. */
-  saved: DashboardLayout
-  activePageId: string
+/**
+ * Everything the builder can do to the layout. None of it depends on the draft, so the object keeps its identity
+ * while the draft changes: memoised blocks take this, not the whole result, and are not redrawn on every move.
+ */
+export interface DashboardBuilderActions {
   setActivePageId: (id: string) => void
-  isDirty: boolean
 
   addPage(label?: string): boolean
   renamePage(pageId: string, label: string): void
@@ -100,6 +100,16 @@ export interface UseDashboardBuilderResult {
   reset(): void
 }
 
+export interface UseDashboardBuilderResult extends DashboardBuilderActions {
+  draft: DashboardLayout
+  /** What counts as saved: `isDirty` is the draft differing from it. */
+  saved: DashboardLayout
+  activePageId: string
+  isDirty: boolean
+  /** The same actions as above in one stable object. */
+  actions: DashboardBuilderActions
+}
+
 const COLUMN_PRESETS: ReadonlyArray<readonly number[]> = [
   [12],
   [6, 6],
@@ -146,8 +156,13 @@ export function useDashboardBuilder({ initialLayout, restoredDraft }: UseDashboa
     [draft, storedInitial],
   )
 
+  // The latest draft for the moves that validate before they mutate, so those callbacks need not depend on it.
+  const draftRef = useRef(draft)
+  draftRef.current = draft
+
   const mutate = useCallback((fn: (d: DashboardLayout) => DashboardLayout) => {
-    setDraft((prev) => fn(structuredClone(prev)))
+    // Untouched sections, columns and widgets keep their identity, so memoised blocks skip the redraw.
+    setDraft((prev) => shareStructure(prev, fn(structuredClone(prev))))
   }, [])
 
   // ── Page ops ─────────────────────────────────────────────────────────────
@@ -387,10 +402,11 @@ export function useDashboardBuilder({ initialLayout, restoredDraft }: UseDashboa
 
   const moveWidget = useCallback(
     ({ from, to }: MoveWidgetArgs): boolean => {
-      const fromPage = draft.pages.find((p) => p.id === from.pageId)
+      const { pages } = draftRef.current
+      const fromPage = pages.find((p) => p.id === from.pageId)
       const fromSection = fromPage?.sections.find((s) => s.id === from.sectionId)
       const fromColumn = fromSection?.columns.find((c) => c.id === from.columnId)
-      const toPage = draft.pages.find((p) => p.id === to.pageId)
+      const toPage = pages.find((p) => p.id === to.pageId)
       const toSection = toPage?.sections.find((s) => s.id === to.sectionId)
       const toColumn = toSection?.columns.find((c) => c.id === to.columnId)
       if (!fromColumn || !toColumn) return false
@@ -423,18 +439,19 @@ export function useDashboardBuilder({ initialLayout, restoredDraft }: UseDashboa
 
       return true
     },
-    [draft, mutate],
+    [mutate],
   )
 
   const moveWidgetToPage = useCallback(
     (from: MoveWidgetArgs['from'], toPageId: string): boolean => {
-      const fromPage = draft.pages.find((p) => p.id === from.pageId)
+      const { pages } = draftRef.current
+      const fromPage = pages.find((p) => p.id === from.pageId)
       const fromSection = fromPage?.sections.find((s) => s.id === from.sectionId)
       const fromColumn = fromSection?.columns.find((c) => c.id === from.columnId)
       if (!fromColumn) return false
       const widgetIdx = fromColumn.widgets.findIndex((w) => w.id === from.widgetId)
       if (widgetIdx === -1) return false
-      const toPage = draft.pages.find((p) => p.id === toPageId)
+      const toPage = pages.find((p) => p.id === toPageId)
       const targetColumn = toPage?.sections[0]?.columns[0]
       if (!targetColumn) return false
 
@@ -458,7 +475,7 @@ export function useDashboardBuilder({ initialLayout, restoredDraft }: UseDashboa
 
       return true
     },
-    [draft, mutate],
+    [mutate],
   )
 
   const removeWidget = useCallback((pageId: string, sectionId: string, columnId: string, widgetId: string) => {
@@ -501,13 +518,10 @@ export function useDashboardBuilder({ initialLayout, restoredDraft }: UseDashboa
     setActivePageId(initialLayout.pages[0]?.id ?? '')
   }, [initialLayout])
 
-  // Stable between renders that change nothing, so memoised blocks are not redrawn on every drag move.
-  return useMemo(() => ({
-    draft,
-    saved: storedInitial,
-    activePageId,
+  // Nothing in here reads the draft, so the object is stable while the draft changes: memoised blocks take
+  // this, and are not redrawn on every drag move.
+  const actions = useMemo<DashboardBuilderActions>(() => ({
     setActivePageId,
-    isDirty,
     addPage,
     renamePage,
     removePage,
@@ -532,11 +546,7 @@ export function useDashboardBuilder({ initialLayout, restoredDraft }: UseDashboa
     restoreDraft,
     reset,
   }), [
-    draft,
-    storedInitial,
-    activePageId,
     setActivePageId,
-    isDirty,
     addPage,
     renamePage,
     removePage,
@@ -561,4 +571,9 @@ export function useDashboardBuilder({ initialLayout, restoredDraft }: UseDashboa
     restoreDraft,
     reset,
   ])
+
+  return useMemo(
+    () => ({ ...actions, actions, draft, saved: storedInitial, activePageId, isDirty }),
+    [actions, draft, storedInitial, activePageId, isDirty],
+  )
 }
