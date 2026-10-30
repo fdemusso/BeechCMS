@@ -4,9 +4,20 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono, type Context } from 'hono'
-import { SystemClock, type MediaObject, type MediaRepository } from '@beechcms/core'
+import {
+    GLOBAL_SCOPE,
+    SystemClock,
+    hasPermission,
+    type ActivityLogVisibility,
+    type EffectivePermissions,
+    type MediaObject,
+    type MediaRepository,
+    type Seed,
+} from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { publicProblem } from '../../public/errors/problem-details'
+import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
+import { filterSeedsByPermission } from '../../shared/rbac/scoped-projection'
 import { cleanStr, parsePositiveInt } from '../../shared/utils/query-utils'
 import { zodQuery } from '../../shared/utils/zod-query'
 import { mediaLibraryQuerySchema, recentActivityQuerySchema } from './stats.schema'
@@ -55,6 +66,20 @@ async function listAllTrackedMedia(mediaRepository: MediaRepository): Promise<Me
         if (items.length < MEDIA_SCAN_BATCH || mediaOffset + MEDIA_SCAN_BATCH >= total) break
     }
     return trackedMedia
+}
+
+/**
+ * Activity rows a caller may see: every seed slug for a global reader, else only the
+ * readable seeds; rows tied to no seed (media, schema, security) need a global `manage_users`.
+ */
+function activityVisibility(
+    effective: EffectivePermissions,
+    readableSeeds: readonly Seed[],
+): ActivityLogVisibility {
+    return {
+        seeds: hasPermission(effective, 'content:read', GLOBAL_SCOPE) ? 'all' : readableSeeds.map(seed => seed.slug),
+        includeUnscoped: hasPermission(effective, 'manage_users', GLOBAL_SCOPE),
+    }
 }
 
 const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -198,29 +223,37 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
   })
 
   /**
-   * GET /stats/total - Global content statistics for dashboard
+   * GET /stats/total - Content statistics for dashboard, limited to the seeds the caller may read.
+   * The projection is the authorization decision for this route (route row is `authenticated`).
    */
   .get('/stats/total', async (context) => {
     try {
-        const now = SystemClock.nowSeconds()
+        const effective = await resolveEffectivePermissions(context)
+        const readableSeeds = filterSeedsByPermission(context.get('seedRegistry').all(), effective, 'content:read')
+        if (readableSeeds.length === 0) {
+            return context.json({ total: 0, today: 0, week: 0, month: 0 }, 200)
+        }
+
+        const now = context.get('clock').nowSeconds()
         const twentyFourHoursAgo = now - HOURS_24_IN_SECONDS
         const sevenDaysAgo       = now - DAYS_7_IN_SECONDS
         const thirtyDaysAgo      = now - DAYS_30_IN_SECONDS
 
         // Total: SUM of per-seed counts (current live entries)
-        const seeds = context.get('seedRegistry').all()
         const widgetRepository = context.get('widgetRepository')
         const countResults = await Promise.all(
-            seeds.map(seed => widgetRepository.aggregate(seed, { op: 'count' }, 'all'))
+            readableSeeds.map(seed => widgetRepository.aggregate(seed, { op: 'count' }, 'all'))
         )
         const totalEntriesCount = countResults.reduce((accumulator, count) => accumulator + count, 0)
 
         // today/week/month: create events in activity_logs (entity_type = 'content')
+        // Content-create rows always carry a slug, so unscoped rows never count here.
+        const visibility = { ...activityVisibility(effective, readableSeeds), includeUnscoped: false }
         const activityLogRepository = context.get('activityLogRepository')
         const [todayCount, weekCount, monthCount] = await Promise.all([
-            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: twentyFourHoursAgo }),
-            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: sevenDaysAgo }),
-            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: thirtyDaysAgo }),
+            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: twentyFourHoursAgo, visibility }),
+            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: sevenDaysAgo, visibility }),
+            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: thirtyDaysAgo, visibility }),
         ])
 
         return context.json({
@@ -241,7 +274,8 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
   })
 
   /**
-   * GET /stats/recent-activity - Latest activities registered in the system
+   * GET /stats/recent-activity - Latest activities the caller may see
+   * The projection is the authorization decision for this route (route row is `authenticated`).
    * No ETag on this endpoint: the activity feed must always be fresh after
    * every mutation. Cache-Control: no-store prevents the browser from keeping a
    * response that could be returned as a 304 stale.
@@ -250,8 +284,20 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
     try {
         const slug = cleanStr(context.req.valid('query').slug)
 
+        const effective = await resolveEffectivePermissions(context)
+        const readableSeeds = filterSeedsByPermission(context.get('seedRegistry').all(), effective, 'content:read')
+        const visibility = activityVisibility(effective, readableSeeds)
+
+        context.header('Cache-Control', 'no-store')
+
+        // A slug outside the perimeter answers empty, never 403: no existence oracle.
+        const slugOutsidePerimeter = slug !== null && Array.isArray(visibility.seeds) && !visibility.seeds.includes(slug)
+        const nothingVisible = Array.isArray(visibility.seeds) && visibility.seeds.length === 0 && !visibility.includeUnscoped
+        if (slugOutsidePerimeter || nothingVisible) return context.json([], 200)
+
         const entries = await context.get('activityLogRepository').list({
             entitySlug: slug ?? undefined,
+            visibility,
             limit: 15,
         })
 
@@ -270,8 +316,6 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
             details: entry.details,
             created_at: entry.createdAt,
         }))
-
-        context.header('Cache-Control', 'no-store')
 
         return context.json(activities, 200)
     } catch (error) {
@@ -404,10 +448,13 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
   /**
    * GET /stats/breakdown - Content distribution for "Content Pulse" widget
+   * The projection is the authorization decision for this route (route row is `authenticated`).
    */
   .get('/stats/breakdown', async (context) => {
     try {
-        const seeds = context.get('seedRegistry').all()
+        const effective = await resolveEffectivePermissions(context)
+        const seeds = filterSeedsByPermission(context.get('seedRegistry').all(), effective, 'content:read')
+        if (seeds.length === 0) return context.json([], 200)
 
         const widgetRepository = context.get('widgetRepository')
         const counts = await Promise.all(

@@ -110,7 +110,19 @@ const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   // strictly narrower than a global `content:read` gate — a caller with no readable seed
   // receives an empty list, a seed-scoped caller receives their own subset.
   { method: 'GET',    pattern: /^\/api\/content\/drafts$/,                 requirement: AUTHED },
-  { method: 'GET',    pattern: /^\/api\/content\/stats\/[^/]+$/,           requirement: perm('view_analytics', 'global') },
+  // The handler's scope projection is the authorization decision for these three routes:
+  // counts and the activity feed cover only seeds the caller may read (brief: stats leak).
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/total$/,           requirement: AUTHED },
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/breakdown$/,       requirement: AUTHED },
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/recent-activity$/, requirement: AUTHED },
+  // Media belongs to no seed: only a global reader may list it; one seed-scoped grant is not enough.
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/media-library$/,   requirement: perm('content:read', 'global') },
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/unused-media$/,    requirement: perm('content:read', 'global') },
+  // Exposes seed slugs and system state: administration only.
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/setup-checklist$/, requirement: perm('manage_users', 'global') },
+  // Infrastructure, not seed data.
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/health$/,          requirement: perm('view_analytics', 'global') },
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/cloudflare$/,      requirement: perm('view_analytics', 'global') },
   { method: 'POST',   pattern: /^\/api\/content\/stats\/storage\/sync$/,   requirement: perm('view_analytics', 'global') },
   // Coarse gate only. The exact decision — creator OR holder of content:create on the job's
   // TARGET seed — is made in the handler, because that scope is not in the URL. Same shape as

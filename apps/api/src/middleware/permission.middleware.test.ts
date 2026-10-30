@@ -28,6 +28,26 @@ describe('resolveRouteRule', () => {
   })
 })
 
+describe('resolveRouteRule — stats routes', () => {
+  const STATS_REQUIREMENTS = [
+    { method: 'GET', path: '/api/content/stats/total', requirement: { kind: 'authenticated' } },
+    { method: 'GET', path: '/api/content/stats/breakdown', requirement: { kind: 'authenticated' } },
+    { method: 'GET', path: '/api/content/stats/recent-activity', requirement: { kind: 'authenticated' } },
+    { method: 'GET', path: '/api/content/stats/media-library', requirement: { kind: 'permission', permission: 'content:read', scope: 'global' } },
+    { method: 'GET', path: '/api/content/stats/unused-media', requirement: { kind: 'permission', permission: 'content:read', scope: 'global' } },
+    { method: 'GET', path: '/api/content/stats/setup-checklist', requirement: { kind: 'permission', permission: 'manage_users', scope: 'global' } },
+    { method: 'GET', path: '/api/content/stats/health', requirement: { kind: 'permission', permission: 'view_analytics', scope: 'global' } },
+    { method: 'GET', path: '/api/content/stats/cloudflare', requirement: { kind: 'permission', permission: 'view_analytics', scope: 'global' } },
+    { method: 'POST', path: '/api/content/stats/storage/sync', requirement: { kind: 'permission', permission: 'view_analytics', scope: 'global' } },
+  ] as const
+
+  it('every stats route resolves to its own requirement', () => {
+    const resolved = STATS_REQUIREMENTS.map(({ method, path }) => resolveRouteRule(method, path)?.requirement)
+
+    expect(resolved).toEqual(STATS_REQUIREMENTS.map(({ requirement }) => requirement))
+  })
+})
+
 describe('permissionMiddleware', () => {
   let db: D1TestDatabase
   let app: ReturnType<typeof createBeechApp>
