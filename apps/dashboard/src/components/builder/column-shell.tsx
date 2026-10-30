@@ -19,6 +19,13 @@ export interface ColumnShellProps {
   /** Whether the column can be dragged to swap places: false when it is its section's only column. */
   readonly reorderable: boolean
   readonly dragLabel: string
+  /**
+   * The look of the column's top handle: its offset, padding, corners, border and colour. The shell only keeps what
+   * makes it a handle (centred, revealed on hover or focus), so each builder sets its own size and style.
+   */
+  readonly handleClassName: string
+  /** The grip icon inside the handle: its size and rotation. */
+  readonly handleIconClassName: string
   /** Spacing between the items, in Tailwind spacing steps (`3` is `gap-3`, `0.5` is `gap-0.5`). */
   readonly gap: number
   readonly style?: React.CSSProperties
@@ -55,6 +62,8 @@ export function ColumnShell({
   itemCount,
   reorderable,
   dragLabel,
+  handleClassName,
+  handleIconClassName,
   gap,
   style,
   children,
@@ -92,11 +101,14 @@ export function ColumnShell({
         <button
           type="button"
           aria-label={dragLabel}
-          className="absolute -top-3 left-1/2 z-10 -translate-x-1/2 cursor-grab touch-none rounded-control border bg-background px-3 py-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 group-hover/column:opacity-100"
+          className={cn(
+            'absolute left-1/2 z-10 -translate-x-1/2 cursor-grab touch-none opacity-0 transition-opacity focus-visible:opacity-100 group-hover/column:opacity-100',
+            handleClassName,
+          )}
           {...attributes}
           {...listeners}
         >
-          <GripDots className="size-6 rotate-90" />
+          <GripDots className={handleIconClassName} />
         </button>
       )}
 

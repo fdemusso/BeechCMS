@@ -24,6 +24,8 @@ function renderColumn(dragState: BuilderDragState) {
         itemCount={2}
         reorderable={false}
         dragLabel="Drag the column"
+        handleClassName=""
+        handleIconClassName=""
         gap={0.5}
         footer={<span data-testid="footer" />}
       >

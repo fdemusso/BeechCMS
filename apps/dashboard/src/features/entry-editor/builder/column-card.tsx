@@ -248,6 +248,9 @@ export const ColumnCard = React.memo(function ColumnCard({
       itemCount={fields.length}
       reorderable={reorderable}
       dragLabel={translate('layoutBuilder.dragColumn')}
+      // As small and quiet as the strip beside a field, and unrelated to the dashboard builder's handle.
+      handleClassName="-top-2 rounded-md px-2 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground"
+      handleIconClassName="size-4 rotate-90"
       gap={0.5}
       footer={
         availableBranches.length > 0 ? (

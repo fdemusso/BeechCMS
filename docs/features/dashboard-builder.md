@@ -25,7 +25,9 @@ are the same system with a small adapter each (`features/entry-editor/builder/` 
   context) and `use-layout-dnd.ts` (`useLayoutDnd(adapter)`: drop-only drag, one move at the drop). Each builder's
   `use-*-dnd.ts` only says how its layout is shaped and what its rules are.
 - **Frames**: `SectionShell` (sortable, header with inline rename, count, menu, remove confirmation, optional
-  `animateHeight`) and `ColumnShell` (sortable, drop zone, outlines, top handle, drop marker).
+  `animateHeight`) and `ColumnShell` (sortable, drop zone, outlines, top handle, drop marker). The look of the column handle is
+  **not** shared: each builder passes its own `handleClassName` / `handleIconClassName` (entries: small and quiet like
+  the strip beside a field; dashboard: the larger bordered one).
 - **Drafts**: `draft-storage.ts` (`createDraftStorage`, `fingerprintLayout`); each builder wraps it with its key
   prefix and the shape of its layout.
 - **Render stability**: `share-structure.ts` (`shareStructure`: an edited clone keeps the identity of what did not
