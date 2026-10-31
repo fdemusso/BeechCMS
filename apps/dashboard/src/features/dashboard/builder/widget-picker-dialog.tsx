@@ -11,7 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { isWidgetDisabled, listWidgetDefinitions } from '../registry/widget-registry'
+import type { EffectivePermissions } from '@beechcms/core'
+import { isWidgetDefinitionUsable, isWidgetDisabled, listWidgetDefinitions } from '../registry/widget-registry'
 import type { WidgetDefinition } from '../registry/widget-definition'
 import { resolveIcon as resolveRegistryIcon } from '@/lib/icon-registry'
 
@@ -24,23 +25,26 @@ export interface WidgetPickerDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly onSelect: (type: string) => void
+  /** Definitions this authority cannot use are not offered. */
+  readonly permissions: EffectivePermissions
 }
 
 const CATEGORY_ORDER: WidgetDefinition['category'][] = ['stats', 'charts', 'content', 'system', 'custom']
 
-export function WidgetPickerDialog({ open, onOpenChange, onSelect }: WidgetPickerDialogProps) {
+export function WidgetPickerDialog({ open, onOpenChange, onSelect, permissions }: WidgetPickerDialogProps) {
   const { t } = useTranslation()
 
   const grouped = React.useMemo(() => {
     const defs = listWidgetDefinitions()
     const map = new Map<WidgetDefinition['category'], WidgetDefinition[]>()
     for (const def of defs) {
+      if (!isWidgetDefinitionUsable(def, permissions)) continue
       const list = map.get(def.category) ?? []
       list.push(def)
       map.set(def.category, list)
     }
     return map
-  }, [])
+  }, [permissions])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

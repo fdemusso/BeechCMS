@@ -89,9 +89,24 @@ export default defineWidget<WidgetConfig>({
   configSchema,
   defaultConfig: { seedSlug: 'posts', window: 'month' },
   component: MetricsWidget,
-  minColumnSpan: 1
+  minColumnSpan: 1,
+  requires: { kind: 'seed-read' }
 })
 ```
+
+#### Permission requirements
+
+`requires` declares what a caller needs to use the widget. It is optional: when absent, every caller can use it. Three kinds exist:
+
+| Kind | Met when the caller holds |
+| :--- | :--- |
+| `{ kind: 'global-permission', permission }` | `permission` at the global scope. A grant on a single seed never satisfies it. |
+| `{ kind: 'seed-read' }` | `content:read` on the widget's `config.seedSlug`. A widget bound to no seed needs `content:read` on at least one seed. |
+| `{ kind: 'any-seed-read' }` | `content:read` on at least one seed. |
+
+An unmet requirement hides the widget from the dashboard (a section or tab left empty is hidden too) and removes it from the builder's widget palette.
+
+This is cosmetic. The dashboard evaluates `requires` with `isWidgetRequirementMet` from `@beechcms/core`, but the widget's data routes must still enforce RBAC on their own (see [Security Model](#security-model)). Built-in `core/` widgets ignore `requires`: core resolves their requirements itself.
 
 ### 2. Available SDK Hooks & UI Primitives
 

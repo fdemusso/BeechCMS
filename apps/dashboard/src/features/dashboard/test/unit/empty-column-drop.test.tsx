@@ -27,7 +27,11 @@ import { widgetClientFromGet, type WidgetGet } from "@/test/widget-client"
 import { WidgetSdkProvider } from "@beechcms/widget-sdk"
 import "@/features/dashboard/registry/builtin-widgets"
 import { BuilderPane } from "@/features/dashboard/builder/builder-pane"
+import { hydrateEffectivePermissions } from "@/features/shared/hooks/use-permissions"
+import { FULL_AUTHORITY } from "@/test/me-payload"
 import { useDashboardBuilder } from "@/features/dashboard/builder/use-dashboard-builder"
+
+const fullAuthority = hydrateEffectivePermissions(FULL_AUTHORITY)
 
 const widgetGet = vi.fn<WidgetGet>()
 const widgetClient = widgetClientFromGet((url, config) => widgetGet(url, config))
@@ -55,7 +59,7 @@ const LAYOUT: DashboardLayout = {
 
 function Harness() {
   const ops = useDashboardBuilder({ initialLayout: LAYOUT })
-  return <BuilderPane ops={ops} isSaving={false} onSave={vi.fn()} onReset={vi.fn()} onClose={vi.fn()} />
+  return <BuilderPane ops={ops} isSaving={false} onSave={vi.fn()} onReset={vi.fn()} onClose={vi.fn()} permissions={fullAuthority} />
 }
 
 describe("dashboard builder: dropping a widget on an empty column", () => {
@@ -128,7 +132,7 @@ describe("dashboard builder: dropping a widget onto a widget of another column",
     function CapturingHarness() {
       const ops = useDashboardBuilder({ initialLayout: layout })
       captured.ops = ops
-      return <BuilderPane ops={ops} isSaving={false} onSave={vi.fn()} onReset={vi.fn()} onClose={vi.fn()} />
+      return <BuilderPane ops={ops} isSaving={false} onSave={vi.fn()} onReset={vi.fn()} onClose={vi.fn()} permissions={fullAuthority} />
     }
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
     render(

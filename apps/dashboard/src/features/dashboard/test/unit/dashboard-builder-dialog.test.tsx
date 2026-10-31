@@ -14,15 +14,20 @@ const mocked = vi.hoisted(() => ({
   saveLayout: vi.fn(),
   resetLayout: vi.fn(),
   getRoles: vi.fn(),
+  me: vi.fn(),
 }))
 
+// The builder waits for me: its generated draft and its widget palette depend on the caller's authority.
 vi.mock("@/lib/rpc", () => ({
-  rpc: { api: { "dashboard-layout": {
-    $get: mocked.getLayout,
-    $put: mocked.saveLayout,
-    $delete: mocked.resetLayout,
-    roles: { $get: mocked.getRoles },
-  } } },
+  rpc: { api: {
+    settings: { me: { $get: mocked.me } },
+    "dashboard-layout": {
+      $get: mocked.getLayout,
+      $put: mocked.saveLayout,
+      $delete: mocked.resetLayout,
+      roles: { $get: mocked.getRoles },
+    },
+  } },
 }))
 
 vi.mock("sonner", () => ({
@@ -34,6 +39,7 @@ vi.mock("sonner", () => ({
 }))
 
 import { widgetClientFromGet } from "@/test/widget-client"
+import { FULL_AUTHORITY, meResponseBody } from "@/test/me-payload"
 import { ApiError } from "@/lib/http/api-error"
 import { toast } from "sonner"
 import { WidgetSdkProvider } from "@beechcms/widget-sdk"
@@ -93,6 +99,7 @@ describe("DashboardBuilderDialog", () => {
     vi.clearAllMocks()
     mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: null }) })
     mocked.getRoles.mockResolvedValue({ json: async () => ROLES })
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody(FULL_AUTHORITY) })
   })
 
   it("saves the cleaned layout via PUT and invalidates the layout query on success", async () => {
@@ -197,5 +204,27 @@ describe("DashboardBuilderDialog", () => {
     await waitFor(() => expect(mocked.resetLayout).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(toast.success).toHaveBeenCalled())
     expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it("saves a generated draft without the setup checklist for an author lacking manage_users", async () => {
+    const author = { global: ["manage_roles", "content:read"], byScope: {} }
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody(author) })
+    mocked.saveLayout.mockResolvedValue({
+      json: async () => ({ ok: true, layout: makeLayout(), warnings: [] }),
+    })
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    await userEvent.click(await screen.findByRole("button", { name: "Add Section" }))
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() => expect(mocked.saveLayout).toHaveBeenCalledTimes(1))
+    const { json: saved } = mocked.saveLayout.mock.calls[0][0] as { json: DashboardLayout }
+    const savedTypes = saved.pages.flatMap((page) =>
+      page.sections.flatMap((section) => section.columns.flatMap((col) => col.widgets.map((w) => w.type))),
+    )
+    expect(savedTypes).toEqual(["core/publication-stats"])
   })
 })

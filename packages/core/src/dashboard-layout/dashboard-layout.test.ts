@@ -3,6 +3,9 @@
 
 import { describe, expect, it } from 'vitest'
 import type { Seed } from '../engine/types.js'
+import { buildEffectivePermissions } from '../rbac/evaluate.js'
+import { PERMISSIONS, type Permission, type Scope } from '../rbac/permissions.js'
+import type { EffectivePermissions } from '../rbac/types.js'
 import {
   MAX_DASHBOARD_LAYOUT_BYTES,
   MAX_ROLES_PER_PAGE,
@@ -72,13 +75,39 @@ function singleSectionLayout(
 
 const ctx: DashboardLayoutContext = { seedSlugs: new Set(['articoli', 'pagine']) }
 
+// The generator is permission-aware; the pre-existing cases exercise the full default, so they hold every permission.
+const FULL_AUTHORITY: EffectivePermissions = {
+  global: new Set<Permission>(PERMISSIONS),
+  byScope: new Map(),
+}
+
+/** Effective authority from (permissions, scope) grants, folded by the real core evaluator. */
+function authorityFrom(...grants: Array<{ permissions: Permission[]; scope: Scope }>): EffectivePermissions {
+  const roles = grants.map((grant, i) => ({
+    id: `role-${i}`,
+    name: `role-${i}`,
+    description: null,
+    isSystem: false,
+    permissions: grant.permissions,
+    createdAt: 0,
+    updatedAt: 0,
+  }))
+  const assignments = grants.map((grant, i) => ({
+    id: `assignment-${i}`,
+    userId: 'viewer-1',
+    roleId: `role-${i}`,
+    scope: grant.scope,
+  }))
+  return buildEffectivePermissions(assignments, roles)
+}
+
 // ---------------------------------------------------------------------------
 // generateDefaultDashboardLayout
 // ---------------------------------------------------------------------------
 
 describe('generateDefaultDashboardLayout', () => {
   it('with zero seeds emits one page with setup + 3-column status sections only', () => {
-    const layout = generateDefaultDashboardLayout([], { newId: sequentialIds() })
+    const layout = generateDefaultDashboardLayout([], FULL_AUTHORITY, { newId: sequentialIds() })
 
     expect(layout.version).toBe(1)
     expect(layout.pages).toHaveLength(1)
@@ -111,6 +140,7 @@ describe('generateDefaultDashboardLayout', () => {
   it('with seeds adds quick-draft, content and media sections bound to the first seed', () => {
     const layout = generateDefaultDashboardLayout(
       [seedStub('pagine'), seedStub('prodotti')],
+      FULL_AUTHORITY,
       { newId: sequentialIds() },
     )
 
@@ -142,6 +172,7 @@ describe('generateDefaultDashboardLayout', () => {
   it("prefers the 'articoli' seed when present", () => {
     const layout = generateDefaultDashboardLayout(
       [seedStub('pagine'), seedStub('articoli')],
+      FULL_AUTHORITY,
       { newId: sequentialIds() },
     )
 
@@ -157,16 +188,74 @@ describe('generateDefaultDashboardLayout', () => {
       [seedStub('pagine'), seedStub('prodotti')],
     ]
     for (const seeds of seedLists) {
-      const layout = generateDefaultDashboardLayout(seeds, { newId: sequentialIds() })
+      const layout = generateDefaultDashboardLayout(seeds, FULL_AUTHORITY, { newId: sequentialIds() })
       expect(dashboardLayoutSchema.parse(layout)).toEqual(layout)
     }
   })
 
   it('falls back to crypto.randomUUID when no id factory is injected', () => {
-    const layout = generateDefaultDashboardLayout([seedStub('articoli')])
+    const layout = generateDefaultDashboardLayout([seedStub('articoli')], FULL_AUTHORITY)
     const ids = allWidgets(layout).map((w) => w.id)
     expect(new Set(ids).size).toBe(ids.length)
     expect(dashboardLayoutSchema.parse(layout)).toEqual(layout)
+  })
+
+  it('a caller holding only content:read on posts gets no admin widgets and every seed widget bound to posts', () => {
+    const reader = authorityFrom({ permissions: ['content:read'], scope: 'posts' })
+
+    const layout = generateDefaultDashboardLayout(
+      [seedStub('articoli'), seedStub('posts')],
+      reader,
+      { newId: sequentialIds() },
+    )
+
+    const types = allWidgets(layout).map((w) => w.type)
+    expect(types).not.toContain('core/setup-checklist')
+    expect(types).not.toContain('core/site-status')
+    expect(types).not.toContain('core/storage')
+    expect(types).not.toContain('core/media-gallery')
+    expect(types).toEqual([
+      'core/publication-stats',
+      'core/quick-draft',
+      'core/recent-content',
+      'core/pending-drafts',
+      'core/activity-feed',
+    ])
+    const seedBound = allWidgets(layout).filter((w) => 'seedSlug' in w.config)
+    expect(seedBound).toHaveLength(3)
+    for (const w of seedBound) expect(w.config['seedSlug']).toBe('posts')
+  })
+
+  it('a caller with content:read and view_analytics but no manage_users gets everything except the setup section', () => {
+    const analyst = authorityFrom({ permissions: ['content:read', 'view_analytics'], scope: '*' })
+
+    const layout = generateDefaultDashboardLayout([seedStub('articoli')], analyst, { newId: sequentialIds() })
+
+    const types = allWidgets(layout).map((w) => w.type)
+    expect(types).not.toContain('core/setup-checklist')
+    expect(types).toHaveLength(8)
+    expect(layout.pages[0].sections).toHaveLength(3)
+    expect(layout.pages[0].sections.every((section) => section.columns.every((col) => col.widgets.length > 0))).toBe(true)
+  })
+
+  it('a caller with no authority gets a layout with no pages', () => {
+    const nobody = authorityFrom()
+
+    const layout = generateDefaultDashboardLayout([seedStub('articoli')], nobody, { newId: sequentialIds() })
+
+    expect(layout).toEqual({ version: 1, pages: [] })
+  })
+
+  it('a caller reading no seed gets no quick-draft even when seeds exist', () => {
+    const operator = authorityFrom({ permissions: ['view_analytics', 'manage_users'], scope: '*' })
+
+    const layout = generateDefaultDashboardLayout([seedStub('articoli')], operator, { newId: sequentialIds() })
+
+    expect(allWidgets(layout).map((w) => w.type)).toEqual([
+      'core/setup-checklist',
+      'core/site-status',
+      'core/storage',
+    ])
   })
 })
 
@@ -449,7 +538,7 @@ describe('dashboardLayoutSchema', () => {
   })
 
   it('accepts the generated default layout', () => {
-    const layout = generateDefaultDashboardLayout([seedStub('articoli')])
+    const layout = generateDefaultDashboardLayout([seedStub('articoli')], FULL_AUTHORITY)
 
     expect(dashboardLayoutSchema.safeParse(layout).success).toBe(true)
   })

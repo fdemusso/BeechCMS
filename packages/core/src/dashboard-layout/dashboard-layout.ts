@@ -3,6 +3,12 @@
 
 import { z } from 'zod'
 import type { Seed } from '../engine/types.js'
+import { hasPermission } from '../rbac/evaluate.js'
+import type { EffectivePermissions } from '../rbac/types.js'
+import {
+  filterDashboardLayoutByWidgetRequirements,
+  resolveCoreWidgetRequirement,
+} from './widget-requirements.js'
 
 // ---------------------------------------------------------------------------
 // Dashboard layout interfaces
@@ -123,12 +129,16 @@ const defaultIdFactory = (): string => crypto.randomUUID()
 
 /** Structural port of the legacy hardcoded dashboard config into a single
  *  'Overview' page. Widgets fetch their own data: configs carry only the
- *  variant and (where relevant) the default seed binding. */
+ *  variant and (where relevant) the default seed binding. The default contains
+ *  only what `permissions` can use: seed bindings take readable seeds only and
+ *  widgets whose requirement is unmet are dropped, so it may come back with no pages. */
 export function generateDefaultDashboardLayout(
   seeds: Seed[],
+  permissions: EffectivePermissions,
   opts?: { newId: () => string },
 ): DashboardLayout {
   const newId = opts?.newId ?? defaultIdFactory
+  const readableSeeds = seeds.filter((seed) => hasPermission(permissions, 'content:read', seed.slug))
 
   const widget = (
     type: string,
@@ -155,7 +165,7 @@ export function generateDefaultDashboardLayout(
     widget('core/storage', { variant: 'gauge' }),
     widget('core/publication-stats', { variant: 'trio' }),
   ]
-  if (seeds.length > 0) {
+  if (readableSeeds.length > 0) {
     statusWidgets.push(widget('core/quick-draft', { variant: 'minimal' }))
   }
   sections.push({
@@ -164,8 +174,8 @@ export function generateDefaultDashboardLayout(
     columns: statusWidgets.map(singleWidgetColumn),
   })
 
-  if (seeds.length > 0) {
-    const seedSlug = seeds.find((s) => s.slug === 'articoli')?.slug ?? seeds[0].slug
+  if (readableSeeds.length > 0) {
+    const seedSlug = readableSeeds.find((s) => s.slug === 'articoli')?.slug ?? readableSeeds[0].slug
 
     // Content row: recent content | pending drafts.
     sections.push({
@@ -190,7 +200,7 @@ export function generateDefaultDashboardLayout(
     })
   }
 
-  return {
+  const layout: DashboardLayout = {
     version: 1,
     pages: [
       {
@@ -202,6 +212,7 @@ export function generateDefaultDashboardLayout(
       },
     ],
   }
+  return filterDashboardLayoutByWidgetRequirements(layout, permissions, resolveCoreWidgetRequirement)
 }
 
 // ---------------------------------------------------------------------------

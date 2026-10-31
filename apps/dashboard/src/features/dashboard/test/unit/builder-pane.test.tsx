@@ -10,10 +10,15 @@ import { MemoryRouter } from "react-router-dom"
 import React from "react"
 import type { DashboardLayout } from "@beechcms/core"
 
-// The builder reads the schema, the stored layout and the role list through rpc; none is under test here.
+// The builder reads the schema, the stored layout, the role list and the caller's authority through rpc; none is under test here.
+// The builder now waits for me: its generated draft and its widget palette depend on the caller's authority.
 vi.mock("@/lib/rpc", () => ({
   rpc: { api: {
     schema: { $get: async () => ({ json: async () => [] }) },
+    settings: { me: { $get: async () => {
+      const { FULL_AUTHORITY, meResponseBody } = await import("@/test/me-payload")
+      return { json: async () => meResponseBody(FULL_AUTHORITY) }
+    } } },
     "dashboard-layout": {
       $get: async () => ({ json: async () => ({ layout: null }) }),
       $put: vi.fn(),

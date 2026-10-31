@@ -8,6 +8,7 @@ import {
   validateDashboardLayout,
   generateDefaultDashboardLayout,
   type DashboardLayout,
+  type EffectivePermissions,
 } from '@beechcms/core'
 import { toast } from 'sonner'
 import { Loader as Loader2 } from '@/components/icons'
@@ -16,6 +17,7 @@ import { isApiError } from '@/lib/http/api-error'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useSchema } from '@/features/shared'
 import { DASHBOARD_QUERY_KEYS } from '@/features/shared'
+import { usePermissions } from '@/features/shared/hooks/use-permissions'
 import { BuilderPane } from './builder-pane'
 import { useDashboardBuilder } from './use-dashboard-builder'
 import { useLayoutRoles } from './use-layout-roles'
@@ -32,7 +34,9 @@ export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: Da
   const { t } = useTranslation()
   const { data: seeds = [] } = useSchema()
 
-  const generatedDefault = React.useMemo(() => generateDefaultDashboardLayout(seeds), [seeds])
+  const { effective, isLoading: permissionsLoading } = usePermissions()
+
+  const generatedDefault = React.useMemo(() => generateDefaultDashboardLayout(seeds, effective), [seeds, effective])
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['dashboard-builder-layout'],
@@ -48,13 +52,14 @@ export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: Da
         <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle>{t('dashboard.builder.title')}</DialogTitle>
         </DialogHeader>
-        {isLoading ? (
+        {isLoading || permissionsLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <BuilderPaneController
             initialLayout={draftSource}
+            permissions={effective}
             onClose={() => onOpenChange(false)}
             onMutated={() => { refetch() }}
           />
@@ -66,11 +71,12 @@ export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: Da
 
 interface BuilderPaneControllerProps {
   readonly initialLayout: DashboardLayout
+  readonly permissions: EffectivePermissions
   readonly onClose: () => void
   readonly onMutated: () => void
 }
 
-function BuilderPaneController({ initialLayout, onClose, onMutated }: BuilderPaneControllerProps) {
+function BuilderPaneController({ initialLayout, permissions, onClose, onMutated }: BuilderPaneControllerProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data: seeds = [] } = useSchema()
@@ -121,5 +127,14 @@ function BuilderPaneController({ initialLayout, onClose, onMutated }: BuilderPan
     }
   }
 
-  return <BuilderPane ops={ops} isSaving={isSaving} onSave={handleSave} onReset={handleReset} onClose={onClose} />
+  return (
+    <BuilderPane
+      ops={ops}
+      isSaving={isSaving}
+      onSave={handleSave}
+      onReset={handleReset}
+      onClose={onClose}
+      permissions={permissions}
+    />
+  )
 }

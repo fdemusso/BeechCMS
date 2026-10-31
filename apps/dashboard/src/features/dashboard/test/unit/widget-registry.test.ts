@@ -7,12 +7,28 @@
 import { describe, it, expect } from "vitest"
 import { z } from "zod"
 import "@/features/dashboard/registry/builtin-widgets"
+import { hydrateEffectivePermissions } from "@/features/shared/hooks/use-permissions"
 import {
   registerWidget,
   getWidgetDefinition,
   listWidgetDefinitions,
   knownWidgetTypes,
+  widgetRequirementOf,
+  isWidgetDefinitionUsable,
 } from "@/features/dashboard/registry/widget-registry"
+
+const guardedSchema = z.object({})
+type GuardedConfig = z.infer<typeof guardedSchema>
+
+registerWidget<GuardedConfig>({
+  type: "@test/guarded",
+  labelKey: "test.guarded.label",
+  category: "custom",
+  configSchema: guardedSchema,
+  defaultConfig: {},
+  component: () => null,
+  requires: { kind: "global-permission", permission: "manage_users" },
+})
 
 /** Expected `listWidgetDefinitions()` order for the 21 built-ins:
  *  category asc (charts < content < stats < system), then labelKey asc. */
@@ -84,5 +100,62 @@ describe("widget registry", () => {
 
     const coreOrder = all.filter((d) => d.type.startsWith("core/")).map((d) => d.type)
     expect(coreOrder).toEqual(CORE_WIDGET_TYPES_IN_ORDER)
+  })
+
+  describe("widgetRequirementOf", () => {
+    it("returns core's requirement for a built-in type", () => {
+      const requirement = widgetRequirementOf({ type: "core/setup-checklist", config: {} })
+
+      expect(requirement).toEqual({ kind: "global-permission", permission: "manage_users" })
+    })
+
+    it("returns the requires of a registered custom definition", () => {
+      const requirement = widgetRequirementOf({ type: "@test/guarded", config: {} })
+
+      expect(requirement).toEqual({ kind: "global-permission", permission: "manage_users" })
+    })
+
+    it("returns undefined for an unregistered custom type", () => {
+      const requirement = widgetRequirementOf({ type: "@acme/ghost", config: {} })
+
+      expect(requirement).toBeUndefined()
+    })
+  })
+
+  describe("isWidgetDefinitionUsable", () => {
+    const definitionOf = (type: string) => {
+      const definition = getWidgetDefinition(type)
+      if (!definition) throw new Error(`${type} is not registered`)
+      return definition
+    }
+
+    it("is false for core/setup-checklist without manage_users globally and true for core/text with no authority", () => {
+      const reader = hydrateEffectivePermissions({ global: [], byScope: { posts: ["manage_users"] } })
+      const nobody = hydrateEffectivePermissions(undefined)
+
+      const checklist = isWidgetDefinitionUsable(definitionOf("core/setup-checklist"), reader)
+      const text = isWidgetDefinitionUsable(definitionOf("core/text"), nobody)
+
+      expect(checklist).toBe(false)
+      expect(text).toBe(true)
+    })
+
+    it("offers core/line-chart, whose default seedSlug is empty, to a caller reading one seed", () => {
+      const reader = hydrateEffectivePermissions({ global: [], byScope: { posts: ["content:read"] } })
+
+      const usable = isWidgetDefinitionUsable(definitionOf("core/line-chart"), reader)
+
+      expect(usable).toBe(true)
+    })
+
+    it("honours the requires of a custom definition", () => {
+      const manager = hydrateEffectivePermissions({ global: ["manage_users"], byScope: {} })
+      const reader = hydrateEffectivePermissions({ global: ["content:read"], byScope: {} })
+
+      const forManager = isWidgetDefinitionUsable(definitionOf("@test/guarded"), manager)
+      const forReader = isWidgetDefinitionUsable(definitionOf("@test/guarded"), reader)
+
+      expect({ forManager, forReader }).toEqual({ forManager: true, forReader: false })
+    })
   })
 })

@@ -17,7 +17,7 @@ import { DashboardBuilderDialog } from "../builder/dashboard-builder-dialog"
 export default function DashboardPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
-  const { layout } = useDashboardLayout()
+  const { layout, isLoading } = useDashboardLayout()
   const [builderOpen, setBuilderOpen] = useState(false)
   const { canGlobally } = usePermissions()
   // Mirrors the perm('manage_roles','global') rows on PUT/DELETE; the server enforces.
@@ -67,7 +67,7 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                <DashboardLayoutRenderer layout={layout} />
+                {!isLoading && <DashboardLayoutRenderer layout={layout} />}
               </div>
             </main>
           </SidebarInset>

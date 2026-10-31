@@ -14,6 +14,7 @@ import {
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { Plus, Eye, EyeOff, Loader as Loader2 } from '@/components/icons'
 import { toast } from 'sonner'
+import type { EffectivePermissions } from '@beechcms/core'
 
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -31,9 +32,11 @@ export interface BuilderPaneProps {
   readonly onSave: () => void
   readonly onReset: () => void
   readonly onClose: () => void
+  /** The author's authority; the widget palette offers only widgets it can use. */
+  readonly permissions: EffectivePermissions
 }
 
-export function BuilderPane({ ops, isSaving, onSave, onReset, onClose }: BuilderPaneProps) {
+export function BuilderPane({ ops, isSaving, onSave, onReset, onClose, permissions }: BuilderPaneProps) {
   const { t } = useTranslation()
   const { draft, activePageId, isDirty } = ops
 
@@ -231,6 +234,7 @@ export function BuilderPane({ ops, isSaving, onSave, onReset, onClose }: Builder
           }
           setPickerTarget(null)
         }}
+        permissions={permissions}
       />
 
       <WidgetConfigSheet

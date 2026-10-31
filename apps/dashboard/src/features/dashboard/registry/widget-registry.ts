@@ -2,6 +2,12 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import {
+  isWidgetRequirementMet,
+  resolveCoreWidgetRequirement,
+  type EffectivePermissions,
+  type WidgetRequirementLookup,
+} from "@beechcms/core"
 import type { WidgetDefinition } from "./widget-definition"
 
 // `any` is required here: the map holds `WidgetDefinition<TConfig>` for many
@@ -46,6 +52,21 @@ export function isWidgetDisabled(type: string): boolean {
 
 export function getWidgetDefinition(type: string): WidgetDefinition | undefined {
   return definitions.get(type)
+}
+
+/** Built-in `core/` types resolve through core's table; any other type through its registered `requires`. */
+export const widgetRequirementOf: WidgetRequirementLookup = (widget) => {
+  if (widget.type.startsWith("core/")) return resolveCoreWidgetRequirement(widget)
+  return getWidgetDefinition(widget.type)?.requires
+}
+
+/** Whether a freshly placed instance of `definition` (its `defaultConfig`) is usable by `permissions`. */
+export function isWidgetDefinitionUsable(definition: WidgetDefinition, permissions: EffectivePermissions): boolean {
+  const config =
+    typeof definition.defaultConfig === "object" && definition.defaultConfig !== null
+      ? (definition.defaultConfig as Record<string, unknown>)
+      : {}
+  return isWidgetRequirementMet(widgetRequirementOf({ type: definition.type, config }), permissions, config)
 }
 
 /** Stable order: category, then labelKey — used by the Sprint 05 picker. */

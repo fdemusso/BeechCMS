@@ -29,23 +29,9 @@ vi.mock("@/lib/auth-context", () => ({
 }))
 
 import { ME_QUERY_KEY } from "@/features/shared/hooks/use-me"
+import { DASHBOARD_QUERY_KEYS } from "@/features/shared"
+import { meResponseBody } from "@/test/me-payload"
 import DashboardPage from "@/features/dashboard/pages/dashboard-page"
-
-const USER_ID = "0f6c2d1e-8b34-4a57-9e10-3c4d5e6f7a81"
-
-function meBody(permissions: { global: string[]; byScope: Record<string, string[]> }) {
-  return {
-    id: USER_ID,
-    email: "ada@example.com",
-    name: "Ada",
-    surname: null,
-    avatarUrl: null,
-    notificationPrefs: { contentCreate: true, contentUpdate: true, contentDelete: true, mediaUpload: false },
-    permissions,
-    isDeveloper: false,
-    manageableScopes: [],
-  }
-}
 
 function renderPage(): QueryClient {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
@@ -72,7 +58,7 @@ describe("DashboardPage", () => {
   })
 
   it("shows the Customize button once me reports manage_roles in global", async () => {
-    mocked.me.mockResolvedValue({ json: async () => meBody({ global: ["manage_roles"], byScope: {} }) })
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody({ global: ["manage_roles"], byScope: {} }) })
 
     renderPage()
 
@@ -80,7 +66,7 @@ describe("DashboardPage", () => {
   })
 
   it("never shows the Customize button when me reports no manage_roles, even for an admin JWT", async () => {
-    mocked.me.mockResolvedValue({ json: async () => meBody({ global: ["content:read"], byScope: {} }) })
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody({ global: ["content:read"], byScope: {} }) })
 
     const client = renderPage()
     await waitForMe(client)
@@ -90,12 +76,22 @@ describe("DashboardPage", () => {
 
   it("never shows the Customize button when me reports manage_roles only under a seed scope", async () => {
     mocked.me.mockResolvedValue({
-      json: async () => meBody({ global: [], byScope: { posts: ["manage_roles"] } }),
+      json: async () => meResponseBody({ global: [], byScope: { posts: ["manage_roles"] } }),
     })
 
     const client = renderPage()
     await waitForMe(client)
 
     expect(screen.queryByRole("button", { name: "Customize" })).not.toBeInTheDocument()
+  })
+
+  it("renders no empty state while me is unresolved", async () => {
+    // A never-settling me keeps the zero-authority default (no pages) from flashing the empty state.
+    mocked.me.mockReturnValue(new Promise(() => {}))
+
+    const client = renderPage()
+    await waitFor(() => expect(client.getQueryState(DASHBOARD_QUERY_KEYS.layout())?.status).toBe("success"))
+
+    expect(screen.queryByText("Nothing to show yet")).not.toBeInTheDocument()
   })
 })
