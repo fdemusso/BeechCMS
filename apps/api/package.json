@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/api",
-  "version": "0.9.6",
+  "version": "0.9.8",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/factory.d.ts",
@@ -35,7 +35,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.9.6",
+    "@beechcms/core": "workspace:^0.9.7",
     "aws4fetch": "^1.0.20",
     "bcryptjs": "^3.0.3",
     "hono": "^4.13.11",
@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.1068.0",
-    "@beechcms/search-client": "workspace:^0.2.2",
+    "@beechcms/search-client": "workspace:^0.2.4",
     "@beechcms/testing": "workspace:*",
     "@cloudflare/vitest-pool-workers": "^0.23.0",
     "@cloudflare/workers-types": "^5.20260911.1",
