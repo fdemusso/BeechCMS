@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import type { Seed } from '../engine/types.js'
 import {
   MAX_DASHBOARD_LAYOUT_BYTES,
+  MAX_ROLES_PER_PAGE,
   MAX_SECTIONS_PER_PAGE,
   MAX_WIDGETS_PER_COLUMN,
   MAX_WIDGET_CONFIG_BYTES,
@@ -328,6 +329,77 @@ describe('validateDashboardLayout', () => {
     expect(res.ok).toBe(false)
     expect(res.warnings).toHaveLength(1)
     expect(allWidgets(res.cleaned).map((w) => w.id)).toEqual(['w-1', 'w-1'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tab audience (page.roles)
+// ---------------------------------------------------------------------------
+
+const ROLE_A = '3f2b8c1e-5a4d-4e7b-9c60-1d2e3f4a5b6c'
+const ROLE_B = '7a9d0e2f-1b3c-4d5e-8f6a-0b1c2d3e4f5a'
+
+function layoutWithPageRoles(roles: string[]): DashboardLayout {
+  const layout = singleSectionLayout([[widget('w-1', 'core/site-status')]])
+  layout.pages[0].roles = roles
+  return layout
+}
+
+describe('dashboardPageSchema roles', () => {
+  it('accepts a roles array of UUID strings', () => {
+    const layout = layoutWithPageRoles([ROLE_A, ROLE_B])
+
+    const res = dashboardLayoutSchema.safeParse(layout)
+
+    expect(res.success).toBe(true)
+  })
+
+  it('rejects more roles than the per-page cap', () => {
+    const roles = Array.from({ length: MAX_ROLES_PER_PAGE + 1 }, (_, i) => `role-${i}`)
+
+    const res = dashboardLayoutSchema.safeParse(layoutWithPageRoles(roles))
+
+    expect(res.success).toBe(false)
+  })
+
+  it('rejects an empty-string role id', () => {
+    const res = dashboardLayoutSchema.safeParse(layoutWithPageRoles(['']))
+
+    expect(res.success).toBe(false)
+  })
+})
+
+describe('validateDashboardLayout roleIds', () => {
+  const ctx: DashboardLayoutContext = { seedSlugs: new Set() }
+
+  it('errors on an unknown role id naming the page slug and the id, and keeps roles intact', () => {
+    const layout = layoutWithPageRoles([ROLE_A, ROLE_B])
+
+    const res = validateDashboardLayout(layout, { ...ctx, roleIds: new Set([ROLE_A]) })
+
+    expect(res).toMatchObject({
+      ok: false,
+      errors: [`Page 'overview': unknown role id '${ROLE_B}'.`],
+    })
+    expect(res.cleaned.pages[0].roles).toEqual([ROLE_A, ROLE_B])
+  })
+
+  it('accepts an unknown role id with no error and no warning when roleIds is absent', () => {
+    const layout = layoutWithPageRoles([ROLE_A])
+
+    const res = validateDashboardLayout(layout, ctx)
+
+    expect(res.ok).toBe(true)
+    expect(res.warnings).toEqual([])
+    expect(res.cleaned.pages[0].roles).toEqual([ROLE_A])
+  })
+
+  it('returns ok when roleIds contains every listed id', () => {
+    const layout = layoutWithPageRoles([ROLE_A, ROLE_B])
+
+    const res = validateDashboardLayout(layout, { ...ctx, roleIds: new Set([ROLE_A, ROLE_B]) })
+
+    expect(res.ok).toBe(true)
   })
 })
 

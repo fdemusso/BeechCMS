@@ -160,6 +160,15 @@ describe("DashboardLayoutRenderer", () => {
     expect(screen.queryByText("MARKER:PageOne")).not.toBeInTheDocument()
   })
 
+  it("renders no tab list and no section for a layout with no pages", () => {
+    const layout: DashboardLayout = { version: 1, pages: [] }
+
+    const { container } = renderLayout(layout)
+
+    expect(container).toBeEmptyDOMElement()
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument()
+  })
+
   it("renders a placeholder for an unknown widget type without affecting siblings", () => {
     const layout = singlePage("overview", "Overview", [
       {

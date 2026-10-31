@@ -7,9 +7,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   validateDashboardLayout,
   generateDefaultDashboardLayout,
-  DEFAULT_DASHBOARD_SCOPE,
-  roleScope,
-  KNOWN_DASHBOARD_ROLES,
   type DashboardLayout,
 } from '@beechcms/core'
 import { toast } from 'sonner'
@@ -17,9 +14,6 @@ import { Loader as Loader2 } from '@/components/icons'
 import { isApiError } from '@/lib/http/api-error'
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useSchema } from '@/features/shared'
 import { DASHBOARD_QUERY_KEYS } from '@/features/shared'
 import { BuilderPane } from './builder-pane'
@@ -33,151 +27,55 @@ export interface DashboardBuilderDialogProps {
   readonly initialLayout: DashboardLayout
 }
 
-const SCOPE_OPTIONS: ReadonlyArray<{ value: string; labelKey: string }> = [
-  { value: DEFAULT_DASHBOARD_SCOPE, labelKey: 'dashboard.builder.scope.default' },
-  ...KNOWN_DASHBOARD_ROLES.map((role) => ({
-    value: roleScope(role),
-    labelKey: `dashboard.builder.scope.${role}`,
-  })),
-]
-
 export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: DashboardBuilderDialogProps) {
   const { t } = useTranslation()
   const { data: seeds = [] } = useSchema()
 
-  const [scope, setScope] = React.useState<string>(DEFAULT_DASHBOARD_SCOPE)
-  const [pendingScope, setPendingScope] = React.useState<string | null>(null)
-  const [isDirty, setIsDirty] = React.useState(false)
-
-  const [prevOpen, setPrevOpen] = React.useState(open)
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) {
-      setScope(DEFAULT_DASHBOARD_SCOPE)
-      setIsDirty(false)
-    }
-  }
-
   const generatedDefault = React.useMemo(() => generateDefaultDashboardLayout(seeds), [seeds])
 
-  const { data: scopeLayoutData, isLoading: isScopeLayoutLoading, refetch: refetchScopeLayout } = useQuery({
-    queryKey: ['dashboard-builder-layout', scope],
-    queryFn: () => dashboardBuilderApi.getLayout(scope),
-    enabled: open,
-  })
-  const { data: defaultLayoutData, isLoading: isDefaultLayoutLoading, refetch: refetchDefaultLayout } = useQuery({
-    queryKey: ['dashboard-builder-layout', DEFAULT_DASHBOARD_SCOPE],
-    queryFn: () => dashboardBuilderApi.getLayout(DEFAULT_DASHBOARD_SCOPE),
-    enabled: open && scope !== DEFAULT_DASHBOARD_SCOPE,
-  })
-  const { refetch: refetchScopes } = useQuery({
-    queryKey: ['dashboard-builder-scopes'],
-    queryFn: dashboardBuilderApi.getScopes,
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['dashboard-builder-layout'],
+    queryFn: dashboardBuilderApi.getLayout,
     enabled: open,
   })
 
-  const isStored = scopeLayoutData?.layout != null
-  const isLoadingDraft =
-    isScopeLayoutLoading || (scope !== DEFAULT_DASHBOARD_SCOPE && isDefaultLayoutLoading)
-  const draftSource: DashboardLayout =
-    scopeLayoutData?.layout ?? defaultLayoutData?.layout ?? generatedDefault ?? initialLayout
-
-  function applyScopeChange(next: string) {
-    setScope(next)
-    setIsDirty(false)
-  }
-
-  function handleScopeChange(next: string) {
-    if (next === scope) return
-    if (isDirty) {
-      setPendingScope(next)
-      return
-    }
-    applyScopeChange(next)
-  }
+  const draftSource: DashboardLayout = data?.layout ?? generatedDefault ?? initialLayout
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex flex-col p-0 gap-0 sm:max-w-[80vw] w-[80vw] h-[90vh] max-h-[90vh]" showCloseButton={false}>
         <DialogHeader className="px-6 pt-6 pb-2">
-          <div className="flex items-center justify-between gap-4">
-            <DialogTitle>{t('dashboard.builder.title')}</DialogTitle>
-            <div className="flex items-center gap-2">
-              <Select value={scope} onValueChange={handleScopeChange}>
-                <SelectTrigger className="w-48" size="sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SCOPE_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {t(opt.labelKey)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!isLoadingDraft && (
-                <Badge variant={isStored ? 'default' : 'secondary'}>
-                  {isStored ? t('dashboard.builder.scope.stored') : t('dashboard.builder.scope.inheritsDefault')}
-                </Badge>
-              )}
-            </div>
-          </div>
+          <DialogTitle>{t('dashboard.builder.title')}</DialogTitle>
         </DialogHeader>
-        {isLoadingDraft ? (
+        {isLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <BuilderPaneController
-            key={scope}
-            scope={scope}
             initialLayout={draftSource}
-            onDirtyChange={setIsDirty}
             onClose={() => onOpenChange(false)}
-            onScopeMutated={() => {
-              refetchScopeLayout()
-              refetchDefaultLayout()
-              refetchScopes()
-            }}
+            onMutated={() => { refetch() }}
           />
         )}
-
-        <ConfirmDialog
-          open={pendingScope !== null}
-          onOpenChange={(o) => { if (!o) setPendingScope(null) }}
-          title={t('dashboard.builder.discardTitle')}
-          description={t('dashboard.builder.discardDesc')}
-          confirmVariant="destructive"
-          onConfirm={() => {
-            const next = pendingScope
-            setPendingScope(null)
-            if (next) applyScopeChange(next)
-          }}
-        />
       </DialogContent>
     </Dialog>
   )
 }
 
 interface BuilderPaneControllerProps {
-  readonly scope: string
   readonly initialLayout: DashboardLayout
-  readonly onDirtyChange: (dirty: boolean) => void
   readonly onClose: () => void
-  readonly onScopeMutated: () => void
+  readonly onMutated: () => void
 }
 
-function BuilderPaneController({ scope, initialLayout, onDirtyChange, onClose, onScopeMutated }: BuilderPaneControllerProps) {
+function BuilderPaneController({ initialLayout, onClose, onMutated }: BuilderPaneControllerProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data: seeds = [] } = useSchema()
 
   const ops = useDashboardBuilder({ initialLayout })
   const [isSaving, setIsSaving] = React.useState(false)
-
-  React.useEffect(() => {
-    onDirtyChange(ops.isDirty)
-  }, [ops.isDirty, onDirtyChange])
 
   async function handleSave() {
     const seedSlugs = new Set(seeds.map((s) => s.slug))
@@ -189,10 +87,10 @@ function BuilderPaneController({ scope, initialLayout, onDirtyChange, onClose, o
 
     setIsSaving(true)
     try {
-      await dashboardBuilderApi.saveLayout(scope, result.cleaned)
+      await dashboardBuilderApi.saveLayout(result.cleaned)
       toast.success(t('dashboard.builder.saved'))
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.layout() })
-      onScopeMutated()
+      onMutated()
       onClose()
     } catch (err) {
       const body = isApiError(err) ? err.data : null
@@ -204,9 +102,9 @@ function BuilderPaneController({ scope, initialLayout, onDirtyChange, onClose, o
 
   async function handleReset() {
     try {
-      await dashboardBuilderApi.resetLayout(scope)
+      await dashboardBuilderApi.resetLayout()
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.layout() })
-      onScopeMutated()
+      onMutated()
       toast.success(t('dashboard.builder.resetDone'))
       onClose()
     } catch {

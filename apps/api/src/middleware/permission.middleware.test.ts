@@ -48,6 +48,29 @@ describe('resolveRouteRule — stats routes', () => {
   })
 })
 
+describe('resolveRouteRule — dashboard-layout routes', () => {
+  const LAYOUT_REQUIREMENTS = [
+    { method: 'GET', path: '/api/dashboard-layout', requirement: { kind: 'authenticated' } },
+    { method: 'GET', path: '/api/dashboard-layout/roles', requirement: { kind: 'permission', permission: 'manage_roles', scope: 'global' } },
+    { method: 'PUT', path: '/api/dashboard-layout', requirement: { kind: 'permission', permission: 'manage_roles', scope: 'global' } },
+    { method: 'DELETE', path: '/api/dashboard-layout', requirement: { kind: 'permission', permission: 'manage_roles', scope: 'global' } },
+  ] as const
+
+  it('every dashboard-layout route resolves to its own requirement', () => {
+    const resolved = LAYOUT_REQUIREMENTS.map(({ method, path }) => resolveRouteRule(method, path)?.requirement)
+
+    expect(resolved).toEqual(LAYOUT_REQUIREMENTS.map(({ requirement }) => requirement))
+  })
+
+  it('resolves no rule for the removed per-scope URLs, so they fail closed', () => {
+    const scopes = resolveRouteRule('GET', '/api/dashboard-layout/scopes')
+    const perRoleUrl = resolveRouteRule('PUT', '/api/dashboard-layout/role:editor')
+
+    expect(scopes).toBeNull()
+    expect(perRoleUrl).toBeNull()
+  })
+})
+
 describe('permissionMiddleware', () => {
   let db: D1TestDatabase
   let app: ReturnType<typeof createBeechApp>

@@ -29,13 +29,6 @@ export class D1DashboardLayoutRepository implements IDashboardLayoutRepository {
     }
   }
 
-  async listScopes(): Promise<string[]> {
-    const rs = await this.db
-      .prepare('SELECT scope FROM dashboard_layouts')
-      .all<{ scope: string }>()
-    return (rs.results ?? []).map((r) => r.scope)
-  }
-
   async upsert(scope: string, layout: DashboardLayout, updatedBy: string): Promise<void> {
     const json = JSON.stringify(layout)
     const now = this.clock.nowSeconds()

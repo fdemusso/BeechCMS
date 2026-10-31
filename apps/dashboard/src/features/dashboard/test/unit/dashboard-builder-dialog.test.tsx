@@ -10,15 +10,16 @@ import React from "react"
 import type { DashboardLayout } from "@beechcms/core"
 
 const mocked = vi.hoisted(() => ({
-  scopes: vi.fn(),
-  saveScope: vi.fn(),
-  resetScope: vi.fn(),
+  getLayout: vi.fn(),
+  saveLayout: vi.fn(),
+  resetLayout: vi.fn(),
 }))
 
 vi.mock("@/lib/rpc", () => ({
   rpc: { api: { "dashboard-layout": {
-    scopes: { $get: mocked.scopes },
-    ":scope": { $put: mocked.saveScope, $delete: mocked.resetScope },
+    $get: mocked.getLayout,
+    $put: mocked.saveLayout,
+    $delete: mocked.resetLayout,
   } } },
 }))
 
@@ -78,11 +79,11 @@ function makeLayout(): DashboardLayout {
 describe("DashboardBuilderDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocked.scopes.mockResolvedValue({ json: async () => [] })
+    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: null }) })
   })
 
   it("saves the cleaned layout via PUT and invalidates the layout query on success", async () => {
-    mocked.saveScope.mockResolvedValue({
+    mocked.saveLayout.mockResolvedValue({
       json: async () => ({ ok: true, layout: makeLayout(), warnings: [] }),
     })
 
@@ -98,9 +99,8 @@ describe("DashboardBuilderDialog", () => {
     const saveButton = screen.getByRole("button", { name: "Save" })
     await userEvent.click(saveButton)
 
-    await waitFor(() => expect(mocked.saveScope).toHaveBeenCalledTimes(1))
-    expect(mocked.saveScope).toHaveBeenCalledWith({
-      param: { scope: "default" },
+    await waitFor(() => expect(mocked.saveLayout).toHaveBeenCalledTimes(1))
+    expect(mocked.saveLayout).toHaveBeenCalledWith({
       json: expect.objectContaining({ version: 1 }),
     })
     await waitFor(() => expect(toast.success).toHaveBeenCalled())
@@ -108,7 +108,7 @@ describe("DashboardBuilderDialog", () => {
   })
 
   it("shows an error toast and does not close the dialog when the save request fails", async () => {
-    mocked.saveScope.mockRejectedValue(new ApiError(500, { detail: "boom" }))
+    mocked.saveLayout.mockRejectedValue(new ApiError(500, { detail: "boom" }))
 
     const onOpenChange = vi.fn()
     render(
@@ -127,7 +127,7 @@ describe("DashboardBuilderDialog", () => {
   })
 
   it("resets the layout via DELETE and closes the dialog", async () => {
-    mocked.resetScope.mockResolvedValue({ json: async () => ({ ok: true }) })
+    mocked.resetLayout.mockResolvedValue({ json: async () => ({ ok: true }) })
 
     const onOpenChange = vi.fn()
     render(
@@ -142,7 +142,7 @@ describe("DashboardBuilderDialog", () => {
     const confirmButton = within(dialog).getByRole("button", { name: "Confirm" })
     await userEvent.click(confirmButton)
 
-    await waitFor(() => expect(mocked.resetScope).toHaveBeenCalledWith({ param: { scope: "default" } }))
+    await waitFor(() => expect(mocked.resetLayout).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(toast.success).toHaveBeenCalled())
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })

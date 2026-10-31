@@ -97,9 +97,13 @@ const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'DELETE', pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: LEGACY_ADMIN },
 
   // --- dashboard layout --------------------------------------------------------
-  { method: 'GET',    pattern: /^\/api\/dashboard-layout(\/.*)?$/,         requirement: AUTHED },
-  { method: 'PUT',    pattern: /^\/api\/dashboard-layout(\/.*)?$/,         requirement: perm('manage_users', 'global') },
-  { method: 'DELETE', pattern: /^\/api\/dashboard-layout(\/.*)?$/,         requirement: perm('manage_users', 'global') },
+  // The handler's projection is the authorization decision for the read: tabs outside the
+  // caller's role audience and widgets on seeds they cannot read never leave the server.
+  { method: 'GET',    pattern: /^\/api\/dashboard-layout\/?$/,             requirement: AUTHED },
+  // Editing is structural (tab audiences) until `manage_layout` exists: `manage_roles@*` only.
+  { method: 'GET',    pattern: /^\/api\/dashboard-layout\/roles$/,         requirement: perm('manage_roles', 'global') },
+  { method: 'PUT',    pattern: /^\/api\/dashboard-layout\/?$/,             requirement: perm('manage_roles', 'global') },
+  { method: 'DELETE', pattern: /^\/api\/dashboard-layout\/?$/,             requirement: perm('manage_roles', 'global') },
 
   // --- /api/content literal prefixes — MUST precede the :slug patterns ---------
   { method: 'GET',    pattern: /^\/api\/content\/notifications$/,          requirement: AUTHED },

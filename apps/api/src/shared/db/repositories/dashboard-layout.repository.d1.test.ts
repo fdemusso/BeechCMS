@@ -82,25 +82,6 @@ describe('D1DashboardLayoutRepository', () => {
     })
   })
 
-  describe('listScopes', () => {
-    it('returns an empty array when there are no rows', async () => {
-      const { db } = makeMockDb({ allResults: [] })
-      const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
-      const scopes = await repo.listScopes()
-      expect(scopes).toEqual([])
-    })
-
-    it('returns the stored scopes', async () => {
-      const allResults = [{ scope: 'default' }, { scope: 'role:admin' }]
-      const { db, prepareMock } = makeMockDb({ allResults })
-      const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
-
-      const scopes = await repo.listScopes()
-      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('SELECT scope FROM dashboard_layouts'))
-      expect(scopes).toEqual(['default', 'role:admin'])
-    })
-  })
-
   describe('upsert', () => {
     it('stamps updated_at from the injected clock, not the wall clock', async () => {
       const expectedTimestamp = Math.floor(FIXED_NOW_MS / 1000)

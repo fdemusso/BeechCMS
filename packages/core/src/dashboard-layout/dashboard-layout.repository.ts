@@ -3,6 +3,9 @@
 
 import type { DashboardLayout } from './dashboard-layout.js'
 
+/** Storage key of the one dashboard layout. Rows under any other key are ignored. */
+export const DEFAULT_DASHBOARD_SCOPE = 'default'
+
 export interface DashboardLayoutRecord {
   scope: string
   layout: DashboardLayout
@@ -13,8 +16,6 @@ export interface DashboardLayoutRecord {
 export interface IDashboardLayoutRepository {
   /** Stored layout for a scope, or null if none was ever saved. */
   get(scope: string): Promise<DashboardLayoutRecord | null>
-  /** Scopes that currently have a stored row — used by the Sprint 06 builder UI. */
-  listScopes(): Promise<string[]>
   /** Upsert. `updatedBy` is the writer's user id. */
   upsert(scope: string, layout: DashboardLayout, updatedBy: string): Promise<void>
   /** Remove the stored row — the "Reset" action. */

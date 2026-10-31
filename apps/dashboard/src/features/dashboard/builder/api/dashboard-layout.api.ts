@@ -7,21 +7,18 @@ import type { DashboardLayout } from '@beechcms/core'
 
 // Response shapes are inferred from the routes; there is no hand-written DTO to keep in step.
 export const dashboardBuilderApi = {
-  /** Raw stored layout for `scope`, or `{ scope, layout: null }` if nothing is stored. Admin-only. */
-  getLayout: async (scope: string) => {
-    const response = await rpc.api['dashboard-layout'][':scope'].$get({ param: { scope } })
+  /** The caller's filtered view of the stored layout, or `{ layout: null }`. For `manage_roles@*` it keeps every tab. */
+  getLayout: async () => {
+    const response = await rpc.api['dashboard-layout'].$get()
     return response.json()
   },
-  /** Closed set of dashboard scopes annotated with whether each has a stored row. Admin-only. */
-  getScopes: async () => {
-    const response = await rpc.api['dashboard-layout'].scopes.$get()
+  /** Needs `manage_roles@*`. */
+  saveLayout: async (layout: DashboardLayout) => {
+    const response = await rpc.api['dashboard-layout'].$put({ json: layout })
     return response.json()
   },
-  saveLayout: async (scope: string, layout: DashboardLayout) => {
-    const response = await rpc.api['dashboard-layout'][':scope'].$put({ param: { scope }, json: layout })
-    return response.json()
-  },
-  resetLayout: async (scope: string): Promise<void> => {
-    await rpc.api['dashboard-layout'][':scope'].$delete({ param: { scope } })
+  /** Removes the stored layout. Needs `manage_roles@*`. */
+  resetLayout: async (): Promise<void> => {
+    await rpc.api['dashboard-layout'].$delete()
   },
 }

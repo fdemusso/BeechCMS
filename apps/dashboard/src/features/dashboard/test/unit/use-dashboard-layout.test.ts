@@ -39,7 +39,7 @@ describe("useDashboardLayout", () => {
   })
 
   it("falls back to the generated default layout when none is stored", async () => {
-    mockResponses({ layout: { scope: "user", layout: null }, schema: [] })
+    mockResponses({ layout: { layout: null }, schema: [] })
 
     const { result } = renderHook(() => useDashboardLayout(), {
       wrapper: wrapper(makeQueryClient()),
@@ -78,7 +78,7 @@ describe("useDashboardLayout", () => {
       ],
     }
 
-    mockResponses({ layout: { scope: "user", layout: storedLayout }, schema: [] })
+    mockResponses({ layout: { layout: storedLayout }, schema: [] })
 
     const { result } = renderHook(() => useDashboardLayout(), {
       wrapper: wrapper(makeQueryClient()),

@@ -42,6 +42,9 @@ export interface DashboardPageLayout {
   label: string
   /** Lucide icon name, same convention as DashboardSeedConfig.icon. */
   icon?: string
+  /** Ids (not names) of the roles this tab targets. Absent or empty = every caller.
+   *  Non-empty = callers holding at least one of them through an active assignment, at any scope. */
+  roles?: string[]
   sections: DashboardSection[]
 }
 
@@ -69,6 +72,7 @@ export const MAX_DASHBOARD_LAYOUT_BYTES = 256 * 1024
 
 export const MAX_SECTIONS_PER_PAGE = 50
 export const MAX_WIDGETS_PER_COLUMN = 50
+export const MAX_ROLES_PER_PAGE = 32
 const ID_MAX = 64
 
 // ---------------------------------------------------------------------------
@@ -98,6 +102,7 @@ export const dashboardPageSchema = z.object({
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(40),
   label: z.string().min(1).max(60),
   icon: z.string().max(40).optional(),
+  roles: z.array(z.string().min(1).max(ID_MAX)).max(MAX_ROLES_PER_PAGE).optional(),
   sections: z.array(dashboardSectionSchema).min(1).max(MAX_SECTIONS_PER_PAGE),
 })
 export const dashboardLayoutSchema = z
@@ -209,6 +214,9 @@ export interface DashboardLayoutContext {
   /** Optional: widget types known to the caller (frontend registry).
    *  When provided, unknown types produce WARNINGS, never strips. */
   knownWidgetTypes?: ReadonlySet<string>
+  /** Optional: ids of every existing role. When provided, a page naming an id outside this set
+   *  is an ERROR (never stripped: emptying the list would make the tab public). */
+  roleIds?: ReadonlySet<string>
 }
 
 export type ValidateDashboardLayoutResult =
@@ -257,6 +265,14 @@ export function validateDashboardLayout(
       errors.push(`Page slug '${page.slug}' appears more than once in the layout.`)
     } else {
       seenPageSlugs.add(page.slug)
+    }
+
+    if (ctx.roleIds !== undefined) {
+      for (const roleId of page.roles ?? []) {
+        if (!ctx.roleIds.has(roleId)) {
+          errors.push(`Page '${page.slug}': unknown role id '${roleId}'.`)
+        }
+      }
     }
 
     for (const section of page.sections) {

@@ -16,8 +16,6 @@ export interface UseDashboardLayoutResult {
   layout: DashboardLayout
   /** False when `layout` is the generated fallback, not a persisted one. */
   isStored: boolean
-  /** Winning scope from the server's resolution chain (`role:<role>` or `default`). */
-  scope: string
   isLoading: boolean
 }
 
@@ -37,7 +35,6 @@ export function useDashboardLayout(): UseDashboardLayoutResult {
   return {
     layout: stored ?? generatedDefault,
     isStored: stored !== null,
-    scope: layoutQuery.data?.scope ?? 'default',
     isLoading: layoutQuery.isLoading,
   }
 }

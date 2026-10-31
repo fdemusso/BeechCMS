@@ -32,6 +32,9 @@ export function DashboardLayoutRenderer({ layout }: DashboardLayoutRendererProps
     )
   }
 
+  // The server filter can leave a viewer with no tab at all.
+  if (!activePage) return null
+
   return (
     <div className="flex flex-col gap-6">
       {layout.pages.length > 1 && (
