@@ -8,6 +8,11 @@ on:
   schedule:
     - cron: '0 5 * * *'
   workflow_dispatch:
+    inputs:
+      release_args:
+        description: 'Extra scripts/release.mjs arguments (e.g. "-p @beechcms/cms --no-cascade" or "--all"); empty releases what changed'
+        required: false
+        default: ''
 
 concurrency:
   group: auto-release-master
@@ -78,7 +83,11 @@ jobs:
           set -euo pipefail
           echo "Executing release pipeline for modified packages..."
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          RELEASE_MANIFEST="$RUNNER_TEMP/release-manifest.json" node scripts/release.mjs patch
+          # Unquoted on purpose: RELEASE_ARGS is a space-separated list of flags from the dispatch input.
+          # shellcheck disable=SC2086
+          RELEASE_MANIFEST="$RUNNER_TEMP/release-manifest.json" node scripts/release.mjs patch ${RELEASE_ARGS:-}
+        env:
+          RELEASE_ARGS: ${{ inputs.release_args }}
 
       # Only the release commit and its tags matter from here on. Everything below runs only when
       # the pipeline actually produced a new "chore: release" commit: HEAD must have moved, because
