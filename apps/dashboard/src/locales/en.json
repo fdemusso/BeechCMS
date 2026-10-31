@@ -247,6 +247,10 @@
       "firstContent": "First content entry",
       "firstContentAction": "Create first entry"
     },
+    "empty": {
+      "title": "Nothing to show yet",
+      "description": "No dashboard tab is available for your roles and permissions."
+    },
     "builder": {
       "customize": "Customize",
       "title": "Dashboard Builder",
@@ -267,6 +271,16 @@
         "add": "Add Page",
         "rename": "Rename page",
         "delete": "Delete page"
+      },
+      "audience": {
+        "label": "Visible to",
+        "everyone": "Everyone",
+        "add": "Add role",
+        "search": "Search roles…",
+        "empty": "No roles found.",
+        "deletedRole": "Deleted role",
+        "remove": "Remove {{name}}",
+        "loadError": "Could not load roles."
       },
       "section": {
         "add": "Add Section",

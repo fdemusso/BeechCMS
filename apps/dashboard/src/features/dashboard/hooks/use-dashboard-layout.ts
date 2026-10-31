@@ -23,6 +23,8 @@ export function useDashboardLayout(): UseDashboardLayoutResult {
   const layoutQuery = useQuery({
     queryKey: DASHBOARD_QUERY_KEYS.layout(),
     queryFn: dashboardApi.getDashboardLayout,
+    // Per-caller authorization projection served no-store; the global 5-minute cache would outlive an assignment change.
+    staleTime: 0,
   })
   const { data: seeds = EMPTY_SEEDS } = useSchema()
 

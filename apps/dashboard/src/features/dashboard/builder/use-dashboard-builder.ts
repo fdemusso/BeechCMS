@@ -33,6 +33,8 @@ export interface UseDashboardBuilderResult {
   renamePage(pageId: string, label: string): void
   removePage(pageId: string): void
   movePage(fromIndex: number, toIndex: number): void
+  /** Replaces the page's target role ids. An empty list removes the `roles` key: the tab is visible to every caller. */
+  setPageRoles(pageId: string, roleIds: string[]): void
 
   addSection(pageId: string, columnCount?: DashboardColumnCount): void
   updateSection(
@@ -131,6 +133,20 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
 
   const renamePage = useCallback((pageId: string, label: string) => {
     mutate((d) => ({ ...d, pages: d.pages.map((p) => (p.id === pageId ? { ...p, label } : p)) }))
+  }, [mutate])
+
+  const setPageRoles = useCallback((pageId: string, roleIds: string[]) => {
+    const uniqueRoleIds = [...new Set(roleIds)]
+    mutate((d) => ({
+      ...d,
+      pages: d.pages.map((p) => {
+        if (p.id !== pageId) return p
+        const next = { ...p }
+        if (uniqueRoleIds.length === 0) delete next.roles
+        else next.roles = uniqueRoleIds
+        return next
+      }),
+    }))
   }, [mutate])
 
   const removePage = useCallback((pageId: string) => {
@@ -417,6 +433,7 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
     isDirty,
     addPage,
     renamePage,
+    setPageRoles,
     removePage,
     movePage,
     addSection,

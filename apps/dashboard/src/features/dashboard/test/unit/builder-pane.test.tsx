@@ -10,13 +10,15 @@ import { MemoryRouter } from "react-router-dom"
 import React from "react"
 import type { DashboardLayout } from "@beechcms/core"
 
-// The builder reads the schema and the layout scopes through rpc; neither is under test here.
+// The builder reads the schema, the stored layout and the role list through rpc; none is under test here.
 vi.mock("@/lib/rpc", () => ({
   rpc: { api: {
     schema: { $get: async () => ({ json: async () => [] }) },
     "dashboard-layout": {
-      scopes: { $get: async () => ({ json: async () => [] }) },
-      ":scope": { $put: vi.fn(), $delete: vi.fn() },
+      $get: async () => ({ json: async () => ({ layout: null }) }),
+      $put: vi.fn(),
+      $delete: vi.fn(),
+      roles: { $get: async () => ({ json: async () => [] }) },
     },
   } },
 }))
@@ -123,6 +125,18 @@ describe("BuilderPane (via DashboardBuilderDialog)", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Hide Preview/i }))
     expect(await screen.findByRole("button", { name: "Add Section" })).toBeInTheDocument()
+  })
+
+  it("shows the 'Visible to' picker in edit mode and hides it in preview", async () => {
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    expect(await screen.findByText("Visible to")).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole("button", { name: /Show Preview/i }))
+
+    expect(screen.queryByText("Visible to")).not.toBeInTheDocument()
   })
 
   it("adds a new section when 'Add Section' is clicked", async () => {

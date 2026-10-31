@@ -328,4 +328,48 @@ describe("useDashboardBuilder", () => {
     expect(result.current.isDirty).toBe(false)
     expect(result.current.draft).toEqual(initialLayout)
   })
+
+  describe("setPageRoles", () => {
+    const ROLE_EDITOR_ID = "5b1f3c1e-7a42-4d2b-9c6e-0a1b2c3d4e51"
+    const ROLE_MERCHANT_ID = "c8e2a7d4-3f19-4b85-a1d0-6e7f8a9b0c62"
+
+    it("writes the ids on the target page only, leaving other pages without a roles key", () => {
+      const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+      act(() => result.current.addPage())
+      const targetPageId = result.current.draft.pages[0].id
+
+      act(() => result.current.setPageRoles(targetPageId, [ROLE_EDITOR_ID, ROLE_MERCHANT_ID]))
+
+      expect(result.current.draft.pages[0].roles).toEqual([ROLE_EDITOR_ID, ROLE_MERCHANT_ID])
+      expect(result.current.draft.pages[1]).not.toHaveProperty("roles")
+    })
+
+    it("keeps one occurrence of a duplicated id in first-seen order", () => {
+      const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+      act(() => result.current.setPageRoles("page-1", [ROLE_MERCHANT_ID, ROLE_EDITOR_ID, ROLE_MERCHANT_ID]))
+
+      expect(result.current.draft.pages[0].roles).toEqual([ROLE_MERCHANT_ID, ROLE_EDITOR_ID])
+    })
+
+    it("removes the roles key for an empty list, returning isDirty to false for a layout that had none", () => {
+      const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+      act(() => result.current.setPageRoles("page-1", [ROLE_EDITOR_ID]))
+      expect(result.current.isDirty).toBe(true)
+
+      act(() => result.current.setPageRoles("page-1", []))
+
+      expect(result.current.draft.pages[0]).not.toHaveProperty("roles")
+      expect(result.current.isDirty).toBe(false)
+    })
+
+    it("leaves the draft deep-equal to the previous draft for an unknown page id", () => {
+      const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+      const draftBefore = structuredClone(result.current.draft)
+
+      act(() => result.current.setPageRoles("page-missing", [ROLE_EDITOR_ID]))
+
+      expect(result.current.draft).toEqual(draftBefore)
+    })
+  })
 })

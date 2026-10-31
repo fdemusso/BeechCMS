@@ -18,6 +18,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DashboardLayoutRenderer } from '../renderer/dashboard-layout-renderer'
+import { PageAudiencePicker } from './page-audience-picker'
 import { PageTabsManager } from './page-tabs-manager'
 import { SectionCard } from './section-card'
 import { WidgetPickerDialog } from './widget-picker-dialog'
@@ -158,6 +159,10 @@ export function BuilderPane({ ops, isSaving, onSave, onReset, onClose }: Builder
               onRemovePage={ops.removePage}
             />
           </SortableContext>
+
+          {!showPreview && activePage && (
+            <PageAudiencePicker roleIds={activePage.roles ?? []} onChange={(ids) => ops.setPageRoles(activePage.id, ids)} />
+          )}
 
           {showPreview && activePage ? (
             <DashboardLayoutRenderer layout={{ version: 1, pages: [activePage] }} />

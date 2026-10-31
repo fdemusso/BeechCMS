@@ -5,10 +5,10 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Settings } from '@/components/icons'
-import { canEditDashboard } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar, SiteHeader } from "@/features/navigation"
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { useAuth } from "@/lib/auth-context"
 import { useDashboardLayout } from "../hooks/use-dashboard-layout"
 import { DashboardLayoutRenderer } from "../renderer/dashboard-layout-renderer"
@@ -19,7 +19,9 @@ export default function DashboardPage() {
   const { user } = useAuth()
   const { layout } = useDashboardLayout()
   const [builderOpen, setBuilderOpen] = useState(false)
-  const canEdit = canEditDashboard(user?.role)
+  const { canGlobally } = usePermissions()
+  // Mirrors the perm('manage_roles','global') rows on PUT/DELETE; the server enforces.
+  const canEdit = canGlobally("manage_roles")
   const hour = new Date().getHours()
   const greeting = hour >= 5 && hour < 12
     ? t("dashboard.greeting.morning")

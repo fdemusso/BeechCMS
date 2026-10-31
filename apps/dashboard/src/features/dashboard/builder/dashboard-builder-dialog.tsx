@@ -18,6 +18,7 @@ import { useSchema } from '@/features/shared'
 import { DASHBOARD_QUERY_KEYS } from '@/features/shared'
 import { BuilderPane } from './builder-pane'
 import { useDashboardBuilder } from './use-dashboard-builder'
+import { useLayoutRoles } from './use-layout-roles'
 import { dashboardBuilderApi } from './api/dashboard-layout.api'
 import { knownWidgetTypes } from '../registry/widget-registry'
 
@@ -74,12 +75,20 @@ function BuilderPaneController({ initialLayout, onClose, onMutated }: BuilderPan
   const queryClient = useQueryClient()
   const { data: seeds = [] } = useSchema()
 
+  const { data: roles } = useLayoutRoles()
+
   const ops = useDashboardBuilder({ initialLayout })
   const [isSaving, setIsSaving] = React.useState(false)
 
   async function handleSave() {
     const seedSlugs = new Set(seeds.map((s) => s.slug))
-    const result = validateDashboardLayout(ops.draft, { seedSlugs, knownWidgetTypes: knownWidgetTypes() })
+    // Without a loaded list the server decides (422 on an unknown role id).
+    const roleIds = roles ? new Set(roles.map((r) => r.id)) : undefined
+    const result = validateDashboardLayout(ops.draft, {
+      seedSlugs,
+      knownWidgetTypes: knownWidgetTypes(),
+      ...(roleIds ? { roleIds } : {}),
+    })
     if (!result.ok) {
       toast.error(result.errors[0] ?? t('dashboard.builder.saveError'))
       return

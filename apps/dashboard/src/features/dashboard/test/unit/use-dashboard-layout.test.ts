@@ -7,6 +7,7 @@ import { renderHook, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 import type { DashboardLayout } from "@beechcms/core"
+import { CANONICAL_SEEDS } from "@beechcms/testing"
 
 const mocked = vi.hoisted(() => ({ layout: vi.fn(), schema: vi.fn() }))
 
@@ -88,5 +89,34 @@ describe("useDashboardLayout", () => {
 
     expect(result.current.isStored).toBe(true)
     expect(result.current.layout).toEqual(storedLayout)
+  })
+
+  it("re-requests the layout on remount even inside the app-wide staleTime", async () => {
+    mockResponses({ layout: { layout: null }, schema: [] })
+    // Mirrors the production default in lib/query-client.ts, which the hook must override.
+    const appWideStaleTime = 5 * 60 * 1000
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: appWideStaleTime } },
+    })
+    const first = renderHook(() => useDashboardLayout(), { wrapper: wrapper(client) })
+    await waitFor(() => expect(first.result.current.isLoading).toBe(false))
+    first.unmount()
+
+    renderHook(() => useDashboardLayout(), { wrapper: wrapper(client) })
+
+    await waitFor(() => expect(mocked.layout).toHaveBeenCalledTimes(2))
+  })
+
+  it("returns a stored layout with no pages as-is instead of the generated default", async () => {
+    const emptyStoredLayout: DashboardLayout = { version: 1, pages: [] }
+    mockResponses({ layout: { layout: emptyStoredLayout }, schema: CANONICAL_SEEDS })
+
+    const { result } = renderHook(() => useDashboardLayout(), {
+      wrapper: wrapper(makeQueryClient()),
+    })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(result.current.layout.pages).toHaveLength(0)
+    expect(result.current.isStored).toBe(true)
   })
 })

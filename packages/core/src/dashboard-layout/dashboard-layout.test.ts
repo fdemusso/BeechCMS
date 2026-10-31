@@ -16,10 +16,6 @@ import {
   type DashboardLayoutContext,
   type DashboardWidgetInstance,
 } from './dashboard-layout.js'
-import {
-  ROLES_ALLOWED_TO_EDIT_DASHBOARD,
-  canEditDashboard,
-} from './dashboard-permissions.js'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -456,20 +452,5 @@ describe('dashboardLayoutSchema', () => {
     const layout = generateDefaultDashboardLayout([seedStub('articoli')])
 
     expect(dashboardLayoutSchema.safeParse(layout).success).toBe(true)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// dashboard-permissions
-// ---------------------------------------------------------------------------
-
-describe('canEditDashboard', () => {
-  it('allows only the configured roles', () => {
-    expect(ROLES_ALLOWED_TO_EDIT_DASHBOARD).toContain('admin')
-    expect(canEditDashboard('admin')).toBe(true)
-    expect(canEditDashboard('editor')).toBe(false)
-    expect(canEditDashboard('')).toBe(false)
-    expect(canEditDashboard(undefined)).toBe(false)
-    expect(canEditDashboard(null)).toBe(false)
   })
 })

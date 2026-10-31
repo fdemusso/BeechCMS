@@ -160,13 +160,14 @@ describe("DashboardLayoutRenderer", () => {
     expect(screen.queryByText("MARKER:PageOne")).not.toBeInTheDocument()
   })
 
-  it("renders no tab list and no section for a layout with no pages", () => {
+  it("renders the empty state, no tab list and no section for a layout with no pages", () => {
     const layout: DashboardLayout = { version: 1, pages: [] }
 
     const { container } = renderLayout(layout)
 
-    expect(container).toBeEmptyDOMElement()
+    expect(screen.getByText("Nothing to show yet")).toBeInTheDocument()
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument()
+    expect(container.querySelectorAll("section")).toHaveLength(0)
   })
 
   it("renders a placeholder for an unknown widget type without affecting siblings", () => {

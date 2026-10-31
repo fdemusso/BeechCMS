@@ -247,6 +247,10 @@
       "firstContent": "Primo contenuto inserito",
       "firstContentAction": "Crea il primo elemento"
     },
+    "empty": {
+      "title": "Niente da mostrare",
+      "description": "Nessuna scheda della dashboard è disponibile per i tuoi ruoli e permessi."
+    },
     "builder": {
       "customize": "Personalizza",
       "title": "Editor Dashboard",
@@ -267,6 +271,16 @@
         "add": "Aggiungi pagina",
         "rename": "Rinomina pagina",
         "delete": "Elimina pagina"
+      },
+      "audience": {
+        "label": "Visibile a",
+        "everyone": "Tutti",
+        "add": "Aggiungi ruolo",
+        "search": "Cerca ruoli…",
+        "empty": "Nessun ruolo trovato.",
+        "deletedRole": "Ruolo eliminato",
+        "remove": "Rimuovi {{name}}",
+        "loadError": "Impossibile caricare i ruoli."
       },
       "section": {
         "add": "Aggiungi sezione",

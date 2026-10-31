@@ -12,6 +12,11 @@ export const dashboardBuilderApi = {
     const response = await rpc.api['dashboard-layout'].$get()
     return response.json()
   },
+  /** Every role as `{ id, name, icon }`, ordered by name. Needs `manage_roles@*`. */
+  getRoles: async () => {
+    const response = await rpc.api['dashboard-layout'].roles.$get()
+    return response.json()
+  },
   /** Needs `manage_roles@*`. */
   saveLayout: async (layout: DashboardLayout) => {
     const response = await rpc.api['dashboard-layout'].$put({ json: layout })

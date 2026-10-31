@@ -13,6 +13,7 @@ const mocked = vi.hoisted(() => ({
   getLayout: vi.fn(),
   saveLayout: vi.fn(),
   resetLayout: vi.fn(),
+  getRoles: vi.fn(),
 }))
 
 vi.mock("@/lib/rpc", () => ({
@@ -20,6 +21,7 @@ vi.mock("@/lib/rpc", () => ({
     $get: mocked.getLayout,
     $put: mocked.saveLayout,
     $delete: mocked.resetLayout,
+    roles: { $get: mocked.getRoles },
   } } },
 }))
 
@@ -56,7 +58,16 @@ function wrapper(client: QueryClient) {
   )
 }
 
-function makeLayout(): DashboardLayout {
+const ROLE_EDITOR_ID = "5b1f3c1e-7a42-4d2b-9c6e-0a1b2c3d4e51"
+const ROLE_MERCHANT_ID = "c8e2a7d4-3f19-4b85-a1d0-6e7f8a9b0c62"
+const ORPHAN_ROLE_ID = "e4d9b6a2-1c58-4f37-8b0a-9d2e3f4a5b73"
+
+const ROLES = [
+  { id: ROLE_EDITOR_ID, name: "Editor", icon: "Store" },
+  { id: ROLE_MERCHANT_ID, name: "Merchant", icon: null },
+]
+
+function makeLayout(roles?: string[]): DashboardLayout {
   return {
     version: 1,
     pages: [
@@ -64,6 +75,7 @@ function makeLayout(): DashboardLayout {
         id: "page-1",
         slug: "overview",
         label: "Overview",
+        ...(roles ? { roles } : {}),
         sections: [
           {
             id: "section-1",
@@ -80,6 +92,7 @@ describe("DashboardBuilderDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: null }) })
+    mocked.getRoles.mockResolvedValue({ json: async () => ROLES })
   })
 
   it("saves the cleaned layout via PUT and invalidates the layout query on success", async () => {
@@ -124,6 +137,45 @@ describe("DashboardBuilderDialog", () => {
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("boom"))
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
+  })
+
+  it("refuses to save when a page targets an id absent from GET /roles", async () => {
+    const orphanLayout = makeLayout([ORPHAN_ROLE_ID])
+    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: orphanLayout }) })
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={orphanLayout} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    await screen.findByText("Deleted role")
+    await userEvent.click(screen.getByRole("button", { name: "Add Section" }))
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1))
+    expect(mocked.saveLayout).not.toHaveBeenCalled()
+  })
+
+  it("saves a page whose roles are all known", async () => {
+    const targetedLayout = makeLayout([ROLE_EDITOR_ID])
+    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: targetedLayout }) })
+    mocked.saveLayout.mockResolvedValue({
+      json: async () => ({ ok: true, layout: targetedLayout, warnings: [] }),
+    })
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={targetedLayout} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    await screen.findByRole("button", { name: "Remove Editor" })
+    await userEvent.click(screen.getByRole("button", { name: "Add Section" }))
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() => expect(mocked.saveLayout).toHaveBeenCalledTimes(1))
+    expect(mocked.saveLayout).toHaveBeenCalledWith({
+      json: expect.objectContaining({
+        pages: [expect.objectContaining({ roles: [ROLE_EDITOR_ID] })],
+      }),
+    })
   })
 
   it("resets the layout via DELETE and closes the dialog", async () => {
