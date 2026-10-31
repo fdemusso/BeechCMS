@@ -26,18 +26,6 @@ Stored layout for a scope, or null if none was ever saved.
 
 ***
 
-### listScopes()
-
-> **listScopes**(): `Promise`&lt;`string`[]&gt;
-
-Scopes that currently have a stored row — used by the Sprint 06 builder UI.
-
-#### Returns
-
-`Promise`&lt;`string`[]&gt;
-
-***
-
 ### remove()
 
 > **remove**(`scope`): `Promise`&lt;`void`&gt;

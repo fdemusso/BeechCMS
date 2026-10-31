@@ -28,6 +28,15 @@ Lucide icon name, same convention as DashboardSeedConfig.icon.
 
 ***
 
+### roles?
+
+> `optional` **roles?**: `string`[]
+
+Ids (not names) of the roles this tab targets. Absent or empty = every caller.
+ Non-empty = callers holding at least one of them through an active assignment, at any scope.
+
+***
+
 ### sections
 
 > **sections**: [`DashboardSection`](DashboardSection.md)[]

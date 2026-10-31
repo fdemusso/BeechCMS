@@ -39,7 +39,7 @@ Return the most recent activity entries matching the given filters.
 
 The list is always ordered by `createdAt` DESC so callers get newest-first
 data without paying extra sort costs in TypeScript. Used by the settings
-activity tab (per-user) and by the stats recent-activity feed (global).
+activity tab (per-user) and by the stats recent-activity feed (scope-projected).
 
 #### Parameters
 
