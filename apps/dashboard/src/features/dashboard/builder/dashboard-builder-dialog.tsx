@@ -7,13 +7,16 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   validateDashboardLayout,
   generateDefaultDashboardLayout,
+  GLOBAL_SCOPE,
+  hasPermission,
   type DashboardLayout,
   type EffectivePermissions,
 } from '@beechcms/core'
 import { toast } from 'sonner'
 import { Loader as Loader2 } from '@/components/icons'
-import { isApiError } from '@/lib/http/api-error'
+import { isApiError, problemCode } from '@/lib/http/api-error'
 
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useSchema } from '@/features/shared'
 import { DASHBOARD_QUERY_KEYS } from '@/features/shared'
@@ -38,11 +41,24 @@ export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: Da
 
   const generatedDefault = React.useMemo(() => generateDefaultDashboardLayout(seeds, effective), [seeds, effective])
 
-  const { data, isLoading, refetch } = useQuery({
+  const queryClient = useQueryClient()
+  const [conflictOpen, setConflictOpen] = React.useState(false)
+
+  // Always fetch the current version: it is echoed as `If-Match`. Focus/reconnect refetches would drop the draft.
+  const { data, isFetching, refetch } = useQuery({
     queryKey: ['dashboard-builder-layout'],
     queryFn: dashboardBuilderApi.getLayout,
     enabled: open,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
+
+  function handleConflictReload() {
+    setConflictOpen(false)
+    queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.layout() })
+    refetch()
+  }
 
   const draftSource: DashboardLayout = data?.layout ?? generatedDefault ?? initialLayout
 
@@ -52,7 +68,7 @@ export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: Da
         <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle>{t('dashboard.builder.title')}</DialogTitle>
         </DialogHeader>
-        {isLoading || permissionsLoading ? (
+        {isFetching || permissionsLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
@@ -63,9 +79,17 @@ export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: Da
             permissions={effective}
             onClose={() => onOpenChange(false)}
             onMutated={() => { refetch() }}
+            onConflict={() => setConflictOpen(true)}
           />
         )}
       </DialogContent>
+      <ConfirmDialog
+        open={conflictOpen}
+        onOpenChange={setConflictOpen}
+        title={t('dashboard.builder.conflictTitle')}
+        description={t('dashboard.builder.conflictDesc')}
+        onConfirm={handleConflictReload}
+      />
     </Dialog>
   )
 }
@@ -76,14 +100,15 @@ interface BuilderPaneControllerProps {
   readonly permissions: EffectivePermissions
   readonly onClose: () => void
   readonly onMutated: () => void
+  readonly onConflict: () => void
 }
 
-function BuilderPaneController({ initialLayout, updatedAt, permissions, onClose, onMutated }: BuilderPaneControllerProps) {
+function BuilderPaneController({ initialLayout, updatedAt, permissions, onClose, onMutated, onConflict }: BuilderPaneControllerProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data: seeds = [] } = useSchema()
 
-  const { data: roles } = useLayoutRoles()
+  const { data: roles } = useLayoutRoles(hasPermission(permissions, 'manage_roles', GLOBAL_SCOPE))
 
   const ops = useDashboardBuilder({ initialLayout })
   const [isSaving, setIsSaving] = React.useState(false)
@@ -110,6 +135,10 @@ function BuilderPaneController({ initialLayout, updatedAt, permissions, onClose,
       onMutated()
       onClose()
     } catch (err) {
+      if (problemCode(err) === 'layout-conflict') {
+        onConflict()
+        return
+      }
       const body = isApiError(err) ? err.data : null
       toast.error(body?.detail ?? body?.title ?? t('dashboard.builder.saveError'))
     } finally {
@@ -124,7 +153,11 @@ function BuilderPaneController({ initialLayout, updatedAt, permissions, onClose,
       onMutated()
       toast.success(t('dashboard.builder.resetDone'))
       onClose()
-    } catch {
+    } catch (err) {
+      if (problemCode(err) === 'layout-conflict') {
+        onConflict()
+        return
+      }
       toast.error(t('dashboard.builder.saveError'))
     }
   }
@@ -137,6 +170,7 @@ function BuilderPaneController({ initialLayout, updatedAt, permissions, onClose,
       onReset={handleReset}
       onClose={onClose}
       permissions={permissions}
+      hasStoredLayout={updatedAt !== null}
     />
   )
 }

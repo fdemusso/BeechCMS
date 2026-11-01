@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ColumnStack } from './column-stack'
 import { COLUMN_PRESETS } from './use-dashboard-builder'
+import { lockedColumnFloor } from './locked-widgets'
 import { resolveColumnSpans } from '../renderer/dashboard-section'
 
 export interface SectionCardProps {
@@ -73,6 +74,7 @@ export function SectionCard({
 
   const spans = resolveColumnSpans(section)
   const currentPresetKey = spans.join(',')
+  const lockedFloor = lockedColumnFloor(section)
 
   return (
     <div ref={setNodeRef} style={style} className="rounded-lg border">
@@ -138,6 +140,7 @@ export function SectionCard({
                   <DropdownMenuItem
                     key={preset.join(',')}
                     className={currentPresetKey === preset.join(',') ? 'font-semibold' : ''}
+                    disabled={preset.length < lockedFloor}
                     onSelect={() => onSetColumnPreset([...preset])}
                   >
                     [{preset.join(', ')}]
@@ -149,7 +152,7 @@ export function SectionCard({
               <Copy className="size-3.5 mr-2" />
               {t('dashboard.builder.section.duplicate')}
             </DropdownMenuItem>
-            {canRemove && (
+            {canRemove && lockedFloor === 0 && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive" onSelect={onRemove}>

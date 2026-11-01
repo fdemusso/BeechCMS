@@ -59,7 +59,7 @@ const LAYOUT: DashboardLayout = {
 
 function Harness() {
   const ops = useDashboardBuilder({ initialLayout: LAYOUT })
-  return <BuilderPane ops={ops} isSaving={false} onSave={vi.fn()} onReset={vi.fn()} onClose={vi.fn()} permissions={fullAuthority} />
+  return <BuilderPane ops={ops} isSaving={false} onSave={vi.fn()} onReset={vi.fn()} onClose={vi.fn()} permissions={fullAuthority} hasStoredLayout />
 }
 
 describe("dashboard builder: dropping a widget on an empty column", () => {
@@ -132,7 +132,7 @@ describe("dashboard builder: dropping a widget onto a widget of another column",
     function CapturingHarness() {
       const ops = useDashboardBuilder({ initialLayout: layout })
       captured.ops = ops
-      return <BuilderPane ops={ops} isSaving={false} onSave={vi.fn()} onReset={vi.fn()} onClose={vi.fn()} permissions={fullAuthority} />
+      return <BuilderPane ops={ops} isSaving={false} onSave={vi.fn()} onReset={vi.fn()} onClose={vi.fn()} permissions={fullAuthority} hasStoredLayout />
     }
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
     render(

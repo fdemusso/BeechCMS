@@ -8,6 +8,7 @@ import { Settings } from '@/components/icons'
 import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar, SiteHeader } from "@/features/navigation"
+import { isDashboardLayoutEditor } from "@beechcms/core"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { useAuth } from "@/lib/auth-context"
 import { useDashboardLayout } from "../hooks/use-dashboard-layout"
@@ -19,9 +20,9 @@ export default function DashboardPage() {
   const { user } = useAuth()
   const { layout, isLoading } = useDashboardLayout()
   const [builderOpen, setBuilderOpen] = useState(false)
-  const { canGlobally } = usePermissions()
-  // Mirrors the perm('manage_roles','global') rows on PUT/DELETE; the server enforces.
-  const canEdit = canGlobally("manage_roles")
+  const { effective } = usePermissions()
+  // Mirrors the PUT gate (manage_layout or manage_roles at *); the server enforces.
+  const canEdit = isDashboardLayoutEditor(effective)
   const hour = new Date().getHours()
   const greeting = hour >= 5 && hour < 12
     ? t("dashboard.greeting.morning")

@@ -37,7 +37,7 @@ function makePages(): DashboardPageLayout[] {
   ]
 }
 
-function renderManager(pages: DashboardPageLayout[], activePageId = "page-1") {
+function renderManager(pages: DashboardPageLayout[], activePageId = "page-1", canEditStructure = true) {
   const onSetActive = vi.fn()
   const onAddPage = vi.fn()
   const onRenamePage = vi.fn()
@@ -52,6 +52,7 @@ function renderManager(pages: DashboardPageLayout[], activePageId = "page-1") {
         onAddPage={onAddPage}
         onRenamePage={onRenamePage}
         onRemovePage={onRemovePage}
+        canEditStructure={canEditStructure}
       />
     </DndContext>,
   )
@@ -60,6 +61,21 @@ function renderManager(pages: DashboardPageLayout[], activePageId = "page-1") {
 }
 
 describe("PageTabsManager", () => {
+  it("renders neither the add button nor any tab menu when canEditStructure is false", () => {
+    renderManager(makePages(), "page-1", false)
+
+    expect(screen.queryByRole("button", { name: "Add Page" })).not.toBeInTheDocument()
+    expect(screen.queryAllByRole("menuitem")).toHaveLength(0)
+  })
+
+  it("still selects a tab on click when canEditStructure is false", () => {
+    const { onSetActive } = renderManager(makePages(), "page-1", false)
+
+    fireEvent.click(screen.getByText("Second"))
+
+    expect(onSetActive).toHaveBeenCalledWith("page-2")
+  })
+
   it("renders a tab for each page and highlights the active one", () => {
     renderManager(makePages())
     expect(screen.getByText("Overview")).toBeInTheDocument()

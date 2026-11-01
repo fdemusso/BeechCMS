@@ -13,10 +13,11 @@ export type LayoutRole = InferResponseType<typeof rpc.api["dashboard-layout"]["r
 export const LAYOUT_ROLES_QUERY_KEY = ["dashboard-builder-roles"] as const
 
 /** The role list the builder targets tabs with. Builder-only: mounted inside the open dialog. */
-export function useLayoutRoles(): UseQueryResult<LayoutRole[]> {
+export function useLayoutRoles(enabled = true): UseQueryResult<LayoutRole[]> {
   return useQuery({
     queryKey: LAYOUT_ROLES_QUERY_KEY,
     queryFn: dashboardBuilderApi.getRoles,
+    enabled,
     // The pre-save orphan check relies on this list; a role changed elsewhere must show on open.
     staleTime: 0,
   })

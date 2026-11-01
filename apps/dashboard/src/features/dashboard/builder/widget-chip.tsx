@@ -6,7 +6,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { SortV as GripVertical, More as MoreHorizontal, Settings2, Trash2, AlertTriangle, ArrowSwapHorizontal as ArrowRightLeft, Box } from '@/components/icons'
+import { SortV as GripVertical, More as MoreHorizontal, Settings2, Trash2, AlertTriangle, ArrowSwapHorizontal as ArrowRightLeft, Box, Lock } from '@/components/icons'
 import type { DashboardWidgetInstance, DashboardPageLayout } from '@beechcms/core'
 
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { getWidgetDefinition } from '../registry/widget-registry'
 import { resolveIcon as resolveRegistryIcon } from '@/lib/icon-registry'
+import { isLockedWidget } from './locked-widgets'
 
 function resolveIcon(name: string | undefined): IconComponent {
   if (!name) return Box
@@ -46,7 +47,12 @@ export function WidgetChip({ widget, dragId, otherPages, onConfigure, onRemove, 
   const { t } = useTranslation()
   const def = getWidgetDefinition(widget.type)
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId })
+  const locked = isLockedWidget(widget)
+  // Still a drop target while locked, so other widgets can be ordered around it.
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: dragId,
+    disabled: { draggable: locked },
+  })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -55,6 +61,20 @@ export function WidgetChip({ widget, dragId, otherPages, onConfigure, onRemove, 
 
   const seedSlug = typeof widget.config?.seedSlug === 'string' ? widget.config.seedSlug : undefined
   const label = widget.title || (def ? t(def.labelKey) : widget.type)
+
+  if (locked) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        title={t('dashboard.builder.widget.lockedHint')}
+        className="flex items-center gap-2 rounded-md border border-dashed bg-muted px-2 py-1.5 text-sm text-muted-foreground"
+      >
+        <Lock className="size-4 shrink-0" />
+        <span className="flex-1 min-w-0 truncate">{t('dashboard.builder.widget.locked')}</span>
+      </div>
+    )
+  }
 
   return (
     <div

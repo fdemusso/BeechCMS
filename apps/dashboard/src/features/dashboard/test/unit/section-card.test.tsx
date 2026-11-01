@@ -15,8 +15,8 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuItem: ({ children, onSelect, className }: { children: React.ReactNode; onSelect?: () => void; className?: string }) => (
-    <div role="menuitem" className={className} onClick={() => onSelect?.()}>
+  DropdownMenuItem: ({ children, onSelect, className, disabled }: { children: React.ReactNode; onSelect?: () => void; className?: string; disabled?: boolean }) => (
+    <div role="menuitem" aria-disabled={disabled} className={className} onClick={() => { if (!disabled) onSelect?.() }}>
       {children}
     </div>
   ),
@@ -191,6 +191,36 @@ describe("SectionCard", () => {
     const { onRemove } = renderCard(emptySection, { canRemove: true })
     fireEvent.click(screen.getByText("Remove"))
     expect(onRemove).toHaveBeenCalledTimes(1)
+  })
+
+  it("omits Remove for a section holding a locked widget even when canRemove is true", () => {
+    const lockedSection = makeSection({
+      columns: [
+        { id: "col-1", widgets: [] },
+        { id: "col-2", widgets: [{ id: "w-locked", type: "core/locked", config: {} }] },
+      ],
+    })
+
+    renderCard(lockedSection, { canRemove: true })
+
+    expect(screen.queryByText("Remove")).not.toBeInTheDocument()
+  })
+
+  it("disables only the column presets with fewer columns than the last locked column", () => {
+    const lockedSection = makeSection({
+      columns: [
+        { id: "col-1", widgets: [] },
+        { id: "col-2", widgets: [{ id: "w-locked", type: "core/locked", config: {} }] },
+        { id: "col-3", widgets: [] },
+      ],
+      columnSpans: [4, 4, 4],
+    })
+
+    renderCard(lockedSection)
+
+    expect(screen.getByRole("menuitem", { name: "[12]" })).toHaveAttribute("aria-disabled", "true")
+    expect(screen.getByRole("menuitem", { name: "[6, 6]" })).not.toHaveAttribute("aria-disabled", "true")
+    expect(screen.getByRole("menuitem", { name: "[4, 4, 4]" })).not.toHaveAttribute("aria-disabled", "true")
   })
 
   it("does not render the remove option when canRemove is false", () => {

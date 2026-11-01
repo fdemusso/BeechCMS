@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useSchema } from '@/features/shared'
+import { useSchema, usePermissions } from '@/features/shared'
 
 type TimeWindow = 'week' | 'month' | 'year' | 'all'
 
@@ -158,6 +158,8 @@ export interface SeedSelectProps {
 export function SeedSelect({ value, onChange, label }: SeedSelectProps) {
   const { t } = useTranslation()
   const { data: seeds } = useSchema()
+  const { can } = usePermissions()
+  const readableSeeds = (seeds ?? []).filter((seed) => can('content:read', seed.slug))
 
   return (
     <FieldRow label={label ?? t('dashboard.builder.config.seed')}>
@@ -166,7 +168,7 @@ export function SeedSelect({ value, onChange, label }: SeedSelectProps) {
           <SelectValue placeholder={t('dashboard.builder.config.seedPlaceholder')} />
         </SelectTrigger>
         <SelectContent>
-          {(seeds ?? []).map((seed) => (
+          {readableSeeds.map((seed) => (
             <SelectItem key={seed.slug} value={seed.slug}>
               {seed.label}
             </SelectItem>

@@ -256,6 +256,9 @@
       "title": "Editor Dashboard",
       "save": "Salva",
       "saved": "Layout della dashboard salvato.",
+      "firstSaveNeedsRoles": "Solo chi gestisce i ruoli può creare il primo layout della dashboard.",
+      "conflictTitle": "Il layout è stato modificato da qualcun altro",
+      "conflictDesc": "Un altro editor ha salvato la dashboard dopo che l'hai aperta. Ricarica l'ultima versione e riapplica le tue modifiche. Le modifiche non salvate andranno perse.",
       "saveError": "Impossibile salvare il layout della dashboard.",
       "reset": "Ripristina",
       "resetDone": "Dashboard ripristinata ai valori predefiniti.",
@@ -297,7 +300,9 @@
         "configure": "Configura",
         "moveToPage": "Sposta in pagina…",
         "remove": "Rimuovi",
-        "unavailable": "Non disponibile"
+        "unavailable": "Non disponibile",
+        "locked": "Widget non disponibile",
+        "lockedHint": "Non puoi vedere i dati di questo widget. Resta al suo posto."
       },
       "picker": {
         "title": "Aggiungi widget",

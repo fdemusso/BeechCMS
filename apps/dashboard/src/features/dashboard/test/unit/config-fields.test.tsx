@@ -3,18 +3,19 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 import type { AggregateFormula, Seed } from "@beechcms/core"
 
-const mocked = vi.hoisted(() => ({ schema: vi.fn() }))
+const mocked = vi.hoisted(() => ({ schema: vi.fn(), me: vi.fn() }))
 
 vi.mock("@/lib/rpc", () => ({
-  rpc: { api: { schema: { $get: mocked.schema } } },
+  rpc: { api: { schema: { $get: mocked.schema }, settings: { me: { $get: mocked.me } } } },
 }))
 
+import { FULL_AUTHORITY, meResponseBody } from "@/test/me-payload"
 import {
   FieldRow,
   TextField,
@@ -60,6 +61,7 @@ describe("config-fields", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocked.schema.mockResolvedValue({ json: async () => SEEDS })
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody(FULL_AUTHORITY) })
   })
 
   it("FieldRow renders label and children", () => {
@@ -162,6 +164,29 @@ describe("config-fields", () => {
     const option = await screen.findByRole("option", { name: "Posts" })
     await userEvent.click(option)
     expect(onChange).toHaveBeenCalledWith("posts")
+  })
+
+  it("SeedSelect lists only the seeds the caller may content:read", async () => {
+    mocked.me.mockResolvedValue({
+      json: async () => meResponseBody({ global: [], byScope: { posts: ["content:read"] } }),
+    })
+    renderWithClient(<SeedSelect value={undefined} onChange={vi.fn()} />)
+
+    await userEvent.click(screen.getByRole("combobox"))
+
+    expect(await screen.findByRole("option", { name: "Posts" })).toBeInTheDocument()
+    expect(screen.queryByRole("option", { name: "Pages" })).not.toBeInTheDocument()
+  })
+
+  it("SeedSelect lists no seed while the caller holds no content:read", async () => {
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody({ global: ["manage_roles"], byScope: {} }) })
+    renderWithClient(<SeedSelect value={undefined} onChange={vi.fn()} />)
+    await waitFor(() => expect(mocked.me).toHaveBeenCalled())
+    await waitFor(() => expect(mocked.schema).toHaveBeenCalled())
+
+    await userEvent.click(screen.getByRole("combobox"))
+
+    expect(screen.queryAllByRole("option")).toHaveLength(0)
   })
 
   it("SeedSelect renders custom label", async () => {

@@ -256,6 +256,9 @@
       "title": "Dashboard Builder",
       "save": "Save",
       "saved": "Dashboard layout saved.",
+      "firstSaveNeedsRoles": "Only someone who manages roles can create the first dashboard layout.",
+      "conflictTitle": "The layout was changed by someone else",
+      "conflictDesc": "Another editor saved the dashboard after you opened it. Reload the latest version, then apply your changes again. Your unsaved edits will be lost.",
       "saveError": "Could not save the dashboard layout.",
       "reset": "Reset",
       "resetDone": "Dashboard reset to default.",
@@ -297,7 +300,9 @@
         "configure": "Configure",
         "moveToPage": "Move to page…",
         "remove": "Remove",
-        "unavailable": "Unavailable"
+        "unavailable": "Unavailable",
+        "locked": "Widget unavailable",
+        "lockedHint": "You cannot see this widget's data. It stays where it is."
       },
       "picker": {
         "title": "Add Widget",

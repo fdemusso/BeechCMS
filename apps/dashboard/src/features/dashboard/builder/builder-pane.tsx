@@ -14,11 +14,17 @@ import {
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { Plus, Eye, EyeOff, Loader as Loader2 } from '@/components/icons'
 import { toast } from 'sonner'
-import type { EffectivePermissions } from '@beechcms/core'
+import {
+  GLOBAL_SCOPE,
+  filterDashboardLayoutByWidgetRequirements,
+  hasPermission,
+  type EffectivePermissions,
+} from '@beechcms/core'
 
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DashboardLayoutRenderer } from '../renderer/dashboard-layout-renderer'
+import { widgetRequirementOf } from '../registry/widget-registry'
 import { PageAudiencePicker } from './page-audience-picker'
 import { PageTabsManager } from './page-tabs-manager'
 import { SectionCard } from './section-card'
@@ -34,11 +40,15 @@ export interface BuilderPaneProps {
   readonly onClose: () => void
   /** The author's authority; the widget palette offers only widgets it can use. */
   readonly permissions: EffectivePermissions
+  /** False when nothing is stored yet: the first save is structural (server 403 for non-`manage_roles@*`). */
+  readonly hasStoredLayout: boolean
 }
 
-export function BuilderPane({ ops, isSaving, onSave, onReset, onClose, permissions }: BuilderPaneProps) {
+export function BuilderPane({ ops, isSaving, onSave, onReset, onClose, permissions, hasStoredLayout }: BuilderPaneProps) {
   const { t } = useTranslation()
   const { draft, activePageId, isDirty } = ops
+  const canEditStructure = hasPermission(permissions, 'manage_roles', GLOBAL_SCOPE)
+  const firstSaveBlocked = !canEditStructure && !hasStoredLayout
 
   const [showResetConfirm, setShowResetConfirm] = React.useState(false)
   const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false)
@@ -51,6 +61,13 @@ export function BuilderPane({ ops, isSaving, onSave, onReset, onClose, permissio
 
   const activePage = draft.pages.find((p) => p.id === activePageId) ?? draft.pages[0]
   const otherPages = draft.pages.filter((p) => p.id !== activePage?.id)
+
+  const previewLayout = React.useMemo(
+    () => activePage
+      ? filterDashboardLayoutByWidgetRequirements({ version: 1, pages: [activePage] }, permissions, widgetRequirementOf)
+      : null,
+    [activePage, permissions],
+  )
 
   const pageDragIds = draft.pages.map((p) => `page:${p.id}`)
   const sectionDragIds = (activePage?.sections ?? []).map((s) => `section:${activePage?.id}:${s.id}`)
@@ -138,7 +155,7 @@ export function BuilderPane({ ops, isSaving, onSave, onReset, onClose, permissio
     const overId = String(over.id)
 
     if (activeId.startsWith('page:') && overId.startsWith('page:')) {
-      handlePageDrag(activeId, overId)
+      if (canEditStructure) handlePageDrag(activeId, overId)
     } else if (activeId.startsWith('section:') && overId.startsWith('section:')) {
       handleSectionDrag(activeId, overId)
     } else if (activeId.startsWith('widget:') && overId.startsWith('widget:')) {
@@ -160,15 +177,16 @@ export function BuilderPane({ ops, isSaving, onSave, onReset, onClose, permissio
               onAddPage={ops.addPage}
               onRenamePage={ops.renamePage}
               onRemovePage={ops.removePage}
+              canEditStructure={canEditStructure}
             />
           </SortableContext>
 
-          {!showPreview && activePage && (
+          {!showPreview && activePage && canEditStructure && (
             <PageAudiencePicker roleIds={activePage.roles ?? []} onChange={(ids) => ops.setPageRoles(activePage.id, ids)} />
           )}
 
-          {showPreview && activePage ? (
-            <DashboardLayoutRenderer layout={{ version: 1, pages: [activePage] }} />
+          {showPreview && previewLayout ? (
+            <DashboardLayoutRenderer layout={previewLayout} />
           ) : (
             activePage && (
               <SortableContext items={sectionDragIds} strategy={verticalListSortingStrategy}>
@@ -209,6 +227,9 @@ export function BuilderPane({ ops, isSaving, onSave, onReset, onClose, permissio
       </div>
 
       <div className="flex-shrink-0 flex items-center justify-end gap-2 px-6 pt-4 pb-6 border-t">
+        {firstSaveBlocked && (
+          <p className="mr-auto text-sm text-muted-foreground">{t('dashboard.builder.firstSaveNeedsRoles')}</p>
+        )}
         <Button type="button" variant="ghost" onClick={() => setShowPreview((v) => !v)}>
           {showPreview ? <EyeOff className="size-4 mr-1" /> : <Eye className="size-4 mr-1" />}
           {showPreview ? t('dashboard.builder.hidePreview') : t('dashboard.builder.showPreview')}
@@ -216,10 +237,12 @@ export function BuilderPane({ ops, isSaving, onSave, onReset, onClose, permissio
         <Button type="button" variant="ghost" onClick={handleAttemptClose}>
           {t('common.cancel')}
         </Button>
-        <Button type="button" variant="outline" onClick={() => setShowResetConfirm(true)}>
-          {t('dashboard.builder.reset')}
-        </Button>
-        <Button type="button" onClick={onSave} disabled={!isDirty || isSaving}>
+        {canEditStructure && (
+          <Button type="button" variant="outline" onClick={() => setShowResetConfirm(true)}>
+            {t('dashboard.builder.reset')}
+          </Button>
+        )}
+        <Button type="button" onClick={onSave} disabled={!isDirty || isSaving || firstSaveBlocked}>
           {isSaving && <Loader2 className="size-4 animate-spin mr-1" />}
           {t('dashboard.builder.save')}
         </Button>

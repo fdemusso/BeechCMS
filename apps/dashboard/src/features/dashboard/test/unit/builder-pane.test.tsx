@@ -12,15 +12,14 @@ import type { DashboardLayout } from "@beechcms/core"
 
 // The builder reads the schema, the stored layout, the role list and the caller's authority through rpc; none is under test here.
 // The builder now waits for me: its generated draft and its widget palette depend on the caller's authority.
+const mocked = vi.hoisted(() => ({ me: vi.fn(), getLayout: vi.fn() }))
+
 vi.mock("@/lib/rpc", () => ({
   rpc: { api: {
     schema: { $get: async () => ({ json: async () => [] }) },
-    settings: { me: { $get: async () => {
-      const { FULL_AUTHORITY, meResponseBody } = await import("@/test/me-payload")
-      return { json: async () => meResponseBody(FULL_AUTHORITY) }
-    } } },
+    settings: { me: { $get: mocked.me } },
     "dashboard-layout": {
-      $get: async () => ({ json: async () => ({ layout: null }) }),
+      $get: mocked.getLayout,
       $put: vi.fn(),
       $delete: vi.fn(),
       roles: { $get: async () => ({ json: async () => [] }) },
@@ -52,6 +51,7 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
 }))
 
 import { widgetClientFromGet } from "@/test/widget-client"
+import { FULL_AUTHORITY, meResponseBody } from "@/test/me-payload"
 import { toast } from "sonner"
 import { WidgetSdkProvider } from "@beechcms/widget-sdk"
 import "@/features/dashboard/registry/builtin-widgets"
@@ -110,9 +110,70 @@ function makeLayout(): DashboardLayout {
   }
 }
 
+const LAYOUT_ONLY_AUTHORITY = { global: ["manage_layout", "content:read"], byScope: {} }
+
 describe("BuilderPane (via DashboardBuilderDialog)", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody(FULL_AUTHORITY) })
+    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: null }) })
+  })
+
+  it("hides Add Page, the Visible to picker and Reset from an author without manage_roles", async () => {
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody(LAYOUT_ONLY_AUTHORITY) })
+    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: makeLayout(), updatedAt: 1 }) })
+
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+
+    await screen.findByRole("button", { name: "Add Section" })
+    expect(screen.queryByRole("button", { name: "Add Page" })).not.toBeInTheDocument()
+    expect(screen.queryByText("Visible to")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument()
+  })
+
+  it("disables Save and shows the first-save notice for a manage_layout-only author when nothing is stored", async () => {
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody(LAYOUT_ONLY_AUTHORITY) })
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+
+    await userEvent.click(await screen.findByRole("button", { name: "Add Section" }))
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled()
+    expect(screen.getByText("Only someone who manages roles can create the first dashboard layout.")).toBeInTheDocument()
+  })
+
+  it("keeps Save enabled for a manage_roles author when nothing is stored", async () => {
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+
+    await userEvent.click(await screen.findByRole("button", { name: "Add Section" }))
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled()
+    expect(screen.queryByText("Only someone who manages roles can create the first dashboard layout.")).not.toBeInTheDocument()
+  })
+
+  it("previews only the widgets the author can use, never the locked placeholder", async () => {
+    const layout = makeLayout()
+    layout.pages[0].sections[0].columns[0].widgets.unshift({ id: "widget-locked", type: "core/locked", config: {} })
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody(LAYOUT_ONLY_AUTHORITY) })
+    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout, updatedAt: 1 }) })
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={layout} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    await screen.findByText("Widget unavailable")
+
+    await userEvent.click(screen.getByRole("button", { name: /Show Preview/i }))
+
+    expect(await screen.findByText("hi")).toBeInTheDocument()
+    expect(screen.queryByText("Widget unavailable")).not.toBeInTheDocument()
   })
 
   it("toggles preview mode and renders the layout renderer", async () => {

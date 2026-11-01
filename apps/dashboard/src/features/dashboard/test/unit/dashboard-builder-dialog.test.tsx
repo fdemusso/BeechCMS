@@ -70,6 +70,13 @@ const ORPHAN_ROLE_ID = "e4d9b6a2-1c58-4f37-8b0a-9d2e3f4a5b73"
 // The stored row's version, echoed back by the builder as the `If-Match` precondition.
 const STORED_VERSION = 1_700_000_000
 
+// A reload after a conflict lands on a newer stored version.
+const RELOADED_VERSION = STORED_VERSION + 1
+const CONFLICT_TITLE = "The layout was changed by someone else"
+const CONFLICT = new ApiError(409, { type: "layout-conflict", detail: "Changed by someone else." })
+const LAYOUT_ONLY_AUTHORITY = { global: ["manage_layout", "content:read"], byScope: {} }
+const LOCKED_PLACEHOLDER = { id: "widget-locked", type: "core/locked", config: {} }
+
 const ROLES = [
   { id: ROLE_EDITOR_ID, name: "Editor", icon: "Store" },
   { id: ROLE_MERCHANT_ID, name: "Merchant", icon: null },
@@ -94,6 +101,16 @@ function makeLayout(roles?: string[]): DashboardLayout {
       },
     ],
   }
+}
+
+function stored(updatedAt: number, layout: DashboardLayout = makeLayout()) {
+  return { json: async () => ({ layout, updatedAt }) }
+}
+
+function makeLockedLayout(): DashboardLayout {
+  const layout = makeLayout()
+  layout.pages[0].sections[0].columns[0].widgets.unshift(LOCKED_PLACEHOLDER)
+  return layout
 }
 
 describe("DashboardBuilderDialog", () => {
@@ -147,10 +164,9 @@ describe("DashboardBuilderDialog", () => {
     expect(mocked.saveLayout).toHaveBeenCalledWith(expect.anything(), { headers: { "If-None-Match": "*" } })
   })
 
-  it("toasts the problem detail and keeps the dialog open when the save is refused with a 409 layout-conflict", async () => {
-    const detail = "The dashboard layout was changed by someone else since you loaded it."
-    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: makeLayout(), updatedAt: STORED_VERSION }) })
-    mocked.saveLayout.mockRejectedValue(new ApiError(409, { type: "layout-conflict", detail }))
+  it("opens the conflict prompt and toasts nothing when the save is refused with 409 layout-conflict", async () => {
+    mocked.getLayout.mockResolvedValue(stored(STORED_VERSION))
+    mocked.saveLayout.mockRejectedValue(CONFLICT)
     const onOpenChange = vi.fn()
     render(
       <DashboardBuilderDialog open onOpenChange={onOpenChange} initialLayout={makeLayout()} />,
@@ -160,8 +176,149 @@ describe("DashboardBuilderDialog", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Save" }))
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(detail))
+    const prompt = await screen.findByRole("alertdialog")
+    expect(within(prompt).getByText(CONFLICT_TITLE)).toBeInTheDocument()
+    expect(toast.error).not.toHaveBeenCalled()
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
+  })
+
+  it("reloading from the conflict prompt refetches the layout and the next save sends the new version as If-Match", async () => {
+    mocked.getLayout.mockResolvedValueOnce(stored(STORED_VERSION)).mockResolvedValue(stored(RELOADED_VERSION))
+    mocked.saveLayout.mockRejectedValueOnce(CONFLICT).mockResolvedValue({
+      json: async () => ({ ok: true, layout: makeLayout(), warnings: [] }),
+    })
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    await userEvent.click(await screen.findByRole("button", { name: "Add Section" }))
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    const prompt = await screen.findByRole("alertdialog")
+
+    await userEvent.click(within(prompt).getByRole("button", { name: "Confirm" }))
+
+    await waitFor(() => expect(mocked.getLayout).toHaveBeenCalledTimes(2))
+    // A disabled Save means the controller remounted from the reloaded version with a clean draft.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save" })).toBeDisabled())
+    await userEvent.click(screen.getByRole("button", { name: "Add Section" }))
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    await waitFor(() => expect(mocked.saveLayout).toHaveBeenCalledTimes(2))
+    expect(mocked.saveLayout).toHaveBeenLastCalledWith(expect.anything(), { headers: { "If-Match": `"${RELOADED_VERSION}"` } })
+  })
+
+  it("reloading from the conflict prompt discards the unsaved draft", async () => {
+    mocked.getLayout.mockResolvedValue(stored(STORED_VERSION))
+    mocked.saveLayout.mockRejectedValue(CONFLICT)
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    const sectionsBefore = (await screen.findAllByRole("button", { name: /Add Widget/i })).length
+    await userEvent.click(screen.getByRole("button", { name: "Add Section" }))
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    const prompt = await screen.findByRole("alertdialog")
+
+    await userEvent.click(within(prompt).getByRole("button", { name: "Confirm" }))
+
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Add Widget/i })).toHaveLength(sectionsBefore))
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled()
+  })
+
+  it("keeps the draft when the conflict prompt is cancelled", async () => {
+    mocked.getLayout.mockResolvedValue(stored(STORED_VERSION))
+    mocked.saveLayout.mockRejectedValue(CONFLICT)
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    const sectionsBefore = (await screen.findAllByRole("button", { name: /Add Widget/i })).length
+    await userEvent.click(screen.getByRole("button", { name: "Add Section" }))
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    const prompt = await screen.findByRole("alertdialog")
+
+    await userEvent.click(within(prompt).getByRole("button", { name: "Cancel" }))
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument())
+    expect(screen.getAllByRole("button", { name: /Add Widget/i })).toHaveLength(sectionsBefore + 1)
+    expect(mocked.getLayout).toHaveBeenCalledTimes(1)
+  })
+
+  it("opens the conflict prompt when the reset is refused with 409 layout-conflict", async () => {
+    mocked.getLayout.mockResolvedValue(stored(STORED_VERSION))
+    mocked.resetLayout.mockRejectedValue(CONFLICT)
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    await userEvent.click(await screen.findByRole("button", { name: "Reset" }))
+    const resetPrompt = await screen.findByRole("alertdialog")
+
+    await userEvent.click(within(resetPrompt).getByRole("button", { name: "Confirm" }))
+
+    expect(await screen.findByText(CONFLICT_TITLE)).toBeInTheDocument()
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it("refetches the stored layout on every opening instead of reusing the cached version", async () => {
+    mocked.getLayout.mockResolvedValue(stored(STORED_VERSION))
+    const { rerender } = render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    await screen.findByRole("button", { name: "Add Section" })
+
+    rerender(<DashboardBuilderDialog open={false} onOpenChange={vi.fn()} initialLayout={makeLayout()} />)
+    rerender(<DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />)
+
+    await waitFor(() => expect(mocked.getLayout).toHaveBeenCalledTimes(2))
+  })
+
+  it("never requests GET /roles for an author holding manage_layout but not manage_roles", async () => {
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody(LAYOUT_ONLY_AUTHORITY) })
+    mocked.getLayout.mockResolvedValue(stored(STORED_VERSION))
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+
+    await screen.findByRole("button", { name: "Add Section" })
+
+    expect(mocked.getRoles).not.toHaveBeenCalled()
+  })
+
+  it("saves a manage_layout-only author's content edit with the loaded version as If-Match", async () => {
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody(LAYOUT_ONLY_AUTHORITY) })
+    mocked.getLayout.mockResolvedValue(stored(STORED_VERSION))
+    mocked.saveLayout.mockResolvedValue({ json: async () => ({ ok: true, layout: makeLayout(), warnings: [] }) })
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    await userEvent.click(await screen.findByRole("button", { name: "Add Section" }))
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() => expect(mocked.saveLayout).toHaveBeenCalledTimes(1))
+    expect(mocked.saveLayout).toHaveBeenCalledWith(expect.anything(), { headers: { "If-Match": `"${STORED_VERSION}"` } })
+  })
+
+  it("sends a locked placeholder back unchanged at its original column when saving", async () => {
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody(LAYOUT_ONLY_AUTHORITY) })
+    mocked.getLayout.mockResolvedValue(stored(STORED_VERSION, makeLockedLayout()))
+    mocked.saveLayout.mockResolvedValue({ json: async () => ({ ok: true, layout: makeLockedLayout(), warnings: [] }) })
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    await userEvent.click(await screen.findByRole("button", { name: "Add Section" }))
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() => expect(mocked.saveLayout).toHaveBeenCalledTimes(1))
+    const { json: saved } = mocked.saveLayout.mock.calls[0][0] as { json: DashboardLayout }
+    const firstColumn = saved.pages[0].sections[0].columns[0]
+    expect(firstColumn.id).toBe("col-1")
+    expect(firstColumn.widgets).toContainEqual(LOCKED_PLACEHOLDER)
   })
 
   it("shows an error toast and does not close the dialog when the save request fails", async () => {

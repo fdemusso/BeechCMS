@@ -48,6 +48,31 @@ describe("WidgetChip", () => {
     expect(screen.getByText("Unavailable")).toBeInTheDocument()
   })
 
+  it("renders a locked placeholder as 'Widget unavailable' without type, seed badge, grip or menu", () => {
+    renderChip({ id: "w1", type: "core/locked", config: {} })
+
+    expect(screen.getByText("Widget unavailable")).toBeInTheDocument()
+    expect(screen.queryByText("core/locked")).not.toBeInTheDocument()
+    expect(screen.queryByText("Unavailable")).not.toBeInTheDocument()
+    expect(screen.queryAllByRole("button")).toHaveLength(0)
+  })
+
+  it("never calls onConfigure when the locked placeholder is clicked", async () => {
+    const { onConfigure } = renderChip({ id: "w1", type: "core/locked", config: {} })
+
+    await userEvent.click(screen.getByText("Widget unavailable"))
+
+    expect(onConfigure).not.toHaveBeenCalled()
+  })
+
+  it("keeps the unknown-type rendering for an unregistered type that is not core/locked", () => {
+    renderChip({ id: "w1", type: "custom/not-registered", config: {} })
+
+    expect(screen.getByText("custom/not-registered")).toBeInTheDocument()
+    expect(screen.getByText("Unavailable")).toBeInTheDocument()
+    expect(screen.queryByText("Widget unavailable")).not.toBeInTheDocument()
+  })
+
   it("shows the seedSlug badge when config.seedSlug is set", () => {
     renderChip({ id: "w1", type: "core/stat", config: { seedSlug: "posts" } })
     expect(screen.getByText("posts")).toBeInTheDocument()

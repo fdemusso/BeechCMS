@@ -25,6 +25,8 @@ export interface PageTabsManagerProps {
   readonly onAddPage: () => void
   readonly onRenamePage: (id: string, label: string) => void
   readonly onRemovePage: (id: string) => void
+  /** `manage_roles@*`: add, rename, delete and reorder tabs. Otherwise tabs can only be selected. */
+  readonly canEditStructure: boolean
 }
 
 export function PageTabsManager({
@@ -34,6 +36,7 @@ export function PageTabsManager({
   onAddPage,
   onRenamePage,
   onRemovePage,
+  canEditStructure,
 }: PageTabsManagerProps) {
   const { t } = useTranslation()
   const [renamingId, setRenamingId] = React.useState<string | null>(null)
@@ -66,12 +69,15 @@ export function PageTabsManager({
             onRenameCancel={() => setRenamingId(null)}
             onDelete={() => onRemovePage(page.id)}
             canDelete={pages.length > 1}
+            canEditStructure={canEditStructure}
           />
         ))}
-        <Button type="button" variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={onAddPage}>
-          <Plus className="size-4" />
-          {t('dashboard.builder.page.add')}
-        </Button>
+        {canEditStructure && (
+          <Button type="button" variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={onAddPage}>
+            <Plus className="size-4" />
+            {t('dashboard.builder.page.add')}
+          </Button>
+        )}
       </div>
     </SortableContext>
   )
@@ -90,6 +96,7 @@ interface PageTabPillProps {
   onRenameCancel: () => void
   onDelete: () => void
   canDelete: boolean
+  canEditStructure: boolean
 }
 
 function PageTabPill({
@@ -105,9 +112,10 @@ function PageTabPill({
   onRenameCancel,
   onDelete,
   canDelete,
+  canEditStructure,
 }: Readonly<PageTabPillProps>) {
   const { t } = useTranslation()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId, disabled: !canEditStructure })
   const { role: _role, tabIndex: _tabIndex, ...restAttributes } = attributes
 
   const style: React.CSSProperties = {
@@ -152,6 +160,7 @@ function PageTabPill({
       ) : (
         <span>{page.label}</span>
       )}
+      {canEditStructure && (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button type="button" className="ml-1 opacity-60 hover:opacity-100" onClick={(e) => e.stopPropagation()}>
@@ -172,6 +181,7 @@ function PageTabPill({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      )}
     </div>
   )
 }

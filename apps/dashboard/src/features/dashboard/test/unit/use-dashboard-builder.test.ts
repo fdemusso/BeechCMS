@@ -30,6 +30,31 @@ function makeLayout(): DashboardLayout {
   }
 }
 
+/** Three columns; the locked placeholder sits in column 2, so the section may not shrink below two columns. */
+function makeLockedLayout(): DashboardLayout {
+  return {
+    version: 1,
+    pages: [
+      {
+        id: "page-1",
+        slug: "overview",
+        label: "Overview",
+        sections: [
+          {
+            id: "section-1",
+            columns: [
+              { id: "col-1", widgets: [{ id: "widget-1", type: "core/text", config: { content: "a" } }] },
+              { id: "col-2", widgets: [{ id: "widget-locked", type: "core/locked", config: {} }] },
+              { id: "col-3", widgets: [{ id: "widget-3", type: "core/text", config: { content: "c" } }] },
+            ],
+            columnSpans: [4, 4, 4],
+          },
+        ],
+      },
+    ],
+  }
+}
+
 describe("useDashboardBuilder", () => {
   it("adds, renames, reorders and removes pages", () => {
     const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
@@ -90,6 +115,24 @@ describe("useDashboardBuilder", () => {
     expect(section.columnSpans).toEqual([12])
     expect(section.columns).toHaveLength(1)
     expect(section.columns[0].widgets.map((w) => w.id)).toEqual(["widget-1", "widget-2"])
+  })
+
+  it("setColumnPreset below the locked column floor leaves the draft unchanged", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLockedLayout() }))
+    const before = structuredClone(result.current.draft)
+
+    act(() => result.current.setColumnPreset("page-1", "section-1", [12]))
+
+    expect(result.current.draft).toEqual(before)
+  })
+
+  it("setColumnPreset at the locked column floor folds only unlocked overflow widgets", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLockedLayout() }))
+
+    act(() => result.current.setColumnPreset("page-1", "section-1", [6, 6]))
+
+    const section = result.current.draft.pages[0].sections[0]
+    expect(section.columns.map((c) => c.widgets.map((w) => w.id))).toEqual([["widget-1"], ["widget-locked", "widget-3"]])
   })
 
   it("setColumnPreset grow rule adds empty columns", () => {
@@ -211,6 +254,17 @@ describe("useDashboardBuilder", () => {
     expect(sections[1].columns[0].id).not.toBe("col-1")
     expect(sections[1].columns[0].widgets[0]?.id).not.toBe("widget-1")
     expect(sections[1].columns[0].widgets[0]?.type).toBe("core/stat")
+  })
+
+  it("duplicateSection omits locked placeholders from the clone and keeps them in the original", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLockedLayout() }))
+
+    act(() => result.current.duplicateSection("page-1", "section-1"))
+
+    const [original, clone] = result.current.draft.pages[0].sections
+    const typesOf = (columns: typeof original.columns) => columns.map((c) => c.widgets.map((w) => w.type))
+    expect(typesOf(original.columns)).toEqual([["core/text"], ["core/locked"], ["core/text"]])
+    expect(typesOf(clone.columns)).toEqual([["core/text"], [], ["core/text"]])
   })
 
   it("addWidget appends a new widget with the type's default config", () => {

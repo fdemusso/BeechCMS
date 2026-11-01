@@ -11,6 +11,7 @@ import type {
   DashboardWidgetInstance,
 } from '@beechcms/core'
 import { getWidgetDefinition } from '../registry/widget-registry'
+import { isLockedWidget, lockedColumnFloor } from './locked-widgets'
 
 type DashboardColumnCount = 1 | 2 | 3 | 4
 
@@ -229,6 +230,8 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
           clone.id = crypto.randomUUID()
           for (const col of clone.columns) {
             col.id = crypto.randomUUID()
+            // A cloned placeholder would carry an id the server treats as forged.
+            col.widgets = col.widgets.filter((w) => !isLockedWidget(w))
             for (const w of col.widgets) w.id = crypto.randomUUID()
           }
           page.sections.splice(idx + 1, 0, clone)
@@ -246,6 +249,8 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
       if (section) {
         const targetCount = spans.length
         const current = section.columns
+        // Folding overflow would move a locked widget out of its column.
+        if (targetCount < lockedColumnFloor(section)) return d
         if (targetCount >= current.length) {
           section.columns = [
             ...current,

@@ -65,6 +65,25 @@ describe("DashboardPage", () => {
     expect(await screen.findByRole("button", { name: "Customize" })).toBeInTheDocument()
   })
 
+  it("shows the Customize button once me reports manage_layout in global", async () => {
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody({ global: ["manage_layout"], byScope: {} }) })
+
+    renderPage()
+
+    expect(await screen.findByRole("button", { name: "Customize" })).toBeInTheDocument()
+  })
+
+  it("never shows the Customize button when me reports manage_layout only under a seed scope", async () => {
+    mocked.me.mockResolvedValue({
+      json: async () => meResponseBody({ global: [], byScope: { posts: ["manage_layout"] } }),
+    })
+
+    const client = renderPage()
+    await waitForMe(client)
+
+    expect(screen.queryByRole("button", { name: "Customize" })).not.toBeInTheDocument()
+  })
+
   it("never shows the Customize button when me reports no manage_roles, even for an admin JWT", async () => {
     mocked.me.mockResolvedValue({ json: async () => meResponseBody({ global: ["content:read"], byScope: {} }) })
 
