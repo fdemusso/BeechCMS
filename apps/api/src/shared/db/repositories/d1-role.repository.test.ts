@@ -57,7 +57,7 @@ describe('D1RoleRepository', () => {
     expect(found?.permissions).toEqual(['content:delete'])
   })
 
-  it('update on the seeded SuperAdmin reports not-found and leaves its 7 permissions byte-identical', async () => {
+  it('update on the seeded SuperAdmin reports not-found and leaves its 8 permissions byte-identical', async () => {
     const superAdmin = await db
       .prepare(`SELECT id FROM roles WHERE name = 'SuperAdmin'`)
       .first<{ id: string }>()
@@ -97,7 +97,7 @@ describe('D1RoleRepository', () => {
     expect(stillThere).not.toBeNull()
   })
 
-  it('the migration-seeded SuperAdmin role has exactly the 7 permissions and isSystem true', async () => {
+  it('the migration-seeded SuperAdmin role has exactly the 8 permissions, manage_layout included, and isSystem true', async () => {
     const superAdmin = await db
       .prepare(`SELECT id FROM roles WHERE name = 'SuperAdmin'`)
       .first<{ id: string }>()
@@ -115,8 +115,17 @@ describe('D1RoleRepository', () => {
         'manage_users',
         'manage_roles',
         'view_analytics',
+        'manage_layout',
       ]),
     )
+  })
+
+  it('the CHECK constraint accepts manage_layout for a custom role', async () => {
+    const roleId = await repo.create({ name: 'Layout editor', description: null, permissions: ['manage_layout'] })
+
+    const found = await repo.findById(roleId)
+
+    expect(found?.permissions).toEqual(['manage_layout'])
   })
 
   it('the CHECK constraint rejects manage_seeds — unknown permissions cannot reach storage', async () => {

@@ -5,9 +5,14 @@
 import { rpc } from '@/lib/rpc'
 import type { DashboardLayout } from '@beechcms/core'
 
+/** `If-Match` with the loaded version, or `If-None-Match: *` when nothing was stored. */
+function layoutPrecondition(updatedAt: number | null): Record<string, string> {
+  return updatedAt === null ? { 'If-None-Match': '*' } : { 'If-Match': `"${updatedAt}"` }
+}
+
 // Response shapes are inferred from the routes; there is no hand-written DTO to keep in step.
 export const dashboardBuilderApi = {
-  /** The caller's filtered view of the stored layout, or `{ layout: null }`. For `manage_roles@*` it keeps every tab. */
+  /** The caller's projected layout and its `updatedAt` version, or `{ layout: null, updatedAt: null }`. Layout editors keep every tab. */
   getLayout: async () => {
     const response = await rpc.api['dashboard-layout'].$get()
     return response.json()
@@ -17,13 +22,13 @@ export const dashboardBuilderApi = {
     const response = await rpc.api['dashboard-layout'].roles.$get()
     return response.json()
   },
-  /** Needs `manage_roles@*`. */
-  saveLayout: async (layout: DashboardLayout) => {
-    const response = await rpc.api['dashboard-layout'].$put({ json: layout })
+  /** Needs `manage_layout@*` or `manage_roles@*`; `updatedAt` is the version loaded with the layout. */
+  saveLayout: async (layout: DashboardLayout, updatedAt: number | null) => {
+    const response = await rpc.api['dashboard-layout'].$put({ json: layout }, { headers: layoutPrecondition(updatedAt) })
     return response.json()
   },
-  /** Removes the stored layout. Needs `manage_roles@*`. */
-  resetLayout: async (): Promise<void> => {
-    await rpc.api['dashboard-layout'].$delete()
+  /** Removes the stored layout. Needs `manage_roles@*`; `updatedAt` is the version loaded with the layout. */
+  resetLayout: async (updatedAt: number | null): Promise<void> => {
+    await rpc.api['dashboard-layout'].$delete(undefined, { headers: layoutPrecondition(updatedAt) })
   },
 }

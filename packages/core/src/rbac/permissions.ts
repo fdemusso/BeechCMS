@@ -16,6 +16,9 @@
  * Each non-CRUD dashboard surface owns one dedicated permission (`view_analytics` is
  * the first). Absence of the permission hides the surface; there is no default-visible
  * exception.
+ *
+ * `manage_layout` edits the content of every dashboard tab; it is evaluated at the global
+ * scope only (a seed-scoped grant confers nothing on the dashboard).
  */
 export const PERMISSIONS = [
   'content:read',
@@ -25,6 +28,7 @@ export const PERMISSIONS = [
   'manage_users',
   'manage_roles',
   'view_analytics',
+  'manage_layout',
 ] as const
 
 /** A single atomic permission drawn from the closed vocabulary. */

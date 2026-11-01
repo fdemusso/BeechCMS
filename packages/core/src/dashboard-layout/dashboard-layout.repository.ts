@@ -13,11 +13,17 @@ export interface DashboardLayoutRecord {
   updatedBy: string      // user id
 }
 
+export type DashboardLayoutWriteResult =
+  /** Written. `updatedAt` is the row's new version, null after a removal. */
+  | { readonly ok: true; readonly updatedAt: number | null }
+  /** Refused: the stored version no longer equals the expected one. */
+  | { readonly ok: false }
+
 export interface IDashboardLayoutRepository {
   /** Stored layout for a scope, or null if none was ever saved. */
   get(scope: string): Promise<DashboardLayoutRecord | null>
-  /** Upsert. `updatedBy` is the writer's user id. */
-  upsert(scope: string, layout: DashboardLayout, updatedBy: string): Promise<void>
-  /** Remove the stored row — the "Reset" action. */
-  remove(scope: string): Promise<void>
+  /** Writes only while the stored `updatedAt` equals `expectedUpdatedAt` (null = no row stored). `updatedAt` strictly increases on every write. */
+  save(scope: string, layout: DashboardLayout, updatedBy: string, expectedUpdatedAt: number | null): Promise<DashboardLayoutWriteResult>
+  /** Removes the row only while its `updatedAt` equals `expectedUpdatedAt`; with null, succeeds only when no row is stored. */
+  remove(scope: string, expectedUpdatedAt: number | null): Promise<DashboardLayoutWriteResult>
 }

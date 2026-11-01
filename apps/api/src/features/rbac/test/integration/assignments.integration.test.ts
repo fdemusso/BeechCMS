@@ -35,6 +35,32 @@ describe('rbac assignments — integration (real D1)', () => {
     return row?.n ?? 0
   }
 
+  describe('POST /api/rbac/assignments', () => {
+    it('refuses a manage_users@* + manage_roles@* holder assigning a manage_layout role at * with escalation-refused', async () => {
+      const grantorRoleId = '7d1e2f3a-4b5c-4d6e-8f70-819a2b3c4d5e'
+      const layoutRoleId = '8e2f3a4b-5c6d-4e7f-9081-92ab3c4d5e6f'
+      await harness.db.batch([
+        harness.db.prepare('INSERT INTO roles (id, name) VALUES (?, ?)').bind(grantorRoleId, 'Grantor'),
+        harness.db.prepare('INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)').bind(grantorRoleId, 'manage_users'),
+        harness.db.prepare('INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)').bind(grantorRoleId, 'manage_roles'),
+        harness.db.prepare('INSERT INTO user_role_assignments (id, user_id, role_id, scope) VALUES (?, ?, ?, ?)').bind('grantor-assignment', CANONICAL_USERS.editor.id, grantorRoleId, GLOBAL_SCOPE),
+        harness.db.prepare('INSERT INTO roles (id, name) VALUES (?, ?)').bind(layoutRoleId, 'Layout role'),
+        harness.db.prepare('INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)').bind(layoutRoleId, 'manage_layout'),
+      ])
+      const grantor = await harness.asUser('editor')
+
+      const response = await grantor.post('/api/rbac/assignments', { userId: CANONICAL_USERS.admin.id, roleId: layoutRoleId, scope: GLOBAL_SCOPE })
+
+      expect(response.status).toBe(403)
+      expect(await response.json<{ type: string }>()).toMatchObject({ type: 'https://beechcms.dev/problems/escalation-refused' })
+      const assignedCount = await harness.db
+        .prepare('SELECT COUNT(*) AS n FROM user_role_assignments WHERE role_id = ?')
+        .bind(layoutRoleId)
+        .first<{ n: number }>()
+      expect(assignedCount?.n).toBe(0)
+    })
+  })
+
   describe('DELETE /api/rbac/assignments/:assignmentId', () => {
     it('removes one of two global admin assignments held by the only admin, who stays an admin through the other', async () => {
       const role = await admin.post('/api/rbac/roles', { name: 'Second Admin Role', permissions: ['manage_users'] })

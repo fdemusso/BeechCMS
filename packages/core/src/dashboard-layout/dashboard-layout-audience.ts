@@ -9,7 +9,9 @@ import type {
   DashboardLayout,
   DashboardPageLayout,
   DashboardSection,
+  DashboardWidgetInstance,
 } from './dashboard-layout.js'
+import { isWidgetLockedFor, LOCKED_WIDGET_TYPE } from './widget-requirements.js'
 
 /** Who is looking at the dashboard, as resolved for one request. */
 export interface DashboardLayoutViewer {
@@ -19,35 +21,42 @@ export interface DashboardLayoutViewer {
   readonly permissions: EffectivePermissions
 }
 
+/** Whether the caller edits the dashboard layout: `manage_layout` or `manage_roles`, held at the global scope. */
+export function isDashboardLayoutEditor(permissions: EffectivePermissions): boolean {
+  return hasPermission(permissions, 'manage_layout', GLOBAL_SCOPE) || hasPermission(permissions, 'manage_roles', GLOBAL_SCOPE)
+}
+
 export interface FilteredDashboardLayout {
   readonly layout: DashboardLayout
-  /** Widgets removed because their `config.seedSlug` names a seed the viewer may not `content:read`. */
-  readonly hiddenWidgetCount: number
 }
 
 /**
  * The part of a layout one viewer may receive. The layout is never the authority: this
  * projection is applied by the server before serving, and data routes enforce RBAC on their own.
+ *
+ * An editor receives the real structure, with every widget they cannot use swapped in place for an
+ * opaque {@link LOCKED_WIDGET_TYPE} placeholder. A reader never learns that such widgets exist.
  */
 export function filterDashboardLayoutForViewer(
   layout: DashboardLayout,
   viewer: DashboardLayoutViewer,
 ): FilteredDashboardLayout {
-  const seesAllTabs = hasPermission(viewer.permissions, 'manage_roles', GLOBAL_SCOPE)
-  let hiddenWidgetCount = 0
+  const editor = isDashboardLayoutEditor(viewer.permissions)
 
   const isInAudience = (page: DashboardPageLayout): boolean =>
-    seesAllTabs || !page.roles?.length || page.roles.some((roleId) => viewer.roleIds.has(roleId))
+    editor || !page.roles?.length || page.roles.some((roleId) => viewer.roleIds.has(roleId))
+
+  const toPlaceholder = (widget: DashboardWidgetInstance): DashboardWidgetInstance => ({
+    id: widget.id,
+    type: LOCKED_WIDGET_TYPE,
+    config: {},
+  })
 
   const filterColumn = (column: DashboardColumn): DashboardColumn => ({
     ...column,
-    widgets: column.widgets.filter((widget) => {
-      const seedSlug = widget.config?.['seedSlug']
-      if (typeof seedSlug !== 'string' || seedSlug === '') return true
-      if (hasPermission(viewer.permissions, 'content:read', seedSlug)) return true
-      hiddenWidgetCount++
-      return false
-    }),
+    widgets: editor
+      ? column.widgets.map((widget) => (isWidgetLockedFor(widget, viewer.permissions) ? toPlaceholder(widget) : widget))
+      : column.widgets.filter((widget) => !isWidgetLockedFor(widget, viewer.permissions)),
   })
 
   const filterPage = (page: DashboardPageLayout): DashboardPageLayout => {
@@ -55,7 +64,7 @@ export function filterDashboardLayoutForViewer(
       ...section,
       columns: section.columns.map(filterColumn),
     }))
-    if (seesAllTabs) return { ...page, sections: filteredSections }
+    if (editor) return { ...page, sections: filteredSections }
 
     const sections = filteredSections.filter((section) => section.columns.some((column) => column.widgets.length > 0))
     const readerPage: DashboardPageLayout = { ...page, sections }
@@ -66,7 +75,7 @@ export function filterDashboardLayoutForViewer(
   const pages = layout.pages
     .filter(isInAudience)
     .map(filterPage)
-    .filter((page) => seesAllTabs || page.sections.length > 0)
+    .filter((page) => editor || page.sections.length > 0)
 
-  return { layout: { ...layout, pages }, hiddenWidgetCount }
+  return { layout: { ...layout, pages } }
 }

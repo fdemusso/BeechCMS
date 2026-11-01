@@ -8,7 +8,9 @@ import type { EffectivePermissions, PermissionAssignment, RoleRecord } from '../
 import type { DashboardLayout, DashboardWidgetInstance } from './dashboard-layout.js'
 import {
   filterDashboardLayoutByWidgetRequirements,
+  isWidgetLockedFor,
   isWidgetRequirementMet,
+  LOCKED_WIDGET_TYPE,
   resolveCoreWidgetRequirement,
   type WidgetRequirement,
   type WidgetRequirementLookup,
@@ -194,6 +196,40 @@ describe('resolveCoreWidgetRequirement', () => {
   })
 })
 
+describe('isWidgetLockedFor', () => {
+  it('locks a core/locked placeholder even for full global authority', () => {
+    const everything = authority(['content:read', 'manage_users', 'manage_roles', 'view_analytics'], '*')
+
+    const locked = isWidgetLockedFor(widget('w1', LOCKED_WIDGET_TYPE), everything)
+
+    expect(locked).toBe(true)
+  })
+
+  it('locks a custom widget bound to a seed the caller cannot read', () => {
+    const locked = isWidgetLockedFor(widget('w1', '@acme/x', { seedSlug: 'authors' }), authority(['content:read'], 'posts'))
+
+    expect(locked).toBe(true)
+  })
+
+  it('locks core/setup-checklist for a caller without manage_users@*', () => {
+    const locked = isWidgetLockedFor(widget('w1', 'core/setup-checklist'), authority(['content:read'], 'posts'))
+
+    expect(locked).toBe(true)
+  })
+
+  it('never locks a custom widget without a seedSlug, even for a caller with no permission', () => {
+    const locked = isWidgetLockedFor(widget('w1', '@acme/x'), NO_AUTHORITY)
+
+    expect(locked).toBe(false)
+  })
+
+  it('does not lock core/recent-content on a readable seed', () => {
+    const locked = isWidgetLockedFor(widget('w1', 'core/recent-content', { seedSlug: 'posts' }), authority(['content:read'], 'posts'))
+
+    expect(locked).toBe(false)
+  })
+})
+
 describe('filterDashboardLayoutByWidgetRequirements', () => {
   const reader = authority(['content:read'], 'posts')
 
@@ -267,6 +303,20 @@ describe('filterDashboardLayoutByWidgetRequirements', () => {
 
     const filtered = filterDashboardLayoutByWidgetRequirements(layout, reader, lookup)
 
+    expect(widgetIds(filtered)).toEqual(['w2'])
+  })
+
+  it('drops a core/locked widget and the section it emptied even when the lookup returns no requirement', () => {
+    const layout = layoutOf(
+      page('overview', [
+        [[widget('w1', LOCKED_WIDGET_TYPE)]],
+        [[widget('w2', 'core/text')]],
+      ]),
+    )
+
+    const filtered = filterDashboardLayoutByWidgetRequirements(layout, reader, () => undefined)
+
+    expect(filtered.pages[0].sections.map((section) => section.id)).toEqual(['overview-s1'])
     expect(widgetIds(filtered)).toEqual(['w2'])
   })
 })

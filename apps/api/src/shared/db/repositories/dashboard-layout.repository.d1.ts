@@ -3,7 +3,13 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { IDashboardLayoutRepository, DashboardLayoutRecord, DashboardLayout, IClock } from '@beechcms/core'
+import type {
+  IDashboardLayoutRepository,
+  DashboardLayoutRecord,
+  DashboardLayoutWriteResult,
+  DashboardLayout,
+  IClock,
+} from '@beechcms/core'
 
 export class D1DashboardLayoutRepository implements IDashboardLayoutRepository {
   constructor(
@@ -29,26 +35,52 @@ export class D1DashboardLayoutRepository implements IDashboardLayoutRepository {
     }
   }
 
-  async upsert(scope: string, layout: DashboardLayout, updatedBy: string): Promise<void> {
+  async save(
+    scope: string,
+    layout: DashboardLayout,
+    updatedBy: string,
+    expectedUpdatedAt: number | null,
+  ): Promise<DashboardLayoutWriteResult> {
     const json = JSON.stringify(layout)
     const now = this.clock.nowSeconds()
-    await this.db
-      .prepare(`
-        INSERT INTO dashboard_layouts (scope, layout, updated_at, updated_by)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(scope) DO UPDATE SET
-          layout     = excluded.layout,
-          updated_at = excluded.updated_at,
-          updated_by = excluded.updated_by
-      `)
-      .bind(scope, json, now, updatedBy)
-      .run()
+    // MAX(now, updated_at + 1) keeps the version strictly increasing under a frozen or coarse clock.
+    const written =
+      expectedUpdatedAt === null
+        ? await this.db
+            .prepare(`
+              INSERT INTO dashboard_layouts (scope, layout, updated_at, updated_by)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT(scope) DO NOTHING
+              RETURNING updated_at
+            `)
+            .bind(scope, json, now, updatedBy)
+            .first<{ updated_at: number }>()
+        : await this.db
+            .prepare(`
+              UPDATE dashboard_layouts
+              SET layout = ?, updated_at = MAX(?, updated_at + 1), updated_by = ?
+              WHERE scope = ? AND updated_at = ?
+              RETURNING updated_at
+            `)
+            .bind(json, now, updatedBy, scope, expectedUpdatedAt)
+            .first<{ updated_at: number }>()
+
+    return written ? { ok: true, updatedAt: written.updated_at } : { ok: false }
   }
 
-  async remove(scope: string): Promise<void> {
-    await this.db
-      .prepare('DELETE FROM dashboard_layouts WHERE scope = ?')
-      .bind(scope)
+  async remove(scope: string, expectedUpdatedAt: number | null): Promise<DashboardLayoutWriteResult> {
+    if (expectedUpdatedAt === null) {
+      const present = await this.db
+        .prepare('SELECT 1 AS present FROM dashboard_layouts WHERE scope = ? LIMIT 1')
+        .bind(scope)
+        .first<{ present: number }>()
+      return present ? { ok: false } : { ok: true, updatedAt: null }
+    }
+
+    const removal = await this.db
+      .prepare('DELETE FROM dashboard_layouts WHERE scope = ? AND updated_at = ?')
+      .bind(scope, expectedUpdatedAt)
       .run()
+    return removal.meta.changes === 1 ? { ok: true, updatedAt: null } : { ok: false }
   }
 }

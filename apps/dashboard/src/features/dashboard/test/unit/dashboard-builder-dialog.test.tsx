@@ -67,6 +67,8 @@ function wrapper(client: QueryClient) {
 const ROLE_EDITOR_ID = "5b1f3c1e-7a42-4d2b-9c6e-0a1b2c3d4e51"
 const ROLE_MERCHANT_ID = "c8e2a7d4-3f19-4b85-a1d0-6e7f8a9b0c62"
 const ORPHAN_ROLE_ID = "e4d9b6a2-1c58-4f37-8b0a-9d2e3f4a5b73"
+// The stored row's version, echoed back by the builder as the `If-Match` precondition.
+const STORED_VERSION = 1_700_000_000
 
 const ROLES = [
   { id: ROLE_EDITOR_ID, name: "Editor", icon: "Store" },
@@ -97,12 +99,13 @@ function makeLayout(roles?: string[]): DashboardLayout {
 describe("DashboardBuilderDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: null }) })
+    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: null, updatedAt: null }) })
     mocked.getRoles.mockResolvedValue({ json: async () => ROLES })
     mocked.me.mockResolvedValue({ json: async () => meResponseBody(FULL_AUTHORITY) })
   })
 
-  it("saves the cleaned layout via PUT and invalidates the layout query on success", async () => {
+  it("saves the cleaned layout via PUT with the loaded version as If-Match and invalidates the layout query on success", async () => {
+    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: makeLayout(), updatedAt: STORED_VERSION }) })
     mocked.saveLayout.mockResolvedValue({
       json: async () => ({ ok: true, layout: makeLayout(), warnings: [] }),
     })
@@ -120,11 +123,45 @@ describe("DashboardBuilderDialog", () => {
     await userEvent.click(saveButton)
 
     await waitFor(() => expect(mocked.saveLayout).toHaveBeenCalledTimes(1))
-    expect(mocked.saveLayout).toHaveBeenCalledWith({
-      json: expect.objectContaining({ version: 1 }),
-    })
+    expect(mocked.saveLayout).toHaveBeenCalledWith(
+      { json: expect.objectContaining({ version: 1 }) },
+      { headers: { "If-Match": `"${STORED_VERSION}"` } },
+    )
     await waitFor(() => expect(toast.success).toHaveBeenCalled())
     expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it("saves with If-None-Match: * when the builder loaded no stored layout", async () => {
+    mocked.saveLayout.mockResolvedValue({
+      json: async () => ({ ok: true, layout: makeLayout(), warnings: [], updatedAt: STORED_VERSION }),
+    })
+    render(
+      <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    await userEvent.click(await screen.findByRole("button", { name: "Add Section" }))
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() => expect(mocked.saveLayout).toHaveBeenCalledTimes(1))
+    expect(mocked.saveLayout).toHaveBeenCalledWith(expect.anything(), { headers: { "If-None-Match": "*" } })
+  })
+
+  it("toasts the problem detail and keeps the dialog open when the save is refused with a 409 layout-conflict", async () => {
+    const detail = "The dashboard layout was changed by someone else since you loaded it."
+    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: makeLayout(), updatedAt: STORED_VERSION }) })
+    mocked.saveLayout.mockRejectedValue(new ApiError(409, { type: "layout-conflict", detail }))
+    const onOpenChange = vi.fn()
+    render(
+      <DashboardBuilderDialog open onOpenChange={onOpenChange} initialLayout={makeLayout()} />,
+      { wrapper: wrapper(makeQueryClient()) },
+    )
+    await userEvent.click(await screen.findByRole("button", { name: "Add Section" }))
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(detail))
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
   })
 
   it("shows an error toast and does not close the dialog when the save request fails", async () => {
@@ -148,7 +185,7 @@ describe("DashboardBuilderDialog", () => {
 
   it("refuses to save when a page targets an id absent from GET /roles", async () => {
     const orphanLayout = makeLayout([ORPHAN_ROLE_ID])
-    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: orphanLayout }) })
+    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: orphanLayout, updatedAt: STORED_VERSION }) })
     render(
       <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={orphanLayout} />,
       { wrapper: wrapper(makeQueryClient()) },
@@ -164,7 +201,7 @@ describe("DashboardBuilderDialog", () => {
 
   it("saves a page whose roles are all known", async () => {
     const targetedLayout = makeLayout([ROLE_EDITOR_ID])
-    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: targetedLayout }) })
+    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: targetedLayout, updatedAt: STORED_VERSION }) })
     mocked.saveLayout.mockResolvedValue({
       json: async () => ({ ok: true, layout: targetedLayout, warnings: [] }),
     })
@@ -178,14 +215,14 @@ describe("DashboardBuilderDialog", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }))
 
     await waitFor(() => expect(mocked.saveLayout).toHaveBeenCalledTimes(1))
-    expect(mocked.saveLayout).toHaveBeenCalledWith({
-      json: expect.objectContaining({
-        pages: [expect.objectContaining({ roles: [ROLE_EDITOR_ID] })],
-      }),
-    })
+    expect(mocked.saveLayout).toHaveBeenCalledWith(
+      { json: expect.objectContaining({ pages: [expect.objectContaining({ roles: [ROLE_EDITOR_ID] })] }) },
+      { headers: { "If-Match": `"${STORED_VERSION}"` } },
+    )
   })
 
-  it("resets the layout via DELETE and closes the dialog", async () => {
+  it("resets the layout via DELETE with the loaded version as If-Match and closes the dialog", async () => {
+    mocked.getLayout.mockResolvedValue({ json: async () => ({ layout: makeLayout(), updatedAt: STORED_VERSION }) })
     mocked.resetLayout.mockResolvedValue({ json: async () => ({ ok: true }) })
 
     const onOpenChange = vi.fn()
@@ -202,6 +239,7 @@ describe("DashboardBuilderDialog", () => {
     await userEvent.click(confirmButton)
 
     await waitFor(() => expect(mocked.resetLayout).toHaveBeenCalledTimes(1))
+    expect(mocked.resetLayout).toHaveBeenCalledWith(undefined, { headers: { "If-Match": `"${STORED_VERSION}"` } })
     await waitFor(() => expect(toast.success).toHaveBeenCalled())
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })

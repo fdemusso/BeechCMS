@@ -92,6 +92,29 @@ export const resolveCoreWidgetRequirement: WidgetRequirementLookup = (widget) =>
   return STATIC_CORE_REQUIREMENTS.get(widget.type)
 }
 
+/** Type of the opaque stand-in a layout editor receives for a widget they cannot use. Never persisted. */
+export const LOCKED_WIDGET_TYPE = 'core/locked'
+
+/**
+ * Whether `permissions` cannot use `widget`, as far as the server can tell: it is a placeholder, its
+ * `config.seedSlug` names a seed they may not `content:read`, or it is a built-in whose core requirement
+ * is unmet. A custom widget's own `requires` is invisible to the Worker and never locks it here.
+ */
+export function isWidgetLockedFor(
+  widget: Pick<DashboardWidgetInstance, 'type' | 'config'>,
+  permissions: EffectivePermissions,
+): boolean {
+  if (widget.type === LOCKED_WIDGET_TYPE) return true
+
+  const config = widget.config ?? {}
+  const seedSlug = config['seedSlug']
+  if (typeof seedSlug === 'string' && seedSlug !== '' && !hasPermission(permissions, 'content:read', seedSlug)) {
+    return true
+  }
+
+  return !isWidgetRequirementMet(resolveCoreWidgetRequirement(widget), permissions, config)
+}
+
 /** Removes the widgets `permissions` cannot use, then the sections and pages that removal emptied. */
 export function filterDashboardLayoutByWidgetRequirements(
   layout: DashboardLayout,
@@ -100,8 +123,10 @@ export function filterDashboardLayoutByWidgetRequirements(
 ): DashboardLayout {
   const filterColumn = (column: DashboardColumn): DashboardColumn => ({
     ...column,
-    widgets: column.widgets.filter((widget) =>
-      isWidgetRequirementMet(requirementOf(widget), permissions, widget.config ?? {}),
+    widgets: column.widgets.filter(
+      (widget) =>
+        widget.type !== LOCKED_WIDGET_TYPE &&
+        isWidgetRequirementMet(requirementOf(widget), permissions, widget.config ?? {}),
     ),
   })
 

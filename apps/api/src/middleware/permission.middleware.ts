@@ -100,9 +100,10 @@ const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   // The handler's projection is the authorization decision for the read: tabs outside the
   // caller's role audience and widgets on seeds they cannot read never leave the server.
   { method: 'GET',    pattern: /^\/api\/dashboard-layout\/?$/,             requirement: AUTHED },
-  // Editing is structural (tab audiences) until `manage_layout` exists: `manage_roles@*` only.
   { method: 'GET',    pattern: /^\/api\/dashboard-layout\/roles$/,         requirement: perm('manage_roles', 'global') },
-  { method: 'PUT',    pattern: /^\/api\/dashboard-layout\/?$/,             requirement: perm('manage_roles', 'global') },
+  // Coarse gate only: the handler requires `manage_layout` or `manage_roles` at the GLOBAL scope, and
+  // refuses structural changes to callers without `manage_roles@*`.
+  { method: 'PUT',    pattern: /^\/api\/dashboard-layout\/?$/,             requirement: anyScope('manage_layout', 'manage_roles') },
   { method: 'DELETE', pattern: /^\/api\/dashboard-layout\/?$/,             requirement: perm('manage_roles', 'global') },
 
   // --- /api/content literal prefixes — MUST precede the :slug patterns ---------

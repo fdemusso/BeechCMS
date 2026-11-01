@@ -59,6 +59,7 @@ export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: Da
         ) : (
           <BuilderPaneController
             initialLayout={draftSource}
+            updatedAt={data?.updatedAt ?? null}
             permissions={effective}
             onClose={() => onOpenChange(false)}
             onMutated={() => { refetch() }}
@@ -71,12 +72,13 @@ export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: Da
 
 interface BuilderPaneControllerProps {
   readonly initialLayout: DashboardLayout
+  readonly updatedAt: number | null
   readonly permissions: EffectivePermissions
   readonly onClose: () => void
   readonly onMutated: () => void
 }
 
-function BuilderPaneController({ initialLayout, permissions, onClose, onMutated }: BuilderPaneControllerProps) {
+function BuilderPaneController({ initialLayout, updatedAt, permissions, onClose, onMutated }: BuilderPaneControllerProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data: seeds = [] } = useSchema()
@@ -102,7 +104,7 @@ function BuilderPaneController({ initialLayout, permissions, onClose, onMutated 
 
     setIsSaving(true)
     try {
-      await dashboardBuilderApi.saveLayout(result.cleaned)
+      await dashboardBuilderApi.saveLayout(result.cleaned, updatedAt)
       toast.success(t('dashboard.builder.saved'))
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.layout() })
       onMutated()
@@ -117,7 +119,7 @@ function BuilderPaneController({ initialLayout, permissions, onClose, onMutated 
 
   async function handleReset() {
     try {
-      await dashboardBuilderApi.resetLayout()
+      await dashboardBuilderApi.resetLayout(updatedAt)
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.layout() })
       onMutated()
       toast.success(t('dashboard.builder.resetDone'))

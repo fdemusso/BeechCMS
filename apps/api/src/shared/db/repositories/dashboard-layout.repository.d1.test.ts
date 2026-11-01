@@ -7,9 +7,9 @@ import { FixedClock } from '@beechcms/testing'
 import { D1DashboardLayoutRepository } from './dashboard-layout.repository.d1'
 import type { DashboardLayout } from '@beechcms/core'
 
-function makeMockDb(opts: { firstResult?: unknown; allResults?: unknown[] } = {}) {
-  const { firstResult = null, allResults = [] } = opts
-  const runMock = vi.fn().mockResolvedValue({ success: true })
+function makeMockDb(opts: { firstResult?: unknown; allResults?: unknown[]; changes?: number } = {}) {
+  const { firstResult = null, allResults = [], changes = 1 } = opts
+  const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes } })
   const firstMock = vi.fn().mockResolvedValue(firstResult)
   const allMock = vi.fn().mockResolvedValue({ results: allResults })
   const bindMock = vi.fn(() => ({ run: runMock, first: firstMock, all: allMock }))
@@ -82,28 +82,69 @@ describe('D1DashboardLayoutRepository', () => {
     })
   })
 
-  describe('upsert', () => {
-    it('stamps updated_at from the injected clock, not the wall clock', async () => {
+  describe('save', () => {
+    it('with a null expectation inserts only when no row exists, stamped from the injected clock, and returns the new version', async () => {
       const expectedTimestamp = Math.floor(FIXED_NOW_MS / 1000)
-
-      const { db, prepareMock, bindMock } = makeMockDb()
+      const { db, prepareMock, bindMock } = makeMockDb({ firstResult: { updated_at: expectedTimestamp } })
       const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
 
-      await repo.upsert('default', sampleLayout, 'admin-1')
+      const result = await repo.save('default', sampleLayout, 'admin-1', null)
 
-      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO dashboard_layouts'))
+      expect(prepareMock).toHaveBeenCalledWith(expect.stringMatching(/INSERT INTO dashboard_layouts[\s\S]*ON CONFLICT\(scope\) DO NOTHING[\s\S]*RETURNING updated_at/))
       expect(bindMock).toHaveBeenCalledWith('default', JSON.stringify(sampleLayout), expectedTimestamp, 'admin-1')
+      expect(result).toEqual({ ok: true, updatedAt: expectedTimestamp })
+    })
+
+    it('with a null expectation reports a conflict when a row already exists', async () => {
+      const { db } = makeMockDb({ firstResult: null })
+      const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
+
+      const result = await repo.save('default', sampleLayout, 'admin-1', null)
+
+      expect(result).toEqual({ ok: false })
+    })
+
+    it('with a number updates only the row at that version, bound in statement order, and reports a conflict when none matches', async () => {
+      const expectedTimestamp = Math.floor(FIXED_NOW_MS / 1000)
+      const { db, prepareMock, bindMock } = makeMockDb({ firstResult: null })
+      const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
+
+      const result = await repo.save('default', sampleLayout, 'admin-1', 41)
+
+      expect(prepareMock).toHaveBeenCalledWith(expect.stringMatching(/UPDATE dashboard_layouts[\s\S]*MAX\(\?, updated_at \+ 1\)[\s\S]*WHERE scope = \? AND updated_at = \?[\s\S]*RETURNING updated_at/))
+      expect(bindMock).toHaveBeenCalledWith(JSON.stringify(sampleLayout), expectedTimestamp, 'admin-1', 'default', 41)
+      expect(result).toEqual({ ok: false })
     })
   })
 
   describe('remove', () => {
-    it('deletes the layout by scope', async () => {
-      const { db, prepareMock, bindMock } = makeMockDb()
+    it('with a number deletes the row at that version and reports a conflict when nothing was deleted', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb({ changes: 0 })
       const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
 
-      await repo.remove('default')
-      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM dashboard_layouts WHERE scope = ?'))
-      expect(bindMock).toHaveBeenCalledWith('default')
+      const result = await repo.remove('default', 41)
+
+      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM dashboard_layouts WHERE scope = ? AND updated_at = ?'))
+      expect(bindMock).toHaveBeenCalledWith('default', 41)
+      expect(result).toEqual({ ok: false })
+    })
+
+    it('with a null expectation reports a conflict when a row is present', async () => {
+      const { db } = makeMockDb({ firstResult: { present: 1 } })
+      const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
+
+      const result = await repo.remove('default', null)
+
+      expect(result).toEqual({ ok: false })
+    })
+
+    it('with a null expectation succeeds as a no-op when no row is stored', async () => {
+      const { db } = makeMockDb({ firstResult: null })
+      const repo = new D1DashboardLayoutRepository(db, new FixedClock(FIXED_NOW_MS))
+
+      const result = await repo.remove('default', null)
+
+      expect(result).toEqual({ ok: true, updatedAt: null })
     })
   })
 })

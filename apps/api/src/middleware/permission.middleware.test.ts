@@ -52,7 +52,7 @@ describe('resolveRouteRule — dashboard-layout routes', () => {
   const LAYOUT_REQUIREMENTS = [
     { method: 'GET', path: '/api/dashboard-layout', requirement: { kind: 'authenticated' } },
     { method: 'GET', path: '/api/dashboard-layout/roles', requirement: { kind: 'permission', permission: 'manage_roles', scope: 'global' } },
-    { method: 'PUT', path: '/api/dashboard-layout', requirement: { kind: 'permission', permission: 'manage_roles', scope: 'global' } },
+    { method: 'PUT', path: '/api/dashboard-layout', requirement: { kind: 'permission-any-scope', permissions: ['manage_layout', 'manage_roles'] } },
     { method: 'DELETE', path: '/api/dashboard-layout', requirement: { kind: 'permission', permission: 'manage_roles', scope: 'global' } },
   ] as const
 

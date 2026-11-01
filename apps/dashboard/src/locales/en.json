@@ -1778,6 +1778,7 @@
       "content:delete": "Delete content",
       "manage_users": "Manage users",
       "manage_roles": "Manage roles",
+      "manage_layout": "Manage dashboard layout",
       "view_analytics": "View analytics"
     },
     "errors": {
