@@ -97,7 +97,7 @@ describe('D1RoleRepository', () => {
     expect(stillThere).not.toBeNull()
   })
 
-  it('the migration-seeded SuperAdmin role has exactly the 8 permissions, manage_layout included, and isSystem true', async () => {
+  it('the migration-seeded SuperAdmin role has exactly the 9 permissions, manage_seeds included, and isSystem true', async () => {
     const superAdmin = await db
       .prepare(`SELECT id FROM roles WHERE name = 'SuperAdmin'`)
       .first<{ id: string }>()
@@ -116,6 +116,7 @@ describe('D1RoleRepository', () => {
         'manage_roles',
         'view_analytics',
         'manage_layout',
+        'manage_seeds',
       ]),
     )
   })
@@ -128,12 +129,20 @@ describe('D1RoleRepository', () => {
     expect(found?.permissions).toEqual(['manage_layout'])
   })
 
-  it('the CHECK constraint rejects manage_seeds — unknown permissions cannot reach storage', async () => {
+  it('the CHECK constraint accepts manage_seeds for a custom role', async () => {
+    const roleId = await repo.create({ name: 'Seeds editor', description: null, permissions: ['manage_seeds'] })
+
+    const found = await repo.findById(roleId)
+
+    expect(found?.permissions).toEqual(['manage_seeds'])
+  })
+
+  it('the CHECK constraint rejects an unknown permission', async () => {
     const roleId = await repo.create({ name: 'Bogus', description: null, permissions: [] })
 
     await expect(
       db
-        .prepare(`INSERT INTO role_permissions (role_id, permission) VALUES (?, 'manage_seeds')`)
+        .prepare(`INSERT INTO role_permissions (role_id, permission) VALUES (?, 'manage_everything')`)
         .bind(roleId)
         .run(),
     ).rejects.toThrow()

@@ -219,10 +219,6 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       /** The caller's raw RBAC authority. Sprint 6 derives every UI visibility rule from
        *  this and from nothing else. */
       permissions: serializeEffectivePermissions(effective),
-      /** Developer/owner axis (`users.role === 'admin'`), orthogonal to RBAC and NOT a
-       *  permission: `manage_seeds` does not exist and must never exist (brief §2). Gates
-       *  the Seed Builder surface only. */
-      isDeveloper: currentUser.role === 'admin',
       /** Scopes this caller may ASSIGN on (`'*'` + slugs for a global `manage_users`
        *  holder; own scopes for a scoped one; `[]` otherwise). NOT derivable from
        *  `GET /api/schema`, which is filtered by `content:read`. */

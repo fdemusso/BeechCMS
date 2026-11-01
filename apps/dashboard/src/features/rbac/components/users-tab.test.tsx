@@ -15,7 +15,7 @@ vi.mock("../hooks/use-rbac", () => ({
 }))
 vi.mock("@/features/shared", () => ({
   useMe: () => ({ data: { id: "u1" } }),
-  usePermissions: () => ({ manageableScopes: [], can: () => false, canAnywhere: () => false, canGlobally: () => false, effective: { global: new Set(), byScope: new Map() }, isDeveloper: false, isLoading: false }),
+  usePermissions: () => ({ manageableScopes: [], can: () => false, canAnywhere: () => false, canGlobally: () => false, effective: { global: new Set(), byScope: new Map() }, isLoading: false }),
   useSchema: () => ({ data: [] }),
 }))
 vi.mock("./user-form-dialog", () => ({ UserFormDialog: () => null }))

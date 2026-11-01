@@ -62,7 +62,7 @@ describe('Flow: RBAC upgrade from legacy accounts', () => {
     expect(assignments.results[0].id).toMatch(UUID_V4_PATTERN)
     const permissions = await db.prepare(`SELECT p.permission FROM role_permissions p JOIN roles r ON r.id = p.role_id WHERE r.name = ? ORDER BY p.permission`).bind(expectedRole).all<{ permission: string }>()
     expect(permissions.results.map(row => row.permission)).toEqual(role === 'admin'
-      ? ['content:create', 'content:delete', 'content:read', 'content:update', 'manage_layout', 'manage_roles', 'manage_users', 'view_analytics']
+      ? ['content:create', 'content:delete', 'content:read', 'content:update', 'manage_layout', 'manage_roles', 'manage_seeds', 'manage_users', 'view_analytics']
       : ['content:create', 'content:delete', 'content:read', 'content:update'])
   })
 

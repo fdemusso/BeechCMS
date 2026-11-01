@@ -1784,6 +1784,7 @@
       "manage_users": "Manage users",
       "manage_roles": "Manage roles",
       "manage_layout": "Manage dashboard layout",
+      "manage_seeds": "Manage content types",
       "view_analytics": "View analytics"
     },
     "errors": {

@@ -3,6 +3,7 @@
 
 import type { OAuthScope } from './scopes.js'
 import { GLOBAL_SCOPE } from '../rbac/permissions.js'
+import { hasPermission } from '../rbac/evaluate.js'
 import type { EffectivePermissions } from '../rbac/types.js'
 
 /** Outcome of a role arbitration. `deniedScopes` is empty when fully granted. */
@@ -48,15 +49,13 @@ export class AllowAllRoleGuard implements IRoleGuard {
 }
 
 /**
- * Production guard: only a platform-wide administrator may delegate authority to an
- * OAuth/MCP client.
+ * Production guard: only a holder of `manage_seeds` at {@link GLOBAL_SCOPE} may delegate
+ * authority to an OAuth/MCP client.
  *
  * Every OAuth scope in this system (`schema:read`, `schema:write`) drives seed-schema
- * tooling, which brief §2 keeps OUT of the dashboard permission axis entirely — there is
- * deliberately no `manage_seeds` permission to map onto. So the question this guard
- * answers is not "which seed?" but "may this account hand platform authority to a
- * client at all?", and the marker for that is holding `manage_users` at
- * {@link GLOBAL_SCOPE} — the same SuperAdmin marker the last-global-admin guard uses.
+ * routes, which the route gate refuses to anyone without `manage_seeds@*`. So the question
+ * this guard answers is the same one the `/api/seeds/*` rows ask: delegation requires the
+ * authority it delegates. `manage_users@*` alone no longer suffices.
  *
  * A seed-scoped collaborator therefore cannot mint an MCP token, no matter which
  * scopes the client requests. Denial is all-or-nothing: there is no partial grant.
@@ -66,7 +65,7 @@ export class PermissionRoleGuard implements IRoleGuard {
     effective: EffectivePermissions,
     requestedScopes: readonly OAuthScope[],
   ): Promise<ScopeGrantDecision> {
-    if (!effective.global.has('manage_users')) {
+    if (!hasPermission(effective, 'manage_seeds', GLOBAL_SCOPE)) {
       return { grantedScopes: [], deniedScopes: [...requestedScopes] }
     }
     return { grantedScopes: [...requestedScopes], deniedScopes: [] }

@@ -5,8 +5,8 @@ import { describe, it, expect } from 'vitest'
 import { PERMISSIONS, isPermission } from './permissions.js'
 
 describe('PERMISSIONS', () => {
-  it('lists exactly the eight permissions of the closed vocabulary, manage_layout last', () => {
-    expect(PERMISSIONS).toHaveLength(8)
+  it('lists exactly the nine permissions of the closed vocabulary, manage_seeds last', () => {
+    expect(PERMISSIONS).toHaveLength(9)
     expect(PERMISSIONS).toEqual([
       'content:read',
       'content:create',
@@ -16,13 +16,18 @@ describe('PERMISSIONS', () => {
       'manage_roles',
       'view_analytics',
       'manage_layout',
+      'manage_seeds',
     ])
   })
 })
 
 describe('isPermission', () => {
-  it('rejects manage_seeds — the categorical exclusion this test must never relax', () => {
-    expect(isPermission('manage_seeds')).toBe(false)
+  it('accepts manage_seeds, which brief rule 29 admits to the vocabulary', () => {
+    expect(isPermission('manage_seeds')).toBe(true)
+  })
+
+  it('rejects a name outside the vocabulary', () => {
+    expect(isPermission('seeds:write')).toBe(false)
   })
 
   it('accepts a known permission', () => {

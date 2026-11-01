@@ -22,6 +22,7 @@ export const PERMISSION_GROUPS = [
       "manage_users",
       "manage_roles",
       "manage_layout",
+      "manage_seeds",
       "view_analytics",
     ] as const,
   },

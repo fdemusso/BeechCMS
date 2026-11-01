@@ -56,7 +56,6 @@ describe("usePermissions", () => {
         id: "u1", email: "a@b.com", name: null, surname: null, avatarUrl: null,
         notificationPrefs: { contentCreate: true, contentUpdate: true, contentDelete: true, mediaUpload: false },
         permissions: { global: [], byScope: { articles: ["content:read"] } },
-        isDeveloper: false,
         manageableScopes: [],
       },
       isLoading: false,
@@ -73,7 +72,6 @@ describe("usePermissions", () => {
         id: "u1", email: "a@b.com", name: null, surname: null, avatarUrl: null,
         notificationPrefs: { contentCreate: true, contentUpdate: true, contentDelete: true, mediaUpload: false },
         permissions: { global: [], byScope: { articles: ["manage_users"] } },
-        isDeveloper: false,
         manageableScopes: ["articles"],
       },
       isLoading: false,
@@ -84,6 +82,22 @@ describe("usePermissions", () => {
     expect(result.current.canGlobally("manage_users")).toBe(false)
   })
 
+  it("canGlobally('manage_seeds') is false for a manage_seeds grant held only on a seed", () => {
+    const meResult: Partial<ReturnType<typeof useMe>> = {
+      data: {
+        id: "u1", email: "a@b.com", name: null, surname: null, avatarUrl: null,
+        notificationPrefs: { contentCreate: true, contentUpdate: true, contentDelete: true, mediaUpload: false },
+        permissions: { global: [], byScope: { articles: ["manage_seeds"] } },
+        manageableScopes: [],
+      },
+      isLoading: false,
+    }
+    vi.mocked(useMe).mockReturnValue(meResult as ReturnType<typeof useMe>)
+
+    const { result } = renderHook(() => usePermissions(), { wrapper })
+    expect(result.current.canGlobally("manage_seeds")).toBe(false)
+  })
+
   it("undefined payload ⇒ every answer false", () => {
     vi.mocked(useMe).mockReturnValue({ data: undefined, isLoading: false } as any)
 
@@ -91,7 +105,6 @@ describe("usePermissions", () => {
     expect(result.current.can("content:read", "articles")).toBe(false)
     expect(result.current.canAnywhere("content:read")).toBe(false)
     expect(result.current.canGlobally("content:read")).toBe(false)
-    expect(result.current.isDeveloper).toBe(false)
     expect(result.current.manageableScopes).toEqual([])
   })
 })

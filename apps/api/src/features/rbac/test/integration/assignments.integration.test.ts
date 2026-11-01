@@ -59,6 +59,30 @@ describe('rbac assignments — integration (real D1)', () => {
         .first<{ n: number }>()
       expect(assignedCount?.n).toBe(0)
     })
+
+    it('refuses a manage_users@* + manage_roles@* holder assigning a manage_seeds role at * with escalation-refused', async () => {
+      const grantorRoleId = '9f3a4b5c-6d7e-4f80-a192-a3bc4d5e6f70'
+      const seedsRoleId = 'a04b5c6d-7e8f-4091-b2a3-b4cd5e6f7081'
+      await harness.db.batch([
+        harness.db.prepare('INSERT INTO roles (id, name) VALUES (?, ?)').bind(grantorRoleId, 'Grantor'),
+        harness.db.prepare('INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)').bind(grantorRoleId, 'manage_users'),
+        harness.db.prepare('INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)').bind(grantorRoleId, 'manage_roles'),
+        harness.db.prepare('INSERT INTO user_role_assignments (id, user_id, role_id, scope) VALUES (?, ?, ?, ?)').bind('grantor-assignment', CANONICAL_USERS.editor.id, grantorRoleId, GLOBAL_SCOPE),
+        harness.db.prepare('INSERT INTO roles (id, name) VALUES (?, ?)').bind(seedsRoleId, 'Seeds role'),
+        harness.db.prepare('INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)').bind(seedsRoleId, 'manage_seeds'),
+      ])
+      const grantor = await harness.asUser('editor')
+
+      const response = await grantor.post('/api/rbac/assignments', { userId: CANONICAL_USERS.admin.id, roleId: seedsRoleId, scope: GLOBAL_SCOPE })
+
+      expect(response.status).toBe(403)
+      expect(await response.json<{ type: string }>()).toMatchObject({ type: 'https://beechcms.dev/problems/escalation-refused' })
+      const assignedCount = await harness.db
+        .prepare('SELECT COUNT(*) AS n FROM user_role_assignments WHERE role_id = ?')
+        .bind(seedsRoleId)
+        .first<{ n: number }>()
+      expect(assignedCount?.n).toBe(0)
+    })
   })
 
   describe('DELETE /api/rbac/assignments/:assignmentId', () => {

@@ -32,9 +32,7 @@ type ScopeSource = 'global' | 'capture1'
  *                                 per-scope decision (`hasPermission` / `canGrant`).
  * - `'authenticated'`           — any active account; self-service and dashboard chrome.
  * - `'legacy-admin'`            — deferred to the slice's own `users.role === 'admin'`
- *                                 guard. The developer axis (brief §2): schema mutation
- *                                 is NOT representable as an RBAC permission and must
- *                                 never become one.
+ *                                 guard. Only the entry-editor layout rows still use it.
  */
 export type RouteRequirement =
   | { kind: 'permission'; permission: Permission; scope: ScopeSource }
@@ -84,17 +82,17 @@ const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'GET',    pattern: /^\/api\/settings\/?$/,                     requirement: AUTHED },
   { method: 'PUT',    pattern: /^\/api\/settings\/?$/,                     requirement: perm('manage_users', 'global') },
 
-  // --- schema: read is dashboard chrome; layout writes are the developer axis ---
+  // --- schema: read is dashboard chrome; layout writes keep the entry-editor gate (brief §5) ---
   { method: 'GET',    pattern: /^\/api\/schema\/?$/,                       requirement: AUTHED },
   { method: 'PUT',    pattern: /^\/api\/schema\/[^/]+\/layout$/,           requirement: LEGACY_ADMIN },
   { method: 'DELETE', pattern: /^\/api\/schema\/[^/]+\/layout$/,           requirement: LEGACY_ADMIN },
 
-  // --- seeds: developer axis in full (in-slice requireAdmin decides) -----------
-  { method: 'GET',    pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: LEGACY_ADMIN },
-  { method: 'POST',   pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: LEGACY_ADMIN },
-  { method: 'PUT',    pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: LEGACY_ADMIN },
-  { method: 'PATCH',  pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: LEGACY_ADMIN },
-  { method: 'DELETE', pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: LEGACY_ADMIN },
+  // --- seeds: schema mutation, manage_seeds at the global scope only ---
+  { method: 'GET',    pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: perm('manage_seeds', 'global') },
+  { method: 'POST',   pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: perm('manage_seeds', 'global') },
+  { method: 'PUT',    pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: perm('manage_seeds', 'global') },
+  { method: 'PATCH',  pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: perm('manage_seeds', 'global') },
+  { method: 'DELETE', pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: perm('manage_seeds', 'global') },
 
   // --- dashboard layout --------------------------------------------------------
   // The handler's projection is the authorization decision for the read: tabs outside the
@@ -278,8 +276,7 @@ export function requireActiveAccount() {
  * 3. missing permission at the route's scope.
  *
  * `legacy-admin` routes are passed through to their in-slice `users.role === 'admin'`
- * guard: seed-schema mutation is deliberately not expressible as an RBAC permission
- * (brief §2) and must never be granted one.
+ * guard; only the entry-editor layout rows still use it.
  */
 export function permissionMiddleware() {
   return async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next): Promise<Response | void> => {

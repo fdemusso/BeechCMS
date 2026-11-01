@@ -11,9 +11,7 @@ import { rpc } from "@/lib/rpc"
 export const ME_QUERY_KEY = ["settings", "profile"] as const
 
 /**
- * Full `GET /api/settings/me` payload, read off the route. `isDeveloper` is the developer/owner axis
- * (`users.role === 'admin'`), NOT an RBAC permission: it gates the Seed Builder, while an editor's
- * rights come from `permissions`.
+ * Full `GET /api/settings/me` payload, read off the route.
  */
 export type MeResponse = InferResponseType<typeof rpc.api.settings.me.$get>
 

@@ -15,8 +15,7 @@ import type { createUserSchema, setActiveSchema } from './rbac.schema'
  * - 'editor' is a generic Beech user whose permissions are managed via RBAC.
  *   (Named 'editor' for legacy/CHECK-constraint compatibility, representing a standard user).
  *
- * Every account minted here receives CREATED_ACCOUNT_ROLE ('editor'), so no RBAC path can
- * produce an account that clears `requireAdmin()` and reaches `/api/seeds/*`.
+ * Every account minted here receives CREATED_ACCOUNT_ROLE ('editor').
  */
 const CREATED_ACCOUNT_ROLE = 'editor'
 

@@ -48,6 +48,30 @@ describe('resolveRouteRule — stats routes', () => {
   })
 })
 
+describe('resolveRouteRule — seeds routes', () => {
+  const SEEDS_ROUTES = [
+    { method: 'GET', path: '/api/seeds' },
+    { method: 'POST', path: '/api/seeds' },
+    { method: 'PUT', path: '/api/seeds' },
+    { method: 'PATCH', path: '/api/seeds' },
+    { method: 'DELETE', path: '/api/seeds' },
+    { method: 'GET', path: '/api/seeds/x' },
+    { method: 'POST', path: '/api/seeds/x/mcp-apply' },
+  ] as const
+
+  it('every /api/seeds route resolves to manage_seeds at the global scope', () => {
+    const resolved = SEEDS_ROUTES.map(({ method, path }) => resolveRouteRule(method, path)?.requirement)
+
+    expect(resolved).toEqual(SEEDS_ROUTES.map(() => ({ kind: 'permission', permission: 'manage_seeds', scope: 'global' })))
+  })
+
+  it('the entry-editor layout routes still resolve to legacy-admin', () => {
+    const resolved = (['PUT', 'DELETE'] as const).map((method) => resolveRouteRule(method, '/api/schema/x/layout')?.requirement)
+
+    expect(resolved).toEqual([{ kind: 'legacy-admin' }, { kind: 'legacy-admin' }])
+  })
+})
+
 describe('resolveRouteRule — dashboard-layout routes', () => {
   const LAYOUT_REQUIREMENTS = [
     { method: 'GET', path: '/api/dashboard-layout', requirement: { kind: 'authenticated' } },
@@ -108,11 +132,6 @@ describe('permissionMiddleware', () => {
     }, { ...TEST_ENV, DB: db })
     expect(res.status).toBe(403)
     expect(await res.json()).toMatchObject({ error: 'route_not_registered' })
-  })
-
-  it('legacy-admin routes pass the gate and are then refused by requireAdmin for a non-admin', async () => {
-    const rule = resolveRouteRule('GET', '/api/seeds')
-    expect(rule?.requirement).toEqual({ kind: 'legacy-admin' })
   })
 
   it('deactivated account is refused 403 account_disabled even on GET /api/settings/me', async () => {

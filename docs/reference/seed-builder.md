@@ -1,6 +1,6 @@
 # Seed Builder & Schema Mutation API
 
-All routes under `/api/seeds` require JWT authentication and user role verification (`requireAdmin`).
+All routes under `/api/seeds` require JWT (or OAuth) authentication and the `manage_seeds` permission at the global scope; callers without it receive `403 forbidden` from the permission gate.
 
 These endpoints drive the **Seed Builder UI** in the dashboard and interact with `D1SeedRepository` and `D1SchemaMutator` to execute schema changes.
 

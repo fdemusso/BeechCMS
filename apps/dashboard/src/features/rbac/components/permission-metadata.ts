@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { Permission } from "@beechcms/core"
-import { Eye, Plus, Edit, Trash2, Users, ShieldCheck, Chart, Layout } from "@/components/icons"
+import { Eye, Plus, Edit, Trash2, Users, ShieldCheck, Chart, Layout, Layers } from "@/components/icons"
 import type { IconComponent } from "@/lib/icon-registry"
 
 export interface PermissionMeta {
@@ -21,4 +21,5 @@ export const PERMISSION_METADATA: Record<Permission, PermissionMeta> = {
   "manage_roles": { icon: ShieldCheck, translationKey: "rbac.permissions.manage_roles", defaultLabel: "Manage roles" },
   "view_analytics": { icon: Chart, translationKey: "rbac.permissions.view_analytics", defaultLabel: "View analytics" },
   "manage_layout": { icon: Layout, translationKey: "rbac.permissions.manage_layout", defaultLabel: "Manage dashboard layout" },
+  "manage_seeds": { icon: Layers, translationKey: "rbac.permissions.manage_seeds", defaultLabel: "Manage content types" },
 }

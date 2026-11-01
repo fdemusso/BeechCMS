@@ -148,11 +148,6 @@ function buildApp(opts: {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('GET /', () => {
-  it('403 for non-admin', async () => {
-    const { app } = buildApp({ role: 'user' })
-    const res = await app.request('/', { method: 'GET' })
-    expect(res.status).toBe(403)
-  })
 
   it('200 returns all records', async () => {
     const { app } = buildApp({ role: 'admin' })
@@ -191,11 +186,6 @@ describe('GET /:slug', () => {
 })
 
 describe('POST / (create)', () => {
-  it('403 for non-admin', async () => {
-    const { app } = buildApp({ role: 'user' })
-    const res = await app.request('/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(baseSeed) })
-    expect(res.status).toBe(403)
-  })
 
   it('409 when slug already active', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
@@ -305,11 +295,6 @@ describe('POST / (create)', () => {
 })
 
 describe('PUT /:slug (edit)', () => {
-  it('403 for non-admin', async () => {
-    const { app } = buildApp({ role: 'user' })
-    const res = await app.request('/articles', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(baseSeed) })
-    expect(res.status).toBe(403)
-  })
 
   it('422 on alias rename (same id, different alias)', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
@@ -453,11 +438,6 @@ describe('POST /:slug/branches (add branch)', () => {
 })
 
 describe('DELETE /:slug', () => {
-  it('403 for non-admin', async () => {
-    const { app } = buildApp({ role: 'user' })
-    const res = await app.request('/articles', { method: 'DELETE' })
-    expect(res.status).toBe(403)
-  })
 
   it('soft-deletes: status flips, table not dropped, version bumped', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
@@ -1459,25 +1439,6 @@ describe('POST /:slug/mcp-plan', () => {
     expect(body.changedBranches).toEqual([])
   })
 
-  it('403 for a non-admin', async () => {
-    const { app } = buildApp({ role: 'editor' })
-    const res = await app.request('/articles/mcp-plan', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidate: baseSeed }),
-    })
-    expect(res.status).toBe(403)
-  })
-
-  it('403 with no jwtPayload (authMiddleware/401 happens upstream of this handler)', async () => {
-    const { app } = buildApp({ jwtPayload: null })
-    const res = await app.request('/articles/mcp-plan', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidate: baseSeed }),
-    })
-    expect(res.status).toBe(403)
-  })
 
   it('400 when slug format is invalid', async () => {
     const { app } = buildApp({ role: 'admin' })
@@ -1626,15 +1587,6 @@ describe('POST /:slug/mcp-apply', () => {
     expect(res.status).toBe(400)
   })
 
-  it('403 for a non-admin', async () => {
-    const { app } = buildApp({ role: 'editor' })
-    const res = await app.request('/articles/mcp-apply', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidate: baseSeed, expectedVersion: 1 }),
-    })
-    expect(res.status).toBe(403)
-  })
 
   it('logs an activity entry with the mcp-apply audit fields', async () => {
     const repo = makeRepo({
@@ -1690,18 +1642,6 @@ describe('Request body contract — order of checks', () => {
       body: typeof body === 'string' ? body : JSON.stringify(body),
     })
   }
-
-  describe('admin gate', () => {
-    it('answers 403 to a non-admin whose body is not even JSON, before the body is read', async () => {
-      const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-      const { app } = buildApp({ role: 'editor', repo })
-
-      const res = await send(app, 'PUT', '/articles', '{not valid json')
-
-      expect(res.status).toBe(403)
-      expect(repo.get).not.toHaveBeenCalled()
-    })
-  })
 
   describe('POST /', () => {
     it.each([[5], [true], [null], [['articles']]])('refuses the non-string slug %j with 400 invalid-json and applies nothing', async (slug) => {

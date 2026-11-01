@@ -45,8 +45,6 @@ export interface PermissionsApi {
   canAnywhere: (permission: Permission) => boolean
   /** Held at `'*'` — mirrors `perm(x, 'global')` rows in `PROTECTED_ROUTES`. */
   canGlobally: (permission: Permission) => boolean
-  /** `users.role === 'admin'`. Gates the Seed Builder and NOTHING else. */
-  isDeveloper: boolean
   /** Legal `scope` values for assignment/invitation creation by this caller. */
   manageableScopes: Scope[]
   isLoading: boolean
@@ -69,7 +67,6 @@ export function usePermissions(): PermissionsApi {
       can: (permission: Permission, scope: Scope) => hasPermission(effective, permission, scope),
       canAnywhere: (permission: Permission) => hasPermissionAnywhere(effective, permission),
       canGlobally: (permission: Permission) => hasPermission(effective, permission, GLOBAL_SCOPE),
-      isDeveloper: data?.isDeveloper === true,
       manageableScopes: data?.manageableScopes ?? [],
       isLoading,
     }
