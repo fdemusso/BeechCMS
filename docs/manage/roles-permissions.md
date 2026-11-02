@@ -25,23 +25,22 @@ The vocabulary is **closed by design**. It is defined once in `packages/core/src
 | `manage_users` | Administer accounts, assignments and invitations within the scope |
 | `manage_roles` | Author roles (create, edit, delete) |
 | `view_analytics` | See the analytics surface |
+| `manage_layout` | Edit the content (sections, columns, widgets) of every dashboard tab. Global scope only |
+| `manage_seeds` | Change the seed schema (Seed Builder, `/api/seeds/*`, entry-editor form layouts) and delegate schema access to OAuth/MCP clients. Global scope only |
 
 Adding a permission is a developer code change **plus** a migration widening the `CHECK` list — never a runtime write.
 
-### What is deliberately absent
+### Global-only permissions
 
-`manage_seeds`, or any schema-mutation permission, **does not exist and must never be added**. Seed schema mutation stays a developer capability exercised outside the dashboard, via CLI and migrations. Making the permission unrepresentable at rest is the strongest guarantee available.
+`manage_layout` and `manage_seeds` are evaluated only at `*`. A seed-scoped grant of either is representable but confers nothing, because the gates check `*` exactly.
 
-This is the **developer/owner axis**, tracked separately on `users.role`:
+`manage_seeds` is a deliberate decision. Schema mutation used to be reserved to the instance owner through a separate account flag. That flag no longer exists, and whoever holds `manage_seeds` (SuperAdmin by default) may change the schema. Anti-escalation still applies: nobody can grant a role carrying it without holding it at that scope.
 
-- `'admin'` — the Developer / instance owner. Minted **only** by `POST /auth/setup`.
-- `'editor'` — a standard Beech user whose authority is managed entirely through RBAC. (The name is legacy, kept for `CHECK`-constraint compatibility.)
-
-Every account minted through the RBAC API receives `'editor'`, so no RBAC path can produce an account that clears `requireAdmin()` and reaches `/api/seeds/*`.
+There is one authorization model. Authority comes only from active assignments. Neither the account record nor the access token carries a role.
 
 ### One surface, one permission
 
-Each non-CRUD dashboard surface owns one dedicated permission (`view_analytics` being the first). Absence of the permission hides the surface. There is no default-visible exception.
+Each non-CRUD dashboard surface owns one dedicated permission (`view_analytics` being the first). Absence of the permission hides the surface. There is no default-visible exception. `manage_layout` follows the same rule for dashboard editing.
 
 ### The Trash reuses the CRUD vocabulary
 
@@ -57,6 +56,32 @@ The [Trash](/features/trash) introduces no new permission. Its routes map onto t
 | `POST /api/content/{slug}/trash/reconcile` | `content:delete` on `{slug}` |
 
 Restoring is an update, not a delete: a holder of `content:read` + `content:update` can pull an entry back out of the Trash but can neither put it there nor erase it. In the dashboard, actions the caller cannot perform render **disabled**, never hidden-and-clickable — and the server gate is the real enforcement.
+
+---
+
+## Platform Gates
+
+The route gate in `PROTECTED_ROUTES` decides; the dashboard only hides what the gate would refuse.
+
+| Surface | Route(s) | Requirement |
+|---|---|---|
+| Dashboard totals, breakdown, recent activity | `GET /api/content/stats/total`, `/breakdown`, `/recent-activity` | Any authenticated account. Counts and activity cover only seeds the caller may `content:read`. Activity not tied to a seed (media, schema, security) also needs `manage_users` at `*`. A caller with no read scope gets zeros and an empty feed, never an error. |
+| Media library, unused media | `GET /api/content/stats/media-library`, `/unused-media` | `content:read` at `*`. A seed-scoped `content:read` is not enough. |
+| Setup checklist | `GET /api/content/stats/setup-checklist` | `manage_users` at `*`. |
+| Health, Cloudflare usage, storage resync | `GET …/stats/health`, `GET …/stats/cloudflare`, `POST …/stats/storage/sync` | `view_analytics` at `*`. |
+| Media download and delete | `GET /api/upload/download-url/:key`, `DELETE /api/upload/:key`, `POST /api/settings/storage/orphans/delete` | The route permission at `*` (`content:read` / `content:delete`), plus: the uploader, or a holder of `manage_users` at `*`. |
+| Seed schema | `/api/seeds/*`, `PUT`/`DELETE /api/schema/{slug}/layout` | `manage_seeds` at `*`. |
+| Dashboard layout | `/api/dashboard-layout` | See the next subsection. |
+
+### Dashboard tabs and layout
+
+- One layout. Each tab may list target role **ids**. No list, or an empty one, means everyone. Otherwise a caller sees the tab when they hold at least one listed role through an active assignment, at any scope. A caller with several roles sees the union of their tabs.
+- The server filters before serving. Widgets on seeds the caller cannot read are dropped, and so are tabs or sections left with nothing usable. The layout is never the authority: data routes enforce RBAC on their own.
+- A role id that does not exist is refused at save (`422`). A role deleted later leaves an orphan id that grants nothing. No cleanup runs (fail-closed).
+- `manage_layout` at `*` edits the content of every tab. Structure (add, remove or reorder tabs, label/slug/icon, target roles), the first save and reset need `manage_roles` at `*`. That holder also sees every tab. Widgets an editor cannot use appear as opaque placeholders and are preserved on save.
+- Every write carries the version the editor loaded. A stale save is refused (`409 layout-conflict`) and the editor reloads.
+
+See the [Dashboard Layout API](/reference/dashboard-layout).
 
 ---
 
@@ -93,9 +118,9 @@ Roles carry an optional `icon` (a lucide icon name) rendered by the dashboard al
 
 ### System roles
 
-`SuperAdmin` is seeded by migration `0000_v040_base.sql` with the full permission set and `is_system = 1`. It is **immutable at runtime**: any attempt to edit or delete it is refused `409 system-role-immutable`. Its id is minted per database, so nothing may hardcode it — `roles.name` is UNIQUE and is the stable handle.
+`SuperAdmin` is seeded by migration `0000_v040_base.sql` with `is_system = 1`. It carries every permission in the vocabulary, and the migrations that widen the vocabulary grant the new permission to SuperAdmin in the same step. It is **immutable at runtime**: any attempt to edit or delete it is refused `409 system-role-immutable`. Its id is minted per database, so nothing may hardcode it — `roles.name` is UNIQUE and is the stable handle.
 
-On a fresh database there is no account to backfill; `SuperAdmin` is granted to the first account on the `POST /auth/setup` path.
+On a fresh database there is no account to backfill; `SuperAdmin` is granted to the first account on the `POST /auth/setup` path. Holding SuperAdmin from setup is the only thing that sets the first account apart.
 
 ---
 
@@ -199,7 +224,13 @@ Everything above is administered from **Settings → Access**, a sidebar group h
 
 Visibility comes from `usePermissions()`, which rehydrates the `permissions` payload of `GET /api/settings/me` and calls **the same `@beechcms/core` evaluator** `permissionMiddleware()` calls — the UI never re-implements the scope model. Hiding is cosmetic; the server gate stays the enforcement point. With no payload the hook falls back to zero authority, so every gated surface disappears.
 
-The **Data Models** group (Seed Builder) is gated on `isDeveloper` (`users.role === 'admin'`) instead — it is the developer axis, not a permission.
+Other surfaces follow the same evaluator:
+
+| Surface | Visible when |
+|---|---|
+| **Data Models** (Seed Builder) | `manage_seeds` at `*` |
+| **Edit dashboard** button | `manage_layout` or `manage_roles` at `*` (core `isDashboardLayoutEditor`) |
+| **Entry-editor form layout** button | `manage_seeds` at `*` |
 
 ### Users tab
 
@@ -207,14 +238,13 @@ A table of every administrable account: email, name, role badges, and actions. T
 
 - **Create account** opens a form (email, password, name, surname) that states up front that the account starts with no role and no access. Accounts with no assignment render as *No access*.
 - The **roles** action opens the assignments dialog: existing `(role, scope)` rows with their permission badges, plus a role picker and a scope picker to add a new one. An assignment whose seed no longer exists is flagged **Inactive scope** and stays removable.
-- The **active** switch deactivates an account. It is disabled for your own row and for the Developer account, and a `last-global-admin` refusal surfaces as a toast.
-- The Developer's `SuperAdmin` assignment cannot be removed from this dialog.
+- The **active** switch deactivates an account. It is disabled for your own row, and a `last-global-admin` refusal surfaces as a toast. No account is special: the only protection is the [`last-global-admin` invariant](#last-global-administrator).
 
 ### Roles tab
 
 Name (with its icon), description, permission badges, and edit/delete actions — the actions column only renders for `manage_roles` holders.
 
-The role form offers a searchable **lucide icon picker** and permission checkboxes split into **Content** and **System** groups. Permissions you do not hold anywhere (`permissionsHeldAnywhere`) are disabled, so the form cannot submit an escalation. System roles have edit and delete permanently disabled, and deletion warns that every assignment through the role is cascaded away.
+The role form offers a searchable **lucide icon picker** and permission checkboxes split into **Content** and **System** groups. The System group lists `manage_users`, `manage_roles`, `manage_layout`, `manage_seeds`, `view_analytics`. Permissions you do not hold anywhere (`permissionsHeldAnywhere`) are disabled, so the form cannot submit an escalation. System roles have edit and delete permanently disabled, and deletion warns that every assignment through the role is cascaded away.
 
 ### Invitations tab
 

@@ -139,7 +139,7 @@ Open **Settings → Access**. Three entries appear there, each gated by what you
 
 ### Create a role
 
-In **Roles → Create role**, give it a name, pick a lucide **icon**, and tick permissions grouped as **Content** (`content:read`, `content:create`, `content:update`, `content:delete`) and **System** (`manage_users`, `manage_roles`, `view_analytics`).
+In **Roles → Create role**, give it a name, pick a lucide **icon**, and tick permissions grouped as **Content** (`content:read`, `content:create`, `content:update`, `content:delete`) and **System** (`manage_users`, `manage_roles`, `manage_layout`, `manage_seeds`, `view_analytics`).
 
 For a blog editor, `content:read` + `content:create` + `content:update` is enough. A permission you do not hold yourself is disabled in the form — you can never mint a role more powerful than you are.
 

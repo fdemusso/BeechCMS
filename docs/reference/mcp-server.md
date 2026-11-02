@@ -351,7 +351,9 @@ SQLite virtual tables (`fts5`) cannot be modified using standard `ALTER TABLE AD
 
 ## Permission Model & Known Limitations
 
-Every route used by `@beechcms/mcp` sits behind `authMiddleware({ acceptOAuth: true })`, which accepts both the dashboard admin JWT and OAuth 2.1 access tokens. Immediately after it, `oauthScopeMiddleware()` applies a **fail-closed** scope gate: an OAuth token reaches only the routes explicitly listed in `OAUTH_SCOPE_ROUTES`, and only with the required scope.
+Every route used by `@beechcms/mcp` sits behind `authMiddleware({ acceptOAuth: true })`, which accepts both the dashboard access JWT and OAuth 2.1 access tokens. Immediately after it, `oauthScopeMiddleware()` applies a **fail-closed** scope gate: an OAuth token reaches only the routes explicitly listed in `OAUTH_SCOPE_ROUTES`, and only with the required scope.
+
+Every `/api/seeds` route also requires `manage_seeds` at `*` from the route gate (`GET /api/schema` needs only authentication). The OAuth consent screen issues a grant only to an account holding `manage_seeds` at `*` (`PermissionRoleGuard`). A seed-scoped collaborator cannot mint an MCP token.
 
 | Method | Route | Required scope | Tools |
 |---|---|---|---|
@@ -371,7 +373,7 @@ Requesting `BEECH_OAUTH_SCOPE=schema:read` therefore yields a genuinely read-onl
 |---|---|---|---|
 | **400** | `invalid-json` | Malformed JSON, invalid slug characters, or non-integer `expectedVersion`. | Fix payload syntax. Do not retry identical request. |
 | **401** | `unauthorized` | Cached grant expired and the silent refresh retry also failed. | Re-authorize in the browser; clear `~/.beechcms/mcp-tokens.json` if it persists. |
-| **403** | `forbidden` / `insufficient_scope` | Authenticated user lacks the `admin` role, or the OAuth token's scope does not cover the route (e.g. `schema:read` calling `mcp-apply`). | Authorize with an admin account, or re-authorize with a wider `BEECH_OAUTH_SCOPE`. |
+| **403** | `forbidden` / `insufficient_scope` | The account lacks `manage_seeds` at `*`, or the OAuth token's scope does not cover the route (e.g. `schema:read` calling `mcp-apply`). | Authorize with an account whose role carries `manage_seeds` at `*` (SuperAdmin does), or re-authorize with a wider `BEECH_OAUTH_SCOPE`. |
 | **409** | `conflict` | Registry version mismatch (`expectedVersion` ≠ current database version). | Discard old plan, call `beech_schema_plan` again, and review new diff. |
 | **422** | `destructive-change-not-supported` | Candidate attempts to drop, rename, or retype a field. | Reject request or guide developer to dedicated endpoints. |
 | **422** | `validation-failed` | Syntax or relational schema validation error. | Correct candidate structure according to `@beechcms/core` rules. |
@@ -402,7 +404,7 @@ Every successful or attempted `mcp-apply` invocation is logged to the BeechCMS `
   "actor": {
     "id": "usr_admin_01",
     "email": "admin@example.com",
-    "role": "admin"
+    "name": "Ada Admin"
   }
 }
 ```
