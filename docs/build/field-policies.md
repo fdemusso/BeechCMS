@@ -48,7 +48,7 @@ When `privacy: 'encrypt'` (or `classification: 'confidential'`) is enabled on a 
 </p>
 
 - **Format**: Values are stored using the versioned envelope `v1:<iv_base64>:<ciphertext_base64>` (Base64-encoded strings native to Cloudflare Workers with zero external dependencies).
-- **Key Derivation**: Symmetrically derives a 256-bit AES-GCM CryptoKey directly from `PRIVACY_MASTER_KEY` via `crypto.subtle.digest('SHA-256', ...)`.
+- **Key Derivation**: Symmetrically derives a 256-bit AES-GCM CryptoKey directly from `PRIVACY_MASTER_KEY` via `crypto.subtle.digest('SHA-256', ...)`. See [Key derivation and rotation (accepted limitation)](#key-derivation-and-rotation-accepted-limitation).
 - **Zero-Knowledge at Edge**: Database dumps, SQLite backups, and raw D1 queries reveal only encrypted ciphertext.
 
 ---
@@ -68,6 +68,7 @@ BeechCMS solves this via **Blind Indexing**:
    ```text
    email_bidx = HMAC_SHA256(hmacKey, normalize(input))
    ```
+   `hmacKey` is the raw UTF-8 bytes of `PRIVACY_MASTER_KEY`. The same HMAC also backs `privacy: 'hash'` fields (see [Confidential Data](../features/confidential-data.md)).
 3. When querying `/api/content/users?email=test@example.com`, BeechCMS computes the blind index hash of the search parameter and executes an indexed B-tree equality check against `email_bidx` in `O(log N)` time without decrypting any database rows.
 
 ---
@@ -99,6 +100,23 @@ Provision the key as a Cloudflare secret:
 ```bash
 npx wrangler secret put PRIVACY_MASTER_KEY
 ```
+
+### Key derivation and rotation (accepted limitation)
+
+`PrivacyService` uses one root secret for two purposes, with two different derivations:
+
+| Purpose | Derivation |
+| :--- | :--- |
+| AES-256-GCM (`encrypt`) | `SHA-256(PRIVACY_MASTER_KEY)` |
+| HMAC-SHA256 (`hash`, blind indexes) | raw UTF-8 bytes of `PRIVACY_MASTER_KEY` |
+
+There is no HKDF step and no per-purpose context string. This is a deliberate trade-off, not an oversight:
+
+- **No known attack.** The AES key is a one-way digest of the master key, so it does not reveal the HMAC key. Anyone holding the master key already holds both, with or without HKDF.
+- **HKDF is not free.** `hash()` output is stored without a version tag (`privacy: 'hash'` values and `*_bidx` columns). Changing the HMAC key would invalidate every stored hash, and they cannot be recomputed because the plaintext is not stored. It would require a D1 data migration plus a versioned scheme (for example a `v2:` ciphertext prefix and dual verification of hashes).
+- **Decision.** Not changed until BeechCMS gets key rotation. Adding HKDF belongs in that work: versioned envelope, dual-verify on read, lazy upgrade on write.
+
+Operational consequence: the master key cannot be rotated today. Treat `PRIVACY_MASTER_KEY` as permanent, store it in a secret manager, and back it up. See the warning above about changing it.
 
 ---
 
