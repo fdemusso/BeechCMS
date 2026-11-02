@@ -24,6 +24,8 @@ const s3 = new S3Client({
   forcePathStyle: true,
 })
 
+const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+
 describe('Flow: Media & Assets (presigned URLs)', () => {
   let db: D1TestDatabase
   let app: ReturnType<typeof createBeechApp>
@@ -177,15 +179,15 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       const presignRes = await app.request('/api/upload/presign', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename, mimeType: 'image/png', sizeBytes: 3 }),
+        body: JSON.stringify({ filename, mimeType: 'image/png', sizeBytes: PNG_SIGNATURE.byteLength }),
       }, { ...TEST_ENV, DB: db })
       expect(presignRes.status).toBe(200)
       const { uploadUrl, key } = await presignRes.json<{ uploadUrl: string; key: string }>()
 
-      // 2. Upload to MinIO via presigned URL
+      // 2. Upload to MinIO via presigned URL (confirm checks the leading bytes against the declared type)
       const putRes = await fetch(uploadUrl, {
         method: 'PUT',
-        body: new Uint8Array([1, 2, 3]),
+        body: PNG_SIGNATURE,
         headers: { 'Content-Type': 'image/png' },
       })
       expect(putRes.ok).toBe(true)
