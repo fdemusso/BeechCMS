@@ -8,6 +8,8 @@ import { hasPermission, resolveClassification, resolvePolicies } from '@beechcms
 import type { BackrefItem, IPrivacyService, LocaleConfig, Seed } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import type { AppEnv } from '../../types'
+import { zodQuery } from '../../shared/utils/zod-query'
+import { backrefsQuerySchema } from './backrefs.schema'
 import { D1BackrefRepository } from '../../shared/db/repositories/d1-backref.repository'
 import { loadDisplayLocaleConfig, resolveDisplayName } from '../../shared/localization/display-name'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
@@ -16,150 +18,150 @@ const PREVIEW_LIMIT = 3
 const DEFAULT_PAGE_LIMIT = 20
 const MAX_PAGE_LIMIT = 100
 
-export const backrefsApp = new Hono<AppEnv>()
 
 // ---------------------------------------------------------------------------
 // GET /content/:targetSlug/:targetId/backrefs
 // ---------------------------------------------------------------------------
 
-backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
-  const targetSlug = c.req.param('targetSlug')
-  const targetId = c.req.param('targetId')
-  const groupParam = c.req.query('group')      // '<sourceSlug>:<branchAlias>'
-  const pageParam = c.req.query('page')
-  const limitParam = c.req.query('limit')
+export const backrefsApp = new Hono<AppEnv>()
+  .get('/:targetSlug/:targetId/backrefs', zodQuery(backrefsQuerySchema), async (c) => {
+    const targetSlug = c.req.param('targetSlug')
+    const targetId = c.req.param('targetId')
+    const groupParam = c.req.query('group')      // '<sourceSlug>:<branchAlias>'
+    const pageParam = c.req.query('page')
+    const limitParam = c.req.query('limit')
 
-  const getSeed = c.get('getSeed')
-  const backrefMap = c.get('backrefMap')
-  const backrefRepository = c.get('backrefRepository') ?? new D1BackrefRepository(c.env.DB)
-  const privacyService = c.get('privacyService')
+    const getSeed = c.get('getSeed')
+    const backrefMap = c.get('backrefMap')
+    const backrefRepository = c.get('backrefRepository') ?? new D1BackrefRepository(c.env.DB)
+    const privacyService = c.get('privacyService')
 
-  // 1. Resolve target seed
-  const targetSeed = getSeed(targetSlug)
-  if (!targetSeed) {
-    return publicProblem(c, {
-      type: 'not-found',
-      title: 'Not Found',
-      status: 404,
-      detail: `Seed '${targetSlug}' does not exist`,
-    })
-  }
-
-  // 2. Verify targetId exists
-  const exists = await backrefRepository.entryExists(targetSeed, targetId)
-  if (!exists) {
-    return publicProblem(c, {
-      type: 'not-found',
-      title: 'Not Found',
-      status: 404,
-      detail: `Entry '${targetId}' not found in '${targetSlug}'`,
-    })
-  }
-
-  // 3. Get sources for this target
-  const effective = await resolveEffectivePermissions(c)
-  const sources = (backrefMap.get(targetSlug) ?? []).filter(source =>
-    hasPermission(effective, 'content:read', source.sourceSlug)
-  )
-  if (sources.length === 0 && !groupParam) {
-    return c.json({ groups: [] })
-  }
-
-  // 4. Pagination
-  const page = Math.max(1, Number.parseInt(pageParam ?? '1', 10) || 1)
-  const rawLimit = Number.parseInt(limitParam ?? String(DEFAULT_PAGE_LIMIT), 10) || DEFAULT_PAGE_LIMIT
-  const limit = Math.min(Math.max(1, rawLimit), MAX_PAGE_LIMIT)
-  const offset = (page - 1) * limit
-
-  // 5. Paginated single-group request
-  if (groupParam) {
-    const colonIdx = groupParam.indexOf(':')
-    if (colonIdx === -1) {
-      return publicProblem(c, {
-        type: 'bad-request',
-        title: 'Bad Request',
-        status: 400,
-        detail: `'group' must be '<sourceSlug>:<branchAlias>'`,
-      })
-    }
-    const sourceSlug = groupParam.slice(0, colonIdx)
-    const branchAlias = groupParam.slice(colonIdx + 1)
-
-    const source = sources.find(
-      s => s.sourceSlug === sourceSlug && s.branchAlias === branchAlias
-    )
-    if (!source) {
+    // 1. Resolve target seed
+    const targetSeed = getSeed(targetSlug)
+    if (!targetSeed) {
       return publicProblem(c, {
         type: 'not-found',
         title: 'Not Found',
         status: 404,
-        detail: `Back-ref group '${groupParam}' not found for target '${targetSlug}'`,
+        detail: `Seed '${targetSlug}' does not exist`,
       })
     }
 
-    const sourceSeed = getSeed(sourceSlug)
-    if (!sourceSeed) {
-      return c.json({ groups: [] })
+    // 2. Verify targetId exists
+    const exists = await backrefRepository.entryExists(targetSeed, targetId)
+    if (!exists) {
+      return publicProblem(c, {
+        type: 'not-found',
+        title: 'Not Found',
+        status: 404,
+        detail: `Entry '${targetId}' not found in '${targetSlug}'`,
+      })
     }
 
-    const localeConfig = await loadDisplayLocaleConfig(c.get('siteSettingsRepository'), [sourceSeed])
-    const { items, total } = await backrefRepository.queryGroup(source, sourceSeed, targetId, limit, offset)
-    const readable = await decryptDisplayNames(items, sourceSeed, privacyService)
-    const filteredItems = filterVisibility(localizeDisplayNames(readable, sourceSeed, localeConfig), sourceSeed)
+    // 3. Get sources for this target
+    const effective = await resolveEffectivePermissions(c)
+    const sources = (backrefMap.get(targetSlug) ?? []).filter(source =>
+      hasPermission(effective, 'content:read', source.sourceSlug)
+    )
+    if (sources.length === 0 && !groupParam) {
+      return c.json({ groups: [] }, 200)
+    }
 
-    return c.json({
-      groups: [{
-        sourceSlug: source.sourceSlug,
-        sourceLabel: sourceSeed.labelPlural ?? sourceSeed.label,
-        branchAlias: source.branchAlias,
-        branchLabel: source.branchLabel,
-        relationship: source.relationship,
-        restricts: source.restricts,
-        total,
-        items: filteredItems,
-      }],
-    })
-  }
+    // 4. Pagination
+    const page = Math.max(1, Number.parseInt(pageParam ?? '1', 10) || 1)
+    const rawLimit = Number.parseInt(limitParam ?? String(DEFAULT_PAGE_LIMIT), 10) || DEFAULT_PAGE_LIMIT
+    const limit = Math.min(Math.max(1, rawLimit), MAX_PAGE_LIMIT)
+    const offset = (page - 1) * limit
 
-  // 6. Preview mode — all groups, PREVIEW_LIMIT each
-  const sourceSeeds = sources
-    .map((source) => getSeed(source.sourceSlug))
-    .filter((seed): seed is Seed => seed !== null)
-  const localeConfig = await loadDisplayLocaleConfig(c.get('siteSettingsRepository'), sourceSeeds)
-  const groupResults = await Promise.all(
-    sources.map(async (source) => {
-      const sourceSeed = getSeed(source.sourceSlug)
-      if (!sourceSeed) return null
+    // 5. Paginated single-group request
+    if (groupParam) {
+      const colonIdx = groupParam.indexOf(':')
+      if (colonIdx === -1) {
+        return publicProblem(c, {
+          type: 'bad-request',
+          title: 'Bad Request',
+          status: 400,
+          detail: `'group' must be '<sourceSlug>:<branchAlias>'`,
+        })
+      }
+      const sourceSlug = groupParam.slice(0, colonIdx)
+      const branchAlias = groupParam.slice(colonIdx + 1)
 
-      const { items, total } = await backrefRepository.queryGroup(source, sourceSeed, targetId, PREVIEW_LIMIT, 0)
+      const source = sources.find(
+        s => s.sourceSlug === sourceSlug && s.branchAlias === branchAlias
+      )
+      if (!source) {
+        return publicProblem(c, {
+          type: 'not-found',
+          title: 'Not Found',
+          status: 404,
+          detail: `Back-ref group '${groupParam}' not found for target '${targetSlug}'`,
+        })
+      }
+
+      const sourceSeed = getSeed(sourceSlug)
+      if (!sourceSeed) {
+        return c.json({ groups: [] }, 200)
+      }
+
+      const localeConfig = await loadDisplayLocaleConfig(c.get('siteSettingsRepository'), [sourceSeed])
+      const { items, total } = await backrefRepository.queryGroup(source, sourceSeed, targetId, limit, offset)
       const readable = await decryptDisplayNames(items, sourceSeed, privacyService)
       const filteredItems = filterVisibility(localizeDisplayNames(readable, sourceSeed, localeConfig), sourceSeed)
 
-      return {
-        sourceSlug: source.sourceSlug,
-        sourceLabel: sourceSeed.labelPlural ?? sourceSeed.label,
-        branchAlias: source.branchAlias,
-        branchLabel: source.branchLabel,
-        relationship: source.relationship,
-        restricts: source.restricts,
-        total,
-        items: filteredItems,
-      }
-    })
-  )
+      return c.json({
+        groups: [{
+          sourceSlug: source.sourceSlug,
+          sourceLabel: sourceSeed.labelPlural ?? sourceSeed.label,
+          branchAlias: source.branchAlias,
+          branchLabel: source.branchLabel,
+          relationship: source.relationship,
+          restricts: source.restricts,
+          total,
+          items: filteredItems,
+        }],
+      }, 200)
+    }
 
-  const groups = groupResults.filter(
-    (g): g is NonNullable<typeof g> => g !== null && g.total > 0
-  )
+    // 6. Preview mode — all groups, PREVIEW_LIMIT each
+    const sourceSeeds = sources
+      .map((source) => getSeed(source.sourceSlug))
+      .filter((seed): seed is Seed => seed !== null)
+    const localeConfig = await loadDisplayLocaleConfig(c.get('siteSettingsRepository'), sourceSeeds)
+    const groupResults = await Promise.all(
+      sources.map(async (source) => {
+        const sourceSeed = getSeed(source.sourceSlug)
+        if (!sourceSeed) return null
 
-  return c.json({ groups })
-})
+        const { items, total } = await backrefRepository.queryGroup(source, sourceSeed, targetId, PREVIEW_LIMIT, 0)
+        const readable = await decryptDisplayNames(items, sourceSeed, privacyService)
+        const filteredItems = filterVisibility(localizeDisplayNames(readable, sourceSeed, localeConfig), sourceSeed)
+
+        return {
+          sourceSlug: source.sourceSlug,
+          sourceLabel: sourceSeed.labelPlural ?? sourceSeed.label,
+          branchAlias: source.branchAlias,
+          branchLabel: source.branchLabel,
+          relationship: source.relationship,
+          restricts: source.restricts,
+          total,
+          items: filteredItems,
+        }
+      })
+    )
+
+    const groups = groupResults.filter(
+      (g): g is NonNullable<typeof g> => g !== null && g.total > 0
+    )
+
+    return c.json({ groups }, 200)
+  })
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-/** The raw display column of an `encrypt`-classified branch is ciphertext; decrypt it before localization and masking. */
+  /** The raw display column of an `encrypt`-classified branch is ciphertext; decrypt it before localization and masking. */
 async function decryptDisplayNames(items: BackrefItem[], sourceSeed: Seed, privacyService: IPrivacyService): Promise<BackrefItem[]> {
   const displayBranch = sourceSeed.branches.find(b => b.alias === sourceSeed.displayNameAlias)
   if (!displayBranch || resolveClassification(displayBranch).storage !== 'encrypt') return items
@@ -170,7 +172,7 @@ async function decryptDisplayNames(items: BackrefItem[], sourceSeed: Seed, priva
   )
 }
 
-/** Resolves localized display names to the default locale; masking then applies to the resolved string. */
+  /** Resolves localized display names to the default locale; masking then applies to the resolved string. */
 function localizeDisplayNames(items: BackrefItem[], sourceSeed: Seed, localeConfig: LocaleConfig | undefined): BackrefItem[] {
   if (!localeConfig) return items
   return items.map((item) => ({ ...item, displayName: resolveDisplayName(sourceSeed, item.displayName, localeConfig) }))

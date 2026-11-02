@@ -35,7 +35,6 @@ const mkGroup = (group: Partial<ToolbarFilterGroup> & Pick<ToolbarFilterGroup, "
 describe("getEntryValueForColumn", () => {
   const sampleEntry: ContentEntry = {
     id: "entry-123",
-    schema_slug: "posts",
     slug: "sample-slug",
     status: "published",
     created_at: Date.parse("2026-01-01T00:00:00Z"),

@@ -247,11 +247,18 @@
       "firstContent": "Primo contenuto inserito",
       "firstContentAction": "Crea il primo elemento"
     },
+    "empty": {
+      "title": "Niente da mostrare",
+      "description": "Nessuna scheda della dashboard è disponibile per i tuoi ruoli e permessi."
+    },
     "builder": {
       "customize": "Personalizza",
       "title": "Editor Dashboard",
       "save": "Salva",
       "saved": "Layout della dashboard salvato.",
+      "firstSaveNeedsRoles": "Solo chi gestisce i ruoli può creare il primo layout della dashboard.",
+      "conflictTitle": "Il layout è stato modificato da qualcun altro",
+      "conflictDesc": "Un altro editor ha salvato la dashboard dopo che l'hai aperta. Ricarica l'ultima versione e riapplica le tue modifiche. Le modifiche non salvate andranno perse.",
       "saveError": "Impossibile salvare il layout della dashboard.",
       "reset": "Ripristina",
       "resetDone": "Dashboard ripristinata ai valori predefiniti.",
@@ -263,17 +270,22 @@
       "hidePreview": "Nascondi anteprima",
       "warnNoCrossPageSection": "Sposta le sezioni solo all'interno della stessa pagina.",
       "errorMoveWidget": "Impossibile spostare il widget in quella pagina.",
-      "scope": {
-        "default": "Predefinito (tutti i ruoli)",
-        "editor": "Editor",
-        "admin": "Amministratori",
-        "stored": "Salvata",
-        "inheritsDefault": "Eredita il predefinito"
-      },
       "page": {
         "add": "Aggiungi pagina",
         "rename": "Rinomina pagina",
-        "delete": "Elimina pagina"
+        "delete": "Elimina pagina",
+        "defaultBadge": "Pagina predefinita",
+        "setDefault": "Imposta come predefinita",
+        "newPage": "Nuova pagina"
+      },
+      "audience": {
+        "label": "Visibile a",
+        "everyoneHint": "Tutti · Aggiungi ruolo",
+        "add": "Aggiungi ruolo",
+        "search": "Cerca ruoli…",
+        "empty": "Nessun ruolo trovato.",
+        "deletedRole": "Ruolo eliminato",
+        "loadError": "Impossibile caricare i ruoli."
       },
       "section": {
         "add": "Aggiungi sezione",
@@ -283,14 +295,32 @@
         "collapsible": "Comprimibile",
         "columns": "Colonne",
         "duplicate": "Duplica",
-        "remove": "Rimuovi"
+        "remove": "Rimuovi",
+        "widgetCount_one": "{{count}} widget",
+        "widgetCount_other": "{{count}} widget",
+        "widgetCount": "{{count}} widget",
+        "removeConfirm": "Rimuovere questa sezione e i suoi widget?",
+        "dragHandle": "Trascina per spostare la sezione",
+        "presetHint": "Larghezza delle colonne"
       },
       "widget": {
         "add": "Aggiungi widget",
         "configure": "Configura",
         "moveToPage": "Sposta in pagina…",
         "remove": "Rimuovi",
-        "unavailable": "Non disponibile"
+        "unavailable": "Non disponibile",
+        "needsSetup": "Da configurare",
+        "duplicate": "Duplica",
+        "replaceWith": "Sostituisci con…",
+        "rename": "Rinomina",
+        "dragHandle": "Trascina per spostare il widget",
+        "tooNarrow": "Questo widget rende meglio in una colonna più larga.",
+        "warnFull": "Quella colonna è piena.",
+        "searchPlaceholder": "Cerca widget…",
+        "noResults": "Nessun widget trovato.",
+        "locked": "Widget non disponibile",
+        "locked": "Widget non disponibile",
+        "lockedHint": "Non puoi vedere i dati di questo widget. Resta al suo posto."
       },
       "picker": {
         "title": "Aggiungi widget",
@@ -364,6 +394,14 @@
           "asc": "Crescente",
           "desc": "Decrescente"
         }
+      },
+      "back": "Indietro",
+      "warnPageLimit": "Una dashboard può avere al massimo 8 pagine.",
+      "warnSectionLimit": "Una pagina può avere al massimo 50 sezioni.",
+      "warnColumnFull": "Quella colonna è piena.",
+      "loadingLabel": "Caricamento del layout della dashboard",
+      "column": {
+        "drag": "Trascina per spostare la colonna"
       }
     }
   },
@@ -571,6 +609,7 @@
   },
   "content": {
     "list": {
+      "subtitle": "Gestisci i contenuti di \"{{slug}}\"",
       "table": "Tabella",
       "gallery": "Galleria",
       "kanban": "Kanban",
@@ -670,10 +709,12 @@
       },
       "relationMulti": {
         "add": "Aggiungi…",
-        "moveUp": "Sposta su",
-        "moveDown": "Sposta giù",
+        "dragHandle": "Trascina per riordinare",
         "remove": "Rimuovi",
-        "selectedItems": "Elementi selezionati"
+        "selectedItems": "Elementi selezionati",
+        "selectedCount": "{{count}} selezionati",
+        "loadMore": "Carica altri",
+        "done": "Fatto"
       }
     },
     "trash": {
@@ -739,7 +780,8 @@
       "placeholder": "Cerca...",
       "ariaLabel": "Cerca",
       "close": "Chiudi ricerca",
-      "open": "Apri ricerca"
+      "open": "Apri ricerca",
+      "unavailable": "La ricerca non è disponibile per questo tipo di contenuto"
     },
     "sort": {
       "tooltip": "Ordina",
@@ -890,6 +932,7 @@
     "changeTheme": "Cambia tema",
     "searching": "Ricerca in corso…",
     "noSearchResults": "Nessun risultato trovato.",
+    "searchContent": "Cerca nei contenuti…",
     "searchResults": "Risultati della ricerca",
     "settings": "Impostazioni",
     "mediaLibrary": "Media Library",
@@ -1351,6 +1394,10 @@
     "discardDesc": "Le modifiche non salvate andranno perse.",
     "addSection": "Aggiungi sezione",
     "addField": "Aggiungi campo",
+    "dragHandle": "Trascina per spostare il campo",
+    "removeField": "Rimuovi dal layout",
+    "dragColumn": "Trascina per spostare la colonna",
+    "dragSection": "Trascina per spostare la sezione",
     "addTab": "Aggiungi tab",
     "newTab": "Nuova tab",
     "searchFields": "Cerca campi…",
@@ -1369,6 +1416,7 @@
     },
     "tabMenu": {
       "rename": "Rinomina tab",
+      "setDefault": "Imposta come predefinita",
       "delete": "Elimina tab"
     },
     "warnFullWidth": "{{label}} richiede una sezione full-width dedicata.",
@@ -1387,6 +1435,9 @@
       "notInOptions": "{{value}} — non presente nelle opzioni"
     },
     "restricted": "Riservato",
+    "relation": {
+      "moreItems": "altri {{count}}"
+    },
     "repeater": {
       "addItem": "Aggiungi elemento",
       "removeItem": "Rimuovi elemento",
@@ -1485,6 +1536,10 @@
       "onDeleteCascade": "Cascade — elimina le voci collegate",
       "onDeleteRestrict": "Restrict — blocca se ci sono voci collegate",
       "onDeleteSetNull": "Set null — azzera il riferimento",
+      "avatarSource": "Immagine avatar",
+      "avatarSourceNone": "Nessun avatar",
+      "avatarSourceUnavailable": "Il seed di destinazione non ha un campo immagine singolo. Aggiungine uno per usarlo come avatar.",
+      "avatarSourceHint": "Campo immagine del target mostrato come avatar. In mancanza, le iniziali del display name.",
       "numberOptions": "Opzioni numero",
       "min": "Min",
       "max": "Max",
@@ -1692,7 +1747,6 @@
       "reactivate": "Riattiva",
       "manageRoles": "Gestisci ruoli",
       "zeroTrustHint": "L'account viene creato senza ruolo e senza accesso finché non viene assegnato.",
-      "cannotDeactivateDev": "L'account sviluppatore non può essere disattivato",
       "cannotDeactivateSelf": "Non puoi disattivare il tuo account",
       "deactivateWarning": "Tutte le sessioni attive vengono revocate immediatamente.",
       "createSuccess": "Account creato"
@@ -1741,7 +1795,6 @@
       "role": "Ruolo",
       "scope": "Ambito",
       "inactiveScope": "Ambito inattivo",
-      "cannotRemoveDevSuperAdmin": "L'account sviluppatore non può rimuovere il ruolo SuperAdmin",
       "empty": "Ancora nessuna assegnazione"
     },
     "scope": {
@@ -1756,6 +1809,8 @@
       "content:delete": "Elimina contenuti",
       "manage_users": "Gestisci utenti",
       "manage_roles": "Gestisci ruoli",
+      "manage_layout": "Gestisci layout dashboard",
+      "manage_seeds": "Gestisci tipi di contenuto",
       "view_analytics": "Visualizza analitiche"
     },
     "errors": {

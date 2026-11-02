@@ -3,8 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { Hono } from 'hono'
-import { Receiver } from '@upstash/qstash'
 import type { AppEnv } from '../../types'
+import { verifyQStashSignature } from './qstash-signature'
 import { createNotificationSchema, type CreateNotificationInput } from '@beechcms/core'
 
 export const webhooksApp = new Hono<AppEnv>()
@@ -18,11 +18,6 @@ webhooksApp.post('/qstash', async (context) => {
     return context.text('Configuration error', 500)
   }
 
-  const receiver = new Receiver({
-    currentSigningKey,
-    nextSigningKey,
-  })
-
   const body = await context.req.text()
   const signature = context.req.header('Upstash-Signature')
 
@@ -31,15 +26,13 @@ webhooksApp.post('/qstash', async (context) => {
   }
 
   try {
-    const isValid = await receiver.verify({
+    await verifyQStashSignature({
       signature,
       body,
       url: context.req.url,
+      currentSigningKey,
+      nextSigningKey,
     })
-
-    if (!isValid) {
-      return context.text('Invalid signature', 401)
-    }
   } catch (err) {
     console.error('QStash signature verification failed', err)
     return context.text('Invalid signature', 401)

@@ -22,15 +22,18 @@
 - [WidgetListEntry](interfaces/WidgetListEntry.md)
 - [WidgetListParams](interfaces/WidgetListParams.md)
 - [WidgetListResponse](interfaces/WidgetListResponse.md)
+- [WidgetRoute](interfaces/WidgetRoute.md)
 - [WidgetSdkClient](interfaces/WidgetSdkClient.md)
 - [WidgetSdkProviderProps](interfaces/WidgetSdkProviderProps.md)
 - [WidgetShellProps](interfaces/WidgetShellProps.md)
 - [WidgetTimeseriesResponse](interfaces/WidgetTimeseriesResponse.md)
+- [WidgetWindowQuery](interfaces/WidgetWindowQuery.md)
 
 ## Type Aliases
 
 - [AggregateFormula](type-aliases/AggregateFormula.md)
 - [TimeWindow](type-aliases/TimeWindow.md)
+- [WidgetRequirement](type-aliases/WidgetRequirement.md)
 - [WidgetWindow](type-aliases/WidgetWindow.md)
 
 ## Functions

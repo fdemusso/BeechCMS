@@ -7,7 +7,7 @@ export function QuickActionsAdapter() {
     <QuickActions
       onAction={(action) => {
         if (action === "new-entry") navigate("/content/create-new")
-        else if (action === "settings") navigate("/settings")
+        else if (action === "settings" || action === "media" || action === "collections") navigate("/settings")
       }}
     />
   )

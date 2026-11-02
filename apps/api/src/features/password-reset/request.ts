@@ -4,25 +4,26 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
-import type { Env, Variables } from '../../types'
+import type { AppEnv } from '../../types'
+import type { ZodJsonInput } from '../../shared/utils/zod-json'
 import { sendPasswordResetEmail, resolveEmailLocale } from '../../shared/email'
 import { sha256hex } from '@beechcms/core'
 import { getClientIp } from '../../shared/utils/request-utils'
 import { checkDualKeyRateLimit, normalizeAccountKey } from '../../shared/utils/dual-key-rate-limiter'
-import { readJsonObject } from './read-json-object'
+import type { forgotPasswordBodySchema } from './password-reset.schema'
 
-type PasswordResetContext = Context<{ Bindings: Env; Variables: Variables }>
+type PasswordResetContext = Context<AppEnv>
 
 const PASSWORD_RESET_TOKEN_EXPIRY_SECONDS = 30 * 60
 /** RFC 5321 path limit; the account limiter keys its buckets on this string, so it must stay bounded. */
 const MAX_EMAIL_LENGTH = 254
 
 /** Rejects a malformed request after charging the IP bucket, so junk bodies cannot be replayed for free. */
-async function rejectInvalidRequest(
+export async function rejectInvalidRequest(
   context: PasswordResetContext,
   clientIpAddress: string,
   errorMessage: string
-): Promise<Response> {
+) {
   const ipLimit = await context.get('rateLimiters').getLimiter('forgotPassword').checkLimit(clientIpAddress)
   if (!ipLimit.isAllowed) {
     const headers: Record<string, string> = {}
@@ -39,21 +40,12 @@ async function rejectInvalidRequest(
  * Generates a reset token, stores its hash in the database, and sends an email to the user.
  */
 export async function requestPasswordReset(
-  context: PasswordResetContext
-): Promise<Response> {
+  context: Context<AppEnv, string, ZodJsonInput<typeof forgotPasswordBodySchema>>
+) {
   const { env, req, executionCtx } = context
 
-  const useSmtp = env.EMAIL_PROVIDER === 'smtp'
-  if (!useSmtp && !env.RESEND_API_KEY) {
-    return context.json({ error: 'Service not available' }, 503)
-  }
-
   const clientIpAddress = getClientIp(req)
-
-  const payload = await readJsonObject(req)
-  if (!payload) {
-    return rejectInvalidRequest(context, clientIpAddress, 'Invalid request body')
-  }
+  const payload = context.req.valid('json')
 
   const emailInput = payload.email
   if (typeof emailInput !== 'string' || !emailInput.trim() || emailInput.length > MAX_EMAIL_LENGTH) {
@@ -83,7 +75,7 @@ export async function requestPasswordReset(
   // password that becomes live on reactivation.
   const registeredUser = await context.get('userRepository').findByEmail(normalizedEmail)
   if (!registeredUser || !registeredUser.isActive) {
-    return context.json({ success: true })
+    return context.json({ success: true }, 200)
   }
 
   const passwordResetTokenRepository = context.get('passwordResetTokenRepository')
@@ -140,5 +132,5 @@ export async function requestPasswordReset(
     // executionCtx might not be available in some testing environments; the work is already running
   }
 
-  return context.json({ success: true })
+  return context.json({ success: true }, 200)
 }

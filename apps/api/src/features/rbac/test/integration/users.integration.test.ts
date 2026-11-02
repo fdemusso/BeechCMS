@@ -59,6 +59,19 @@ describe('rbac users — integration (real D1)', () => {
     })
   })
 
+  describe('POST /api/rbac/users', () => {
+    it('answers with the account as the listings serve it, createdAt included', async () => {
+      const created = await admin.post('/api/rbac/users', { email: 'fresh@beech.test', password: CANONICAL_USERS.viewer.password })
+
+      expect(created.status).toBe(201)
+      const body = await created.json<{ id: string; createdAt: number; assignments: unknown[] }>()
+      const fetched = await admin.get(`/api/rbac/users/${body.id}`)
+      expect(fetched.status).toBe(200)
+      expect(await fetched.json()).toEqual(body)
+      expect(body.createdAt).toBeGreaterThan(0)
+    })
+  })
+
   describe('GET /api/rbac/users/:userId', () => {
     it('returns the account with its assignments', async () => {
       const response = await admin.get(`/api/rbac/users/${createdIds[0]}`)

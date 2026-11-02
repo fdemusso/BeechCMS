@@ -3,11 +3,24 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import { Hono } from 'hono'
-import { SystemClock, type MediaObject, type MediaRepository } from '@beechcms/core'
+import { Hono, type Context } from 'hono'
+import {
+    GLOBAL_SCOPE,
+    SystemClock,
+    hasPermission,
+    type ActivityLogVisibility,
+    type EffectivePermissions,
+    type MediaObject,
+    type MediaRepository,
+    type Seed,
+} from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { publicProblem } from '../../public/errors/problem-details'
+import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
+import { filterSeedsByPermission } from '../../shared/rbac/scoped-projection'
 import { cleanStr, parsePositiveInt } from '../../shared/utils/query-utils'
+import { zodQuery } from '../../shared/utils/zod-query'
+import { mediaLibraryQuerySchema, recentActivityQuerySchema } from './stats.schema'
 
 const DATABASE_ERROR = 'Database error'
 const INTERNAL_SERVER_ERROR = 'Internal Server Error'
@@ -23,6 +36,15 @@ const DEFAULT_LIMIT = 12
 const MAX_LIMIT = 100
 const R2_STORAGE_LIMIT = 10 * 1024 * 1024 * 1024 // 10GB
 const D1_MONTHLY_REQUESTS_LIMIT = 1000000 // 1M requests/month
+
+/** Origin the media is served from: the configured media base URL, else the request's own origin. */
+function resolveMediaBaseUrl(context: Context<{ Bindings: Env; Variables: Variables }>): string {
+    return (context.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '')) ?? new URL(context.req.url).origin
+}
+
+function mediaUrl(mediaBaseUrl: string, key: string): string {
+    return `${mediaBaseUrl}/api/media/${encodeURIComponent(key)}`
+}
 
 function getMimeType(extension: string): string {
     if (extension === 'pdf') {
@@ -46,19 +68,34 @@ async function listAllTrackedMedia(mediaRepository: MediaRepository): Promise<Me
     return trackedMedia
 }
 
+/**
+ * Activity rows a caller may see: every seed slug for a global reader, else only the
+ * readable seeds; rows tied to no seed (media, schema, security) need a global `manage_users`.
+ */
+function activityVisibility(
+    effective: EffectivePermissions,
+    readableSeeds: readonly Seed[],
+): ActivityLogVisibility {
+    return {
+        seeds: hasPermission(effective, 'content:read', GLOBAL_SCOPE) ? 'all' : readableSeeds.map(seed => seed.slug),
+        includeUnscoped: hasPermission(effective, 'manage_users', GLOBAL_SCOPE),
+    }
+}
+
 const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
-/**
- * GET /stats/media-library - Lists all files present in R2:
- * combines media_objects (tracked uploads) + /api/media/ URLs found in file columns of each seed
- */
-statsApp.get('/stats/media-library', async (context) => {
+  /**
+   * GET /stats/media-library - Lists all files present in R2:
+   * combines media_objects (tracked uploads) + /api/media/ URLs found in file columns of each seed
+   */
+  .get('/stats/media-library', zodQuery(mediaLibraryQuerySchema), async (context) => {
     try {
         const mediaRepository = context.get('mediaRepository')
-        const limit = Math.min(parsePositiveInt(context.req.query('limit'), DEFAULT_LIMIT), MAX_LIMIT)
+        const query = context.req.valid('query')
+        const limit = Math.min(parsePositiveInt(query.limit, DEFAULT_LIMIT), MAX_LIMIT)
         // parsePositiveInt rejects 0, which is also the fallback, so offset=0 and invalid values both give the first page.
-        const offset = parsePositiveInt(context.req.query('offset'), 0)
-        const mediaBaseUrl = (context.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '')) ?? new URL(context.req.url).origin
+        const offset = parsePositiveInt(query.offset, 0)
+        const mediaBaseUrl = resolveMediaBaseUrl(context)
 
         // 1. Files tracked in the media library
         const mediaRows = await listAllTrackedMedia(mediaRepository)
@@ -68,7 +105,7 @@ statsApp.get('/stats/media-library', async (context) => {
 
         for (const mediaRow of mediaRows) {
             trackedKeys.add(mediaRow.key)
-            allItems.push({ ...mediaRow, url: `${mediaBaseUrl}/api/media/${encodeURIComponent(mediaRow.key)}` })
+            allItems.push({ ...mediaRow, url: mediaUrl(mediaBaseUrl, mediaRow.key) })
         }
 
         // 2. /api/media/ URLs in the file columns of each seed (v0.4.0 — real columns)
@@ -89,7 +126,7 @@ statsApp.get('/stats/media-library', async (context) => {
                 mime_type: mimeType,
                 size_bytes: 0,
                 created_at: createdAt,
-                url: `${mediaBaseUrl}/api/media/${encodeURIComponent(key)}`
+                url: mediaUrl(mediaBaseUrl, key)
             })
         }
 
@@ -97,17 +134,17 @@ statsApp.get('/stats/media-library', async (context) => {
         const total = allItems.length
         const paginatedItems = allItems.slice(offset, offset + limit)
 
-        return context.json({ items: paginatedItems, total })
+        return context.json({ items: paginatedItems, total }, 200)
     } catch (error) {
         console.error('Media library error:', error)
         return context.json({ error: INTERNAL_SERVER_ERROR }, 500)
     }
-})
+  })
 
-/**
- * GET /stats/unused-media - Finds media in media_objects not referenced in any file column
- */
-statsApp.get('/stats/unused-media', async (context) => {
+  /**
+   * GET /stats/unused-media - Finds media in media_objects not referenced in any file column
+   */
+  .get('/stats/unused-media', async (context) => {
     try {
         const mediaRepository = context.get('mediaRepository')
         const seeds = context.get('seedRegistry').all()
@@ -116,25 +153,29 @@ statsApp.get('/stats/unused-media', async (context) => {
         const mediaRows = await listAllTrackedMedia(mediaRepository)
 
         if (mediaRows.length === 0) {
-            return context.json({ items: [] })
+            return context.json({ items: [] }, 200)
         }
 
         // Collect all referenced keys in the file columns of each seed
         const contentScanRepository = context.get('contentScanRepository')
         const referencedKeys = await contentScanRepository.getReferencedMediaKeys(seeds)
 
-        const unusedMedia = mediaRows.filter(mediaItem => !referencedKeys.has(mediaItem.key))
-        return context.json({ items: unusedMedia })
+        // Every item carries the url it is served from, like media-library: the widget renders it as an <img src>.
+        const mediaBaseUrl = resolveMediaBaseUrl(context)
+        const unusedMedia = mediaRows
+            .filter(mediaItem => !referencedKeys.has(mediaItem.key))
+            .map(mediaItem => ({ ...mediaItem, url: mediaUrl(mediaBaseUrl, mediaItem.key) }))
+        return context.json({ items: unusedMedia }, 200)
     } catch (error) {
         console.error('Unused media error:', error)
         return context.json({ error: INTERNAL_SERVER_ERROR }, 500)
     }
-})
+  })
 
-/**
- * GET /stats/setup-checklist - Project setup status for "Project Health" widget
- */
-statsApp.get('/stats/setup-checklist', async (context) => {
+  /**
+   * GET /stats/setup-checklist - Project setup status for "Project Health" widget
+   */
+  .get('/stats/setup-checklist', async (context) => {
     try {
         const setupChecklistRepository = context.get('setupChecklistRepository')
         const seeds = context.get('seedRegistry').all()
@@ -150,12 +191,9 @@ statsApp.get('/stats/setup-checklist', async (context) => {
         const seedsCount = seeds.length
         const contentTablesOk = seedsCount > 0 && seeds.every(seed => existingTables.has(`content_${seed.slug}`))
 
-        let adminExists = false
-        try {
-            adminExists = (await setupChecklistRepository.countAdmins()) > 0
-        } catch {
-            // users table may not exist yet
-        }
+        // The route gate is `manage_users@*` for an active account, so reaching this handler proves an
+        // active global administrator exists.
+        const adminExists = true
 
         let hasContent = false
         const firstSeedSlug = seeds[0]?.slug ?? null
@@ -174,37 +212,45 @@ statsApp.get('/stats/setup-checklist', async (context) => {
             adminExists,
             hasContent,
             firstSeedSlug,
-        })
+        }, 200)
     } catch (error) {
         console.error('Setup checklist error:', error)
         return context.json({ error: 'Failed to compute setup checklist' }, 500)
     }
-})
+  })
 
-/**
- * GET /stats/total - Global content statistics for dashboard
- */
-statsApp.get('/stats/total', async (context) => {
+  /**
+   * GET /stats/total - Content statistics for dashboard, limited to the seeds the caller may read.
+   * The projection is the authorization decision for this route (route row is `authenticated`).
+   */
+  .get('/stats/total', async (context) => {
     try {
-        const now = SystemClock.nowSeconds()
+        const effective = await resolveEffectivePermissions(context)
+        const readableSeeds = filterSeedsByPermission(context.get('seedRegistry').all(), effective, 'content:read')
+        if (readableSeeds.length === 0) {
+            return context.json({ total: 0, today: 0, week: 0, month: 0 }, 200)
+        }
+
+        const now = context.get('clock').nowSeconds()
         const twentyFourHoursAgo = now - HOURS_24_IN_SECONDS
         const sevenDaysAgo       = now - DAYS_7_IN_SECONDS
         const thirtyDaysAgo      = now - DAYS_30_IN_SECONDS
 
         // Total: SUM of per-seed counts (current live entries)
-        const seeds = context.get('seedRegistry').all()
         const widgetRepository = context.get('widgetRepository')
         const countResults = await Promise.all(
-            seeds.map(seed => widgetRepository.aggregate(seed, { op: 'count' }, 'all'))
+            readableSeeds.map(seed => widgetRepository.aggregate(seed, { op: 'count' }, 'all'))
         )
         const totalEntriesCount = countResults.reduce((accumulator, count) => accumulator + count, 0)
 
         // today/week/month: create events in activity_logs (entity_type = 'content')
+        // Content-create rows always carry a slug, so unscoped rows never count here.
+        const visibility = { ...activityVisibility(effective, readableSeeds), includeUnscoped: false }
         const activityLogRepository = context.get('activityLogRepository')
         const [todayCount, weekCount, monthCount] = await Promise.all([
-            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: twentyFourHoursAgo }),
-            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: sevenDaysAgo }),
-            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: thirtyDaysAgo }),
+            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: twentyFourHoursAgo, visibility }),
+            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: sevenDaysAgo, visibility }),
+            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: thirtyDaysAgo, visibility }),
         ])
 
         return context.json({
@@ -212,7 +258,7 @@ statsApp.get('/stats/total', async (context) => {
             today: todayCount,
             week: weekCount,
             month: monthCount,
-        })
+        }, 200)
     } catch (error) {
         console.error('Content stats error:', error)
         return publicProblem(context, {
@@ -222,20 +268,33 @@ statsApp.get('/stats/total', async (context) => {
             detail: DATABASE_ERROR,
         })
     }
-})
+  })
 
-/**
- * GET /stats/recent-activity - Latest activities registered in the system
- * No ETag on this endpoint: the activity feed must always be fresh after
- * every mutation. Cache-Control: no-store prevents the browser from keeping a
- * response that could be returned as a 304 stale.
- */
-statsApp.get('/stats/recent-activity', async (context) => {
+  /**
+   * GET /stats/recent-activity - Latest activities the caller may see
+   * The projection is the authorization decision for this route (route row is `authenticated`).
+   * No ETag on this endpoint: the activity feed must always be fresh after
+   * every mutation. Cache-Control: no-store prevents the browser from keeping a
+   * response that could be returned as a 304 stale.
+   */
+  .get('/stats/recent-activity', zodQuery(recentActivityQuerySchema), async (context) => {
     try {
-        const slug = cleanStr(context.req.query('slug'))
+        const slug = cleanStr(context.req.valid('query').slug)
+
+        const effective = await resolveEffectivePermissions(context)
+        const readableSeeds = filterSeedsByPermission(context.get('seedRegistry').all(), effective, 'content:read')
+        const visibility = activityVisibility(effective, readableSeeds)
+
+        context.header('Cache-Control', 'no-store')
+
+        // A slug outside the perimeter answers empty, never 403: no existence oracle.
+        const slugOutsidePerimeter = slug !== null && Array.isArray(visibility.seeds) && !visibility.seeds.includes(slug)
+        const nothingVisible = Array.isArray(visibility.seeds) && visibility.seeds.length === 0 && !visibility.includeUnscoped
+        if (slugOutsidePerimeter || nothingVisible) return context.json([], 200)
 
         const entries = await context.get('activityLogRepository').list({
             entitySlug: slug ?? undefined,
+            visibility,
             limit: 15,
         })
 
@@ -255,9 +314,7 @@ statsApp.get('/stats/recent-activity', async (context) => {
             created_at: entry.createdAt,
         }))
 
-        context.header('Cache-Control', 'no-store')
-
-        return context.json(activities)
+        return context.json(activities, 200)
     } catch (error) {
         console.error('Recent activity error:', error)
         return publicProblem(context, {
@@ -267,12 +324,12 @@ statsApp.get('/stats/recent-activity', async (context) => {
             detail: DATABASE_ERROR,
         })
     }
-})
+  })
 
-/**
- * GET /stats/health - System health status and Cloudflare quotas
- */
-statsApp.get('/stats/health', async (context) => {
+  /**
+   * GET /stats/health - System health status and Cloudflare quotas
+   */
+  .get('/stats/health', async (context) => {
     try {
         const systemStatsRepository = context.get('systemStatsRepository')
 
@@ -285,13 +342,16 @@ statsApp.get('/stats/health', async (context) => {
         }
 
         // 2. Aggregate D1 requests (proxy for database health) - last 30 days
-        const thirtyDaysAgo = SystemClock.nowSeconds() - DAYS_30_IN_SECONDS
+        const thirtyDaysAgo = (context.get('clock') ?? SystemClock).nowSeconds() - DAYS_30_IN_SECONDS
         const totalRequests = await context
             .get('analyticsRepository')
             .sumByMetric('requests', '', thirtyDaysAgo)
 
         const storagePercentage = Math.min(Math.round((storageUsedBytes / R2_STORAGE_LIMIT) * 1000) / 10, 100)
         const d1Percentage = Math.min(Math.round((totalRequests / D1_MONTHLY_REQUESTS_LIMIT) * 1000) / 10, 100)
+
+        // Annotated so the response type keeps the union; a bare conditional would widen to string.
+        const healthStatus: 'healthy' | 'warning' = (storagePercentage < 90 && d1Percentage < 90) ? 'healthy' : 'warning'
 
         return context.json({
             storage: {
@@ -304,21 +364,21 @@ statsApp.get('/stats/health', async (context) => {
                 limit: D1_MONTHLY_REQUESTS_LIMIT,
                 percentage: d1Percentage
             },
-            status: (storagePercentage < 90 && d1Percentage < 90) ? 'healthy' : 'warning',
-            lastUpdate: SystemClock.nowSeconds()
-        })
+            status: healthStatus,
+            lastUpdate: (context.get('clock') ?? SystemClock).nowSeconds()
+        }, 200)
     } catch (error) {
         console.error('System health stats error:', error)
         return context.json({ error: 'Failed to calculate system health' }, 500)
     }
-})
+  })
 
-/**
- * GET /stats/cloudflare - Cloudflare-like metrics (Visitors, Requests, Bandwidth)
- */
-statsApp.get('/stats/cloudflare', async (context) => {
+  /**
+   * GET /stats/cloudflare - Cloudflare-like metrics (Visitors, Requests, Bandwidth)
+   */
+  .get('/stats/cloudflare', async (context) => {
     try {
-        const thirtyDaysAgo = SystemClock.nowSeconds() - DAYS_30_IN_SECONDS
+        const thirtyDaysAgo = (context.get('clock') ?? SystemClock).nowSeconds() - DAYS_30_IN_SECONDS
         const analyticsRepository = context.get('analyticsRepository')
 
         const [recordedRequests, recordedVisitors] = await Promise.all([
@@ -326,10 +386,8 @@ statsApp.get('/stats/cloudflare', async (context) => {
             analyticsRepository.sumByMetric('visitors', '', thirtyDaysAgo),
         ])
 
-        // Simulate some Cloudflare metrics not directly tracked for a premium feel
-        const requestsCount = recordedRequests > 0 ? recordedRequests : Math.floor(Math.random() * 5000) + 1000
-        const visitorsCount = recordedVisitors > 0 ? recordedVisitors : Math.floor(requestsCount / 12) + 1
-        const bandwidthMB = Math.round((requestsCount * 0.15) * 10) / 10
+        // Only recorded traffic is reported; no comparison window is tracked, so trends are 0.
+        const bandwidthMB = recordedRequests > 0 ? Math.round((recordedRequests * 0.15) * 10) / 10 : 0
 
         const systemStatsRepository = context.get('systemStatsRepository')
         let storageUsedBytes = 0
@@ -344,25 +402,25 @@ statsApp.get('/stats/cloudflare', async (context) => {
 
         return context.json({
             visitors: {
-                value: visitorsCount,
-                trend: 12, // simulated growth %
+                value: recordedVisitors,
+                trend: 0,
                 isPositive: true
             },
             requests: {
-                value: requestsCount,
-                trend: 8,
+                value: recordedRequests,
+                trend: 0,
                 isPositive: true
             },
             bandwidth: {
                 value: bandwidthMB,
                 unit: 'MB',
-                trend: 5,
-                isPositive: false
+                trend: 0,
+                isPositive: true
             },
             cacheRate: {
-                value: 94.2,
+                value: 0,
                 unit: '%',
-                trend: 0.5,
+                trend: 0,
                 isPositive: true
             },
             storage: {
@@ -371,7 +429,7 @@ statsApp.get('/stats/cloudflare', async (context) => {
                 unit: 'MB',
                 percentage: Math.round((storageUsedMB / storageLimitMB) * 1000) / 10
             }
-        })
+        }, 200)
     } catch (error) {
         console.error('Cloudflare stats error:', error)
         return publicProblem(context, {
@@ -381,14 +439,17 @@ statsApp.get('/stats/cloudflare', async (context) => {
             detail: DATABASE_ERROR,
         })
     }
-})
+  })
 
-/**
- * GET /stats/breakdown - Content distribution for "Content Pulse" widget
- */
-statsApp.get('/stats/breakdown', async (context) => {
+  /**
+   * GET /stats/breakdown - Content distribution for "Content Pulse" widget
+   * The projection is the authorization decision for this route (route row is `authenticated`).
+   */
+  .get('/stats/breakdown', async (context) => {
     try {
-        const seeds = context.get('seedRegistry').all()
+        const effective = await resolveEffectivePermissions(context)
+        const seeds = filterSeedsByPermission(context.get('seedRegistry').all(), effective, 'content:read')
+        if (seeds.length === 0) return context.json([], 200)
 
         const widgetRepository = context.get('widgetRepository')
         const counts = await Promise.all(
@@ -401,7 +462,7 @@ statsApp.get('/stats/breakdown', async (context) => {
             count: counts[index] ?? 0,
         }))
 
-        return context.json(breakdown)
+        return context.json(breakdown, 200)
     } catch (error) {
         console.error('Breakdown stats error:', error)
         return publicProblem(context, {
@@ -411,12 +472,12 @@ statsApp.get('/stats/breakdown', async (context) => {
             detail: DATABASE_ERROR,
         })
     }
-})
+  })
 
-/**
- * POST /stats/storage/sync - Recalculates space occupied on R2 (expensive operation, use with caution)
- */
-statsApp.post('/stats/storage/sync', async (context) => {
+  /**
+   * POST /stats/storage/sync - Recalculates space occupied on R2 (expensive operation, use with caution)
+   */
+  .post('/stats/storage/sync', async (context) => {
     try {
         const bucket = context.get('bucket')
         const systemStatsRepository = context.get('systemStatsRepository')
@@ -424,11 +485,11 @@ statsApp.post('/stats/storage/sync', async (context) => {
         const realSize = await bucket.getTotalSize()
         await systemStatsRepository.setStorage(realSize)
 
-        return context.json({ success: true, size: realSize })
+        return context.json({ success: true, size: realSize }, 200)
     } catch (error) {
         console.error('Storage sync error:', error)
         return context.json({ error: INTERNAL_SERVER_ERROR }, 500)
     }
-})
+  })
 
 export { statsApp }

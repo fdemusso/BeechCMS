@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useState } from "react"
-import { CheckCircle as CheckCircle2, FormatCircle as Circle, AlertCircle, X, ChevronRight } from 'reicon-react'
+import { CheckCircle as CheckCircle2, FormatCircle as Circle, AlertCircle, X, ChevronRight } from '@/components/icons'
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router-dom"
 import { Skeleton } from "@/components/ui/skeleton"

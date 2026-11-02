@@ -77,28 +77,6 @@ describe('assignment delete', () => {
   })
 })
 
-describe('advisory predicates', () => {
-  it('isLastGlobalAdminAssignment is true only for the sole administrator\'s global manage_users assignment', async () => {
-    const sole = await assignments.create({ userId: ALICE, roleId: await adminRole('Sole'), scope: GLOBAL_SCOPE })
-    const reader = await assignments.create({ userId: BOB, roleId: await roles.create({ name: 'Reader', description: null, permissions: ['content:read'] }), scope: GLOBAL_SCOPE })
-
-    expect(await assignments.isLastGlobalAdminAssignment(sole)).toBe(true)
-    expect(await assignments.isLastGlobalAdminAssignment(reader)).toBe(false)
-
-    await assignments.create({ userId: BOB, roleId: await adminRole('Backup'), scope: GLOBAL_SCOPE })
-    expect(await assignments.isLastGlobalAdminAssignment(sole)).toBe(false)
-  })
-
-  it('isLastGlobalAdmin is true only while no other active administrator exists', async () => {
-    await assignments.create({ userId: ALICE, roleId: await adminRole('Sole'), scope: GLOBAL_SCOPE })
-    expect(await users.isLastGlobalAdmin(ALICE)).toBe(true)
-    expect(await users.isLastGlobalAdmin(BOB)).toBe(false)
-
-    await assignments.create({ userId: BOB, roleId: await adminRole('Backup'), scope: GLOBAL_SCOPE })
-    expect(await users.isLastGlobalAdmin(ALICE)).toBe(false)
-  })
-})
-
 describe('account deactivation', () => {
   it('refuses deactivating the only active global administrator and leaves it active', async () => {
     await assignments.create({ userId: ALICE, roleId: await adminRole('Only'), scope: GLOBAL_SCOPE })

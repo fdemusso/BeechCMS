@@ -7,16 +7,8 @@ import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 
-export async function facetsHandler(context: Context<AppEnv>) {
+export async function facetsHandler(context: Context<AppEnv, '/:slug/facets'>) {
   const slug = context.req.param('slug')
-  if (!slug) {
-    return publicProblem(context, { 
-      type: 'content-invalid-slug', 
-      title: 'Bad Request', 
-      status: 400, 
-      detail: CONTENT_ERRORS.INVALID_SLUG 
-    })
-  }
 
   const seed = context.get('getSeed')(slug)
   if (!seed) {
@@ -36,7 +28,7 @@ export async function facetsHandler(context: Context<AppEnv>) {
     return context.json({
       statuses: Object.keys(statuses).sort((a, b) => a.localeCompare(b, 'it')),
       tagsByColumnId: tagsByColumn,
-    })
+    }, 200)
   } catch (error) {
     console.error('Content facets error:', error)
     return publicProblem(context, { 

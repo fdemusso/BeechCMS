@@ -10,7 +10,6 @@ const axisBranch: Branch = { id: 'br_axis', alias: 'status_col', label: 'Status'
 function makeEntry(overrides: Partial<ContentEntry> = {}, extra: Record<string, unknown> = {}): ContentEntry {
   return {
     id: 'entry-1',
-    schema_slug: 'articles',
     slug: 'entry-1',
     status: 'draft',
     data: {},

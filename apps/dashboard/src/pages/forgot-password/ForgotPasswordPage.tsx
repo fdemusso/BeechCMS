@@ -5,7 +5,7 @@
 import React, { useState } from "react"
 import { Link } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import axios from "axios"
+import { rpc } from "@/lib/rpc"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -35,7 +35,7 @@ export function ForgotPasswordPage() {
     setEmailError(null)
     setIsLoading(true)
     try {
-      await axios.post("/auth/forgot-password", { email: trimmed, locale: i18n.language })
+      await rpc.auth["forgot-password"].$post({ json: { email: trimmed, locale: i18n.language } })
     } catch {
       // intentionally swallowed — always show success to prevent user enumeration
     }

@@ -100,8 +100,8 @@ export class D1InvitationRepository implements IInvitationRepository {
     const { user } = input
     const results = await this.db.batch([
       this.db
-        .prepare(`INSERT INTO users (id, email, password_hash, role, name, surname) SELECT ?, ?, ?, ?, ?, ? WHERE ${pending}`)
-        .bind(user.id, user.email, user.passwordHash, user.role, user.name, user.surname, input.invitationId),
+        .prepare(`INSERT INTO users (id, email, password_hash, name, surname) SELECT ?, ?, ?, ?, ? WHERE ${pending}`)
+        .bind(user.id, user.email, user.passwordHash, user.name, user.surname, input.invitationId),
       this.db
         .prepare(`INSERT INTO user_role_assignments (id, user_id, role_id, scope) SELECT ?, ?, ?, ? WHERE ${pending}`)
         .bind(input.assignmentId, user.id, input.roleId, input.scope, input.invitationId),

@@ -32,7 +32,6 @@ function buildApp(mocks: any = {}) {
         email: 'test@beechcms.com',
         name: 'Test',
         surname: 'User',
-        role: 'editor',
         passwordHash: 'hashed-pwd',
         avatarUrl: null,
         notificationPreferences: JSON.stringify({
@@ -158,6 +157,30 @@ describe('Settings Handler', () => {
       expect(body.detail).toContain('Invalid default language')
     })
 
+    it('answers a defaultLocale that is not a locale code with its own problem type', async () => {
+      const app = buildApp()
+      const res = await app.request('/', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ defaultLocale: 'not a locale' }),
+      })
+      expect(res.status).toBe(400)
+      const body = await res.json() as any
+      expect(body.type).toBe('settings-invalid-default-locale')
+    })
+
+    it('refuses a field of the wrong type instead of ignoring it, and writes nothing', async () => {
+      const setMany = vi.fn().mockResolvedValue(undefined)
+      const app = buildApp({ siteSettingsRepository: { getAll: vi.fn().mockResolvedValue({}), setMany } })
+      const res = await app.request('/', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteTitle: 5 }),
+      })
+      expect(res.status).toBe(400)
+      expect(setMany).not.toHaveBeenCalled()
+    })
+
     it('returns 400 for invalid company website URL', async () => {
       const app = buildApp()
       const res = await app.request('/', {
@@ -200,6 +223,25 @@ describe('Settings Handler', () => {
         companyAbbreviation: 'NC',
         siteTitle: 'New Corp',
       })
+    })
+
+    it('clears siteTitle with null by falling back to the stored company name', async () => {
+      const setManySpy = vi.fn().mockResolvedValue(undefined)
+      const app = buildApp({
+        siteSettingsRepository: {
+          getAll: vi.fn().mockResolvedValue({ companyName: 'Stored Corp' }),
+          setMany: setManySpy,
+        },
+      })
+
+      const res = await app.request('/', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteTitle: null }),
+      })
+
+      expect(res.status).toBe(200)
+      expect(setManySpy).toHaveBeenCalledWith({ siteTitle: 'Stored Corp' })
     })
 
     it('allows resetting company fields by passing null', async () => {
@@ -253,7 +295,7 @@ describe('Settings Handler', () => {
       expect(body.manageableScopes).toEqual([])
     })
 
-    it('emits the caller\'s serialized permissions and isDeveloper=false for a non-admin', async () => {
+    it('emits the caller\'s serialized permissions for a seed-scoped reader', async () => {
       const app = buildApp({
         effectivePermissions: {
           global: new Set(),
@@ -264,7 +306,6 @@ describe('Settings Handler', () => {
       expect(res.status).toBe(200)
       const body = await res.json() as any
       expect(body.permissions).toEqual({ global: [], byScope: { posts: ['content:read'] } })
-      expect(body.isDeveloper).toBe(false)
       expect(body.manageableScopes).toEqual([])
     })
 
@@ -280,21 +321,20 @@ describe('Settings Handler', () => {
       expect(body.manageableScopes).toEqual(['posts'])
     })
 
-    it('emits isDeveloper=true when users.role is admin', async () => {
+    it('emits a global manage_seeds grant in permissions.global and no isDeveloper key', async () => {
       const app = buildApp({
         userRepository: {
           findById: vi.fn().mockResolvedValue({
-            id: 'u1', email: 'admin@beechcms.com', name: 'Admin', surname: 'User', role: 'admin',
+            id: 'u1', email: 'admin@beechcms.com', name: 'Admin', surname: 'User',
             passwordHash: 'hashed-pwd', avatarUrl: null, notificationPreferences: '{}',
           }),
         },
-        effectivePermissions: { global: new Set(['content:read', 'manage_users']), byScope: new Map() },
+        effectivePermissions: { global: new Set(['manage_seeds']), byScope: new Map() },
       })
       const res = await app.request('/me')
       const body = await res.json() as any
-      expect(body.isDeveloper).toBe(true)
-      expect(body.permissions.global).toEqual(['content:read', 'manage_users'])
-      expect(body.manageableScopes).toEqual(['*', 'posts'])
+      expect(body.permissions.global).toEqual(['manage_seeds'])
+      expect(body).not.toHaveProperty('isDeveloper')
     })
   })
 
@@ -414,6 +454,17 @@ describe('Settings Handler', () => {
         body: JSON.stringify({ currentPassword: 'pwd', newPassword: 'short' }),
       })
       expect(res.status).toBe(400)
+      expect(await res.json()).toEqual({ error: 'Password must be at least 8 characters long' })
+    })
+
+    it('answers a missing password with the "both required" message, not a schema message', async () => {
+      const app = buildApp()
+      const res = await app.request('/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword: 'new-valid-pwd' }),
+      })
+      expect(await res.json()).toEqual({ error: 'Both currentPassword and newPassword are required' })
     })
 
     it('returns 400 if newPassword is too long', async () => {
@@ -512,6 +563,20 @@ describe('Settings Handler', () => {
       })
       expect(res.status).toBe(200)
       expect(updateAvatarSpy).toHaveBeenCalledWith('u1', 'https://beechcms.com/avatar.png')
+    })
+  })
+
+  describe('PUT /avatar without avatarUrl', () => {
+    it('returns 400 and leaves the avatar alone, instead of clearing it', async () => {
+      const updateAvatarSpy = vi.fn().mockResolvedValue(undefined)
+      const app = buildApp({ userRepository: { updateAvatarUrl: updateAvatarSpy } })
+      const res = await app.request('/avatar', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      expect(res.status).toBe(400)
+      expect(updateAvatarSpy).not.toHaveBeenCalled()
     })
   })
 

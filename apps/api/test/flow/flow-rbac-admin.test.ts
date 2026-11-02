@@ -202,10 +202,8 @@ describe('Flow: RBAC admin API lifecycle', () => {
     expect(editSuperAdminRes.status).toBe(409)
     expect(await editSuperAdminRes.json()).toMatchObject({ type: expect.stringContaining('system-role-immutable') })
 
-    // 10. POST /api/rbac/users never produces users.role = 'admin'.
-    const roles = await db.prepare(`SELECT DISTINCT role FROM users WHERE email IN ('partner@beech.local', 'manager@beech.local')`).all<{ role: string }>()
-    for (const row of roles.results ?? []) {
-      expect(row.role).toBe('editor')
-    }
+    // 10. Accounts created through POST /api/rbac/users carry no legacy axis.
+    const userColumns = await db.prepare('PRAGMA table_info(users)').all<{ name: string }>()
+    expect((userColumns.results ?? []).map(column => column.name)).not.toContain('role')
   })
 })

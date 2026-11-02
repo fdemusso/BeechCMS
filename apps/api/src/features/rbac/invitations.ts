@@ -9,11 +9,19 @@ import { sendInvitationEmail, resolveEmailLocale, type EmailLocale } from '../..
 import { generateOpaqueToken } from '../../shared/utils/opaque-token'
 import { sha256hex } from '@beechcms/core'
 import { RBAC_ERRORS } from './constants'
-import { rbacProblem, readJson, readPage, type AppContext } from './guards'
-import { createInvitationSchema } from './rbac.schema'
+import { pageOf, rbacProblem, type AppContext, type JsonContext, type PageContext } from './guards'
+import type { createInvitationSchema } from './rbac.schema'
 
 /** 72 hours (brief §3: "link di invito con scadenza"; §4: an expired one is regenerable). */
 const INVITATION_TTL_SECONDS = 72 * 60 * 60
+
+type InvitationStatus = 'pending' | 'accepted' | 'expired'
+
+/** The literal union is declared here so it reaches the response type instead of widening to `string`. */
+function invitationStatus(row: { usedAt: number | null; expiresAt: number }, now: number): InvitationStatus {
+  if (row.usedAt !== null) return 'accepted'
+  return row.expiresAt <= now ? 'expired' : 'pending'
+}
 
 /** Whether an email provider is configured; email delivery is best-effort, never a precondition. */
 function isEmailConfigured(context: AppContext): boolean {
@@ -76,22 +84,15 @@ function dispatchInvitationEmail(
  * Issues a deferred (role, scope) grant: the same two anti-escalation checks as
  * `createAssignmentHandler`, because an invitation IS a deferred assignment.
  */
-export const createInvitationHandler = async (context: AppContext) => {
-  const body = await readJson(context)
-  if (body === undefined) {
-    return rbacProblem(context, RBAC_ERRORS.INVALID_JSON, 400, 'Bad Request', 'Request body is not valid JSON.')
-  }
-  const parsed = createInvitationSchema.safeParse(body)
-  if (!parsed.success) {
-    return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', parsed.error.message)
-  }
+export const createInvitationHandler = async (context: JsonContext<typeof createInvitationSchema>) => {
+  const input = context.req.valid('json')
 
-  const email = parsed.data.email.toLowerCase()
+  const email = input.email.toLowerCase()
   if (await context.get('userRepository').findByEmail(email)) {
     return rbacProblem(context, RBAC_ERRORS.EMAIL_TAKEN, 409, 'Conflict', 'An account with this email already exists.')
   }
 
-  const { roleId, scope } = parsed.data
+  const { roleId, scope } = input
   if (!context.get('idGenerator').isValid(roleId)) {
     return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', 'Malformed id.')
   }
@@ -145,7 +146,7 @@ export const createInvitationHandler = async (context: AppContext) => {
     inviteUrl,
     roleName: role.name,
     scope,
-    locale: resolveEmailLocale(parsed.data.locale),
+    locale: resolveEmailLocale(input.locale),
   })
 
   return context.json({ id, email, roleId, scope, expiresAt, inviteUrl }, 201)
@@ -159,11 +160,8 @@ export const createInvitationHandler = async (context: AppContext) => {
  * Paged over the invitations table; the visibility filter applies to each page afterwards, so
  * a page may hold fewer than `limit` rows. `nextOffset` is null on the last page.
  */
-export const listInvitationsHandler = async (context: AppContext) => {
-  const page = readPage(context)
-  if (!page) {
-    return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', 'Invalid limit or offset.')
-  }
+export const listInvitationsHandler = async (context: PageContext) => {
+  const page = pageOf(context.req.valid('query'))
 
   const now = context.get('clock').nowSeconds()
   // One extra row tells whether another page exists without a COUNT.
@@ -185,10 +183,10 @@ export const listInvitationsHandler = async (context: AppContext) => {
       invitedBy: row.invitedBy,
       expiresAt: row.expiresAt,
       createdAt: row.createdAt,
-      status: row.usedAt !== null ? 'accepted' : row.expiresAt <= now ? 'expired' : 'pending',
+      status: invitationStatus(row, now),
     })),
     nextOffset: fetched.length > page.limit ? page.offset + page.limit : null,
-  })
+  }, 200)
 }
 
 /**
@@ -268,7 +266,7 @@ export const regenerateInvitationHandler = async (context: AppContext) => {
     locale: resolveEmailLocale(undefined),
   })
 
-  return context.json({ id: invitationId, expiresAt, inviteUrl })
+  return context.json({ id: invitationId, expiresAt, inviteUrl }, 200)
 }
 
 /**

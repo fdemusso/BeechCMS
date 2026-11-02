@@ -8,6 +8,7 @@ import { formatDistanceToNow } from "date-fns"
 import { it as itLocale, enUS, type Locale } from "date-fns/locale"
 import { useTranslation } from "react-i18next"
 import { useRecentActivity } from "../hooks/use-dashboard-stats"
+import { activityTarget } from "../utils/activity-target"
 
 const DATE_FNS_LOCALE: Record<string, Locale> = {
   it: itLocale,
@@ -51,7 +52,7 @@ export function RecentActivity() {
                       defaultValue: activity.action,
                     })}{" "}
                     <span className="font-semibold text-foreground">
-                      {activity.details?.title || activity.details?.name || activity.entity_slug || activity.entity_id}
+                      {activityTarget(activity)}
                     </span>
                   </p>
                   <p className="text-xs text-muted-foreground/70">

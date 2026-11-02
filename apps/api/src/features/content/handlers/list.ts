@@ -8,7 +8,9 @@ import { applyVisibility, toEntryEnvelope } from '../../../shared/policies/apply
 import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
-import { resolveKanbanConfig, type FilterGroup, type ActorContext, type LocaleConfig, type Seed } from '@beechcms/core'
+import type { ZodQueryInput } from '../../../shared/utils/zod-query'
+import type { contentListQuerySchema } from '../crud.schema'
+import { resolveKanbanConfig, resolveRelationAvatar, type FilterGroup, type ActorContext, type LocaleConfig, type Seed } from '@beechcms/core'
 import { loadLocaleConfig } from '../../../shared/localization/locale-config'
 import { loadDisplayLocaleConfig, resolveDisplayName } from '../../../shared/localization/display-name'
 
@@ -20,6 +22,10 @@ import { loadDisplayLocaleConfig, resolveDisplayName } from '../../../shared/loc
  * branches) instead of O(N*R) per-row fetches.
  *
  * Shape: { [branchAlias]: { [targetId]: labelString } }
+ *
+ * A relation with an `avatarSource` also reports the avatar URL of each target in `avatars`
+ * (same shape, only entries that have a URL). It rides on the label query: one extra projected
+ * column, no extra round trip, and nothing at all for relations without an avatar.
  */
 async function buildRelationsMap(
   context: Context<AppEnv>,
@@ -27,14 +33,13 @@ async function buildRelationsMap(
   entries: Record<string, unknown>[],
   localeConfig: LocaleConfig | undefined,
   actor: ActorContext,
-): Promise<Record<string, Record<string, string>>> {
-  const relationBranches = seed.branches.filter(
-    (b: { type: string }) => b.type === 'relation'
-  ) as Array<{ alias: string; targetSeed?: string }>
-
-  if (relationBranches.length === 0) return {}
+): Promise<{ relations: Record<string, Record<string, string>>; avatars: Record<string, Record<string, string>> }> {
+  const relationBranches = seed.branches.filter((b) => b.type === 'relation')
 
   const relations: Record<string, Record<string, string>> = {}
+  const avatars: Record<string, Record<string, string>> = {}
+  if (relationBranches.length === 0) return { relations, avatars }
+
   const repository = context.get('repository')
   const seedRegistry = context.get('seedRegistry')
   const targetSeeds = relationBranches
@@ -51,6 +56,7 @@ async function buildRelationsMap(
     if (!targetSeedDef) continue
 
     const labelAlias = targetSeedDef.displayNameAlias ?? 'title'
+    const avatarAlias = resolveRelationAvatar(branch, (slug) => seedRegistry.get(slug))?.alias
 
     // Collect unique non-empty ids referenced by this branch (scalar or multi-relation array)
     const ids = Array.from(
@@ -74,11 +80,12 @@ async function buildRelationsMap(
             conditions: [{ op: 'in' as const, value: ids }],
           },
         ],
-        fields: ['id', labelAlias],
+        fields: avatarAlias ? ['id', labelAlias, avatarAlias] : ['id', labelAlias],
         pagination: { limit: ids.length, offset: 0 },
       })
 
       const map: Record<string, string> = {}
+      const avatarMap: Record<string, string> = {}
       for (const item of items) {
         const row = item as Record<string, unknown>
         const id = row.id as string
@@ -86,29 +93,23 @@ async function buildRelationsMap(
         const visible = applyVisibility(row, targetSeedDef, actor)
         const label = resolveDisplayName(targetSeedDef, visible[labelAlias], labelConfig)
         map[id] = label != null && label !== '' ? String(label) : id
+        const avatar = avatarAlias ? visible[avatarAlias] : undefined
+        if (typeof avatar === 'string' && avatar !== '') avatarMap[id] = avatar
       }
 
       relations[branch.alias] = map
+      if (avatarAlias) avatars[branch.alias] = avatarMap
     } catch (error) {
       // Non-fatal only when the target seed table doesn't exist yet; real DB errors surface as 500.
       if (!(error instanceof Error && /no such table/i.test(error.message))) throw error
     }
   }
 
-  return relations
+  return { relations, avatars }
 }
 
-export async function listHandler(context: Context<AppEnv>) {
+export async function listHandler(context: Context<AppEnv, '/:slug', ZodQueryInput<typeof contentListQuerySchema>>) {
   const slug = context.req.param('slug')
-  if (!slug) {
-    return publicProblem(context, {
-      type: 'content-invalid-slug',
-      title: 'Bad Request',
-      status: 400,
-      detail: CONTENT_ERRORS.INVALID_SLUG
-    })
-  }
-
   const seed = context.get('getSeed')(slug)
   if (!seed) {
     return publicProblem(context, {
@@ -120,7 +121,7 @@ export async function listHandler(context: Context<AppEnv>) {
   }
 
   try {
-    const query = context.req.query()
+    const query = context.req.valid('query')
     const search = cleanStr(query.search) ?? ''
     const sortBy = cleanStr(query.sortBy) ?? ''
     const sortDirRaw = cleanStr(query.sortDir)?.toLowerCase() ?? 'asc'
@@ -134,7 +135,9 @@ export async function listHandler(context: Context<AppEnv>) {
 
     const page = parsePositiveInt(query.page, 1)
     const limit = Math.min(parsePositiveInt(query.limit, 25), 100)
-    const offset = (page - 1) * limit
+    // The kanban board reads a column as a window (`offset` = cards already fetched), not by page number.
+    const requestedOffset = Number.parseInt(query.offset ?? '', 10)
+    const offset = Number.isInteger(requestedOffset) && requestedOffset >= 0 ? requestedOffset : (page - 1) * limit
 
     const orderBy = sortBy
       ? { column: sortBy, dir: (sortDirRaw === 'desc' ? 'DESC' : 'ASC') as 'ASC' | 'DESC' }
@@ -185,6 +188,7 @@ export async function listHandler(context: Context<AppEnv>) {
       filters: allFilters,
       orderBy: kanbanOrder ? undefined : orderBy,
       search: search || undefined,
+      resolveSeed: context.get('getSeed'),
       pagination: { limit, offset },
       kanbanOrder,
       locale: localeConfig ? { code: localeConfig.defaultLocale, config: localeConfig } : undefined,
@@ -194,7 +198,6 @@ export async function listHandler(context: Context<AppEnv>) {
     const actor: ActorContext = context.get('actor') ?? {
       type: 'authenticated',
       userId: jwtPayload?.sub,
-      role: jwtPayload?.role,
     }
 
     const entries = await Promise.all(items.map(async (item) => {
@@ -211,15 +214,15 @@ export async function listHandler(context: Context<AppEnv>) {
     }))
 
     // If no query params (except slug), return array directly (legacy compatibility)
-    const hasQueryParams = Boolean(search) || Boolean(sortBy) || Boolean(query.filters) || Boolean(kanbanAxis) || query.page !== undefined || query.limit !== undefined
+    const hasQueryParams = Boolean(search) || Boolean(sortBy) || Boolean(query.filters) || Boolean(kanbanAxis) || query.page !== undefined || query.limit !== undefined || query.offset !== undefined
     if (!hasQueryParams) {
-      return context.json(entries)
+      return context.json(entries, 200)
     }
 
     // Build compact relation labels map for N+1 mitigation
-    const relations = await buildRelationsMap(context, seed, entries, localeConfig, actor)
+    const { relations, avatars } = await buildRelationsMap(context, seed, entries, localeConfig, actor)
 
-    return context.json({ items: entries, total, page, limit, relations })
+    return context.json({ items: entries, total, page, limit, relations, relationAvatars: avatars }, 200)
   } catch (error) {
     console.error('Content list error:', error)
     return publicProblem(context, {

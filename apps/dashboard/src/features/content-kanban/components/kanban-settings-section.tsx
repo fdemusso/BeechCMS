@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { RowVertical as Rows3, Eye, EyeOff, Check, Grid as LayoutGrid } from "reicon-react"
+import { RowVertical as Rows3, Eye, EyeOff, Check, Grid as LayoutGrid } from "@/components/icons"
 import type { ViewSettingsSectionProps } from "@/features/shared"
 
 /** The Kanban View Type's own settings-menu block: axis group-by, visible kanban columns and card layout. */

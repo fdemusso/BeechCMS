@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: docs-generate-${{ github.ref }}
+  group: docs-generate-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:

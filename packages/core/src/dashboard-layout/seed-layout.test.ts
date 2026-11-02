@@ -598,10 +598,69 @@ describe('formLayoutSchema bounds', () => {
     expect(formLayoutSchema.safeParse(layoutWith([section('s')], 'x'.repeat(65))).success).toBe(false)
   })
 
-  it('rejects a section label longer than the cap', () => {
-    const sections = [{ ...section('s'), label: 'x'.repeat(121) }]
+  it('accepts a section label at the cap and rejects one beyond it', () => {
+    const labelled = (label: string) => layoutWith([{ ...section('s'), label }])
 
-    expect(formLayoutSchema.safeParse(layoutWith(sections)).success).toBe(false)
+    expect(formLayoutSchema.safeParse(labelled('x'.repeat(50))).success).toBe(true)
+    expect(formLayoutSchema.safeParse(labelled('x'.repeat(51))).success).toBe(false)
+  })
+
+  it('accepts a tab label at the cap and rejects one beyond it', () => {
+    const tabbed = (label: string) => ({ version: 1, tabs: [{ id: 't', label, sections: [section('s')] }] })
+
+    expect(formLayoutSchema.safeParse(tabbed('x'.repeat(15))).success).toBe(true)
+    expect(formLayoutSchema.safeParse(tabbed('x'.repeat(16))).success).toBe(false)
+  })
+
+  it('trims labels before measuring and storing them', () => {
+    const result = formLayoutSchema.safeParse({
+      version: 1,
+      tabs: [{ id: 't', label: `  ${'x'.repeat(15)}  `, sections: [{ ...section('s'), label: '  Intro  ' }] }],
+    })
+
+    expect(result.success && [result.data.tabs[0].label, result.data.tabs[0].sections[0].label]).toEqual([
+      'x'.repeat(15),
+      'Intro',
+    ])
+  })
+
+  it('rejects a label containing control characters', () => {
+    const labelled = (label: string) => layoutWith([{ ...section('s'), label }])
+
+    expect(formLayoutSchema.safeParse(labelled('line\nbreak')).success).toBe(false)
+    expect(formLayoutSchema.safeParse(labelled('nul\u0000')).success).toBe(false)
+  })
+
+  it('rejects a tab label that is empty once trimmed', () => {
+    expect(formLayoutSchema.safeParse({ version: 1, tabs: [{ id: 't', label: '   ', sections: [section('s')] }] }).success).toBe(false)
+  })
+
+  describe('id uniqueness', () => {
+    const tab = (id: string, sections: unknown[]) => ({ id, label: id, sections })
+
+    it('rejects two tabs sharing an id', () => {
+      const layout = { version: 1, tabs: [tab('a', [section('s1')]), tab('a', [section('s2')])] }
+
+      expect(formLayoutSchema.safeParse(layout).success).toBe(false)
+    })
+
+    it('rejects two sections sharing an id, even across tabs', () => {
+      const layout = { version: 1, tabs: [tab('a', [section('s')]), tab('b', [section('s')])] }
+
+      expect(formLayoutSchema.safeParse(layout).success).toBe(false)
+    })
+
+    it('rejects two columns sharing an id', () => {
+      const sections = [{ id: 's', columns: [{ id: 'c', fields: [] }, { id: 'c', fields: [] }] }]
+
+      expect(formLayoutSchema.safeParse(layoutWith(sections)).success).toBe(false)
+    })
+
+    it('accepts a layout whose ids are all distinct', () => {
+      const layout = { version: 1, tabs: [tab('a', [section('s1')]), tab('b', [section('s2')])] }
+
+      expect(formLayoutSchema.safeParse(layout).success).toBe(true)
+    })
   })
 
   describe('id uniqueness', () => {

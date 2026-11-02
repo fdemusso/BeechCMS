@@ -2,7 +2,7 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, More as MoreHorizontalIcon } from 'reicon-react'
+import { ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, More as MoreHorizontalIcon } from '@/components/icons'
 
 function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
   return (

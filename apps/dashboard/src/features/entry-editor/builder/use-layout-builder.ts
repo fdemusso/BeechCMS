@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 import {
   type FormLayout,
   type LayoutTab,
@@ -13,22 +13,28 @@ import {
   generateDefaultLayout,
 } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
+import { shareStructure } from '@/components/builder/share-structure'
 
 export interface UseLayoutBuilderArgs {
   seed: Seed
+  /** The saved layout: what `isDirty` and "discard" compare against. */
   initialLayout: FormLayout
+  /** Unsaved work to resume from: the draft starts here instead of at `initialLayout`. */
+  restoredDraft?: FormLayout
 }
 
 interface MoveFieldArgs {
   from: { tabId: string; sectionId: string; columnId: string; branchId: string }
-  to: { tabId: string; sectionId: string; columnId: string }
+  /** `index` is where the field lands in the destination column; omitted, it is appended. */
+  to: { tabId: string; sectionId: string; columnId: string; index?: number }
 }
 
-export interface UseLayoutBuilderResult {
-  draft: FormLayout
-  activeTabId: string
+/**
+ * Everything the builder can do to the layout. None of it depends on the draft, so the object keeps its identity
+ * while the draft changes: memoised blocks take this, not the whole result, and are not redrawn on every edit.
+ */
+export interface LayoutBuilderActions {
   setActiveTabId: (id: string) => void
-  isDirty: boolean
   addTab(): void
   renameTab(tabId: string, label: string): void
   removeTab(tabId: string): void
@@ -46,7 +52,18 @@ export interface UseLayoutBuilderResult {
   moveField(args: MoveFieldArgs): boolean
   reset(): void
   replace(layout: FormLayout): void
+}
+
+export interface UseLayoutBuilderResult extends LayoutBuilderActions {
+  draft: FormLayout
+  /** The saved layout the draft is measured against. */
+  saved: FormLayout
+  activeTabId: string
+  isDirty: boolean
+  /** The same actions as above in one stable object. */
+  actions: LayoutBuilderActions
   getUsedBranchIds(): Set<string>
+  /** The layoutable branches not placed yet. Keeps its identity while fields only move around. */
   getAvailableBranches(): Branch[]
 }
 
@@ -102,7 +119,7 @@ function wouldViolateFullWidthWithMap(
  */
 export function getFullWidthWarningLabel(
   branch: Branch,
-  section?: LayoutSection,
+  section?: Pick<LayoutSection, 'columns'>,
   branchById?: Record<string, Branch>
 ): string {
   if (isFullWidthBranch(branch)) {
@@ -123,23 +140,35 @@ export function getFullWidthWarningLabel(
   return branch.label
 }
 
-export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs): UseLayoutBuilderResult {
-  const [draft, setDraft] = useState<FormLayout>(() => structuredClone(initialLayout))
-  const [storedInitial, setStoredInitial] = useState<FormLayout>(() => structuredClone(initialLayout))
-  const [activeTabId, setActiveTabId] = useState<string>(() => initialLayout.tabs[0]?.id ?? '')
-
-  const isDirty = useMemo(
-    () => JSON.stringify(draft) !== JSON.stringify(storedInitial),
-    [draft, storedInitial]
+function placedBranchIds(layout: FormLayout): string[] {
+  return layout.tabs.flatMap((tab) =>
+    tab.sections.flatMap((section) => section.columns.flatMap((column) => column.fields.map((field) => field.branchId))),
   )
+}
+
+export function useLayoutBuilder({ seed, initialLayout, restoredDraft }: UseLayoutBuilderArgs): UseLayoutBuilderResult {
+  const [draft, setDraft] = useState<FormLayout>(() => structuredClone(restoredDraft ?? initialLayout))
+  const [storedInitial, setStoredInitial] = useState<FormLayout>(() => structuredClone(initialLayout))
+  const [activeTabId, setActiveTabId] = useState<string>(() => (restoredDraft ?? initialLayout).tabs[0]?.id ?? '')
+
+  // The saved layout only changes on save/reset; serialising it once keeps a draft edit down to a single stringify.
+  const storedJson = useMemo(() => JSON.stringify(storedInitial), [storedInitial])
+  const isDirty = useMemo(() => JSON.stringify(draft) !== storedJson, [draft, storedJson])
 
   const branchMap = useMemo<Map<string, Branch>>(
     () => new Map(seed.branches.map((b) => [b.id, b])),
     [seed]
   )
 
+  // The latest draft for the moves that validate before they mutate, so those callbacks need not depend on it.
+  const draftRef = useRef(draft)
+  useLayoutEffect(() => {
+    draftRef.current = draft
+  }, [draft])
+
   const mutate = useCallback((fn: (d: FormLayout) => FormLayout) => {
-    setDraft((prev) => fn(structuredClone(prev)))
+    // Untouched tabs, sections and columns keep their identity, so memoised blocks skip the redraw.
+    setDraft((prev) => shareStructure(prev, fn(structuredClone(prev))))
   }, [])
 
   // ── Tab ops ──────────────────────────────────────────────────────────────
@@ -281,7 +310,7 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
       const branch = branchMap.get(branchId)
       if (!branch) return false
 
-      const tab = draft.tabs.find((t) => t.id === tabId)
+      const tab = draftRef.current.tabs.find((t) => t.id === tabId)
       const section = tab?.sections.find((s) => s.id === sectionId)
       if (!section || wouldViolateFullWidthWithMap(section, branch, branchMap)) {
         return false
@@ -305,7 +334,7 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
       }))
       return true
     },
-    [draft, mutate, branchMap]
+    [mutate, branchMap]
   )
 
   const clearField = useCallback((tabId: string, sectionId: string, columnId: string, branchId: string) => {
@@ -360,9 +389,18 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
       const branch = branchMap.get(from.branchId)
       if (!branch) return false
 
-      const toTab = draft.tabs.find((t) => t.id === to.tabId)
+      const toTab = draftRef.current.tabs.find((t) => t.id === to.tabId)
       const toSection = toTab?.sections.find((s) => s.id === to.sectionId)
-      if (!toSection || wouldViolateFullWidthWithMap(toSection, branch, branchMap)) {
+      // Inside its own section the field does not count against itself.
+      const sameSection = from.tabId === to.tabId && from.sectionId === to.sectionId
+      if (
+        !toSection ||
+        wouldViolateFullWidthWithMap(
+          toSection, branch, branchMap,
+          sameSection ? from.columnId : undefined,
+          sameSection ? from.branchId : undefined,
+        )
+      ) {
         return false
       }
 
@@ -377,9 +415,13 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
               if (t.id === from.tabId && s.id === from.sectionId && c.id === from.columnId) {
                 return { ...c, fields: c.fields.filter((f) => f.branchId !== from.branchId) }
               }
-              // Append to destination
+              // Insert at the destination index (append when none). Removal above happens on the source
+              // column only, so an index computed against the destination column stays valid.
               if (t.id === to.tabId && s.id === to.sectionId && c.id === to.columnId) {
-                return { ...c, fields: [...c.fields, { branchId: from.branchId }] }
+                const fields = [...c.fields]
+                const index = Math.min(Math.max(to.index ?? fields.length, 0), fields.length)
+                fields.splice(index, 0, { branchId: from.branchId })
+                return { ...c, fields }
               }
               return c
             }),
@@ -388,7 +430,7 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
       }))
       return true
     },
-    [draft, mutate, branchMap]
+    [mutate, branchMap]
   )
 
   const reset = useCallback(() => {
@@ -404,31 +446,39 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
     setActiveTabId(layout.tabs[0]?.id ?? '')
   }, [])
 
-  const getUsedBranchIds = useCallback((): Set<string> => {
-    const ids = new Set<string>()
-    for (const tab of draft.tabs) {
-      for (const section of tab.sections) {
-        for (const col of section.columns) {
-          for (const f of col.fields) ids.add(f.branchId)
-        }
-      }
-    }
-    return ids
-  }, [draft])
+  const getUsedBranchIds = useCallback((): Set<string> => new Set(placedBranchIds(draft)), [draft])
 
-  const getAvailableBranches = useCallback((): Branch[] => {
-    const used = getUsedBranchIds()
-    return seed.branches.filter(
-      (b) => isLayoutableBranch(b as Branch) && !used.has((b as Branch).id)
-    ) as Branch[]
-  }, [seed, getUsedBranchIds])
+  // The placed ids as one string: a move only reorders it, so what is left to add keeps its identity and the
+  // memoised "Add field" lists are not rebuilt by every edit.
+  const placedKey = useMemo(() => placedBranchIds(draft).sort().join(','), [draft])
+  const availableBranches = useMemo(() => {
+    const placed = new Set(placedKey ? placedKey.split(',') : [])
+    return seed.branches.filter((b) => isLayoutableBranch(b as Branch) && !placed.has((b as Branch).id)) as Branch[]
+  }, [seed, placedKey])
+  const getAvailableBranches = useCallback(() => availableBranches, [availableBranches])
 
-  return {
-    draft, activeTabId, setActiveTabId, isDirty,
+  // Nothing in here reads the draft, so the object is stable while the draft changes: memoised blocks take this.
+  const actions = useMemo<LayoutBuilderActions>(() => ({
+    setActiveTabId,
     addTab, renameTab, removeTab, reorderTabs,
     addSection, removeSection, reorderSections, toggleSectionFlag, renameSection, setSectionColumnCount,
     reorderColumns,
     assignField, clearField, reorderFieldsInColumn, moveField,
-    reset, replace, getUsedBranchIds, getAvailableBranches,
-  }
+    reset, replace,
+  }), [
+    addTab, renameTab, removeTab, reorderTabs,
+    addSection, removeSection, reorderSections, toggleSectionFlag, renameSection, setSectionColumnCount,
+    reorderColumns,
+    assignField, clearField, reorderFieldsInColumn, moveField,
+    reset, replace,
+  ])
+
+  return useMemo(
+    () => ({
+      ...actions, actions,
+      draft, saved: storedInitial, activeTabId, isDirty,
+      getUsedBranchIds, getAvailableBranches,
+    }),
+    [actions, draft, storedInitial, activeTabId, isDirty, getUsedBranchIds, getAvailableBranches],
+  )
 }

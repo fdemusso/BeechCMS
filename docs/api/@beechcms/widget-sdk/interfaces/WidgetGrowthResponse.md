@@ -28,4 +28,4 @@
 
 ### trend
 
-> **trend**: `"flat"` \| `"up"` \| `"down"`
+> **trend**: `"up"` \| `"down"` \| `"flat"`

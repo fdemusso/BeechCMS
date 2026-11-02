@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { FolderStyle, Seed } from "@beechcms/core"
-import { Edit, Folder } from 'reicon-react'
+import { Edit, Folder } from '@/components/icons'
 import { useTranslation } from "react-i18next"
 
 import { cn } from "@/lib/utils"

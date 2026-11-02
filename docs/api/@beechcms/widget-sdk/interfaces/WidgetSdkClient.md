@@ -6,34 +6,57 @@
 
 # Interface: WidgetSdkClient
 
-Minimal HTTP client contract the SDK's data hooks depend on. The
-dashboard's Axios instance satisfies this shape — no Axios import lives
-in this package.
+Typed client contract the SDK's data hooks depend on: the `widget` subtree of the dashboard's
+`hc` client (`rpc.api.widget`). It is declared here, structurally, so the SDK imports nothing
+from the API; the host's `<WidgetSdkProvider client={...}>` only compiles while the server routes
+still answer these shapes.
 
-## Methods
+## Properties
 
-### get()
+### aggregate
 
-> **get**&lt;`T`&gt;(`url`, `config?`): `Promise`&lt;\{ `data`: `T`; \}&gt;
+> **aggregate**: `object`
 
-#### Type Parameters
+#### :seed
 
-##### T
+> **:seed**: [`WidgetRoute`](WidgetRoute.md)&lt;`object` & [`WidgetWindowQuery`](WidgetWindowQuery.md), [`WidgetAggregateResponse`](WidgetAggregateResponse.md)&gt;
 
-`T`
+***
 
-#### Parameters
+### distribution
 
-##### url
+> **distribution**: `object`
 
-`string`
+#### :seed
 
-##### config?
+> **:seed**: [`WidgetRoute`](WidgetRoute.md)&lt;`object` & [`WidgetWindowQuery`](WidgetWindowQuery.md), [`WidgetDistributionResponse`](WidgetDistributionResponse.md)&gt;
 
-###### params?
+***
 
-`Record`&lt;`string`, `unknown`&gt;
+### growth
 
-#### Returns
+> **growth**: `object`
 
-`Promise`&lt;\{ `data`: `T`; \}&gt;
+#### :seed
+
+> **:seed**: [`WidgetRoute`](WidgetRoute.md)&lt;`object` & [`WidgetWindowQuery`](WidgetWindowQuery.md), [`WidgetGrowthResponse`](WidgetGrowthResponse.md)&gt;
+
+***
+
+### list
+
+> **list**: `object`
+
+#### :seed
+
+> **:seed**: [`WidgetRoute`](WidgetRoute.md)&lt;\{ `limit`: `string`; `offset`: `string`; `orderBy?`: `string`; `orderDir?`: `string`; `search?`: `string`; \}, [`WidgetListResponse`](WidgetListResponse.md)&gt;
+
+***
+
+### timeseries
+
+> **timeseries**: `object`
+
+#### :seed
+
+> **:seed**: [`WidgetRoute`](WidgetRoute.md)&lt;`object` & [`WidgetWindowQuery`](WidgetWindowQuery.md), [`WidgetTimeseriesResponse`](WidgetTimeseriesResponse.md)&gt;

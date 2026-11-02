@@ -8,18 +8,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 import { MAX_RETENTION_DAYS } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), put: vi.fn() },
+const mocked = vi.hoisted(() => ({ getSettings: vi.fn(), putSettings: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { settings: { $get: mocked.getSettings, $put: mocked.putSettings } } },
 }))
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
-import { api } from "@/lib/api"
 import { toast } from "sonner"
 import type { GeneralSettings } from "../types/settings.types"
 import { useGeneralTabLogic } from "./use-general-tab"
 
 const GENERAL_SETTINGS: GeneralSettings = {
   siteTitle: "Acme",
+  siteLogo: "/beechLogoDark.svg",
   defaultLanguage: "en",
   locales: ["en"],
   defaultLocale: "en",
@@ -28,6 +30,7 @@ const GENERAL_SETTINGS: GeneralSettings = {
   company: { name: "Acme", website: null, abbreviation: null },
   dateFormat: "dd/MM/yyyy",
   trashRetentionDays: 21,
+  features: { drafts: true, media: true, search: true, activityLog: true, email: false },
 }
 
 function wrapper() {
@@ -41,8 +44,8 @@ function wrapper() {
 describe("useGeneralTabLogic", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(api.get).mockResolvedValue({ data: GENERAL_SETTINGS })
-    vi.mocked(api.put).mockResolvedValue({ data: GENERAL_SETTINGS })
+    mocked.getSettings.mockResolvedValue({ json: async () => GENERAL_SETTINGS })
+    mocked.putSettings.mockResolvedValue({ json: async () => ({ success: true }) })
   })
 
   async function renderLoadedHook() {
@@ -72,7 +75,7 @@ describe("useGeneralTabLogic", () => {
 
     await saveRetention(result, "30")
 
-    expect(api.put).toHaveBeenCalledWith("/settings", expect.objectContaining({ trashRetentionDays: 30 }))
+    expect(mocked.putSettings).toHaveBeenCalledWith({ json: expect.objectContaining({ trashRetentionDays: 30 }) })
   })
 
   it("saves 0 (never purge)", async () => {
@@ -80,7 +83,7 @@ describe("useGeneralTabLogic", () => {
 
     await saveRetention(result, "0")
 
-    expect(api.put).toHaveBeenCalledWith("/settings", expect.objectContaining({ trashRetentionDays: 0 }))
+    expect(mocked.putSettings).toHaveBeenCalledWith({ json: expect.objectContaining({ trashRetentionDays: 0 }) })
   })
 
   it("refuses an invalid retention with trashRetentionInvalid and sends nothing", async () => {
@@ -96,6 +99,6 @@ describe("useGeneralTabLogic", () => {
         `Retention must be a whole number between 0 and ${MAX_RETENTION_DAYS}.`,
       )
     }
-    expect(api.put).not.toHaveBeenCalled()
+    expect(mocked.putSettings).not.toHaveBeenCalled()
   })
 })

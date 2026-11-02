@@ -36,6 +36,47 @@ describe('encodeCsvValue', () => {
   })
 })
 
+describe('encodeCsvValue — neutralizeFormulas', () => {
+  it.each(['=1+1', '+1+1', '-1+1', '@SUM(A1)', '\tcmd', '\rcmd'])(
+    'prefixes a quote on a formula-like value %j',
+    (value) => {
+      const result = encodeCsvValue(value, { neutralizeFormulas: true })
+
+      expect(result.replaceAll('"', '').startsWith("'")).toBe(true)
+    },
+  )
+
+  it.each(['-5', '+5', '3.14', '-0.5'])('leaves the plain number %j untouched', (value) => {
+    const result = encodeCsvValue(value, { neutralizeFormulas: true })
+
+    expect(result).toBe(value)
+  })
+
+  it('still applies RFC 4180 quoting after the prefix', () => {
+    const result = encodeCsvValue('=HYPERLINK("x","y")', { neutralizeFormulas: true })
+
+    expect(result).toBe('"\'=HYPERLINK(""x"",""y"")"')
+  })
+
+  it('leaves a value that merely contains a trigger character mid-string alone', () => {
+    const result = encodeCsvValue('a=b', { neutralizeFormulas: true })
+
+    expect(result).toBe('a=b')
+  })
+
+  it('exports a formula-like value verbatim by default (format unchanged)', () => {
+    const result = encodeCsvValue('=1+1')
+
+    expect(result).toBe('=1+1')
+  })
+
+  it('applies to every cell of a row', () => {
+    const result = encodeCsvRow(['ok', '=1+1', null], { neutralizeFormulas: true })
+
+    expect(result).toBe("ok,'=1+1,\r\n")
+  })
+})
+
 describe('CsvRowReader', () => {
   it('round-trips a row containing a comma, a quote, and an embedded newline', () => {
     const row = encodeCsvRow(['a,b', 'say "hi"', 'line1\nline2'])

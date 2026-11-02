@@ -5,7 +5,7 @@ import type { IconComponent } from '@/lib/icon-registry'
 
 import { cn } from "@/lib/utils"
 
-import { Chart as TrendingDown, ChartBarTrendUp as TrendingUp } from 'reicon-react'
+import { Chart as TrendingDown, ChartBarTrendUp as TrendingUp } from '@/components/icons'
 
 interface StatCardProps {
   title: string

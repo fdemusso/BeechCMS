@@ -6,7 +6,7 @@ import type { IconComponent } from '@/lib/icon-registry'
 "use client"
 
 import { useRef } from "react"
-import { ChevronRight } from 'reicon-react'
+import { ChevronRight } from '@/components/icons'
 import { Link, useLocation } from "react-router-dom"
 import { toast } from "sonner"
 

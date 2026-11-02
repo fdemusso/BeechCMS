@@ -80,7 +80,7 @@ export async function createTestHarness(options: HarnessOptions): Promise<TestHa
     async asUser(user, tokenOptions) {
       const resolved = typeof user === 'string' ? CANONICAL_USERS[user] : user
       const token = await tokenService.issue(
-        { sub: resolved.id, email: resolved.email, name: resolved.name, role: resolved.role },
+        { sub: resolved.id, email: resolved.email, name: resolved.name },
         tokenOptions?.ttlSeconds === undefined ? undefined : { ttlSeconds: tokenOptions.ttlSeconds },
       )
       return createTestClient(app, env, { Authorization: `Bearer ${token}` })

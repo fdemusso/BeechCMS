@@ -3,6 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
+import type { ZodJsonInput } from '../../../shared/utils/zod-json'
+import type { contentEntryBodySchema } from '../crud.schema'
 import {
   slugify,
   isValidContentStatus,
@@ -29,17 +31,14 @@ import { AppEnv } from '../../../types'
 
 
 
-export async function updateHandler(context: Context<AppEnv>) {
+/** A body that is not JSON at all is the only refusal that happens before the handler runs. */
+export function rejectInvalidContentBody(context: Context) {
+  return publicProblem(context, { type: 'content-invalid-json', title: 'Bad Request', status: 400, detail: CONTENT_ERRORS.INVALID_JSON_BODY })
+}
+
+export async function updateHandler(context: Context<AppEnv, '/:slug/:id', ZodJsonInput<typeof contentEntryBodySchema>>) {
   const slug = context.req.param('slug')
   const id = context.req.param('id')
-  if (!slug || !id) {
-    return publicProblem(context, { 
-      type: 'content-invalid-slug-or-id', 
-      title: 'Bad Request', 
-      status: 400, 
-      detail: CONTENT_ERRORS.INVALID_SLUG_OR_ID 
-    })
-  }
 
   const seed = context.get('getSeed')(slug)
   if (!seed) {
@@ -51,17 +50,7 @@ export async function updateHandler(context: Context<AppEnv>) {
     })
   }
 
-  let body: Record<string, unknown>
-  try {
-    body = normalizeBody(await context.req.json<unknown>())
-  } catch {
-    return publicProblem(context, { 
-      type: 'content-invalid-json', 
-      title: 'Bad Request', 
-      status: 400, 
-      detail: CONTENT_ERRORS.INVALID_JSON_BODY 
-    })
-  }
+  const body = normalizeBody(context.req.valid('json'))
 
   const ifMatch = resolveIfMatch(context, body)
 
@@ -176,7 +165,7 @@ export async function updateHandler(context: Context<AppEnv>) {
     }
 
     const jwtPayload = context.get('jwtPayload')
-    const actor = { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
+    const actor = { id: jwtPayload.sub, email: jwtPayload.email }
     // The merge above is read-modify-write against `current`: without a version guard a concurrent write
     // landing in between would lose its translation silently. Fall back to the version we merged against
     // when the client sent none, turning that race into the usual 409.
@@ -189,7 +178,7 @@ export async function updateHandler(context: Context<AppEnv>) {
     logContentActivity(context, 'update', id, slug, String(title))
     dispatchContentAutomation(context, slug, 'update', { ...current, ...mergedData, id, status: newStatus })
 
-    return context.json({ success: true })
+    return context.json({ success: true }, 200)
   } catch (error) {
     return handleContentDatabaseError(context, error)
   }

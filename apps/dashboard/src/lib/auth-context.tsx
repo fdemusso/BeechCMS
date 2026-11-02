@@ -3,8 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import axios from 'axios'
 import { setAccessToken, clearAccessToken, refreshToken, decodeJwtPayload } from './api'
+import { rpc } from './rpc'
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -15,7 +15,7 @@ const SETUP_POLL_INTERVAL_MS = 30_000
 
 interface AuthState {
   status: AuthStatus
-  user: { email: string; name?: string; surname?: string; role?: 'admin' | 'editor' } | null
+  user: { email: string; name?: string; surname?: string } | null
   /** null = not checked yet. Distinguishing "unknown" from "confirmed false" stops
    *  SetupPage from bouncing a fresh install away before the first check resolves. */
   needsSetup: boolean | null
@@ -29,10 +29,10 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null)
 
-function decodeUser(token: string): { email: string; name?: string; surname?: string; role?: 'admin' | 'editor' } | null {
+function decodeUser(token: string): { email: string; name?: string; surname?: string } | null {
   try {
-    const payload = decodeJwtPayload(token) as { email?: string; name?: string; surname?: string; role?: 'admin' | 'editor' }
-    return { email: payload.email ?? '', name: payload.name ?? 'Admin', surname: payload.surname, role: payload.role }
+    const payload = decodeJwtPayload(token) as { email?: string; name?: string; surname?: string }
+    return { email: payload.email ?? '', name: payload.name ?? 'Admin', surname: payload.surname }
   } catch {
     return null
   }
@@ -40,7 +40,7 @@ function decodeUser(token: string): { email: string; name?: string; surname?: st
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading')
-  const [user, setUser] = useState<{ email: string; name?: string; surname?: string; role?: 'admin' | 'editor' } | null>(null)
+  const [user, setUser] = useState<{ email: string; name?: string; surname?: string } | null>(null)
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
 
   function setToken(token: string) {
@@ -67,8 +67,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function recheckSetup() {
     try {
-      const { data } = await axios.get<{ needsSetup: boolean }>('/auth/setup')
-      setNeedsSetup(data.needsSetup)
+      const response = await rpc.auth.setup.$get()
+      const { needsSetup } = await response.json()
+      setNeedsSetup(needsSetup)
     } catch {
       // transient network/server error — keep last known state
     }

@@ -6,7 +6,7 @@
 
 # Function: encodeCsvRow()
 
-> **encodeCsvRow**(`cells`): `string`
+> **encodeCsvRow**(`cells`, `options?`): `string`
 
 Encodes one row, CRLF terminator included (RFC 4180 §2.1).
 
@@ -15,6 +15,10 @@ Encodes one row, CRLF terminator included (RFC 4180 §2.1).
 ### cells
 
 (`string` \| `null` \| `undefined`)[]
+
+### options?
+
+[`CsvEncodeOptions`](../interfaces/CsvEncodeOptions.md) = `{}`
 
 ## Returns
 

@@ -6,16 +6,6 @@
 import { Hono } from 'hono'
 import type { Env, Variables } from '../../types'
 
-/**
- * Notifications Feature Handler.
- *
- * Manages retrieval, mark read/unread, and deletion of system notifications.
- * All persistence goes through the {@link INotificationRepository} injected
- * by `repositoryMiddleware`. The handler owns the HTTP concerns only:
- * ETag negotiation, status codes, error mapping.
- */
-const notificationsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
-
 const NOTIFICATION_LIST_LIMIT = 50
 
 /**
@@ -41,88 +31,95 @@ function matchesIfNoneMatch(headerValue: string | undefined, etagValue: string):
 }
 
 /**
- * GET /notifications
+ * Notifications Feature Handler.
  *
- * Returns the most recent notifications. The ETag is derived from the list
- * itself (capped at {@link NOTIFICATION_LIST_LIMIT}), so an unchanged inbox
- * returns 304 without re-sending the body and any visible change busts it.
+ * Manages retrieval, mark read/unread, and deletion of system notifications.
+ * All persistence goes through the {@link INotificationRepository} injected
+ * by `repositoryMiddleware`. The handler owns the HTTP concerns only:
+ * ETag negotiation, status codes, error mapping.
+ *
+ * Registered as one method chain so `AppType` carries the response types to the dashboard.
  */
-notificationsApp.get('/notifications', async (context) => {
-  try {
-    const notifications = await context.get('notificationRepository').list(NOTIFICATION_LIST_LIMIT)
-    const body = JSON.stringify(notifications)
-    const etagValue = await buildListEtag(NOTIFICATION_LIST_LIMIT, body)
+const notificationsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
+  /**
+   * GET /notifications
+   *
+   * Returns the most recent notifications. The ETag is derived from the list
+   * itself (capped at {@link NOTIFICATION_LIST_LIMIT}), so an unchanged inbox
+   * returns 304 without re-sending the body and any visible change busts it.
+   */
+  .get('/notifications', async (context) => {
+    try {
+      const notifications = await context.get('notificationRepository').list(NOTIFICATION_LIST_LIMIT)
+      // `context.json` serialises with the same JSON.stringify, so the tag matches the bytes sent.
+      const etagValue = await buildListEtag(NOTIFICATION_LIST_LIMIT, JSON.stringify(notifications))
 
-    context.header('ETag', etagValue)
-    context.header('Cache-Control', 'no-cache, must-revalidate')
+      context.header('ETag', etagValue)
+      context.header('Cache-Control', 'no-cache, must-revalidate')
 
-    if (matchesIfNoneMatch(context.req.header('If-None-Match'), etagValue)) {
-      return context.body(null, 304)
+      if (matchesIfNoneMatch(context.req.header('If-None-Match'), etagValue)) {
+        return context.body(null, 304)
+      }
+
+      return context.json(notifications, 200)
+    } catch (error) {
+      console.error('[Notifications] Fetch error:', error)
+      return context.json({ error: 'Failed to fetch notifications' }, 500)
     }
-
-    return context.body(body, 200, { 'Content-Type': 'application/json' })
-  } catch (error) {
-    console.error('[Notifications] Fetch error:', error)
-    return context.json({ error: 'Failed to fetch notifications' }, 500)
-  }
-})
-
-/**
- * PATCH /notifications/:id/read — mark a single notification as read.
- */
-notificationsApp.patch('/notifications/:id/read', async (context) => {
-  try {
-    const notificationId = context.req.param('id')
-    const found = await context.get('notificationRepository').markRead(notificationId)
-    if (!found) return context.json({ error: 'Notification not found' }, 404)
-    return context.json({ success: true })
-  } catch (error) {
-    console.error('[Notifications] Mark read error:', error)
-    return context.json({ error: 'Failed to update notification' }, 500)
-  }
-})
-
-/**
- * PATCH /notifications/:id/unread — mark a single notification as unread.
- */
-notificationsApp.patch('/notifications/:id/unread', async (context) => {
-  try {
-    const notificationId = context.req.param('id')
-    const found = await context.get('notificationRepository').markUnread(notificationId)
-    if (!found) return context.json({ error: 'Notification not found' }, 404)
-    return context.json({ success: true })
-  } catch (error) {
-    console.error('[Notifications] Mark unread error:', error)
-    return context.json({ error: 'Failed to update notification' }, 500)
-  }
-})
-
-/**
- * DELETE /notifications/:id — permanently remove a notification.
- */
-notificationsApp.delete('/notifications/:id', async (context) => {
-  try {
-    const notificationId = context.req.param('id')
-    const found = await context.get('notificationRepository').delete(notificationId)
-    if (!found) return context.json({ error: 'Notification not found' }, 404)
-    return context.json({ success: true })
-  } catch (error) {
-    console.error('[Notifications] Delete error:', error)
-    return context.json({ error: 'Failed to delete notification' }, 500)
-  }
-})
-
-/**
- * POST /notifications/mark-all-read — mark every notification as read.
- */
-notificationsApp.post('/notifications/mark-all-read', async (context) => {
-  try {
-    await context.get('notificationRepository').markAllRead()
-    return context.json({ success: true })
-  } catch (error) {
-    console.error('[Notifications] Mark all read error:', error)
-    return context.json({ error: 'Failed to update notifications' }, 500)
-  }
-})
+  })
+  /**
+   * PATCH /notifications/:id/read — mark a single notification as read.
+   */
+  .patch('/notifications/:id/read', async (context) => {
+    try {
+      const notificationId = context.req.param('id')
+      const found = await context.get('notificationRepository').markRead(notificationId)
+      if (!found) return context.json({ error: 'Notification not found' }, 404)
+      return context.json({ success: true }, 200)
+    } catch (error) {
+      console.error('[Notifications] Mark read error:', error)
+      return context.json({ error: 'Failed to update notification' }, 500)
+    }
+  })
+  /**
+   * PATCH /notifications/:id/unread — mark a single notification as unread.
+   */
+  .patch('/notifications/:id/unread', async (context) => {
+    try {
+      const notificationId = context.req.param('id')
+      const found = await context.get('notificationRepository').markUnread(notificationId)
+      if (!found) return context.json({ error: 'Notification not found' }, 404)
+      return context.json({ success: true }, 200)
+    } catch (error) {
+      console.error('[Notifications] Mark unread error:', error)
+      return context.json({ error: 'Failed to update notification' }, 500)
+    }
+  })
+  /**
+   * DELETE /notifications/:id — permanently remove a notification.
+   */
+  .delete('/notifications/:id', async (context) => {
+    try {
+      const notificationId = context.req.param('id')
+      const found = await context.get('notificationRepository').delete(notificationId)
+      if (!found) return context.json({ error: 'Notification not found' }, 404)
+      return context.json({ success: true }, 200)
+    } catch (error) {
+      console.error('[Notifications] Delete error:', error)
+      return context.json({ error: 'Failed to delete notification' }, 500)
+    }
+  })
+  /**
+   * POST /notifications/mark-all-read — mark every notification as read.
+   */
+  .post('/notifications/mark-all-read', async (context) => {
+    try {
+      await context.get('notificationRepository').markAllRead()
+      return context.json({ success: true }, 200)
+    } catch (error) {
+      console.error('[Notifications] Mark all read error:', error)
+      return context.json({ error: 'Failed to update notifications' }, 500)
+    }
+  })
 
 export { notificationsApp }

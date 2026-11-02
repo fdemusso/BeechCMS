@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Settings, Filter, Grid as LayoutGrid, SortV as ArrowUpDown, RowVertical as Rows3, Palette, Eye, EyeOff, RowVertical as Rows2, AlignLeft as AlignJustify, Minus, Plus, Check, Trash2 } from 'reicon-react'
+import { Settings, Filter, Grid as LayoutGrid, SortV as ArrowUpDown, RowVertical as Rows3, Palette, Eye, EyeOff, RowVertical as Rows2, AlignLeft as AlignJustify, Minus, Plus, Check, Trash2 } from '@/components/icons'
 
 import type { VisibilityState } from "@tanstack/react-table"
 import type { TableDensity } from "@/lib/density"

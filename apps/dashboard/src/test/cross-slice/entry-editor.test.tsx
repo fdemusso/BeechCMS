@@ -66,11 +66,11 @@ vi.mock("react-router-dom", async () => {
   }
 })
 
-vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }) }))
+vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, canGlobally: () => true, effective: {} }) }))
 
 vi.mock("@/lib/auth-context", () => ({
   useAuth: () => ({
-    user: { id: "u1", role: "admin" },
+    user: { id: "u1" },
     status: "authenticated",
   }),
 }))
@@ -150,7 +150,7 @@ vi.mock("@/features/content-management", () => ({
     UPDATE_CONFLICT: "content-update-conflict",
   },
   contentErrorCode: (error: unknown) => {
-    const type = (error as { response?: { data?: { type?: unknown } } })?.response?.data?.type
+    const type = (error as { data?: { type?: unknown } })?.data?.type
     if (typeof type !== "string") return null
     const code = type.split("/").pop() ?? ""
     return code === "content-slug-conflict" || code === "content-update-conflict" ? code : null
@@ -210,7 +210,8 @@ vi.mock("@/features/navigation", () => ({
   SiteHeader: () => <div>SITE_HEADER</div>,
 }))
 
-vi.mock("@/components/fields", () => ({
+vi.mock("@/components/fields", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/fields")>()),
   FieldEdit: ({ branch, value, onChange }: any) => (
     <input
       aria-label={`field-${branch.alias}`}
@@ -290,6 +291,7 @@ vi.mock("react-i18next", () => ({
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { EntryEditorDialog } from "@/features/entry-editor"
+import { ApiError } from "@/lib/http/api-error"
 import {
   prepareSubmissionPayload,
   validateEntryJsonFields,
@@ -479,12 +481,9 @@ describe("EntryEditorPage", () => {
         metaData: "{}",
       },
     })
-    mockUpdateContent.mockRejectedValueOnce({
-      response: {
-        status: 409,
-        data: { type: "https://beechcms.dev/problems/content-update-conflict" },
-      },
-    })
+    mockUpdateContent.mockRejectedValueOnce(
+      new ApiError(409, { type: "https://beechcms.dev/problems/content-update-conflict" }),
+    )
 
     renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="42" />)
     await waitFor(() => expect(mockFetchContentById).toHaveBeenCalledWith("posts", "42"))
@@ -517,12 +516,9 @@ describe("EntryEditorPage", () => {
         metaData: "{}",
       },
     })
-    mockUpdateContent.mockRejectedValueOnce({
-      response: {
-        status: 409,
-        data: { type: "https://beechcms.dev/problems/content-slug-conflict" },
-      },
-    })
+    mockUpdateContent.mockRejectedValueOnce(
+      new ApiError(409, { type: "https://beechcms.dev/problems/content-slug-conflict" }),
+    )
 
     renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="42" />)
     await waitFor(() => expect(mockFetchContentById).toHaveBeenCalledWith("posts", "42"))

@@ -3,180 +3,146 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { Check, Copy, SortV as GripVertical, More as MoreHorizontal } from 'reicon-react'
-import type { DashboardSection, DashboardPageLayout } from '@beechcms/core'
-
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Check, Copy } from '@/components/icons'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
+  DASHBOARD_SECTION_LABEL_MAX,
+  type DashboardPageLayout,
+  type DashboardSection,
+  type EffectivePermissions,
+} from '@beechcms/core'
+import { FLUSH_MENU } from '@/components/builder/flush-menu'
+import { SectionShell } from '@/components/builder/section-shell'
+import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ColumnStack } from './column-stack'
-import { COLUMN_PRESETS } from './use-dashboard-builder'
 import { resolveColumnSpans } from '../renderer/dashboard-section'
+import { lockedColumnFloor } from './locked-widgets'
+import { ColumnCard } from './column-card'
+import type { ConfigureTarget } from './widget-block'
+import { COLUMN_PRESETS, type DashboardBuilderActions } from './use-dashboard-builder'
+import { dragIds } from './use-dashboard-dnd'
 
 export interface SectionCardProps {
   readonly pageId: string
   readonly section: DashboardSection
-  readonly dragId: string
-  readonly otherPages: DashboardPageLayout[]
+  readonly otherPages: readonly DashboardPageLayout[]
+  readonly ops: DashboardBuilderActions
+  /** The author's authority; the widget palette offers only widgets it can use. */
+  readonly permissions: EffectivePermissions
+  /** A page keeps at least one section (the server requires it). */
   readonly canRemove: boolean
-  readonly onUpdate: (updates: Partial<Pick<DashboardSection, 'label' | 'hideLabel' | 'collapsible'>>) => void
-  readonly onSetColumnPreset: (spans: number[]) => void
-  readonly onDuplicate: () => void
-  readonly onRemove: () => void
-  readonly onAddWidget: (columnId: string) => void
-  readonly onConfigureWidget: (columnId: string, widgetId: string) => void
-  readonly onRemoveWidget: (columnId: string, widgetId: string) => void
-  readonly onMoveWidgetToPage: (columnId: string, widgetId: string, toPageId: string) => void
+  readonly onConfigureWidget: (target: ConfigureTarget) => void
 }
 
-export function SectionCard({
-  pageId,
-  section,
-  dragId,
-  otherPages,
-  canRemove,
-  onUpdate,
-  onSetColumnPreset,
-  onDuplicate,
-  onRemove,
-  onAddWidget,
-  onConfigureWidget,
-  onRemoveWidget,
-  onMoveWidgetToPage,
-}: SectionCardProps) {
-  const { t } = useTranslation()
-  const [isRenaming, setIsRenaming] = React.useState(false)
-  const [renameValue, setRenameValue] = React.useState(section.label ?? '')
-
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId })
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  }
-
-  function commitRename() {
-    onUpdate({ label: renameValue.trim() || undefined })
-    setIsRenaming(false)
-  }
-
-  const spans = resolveColumnSpans(section)
-  const currentPresetKey = spans.join(',')
-
+/** The widths of a column preset as a row of proportional bars, so `[8, 4]` reads at a glance. */
+function PresetDiagram({ spans }: { readonly spans: readonly number[] }) {
   return (
-    <div ref={setNodeRef} style={style} className="rounded-lg border">
-      <div className="flex items-center gap-2 px-3 py-2 border-b">
-        <button type="button" className="cursor-grab text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
-          <GripVertical className="size-4" />
-        </button>
-
-        {isRenaming ? (
-          <Input
-            autoFocus
-            className="h-7 text-sm flex-1"
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onBlur={commitRename}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') commitRename()
-              if (e.key === 'Escape') setIsRenaming(false)
-            }}
-          />
-        ) : (
-          <span
-            role="button"
-            tabIndex={0}
-            className={`flex-1 text-sm font-medium cursor-text ${section.label ? '' : 'text-muted-foreground italic'}`}
-            onDoubleClick={() => { setRenameValue(section.label ?? ''); setIsRenaming(true) }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                setRenameValue(section.label ?? '')
-                setIsRenaming(true)
-              }
-            }}
-          >
-            {section.label ?? t('dashboard.builder.section.noLabel')}
-          </span>
-        )}
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="ghost" size="icon" className="size-7">
-              <MoreHorizontal className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => { setRenameValue(section.label ?? ''); setIsRenaming(true) }}>
-              {t('dashboard.builder.section.rename')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => onUpdate({ hideLabel: !section.hideLabel })}>
-              <Check className={section.hideLabel ? 'opacity-100' : 'opacity-0'} />
-              {t('dashboard.builder.section.hideLabel')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onUpdate({ collapsible: !section.collapsible })}>
-              <Check className={section.collapsible ? 'opacity-100' : 'opacity-0'} />
-              {t('dashboard.builder.section.collapsible')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>{t('dashboard.builder.section.columns')}</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                {COLUMN_PRESETS.map((preset) => (
-                  <DropdownMenuItem
-                    key={preset.join(',')}
-                    className={currentPresetKey === preset.join(',') ? 'font-semibold' : ''}
-                    onSelect={() => onSetColumnPreset([...preset])}
-                  >
-                    [{preset.join(', ')}]
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            <DropdownMenuItem onSelect={onDuplicate}>
-              <Copy className="size-3.5 mr-2" />
-              {t('dashboard.builder.section.duplicate')}
-            </DropdownMenuItem>
-            {canRemove && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive" onSelect={onRemove}>
-                  {t('dashboard.builder.section.remove')}
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <div className="p-3 grid grid-cols-12 gap-2">
-        {section.columns.map((col, idx) => (
-          <ColumnStack
-            key={col.id}
-            pageId={pageId}
-            sectionId={section.id}
-            column={col}
-            span={spans[idx]}
-            otherPages={otherPages}
-            onAddWidget={() => onAddWidget(col.id)}
-            onConfigureWidget={(widgetId) => onConfigureWidget(col.id, widgetId)}
-            onRemoveWidget={(widgetId) => onRemoveWidget(col.id, widgetId)}
-            onMoveWidgetToPage={(widgetId, toPageId) => onMoveWidgetToPage(col.id, widgetId, toPageId)}
-          />
-        ))}
-      </div>
-    </div>
+    <span aria-hidden data-spans={spans.join(',')} className="ml-auto flex h-3 w-16 gap-0.5">
+      {spans.map((span, index) => (
+        <span key={index} className="rounded-[2px] bg-foreground/25" style={{ flex: span }} />
+      ))}
+    </span>
   )
 }
+
+/**
+ * A dashboard section: the shared section frame, with the dashboard's menu and its 12-unit column grid.
+ * Memoised: its props keep their identity while another section is edited or dragged into.
+ */
+export const SectionCard = React.memo(function SectionCard({
+  pageId,
+  section,
+  otherPages,
+  ops,
+  permissions,
+  canRemove,
+  onConfigureWidget,
+}: Readonly<SectionCardProps>) {
+  const { t } = useTranslation()
+  const widgetCount = section.columns.reduce((sum, c) => sum + c.widgets.length, 0)
+  const spans = resolveColumnSpans(section)
+  const presetKey = spans.join(',')
+  // Folding columns would move a locked widget out of its column, and removing the section would lose it.
+  const lockedFloor = lockedColumnFloor(section)
+
+  return (
+    <SectionShell
+      dragId={dragIds.section(pageId, section.id)}
+      label={section.label}
+      labelMax={DASHBOARD_SECTION_LABEL_MAX}
+      noLabelText={t('dashboard.builder.section.noLabel')}
+      dragHandleLabel={t('dashboard.builder.section.dragHandle')}
+      countText={t('dashboard.builder.section.widgetCount', { count: widgetCount })}
+      removeConfirmText={t('dashboard.builder.section.removeConfirm')}
+      onRename={(label) => ops.updateSection(pageId, section.id, { label })}
+      onRemove={() => ops.removeSection(pageId, section.id)}
+      columnDragIds={section.columns.map((c) => dragIds.column(pageId, section.id, c.id))}
+      columnsClassName="grid min-w-0 max-w-full grid-cols-12 gap-3 px-3 pb-3"
+      // A widget dropped in another section changes two heights at once: they ease to the new size, like in the
+      // entry builder, instead of pushing the sections below in a single frame.
+      animateHeight
+      renderMenu={({ startRename, requestRemove }) => (
+        <>
+          <DropdownMenuItem onSelect={startRename}>{t('dashboard.builder.section.rename')}</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {/* The toggles keep the menu open so several flags can be set in a row. */}
+          <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(pageId, section.id, 'hideLabel') }}>
+            <Check className={section.hideLabel ? 'opacity-100' : 'opacity-0'} />
+            {t('dashboard.builder.section.hideLabel')}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(pageId, section.id, 'collapsible') }}>
+            <Check className={section.collapsible ? 'opacity-100' : 'opacity-0'} />
+            {t('dashboard.builder.section.collapsible')}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>{t('dashboard.builder.section.columns')}</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className={FLUSH_MENU}>
+              {COLUMN_PRESETS.map((preset) => (
+                <DropdownMenuItem
+                  key={preset.join(',')}
+                  disabled={preset.length < lockedFloor}
+                  onSelect={(event) => { event.preventDefault(); ops.setColumnPreset(pageId, section.id, [...preset]) }}
+                >
+                  <Check className={presetKey === preset.join(',') ? 'opacity-100' : 'opacity-0'} />
+                  <PresetDiagram spans={preset} />
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuItem onSelect={() => ops.duplicateSection(pageId, section.id)}>
+            <Copy className="size-4" />
+            {t('dashboard.builder.section.duplicate')}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive"
+            disabled={!canRemove || lockedFloor > 0}
+            onSelect={() => requestRemove(widgetCount > 0)}
+          >
+            {t('dashboard.builder.section.remove')}
+          </DropdownMenuItem>
+        </>
+      )}
+    >
+      {section.columns.map((column, index) => (
+        <ColumnCard
+          key={column.id}
+          pageId={pageId}
+          sectionId={section.id}
+          column={column}
+          span={spans[index]}
+          otherPages={otherPages}
+          ops={ops}
+          permissions={permissions}
+          onConfigureWidget={onConfigureWidget}
+          reorderable={section.columns.length > 1}
+        />
+      ))}
+    </SectionShell>
+  )
+})

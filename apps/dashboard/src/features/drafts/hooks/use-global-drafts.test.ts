@@ -24,8 +24,8 @@ import { useGlobalDrafts } from "./use-global-drafts"
 import { fetchGlobalDrafts } from "../api/drafts.api"
 
 const mockDrafts = [
-  { id: "d1", seedSlug: "posts", displayName: "Post 1", updated_at: 1000 },
-  { id: "d2", seedSlug: "posts", displayName: "Post 2", updated_at: 2000 },
+  { id: "d1", seedSlug: "posts", seedLabel: "Posts", title: "Post 1", updatedAt: 1000, lastModifiedBy: { name: null, email: "a@example.com" } },
+  { id: "d2", seedSlug: "posts", seedLabel: "Posts", title: "Post 2", updatedAt: 2000, lastModifiedBy: { name: null, email: "b@example.com" } },
 ]
 
 function makeWrapper() {

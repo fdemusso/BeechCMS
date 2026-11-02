@@ -8,7 +8,7 @@
 
 > **WidgetSdkProvider**(`__namedParameters`): `Element`
 
-Mounted once by the host app, carrying its authenticated HTTP client.
+Mounted once by the host app, carrying its authenticated typed client.
 
 ## Parameters
 

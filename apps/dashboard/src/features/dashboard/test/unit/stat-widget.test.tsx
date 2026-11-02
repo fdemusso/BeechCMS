@@ -7,13 +7,12 @@ import { render, screen, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
-}))
-
-import { api } from "@/lib/api"
+import { widgetClientFromGet, type WidgetGet } from "@/test/widget-client"
 import { WidgetSdkProvider } from "@beechcms/widget-sdk"
 import { StatWidget } from "@/features/dashboard/components/widgets/stat-widget"
+
+const widgetGet = vi.fn<WidgetGet>()
+const widgetClient = widgetClientFromGet((url, config) => widgetGet(url, config))
 
 function makeQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
@@ -23,7 +22,7 @@ function renderWithClient(ui: React.ReactElement) {
   const client = makeQueryClient()
   return render(
     <QueryClientProvider client={client}>
-      <WidgetSdkProvider client={api}>
+      <WidgetSdkProvider client={widgetClient}>
         {ui}
       </WidgetSdkProvider>
     </QueryClientProvider>,
@@ -36,10 +35,10 @@ describe("StatWidget", () => {
   })
 
   it("renders the aggregate value and label with minimal config", async () => {
-    ;(api.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+    ;widgetGet.mockImplementation((url: string) => {
       if (url === "/widget/aggregate/posts") return Promise.resolve({ data: { value: 42, window: "month" } })
       if (url === "/widget/growth/posts") return Promise.resolve({ data: { current: 42, previous: 40, percentageChange: 5, trend: "up" } })
-      throw new Error(`Unexpected api.get("${url}")`)
+      throw new Error(`Unexpected widget get("${url}")`)
     })
 
     renderWithClient(<StatWidget config={{ seedSlug: "posts", label: "Posts" }} />)
@@ -49,7 +48,7 @@ describe("StatWidget", () => {
   })
 
   it("renders an error state with retry when the aggregate request fails", async () => {
-    ;(api.get as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("network error"))
+    ;widgetGet.mockRejectedValue(new Error("network error"))
 
     renderWithClient(<StatWidget config={{ seedSlug: "posts", label: "Posts" }} />)
 

@@ -7,7 +7,6 @@ import type {
   CreateNotificationRecord,
   INotificationRepository,
   NotificationRecord,
-  NotificationStats,
   NotificationType,
   IClock,
   IIdGenerator,
@@ -20,12 +19,6 @@ interface NotificationRow {
   type: string
   is_read: number
   created_at: number
-}
-
-interface NotificationStatsRow {
-  total_count: number | null
-  latest_created_at: number | null
-  read_count: number | null
 }
 
 /**
@@ -50,23 +43,6 @@ export class D1NotificationRepository implements INotificationRepository {
       .all<NotificationRow>()
 
     return (queryResult.results ?? []).map(mapRowToRecord)
-  }
-
-  async stats(): Promise<NotificationStats> {
-    const statsRow = await this.database
-      .prepare(
-        `SELECT COUNT(*) as total_count,
-                MAX(created_at) as latest_created_at,
-                SUM(is_read) as read_count
-           FROM notifications`
-      )
-      .first<NotificationStatsRow>()
-
-    return {
-      totalCount: statsRow?.total_count ?? 0,
-      latestCreatedAt: statsRow?.latest_created_at ?? 0,
-      readCount: statsRow?.read_count ?? 0,
-    }
   }
 
   async create(record: CreateNotificationRecord): Promise<string> {

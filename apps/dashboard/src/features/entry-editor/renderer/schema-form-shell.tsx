@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useLayoutEffect, useRef } from "react"
 import type { ReactNode } from "react"
-import { ChevronDown, Loader as Loader2, Edit as Pencil, Trash2, Layout as LayoutTemplate } from 'reicon-react'
+import { ChevronDown, Loader as Loader2, Edit as Pencil, Trash2, Layout as LayoutTemplate } from '@/components/icons'
 import type { Seed } from "@beechcms/core"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 
@@ -33,6 +33,10 @@ import {
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { BuilderPane } from "../builder/builder-pane"
+import { FOOTER_RADIUS } from "../builder/footer-style"
+import { ButtonGroup } from "@/components/ui/button-group"
+import { useAnimatedModeHeight } from "./use-animated-mode-height"
+import { clearLayoutDraft, loadLayoutDraft } from "../builder/layout-draft-storage"
 import { ReferencedByPanel } from "@/features/backrefs"
 import {
   Tooltip,
@@ -93,6 +97,8 @@ function ShellMessageBody({ message, onClose, t }: ShellMessageBodyProps) {
 // ============================================================================
 
 export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
+  // `Esc` cancels a layout-builder drag; without this it would also close the dialog and drop the layout.
+  const [isBuilderDragging, setIsBuilderDragging] = useState(false)
   const {
     t,
     title,
@@ -138,6 +144,38 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
     localization,
   } = vm
 
+  const modeHeightRef = useAnimatedModeHeight(builderMode)
+
+  // Closing by X, overlay or Esc plays the exit fade before the route changes: the route change unmounts
+  // the dialog, which would otherwise vanish at once. The route change is made when the fade has ended, not
+  // on a timer started with it: the list behind redraws on every route change, and that redraw, landing
+  // mid-fade, froze the animation and cut it off. `goBack` can be refused (unsaved changes), and then the
+  // dialog has to come back.
+  const FADE_FALLBACK_MS = 500
+  const [closing, setClosing] = useState(false)
+  const closeTimerRef = useRef<number | undefined>(undefined)
+  const finishClose = () => {
+    window.clearTimeout(closeTimerRef.current)
+    goBack()
+  }
+  const requestClose = () => {
+    setClosing(true)
+    window.clearTimeout(closeTimerRef.current)
+    // Only if the fade never reports its end (animations switched off, a hidden tab).
+    closeTimerRef.current = window.setTimeout(goBack, FADE_FALLBACK_MS)
+  }
+  useEffect(() => {
+    if (blocker.state === "blocked") setClosing(false)
+  }, [blocker.state])
+  // The host keeps the dialog mounted for a moment after the route closes it. Reopened in that window it is the
+  // same instance, and a `closing` left on from the last close would keep it shut for good.
+  useEffect(() => {
+    if (!open) return
+    window.clearTimeout(closeTimerRef.current)
+    setClosing(false)
+  }, [open])
+  useEffect(() => () => window.clearTimeout(closeTimerRef.current), [])
+
   const [activeTabId, setActiveTabId] = useState(() => layout?.tabs[0]?.id ?? "")
 
   useEffect(() => {
@@ -154,6 +192,19 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
 
   const { can } = usePermissions()
   const canUpdate = can('content:update', seed?.slug ?? vm.schemaSlug)
+
+  // A reload cuts layout work short and leaves its draft in session storage (leaving the builder on purpose
+  // removes it). Pick the work up where it stopped: reopen the builder, which restores the draft. Once per
+  // dialog, before paint, so the form never flashes. A draft the server layout has outgrown is dropped.
+  const resumedLayoutRef = useRef(false)
+  useLayoutEffect(() => {
+    if (resumedLayoutRef.current || !seed || builderMode) return
+    if (!capabilities.layoutBuilder || !canEditLayoutFlag) return
+    resumedLayoutRef.current = true
+    const { status } = loadLayoutDraft(seed as Seed)
+    if (status === "ready") setBuilderMode(true)
+    else if (status === "stale") clearLayoutDraft(seed.slug)
+  }, [seed, builderMode, capabilities.layoutBuilder, canEditLayoutFlag, setBuilderMode])
 
   let body: ReactNode
   if (isLoading) {
@@ -209,6 +260,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                   type="button"
                   variant="ghost"
                   size="icon-sm"
+                  disabled={builderMode}
                   onClick={() => setBuilderMode(true)}
                 >
                   <LayoutTemplate className="size-4" />
@@ -227,6 +279,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
             seed={seed as Seed}
             branchById={branchById}
             onClose={() => setBuilderMode(false)}
+            onDraggingChange={setIsBuilderDragging}
           />
         ) : null}
 
@@ -288,6 +341,9 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
 
             {capabilities.backrefs && !isCreate && schemaSlug && entryId && (
               <ReferencedByPanel
+                // The form stays mounted (hidden) while the layout builder is open; remounting on each switch
+                // brings the panel back closed instead of as the user left it.
+                key={builderMode ? "builder" : "form"}
                 targetSlug={schemaSlug}
                 targetId={entryId}
                 onRestrictsChange={setHasRestrictedRefs}
@@ -297,73 +353,68 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
           </ScrollArea>
 
           {activeTabId !== "__danger_zone__" && !vm.isReadOnly && (
-            <div className="flex-shrink-0 flex items-center justify-end gap-2 px-6 pt-4 pb-6">
-              {capabilities.delete && !isCreate && !effectiveDraftContext && (
-                hasRestrictedRefs ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex">
-                        <Button type="button" variant="destructive" size="sm" disabled>
-                          <Trash2 className="mr-1 size-4" />
-                          {t("common.delete", "Delete")}
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {t("backrefs.deleteBlocked", { count: "?" })}
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    disabled={isDeleting}
-                    onClick={handleDelete}
-                  >
-                    <Trash2 className="mr-1 size-4" />
-                    {t("common.delete", "Delete")}
-                  </Button>
-                )
-              )}
-
-              <div className="flex items-center">
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isBusy}
-                  className={capabilities.drafts && hasSaveDropdown ? "rounded-r-none border-r border-r-primary-foreground/20 pr-3" : ""}
-                >
-                  {saveLabel}
-                </Button>
-                {capabilities.drafts && hasSaveDropdown && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+            // Same row as the layout builder's footer: outline buttons, normal weight, capped radius.
+            <div className="flex-shrink-0 flex items-center justify-end px-6 py-4 border-t">
+              <ButtonGroup className="[--button-group-radius:min(var(--radius-md),10px)]">
+                {capabilities.delete && !isCreate && !effectiveDraftContext && (
+                  <ButtonGroup>
+                    {hasRestrictedRefs ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <Button type="button" variant="outline" size="icon" className={FOOTER_RADIUS} disabled aria-label={t("common.delete", "Delete")}>
+                              <Trash2 />
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t("backrefs.deleteBlocked", { count: "?" })}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
                       <Button
                         type="button"
-                        size="sm"
-                        disabled={isBusy}
-                        className="rounded-l-none px-2 border-l-0"
+                        variant="outline"
+                        size="icon"
+                        className={`${FOOTER_RADIUS} hover:[&_svg]:text-destructive [&_svg]:transition-colors`}
+                        aria-label={t("common.delete", "Delete")}
+                        disabled={isDeleting}
+                        onClick={handleDelete}
                       >
-                        <ChevronDown className="size-3" />
-                        <span className="sr-only">{t("common.openMenu")}</span>
+                        <Trash2 />
                       </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={handlePublishDraft} disabled={isPublishing}>
-                        {isPublishing && <Loader2 className="mr-2 size-3 animate-spin" />}
-                        {t("content.editor.publishDraft")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => setShowDiscardConfirm(true)}
-                      >
-                        {t("content.editor.discardDraft")}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                    )}
+                  </ButtonGroup>
                 )}
-              </div>
+
+                <ButtonGroup>
+                  <Button type="submit" variant="outline" className={`${FOOTER_RADIUS} font-normal`} disabled={isBusy}>
+                    {saveLabel}
+                  </Button>
+                  {capabilities.drafts && hasSaveDropdown && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="outline" size="icon" className={FOOTER_RADIUS} disabled={isBusy}>
+                          <ChevronDown />
+                          <span className="sr-only">{t("common.openMenu")}</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handlePublishDraft} disabled={isPublishing}>
+                          {isPublishing && <Loader2 className="mr-2 size-3 animate-spin" />}
+                          {t("content.editor.publishDraft")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => setShowDiscardConfirm(true)}
+                        >
+                          {t("content.editor.discardDraft")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </ButtonGroup>
+              </ButtonGroup>
             </div>
           )}
         </form>
@@ -373,17 +424,33 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) goBack() }}>
+      <Dialog open={open && !closing} onOpenChange={(isOpen) => { if (!isOpen) requestClose() }}>
         <DialogContent
-          className="flex flex-col max-h-[calc(100vh-2rem)] p-0 sm:max-w-2xl md:max-w-4xl"
+          // The overlay fades as long as the content (its default is 100ms against the content's 200ms), so the
+          // blurred backdrop does not snap away while the dialog is still half visible.
+          overlayClassName="duration-200"
+          className="flex flex-col max-h-[calc(100vh-2rem)] p-0 duration-200 data-open:zoom-in-100 data-closed:zoom-out-100 sm:max-w-2xl md:max-w-4xl"
           onOpenAutoFocus={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => { if (isBuilderDragging) e.preventDefault() }}
+          onAnimationEnd={(e) => {
+            // The content's own exit, not an animation of something inside it.
+            if (closing && e.target === e.currentTarget) finishClose()
+          }}
         >
           <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
             <DialogTitle>
               {isLoading ? <Skeleton className="h-6 w-48" /> : (title || t("common.error"))}
             </DialogTitle>
           </DialogHeader>
-          {body}
+          <div
+            // Keyed on loading: when the data arrives the content fades in over the skeleton instead of
+            // popping in, which also hides how long the load took.
+            key={isLoading ? "loading" : "ready"}
+            ref={modeHeightRef}
+            className="flex min-h-0 flex-col animate-in fade-in-0 duration-200 data-[resizing]:[&_.overflow-y-auto]:overflow-y-hidden! data-[resizing]:[&_[data-slot=scroll-area-viewport]]:overflow-hidden! data-[resizing]:[&_[data-slot=scroll-area-scrollbar]]:hidden"
+          >
+            {body}
+          </div>
         </DialogContent>
       </Dialog>
 

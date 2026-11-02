@@ -3,96 +3,49 @@
 // See LICENSE in the repository root for license terms.
 
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
+import { resolveRelationAvatar } from "@beechcms/core"
 import { useFieldsConfig } from "../context"
-import { useRelationLabel } from "../relation-label"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import type { FieldDisplayProps } from "../types"
-
-/** Cache expiration duration for relation queries (5 minutes). */
-const RELATION_STALE_MS = 5 * 60 * 1000
-
-/**
- * Extracts initials from a given string label to be used as an avatar fallback.
- *
- * @param label - The text label to extract initials from.
- * @returns A 1-2 character uppercase string, or "?" if empty.
- */
-function initialsOf(label: string): string {
-  const parts = label.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return "?"
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
-  return (parts[0]![0]! + parts.at(-1)![0]!).toUpperCase()
-}
+import { RelationAvatarGroup } from "./relation-avatar-group"
+import { useRelationIdentity } from "./relation-identity"
 
 // ============================================================================
-// Single chip resolved from cache or fetch
+// Multiple relation without an avatar: display names as badges
 // ============================================================================
 
-/** Properties for the {@link RelationChip} component. */
-interface RelationChipProps {
+/** Properties for the {@link RelationNameBadge} component. */
+interface RelationNameBadgeProps {
   /** The target schema seed slug (e.g. "posts"). */
   readonly targetSlug: string
-  /** The specific entry ID to fetch. */
+  /** The specific entry ID to resolve. */
   readonly targetId: string
   /** The field alias key to use as the display label (e.g. "title"). */
   readonly labelAlias: string
-  /** Callback triggered when the chip avatar is clicked. */
+  /** Callback triggered when the badge is clicked. */
   readonly onClick: (id: string) => void
 }
 
-/**
- * RelationChip component that displays a single related entry as an avatar.
- * It fetches the entry detail from the API/cache using the injected fields context.
- *
- * @param props - Component properties conforming to {@link RelationChipProps}.
- */
-function RelationChip({ targetSlug, targetId, labelAlias, onClick }: RelationChipProps) {
-  const { fetchById, queryKeys } = useFieldsConfig()
-  const labelOf = useRelationLabel(targetSlug)
-  const { data: entry, isLoading } = useQuery({
-    queryKey: queryKeys.detail(targetSlug, targetId),
-    queryFn: () => fetchById(targetSlug, targetId),
-    enabled: Boolean(targetSlug && targetId),
-    staleTime: RELATION_STALE_MS,
-  })
+/** One related entry as a name badge, for relations that configure no avatar. */
+function RelationNameBadge({ targetSlug, targetId, labelAlias, onClick }: RelationNameBadgeProps) {
+  const { label, isLoading } = useRelationIdentity(targetSlug, targetId, labelAlias)
 
   if (isLoading) return <Badge variant="secondary" className="opacity-50">…</Badge>
 
-  const rawLabel = labelOf(entry?.data, labelAlias)
-
-  let label = targetId
-  if (typeof rawLabel === "string") {
-    label = rawLabel
-  } else if (typeof rawLabel === "number") {
-    label = rawLabel.toString()
-  } else if (rawLabel !== undefined && rawLabel !== null) {
-    label = JSON.stringify(rawLabel)
-  }
-
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Avatar
-            size="sm"
-            onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              onClick(targetId)
-            }}
-            className="cursor-pointer"
-            aria-label={label}
-          >
-            <AvatarFallback>{initialsOf(label)}</AvatarFallback>
-          </Avatar>
-        </TooltipTrigger>
-        <TooltipContent side="top">{label}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Badge
+      variant="secondary"
+      className="max-w-40 cursor-pointer truncate"
+      onClick={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        onClick(targetId)
+      }}
+    >
+      {label}
+    </Badge>
   )
 }
 
@@ -108,72 +61,101 @@ interface SingleRelationProps {
   readonly id: string | null
   /** The field alias key to use as the display label (e.g. "title"). */
   readonly labelAlias: string
+  /** Target branch supplying the avatar image; absent = the relation shows no avatar. */
+  readonly avatarAlias: string | undefined
   /** Callback triggered when the relation label or avatar is clicked. */
   readonly onClick: (id: string) => void
 }
 
 /**
- * SingleRelation component displays a single relationship detail with an avatar and text link.
+ * SingleRelation shows the related entry's display name as a link, preceded by its avatar when the
+ * relation configures one.
  *
  * @param props - Component properties conforming to {@link SingleRelationProps}.
  */
-function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationProps) {
+function SingleRelation({ targetSlug, id, labelAlias, avatarAlias, onClick }: SingleRelationProps) {
   const { t: translate } = useTranslation()
-  const { fetchById, queryKeys } = useFieldsConfig()
-  const labelOf = useRelationLabel(targetSlug)
-  const { data: entry, isLoading } = useQuery({
-    queryKey: queryKeys.detail(targetSlug, id ?? ""),
-    queryFn: () => fetchById(targetSlug, id!),
-    enabled: Boolean(targetSlug && id),
-    staleTime: RELATION_STALE_MS,
-  })
+  const { label, initials, imageUrl, isLoading } = useRelationIdentity(targetSlug, id, labelAlias, avatarAlias)
 
   if (!id) return <span className="text-muted-foreground">—</span>
   if (isLoading) return <span className="text-muted-foreground">{translate("common.loading")}</span>
 
-  const rawLabel = labelOf(entry?.data, labelAlias)
-  
-  let label = id
-  if (typeof rawLabel === "string") {
-    label = rawLabel
-  } else if (typeof rawLabel === "number") {
-    label = rawLabel.toString()
-  } else if (rawLabel !== undefined && rawLabel !== null) {
-    label = JSON.stringify(rawLabel)
+  const open = (event: { preventDefault: () => void; stopPropagation: () => void }) => {
+    event.preventDefault()
+    event.stopPropagation()
+    onClick(id)
   }
 
   return (
     <div className="flex items-center gap-1.5">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Avatar
-              size="sm"
-              onClick={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                onClick(id)
-              }}
-              className="cursor-pointer"
-              aria-label={label}
-            >
-              <AvatarFallback>{initialsOf(label)}</AvatarFallback>
-            </Avatar>
-          </TooltipTrigger>
-          <TooltipContent side="top">{label}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      {avatarAlias ? (
+        <Avatar size="sm" onClick={open} className="cursor-pointer" aria-label={label}>
+          {imageUrl ? <AvatarImage src={imageUrl} alt="" /> : null}
+          <AvatarFallback>{initials}</AvatarFallback>
+        </Avatar>
+      ) : null}
       <button
         type="button"
-        onClick={(event) => {
-          event.preventDefault()
-          event.stopPropagation()
-          onClick(id)
-        }}
+        onClick={open}
         className="text-foreground hover:opacity-80 transition-opacity truncate cursor-pointer text-left bg-transparent border-0 p-0 text-sm"
       >
         {label}
       </button>
+    </div>
+  )
+}
+
+// ============================================================================
+// Multiple value component
+// ============================================================================
+
+/** Properties for the {@link MultipleRelation} component. */
+interface MultipleRelationProps {
+  /** The target schema seed slug (e.g. "posts"). */
+  readonly targetSlug: string
+  /** The raw field value; expected to be an array of entry IDs. */
+  readonly value: unknown
+  /** The field alias key to use as the display label (e.g. "title"). */
+  readonly labelAlias: string
+  /** Target branch supplying the avatar image; absent = name badges are shown instead. */
+  readonly avatarAlias: string | undefined
+  /** Whether to truncate the list to three entries. */
+  readonly compact: boolean
+  /** Callback triggered when an entry is clicked. */
+  readonly onSelect: (id: string) => void
+}
+
+/**
+ * MultipleRelation shows several related entries: overlapping avatars when the relation configures one,
+ * name badges otherwise.
+ *
+ * @param props - Component properties conforming to {@link MultipleRelationProps}.
+ */
+function MultipleRelation({ targetSlug, value, labelAlias, avatarAlias, compact, onSelect }: MultipleRelationProps) {
+  const entryIds = Array.isArray(value) ? (value as string[]).filter(Boolean) : []
+  if (entryIds.length === 0) return <span className="text-muted-foreground">—</span>
+
+  if (avatarAlias) {
+    return (
+      <RelationAvatarGroup
+        targetSlug={targetSlug}
+        ids={entryIds}
+        labelAlias={labelAlias}
+        avatarAlias={avatarAlias}
+        onSelect={onSelect}
+        max={compact ? 3 : Math.max(3, entryIds.length)}
+      />
+    )
+  }
+
+  const visible = compact ? entryIds.slice(0, 3) : entryIds
+  const overflow = entryIds.length - visible.length
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {visible.map((id) => (
+        <RelationNameBadge key={id} targetSlug={targetSlug} targetId={id} labelAlias={labelAlias} onClick={onSelect} />
+      ))}
+      {overflow > 0 && <span className="text-xs text-muted-foreground">+{overflow}</span>}
     </div>
   )
 }
@@ -184,8 +166,10 @@ function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationP
 
 /**
  * Field Renderer: Relation Display Component.
- * Renders read-only relations (single ID or multiple IDs) as interactive avatars
- * and triggers detail dialog view on click.
+ * Renders read-only relations and opens the detail dialog on click. The avatar is opt-in per relation
+ * (`avatarSource` on the branch):
+ * - single, with avatar: avatar + display name; without: display name only.
+ * - multiple, with avatar: overlapping avatars (display name in the tooltip); without: name badges.
  *
  * @param props - Component properties conforming to {@link FieldDisplayProps}.
  */
@@ -197,36 +181,23 @@ export function RelationDisplay({ branch, value, options }: FieldDisplayProps) {
   const { data: seeds } = useSchema()
   const targetSeed = seeds?.find((schemaSeed) => schemaSeed.slug === targetSlug)
   const labelAlias = targetSeed?.displayNameAlias ?? "title"
+  const avatarAlias = resolveRelationAvatar(branch, (slug) => seeds?.find((schemaSeed) => schemaSeed.slug === slug))?.alias
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  let content
-  if (isMultiple) {
-    const entryIds = Array.isArray(value) ? (value as string[]).filter(Boolean) : []
-    if (entryIds.length === 0) {
-      content = <span className="text-muted-foreground">—</span>
-    } else {
-      const visible = options?.compact ? entryIds.slice(0, 3) : entryIds
-      const overflow = entryIds.length - visible.length
-      content = (
-        <AvatarGroup>
-          {visible.map((id) => (
-            <RelationChip
-              key={id}
-              targetSlug={targetSlug ?? ""}
-              targetId={id}
-              labelAlias={labelAlias}
-              onClick={setSelectedId}
-            />
-          ))}
-          {overflow > 0 && <AvatarGroupCount className="text-xs">+{overflow}</AvatarGroupCount>}
-        </AvatarGroup>
-      )
-    }
-  } else {
-    const id = typeof value === "string" && value.length > 0 ? value : null
-    content = <SingleRelation targetSlug={targetSlug ?? ""} id={id} labelAlias={labelAlias} onClick={setSelectedId} />
-  }
+  const id = typeof value === "string" && value.length > 0 ? value : null
+  const content = isMultiple ? (
+    <MultipleRelation
+      targetSlug={targetSlug ?? ""}
+      value={value}
+      labelAlias={labelAlias}
+      avatarAlias={avatarAlias}
+      compact={options?.compact === true}
+      onSelect={setSelectedId}
+    />
+  ) : (
+    <SingleRelation targetSlug={targetSlug ?? ""} id={id} labelAlias={labelAlias} avatarAlias={avatarAlias} onClick={setSelectedId} />
+  )
 
   return (
     <>

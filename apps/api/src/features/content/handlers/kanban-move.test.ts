@@ -3,48 +3,55 @@
 // See LICENSE in the repository root for license terms.
 
 import { beforeEach, describe, it, expect, vi } from 'vitest'
-import type { Seed } from '@beechcms/core'
+import { Hono } from 'hono'
+import { EntryNotFoundError, type Seed } from '@beechcms/core'
 import { CANONICAL_SEEDS } from '@beechcms/testing'
-import { kanbanMoveHandler } from './kanban-move'
+import type { AppEnv } from '../../../types'
+import { contentCrudApp } from '../crud.router'
 
-vi.mock('../../../public/errors/problem-details', () => ({
-  publicProblem: vi.fn((_ctx, details) => ({ mockProblem: true, ...details })),
-}))
+const PROBLEM = 'https://beechcms.dev/problems/'
 
 // The canonical posts seed allows drafts, which makes it kanban-incompatible; the axis is its `priority` (br_11).
 const posts = { ...CANONICAL_SEEDS.find((seed) => seed.slug === 'posts')!, allowDrafts: false } as Seed
 
-function makeContext(overrides: {
+interface Problem {
+  type: string
+}
+
+// The handler is mounted through the real router so the seed and body checks that precede it run too.
+async function move(overrides: {
   body?: unknown
+  rawBody?: string
   current?: Record<string, unknown>
-  seed?: Seed
+  missing?: boolean
+  seed?: Seed | null
 } = {}) {
   const {
     body,
+    rawBody,
     current = { id: 'entry-1', title: 'x', priority: ['low'], updated_at: 1 },
+    missing = false,
     seed = posts,
   } = overrides
 
   const updateWithKanbanPosition = vi.fn().mockResolvedValue(undefined)
-  const ctx = {
-    req: {
-      param: vi.fn((key: string) => {
-        if (key === 'slug') return 'posts'
-        if (key === 'id') return 'entry-1'
-        return undefined
-      }),
-      json: vi.fn().mockResolvedValue(body),
-    },
-    get: vi.fn((key: string) => {
-      if (key === 'getSeed') return () => seed
-      if (key === 'repository') return { findById: vi.fn().mockResolvedValue(current), updateWithKanbanPosition }
-      if (key === 'idGenerator') return () => 'gen-id'
-      if (key === 'jwtPayload') return { sub: 'user-1' }
-      return undefined
-    }),
-    json: vi.fn((data: unknown) => ({ json: data })),
-  }
-  return { ctx, updateWithKanbanPosition }
+  const findById = missing ? vi.fn().mockRejectedValue(new EntryNotFoundError('entry-1')) : vi.fn().mockResolvedValue(current)
+  const app = new Hono<AppEnv>()
+  app.use('*', async (context, next) => {
+    context.set('getSeed', () => seed)
+    context.set('repository', { findById, updateWithKanbanPosition } as never)
+    context.set('idGenerator', { uuid: () => 'gen-id' } as never)
+    context.set('jwtPayload', { sub: 'user-1' } as never)
+    await next()
+  })
+  app.route('/api/content', contentCrudApp)
+
+  const response = await app.request('/api/content/posts/entry-1/kanban-move', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: rawBody ?? JSON.stringify(body),
+  })
+  return { response, updateWithKanbanPosition, findById }
 }
 
 describe('kanbanMoveHandler', () => {
@@ -52,74 +59,66 @@ describe('kanbanMoveHandler', () => {
 
   // Regression guard: the old swap kept the previous value next to the new one on a single-choice tag → 422.
   it('replaces the single-choice value with the destination column value', async () => {
-    const { ctx, updateWithKanbanPosition } = makeContext({
+    const { response, updateWithKanbanPosition } = await move({
       body: { position: 'col-a', axisBranchId: 'br_11', axis: { value: 'high' } },
     })
 
-    const result = await kanbanMoveHandler(ctx as never)
-
-    expect(result).toEqual({ json: { success: true } })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ success: true })
     expect(updateWithKanbanPosition).toHaveBeenCalledWith(
       posts, 'entry-1', { priority: ['high'] }, 'col-a', 'br_11', { actor: 'user-1', ifMatch: 1 },
     )
   })
 
   it('writes an empty array when the destination is the null column', async () => {
-    const { ctx, updateWithKanbanPosition } = makeContext({
+    const { response, updateWithKanbanPosition } = await move({
       body: { position: 'col-a', axisBranchId: 'br_11', axis: { value: null } },
     })
 
-    const result = await kanbanMoveHandler(ctx as never)
-
-    expect(result).toEqual({ json: { success: true } })
+    expect(response.status).toBe(200)
     expect(updateWithKanbanPosition).toHaveBeenCalledWith(
       posts, 'entry-1', { priority: [] }, 'col-a', 'br_11', { actor: 'user-1', ifMatch: 1 },
     )
   })
 
   it('reorders without patching the entry when axis is omitted', async () => {
-    const { ctx, updateWithKanbanPosition } = makeContext({
+    const { response, updateWithKanbanPosition } = await move({
       body: { position: 'col-b', axisBranchId: 'br_11' },
     })
 
-    const result = await kanbanMoveHandler(ctx as never)
-
-    expect(result).toEqual({ json: { success: true } })
+    expect(response.status).toBe(200)
     expect(updateWithKanbanPosition).toHaveBeenCalledWith(
       posts, 'entry-1', null, 'col-b', 'br_11', { actor: 'user-1', ifMatch: 1 },
     )
   })
 
   it('rejects the legacy axis body (kind/oldValue/newValue) with 400 content-invalid-body and writes nothing', async () => {
-    const { ctx, updateWithKanbanPosition } = makeContext({
+    const { response, updateWithKanbanPosition } = await move({
       body: { position: 'col-a', axisBranchId: 'br_11', axis: { kind: 'tags', oldValue: 'low', newValue: 'high' } },
     })
 
-    const result = await kanbanMoveHandler(ctx as never)
-
-    expect(result).toMatchObject({ status: 400, type: 'content-invalid-body' })
+    expect(response.status).toBe(400)
+    expect(((await response.json()) as Problem).type).toBe(`${PROBLEM}content-invalid-body`)
     expect(updateWithKanbanPosition).not.toHaveBeenCalled()
   })
 
   it('rejects a multiple-choice tags axis with 400 content-invalid-kanban-axis', async () => {
-    const { ctx, updateWithKanbanPosition } = makeContext({
+    const { response, updateWithKanbanPosition } = await move({
       body: { position: 'col-a', axisBranchId: 'br_07', axis: { value: 'urgent' } },
     })
 
-    const result = await kanbanMoveHandler(ctx as never)
-
-    expect(result).toMatchObject({ status: 400, type: 'content-invalid-kanban-axis' })
+    expect(response.status).toBe(400)
+    expect(((await response.json()) as Problem).type).toBe(`${PROBLEM}content-invalid-kanban-axis`)
     expect(updateWithKanbanPosition).not.toHaveBeenCalled()
   })
 
   it('rejects a destination value outside the options with 422 content-validation-error and writes nothing', async () => {
-    const { ctx, updateWithKanbanPosition } = makeContext({
+    const { response, updateWithKanbanPosition } = await move({
       body: { position: 'col-a', axisBranchId: 'br_11', axis: { value: 'urgent' } },
     })
 
-    const result = await kanbanMoveHandler(ctx as never)
-
-    expect(result).toMatchObject({ status: 422, type: 'content-validation-error' })
+    expect(response.status).toBe(422)
+    expect(((await response.json()) as Problem).type).toBe(`${PROBLEM}content-validation-error`)
     expect(updateWithKanbanPosition).not.toHaveBeenCalled()
   })
 
@@ -130,14 +129,39 @@ describe('kanbanMoveHandler', () => {
       ...posts,
       branches: posts.branches.map((branch) => (branch.id === 'br_11' ? { ...branch, requiredOnUpdate: true } : branch)),
     }
-    const { ctx, updateWithKanbanPosition } = makeContext({
+    const { response, updateWithKanbanPosition } = await move({
       seed: requiredPosts,
       body: { position: 'col-a', axisBranchId: 'br_11', axis: { value: null } },
     })
 
-    const result = await kanbanMoveHandler(ctx as never)
+    expect(response.status).toBe(422)
+    expect(((await response.json()) as Problem).type).toBe(`${PROBLEM}content-validation-error`)
+    expect(updateWithKanbanPosition).not.toHaveBeenCalled()
+  })
 
-    expect(result).toMatchObject({ status: 422, type: 'content-validation-error' })
+  // The seed check sits ahead of the body check in the chain, so an unknown seed never reads the body.
+  it('answers 404 content-seed-not-found for an unknown seed, even with a body that is not JSON', async () => {
+    const { response, findById } = await move({ seed: null, rawBody: '{not json' })
+
+    expect(response.status).toBe(404)
+    expect(((await response.json()) as Problem).type).toBe(`${PROBLEM}content-seed-not-found`)
+    expect(findById).not.toHaveBeenCalled()
+  })
+
+  // The body is checked before the entry is looked up: an unknown entry with a bad body is a 400.
+  it('answers 400 content-invalid-body before it looks the entry up', async () => {
+    const { response, findById } = await move({ body: { position: '', axisBranchId: 'br_11' } })
+
+    expect(response.status).toBe(400)
+    expect(((await response.json()) as Problem).type).toBe(`${PROBLEM}content-invalid-body`)
+    expect(findById).not.toHaveBeenCalled()
+  })
+
+  it('answers 404 content-not-found when the entry does not exist, and writes nothing', async () => {
+    const { response, updateWithKanbanPosition } = await move({ missing: true, body: { position: 'col-a', axisBranchId: 'br_11' } })
+
+    expect(response.status).toBe(404)
+    expect(((await response.json()) as Problem).type).toBe(`${PROBLEM}content-not-found`)
     expect(updateWithKanbanPosition).not.toHaveBeenCalled()
   })
 })

@@ -21,7 +21,6 @@ const user = {
   name: 'Ada',
   surname: 'Admin',
   passwordHash: 'HASH:password123',
-  role: 'admin',
   isActive: true,
 } as UserRecord
 

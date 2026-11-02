@@ -200,7 +200,22 @@ export function validateCardConfigAgainstSeed(
 export const MAX_LAYOUT_BYTES = 256 * 1024
 
 const LAYOUT_ID_MAX = 64
-const LAYOUT_LABEL_MAX = 120
+/**
+ * Label limits. The layout builder enforces the same numbers on its inputs; the server enforces them for
+ * real: a longer label can only come from a client other than the dashboard, and is refused (422) rather
+ * than shortened.
+ */
+export const LAYOUT_TAB_LABEL_MAX = 15
+export const LAYOUT_SECTION_LABEL_MAX = 50
+
+/**
+ * A layout label: trimmed, then checked. Control characters (including newlines, which no label needs) are
+ * refused; markup is not stripped, because labels are only ever rendered as text.
+ */
+const layoutLabel = (max: number, min: number) =>
+  z.string().trim().min(min).max(max).refine((value) => !/\p{Cc}/u.test(value), {
+    message: 'Label must not contain control characters.',
+  })
 const MAX_SECTIONS_PER_TAB = 50
 const MAX_FIELDS_PER_COLUMN = 100
 
@@ -211,7 +226,7 @@ export const layoutColumnSchema = z.object({
 })
 export const layoutSectionSchema = z.object({
   id: z.string().min(1).max(LAYOUT_ID_MAX),
-  label: z.string().max(LAYOUT_LABEL_MAX).optional(),
+  label: layoutLabel(LAYOUT_SECTION_LABEL_MAX, 0).optional(),
   hideLabel: z.boolean().optional(),
   hideBorder: z.boolean().optional(),
   collapsible: z.boolean().optional(),
@@ -219,7 +234,7 @@ export const layoutSectionSchema = z.object({
 })
 export const layoutTabSchema = z.object({
   id: z.string().min(1).max(LAYOUT_ID_MAX),
-  label: z.string().min(1).max(60),
+  label: layoutLabel(LAYOUT_TAB_LABEL_MAX, 1),
   sections: z.array(layoutSectionSchema).min(1).max(MAX_SECTIONS_PER_TAB),
 })
 export const formLayoutSchema = z

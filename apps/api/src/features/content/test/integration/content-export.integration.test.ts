@@ -83,6 +83,16 @@ describe('content slice — export integration (real D1)', () => {
       expect(body.split('\r\n').filter(Boolean)).toHaveLength(2)
     })
 
+    it('CSV safe=1 neutralizes a formula-like cell; the default export stays verbatim', async () => {
+      await admin.post('/api/content/categories', { name: '=1+1', slug: 'formula' })
+
+      const plain = await (await admin.get('/api/content/categories/export?format=csv')).text()
+      const safe = await (await admin.get('/api/content/categories/export?format=csv&safe=1')).text()
+
+      expect(plain.split('\r\n')[1]).toContain(',=1+1')
+      expect(safe.split('\r\n')[1]).toContain(",'=1+1")
+    })
+
     it('CSV on a non-flat seed is refused with one errors[] entry per offending branch', async () => {
       await admin.post('/api/content/posts', { title: 'Post', slug: 'post-1' })
 
@@ -229,8 +239,8 @@ describe('content slice — export integration (real D1)', () => {
     })
 
     it('a caller without content:read on the seed receives 403', async () => {
-      // 'viewer' is editor-shaped but deliberately given no RBAC role assignment, so the
-      // refusal below comes from the permission gate, not from the users.role CHECK.
+      // 'viewer' is deliberately given no RBAC role assignment, so the refusal below
+      // comes from the permission gate.
       const viewer = await harness.asUser('viewer')
 
       const response = await viewer.get('/api/content/categories/export')

@@ -4,7 +4,7 @@
 
 import { Component } from "react"
 import type { ReactNode } from "react"
-import { AlertTriangle } from 'reicon-react'
+import { AlertTriangle } from '@/components/icons'
 
 interface Props {
   widgetId: string

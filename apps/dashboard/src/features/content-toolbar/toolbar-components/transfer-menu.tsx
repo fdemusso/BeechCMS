@@ -5,7 +5,7 @@
 import { useTranslation } from "react-i18next"
 import { isFlatSeed, nonFlatBranches } from "@beechcms/core"
 import type { Seed, TransferFormat } from "@beechcms/core"
-import { Export, Import, Loader } from "reicon-react"
+import { Export, Import, Loader } from "@/components/icons"
 
 import {
   DropdownMenu,

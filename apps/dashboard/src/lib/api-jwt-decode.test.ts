@@ -24,14 +24,14 @@ describe("decodeJwtPayload", () => {
   it("decodes a payload whose base64url form contains '-' (unicode name)", () => {
     // Verified: JSON.stringify + base64 of this payload contains standard-base64
     // '+' (translated to base64url '-'), which raw atob() cannot parse.
-    const payload = { email: "a@b.co", name: "🌾n62é", role: "admin" }
+    const payload = { email: "a@b.co", name: "🌾n62é", surname: "Lovelace" }
     const token = fakeJwt(payload)
     expect(base64url(payload)).toMatch(/-/)
     expect(decodeJwtPayload(token)).toEqual(payload)
   })
 
   it("throws with raw atob() but decodeJwtPayload succeeds (regression guard)", () => {
-    const payload = { email: "a@b.co", name: "🌾n62é", role: "admin" }
+    const payload = { email: "a@b.co", name: "🌾n62é", surname: "Lovelace" }
     const token = fakeJwt(payload)
     const raw = token.split(".")[1]
     expect(() => atob(raw)).toThrow()

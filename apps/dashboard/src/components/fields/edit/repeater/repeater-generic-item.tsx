@@ -5,7 +5,7 @@
 import { useTranslation } from "react-i18next"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { SortV as GripVertical, Trash2 } from 'reicon-react'
+import { SortV as GripVertical, Trash2 } from '@/components/icons'
 import type { Branch, BranchType } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -61,7 +61,7 @@ export function GenericItemRow({ id, subBranches, value, onChange, onRemove, dis
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded-md border bg-background p-3 space-y-3">
+    <div ref={setNodeRef} style={style} className="rounded-lg border bg-background p-3 space-y-3">
       <div className="flex items-center gap-2">
         <button
           type="button"

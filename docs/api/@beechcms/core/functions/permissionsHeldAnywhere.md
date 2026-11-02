@@ -6,7 +6,7 @@
 
 # Function: permissionsHeldAnywhere()
 
-> **permissionsHeldAnywhere**(`effective`): `ReadonlySet`&lt;`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"`&gt;
+> **permissionsHeldAnywhere**(`effective`): `ReadonlySet`&lt;`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"` \| `"manage_layout"` \| `"manage_seeds"`&gt;
 
 Every permission the actor holds at ANY scope — global or seed-scoped — folded into
 one set.
@@ -24,4 +24,4 @@ using them.
 
 ## Returns
 
-`ReadonlySet`&lt;`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"`&gt;
+`ReadonlySet`&lt;`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"` \| `"manage_layout"` \| `"manage_seeds"`&gt;

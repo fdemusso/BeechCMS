@@ -23,6 +23,7 @@ const firstPage: StorageStats = {
     filename: `file-${50 - index}.png`,
     mime_type: "image/png",
     size_bytes: 10,
+    uploaded_by: "user-1",
     created_at: 50 - index,
   })),
 }
@@ -37,7 +38,7 @@ describe("StorageTab", () => {
       data: offset === 0 ? firstPage : {
         ...firstPage,
         orphanOffset: 50,
-        orphans: [{ key: "media/file-0.png", filename: "file-0.png", mime_type: "image/png", size_bytes: 10, created_at: 0 }],
+        orphans: [{ key: "media/file-0.png", filename: "file-0.png", mime_type: "image/png", size_bytes: 10, uploaded_by: "user-1", created_at: 0 }],
       },
       isLoading: false,
       isError: false,
@@ -91,7 +92,7 @@ describe("StorageTab", () => {
   })
 
   describe("with six orphans over pages of two", () => {
-    const orphan = (n: number) => ({ key: `media/o-${n}.png`, filename: `o-${n}.png`, mime_type: "image/png", size_bytes: 10, created_at: n })
+    const orphan = (n: number) => ({ key: `media/o-${n}.png`, filename: `o-${n}.png`, mime_type: "image/png", size_bytes: 10, uploaded_by: "user-1", created_at: n })
     const pageAt = (offset: number): StorageStats => ({
       totalBytes: 60, fileCount: 6, orphanTotal: 6, orphanBytes: 60, orphanOffset: offset, orphanLimit: 2,
       orphans: [orphan(offset), orphan(offset + 1)],

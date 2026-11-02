@@ -10,7 +10,8 @@ import type {
   SelectLocale,
   ParameterizedQuery,
 } from '../types.js';
-import { tableName, ftsTableName, isValidColumn, indexableSearchBranches, SYSTEM_COLUMNS } from '../ddl/ddl.js';
+import { tableName, ftsTableName, isValidColumn, SYSTEM_COLUMNS } from '../ddl/ddl.js'
+import { resolveSearchSupport } from './search-support.js';
 import { resolveClassification } from '../privacy/policies.js';
 import { isLocaleCode, isLocalizedBranch } from '../localization/localization.js';
 import { activeCondition } from './active-clause.js';
@@ -138,12 +139,21 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
     kanbanOrderClause = ` ORDER BY (kp.position IS NULL) ASC, kp.position ASC, ${table}.id ASC`
   }
 
-  const rtBranches = indexableSearchBranches(seed)
-  if (search && rtBranches.length > 0) {
+  const searchSupport = search ? resolveSearchSupport(seed, options.resolveSeed) : null
+  if (search && searchSupport?.mode === 'fts') {
     const ftsTable = ftsTableName(seed)
     joinClause += (joinClause ? ' ' : '') + `INNER JOIN ${ftsTable} ON ${ftsTable}.entry_id = ${table}.id`
     whereClauses.push(`${ftsTable} MATCH ?`)
     bindings.push(`"${search.replace(/"/g, '""')}"*`)
+  } else if (search && searchSupport?.mode === 'relation') {
+    const { branch, target, targetBranch } = searchSupport
+    const targetTable = tableName(target)
+    const targetActive = activeCondition(target, 'active', targetTable)
+    whereClauses.push(
+      `${table}.${branch.alias} IN (SELECT ${targetTable}.id FROM ${targetTable}` +
+      ` WHERE ${targetTable}.${targetBranch.alias} LIKE ? ESCAPE '\\'${targetActive ? ` AND ${targetActive}` : ''})`,
+    )
+    bindings.push(`%${search.replace(/[\\%_]/g, '\\$&')}%`)
   }
 
   if (status !== undefined && status !== null) {

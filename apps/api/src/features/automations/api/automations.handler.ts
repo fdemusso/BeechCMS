@@ -4,112 +4,31 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import type { Env, Variables } from '../../../types'
+import type { Context, MiddlewareHandler } from 'hono'
+import type { z } from 'zod'
+import type { AppEnv, Env, Variables } from '../../../types'
 import { publicProblem } from '../../../public/errors/problem-details'
+import { zodJson, type ZodJsonRefusal } from '../../../shared/utils/zod-json'
+import { zodQuery } from '../../../shared/utils/zod-query'
 import {
   createAutomationSchema,
+  listAutomationsQuerySchema,
   updateAutomationSchema,
   toggleAutomationSchema,
 } from './automations.schema'
 
-const automationsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
-
-/**
- * GET /automations?seed=<slug>
- * Returns every automation declared for the given seed, newest first.
- */
-automationsApp.get('/', async (context) => {
-  const seedSlug = context.req.query('seed')
-  if (!seedSlug) {
-    return publicProblem(context, {
-      type: 'missing-seed',
-      status: 400,
-      title: 'Bad Request',
-      detail: 'Query param `seed` is required',
-    })
-  }
-  const repository = context.get('automationRepository')
-  const automations = await repository.list(seedSlug)
-  return context.json(automations)
-})
-
-/**
- * POST /automations
- * Creates a new automation. Body validated by `createAutomationSchema`.
- */
-automationsApp.post('/', async (context) => {
-  let body: unknown
-  try {
-    body = await context.req.json()
-  } catch {
-    return publicProblem(context, {
-      type: 'invalid-json',
-      status: 400,
-      title: 'Bad Request',
-      detail: 'Request body is not valid JSON',
-    })
-  }
-
-  const parsed = createAutomationSchema.safeParse(body)
-  if (!parsed.success) {
-    return publicProblem(context, {
-      type: 'automation-validation-failed',
-      status: 400,
-      title: 'Bad Request',
-      detail: parsed.error.message,
-    })
-  }
-
-  const repository = context.get('automationRepository')
-  const id = await repository.create({
-    seed_slug: parsed.data.seed_slug,
-    name: parsed.data.name,
-    triggers: parsed.data.triggers,
-    trigger_conditions: parsed.data.trigger_conditions ?? null,
-    actions: parsed.data.actions,
+function rejectMissingSeed(context: Context<AppEnv>) {
+  return publicProblem(context, {
+    type: 'missing-seed',
+    status: 400,
+    title: 'Bad Request',
+    detail: 'Query param `seed` is required',
   })
-  return context.json({ id }, 201)
-})
+}
 
-/**
- * GET /automations/:id
- */
-automationsApp.get('/:id', async (context) => {
-  const id = context.req.param('id')
-  const automation = await context.get('automationRepository').findById(id)
-  if (!automation) {
-    return publicProblem(context, {
-      type: 'automation-not-found',
-      status: 404,
-      title: 'Not Found',
-      detail: `Automation ${id} does not exist`,
-    })
-  }
-  return context.json(automation)
-})
-
-/**
- * PUT /automations/:id
- * Full update — partial bodies allowed; cron expression validation
- * is enforced by the triggers array schema.
- */
-automationsApp.put('/:id', async (context) => {
-  const id = context.req.param('id')
-  const repository = context.get('automationRepository')
-  const existing = await repository.findById(id)
-  if (!existing) {
-    return publicProblem(context, {
-      type: 'automation-not-found',
-      status: 404,
-      title: 'Not Found',
-      detail: `Automation ${id} does not exist`,
-    })
-  }
-
-  let body: unknown
-  try {
-    body = await context.req.json()
-  } catch {
+/** Both refusals are a 400; the `type` tells a body that is not JSON from JSON the schema rejects. */
+function rejectInvalidAutomationBody(context: Context<AppEnv>, error: z.ZodError, cause: ZodJsonRefusal) {
+  if (cause === 'malformed') {
     return publicProblem(context, {
       type: 'invalid-json',
       status: 400,
@@ -117,81 +36,94 @@ automationsApp.put('/:id', async (context) => {
       detail: 'Request body is not valid JSON',
     })
   }
+  return publicProblem(context, {
+    type: 'automation-validation-failed',
+    status: 400,
+    title: 'Bad Request',
+    detail: error.message,
+  })
+}
 
-  const parsed = updateAutomationSchema.safeParse(body)
-  if (!parsed.success) {
-    return publicProblem(context, {
-      type: 'automation-validation-failed',
-      status: 400,
-      title: 'Bad Request',
-      detail: parsed.error.message,
-    })
-  }
-
-  await repository.update(id, parsed.data)
-  return context.body(null, 204)
-})
-
-/**
- * PATCH /automations/:id/toggle
- * Atomic single-field flip — does not require sending the full body.
- */
-automationsApp.patch('/:id/toggle', async (context) => {
-  const id = context.req.param('id')
-  const repository = context.get('automationRepository')
-  const existing = await repository.findById(id)
-  if (!existing) {
-    return publicProblem(context, {
-      type: 'automation-not-found',
-      status: 404,
-      title: 'Not Found',
-      detail: `Automation ${id} does not exist`,
-    })
-  }
-
-  let body: unknown
-  try {
-    body = await context.req.json()
-  } catch {
-    return publicProblem(context, {
-      type: 'invalid-json',
-      status: 400,
-      title: 'Bad Request',
-      detail: 'Request body is not valid JSON',
-    })
-  }
-
-  const parsed = toggleAutomationSchema.safeParse(body)
-  if (!parsed.success) {
-    return publicProblem(context, {
-      type: 'automation-validation-failed',
-      status: 400,
-      title: 'Bad Request',
-      detail: parsed.error.message,
-    })
-  }
-
-  await repository.toggle(id, parsed.data.enabled)
-  return context.body(null, 204)
-})
+function automationNotFound(context: Context<AppEnv>, id: string) {
+  return publicProblem(context, {
+    type: 'automation-not-found',
+    status: 404,
+    title: 'Not Found',
+    detail: `Automation ${id} does not exist`,
+  })
+}
 
 /**
- * DELETE /automations/:id
+ * Answers 404 for an unknown `:id` before the body is read, so a request for an automation that
+ * does not exist is a 404 whatever it carries.
  */
-automationsApp.delete('/:id', async (context) => {
+const requireAutomation: MiddlewareHandler<AppEnv, '/:id' | '/:id/toggle'> = async (context, next) => {
   const id = context.req.param('id')
-  const repository = context.get('automationRepository')
-  const existing = await repository.findById(id)
-  if (!existing) {
-    return publicProblem(context, {
-      type: 'automation-not-found',
-      status: 404,
-      title: 'Not Found',
-      detail: `Automation ${id} does not exist`,
+  const existing = await context.get('automationRepository').findById(id)
+  if (!existing) return automationNotFound(context, id)
+  await next()
+}
+
+/**
+ * Registered as one method chain so the route types reach `AppType` (see `../../../routes.ts`).
+ */
+const automationsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
+  /**
+   * GET /automations?seed=<slug>
+   * Returns every automation declared for the given seed, newest first.
+   */
+  .get('/', zodQuery(listAutomationsQuerySchema, rejectMissingSeed), async (context) => {
+    const { seed } = context.req.valid('query')
+    const automations = await context.get('automationRepository').list(seed)
+    return context.json(automations, 200)
+  })
+  /**
+   * POST /automations
+   * Creates a new automation. Body validated by `createAutomationSchema`.
+   */
+  .post('/', zodJson(createAutomationSchema, rejectInvalidAutomationBody), async (context) => {
+    const body = context.req.valid('json')
+    const id = await context.get('automationRepository').create({
+      seed_slug: body.seed_slug,
+      name: body.name,
+      triggers: body.triggers,
+      trigger_conditions: body.trigger_conditions ?? null,
+      actions: body.actions,
     })
-  }
-  await repository.delete(id)
-  return context.body(null, 204)
-})
+    return context.json({ id }, 201)
+  })
+  /**
+   * GET /automations/:id
+   */
+  .get('/:id', async (context) => {
+    const id = context.req.param('id')
+    const automation = await context.get('automationRepository').findById(id)
+    if (!automation) return automationNotFound(context, id)
+    return context.json(automation, 200)
+  })
+  /**
+   * PUT /automations/:id
+   * Full update — partial bodies allowed; cron expression validation
+   * is enforced by the triggers array schema.
+   */
+  .put('/:id', requireAutomation, zodJson(updateAutomationSchema, rejectInvalidAutomationBody), async (context) => {
+    await context.get('automationRepository').update(context.req.param('id'), context.req.valid('json'))
+    return context.body(null, 204)
+  })
+  /**
+   * PATCH /automations/:id/toggle
+   * Atomic single-field flip — does not require sending the full body.
+   */
+  .patch('/:id/toggle', requireAutomation, zodJson(toggleAutomationSchema, rejectInvalidAutomationBody), async (context) => {
+    await context.get('automationRepository').toggle(context.req.param('id'), context.req.valid('json').enabled)
+    return context.body(null, 204)
+  })
+  /**
+   * DELETE /automations/:id
+   */
+  .delete('/:id', requireAutomation, async (context) => {
+    await context.get('automationRepository').delete(context.req.param('id'))
+    return context.body(null, 204)
+  })
 
 export { automationsApp }

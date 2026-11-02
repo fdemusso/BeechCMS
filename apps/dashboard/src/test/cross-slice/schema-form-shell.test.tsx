@@ -61,7 +61,8 @@ vi.mock("@/features/entry-editor/builder/builder-pane", () => ({
   BuilderPane: () => <div data-testid="builder-pane" />,
 }))
 
-vi.mock("@/components/fields", () => ({
+vi.mock("@/components/fields", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/fields")>()),
   FieldEdit: ({ branch }: { branch: { alias: string } }) => <input aria-label={`field-${branch.alias}`} />,
 }))
 
@@ -155,14 +156,14 @@ describe("SchemaFormShell", () => {
     })
     render(<SchemaFormShell vm={vm} open />)
 
-    expect(screen.queryByText("common.delete")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "common.delete" })).not.toBeInTheDocument()
   })
 
   it("the Delete button calls handleDelete directly and mounts no confirmation dialog", () => {
     const handleDelete = vi.fn()
     render(<SchemaFormShell vm={buildViewModel({ handleDelete })} open />)
 
-    fireEvent.click(screen.getByText("common.delete"))
+    fireEvent.click(screen.getByRole("button", { name: "common.delete" }))
 
     expect(handleDelete).toHaveBeenCalledTimes(1)
     expect(screen.queryByText("content.editor.deleteTitle")).not.toBeInTheDocument()
@@ -242,5 +243,19 @@ describe("SchemaFormShell", () => {
     })
     render(<SchemaFormShell vm={vm} open />)
     expect(screen.getByText("content.editor.draftModeNotice")).toBeInTheDocument()
+  })
+
+  it("opens again when it is reopened after a close that has not unmounted it yet", async () => {
+    const vm = buildViewModel()
+    const user = userEvent.setup()
+    const { rerender } = render(<SchemaFormShell vm={vm} open />)
+    await user.keyboard("{Escape}")
+    // The route closes the dialog but the host keeps it mounted for a moment (use-content-list-modals), so a
+    // quick reopen reaches the same instance, which must not stay in its "closing" state.
+    rerender(<SchemaFormShell vm={vm} open={false} />)
+
+    rerender(<SchemaFormShell vm={vm} open />)
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument()
   })
 })

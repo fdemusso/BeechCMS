@@ -12,7 +12,7 @@ import {
   type LocaleSettings,
   type Seed,
 } from "@beechcms/core"
-import { api } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
 import { GENERAL_SETTINGS_QUERY_KEY } from "../query-keys"
 import { useSchema } from "./use-schema"
 
@@ -29,7 +29,7 @@ export function useLocaleConfig(): LocaleConfig | undefined {
   const { data } = useQuery({
     queryKey: GENERAL_SETTINGS_QUERY_KEY,
     // Same request and payload as the settings slice's fetcher: either observer may fill this entry.
-    queryFn: async () => (await api.get<LocaleSettings>("/settings")).data,
+    queryFn: async (): Promise<LocaleSettings> => (await rpc.api.settings.$get()).json(),
     enabled: hasLocalizedBranch,
     staleTime: SETTINGS_STALE_MS,
     select: resolveLocaleConfig,

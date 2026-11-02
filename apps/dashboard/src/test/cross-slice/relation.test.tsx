@@ -16,18 +16,9 @@ vi.mock("@/features/shared", () => ({
 }))
 
 // ─── Mock @/lib/api ───────────────────────────────────────────────────────────
-vi.mock("@/lib/api", () => ({
-  api: {
-    get: vi.fn(),
-    put: vi.fn(),
-    post: vi.fn(),
-    delete: vi.fn(),
-  },
-}))
-
 import { useSchema } from "@/features/shared"
-import { api } from "@/lib/api"
 import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
+import { ApiError } from "@/lib/http/api-error"
 import { RelationDisplay } from "@/components/fields/display/relation"
 import { RelationEdit } from "@/components/fields/edit/relation"
 import { FieldsProvider, type FieldsContextType } from "@/components/fields/context"
@@ -43,12 +34,17 @@ function makeQueryClient() {
   })
 }
 
+type RelationRecord = Awaited<ReturnType<FieldsContextType["fetchById"]>>
+
+/** Stands in for the content API behind the fields context: `get(url, { params })` answers `{ data }`. */
+const get = vi.fn<(url: string, config?: { params: object }) => Promise<{ data: unknown }>>()
+
 const mockFieldsConfig: FieldsContextType = {
   useSchema,
   useLocaleConfig: () => undefined,
-  fetchById: async (slug, id) => (await api.get(`/content/${slug}/${id}`)).data,
+  fetchById: async (slug, id) => (await get(`/content/${slug}/${id}`)).data as RelationRecord,
   searchRelations: async (slug, params) =>
-    (await api.get(`/content/${slug}`, { params: { ...params, page: 1 } })).data.items,
+    ((await get(`/content/${slug}`, { params: { ...params, page: 1 } })).data as { items: RelationRecord[] }).items,
   queryKeys: { detail: CONTENT_QUERY_KEYS.detail, lists: CONTENT_QUERY_KEYS.lists },
   components: { EntryEditorDialog: () => null, RichtextEditor: () => null },
 }
@@ -94,7 +90,6 @@ const teamSeed = {
 
 const authorEntry = {
   id: "author-1",
-  schema_slug: "team",
   slug: null,
   status: "published",
   data: { name: "Ada Lovelace" },
@@ -150,10 +145,9 @@ describe("RelationDisplay", () => {
 
   it("falls back to id when cache is empty and fetch yields no label", async () => {
     // Simulate fetchById returning entry with no name field
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    ;get.mockResolvedValueOnce({
       data: {
         id: "author-1",
-        schema_slug: "team",
         slug: null,
         status: "published",
         data: {},
@@ -174,7 +168,7 @@ describe("RelationDisplay", () => {
   })
 
   it("renders correct label from fetch when cache is empty", async () => {
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    ;get.mockResolvedValueOnce({
       data: authorEntry,
     })
 
@@ -188,7 +182,22 @@ describe("RelationDisplay", () => {
     })
 
     // Verify no extra fetch calls were made after first
-    expect(api.get).toHaveBeenCalledTimes(1)
+    expect(get).toHaveBeenCalledTimes(1)
+  })
+
+  it("shows the label again once a target that was in the Trash is restored", async () => {
+    get.mockRejectedValueOnce(new ApiError(404, { type: "content-not-found" }))
+    render(
+      <RelationDisplay branch={relationBranch} value="author-1" />,
+      { wrapper: wrapper(queryClient) }
+    )
+    await waitFor(() => expect(screen.getByText("author-1")).toBeInTheDocument())
+    get.mockResolvedValueOnce({ data: authorEntry })
+
+    // What a restore does to the content cache (see invalidateTrashSurfaces).
+    queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.all })
+
+    await waitFor(() => expect(screen.getByText("Ada Lovelace")).toBeInTheDocument())
   })
 })
 
@@ -202,11 +211,10 @@ describe("RelationEdit", () => {
     vi.clearAllMocks()
     queryClient = makeQueryClient()
     ;(useSchema as ReturnType<typeof vi.fn>).mockReturnValue({ data: [teamSeed], isLoading: false })
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+    ;get.mockResolvedValue({
       data: {
         items: [authorEntry, {
           id: "author-2",
-          schema_slug: "team",
           slug: null,
           status: "published",
           data: { name: "Grace Hopper" },
@@ -358,7 +366,7 @@ describe("RelationDisplay (multiple: true)", () => {
     expect(screen.getByText("—")).toBeInTheDocument()
   })
 
-  it("renders a chip for each primed id", () => {
+  it("shows a name badge per primed id when the relation has no avatar source", () => {
     const entry2 = { ...authorEntry, id: "author-2", data: { name: "Grace Hopper" } }
     queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
     queryClient.setQueryData(["content", "detail", "team", "author-2"], entry2)
@@ -368,12 +376,11 @@ describe("RelationDisplay (multiple: true)", () => {
       { wrapper: wrapper(queryClient) }
     )
 
-    // avatars display initials in AvatarFallback
-    expect(screen.getByText("AL")).toBeInTheDocument()
-    expect(screen.getByText("GH")).toBeInTheDocument()
+    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument()
+    expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
   })
 
-  it("renders correct chip count", () => {
+  it("renders no avatar for a relation without an avatar source", () => {
     queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
 
     render(
@@ -381,9 +388,70 @@ describe("RelationDisplay (multiple: true)", () => {
       { wrapper: wrapper(queryClient) }
     )
 
-    const fallbacks = screen.getAllByText("AL")
-    expect(fallbacks).toHaveLength(1)
-    expect(fallbacks[0]).toHaveAttribute("data-slot", "avatar-fallback")
+    expect(document.querySelector('[data-slot="avatar"]')).toBeNull()
+  })
+
+  describe("with an avatar source", () => {
+    const teamWithPhoto = {
+      ...teamSeed,
+      branches: [...teamSeed.branches, { id: "br_03", alias: "photo", label: "Photo", type: "file", fileOptions: { accept: "image" } }],
+    }
+    const avatarBranch = { ...multiRelationBranch, avatarSource: "photo" } as unknown as Branch
+
+    beforeEach(() => {
+      ;(useSchema as ReturnType<typeof vi.fn>).mockReturnValue({ data: [teamWithPhoto], isLoading: false })
+    })
+
+    it("shows the initials of the display name as avatar fallback and no name text", () => {
+      queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
+
+      render(
+        <RelationDisplay branch={avatarBranch} value={["author-1"]} />,
+        { wrapper: wrapper(queryClient) }
+      )
+
+      const fallback = screen.getByText("AL")
+      expect(fallback).toHaveAttribute("data-slot", "avatar-fallback")
+      expect(screen.queryByText("Ada Lovelace")).toBeNull()
+    })
+
+    it("falls back to the last two characters of the id when the entry has no display name", () => {
+      queryClient.setQueryData(["content", "detail", "team", "author-1"], { ...authorEntry, data: {} })
+
+      render(
+        <RelationDisplay branch={avatarBranch} value={["author-1"]} />,
+        { wrapper: wrapper(queryClient) }
+      )
+
+      expect(screen.getByText("-1")).toHaveAttribute("data-slot", "avatar-fallback")
+    })
+
+    it("collapses entries beyond the visible slots into a +N counter", () => {
+      for (const n of [1, 2, 3, 4]) {
+        queryClient.setQueryData(["content", "detail", "team", `author-${n}`], { ...authorEntry, id: `author-${n}`, data: { name: `Person ${n}` } })
+      }
+
+      render(
+        <RelationDisplay branch={avatarBranch} value={["author-1", "author-2", "author-3", "author-4"]} options={{ compact: true }} />,
+        { wrapper: wrapper(queryClient) }
+      )
+
+      expect(screen.getByText("+2")).toBeInTheDocument()
+      expect(screen.getAllByText(/^P\d$/)).toHaveLength(2)
+    })
+
+    it("does not resolve the overflow entries until the counter is opened", () => {
+      for (const n of [1, 2, 3, 4]) {
+        queryClient.setQueryData(["content", "detail", "team", `author-${n}`], { ...authorEntry, id: `author-${n}`, data: { name: `Person ${n}` } })
+      }
+
+      render(
+        <RelationDisplay branch={avatarBranch} value={["author-1", "author-2", "author-3", "author-4"]} options={{ compact: true }} />,
+        { wrapper: wrapper(queryClient) }
+      )
+
+      expect(queryClient.getQueryCache().find({ queryKey: ["content", "detail", "team", "author-4"] })?.getObserversCount()).toBe(0)
+    })
   })
 })
 
@@ -397,11 +465,10 @@ describe("RelationEdit (multiple: true)", () => {
     vi.clearAllMocks()
     queryClient = makeQueryClient()
     ;(useSchema as ReturnType<typeof vi.fn>).mockReturnValue({ data: [teamSeed], isLoading: false })
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+    ;get.mockResolvedValue({
       data: {
         items: [authorEntry, {
           id: "author-2",
-          schema_slug: "team",
           slug: null,
           status: "published",
           data: { name: "Grace Hopper" },
@@ -434,7 +501,7 @@ describe("RelationEdit (multiple: true)", () => {
       { wrapper: wrapper(queryClient) }
     )
 
-    const trigger = screen.getByRole("combobox")
+    const trigger = screen.getByRole("button", { name: "Add…" })
     fireEvent.click(trigger)
 
     await waitFor(() => {
@@ -458,7 +525,7 @@ describe("RelationEdit (multiple: true)", () => {
     expect(mockOnChange).toHaveBeenCalledWith([])
   })
 
-  it("already-selected ids are filtered from combobox list", async () => {
+  it("keeps already-selected entries in the picker, checked", async () => {
     queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
 
     render(
@@ -466,16 +533,47 @@ describe("RelationEdit (multiple: true)", () => {
       { wrapper: wrapper(queryClient) }
     )
 
-    fireEvent.click(screen.getByRole("combobox"))
+    fireEvent.click(screen.getByRole("button", { name: "Add…" }))
 
-    await waitFor(() => {
-      // author-1 already selected — should not appear in dropdown
-      // Grace Hopper (author-2) should still be visible
-      expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
-    })
+    await waitFor(() => expect(screen.getByText("Grace Hopper")).toBeInTheDocument())
+    const options = screen.getAllByRole("option")
+    expect(options.map((option) => [option.textContent, option.getAttribute("aria-selected")])).toEqual([
+      ["Ada Lovelace", "true"],
+      ["Grace Hopper", "false"],
+    ])
   })
 
-  it("move-up button reorders ids", () => {
+  it("clicking a selected entry in the picker removes it", async () => {
+    queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
+
+    render(
+      <RelationEdit branch={multiRelationBranch} value={["author-1"]} onChange={mockOnChange} />,
+      { wrapper: wrapper(queryClient) }
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Add…" }))
+    await waitFor(() => expect(screen.getAllByText("Ada Lovelace")).toHaveLength(2))
+
+    fireEvent.click(screen.getAllByText("Ada Lovelace")[1])
+
+    expect(mockOnChange).toHaveBeenCalledWith([])
+  })
+
+  it("stays open after a pick and closes with the Done button", async () => {
+    render(
+      <RelationEdit branch={multiRelationBranch} value={[]} onChange={mockOnChange} />,
+      { wrapper: wrapper(queryClient) }
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Add…" }))
+    await waitFor(() => expect(screen.getByText("Grace Hopper")).toBeInTheDocument())
+
+    fireEvent.click(screen.getByText("Grace Hopper"))
+
+    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Done" }))
+    await waitFor(() => expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument())
+  })
+
+  it("shows how many entries are selected and a drag handle per row", () => {
     const entry2 = { ...authorEntry, id: "author-2", data: { name: "Grace Hopper" } }
     queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
     queryClient.setQueryData(["content", "detail", "team", "author-2"], entry2)
@@ -485,9 +583,18 @@ describe("RelationEdit (multiple: true)", () => {
       { wrapper: wrapper(queryClient) }
     )
 
-    const upBtns = screen.getAllByLabelText("Move up")
-    // Second chip's "Move up" button moves author-2 before author-1
-    fireEvent.click(upBtns[1])
-    expect(mockOnChange).toHaveBeenCalledWith(["author-2", "author-1"])
+    expect(screen.getByText("2 selected")).toBeInTheDocument()
+    expect(screen.getAllByLabelText("Drag to reorder")).toHaveLength(2)
+  })
+
+  it("renders no avatar on rows when the relation has no avatar source", () => {
+    queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
+
+    render(
+      <RelationEdit branch={multiRelationBranch} value={["author-1"]} onChange={mockOnChange} />,
+      { wrapper: wrapper(queryClient) }
+    )
+
+    expect(document.querySelector('[data-slot="avatar"]')).toBeNull()
   })
 })

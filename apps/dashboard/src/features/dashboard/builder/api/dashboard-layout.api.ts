@@ -2,41 +2,33 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { api } from '@/lib/api'
+import { rpc } from '@/lib/rpc'
 import type { DashboardLayout } from '@beechcms/core'
 
-export interface SaveDashboardLayoutResponse {
-  ok: true
-  layout: DashboardLayout
-  warnings: string[]
+/** `If-Match` with the loaded version, or `If-None-Match: *` when nothing was stored. */
+function layoutPrecondition(updatedAt: number | null): Record<string, string> {
+  return updatedAt === null ? { 'If-None-Match': '*' } : { 'If-Match': `"${updatedAt}"` }
 }
 
-export interface ScopedDashboardLayoutResponse {
-  scope: string
-  layout: DashboardLayout | null
-}
-
-export interface DashboardScopeInfo {
-  scope: string
-  stored: boolean
-}
-
+// Response shapes are inferred from the routes; there is no hand-written DTO to keep in step.
 export const dashboardBuilderApi = {
-  /** Raw stored layout for `scope`, or `{ scope, layout: null }` if nothing is stored. Admin-only. */
-  getLayout: async (scope: string): Promise<ScopedDashboardLayoutResponse> => {
-    const { data } = await api.get<ScopedDashboardLayoutResponse>(`/dashboard-layout/${scope}`)
-    return data
+  /** The caller's projected layout and its `updatedAt` version, or `{ layout: null, updatedAt: null }`. Layout editors keep every tab. */
+  getLayout: async () => {
+    const response = await rpc.api['dashboard-layout'].$get()
+    return response.json()
   },
-  /** Closed set of dashboard scopes annotated with whether each has a stored row. Admin-only. */
-  getScopes: async (): Promise<DashboardScopeInfo[]> => {
-    const { data } = await api.get<DashboardScopeInfo[]>('/dashboard-layout/scopes')
-    return data
+  /** Every role as `{ id, name, icon }`, ordered by name. Needs `manage_roles@*`. */
+  getRoles: async () => {
+    const response = await rpc.api['dashboard-layout'].roles.$get()
+    return response.json()
   },
-  saveLayout: async (scope: string, layout: DashboardLayout): Promise<SaveDashboardLayoutResponse> => {
-    const { data } = await api.put<SaveDashboardLayoutResponse>(`/dashboard-layout/${scope}`, layout)
-    return data
+  /** Needs `manage_layout@*` or `manage_roles@*`; `updatedAt` is the version loaded with the layout. */
+  saveLayout: async (layout: DashboardLayout, updatedAt: number | null) => {
+    const response = await rpc.api['dashboard-layout'].$put({ json: layout }, { headers: layoutPrecondition(updatedAt) })
+    return response.json()
   },
-  resetLayout: async (scope: string): Promise<void> => {
-    await api.delete(`/dashboard-layout/${scope}`)
+  /** Removes the stored layout. Needs `manage_roles@*`; `updatedAt` is the version loaded with the layout. */
+  resetLayout: async (updatedAt: number | null): Promise<void> => {
+    await rpc.api['dashboard-layout'].$delete(undefined, { headers: layoutPrecondition(updatedAt) })
   },
 }

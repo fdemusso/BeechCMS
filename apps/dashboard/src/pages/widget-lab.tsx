@@ -16,7 +16,7 @@ import {
 } from "@/features/dashboard/widgets"
 import { useSchema } from "@/features/schema"
 import { cn } from "@/lib/utils"
-import { ChartLine as LineChart, ChartBar as BarChart3, Chart as AreaChart } from 'reicon-react'
+import { ChartLine as LineChart, ChartBar as BarChart3, Chart as AreaChart } from '@/components/icons'
 import { StatWidget } from "@/features/dashboard/components/widgets/stat-widget"
 import { TimeseriesChartWidget } from "@/features/dashboard/components/widgets/timeseries-chart-widget"
 import { PieChartWidget } from "@/features/dashboard/components/widgets/pie-chart-widget"

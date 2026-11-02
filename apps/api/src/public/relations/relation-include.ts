@@ -47,17 +47,24 @@ export async function expandRelations(
       }
     }
 
-    const clampedTargetIds = Array.from(targetIds).slice(0, MAX_TARGET_IDS)
-    if (clampedTargetIds.length === 0) continue
+    // Refuse, never truncate: dropping targets would silently return partial `_includes`.
+    if (targetIds.size > MAX_TARGET_IDS) {
+      throw new Error(
+        `Invalid include: branch '${branch.alias}' resolves to ${targetIds.size} distinct targets, above the limit of ${MAX_TARGET_IDS}; narrow the request.`,
+      )
+    }
+
+    const targetIdList = Array.from(targetIds)
+    if (targetIdList.length === 0) continue
 
     const { items: targetItems } = await repository.findMany(targetSeed, {
       filters: [{
         column: 'id',
         type: 'system',
-        conditions: [{ op: 'in', value: clampedTargetIds }]
+        conditions: [{ op: 'in', value: targetIdList }]
       }],
       status: 'published',
-      pagination: { limit: clampedTargetIds.length, offset: 0 }
+      pagination: { limit: targetIdList.length, offset: 0 }
     })
 
     const targetMap = new Map<string, Record<string, unknown>>()

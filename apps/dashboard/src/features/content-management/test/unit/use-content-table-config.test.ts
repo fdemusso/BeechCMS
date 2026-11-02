@@ -17,7 +17,7 @@ vi.mock("@/features/shared/hooks/use-permissions", () => ({
 const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts") as Seed
 
 function entry(id: string, priority: string[]): ContentEntry {
-  return { id, schema_slug: "posts", slug: id, data: { title: id, priority }, status: "draft", created_at: 0, updated_at: 0 } as ContentEntry
+  return { id, slug: id, data: { title: id, priority }, status: "draft", created_at: 0, updated_at: 0 } as ContentEntry
 }
 
 function renderConfig(data: ContentEntry[], groupBy: string | null) {

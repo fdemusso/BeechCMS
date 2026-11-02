@@ -2,45 +2,36 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { api } from "@/lib/api"
-import type { DashboardLayout } from "@beechcms/core"
+import { rpc } from "@/lib/rpc"
 import type { DashboardStats, CloudflareStats, RecentActivity, SystemHealth, ContentBreakdown, SetupChecklist } from "../types/dashboard.types"
 
-export interface DashboardLayoutResponse {
-  scope: string
-  layout: DashboardLayout | null
-}
-
 export const dashboardApi = {
-  getDashboardLayout: async (): Promise<DashboardLayoutResponse> => {
-    const { data } = await api.get<DashboardLayoutResponse>("/dashboard-layout")
-    return data
+  getDashboardLayout: async () => {
+    const response = await rpc.api["dashboard-layout"].$get()
+    return response.json()
   },
   getTotalStats: async (): Promise<DashboardStats> => {
-    const { data } = await api.get<DashboardStats>("/content/stats/total")
-    return data
+    const response = await rpc.api.content.stats.total.$get()
+    return response.json()
   },
   getCloudflareStats: async (): Promise<CloudflareStats> => {
-    const { data } = await api.get<CloudflareStats>("/content/stats/cloudflare")
-    return data
+    const response = await rpc.api.content.stats.cloudflare.$get()
+    return response.json()
   },
   getRecentActivity: async (slug?: string): Promise<RecentActivity[]> => {
-    const { data } = await api.get<RecentActivity[]>(
-      "/content/stats/recent-activity",
-      { params: { slug } }
-    )
-    return data
+    const response = await rpc.api.content.stats["recent-activity"].$get({ query: { slug } })
+    return response.json()
   },
   getSystemHealth: async (): Promise<SystemHealth> => {
-    const { data } = await api.get<SystemHealth>("/content/stats/health")
-    return data
+    const response = await rpc.api.content.stats.health.$get()
+    return response.json()
   },
   getContentBreakdown: async (): Promise<ContentBreakdown[]> => {
-    const { data } = await api.get<ContentBreakdown[]>("/content/stats/breakdown")
-    return data
+    const response = await rpc.api.content.stats.breakdown.$get()
+    return response.json()
   },
   getSetupChecklist: async (): Promise<SetupChecklist> => {
-    const { data } = await api.get<SetupChecklist>("/content/stats/setup-checklist")
-    return data
+    const response = await rpc.api.content.stats["setup-checklist"].$get()
+    return response.json()
   },
 }

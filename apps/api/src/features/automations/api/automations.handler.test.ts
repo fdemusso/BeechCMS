@@ -60,6 +60,18 @@ describe('GET /', () => {
     expect(body).toHaveLength(1)
     expect(body[0].id).toBe('test-id')
   })
+
+  it('returns 400 missing-seed for an empty seed and never queries the repository', async () => {
+    const stub = makeStub()
+    const app = buildApp(stub)
+
+    const response = await app.request('/?seed=')
+
+    expect(response.status).toBe(400)
+    const body = await response.json() as { type: string }
+    expect(body.type).toContain('missing-seed')
+    expect(stub.list).not.toHaveBeenCalled()
+  })
 })
 
 describe('POST /', () => {
@@ -154,6 +166,36 @@ describe('PUT /:id', () => {
     expect(res.status).toBe(404)
   })
 
+  it('returns 404 automation-not-found before reading the body, even when it is not JSON', async () => {
+    const stub = makeStub({ findById: vi.fn().mockResolvedValue(null) })
+    const app = buildApp(stub)
+
+    const response = await app.request('/unknown-id', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'malformed-not-json',
+    })
+
+    expect(response.status).toBe(404)
+    const body = await response.json() as { type: string }
+    expect(body.type).toContain('automation-not-found')
+    expect(stub.update).not.toHaveBeenCalled()
+  })
+
+  it('hands the id and the parsed body to the repository', async () => {
+    const stub = makeStub()
+    const app = buildApp(stub)
+
+    const response = await app.request('/test-id', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'renamed' }),
+    })
+
+    expect(response.status).toBe(204)
+    expect(stub.update).toHaveBeenCalledWith('test-id', { name: 'renamed' })
+  })
+
   it('returns 400 invalid-json for malformed JSON body', async () => {
     const app = buildApp(makeStub())
     const res = await app.request('/test-id', {
@@ -212,6 +254,22 @@ describe('PATCH /:id/toggle', () => {
     expect(res.status).toBe(404)
   })
 
+  it('returns 404 automation-not-found before reading the body, even when it is not JSON', async () => {
+    const stub = makeStub({ findById: vi.fn().mockResolvedValue(null) })
+    const app = buildApp(stub)
+
+    const response = await app.request('/unknown-id/toggle', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'malformed-not-json',
+    })
+
+    expect(response.status).toBe(404)
+    const body = await response.json() as { type: string }
+    expect(body.type).toContain('automation-not-found')
+    expect(stub.toggle).not.toHaveBeenCalled()
+  })
+
   it('returns 400 invalid-json for malformed JSON body', async () => {
     const app = buildApp(makeStub())
     const res = await app.request('/test-id/toggle', {
@@ -260,5 +318,27 @@ describe('DELETE /:id', () => {
     const app = buildApp(makeStub())
     const res = await app.request('/test-id', { method: 'DELETE' })
     expect(res.status).toBe(204)
+  })
+
+  it('deletes the automation by the id in the path', async () => {
+    const stub = makeStub()
+    const app = buildApp(stub)
+
+    const response = await app.request('/test-id', { method: 'DELETE' })
+
+    expect(response.status).toBe(204)
+    expect(stub.delete).toHaveBeenCalledWith('test-id')
+  })
+
+  it('returns 404 automation-not-found for an unknown id without deleting anything', async () => {
+    const stub = makeStub({ findById: vi.fn().mockResolvedValue(null) })
+    const app = buildApp(stub)
+
+    const response = await app.request('/unknown-id', { method: 'DELETE' })
+
+    expect(response.status).toBe(404)
+    const body = await response.json() as { type: string }
+    expect(body.type).toContain('automation-not-found')
+    expect(stub.delete).not.toHaveBeenCalled()
   })
 })

@@ -7,7 +7,7 @@ import type { FolderStyle } from "@beechcms/core"
 import {
   Folder, Star, Heart, Image, Camera, Calendar, Tag, Bookmark, Home,
   Gift, Video, Music, Book, Flag, Briefcase, Users, Sun, Crown,
-} from "reicon-react"
+} from "@/components/icons"
 
 type FolderColor = NonNullable<FolderStyle["color"]>
 type FolderIconName = NonNullable<FolderStyle["icon"]>

@@ -4,16 +4,11 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { SortV as GripVertical, X, Plus } from 'reicon-react'
+import { useDraggable, useDroppable } from '@dnd-kit/core'
+import { X, Plus } from '@/components/icons'
 import type { Branch, LayoutField } from '@beechcms/core'
+import { ColumnShell } from '@/components/builder/column-shell'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,13 +17,16 @@ import {
 import {
   Command,
   CommandEmpty,
+  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
 import { toast } from 'sonner'
-import { FieldEdit } from '@/components/fields'
-import { getFullWidthWarningLabel, type UseLayoutBuilderResult } from './use-layout-builder'
+import { GripDots } from '@/components/ui/grip-dots'
+import { FieldBlock } from './field-block'
+import { getFullWidthWarningLabel, type LayoutBuilderActions } from './use-layout-builder'
+import { dragIds } from './use-builder-dnd'
 
 // ============================================================================
 // FieldItem
@@ -42,27 +40,10 @@ interface FieldItemProps {
   readonly sectionId: string
   /** The unique ID of the column this field belongs to. */
   readonly columnId: string
-  /** The layout field structure containing branch mapping. */
-  readonly field: LayoutField
   /** The schema branch definition representing the field type and metadata. */
   readonly branch: Branch
-  /** The layout builder operations. */
-  readonly ops: UseLayoutBuilderResult
-  /** The unique drag identifier used by dnd-kit. */
-  readonly dragId: string
-}
-
-/**
- * Returns a default mock value for schema fields based on their type,
- * used for rendering inactive field previews in the layout builder.
- *
- * @param branch - The schema branch definition.
- * @returns A placeholder default value.
- */
-function emptyValue(branch: Branch): unknown {
-  if (branch.type === 'boolean') return false
-  if (branch.type === 'richtext') return { type: 'doc', content: [{ type: 'paragraph' }] }
-  return ''
+  /** The layout builder actions. */
+  readonly ops: LayoutBuilderActions
 }
 
 /**
@@ -70,47 +51,148 @@ function emptyValue(branch: Branch): unknown {
  * Renders an individual draggable field item within a column in the layout builder.
  * Displays a sort handle, the field name preview, and a removal button.
  *
+ * Draggable and droppable, not sortable: a field never moves while it is dragged (the column marks where it would
+ * land), so there are no positions to recompute and nothing to animate. Memoised, so an edit elsewhere in the layout
+ * does not redraw it; what dnd-kit redraws on its own is the block's box, as the ghost inside is memoised too.
+ *
  * @param props - Component properties conforming to {@link FieldItemProps}.
  */
-function FieldItem({ tabId, sectionId, columnId, field, branch, ops, dragId }: FieldItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId })
+const FieldItem = React.memo(function FieldItem({ tabId, sectionId, columnId, branch, ops }: FieldItemProps) {
+  const { t } = useTranslation()
+  const id = dragIds.field(branch.id)
+  const data = React.useMemo(() => ({ type: 'field', rootId: tabId, sectionId, columnId }), [tabId, sectionId, columnId])
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id, data })
+  const { setNodeRef: setDropRef } = useDroppable({ id, data })
+  const setNodeRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      setDragRef(node)
+      setDropRef(node)
+    },
+    [setDragRef, setDropRef],
+  )
 
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
+  // No border of its own: the field is a flat block that shows a wash on hover, so a section reads as a
+  // list of fields instead of boxes inside boxes.
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ opacity: isDragging ? 0.4 : 1 }}
+      className="group/field relative flex min-w-0 max-w-full items-start gap-1 rounded-lg p-1.5 transition-colors hover:bg-muted/40"
+    >
+      {/* The whole left strip is the handle: a big target that does not compete with the field's content.
+          Its look never changes on hover; only the cursor does. The icon sits at the strip's vertical centre. */}
+      <button
+        type="button"
+        aria-label={t('layoutBuilder.dragHandle')}
+        className="flex w-6 shrink-0 cursor-grab touch-none items-center justify-center self-stretch rounded-md text-muted-foreground/60 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        {...attributes}
+        {...listeners}
+      >
+        <GripDots className="size-4" />
+      </button>
+
+      <FieldBlock branch={branch} />
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t('layoutBuilder.removeField')}
+        className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover/field:opacity-100"
+        onClick={() => ops.clearField(tabId, sectionId, columnId, branch.id)}
+      >
+        <X />
+      </Button>
+    </div>
+  )
+})
+
+// ============================================================================
+// AddFieldMenu
+// ============================================================================
+
+/** Properties for the {@link AddFieldMenu} component. */
+interface AddFieldMenuProps {
+  readonly tabId: string
+  readonly sectionId: string
+  readonly columnId: string
+  /** The fields the column holds, to name the full-width field in the way when an add is refused. */
+  readonly fields: readonly LayoutField[]
+  readonly branchById: Record<string, Branch>
+  /** List of schema branches that are still available to be added. */
+  readonly availableBranches: readonly Branch[]
+  readonly ops: LayoutBuilderActions
+}
+
+/**
+ * The Add field button and its searchable list. Memoised and kept apart from the column: the list is one item per
+ * branch still free, in every column, and the column's own redraws (dnd-kit's, while a field is dragged) must not
+ * rebuild it.
+ */
+const AddFieldMenu = React.memo(function AddFieldMenu({
+  tabId,
+  sectionId,
+  columnId,
+  fields,
+  branchById,
+  availableBranches,
+  ops,
+}: AddFieldMenuProps) {
+  const { t: translate } = useTranslation()
+  const [open, setOpen] = React.useState(false)
+  // cmdk keeps the last highlighted item once the pointer leaves it; the highlight is cleared on leave.
+  const [highlighted, setHighlighted] = React.useState('')
+
+  function add(branch: Branch) {
+    const isAssigned = ops.assignField(tabId, sectionId, columnId, branch.id)
+    setOpen(false)
+    if (!isAssigned) {
+      // A full-width field always sits alone in a single-column section (the server refuses any other layout), so
+      // the column's own fields are enough to tell which one is in the way.
+      const label = getFullWidthWarningLabel(branch, { columns: [{ id: columnId, fields: [...fields] }] }, branchById)
+      toast.warning(translate('layoutBuilder.warnFullWidth', { label }))
+    }
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded border group min-w-0 max-w-full overflow-hidden">
-      <div className="flex items-start gap-2 p-2 min-w-0 max-w-full">
-        <button
-          type="button"
-          className="mt-1 flex-shrink-0 cursor-grab text-muted-foreground hover:text-foreground"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="size-4" />
-        </button>
-
-        <div className="flex-1 min-w-0 max-w-full space-y-1.5 pointer-events-none select-none opacity-70 overflow-hidden">
-          <Label className="text-xs font-medium">{branch.label}</Label>
-          <FieldEdit branch={branch as any} value={emptyValue(branch)} onChange={() => {}} />
-        </div>
-
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
         <Button
           type="button"
           variant="ghost"
-          size="icon"
-          className="size-6 flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={() => ops.clearField(tabId, sectionId, columnId, field.branchId)}
+          size="sm"
+          className="h-8 w-full justify-center text-muted-foreground opacity-60 transition-opacity hover:opacity-100 focus-visible:opacity-100"
         >
-          <X className="size-3" />
+          <Plus className="size-3 mr-1" />
+          {translate('layoutBuilder.addField')}
         </Button>
-      </div>
-    </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="p-0 w-64" align="start">
+        <Command value={highlighted} onValueChange={setHighlighted}>
+          <CommandInput placeholder={translate('layoutBuilder.searchFields')} />
+          <CommandList onMouseLeave={() => setHighlighted('')}>
+            <CommandEmpty>{translate('layoutBuilder.noFields')}</CommandEmpty>
+            {/* The group supplies the list's padding; bare items sit flush against the search box. */}
+            <CommandGroup>
+              {availableBranches.map((branch) => (
+                <CommandItem
+                  key={branch.id}
+                  value={branch.label}
+                  // The item's built-in check mark is unused here and would keep the type off the right edge.
+                  className="[&>svg]:hidden"
+                  onSelect={() => add(branch)}
+                >
+                  <span className="min-w-0 flex-1 truncate">{branch.label}</span>
+                  <span className="text-muted-foreground text-xs">{branch.type}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
-}
+})
 
 // ============================================================================
 // ColumnCard
@@ -130,20 +212,22 @@ interface ColumnCardProps {
   readonly branchById: Record<string, Branch>
   /** List of schema branches that are still available to be added. */
   readonly availableBranches: Branch[]
-  /** The layout builder operations. */
-  readonly ops: UseLayoutBuilderResult
+  /** The layout builder actions. */
+  readonly ops: LayoutBuilderActions
   /** Drag ID for the column itself (used when the column is dragged as a whole). */
   readonly dragId: string
+  /** Whether the column can be dragged to swap places: false when it is its section's only column. */
+  readonly reorderable?: boolean
 }
 
 /**
  * ColumnCard component.
- * Renders a column container in the layout builder. Supports sortable children fields
- * and presents a searchable dropdown to add new fields.
+ * Renders a column of the layout builder: the shared column frame holding the field items and a searchable
+ * dropdown to add new fields. Memoised: its props keep their identity while other columns are edited or dragged into.
  *
  * @param props - Component properties conforming to {@link ColumnCardProps}.
  */
-export function ColumnCard({
+export const ColumnCard = React.memo(function ColumnCard({
   tabId,
   sectionId,
   columnId,
@@ -152,102 +236,43 @@ export function ColumnCard({
   availableBranches,
   ops,
   dragId,
+  reorderable = true,
 }: ColumnCardProps) {
   const { t: translate } = useTranslation()
-  const [open, setOpen] = React.useState(false)
-
-  // The column itself is sortable (for column reordering)
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId })
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  }
-
-  const fieldDragIds = fields.map((field) => `field:${tabId}:${sectionId}:${columnId}:${field.branchId}`)
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded border min-h-[48px] flex flex-col gap-1 p-1 min-w-0 max-w-full overflow-hidden">
-      {/* Column drag handle — top strip */}
-      <div className="flex justify-center">
-        <button
-          type="button"
-          className="cursor-grab text-muted-foreground hover:text-foreground rotate-90"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="size-4" />
-        </button>
-      </div>
-
-      {/* Field items */}
-      <SortableContext items={fieldDragIds} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-1">
-          {fields.map((field) => {
-            const branch = branchById[field.branchId]
-            if (!branch) return null
-            const fieldDragId = `field:${tabId}:${sectionId}:${columnId}:${field.branchId}`
-            return (
-              <FieldItem
-                key={field.branchId}
-                tabId={tabId}
-                sectionId={sectionId}
-                columnId={columnId}
-                field={field}
-                branch={branch}
-                ops={ops}
-                dragId={fieldDragId}
-              />
-            )
-          })}
-        </div>
-      </SortableContext>
-
-      {/* Add Field */}
-      {availableBranches.length > 0 && (
-        <DropdownMenu open={open} onOpenChange={setOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="w-full justify-center text-muted-foreground border-dashed border h-8 mt-1"
-            >
-              <Plus className="size-3 mr-1" />
-              {translate('layoutBuilder.addField')}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="p-0 w-64" align="start">
-            <Command>
-              <CommandInput placeholder={translate('layoutBuilder.searchFields')} />
-              <CommandList>
-                <CommandEmpty>{translate('layoutBuilder.noFields')}</CommandEmpty>
-                {availableBranches.map((branch) => (
-                  <CommandItem
-                    key={branch.id}
-                    value={branch.label}
-                    onSelect={() => {
-                      const isAssigned = ops.assignField(tabId, sectionId, columnId, branch.id)
-                      setOpen(false)
-                      if (!isAssigned) {
-                        const targetSection = ops.draft.tabs
-                          .find((t) => t.id === tabId)
-                          ?.sections.find((s) => s.id === sectionId)
-                        const label = getFullWidthWarningLabel(branch, targetSection, branchById)
-                        toast.warning(translate('layoutBuilder.warnFullWidth', { label }))
-                      }
-                    }}
-                  >
-                    <span>{branch.label}</span>
-                    <span className="text-muted-foreground ml-2 text-xs">{branch.type}</span>
-                  </CommandItem>
-                ))}
-              </CommandList>
-            </Command>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-    </div>
+    <ColumnShell
+      column={{ rootId: tabId, sectionId, columnId }}
+      dragId={dragId}
+      zoneId={dragIds.zone(tabId, sectionId, columnId)}
+      itemCount={fields.length}
+      reorderable={reorderable}
+      dragLabel={translate('layoutBuilder.dragColumn')}
+      // As small and quiet as the strip beside a field, and unrelated to the dashboard builder's handle.
+      handleClassName="-top-2 rounded-md px-2 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground"
+      handleIconClassName="size-4 rotate-90"
+      gap={0.5}
+      footer={
+        availableBranches.length > 0 ? (
+          <AddFieldMenu
+            tabId={tabId}
+            sectionId={sectionId}
+            columnId={columnId}
+            fields={fields}
+            branchById={branchById}
+            availableBranches={availableBranches}
+            ops={ops}
+          />
+        ) : null
+      }
+    >
+      {fields.map((field) => {
+        const branch = branchById[field.branchId]
+        if (!branch) return null
+        return (
+          <FieldItem key={field.branchId} tabId={tabId} sectionId={sectionId} columnId={columnId} branch={branch} ops={ops} />
+        )
+      })}
+    </ColumnShell>
   )
-}
+})

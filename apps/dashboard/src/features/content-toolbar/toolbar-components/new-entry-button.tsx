@@ -4,7 +4,7 @@
 
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { Plus, ChevronDown } from "reicon-react"
+import { Plus, ChevronDown } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {

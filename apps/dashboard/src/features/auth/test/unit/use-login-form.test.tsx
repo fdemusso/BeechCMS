@@ -7,8 +7,7 @@ import { renderHook, act } from "@testing-library/react"
 
 const mocked = vi.hoisted(() => ({
   navigate: vi.fn(),
-  axiosPost: vi.fn(),
-  isAxiosError: vi.fn(),
+  loginPost: vi.fn(),
   setToken: vi.fn(),
   returnTo: null as string | null,
 }))
@@ -18,24 +17,18 @@ vi.mock("react-router-dom", () => ({
   useSearchParams: () => [{ get: (key: string) => (key === "returnTo" ? mocked.returnTo : null) }],
 }))
 
-vi.mock("axios", () => ({
-  default: {
-    post: mocked.axiosPost,
-    isAxiosError: mocked.isAxiosError,
-    create: vi.fn().mockReturnValue({
-      interceptors: {
-        request: { use: vi.fn() },
-        response: { use: vi.fn() },
-      },
-    }),
-  },
-}))
+vi.mock("@/lib/rpc", () => ({ rpc: { auth: { login: { $post: mocked.loginPost } } } }))
 
 vi.mock("@/lib/auth-context", () => ({
   useAuth: () => ({ setToken: mocked.setToken }),
 }))
 
+import { ApiError } from "@/lib/http/api-error"
 import { useLoginForm, safeReturnTo } from "@/features/auth/components/login-form/use-login-form"
+
+function loginResponse(body: { token: string; expiresIn: string }) {
+  return { json: async () => body }
+}
 
 const TEST_PASS = "x".repeat(10)
 
@@ -84,7 +77,7 @@ describe("useLoginForm", () => {
   })
 
   it("submit successo: chiama setToken e naviga home", async () => {
-    mocked.axiosPost.mockResolvedValueOnce({ data: { token: "jwt-token", expiresIn: "15m" } })
+    mocked.loginPost.mockResolvedValueOnce(loginResponse({ token: "jwt-token", expiresIn: "15m" }))
 
     const { result } = renderHook(() => useLoginForm())
     act(() => {
@@ -96,18 +89,13 @@ describe("useLoginForm", () => {
       await result.current.handleSubmit({ preventDefault: vi.fn() } as any)
     })
 
-    expect(mocked.axiosPost).toHaveBeenCalledWith(
-      "/auth/login",
-      { email: "a@b.com", password: TEST_PASS },
-      { withCredentials: true }
-    )
+    expect(mocked.loginPost).toHaveBeenCalledWith({ json: { email: "a@b.com", password: TEST_PASS } })
     expect(mocked.setToken).toHaveBeenCalledWith("jwt-token")
     expect(mocked.navigate).toHaveBeenCalledWith("/", { replace: true })
   })
 
   it("submit errore 401: mostra messaggio credenziali", async () => {
-    mocked.axiosPost.mockRejectedValueOnce({ response: { status: 401 } })
-    mocked.isAxiosError.mockReturnValueOnce(true)
+    mocked.loginPost.mockRejectedValueOnce(new ApiError(401, { error: "Invalid credentials" }))
 
     const { result } = renderHook(() => useLoginForm())
     act(() => {
@@ -124,7 +112,7 @@ describe("useLoginForm", () => {
 
   it("navigates to a validated returnTo path after login", async () => {
     mocked.returnTo = "/oauth/consent?client_id=beech-mcp-cli"
-    mocked.axiosPost.mockResolvedValueOnce({ data: { token: "jwt-token", expiresIn: "15m" } })
+    mocked.loginPost.mockResolvedValueOnce(loginResponse({ token: "jwt-token", expiresIn: "15m" }))
 
     const { result } = renderHook(() => useLoginForm())
     act(() => {

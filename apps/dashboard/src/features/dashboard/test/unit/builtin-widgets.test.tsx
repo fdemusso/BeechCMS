@@ -9,11 +9,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 import type { Seed } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
+const mocked = vi.hoisted(() => ({ schema: vi.fn(), me: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { schema: { $get: mocked.schema }, settings: { me: { $get: mocked.me } } } },
 }))
 
-import { api } from "@/lib/api"
+import { FULL_AUTHORITY, meResponseBody } from "@/test/me-payload"
 import "@/features/dashboard/registry/builtin-widgets"
 import { WidgetConfigSheet } from "@/features/dashboard/builder/widget-config-sheet"
 
@@ -42,7 +44,8 @@ function renderWithClient(ui: React.ReactElement) {
 describe("builtin widget config panels", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: SEEDS })
+    mocked.schema.mockResolvedValue({ json: async () => SEEDS })
+    mocked.me.mockResolvedValue({ json: async () => meResponseBody(FULL_AUTHORITY) })
   })
 
   it("core/stat: shows statKey select without a seed, and switches to formula/window/label fields once a seed is picked", async () => {

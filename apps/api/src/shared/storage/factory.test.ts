@@ -419,58 +419,32 @@ describe('S3Bucket', () => {
       baseUrl: 'https://api.example.com',
     })
 
-    const clientSendSpy = vi.spyOn((bucket as any).client, 'send').mockResolvedValue({})
+    const fetchMock = vi.fn(async (_request: Request) => new Response('', { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
 
-    await bucket.put('/uploads/photo.jpg', new Uint8Array([1, 2, 3]))
-    expect(clientSendSpy).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        input: expect.objectContaining({
-          Bucket: 'bucket',
-          Key: 'uploads/photo.jpg',
-        }),
-      })
-    )
-
-    await bucket.get('//uploads/photo.jpg')
-    expect(clientSendSpy).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        input: expect.objectContaining({
-          Bucket: 'bucket',
-          Key: 'uploads/photo.jpg',
-        }),
-      })
-    )
-
-    await bucket.delete('///uploads/photo.jpg')
-    expect(clientSendSpy).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        input: expect.objectContaining({
-          Bucket: 'bucket',
-          Key: 'uploads/photo.jpg',
-        }),
-      })
-    )
-
-    await bucket.head('/uploads/photo.jpg')
-    expect(clientSendSpy).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        input: expect.objectContaining({
-          Bucket: 'bucket',
-          Key: 'uploads/photo.jpg',
-        }),
-      })
-    )
+    try {
+      const calls: Array<() => Promise<unknown>> = [
+        () => bucket.put('/uploads/photo.jpg', new Uint8Array([1, 2, 3])),
+        () => bucket.get('//uploads/photo.jpg'),
+        () => bucket.delete('///uploads/photo.jpg'),
+        () => bucket.head('/uploads/photo.jpg'),
+      ]
+      for (const call of calls) {
+        await call()
+        expect(new URL(fetchMock.mock.calls.at(-1)![0].url).pathname).toBe('/bucket/uploads/photo.jpg')
+      }
+    } finally {
+      vi.unstubAllGlobals()
+    }
 
     const presignedPutUrl = await bucket.presignPut('/uploads/photo.jpg', { expiresIn: 900 })
-    expect(presignedPutUrl).toContain('uploads/photo.jpg')
-    expect(presignedPutUrl).not.toContain('//uploads/photo.jpg')
+    expect(new URL(presignedPutUrl).pathname).toBe('/bucket/uploads/photo.jpg')
 
     const presignedGetUrl = await bucket.presignGet('/uploads/photo.jpg', { expiresIn: 900 })
-    expect(presignedGetUrl).toContain('uploads/photo.jpg')
-    expect(presignedGetUrl).not.toContain('//uploads/photo.jpg')
+    expect(new URL(presignedGetUrl).pathname).toBe('/bucket/uploads/photo.jpg')
   })
 
-  it('handles NoSuchKey, NotFound, message NoSuchKey, and HTTP 404 status codes in get and head without throwing', async () => {
+  it('treats HTTP 404 as a missing object in get and head, and rethrows other errors', async () => {
     const bucket = new S3Bucket({
       endpoint: 'http://localhost:9000',
       accessKeyId: 'key',
@@ -479,39 +453,20 @@ describe('S3Bucket', () => {
       baseUrl: 'https://api.example.com',
     })
 
-    const mock404Error = Object.assign(new Error('Not Found'), {
-      $metadata: { httpStatusCode: 404 },
-    })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
 
-    // Mock client.send
-    const clientSendSpy = vi.spyOn((bucket as any).client, 'send')
+    try {
+      fetchMock.mockResolvedValueOnce(new Response('<Error><Code>NoSuchKey</Code></Error>', { status: 404 }))
+      expect(await bucket.get('missing.png')).toBeNull()
 
-    // 1. get() with 404 httpStatusCode
-    clientSendSpy.mockRejectedValueOnce(mock404Error)
-    const getResult = await bucket.get('missing.png')
-    expect(getResult).toBeNull()
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }))
+      expect(await bucket.head('missing.png')).toBeNull()
 
-    // 2. head() with 404 httpStatusCode
-    clientSendSpy.mockRejectedValueOnce(mock404Error)
-    const headResult = await bucket.head('missing.png')
-    expect(headResult).toBeNull()
-
-    // 3. get() with errorMessage 'NoSuchKey'
-    clientSendSpy.mockRejectedValueOnce(new Error('NoSuchKey'))
-    const getResultNoSuchKey = await bucket.get('missing.png')
-    expect(getResultNoSuchKey).toBeNull()
-
-    // 4. head() with errorName 'NotFound'
-    const notFoundError = new Error('Object not found')
-    notFoundError.name = 'NotFound'
-    clientSendSpy.mockRejectedValueOnce(notFoundError)
-    const headResultNotFound = await bucket.head('missing.png')
-    expect(headResultNotFound).toBeNull()
-
-    // 5. Non-404 error should be rethrown
-    const accessDeniedError = new Error('Access Denied')
-    accessDeniedError.name = 'AccessDenied'
-    clientSendSpy.mockRejectedValueOnce(accessDeniedError)
-    await expect(bucket.get('private.png')).rejects.toThrow('Access Denied')
+      fetchMock.mockResolvedValueOnce(new Response('<Error><Code>AccessDenied</Code><Message>Access Denied</Message></Error>', { status: 403 }))
+      await expect(bucket.get('private.png')).rejects.toThrow('Access Denied')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

@@ -11,10 +11,8 @@ export interface CanonicalUser {
   /** bcrypt hash of `password`, precomputed — hashing at test time costs ~100ms per user. */
   readonly passwordHash: string
   readonly name: string
-  /** Stored verbatim in `users.role`, which is CHECK-constrained to 'admin' | 'editor'. */
-  readonly role: 'admin' | 'editor'
-  /** Grants `SuperAdmin` at `GLOBAL_SCOPE`. Defaults to true for `role === 'admin'`. */
-  readonly grantSuperAdmin?: boolean
+  /** Grants `SuperAdmin` at `GLOBAL_SCOPE`. */
+  readonly grantSuperAdmin: boolean
 }
 
 const CANONICAL_PASSWORD = 'password123'
@@ -28,7 +26,7 @@ export const CANONICAL_USERS = {
     password: CANONICAL_PASSWORD,
     passwordHash: CANONICAL_PASSWORD_HASH,
     name: 'Canonical Admin',
-    role: 'admin',
+    grantSuperAdmin: true,
   },
   editor: {
     id: '0c30b2fc-5fa8-49ef-be8a-a15cd2ea7863',
@@ -36,19 +34,16 @@ export const CANONICAL_USERS = {
     password: CANONICAL_PASSWORD,
     passwordHash: CANONICAL_PASSWORD_HASH,
     name: 'Canonical Editor',
-    role: 'editor',
     grantSuperAdmin: false,
   },
-  // 'viewer' has no matching users.role value (CHECK admin|editor). This is an
-  // editor-shaped account deliberately given no RBAC role assignment, for
-  // permission-denial and non-owner assertions.
+  // An account deliberately given no RBAC assignment, for permission-denial
+  // and non-owner assertions.
   viewer: {
     id: 'eb9aa066-3d67-4234-a5fb-7461d6450f5b',
     email: 'viewer@beech.test',
     password: CANONICAL_PASSWORD,
     passwordHash: CANONICAL_PASSWORD_HASH,
     name: 'Canonical Viewer',
-    role: 'editor',
     grantSuperAdmin: false,
   },
 } as const satisfies Record<string, CanonicalUser>

@@ -2,7 +2,7 @@ import * as React from "react"
 import { Slot } from "radix-ui"
 
 import { cn } from "@/lib/utils"
-import { ChevronRight as ChevronRightIcon, More as MoreHorizontalIcon } from 'reicon-react'
+import { ChevronRight as ChevronRightIcon, More as MoreHorizontalIcon } from '@/components/icons'
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
   return (
@@ -56,9 +56,9 @@ function BreadcrumbLink({
   )
 }
 
-function BreadcrumbPage({ className, ...props }: React.ComponentProps<"span">) {
+function BreadcrumbPage({ className, ...props }: React.ComponentProps<"a">) {
   return (
-    <span
+    <a
       data-slot="breadcrumb-page"
       role="link"
       aria-disabled="true"

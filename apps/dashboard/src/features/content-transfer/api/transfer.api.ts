@@ -2,10 +2,12 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { isAxiosError } from "axios"
 import type { TransferFormat } from "@beechcms/core"
+import type { InferResponseType } from "hono/client"
 
-import { api } from "@/lib/api"
+import { apiFetchUnbounded } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
+import { isApiError } from "@/lib/http/api-error"
 
 export type ImportJobState = "pending" | "processing" | "completed" | "failed"
 
@@ -19,25 +21,7 @@ export interface ImportRowError {
 
 /** The wire shape of GET /api/content/import-jobs/:id. `objectKey` and `createdBy` are
  *  deliberately absent from the endpoint — do not add them here to "complete" the type. */
-export interface ImportJobResponse {
-  id: string
-  targetSeed: string
-  format: TransferFormat
-  state: ImportJobState
-  rowsRead: number
-  insertedRows: number
-  failedRows: number
-  errors: ImportRowError[]
-  createdAt: number
-  updatedAt: number
-  finishedAt: number | null
-}
-
-interface PresignResponse {
-  uploadUrl: string
-  key: string
-  expiresIn: number
-}
+export type ImportJobResponse = InferResponseType<(typeof rpc.api.content)["import-jobs"][":id"]["$get"]>
 
 /** RFC 7807, as `publicProblem()` emits it. `type` is the contract; `detail` is copy. */
 export interface ProblemDetails {
@@ -80,22 +64,12 @@ const CONTENT_TYPES: Record<TransferFormat, string> = {
 }
 
 /**
- * Reads the problem body out of an axios error, including the blob case: with
- * `responseType: "blob"` axios hands back a Blob even on 4xx, so `error.response.data` is not
- * the parsed JSON the rest of the app expects.
+ * Reads the RFC 7807 body out of an `ApiError`. The client parses error bodies as JSON whatever
+ * the `responseType`, so a failed `blob` download needs no special handling here.
  */
-export async function readProblem(error: unknown): Promise<ProblemDetails | null> {
-  if (!isAxiosError(error) || !error.response) return null
-  const data: unknown = error.response.data
-  if (data instanceof Blob) {
-    try {
-      return JSON.parse(await data.text()) as ProblemDetails
-    } catch {
-      return null
-    }
-  }
-  if (typeof data === "object" && data !== null && "type" in data) return data as ProblemDetails
-  return null
+export function readProblem(error: unknown): ProblemDetails | null {
+  if (!isApiError(error) || error.data === null) return null
+  return "type" in error.data ? (error.data as unknown as ProblemDetails) : null
 }
 
 /**
@@ -105,29 +79,28 @@ export async function readProblem(error: unknown): Promise<ProblemDetails | null
  * so callers that only care about the RFC 7807 contract are not forced to widen their type.
  */
 export function isStorageNotConfiguredError(error: unknown): boolean {
-  if (!isAxiosError(error) || error.response?.status !== 501) return false
-  const data: unknown = error.response.data
-  return typeof data === "object" && data !== null && (data as StorageNotConfiguredProblem).error === "presigned_urls_require_s3_credentials"
+  if (!isApiError(error) || error.status !== 501) return false
+  return (error.data as StorageNotConfiguredProblem | null)?.error === "presigned_urls_require_s3_credentials"
 }
 
 /**
  * Streams the export into a Blob and hands it to the browser as a download.
- * `timeout: 0` overrides the client's 30 s default: an export up to EXPORT_MAX_ROWS rows can
+ * `apiFetchUnbounded` replaces the client's 30 s budget: an export up to EXPORT_MAX_ROWS rows can
  * legitimately stream for longer, and aborting mid-stream is the corrupted-file failure the
  * server's 413 cap exists to prevent.
  */
 export async function downloadExport(slug: string, format: TransferFormat): Promise<void> {
-  const response = await api.get<Blob>(`/content/${slug}/export`, {
-    params: { format },
-    responseType: "blob",
-    timeout: 0,
-  })
+  const response = await rpc.api.content[":slug"].export.$get(
+    { param: { slug }, query: { format } },
+    { fetch: apiFetchUnbounded },
+  )
+  const data = await response.blob()
 
   // The filename the API sets in Content-Disposition; rebuilt rather than parsed, because the
   // header is not exposed to the browser on a cross-origin response and parsing it would be a
   // second, weaker source of truth.
   const filename = `${slug}.${FILE_EXTENSIONS[format]}`
-  const blob = new Blob([response.data], { type: CONTENT_TYPES[format] })
+  const blob = new Blob([data], { type: CONTENT_TYPES[format] })
   const url = URL.createObjectURL(blob)
   const downloadAnchor = document.createElement("a")
   downloadAnchor.href = url
@@ -144,21 +117,24 @@ export async function downloadExport(slug: string, format: TransferFormat): Prom
  * worker deletes it on a terminal job state — so a permanent media row would outlive the object.
  */
 export async function presignImportObject(file: File, format: TransferFormat): Promise<string> {
-  const presign = await api.post<PresignResponse>("/upload/presign", {
-    filename: file.name,
-    mimeType: PRESIGN_MIME_TYPES[format],
-    sizeBytes: file.size,
-    purpose: "import",
+  const presignResponse = await rpc.api.upload.presign.$post({
+    json: {
+      filename: file.name,
+      mimeType: PRESIGN_MIME_TYPES[format],
+      sizeBytes: file.size,
+      purpose: "import",
+    },
   })
+  const presign = await presignResponse.json()
 
-  const putResponse = await fetch(presign.data.uploadUrl, {
+  const putResponse = await fetch(presign.uploadUrl, {
     method: "PUT",
     headers: { "Content-Type": PRESIGN_MIME_TYPES[format] },
     body: file,
   })
   if (!putResponse.ok) throw new Error(`Storage PUT failed: ${putResponse.status}`)
 
-  return presign.data.key
+  return presign.key
 }
 
 export async function createImportJob(
@@ -166,11 +142,11 @@ export async function createImportJob(
   objectKey: string,
   format: TransferFormat,
 ): Promise<string> {
-  const response = await api.post<{ jobId: string }>(`/content/${slug}/import`, { objectKey, format })
-  return response.data.jobId
+  const response = await rpc.api.content[":slug"].import.$post({ param: { slug }, json: { objectKey, format } })
+  return (await response.json()).jobId
 }
 
 export async function fetchImportJob(jobId: string): Promise<ImportJobResponse> {
-  const response = await api.get<ImportJobResponse>(`/content/import-jobs/${jobId}`)
-  return response.data
+  const response = await rpc.api.content["import-jobs"][":id"].$get({ param: { id: jobId } })
+  return response.json()
 }

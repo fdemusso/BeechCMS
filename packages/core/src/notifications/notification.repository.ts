@@ -31,12 +31,6 @@ export type CreateNotificationRecord = Omit<NotificationRecord, 'id' | 'createdA
   dedupeKey?: string
 }
 
-export interface NotificationStats {
-  totalCount: number
-  latestCreatedAt: number
-  readCount: number
-}
-
 export interface INotificationRepository {
   /**
    * Return the most recent notifications, newest first.
@@ -45,15 +39,6 @@ export interface INotificationRepository {
    * could grow large over time and clients only ever render a window.
    */
   list(limit: number): Promise<NotificationRecord[]>
-
-  /**
-   * Return aggregate counters used to build the GET /notifications ETag.
-   *
-   * Computing `totalCount`, `latestCreatedAt` and `readCount` on the database
-   * side lets the handler skip serialising the full list when nothing has
-   * changed since the client's last poll, saving bandwidth on the dashboard.
-   */
-  stats(): Promise<NotificationStats>
 
   /**
    * Insert a new notification and return its generated id so callers (e.g.

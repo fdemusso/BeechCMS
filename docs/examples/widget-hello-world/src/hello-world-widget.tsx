@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import { Sparkles } from 'lucide-react'
+import { SparklesIcon as Sparkles } from './sparkles-icon.js'
 import { WidgetShell, WidgetEmpty, WidgetError, useWidgetAggregate, type DashboardWidgetProps } from '@beechcms/widget-sdk'
 import type { HelloWorldConfig } from './config.js'
 

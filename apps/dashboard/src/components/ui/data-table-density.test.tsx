@@ -10,7 +10,7 @@ import type { ContentEntry } from "@/lib/dynamic-columns"
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 function makeEntry(id: string): ContentEntry {
-  return { id, schema_slug: "test", slug: id, status: "published", data: {}, created_at: null, updated_at: null }
+  return { id, slug: id, status: "published", data: {}, created_at: null, updated_at: null }
 }
 
 const cols: ColumnDef<ContentEntry, unknown>[] = [

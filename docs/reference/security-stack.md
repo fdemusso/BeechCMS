@@ -41,10 +41,11 @@ export interface JwtClaims {
   email?: string;
   name?: string;
   surname?: string;
-  role?: string;
   [key: string]: unknown;
 }
 ```
+
+The token identifies the account only. Authority is resolved from the account's assignments on every request (`resolveEffectivePermissions` in the permission middleware), so a role change takes effect without re-issuing tokens, and any extra claim a token carries is ignored.
 
 ---
 

@@ -101,6 +101,24 @@ LIMIT/OFFSET pagination.
 
 ***
 
+### resolveSeed?
+
+> `optional` **resolveSeed?**: (`slug`) => [`Seed`](Seed.md) \| `null` \| `undefined`
+
+Resolves relation targets so `search` can match a relation display name (see `resolveSearchSupport`).
+
+#### Parameters
+
+##### slug
+
+`string`
+
+#### Returns
+
+[`Seed`](Seed.md) \| `null` \| `undefined`
+
+***
+
 ### search?
 
 > `optional` **search?**: `string`

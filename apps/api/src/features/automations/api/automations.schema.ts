@@ -195,5 +195,10 @@ export const toggleAutomationSchema = z.object({
   enabled: z.boolean(),
 })
 
+/** `GET /automations?seed=`: an empty `seed` is as good as none. */
+export const listAutomationsQuerySchema = z.object({
+  seed: z.string().min(1),
+})
+
 type CreateAutomationBody = z.infer<typeof createAutomationSchema>
 type UpdateAutomationBody = z.infer<typeof updateAutomationSchema>

@@ -171,6 +171,7 @@ Stop at the first failure, fix it, and re-run from step 1.
    ```bash
    node "$MAIN/scripts/cpu-slot.mjs" -- node scripts/test-coverage-diff.mjs --base origin/devs
    ```
+   Exit codes: `0` = all related tests passed and changed-line coverage met the threshold; `1` = test failure, syntax/import error, zero tests run for the changed files, or fatal tooling error; `2` = all tests passed but changed-line coverage fell below threshold (add tests, do not ignore). Files exempt via `coverage.exclude` still have their related tests run; they are only left out of the coverage verdict.
    If the script crashes before running tests (e.g. `ERR_MODULE_NOT_FOUND`), that is a tooling defect, not a pass and not a reason to skip the gate: check `gh issue list --state open --search "test-coverage-diff"` (file one if absent), then run the equivalent by hand inside the slot (unit `vitest related --run --project unit <changed files>` plus the integration files of the touched slices) and mark the PR table row `⚠️ script broken, ran manually` with the commands used. Changed-file coverage is then reported as "not measured", never invented.
    Always pass `--base origin/devs`: after `git push -u` the auto-detected base falls back to the possibly stale local `devs`. Add `--tier unit,integration,flow` only if the fix touches Docker-bound code (email, storage/R2, webhooks, automation executors, or anything under `apps/api/test/`).
 2. **Type-check + lint**, limited to changed packages and their dependents:

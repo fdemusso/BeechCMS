@@ -2,6 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { problemCode } from "@/lib/http/api-error"
+
 /** Mirror of the API's frozen content problem types (apps/api/src/features/content/handlers/helpers.ts). */
 export const CONTENT_ERROR_CODES = {
   SLUG_CONFLICT: "content-slug-conflict",
@@ -18,9 +20,8 @@ export type ContentErrorCode = (typeof CONTENT_ERROR_CODES)[keyof typeof CONTENT
  * (`apps/api/src/public/errors/problem-details.ts#normalizeProblemType`).
  */
 export function contentErrorCode(error: unknown): ContentErrorCode | null {
-  const type = (error as { response?: { data?: { type?: unknown } } })?.response?.data?.type
-  if (typeof type !== "string") return null
-  const code = type.split("/").pop() ?? ""
+  const code = problemCode(error)
+  if (code === null) return null
   return (Object.values(CONTENT_ERROR_CODES) as string[]).includes(code)
     ? (code as ContentErrorCode)
     : null

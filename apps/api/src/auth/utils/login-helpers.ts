@@ -3,21 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import { isValidAccountEmail, type IHashProvider } from '@beechcms/core'
-
-export type LoginCredentials = {
-  email: string
-  password: string
-}
-
-/** Lunghezza minima password (caratteri) */
-const MIN_PASSWORD_LENGTH = 8
-
-/** Lunghezza massima password (caratteri) - limite ragionevole per evitare DoS */
-const MAX_PASSWORD_LENGTH = 128
-
-/** bcrypt hasha solo i primi 72 byte UTF-8; oltre viene ignorato silenziosamente */
-const MAX_PASSWORD_BYTES = 72
+import type { IHashProvider } from '@beechcms/core'
 
 /**
  * Hash bcrypt dummy valido.
@@ -26,36 +12,6 @@ const MAX_PASSWORD_BYTES = 72
  */
 export const DUMMY_PASSWORD_HASH =
   '$2a$10$SbkRFOafACxVM2ahxerVDu3tSkCXWm29b62WdB.4WGG02Qjsfzni6'
-
-/**
- * Estrae e valida email e password dal body della richiesta.
- * @param body - Body grezzo (tipicamente da req.json())
- * @returns Oggetto {email, password} se valido, null altrimenti
- */
-export function parseLoginBody(body: unknown): LoginCredentials | null {
-  if (body === null || typeof body !== 'object') return null
-  const obj = body as Record<string, unknown>
-  const email = obj.email
-  const password = obj.password
-  if (typeof email !== 'string' || typeof password !== 'string') return null
-  if (!email.trim() || !password) return null
-  return { email: email.trim().toLowerCase(), password }
-}
-
-/**
- * Verifica che email e password rispettino i formati richiesti.
- * @param email - Email da validare (deve contenere @ e punto dopo @)
- * @param password - Password (8-128 caratteri)
- * @returns true se valido
- */
-export function validateLoginInput(email: string, password: string): boolean {
-  return (
-    isValidAccountEmail(email) &&
-    password.length >= MIN_PASSWORD_LENGTH &&
-    password.length <= MAX_PASSWORD_LENGTH &&
-    new TextEncoder().encode(password).length <= MAX_PASSWORD_BYTES
-  )
-}
 
 /**
  * Verifica che la password in chiaro corrisponda all'hash salvato.

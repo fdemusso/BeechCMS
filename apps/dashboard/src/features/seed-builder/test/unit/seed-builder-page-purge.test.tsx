@@ -19,7 +19,7 @@ const deletedSeed: SeedRecordDTO = {
   updatedAt: 1,
 }
 
-vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { role: "admin" } }) }))
+vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ canGlobally: () => true }) }))
 vi.mock("@/features/shared", () => ({ useSchema: () => ({ data: [] }) }))
 vi.mock("@/features/entry-editor", () => ({ SchemaFormShell: () => null }))
 vi.mock("@/features/seed-builder/hooks/use-seed-editor-dialog", () => ({ useSeedEditorDialog: () => ({}) }))

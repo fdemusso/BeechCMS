@@ -3,10 +3,10 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from 'react'
-import { useTheme } from 'next-themes'
+import { useTheme } from '@/lib/theme'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Monitor, Moon, Sun } from 'reicon-react'
+import { Monitor, Moon, Sun } from '@/components/icons'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -23,7 +23,7 @@ export function InterfaceTab() {
     { value: 'light', label: t('settings.interface.themeLight'), icon: Sun },
     { value: 'dark', label: t('settings.interface.themeDark'), icon: Moon },
     { value: 'system', label: t('settings.interface.themeSystem'), icon: Monitor },
-  ]
+  ] as const
 
   const ROWS_OPTIONS = [
     { value: '10', label: t('settings.interface.rows10') },

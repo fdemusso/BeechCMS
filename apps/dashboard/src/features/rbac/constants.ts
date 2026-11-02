@@ -2,6 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { problemCode } from '@/lib/http/api-error'
+
 /** Mirror of the API's frozen `RBAC_ERRORS`. Codes are never renamed once shipped. */
 export const RBAC_ERROR_CODES = {
   INVALID_JSON: 'invalid-json',
@@ -13,7 +15,6 @@ export const RBAC_ERROR_CODES = {
   ROLE_NAME_TAKEN: 'role-name-taken',
   SYSTEM_ROLE_IMMUTABLE: 'system-role-immutable',
   LAST_GLOBAL_ADMIN: 'last-global-admin',
-  DEVELOPER_PROTECTED: 'developer-protected',
   UNKNOWN_SCOPE: 'unknown-scope',
   EMAIL_UNAVAILABLE: 'email-unavailable',
   INVITATION_INVALID: 'invitation-invalid',
@@ -29,9 +30,8 @@ export type RbacErrorCode = (typeof RBAC_ERROR_CODES)[keyof typeof RBAC_ERROR_CO
  * (`apps/api/src/public/problem-details.ts#normalizeProblemType`).
  */
 export function rbacErrorCode(error: unknown): RbacErrorCode | null {
-  const type = (error as { response?: { data?: { type?: unknown } } })?.response?.data?.type
-  if (typeof type !== 'string') return null
-  const code = type.split('/').pop() ?? ''
+  const code = problemCode(error)
+  if (code === null) return null
   return (Object.values(RBAC_ERROR_CODES) as string[]).includes(code)
     ? (code as RbacErrorCode)
     : null

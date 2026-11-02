@@ -3,6 +3,12 @@
 
 import { z } from 'zod'
 import type { Seed } from '../engine/types.js'
+import { hasPermission } from '../rbac/evaluate.js'
+import type { EffectivePermissions } from '../rbac/types.js'
+import {
+  filterDashboardLayoutByWidgetRequirements,
+  resolveCoreWidgetRequirement,
+} from './widget-requirements.js'
 
 // ---------------------------------------------------------------------------
 // Dashboard layout interfaces
@@ -42,6 +48,9 @@ export interface DashboardPageLayout {
   label: string
   /** Lucide icon name, same convention as DashboardSeedConfig.icon. */
   icon?: string
+  /** Ids (not names) of the roles this tab targets. Absent or empty = every caller.
+   *  Non-empty = callers holding at least one of them through an active assignment, at any scope. */
+  roles?: string[]
   sections: DashboardSection[]
 }
 
@@ -69,7 +78,23 @@ export const MAX_DASHBOARD_LAYOUT_BYTES = 256 * 1024
 
 export const MAX_SECTIONS_PER_PAGE = 50
 export const MAX_WIDGETS_PER_COLUMN = 50
+export const MAX_ROLES_PER_PAGE = 32
 const ID_MAX = 64
+
+/**
+ * Label limits. The dashboard builder puts the same numbers on its inputs; the server enforces them for
+ * real: a longer label can only come from another client and is refused (422), not shortened.
+ */
+export const DASHBOARD_PAGE_LABEL_MAX = 60
+export const DASHBOARD_SECTION_LABEL_MAX = 60
+export const DASHBOARD_WIDGET_TITLE_MAX = 80
+
+/** A label: trimmed, then checked. Control characters (newlines included) are refused; markup is not stripped
+ *  because labels are only rendered as text. */
+const dashboardLabel = (max: number, min: number) =>
+  z.string().trim().min(min).max(max).refine((value) => !/\p{Cc}/u.test(value), {
+    message: 'Label must not contain control characters.',
+  })
 
 // ---------------------------------------------------------------------------
 // Zod schemas for shape validation
@@ -78,7 +103,7 @@ const ID_MAX = 64
 export const dashboardWidgetInstanceSchema = z.object({
   id: z.string().min(1).max(ID_MAX),
   type: z.string().regex(WIDGET_TYPE_REGEX),
-  title: z.string().max(80).optional(),
+  title: dashboardLabel(DASHBOARD_WIDGET_TITLE_MAX, 0).optional(),
   config: z.record(z.string(), z.unknown()),
 })
 export const dashboardColumnSchema = z.object({
@@ -87,7 +112,7 @@ export const dashboardColumnSchema = z.object({
 })
 export const dashboardSectionSchema = z.object({
   id: z.string().min(1).max(ID_MAX),
-  label: z.string().max(60).optional(),
+  label: dashboardLabel(DASHBOARD_SECTION_LABEL_MAX, 0).optional(),
   hideLabel: z.boolean().optional(),
   collapsible: z.boolean().optional(),
   columns: z.array(dashboardColumnSchema).min(1).max(4),
@@ -96,8 +121,9 @@ export const dashboardSectionSchema = z.object({
 export const dashboardPageSchema = z.object({
   id: z.string().min(1).max(ID_MAX),
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(40),
-  label: z.string().min(1).max(60),
+  label: dashboardLabel(DASHBOARD_PAGE_LABEL_MAX, 1),
   icon: z.string().max(40).optional(),
+  roles: z.array(z.string().min(1).max(ID_MAX)).max(MAX_ROLES_PER_PAGE).optional(),
   sections: z.array(dashboardSectionSchema).min(1).max(MAX_SECTIONS_PER_PAGE),
 })
 export const dashboardLayoutSchema = z
@@ -118,12 +144,16 @@ const defaultIdFactory = (): string => crypto.randomUUID()
 
 /** Structural port of the legacy hardcoded dashboard config into a single
  *  'Overview' page. Widgets fetch their own data: configs carry only the
- *  variant and (where relevant) the default seed binding. */
+ *  variant and (where relevant) the default seed binding. The default contains
+ *  only what `permissions` can use: seed bindings take readable seeds only and
+ *  widgets whose requirement is unmet are dropped, so it may come back with no pages. */
 export function generateDefaultDashboardLayout(
   seeds: Seed[],
+  permissions: EffectivePermissions,
   opts?: { newId: () => string },
 ): DashboardLayout {
   const newId = opts?.newId ?? defaultIdFactory
+  const readableSeeds = seeds.filter((seed) => hasPermission(permissions, 'content:read', seed.slug))
 
   const widget = (
     type: string,
@@ -150,7 +180,7 @@ export function generateDefaultDashboardLayout(
     widget('core/storage', { variant: 'gauge' }),
     widget('core/publication-stats', { variant: 'trio' }),
   ]
-  if (seeds.length > 0) {
+  if (readableSeeds.length > 0) {
     statusWidgets.push(widget('core/quick-draft', { variant: 'minimal' }))
   }
   sections.push({
@@ -159,8 +189,8 @@ export function generateDefaultDashboardLayout(
     columns: statusWidgets.map(singleWidgetColumn),
   })
 
-  if (seeds.length > 0) {
-    const seedSlug = seeds.find((s) => s.slug === 'articoli')?.slug ?? seeds[0].slug
+  if (readableSeeds.length > 0) {
+    const seedSlug = readableSeeds.find((s) => s.slug === 'articoli')?.slug ?? readableSeeds[0].slug
 
     // Content row: recent content | pending drafts.
     sections.push({
@@ -185,7 +215,7 @@ export function generateDefaultDashboardLayout(
     })
   }
 
-  return {
+  const layout: DashboardLayout = {
     version: 1,
     pages: [
       {
@@ -197,6 +227,7 @@ export function generateDefaultDashboardLayout(
       },
     ],
   }
+  return filterDashboardLayoutByWidgetRequirements(layout, permissions, resolveCoreWidgetRequirement)
 }
 
 // ---------------------------------------------------------------------------
@@ -209,6 +240,9 @@ export interface DashboardLayoutContext {
   /** Optional: widget types known to the caller (frontend registry).
    *  When provided, unknown types produce WARNINGS, never strips. */
   knownWidgetTypes?: ReadonlySet<string>
+  /** Optional: ids of every existing role. When provided, a page naming an id outside this set
+   *  is an ERROR (never stripped: emptying the list would make the tab public). */
+  roleIds?: ReadonlySet<string>
 }
 
 export type ValidateDashboardLayoutResult =
@@ -250,16 +284,39 @@ export function validateDashboardLayout(
 
   // Semantic checks on the cleaned layout
   const seenWidgetIds = new Set<string>()
+  const seenPageIds = new Set<string>()
   const seenPageSlugs = new Set<string>()
+  const seenSectionIds = new Set<string>()
+  const seenColumnIds = new Set<string>()
 
   for (const page of cleanedPages) {
+    if (seenPageIds.has(page.id)) {
+      errors.push(`Page id '${page.id}' appears more than once in the layout.`)
+    } else {
+      seenPageIds.add(page.id)
+    }
+
     if (seenPageSlugs.has(page.slug)) {
       errors.push(`Page slug '${page.slug}' appears more than once in the layout.`)
     } else {
       seenPageSlugs.add(page.slug)
     }
 
+    if (ctx.roleIds !== undefined) {
+      for (const roleId of page.roles ?? []) {
+        if (!ctx.roleIds.has(roleId)) {
+          errors.push(`Page '${page.slug}': unknown role id '${roleId}'.`)
+        }
+      }
+    }
+
     for (const section of page.sections) {
+      if (seenSectionIds.has(section.id)) {
+        errors.push(`Section id '${section.id}' appears more than once in the layout.`)
+      } else {
+        seenSectionIds.add(section.id)
+      }
+
       if (section.columnSpans !== undefined) {
         if (section.columnSpans.length !== section.columns.length) {
           errors.push(
@@ -274,6 +331,12 @@ export function validateDashboardLayout(
       }
 
       for (const col of section.columns) {
+        if (seenColumnIds.has(col.id)) {
+          errors.push(`Column id '${col.id}' appears more than once in the layout.`)
+        } else {
+          seenColumnIds.add(col.id)
+        }
+
         for (const w of col.widgets) {
           if (seenWidgetIds.has(w.id)) {
             errors.push(`Widget id '${w.id}' appears more than once in the layout.`)

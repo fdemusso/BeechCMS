@@ -103,6 +103,37 @@ describe('content slice — import integration (real D1, real R2)', () => {
       expect(body.type).toBe('https://beechcms.dev/problems/content-invalid-import-format')
     })
 
+    it('a body that is not JSON is refused 400 content-invalid-json and no job row is created', async () => {
+      const before = await jobRowCount()
+
+      const response = await admin.post('/api/content/categories/import', undefined, { body: '{not json' })
+
+      expect(response.status).toBe(400)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/content-invalid-json')
+      expect(await jobRowCount()).toBe(before)
+    })
+
+    it('a JSON body that is not an object is read as empty and refused for its missing objectKey', async () => {
+      const before = await jobRowCount()
+
+      const response = await admin.post('/api/content/categories/import', null)
+
+      expect(response.status).toBe(400)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/content-import-object-key-required')
+      expect(await jobRowCount()).toBe(before)
+    })
+
+    it('an unknown seed answers 404 content-seed-not-found before the body is read', async () => {
+      // Regression guard: the seed lookup is a middleware ahead of zodJson, as it was a step ahead of the body read.
+      const response = await admin.post('/api/content/no-such-seed/import', undefined, { body: '{not json' })
+
+      expect(response.status).toBe(404)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/content-seed-not-found')
+    })
+
     it('a media-library key is refused with 403 and the object survives', async () => {
       const key = '1700000000-abcd1234-photo.png'
       await MEDIA_BUCKET.put(key, 'binary')

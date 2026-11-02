@@ -6,7 +6,7 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { permissionsHeldAnywhere, type Permission, type RoleRecord } from "@beechcms/core"
-import { Search } from "reicon-react"
+import { Search } from "@/components/icons"
 import {
   Dialog,
   DialogContent,

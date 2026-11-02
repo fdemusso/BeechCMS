@@ -5,7 +5,7 @@
 import * as React from "react"
 import { Link } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { Eye, EyeOff } from 'reicon-react'
+import { Eye, EyeOff } from '@/components/icons'
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"

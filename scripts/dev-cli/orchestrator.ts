@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
 import { randomBytes } from 'node:crypto'
-import stripAnsi from 'strip-ansi'
+import { stripVTControlCharacters as stripAnsi } from 'node:util'
 import { LogStore, type ErrorEntry, type LogLine, type LogSource } from './log-store'
 
 export type ServiceId = 'docker' | 'tunnel' | 'bootstrap' | 'api' | 'dashboard' | 'core'

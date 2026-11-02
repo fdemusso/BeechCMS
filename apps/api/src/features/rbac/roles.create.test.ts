@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Hono } from 'hono'
 import type { IRoleRepository } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
-import { createRoleHandler } from './roles'
+import { rbacApp } from './index'
 
 const roleRepository = {
   listAll: vi.fn<IRoleRepository['listAll']>(),
@@ -22,7 +22,7 @@ function buildApp() {
     context.set('roleRepository', roleRepository as unknown as IRoleRepository)
     await next()
   })
-  app.post('/api/rbac/roles', createRoleHandler)
+  app.route('/api/rbac', rbacApp)
   return app
 }
 

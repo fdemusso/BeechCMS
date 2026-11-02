@@ -8,11 +8,10 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate, useBlocker } from "react-router-dom"
 import { toast } from "sonner"
-import type { AxiosError } from "axios"
+import { isApiError } from "@/lib/http/api-error"
 import {
   slugify,
   generateDefaultLayout,
-  canEditLayout,
   isLocalizedBranch,
   type Branch,
   type FormLayout,
@@ -29,8 +28,8 @@ import {
   contentErrorCode,
 } from "@/features/content-management"
 import { useActiveSeed, useLocaleConfig } from "@/features/shared"
-import { useAuth } from "@/lib/auth-context"
-import { Loader as Loader2 } from 'reicon-react'
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
+import { Loader as Loader2 } from '@/components/icons'
 import type { RendererBranchMap, RendererLocalization } from "../renderer/layout-renderer"
 import { LocaleSwitcher } from "../renderer/locale-switcher"
 import {
@@ -238,8 +237,8 @@ export function useEntryEditorDialog({
     setIsReadOnly(readonly ?? false)
   }, [readonly])
 
-  const { user } = useAuth()
-  const canEditLayoutFlag = canEditLayout(user?.role)
+  const { canGlobally } = usePermissions()
+  const canEditLayoutFlag = canGlobally("manage_seeds")
 
   const blocker = useBlocker(() => isDirty && !hasJustSavedRef.current)
 
@@ -323,20 +322,20 @@ export function useEntryEditorDialog({
   }
 
   const handleDraftError = (err: unknown) => {
-    const ax = err as AxiosError<{ detail?: string; errors?: ApiFieldError[] }>
-    if (ax.response?.status === 400 && ax.response.data.errors?.length) {
-      const errors = ax.response.data.errors
+    const apiError = isApiError(err) ? err : null
+    if (apiError?.status === 400 && apiError.data?.errors?.length) {
+      const errors = apiError.data.errors as ApiFieldError[]
       setFieldErrors(foldFieldErrors(errors, seedBranches))
       toast.error(t("content.editor.validationError", { count: errors.length }))
       return
     }
-    const code = contentErrorCode(ax)
-    if (ax.response?.status === 409 && (
+    const code = contentErrorCode(err)
+    if (apiError?.status === 409 && (
       code === CONTENT_ERROR_CODES.DRAFT_SAVE_CONFLICT ||
       code === CONTENT_ERROR_CODES.DRAFT_PUBLISH_CONFLICT
     )) {
       const publishConflict = code === CONTENT_ERROR_CODES.DRAFT_PUBLISH_CONFLICT
-      toast.error(ax.response.data.detail || t("content.editor.updateConflict"), {
+      toast.error(apiError.data?.detail || t("content.editor.updateConflict"), {
         action: {
           label: t(publishConflict ? "content.editor.discardDraft" : "content.editor.reload"),
           onClick: () => {
@@ -529,11 +528,9 @@ export function useEntryEditorDialog({
         onClose()
       }
     } catch (err) {
-      type ApiValidationError = ApiFieldError
-      type ApiErrorBody = { error?: string; status?: number; errors?: ApiValidationError[] }
-      const ax = err as AxiosError<ApiErrorBody>
-      if (ax.response?.status === 409) {
-        if (contentErrorCode(ax) === CONTENT_ERROR_CODES.UPDATE_CONFLICT) {
+      const apiError = isApiError(err) ? err : null
+      if (apiError?.status === 409) {
+        if (contentErrorCode(err) === CONTENT_ERROR_CODES.UPDATE_CONFLICT) {
           toast.error(t("content.editor.updateConflict"), {
             action: {
               label: t("content.editor.reload"),
@@ -545,8 +542,8 @@ export function useEntryEditorDialog({
         toast.error(t("content.editor.slugDuplicate"))
         return
       }
-      if (ax.response?.status === 400) {
-        const errors = ax.response.data?.errors
+      if (apiError?.status === 400) {
+        const errors = apiError.data?.errors as ApiFieldError[] | undefined
         if (errors && errors.length > 0) {
           setFieldErrors(foldFieldErrors(errors, seedBranches))
           toast.error(t("content.editor.validationError", { count: errors.length }))

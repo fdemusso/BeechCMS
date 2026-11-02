@@ -74,7 +74,7 @@ describe("AssignmentsDialog", () => {
     expect(screen.getByLabelText("Update content")).toBeInTheDocument()
   })
 
-  it("disables delete action for SuperAdmin assignment when isDeveloper is true", () => {
+  it("the SuperAdmin assignment's delete button is enabled", () => {
     mockAssignments.mockReturnValue({
       data: [
         {
@@ -105,15 +105,14 @@ describe("AssignmentsDialog", () => {
         onOpenChange={vi.fn()}
         userId="u1"
         userEmail="admin@beech.local"
-        isDeveloper={true}
       />
     )
 
     const deleteButtons = screen.getAllByRole("button", { name: "Delete" })
     expect(deleteButtons).toHaveLength(2)
-    // SuperAdmin delete button must be disabled for developer account
-    expect(deleteButtons[0]).toBeDisabled()
-    // Other roles remain deletable
+    // Regression guard: no role-based exception may disable removing a SuperAdmin assignment;
+    // the server's last-global-admin guard is the only protection.
+    expect(deleteButtons[0]).not.toBeDisabled()
     expect(deleteButtons[1]).not.toBeDisabled()
   })
 })

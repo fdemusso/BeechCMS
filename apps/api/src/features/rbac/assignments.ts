@@ -3,11 +3,11 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME, canGrant, hasPermission } from '@beechcms/core'
+import { GLOBAL_SCOPE, canGrant, hasPermission } from '@beechcms/core'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { RBAC_ERRORS } from './constants'
-import { canAdministerAccount, rbacProblem, readJson, type AppContext } from './guards'
-import { createAssignmentSchema } from './rbac.schema'
+import { canAdministerAccount, rbacProblem, type AppContext, type JsonContext } from './guards'
+import type { createAssignmentSchema } from './rbac.schema'
 
 /**
  * GET /api/rbac/users/:userId/assignments
@@ -38,7 +38,7 @@ export const listAssignmentsHandler = async (context: AppContext) => {
       roleName: roleById.get(assignment.roleId)?.name ?? null,
       permissions: roleById.get(assignment.roleId)?.permissions ?? [],
     })),
-  })
+  }, 200)
 }
 
 /**
@@ -50,17 +50,8 @@ export const listAssignmentsHandler = async (context: AppContext) => {
  *      that scope.
  * Idempotent: the repository's `INSERT OR IGNORE` + read-back returns the existing id.
  */
-export const createAssignmentHandler = async (context: AppContext) => {
-  const body = await readJson(context)
-  if (body === undefined) {
-    return rbacProblem(context, RBAC_ERRORS.INVALID_JSON, 400, 'Bad Request', 'Request body is not valid JSON.')
-  }
-  const parsed = createAssignmentSchema.safeParse(body)
-  if (!parsed.success) {
-    return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', parsed.error.message)
-  }
-
-  const { userId, roleId, scope } = parsed.data
+export const createAssignmentHandler = async (context: JsonContext<typeof createAssignmentSchema>) => {
+  const { userId, roleId, scope } = context.req.valid('json')
   const idGenerator = context.get('idGenerator')
   if (!idGenerator.isValid(userId) || !idGenerator.isValid(roleId)) {
     return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', 'Malformed id.')
@@ -119,24 +110,6 @@ export const deleteAssignmentHandler = async (context: AppContext) => {
 
   const actor = await resolveEffectivePermissions(context)
   if (!hasPermission(actor, 'manage_users', assignment.scope)) return notFound()
-
-  if (assignment.scope === GLOBAL_SCOPE) {
-    const role = await context.get('roleRepository').findById(assignment.roleId)
-    if (role?.name === SUPER_ADMIN_ROLE_NAME) {
-      const owner = await context.get('userRepository').findById(assignment.userId)
-      if (owner?.role === 'admin') {
-        // The Developer is usually also the sole administrator; that is the more fundamental refusal.
-        if (await assignmentRepository.isLastGlobalAdminAssignment(assignmentId)) return lastAdminProblem(context)
-        return rbacProblem(
-          context,
-          RBAC_ERRORS.DEVELOPER_PROTECTED,
-          409,
-          'Conflict',
-          'The developer account must retain the SuperAdmin role.',
-        )
-      }
-    }
-  }
 
   // The last-admin invariant is enforced inside the delete statement itself, not by a
   // count read beforehand, so concurrent deletions cannot both pass it.

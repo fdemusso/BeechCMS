@@ -680,7 +680,7 @@ export async function forms(options: FormsOptions = {}): Promise<void> {
         placeholder: 'clienti',
         defaultValue: 'clienti',
         validate: (value) => {
-          if (!value.trim()) return 'Seed slug cannot be empty'
+          if (!value?.trim()) return 'Seed slug cannot be empty'
         },
       })
 

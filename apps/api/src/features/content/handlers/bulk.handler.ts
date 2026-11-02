@@ -2,7 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { Context } from 'hono'
+import type { Context } from 'hono'
+import type { z } from 'zod'
 import {
   isEffectivelyEmpty,
   isLocalizedBranch,
@@ -14,8 +15,8 @@ import { publicProblem } from '../../../public/errors/problem-details'
 import { contentValidationProblem } from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
-
-const MAX_BULK_SIZE = 500
+import type { ZodJsonInput, ZodJsonRefusal } from '../../../shared/utils/zod-json'
+import type { contentBulkBodySchema } from '../crud.schema'
 
 const MULTI_REL_MODES = ['replace', 'add', 'remove'] as const
 type MultiRelMode = (typeof MULTI_REL_MODES)[number]
@@ -35,16 +36,28 @@ function isMultiRelWrapper(v: unknown): v is MultiRelWrapper {
   )
 }
 
-export async function bulkHandler(context: Context<AppEnv>) {
-  const slug = context.req.param('slug')
-  if (!slug) {
-    return publicProblem(context, {
-      type: 'content-invalid-slug-or-id',
-      title: 'Bad Request',
-      status: 400,
-      detail: CONTENT_ERRORS.INVALID_SLUG_OR_ID,
-    })
+/**
+ * A refused bulk body: not JSON at all is `content-invalid-json`; otherwise the first issue of
+ * `contentBulkBodySchema` says which check failed. `ids` that are too many (the schema's only
+ * `custom` issue on `ids`) is `bulk-size-exceeded`, any other `ids` problem (including a body that
+ * is not an object) is `bulk-invalid-ids`, and `fields` is `bulk-invalid-fields`.
+ */
+export function rejectInvalidBulkBody(context: Context, error: z.ZodError, cause: ZodJsonRefusal) {
+  if (cause === 'malformed') {
+    return publicProblem(context, { type: 'content-invalid-json', title: 'Bad Request', status: 400, detail: CONTENT_ERRORS.INVALID_JSON_BODY })
   }
+  const first = error.issues[0]
+  if (first.path[0] === 'fields') {
+    return publicProblem(context, { type: 'bulk-invalid-fields', title: 'Bad Request', status: 400, detail: 'fields must be an object with at least one key' })
+  }
+  if (first.code === 'custom') {
+    return publicProblem(context, { type: 'bulk-size-exceeded', title: 'Bad Request', status: 400, detail: CONTENT_ERRORS.BULK_SIZE_EXCEEDED })
+  }
+  return publicProblem(context, { type: 'bulk-invalid-ids', title: 'Bad Request', status: 400, detail: 'ids must be a non-empty array of strings' })
+}
+
+export async function bulkHandler(context: Context<AppEnv, '/:slug/bulk', ZodJsonInput<typeof contentBulkBodySchema>>) {
+  const slug = context.req.param('slug')
 
   const seed = context.get('getSeed')(slug)
   if (!seed) {
@@ -56,55 +69,9 @@ export async function bulkHandler(context: Context<AppEnv>) {
     })
   }
 
-  let body: Record<string, unknown>
-  try {
-    body = await context.req.json<Record<string, unknown>>()
-  } catch {
-    return publicProblem(context, {
-      type: 'content-invalid-json',
-      title: 'Bad Request',
-      status: 400,
-      detail: CONTENT_ERRORS.INVALID_JSON_BODY,
-    })
-  }
-
-  // ── Validate ids ─────────────────────────────────────────────────────────────
-  const ids = body.ids
-  if (!Array.isArray(ids) || ids.length === 0 || ids.some((id) => typeof id !== 'string')) {
-    return publicProblem(context, {
-      type: 'bulk-invalid-ids',
-      title: 'Bad Request',
-      status: 400,
-      detail: 'ids must be a non-empty array of strings',
-    })
-  }
-
-  if (ids.length > MAX_BULK_SIZE) {
-    return publicProblem(context, {
-      type: 'bulk-size-exceeded',
-      title: 'Bad Request',
-      status: 400,
-      detail: `Cannot edit more than ${MAX_BULK_SIZE} entries at once`,
-    })
-  }
+  const { ids, fields: fieldsRaw } = context.req.valid('json')
 
   // ── Validate fields ───────────────────────────────────────────────────────────
-  const rawFields = body.fields
-  if (
-    typeof rawFields !== 'object' ||
-    rawFields === null ||
-    Array.isArray(rawFields) ||
-    Object.keys(rawFields as object).length === 0
-  ) {
-    return publicProblem(context, {
-      type: 'bulk-invalid-fields',
-      title: 'Bad Request',
-      status: 400,
-      detail: 'fields must be an object with at least one key',
-    })
-  }
-
-  const fieldsRaw = rawFields as Record<string, unknown>
 
   // Validate each alias exists on the seed and is not hidden/encrypt
   const resolvedFields: Record<string, BulkFieldUpdate> = {}
@@ -208,7 +175,7 @@ export async function bulkHandler(context: Context<AppEnv>) {
 
   // ── Execute ───────────────────────────────────────────────────────────────────
   const repository = context.get('repository')
-  const { updated, failed } = await repository.bulkUpdate(seed, ids as string[], resolvedFields)
+  const { updated, failed } = await repository.bulkUpdate(seed, ids, resolvedFields)
 
   // ── Activity log (single entry for the whole operation) ───────────────────────
   const jwtPayload = context.get('jwtPayload')
@@ -239,5 +206,5 @@ export async function bulkHandler(context: Context<AppEnv>) {
     },
   }))
 
-  return context.json({ updated, failed: failedProblems })
+  return context.json({ updated, failed: failedProblems }, 200)
 }

@@ -7,6 +7,7 @@ import type {
   IActivityLogRepository,
   ActivityLogRecord,
   ActivityLogListOptions,
+  ActivityLogVisibility,
   ActivityAction,
   EntityType,
   CountSinceOptions,
@@ -48,6 +49,12 @@ export class D1ActivityLogRepository implements IActivityLogRepository {
       bindings.push(options.entitySlug)
     }
 
+    const visibilityFilter = buildVisibilityFilter(options.visibility)
+    if (visibilityFilter) {
+      whereClauses.push(visibilityFilter.clause)
+      bindings.push(...visibilityFilter.bindings)
+    }
+
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
 
     const sql =
@@ -65,17 +72,52 @@ export class D1ActivityLogRepository implements IActivityLogRepository {
   }
 
   async countSince(options: CountSinceOptions): Promise<number> {
+    const whereClauses = ['action = ?', 'entity_type = ?', 'created_at >= ?']
+    const bindings: unknown[] = [options.action, options.entityType, options.sinceTimestamp]
+
+    const visibilityFilter = buildVisibilityFilter(options.visibility)
+    if (visibilityFilter) {
+      whereClauses.push(visibilityFilter.clause)
+      bindings.push(...visibilityFilter.bindings)
+    }
+
     const row = await this.database
       .prepare(
         `SELECT COUNT(*) as count
            FROM activity_logs
-          WHERE action = ?
-            AND entity_type = ?
-            AND created_at >= ?`
+          WHERE ${whereClauses.join(' AND ')}`
       )
-      .bind(options.action, options.entityType, options.sinceTimestamp)
+      .bind(...bindings)
       .first<{ count: number }>()
     return row?.count ?? 0
+  }
+}
+
+/**
+ * Translate a visibility rule into one SQL clause plus its bindings, or `null` when unrestricted.
+ *
+ * A slug list is bound as a single JSON array through `json_each(?)`, so the
+ * query never approaches D1's bound-parameter cap and never emits `IN ()`.
+ */
+function buildVisibilityFilter(
+  visibility: ActivityLogVisibility | undefined,
+): { clause: string; bindings: unknown[] } | null {
+  if (!visibility) return null
+
+  const { seeds, includeUnscoped } = visibility
+
+  if (seeds === 'all') {
+    return includeUnscoped ? null : { clause: 'entity_slug IS NOT NULL', bindings: [] }
+  }
+
+  if (seeds.length === 0) {
+    return { clause: includeUnscoped ? 'entity_slug IS NULL' : '1 = 0', bindings: [] }
+  }
+
+  const slugMatch = 'entity_slug IN (SELECT value FROM json_each(?))'
+  return {
+    clause: includeUnscoped ? `(${slugMatch} OR entity_slug IS NULL)` : slugMatch,
+    bindings: [JSON.stringify(seeds)],
   }
 }
 

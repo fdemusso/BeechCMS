@@ -105,7 +105,7 @@ The returned `TestHarness` object exposes:
 
 | Property / Method | Description |
 |---|---|
-| `harness.asUser('admin' \| 'editor' \| CanonicalUser, options?)` | Returns an authenticated `TestClient` injecting `Authorization: Bearer <token>` with specified roles and claims. Supports `{ ttlSeconds }`. |
+| `harness.asUser('admin' \| 'editor' \| 'viewer' \| CanonicalUser, options?)` | Returns an authenticated `TestClient` injecting `Authorization: Bearer <token>`, with a token carrying only `sub`, `email` and `name`. Authority comes from the users' RBAC assignments, provisioned at seed time: a user with `grantSuperAdmin: true` gets `SuperAdmin` at `*` (`admin` does, `editor` and `viewer` do not). Supports `{ ttlSeconds }`. |
 | `harness.anonymous()` | Returns an unauthenticated `TestClient` for testing public endpoints and 401 unauthenticated access. |
 | `harness.clock` | `FixedClock` instance with `.now()`, `.nowSeconds()`, `.advance(ms)`, and `.set(epochMs)` to test token expiry and time-based rules. |
 | `harness.tokenService` | `FakeTokenService` for issuing or inspecting deterministic test tokens. |

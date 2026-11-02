@@ -7,7 +7,7 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import { z } from "zod"
-import { ChartLine as LineChart, ChartBar as BarChart3, Chart as AreaChart } from 'reicon-react'
+import { ChartLine as LineChart, ChartBar as BarChart3, Chart as AreaChart } from '@/components/icons'
 
 import { registerWidget } from "./widget-registry"
 

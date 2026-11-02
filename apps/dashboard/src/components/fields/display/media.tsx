@@ -7,7 +7,7 @@
  * `fileOptions.accept === 'image'`; altrimenti mostra icona generica senza
  * effettuare richieste HTTP verso l'URL.
  */
-import { File as FileIcon } from 'reicon-react'
+import { File as FileIcon } from '@/components/icons'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { resolveFileOptions } from "@beechcms/core"
 import type { FieldDisplayProps } from "../types"

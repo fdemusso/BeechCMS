@@ -23,6 +23,7 @@ import type { KanbanBoardAction, DragSnapshot } from './use-kanban-board'
 import { KANBAN_SETTLE_MS, KANBAN_POSITION_REBALANCE_THRESHOLD } from '../constants'
 import type { KanbanCardDisplayModel } from '../types'
 import { buildKanbanCardDisplayModel } from './kanban-card-display'
+import { isApiError } from '@/lib/http/api-error'
 
 interface UseKanbanDragOptions {
   seedSlug: string
@@ -396,8 +397,7 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
         // Rebalance is OPTIONAL (Ponytail-gated) — skipped in v1
       }
     } catch (err: unknown) {
-      const status = (err as any)?.response?.status
-      if (status === 404) {
+      if (isApiError(err) && err.status === 404) {
         queryClient.setQueriesData<InfiniteData<ContentListWithMeta>>(
           { queryKey: ['kanban', seedSlug, axisBranchId, srcColValue] },
           (old) => {

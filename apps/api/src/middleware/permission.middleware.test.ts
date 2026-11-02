@@ -28,6 +28,85 @@ describe('resolveRouteRule', () => {
   })
 })
 
+describe('resolveRouteRule — notification mutations', () => {
+  it('keeps reads and per-item read/unread flags authenticated, gates delete and mark-all-read behind manage_users@global', () => {
+    expect(resolveRouteRule('PATCH', '/api/content/notifications/n1/read')).toMatchObject({ requirement: { kind: 'authenticated' } })
+    const gated = { requirement: { kind: 'permission', permission: 'manage_users', scope: 'global' } }
+    expect(resolveRouteRule('DELETE', '/api/content/notifications/n1')).toMatchObject(gated)
+    expect(resolveRouteRule('POST', '/api/content/notifications/mark-all-read')).toMatchObject(gated)
+  })
+})
+
+describe('resolveRouteRule — stats routes', () => {
+  const STATS_REQUIREMENTS = [
+    { method: 'GET', path: '/api/content/stats/total', requirement: { kind: 'authenticated' } },
+    { method: 'GET', path: '/api/content/stats/breakdown', requirement: { kind: 'authenticated' } },
+    { method: 'GET', path: '/api/content/stats/recent-activity', requirement: { kind: 'authenticated' } },
+    { method: 'GET', path: '/api/content/stats/media-library', requirement: { kind: 'permission', permission: 'content:read', scope: 'global' } },
+    { method: 'GET', path: '/api/content/stats/unused-media', requirement: { kind: 'permission', permission: 'content:read', scope: 'global' } },
+    { method: 'GET', path: '/api/content/stats/setup-checklist', requirement: { kind: 'permission', permission: 'manage_users', scope: 'global' } },
+    { method: 'GET', path: '/api/content/stats/health', requirement: { kind: 'permission', permission: 'view_analytics', scope: 'global' } },
+    { method: 'GET', path: '/api/content/stats/cloudflare', requirement: { kind: 'permission', permission: 'view_analytics', scope: 'global' } },
+    { method: 'POST', path: '/api/content/stats/storage/sync', requirement: { kind: 'permission', permission: 'view_analytics', scope: 'global' } },
+  ] as const
+
+  it('every stats route resolves to its own requirement', () => {
+    const resolved = STATS_REQUIREMENTS.map(({ method, path }) => resolveRouteRule(method, path)?.requirement)
+
+    expect(resolved).toEqual(STATS_REQUIREMENTS.map(({ requirement }) => requirement))
+  })
+})
+
+describe('resolveRouteRule — seeds routes', () => {
+  const SEEDS_ROUTES = [
+    { method: 'GET', path: '/api/seeds' },
+    { method: 'POST', path: '/api/seeds' },
+    { method: 'PUT', path: '/api/seeds' },
+    { method: 'PATCH', path: '/api/seeds' },
+    { method: 'DELETE', path: '/api/seeds' },
+    { method: 'GET', path: '/api/seeds/x' },
+    { method: 'POST', path: '/api/seeds/x/mcp-apply' },
+  ] as const
+
+  it('every /api/seeds route resolves to manage_seeds at the global scope', () => {
+    const resolved = SEEDS_ROUTES.map(({ method, path }) => resolveRouteRule(method, path)?.requirement)
+
+    expect(resolved).toEqual(SEEDS_ROUTES.map(() => ({ kind: 'permission', permission: 'manage_seeds', scope: 'global' })))
+  })
+
+  it('the entry-editor layout routes resolve to manage_seeds at the global scope', () => {
+    const resolved = (['PUT', 'DELETE'] as const).map((method) => resolveRouteRule(method, '/api/schema/x/layout')?.requirement)
+
+    expect(resolved).toEqual([
+      { kind: 'permission', permission: 'manage_seeds', scope: 'global' },
+      { kind: 'permission', permission: 'manage_seeds', scope: 'global' },
+    ])
+  })
+})
+
+describe('resolveRouteRule — dashboard-layout routes', () => {
+  const LAYOUT_REQUIREMENTS = [
+    { method: 'GET', path: '/api/dashboard-layout', requirement: { kind: 'authenticated' } },
+    { method: 'GET', path: '/api/dashboard-layout/roles', requirement: { kind: 'permission', permission: 'manage_roles', scope: 'global' } },
+    { method: 'PUT', path: '/api/dashboard-layout', requirement: { kind: 'permission-any-global', permissions: ['manage_layout', 'manage_roles'] } },
+    { method: 'DELETE', path: '/api/dashboard-layout', requirement: { kind: 'permission', permission: 'manage_roles', scope: 'global' } },
+  ] as const
+
+  it('every dashboard-layout route resolves to its own requirement', () => {
+    const resolved = LAYOUT_REQUIREMENTS.map(({ method, path }) => resolveRouteRule(method, path)?.requirement)
+
+    expect(resolved).toEqual(LAYOUT_REQUIREMENTS.map(({ requirement }) => requirement))
+  })
+
+  it('resolves no rule for the removed per-scope URLs, so they fail closed', () => {
+    const scopes = resolveRouteRule('GET', '/api/dashboard-layout/scopes')
+    const perRoleUrl = resolveRouteRule('PUT', '/api/dashboard-layout/role:editor')
+
+    expect(scopes).toBeNull()
+    expect(perRoleUrl).toBeNull()
+  })
+})
+
 describe('permissionMiddleware', () => {
   let db: D1TestDatabase
   let app: ReturnType<typeof createBeechApp>
@@ -65,11 +144,6 @@ describe('permissionMiddleware', () => {
     }, { ...TEST_ENV, DB: db })
     expect(res.status).toBe(403)
     expect(await res.json()).toMatchObject({ error: 'route_not_registered' })
-  })
-
-  it('legacy-admin routes pass the gate and are then refused by requireAdmin for a non-admin', async () => {
-    const rule = resolveRouteRule('GET', '/api/seeds')
-    expect(rule?.requirement).toEqual({ kind: 'legacy-admin' })
   })
 
   it('deactivated account is refused 403 account_disabled even on GET /api/settings/me', async () => {

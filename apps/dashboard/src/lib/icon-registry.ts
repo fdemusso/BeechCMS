@@ -3,8 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import type { ComponentType } from 'react'
-import type { IconProps } from 'reicon-react'
-import { Folder, Document, ShoppingBag, Users, MessageSquare, Layout, UserCircle, Message, FileText, Image, Video, Music, Tag, Bookmark, Star, Heart, Globe, Link, Calendar, Clock, Map, Location, Package, Box, Archive, Database, Settings, Setting, Code, Book, BookOpen, GraduationCap, Award, Trophy, Flag, Layers, Grid, List, ChartBar, ChartPie, ChartBarTrendUp, Activity, Flash, Shield, Lock, Key, Bell, Phone, Camera, Mic, Monitor, Cpu, HardDrive, Wifi, Home, Building, Store, Briefcase, DollarSign, CreditCard, ShoppingCart, Truck, PercentageSquare, Hashtag, AtSign, InfoCircle, HelpCircle, AlertCircle, CheckCircle } from 'reicon-react'
+import type { IconProps } from '@/components/icons'
+import { Folder, Document, ShoppingBag, Users, MessageSquare, Layout, UserCircle, Message, FileText, Image, Video, Music, Tag, Bookmark, Star, Heart, Globe, Link, Calendar, Clock, Map, Location, Package, Box, Archive, Database, Settings, Setting, Code, Book, BookOpen, GraduationCap, Award, Trophy, Flag, Layers, Grid, List, ChartBar, ChartPie, ChartBarTrendUp, Activity, Flash, Shield, Lock, Key, Bell, Phone, Camera, Mic, Monitor, Cpu, HardDrive, Wifi, Home, Building, Store, Briefcase, DollarSign, CreditCard, ShoppingCart, Truck, PercentageSquare, Hashtag, AtSign, InfoCircle, HelpCircle, AlertCircle, CheckCircle } from '@/components/icons'
 
 export type IconComponent = ComponentType<IconProps>
 

@@ -12,16 +12,35 @@ const ROW_TERMINATOR = '\r\n'
 const QUOTE = '"'
 const MUST_QUOTE = /[",\r\n]/
 
+/** Characters a spreadsheet reads as the start of a formula (OWASP CSV Injection, CWE-1236). */
+const FORMULA_TRIGGER = /^[=+\-@\t\r]/
+/** A plain number such as `-5` or `+3.14` cannot be a formula, so it keeps its exact text. */
+const PLAIN_NUMBER = /^[+-]?\d+(\.\d+)?$/
+const NEUTRALIZER = "'"
+
+export interface CsvEncodeOptions {
+  /**
+   * Prefixes `'` to cells a spreadsheet would evaluate as a formula. Off by default: the
+   * prefix is read back as data by `CsvRowReader`, so a neutralized file is a one-way,
+   * human-facing export and must not be the default (it would break the import round-trip).
+   */
+  neutralizeFormulas?: boolean
+}
+
 /** Encodes one cell. `null`/`undefined` become an empty, unquoted field. */
-export function encodeCsvValue(value: string | null | undefined): string {
+export function encodeCsvValue(value: string | null | undefined, options: CsvEncodeOptions = {}): string {
   if (value === null || value === undefined) return ''
-  if (!MUST_QUOTE.test(value)) return value
-  return `${QUOTE}${value.replaceAll(QUOTE, `${QUOTE}${QUOTE}`)}${QUOTE}`
+  const text =
+    options.neutralizeFormulas && FORMULA_TRIGGER.test(value) && !PLAIN_NUMBER.test(value)
+      ? NEUTRALIZER + value
+      : value
+  if (!MUST_QUOTE.test(text)) return text
+  return `${QUOTE}${text.replaceAll(QUOTE, `${QUOTE}${QUOTE}`)}${QUOTE}`
 }
 
 /** Encodes one row, CRLF terminator included (RFC 4180 §2.1). */
-export function encodeCsvRow(cells: Array<string | null | undefined>): string {
-  return cells.map(encodeCsvValue).join(DELIMITER) + ROW_TERMINATOR
+export function encodeCsvRow(cells: Array<string | null | undefined>, options: CsvEncodeOptions = {}): string {
+  return cells.map((cell) => encodeCsvValue(cell, options)).join(DELIMITER) + ROW_TERMINATOR
 }
 
 const BYTE_ORDER_MARK = '\uFEFF'

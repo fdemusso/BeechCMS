@@ -4,7 +4,7 @@
 
 /**
  * Cross-slice: content-management + shared. `useContentList` calls the real `useSchema` /
- * `useLocaleConfig` / `useLocalizeEntryData` chain from `@/features/shared` — only `@/lib/api`
+ * `useLocaleConfig` / `useLocalizeEntryData` chain from `@/features/shared` — only `@/lib/rpc`
  * is mocked — to prove localized list items resolve to the default locale end to end.
  */
 
@@ -14,11 +14,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createElement, type ReactNode } from "react"
 import type { Seed } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn() },
+const mocked = vi.hoisted(() => ({ settings: vi.fn(), schema: vi.fn(), list: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { settings: { $get: mocked.settings }, schema: { $get: mocked.schema }, content: { ":slug": { $get: mocked.list } } } },
 }))
 
-import { api } from "@/lib/api"
 import { useContentList } from "@/features/content-management/hooks/use-content-list"
 
 const LOCALIZED_SEED: Seed = {
@@ -43,24 +44,26 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe("useContentList — localized items", () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocked.settings.mockResolvedValue({ json: async () => SETTINGS })
+  })
 
   it("exposes list items with localized fields resolved to the default locale", async () => {
-    vi.mocked(api.get).mockImplementation(async (url: string) => {
-      if (url === "/schema") return { data: [LOCALIZED_SEED] }
-      if (url === "/settings") return { data: SETTINGS }
-      if (url === "/content/loc_items") {
+    mocked.schema.mockResolvedValue({ json: async () => [LOCALIZED_SEED] })
+    mocked.list.mockImplementation(async ({ param }: { param: { slug: string } }) => {
+      if (param.slug === "loc_items") {
         return {
-          data: {
+          json: async () => ({
             items: [{
-              id: "e1", schema_slug: "loc_items", slug: null, status: "published",
+              id: "e1", slug: null, status: "published", has_pending_draft: false,
               data: { title: { it: "Scarpa", en: "Shoe" } }, created_at: null, updated_at: null,
             }],
-            total: 1, page: 1, limit: 25,
-          },
+            total: 1, page: 1, limit: 25, relations: {},
+          }),
         }
       }
-      throw new Error(`unexpected request: ${url}`)
+      throw new Error(`unexpected request: ${param.slug}`)
     })
 
     const { result } = renderHook(() => useContentList("loc_items", { page: 1, limit: 25 }), { wrapper })
@@ -69,25 +72,25 @@ describe("useContentList — localized items", () => {
   })
 
   it("makes no settings request when no seed is localized", async () => {
-    vi.mocked(api.get).mockImplementation(async (url: string) => {
-      if (url === "/schema") return { data: [PLAIN_SEED] }
-      if (url === "/content/plain_items") {
+    mocked.schema.mockResolvedValue({ json: async () => [PLAIN_SEED] })
+    mocked.list.mockImplementation(async ({ param }: { param: { slug: string } }) => {
+      if (param.slug === "plain_items") {
         return {
-          data: {
+          json: async () => ({
             items: [{
-              id: "e1", schema_slug: "plain_items", slug: null, status: "published",
+              id: "e1", slug: null, status: "published", has_pending_draft: false,
               data: { title: "Hello" }, created_at: null, updated_at: null,
             }],
-            total: 1, page: 1, limit: 25,
-          },
+            total: 1, page: 1, limit: 25, relations: {},
+          }),
         }
       }
-      throw new Error(`unexpected request: ${url}`)
+      throw new Error(`unexpected request: ${param.slug}`)
     })
 
     const { result } = renderHook(() => useContentList("plain_items", { page: 1, limit: 25 }), { wrapper })
 
     await waitFor(() => expect(result.current.data?.items[0]?.data.title).toBe("Hello"))
-    expect(api.get).not.toHaveBeenCalledWith("/settings")
+    expect(mocked.settings).not.toHaveBeenCalled()
   })
 })

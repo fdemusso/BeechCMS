@@ -4,6 +4,7 @@
 
 import { useRouteError, isRouteErrorResponse, Link } from "react-router-dom"
 import { useTranslation } from "react-i18next"
+import { Button } from "@/components/ui/button"
 
 export function ErrorPage() {
   const { t } = useTranslation()
@@ -29,12 +30,13 @@ export function ErrorPage() {
         )}
         <h1 className="font-heading text-xl font-semibold">{t("errorPage.title")}</h1>
         <p className="text-sm text-muted-foreground">{message}</p>
-        <Link
-          to="/"
-          className="rounded-md bg-accent px-4 py-2 text-sm !text-white hover:bg-accent/90"
-        >
-          {t("errorPage.backHome")}
-        </Link>
+        {/* Neutral CTA: --foreground/--background invert between themes (black on white ↔ white on black).
+            Not the default variant, whose --primary is the blue brand colour.
+            `text-background!` (important) is REQUIRED: index.css has an unlayered `a { color: var(--foreground) }`
+            that beats every Tailwind utility, so without it the link text equals the background (black on black). */}
+        <Button asChild className="bg-foreground text-background! hover:bg-foreground/90">
+          <Link to="/">{t("errorPage.backHome")}</Link>
+        </Button>
       </div>
     </div>
   )

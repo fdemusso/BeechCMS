@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Sparkles, ArrowRight } from 'reicon-react'
+import { Sparkles, ArrowRight } from '@/components/icons'
 
 export function AIInsights() {
   return (

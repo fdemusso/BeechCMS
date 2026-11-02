@@ -12,6 +12,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock("@/features/seed-builder/api/seeds.api", () => ({ seedsApi: { remove: vi.fn() } }))
 
 import { seedsApi } from "@/features/seed-builder/api/seeds.api"
+import { ApiError, type ApiErrorBody } from "@/lib/http/api-error"
 import type { SeedRecordDTO } from "@/features/seed-builder/api/seeds.api"
 import { DeleteSeedDialog } from "@/features/seed-builder/components/DeleteSeedDialog"
 
@@ -30,9 +31,9 @@ describe("DeleteSeedDialog — reference conflict", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("shows a single error toast when the API answers 409 with the referencing seeds", async () => {
-    vi.mocked(seedsApi.remove).mockRejectedValue({
-      response: { status: 409, data: { detail: "Seed is referenced", referencedBy: ["author"] } },
-    })
+    vi.mocked(seedsApi.remove).mockRejectedValue(
+      new ApiError(409, { detail: "Seed is referenced", referencedBy: ["author"] } as ApiErrorBody),
+    )
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
     render(
       <QueryClientProvider client={client}>

@@ -6,7 +6,7 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { Trash2, ChevronDown, ChevronUp, SortV as GripVertical, InfoCircle as Info } from 'reicon-react'
+import { Trash2, ChevronDown, ChevronUp, SortV as GripVertical, InfoCircle as Info } from '@/components/icons'
 import type { Branch, BranchType, Seed } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -136,7 +136,7 @@ export function BranchItemRow({
       style={style}
       open={open}
       onOpenChange={setOpen}
-      className="rounded-md border bg-background"
+      className="rounded-lg border bg-background"
     >
       <div className="flex items-center gap-2 p-3">
         <button

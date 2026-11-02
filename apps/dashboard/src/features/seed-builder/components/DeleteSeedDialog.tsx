@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useDeleteSeed } from "../hooks/use-seeds"
 import type { SeedRecordDTO } from "../api/seeds.api"
-import type { AxiosError } from "axios"
+import { isApiError } from "@/lib/http/api-error"
 
 interface ProblemDetail {
   detail?: string
@@ -42,13 +42,12 @@ export function DeleteSeedDialog({ seed, open, onOpenChange }: DeleteSeedDialogP
         onOpenChange(false)
       },
       onError: (err) => {
-        const axErr = err as AxiosError<ProblemDetail>
-        if (axErr.response?.status === 409) {
-          const refs = axErr.response.data?.referencedBy
+        if (isApiError(err) && err.status === 409) {
+          const refs = (err.data as ProblemDetail | null)?.referencedBy
           toast.error(t("seedBuilder.delete.referenceConflict"), {
             description: refs?.length
               ? t("seedBuilder.delete.referencedBy", { seeds: refs.join(", ") })
-              : axErr.response.data?.detail,
+              : err.data?.detail,
           })
         }
       },

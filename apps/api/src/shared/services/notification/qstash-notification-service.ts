@@ -3,7 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import type { INotificationService, CreateNotificationInput } from '@beechcms/core'
-import { Client } from '@upstash/qstash'
+
+const DEFAULT_QSTASH_URL = 'https://qstash.upstash.io'
 
 type ScheduleBackgroundTask = (task: Promise<unknown>) => void
 
@@ -15,7 +16,8 @@ type ScheduleBackgroundTask = (task: Promise<unknown>) => void
  * local webhook endpoint where it is actually inserted into D1.
  */
 export class QStashNotificationService implements INotificationService {
-  private readonly client: Client
+  private readonly token: string
+  private readonly publishUrl: string
   private readonly webhookUrl: string
 
   constructor(
@@ -24,10 +26,8 @@ export class QStashNotificationService implements INotificationService {
     private readonly scheduleBackgroundTask?: ScheduleBackgroundTask,
     qstashUrl?: string
   ) {
-    this.client = new Client({ 
-      token,
-      ...(qstashUrl ? { baseUrl: qstashUrl } : {})
-    })
+    this.token = token
+    this.publishUrl = `${(qstashUrl ?? DEFAULT_QSTASH_URL).replace(/\/+$/, '')}/v2/publish/`
     this.webhookUrl = `${appUrl.replace(/\/$/, '')}/api/webhooks/qstash`
   }
 
@@ -44,10 +44,17 @@ export class QStashNotificationService implements INotificationService {
 
   private async runPublish(input: CreateNotificationInput): Promise<void> {
     try {
-      await this.client.publishJSON({
-        url: this.webhookUrl,
-        body: input,
+      const response = await fetch(this.publishUrl + this.webhookUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(input),
       })
+      if (!response.ok) {
+        throw new Error(`QStash publish failed with status ${response.status}`)
+      }
     } catch (error) {
       console.error('QStashNotificationService: failed to publish notification', error)
     }

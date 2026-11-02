@@ -6,7 +6,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { Calendar as CalendarIcon } from 'reicon-react'
+import { Calendar as CalendarIcon } from '@/components/icons'
 import { format, parse, isValid } from "date-fns"
 
 import { Calendar } from "@/components/ui/calendar"
@@ -85,24 +85,31 @@ export function DatePickerInput({
   const [month, setMonth] = React.useState<Date | undefined>(date)
   
   // Text value used in the input field
-  const [textValue, setTextValue] = React.useState(formatDate(date, displayFormat))
+  const [textValue, setTextValue] = React.useState(() => formatDate(date, displayFormat))
 
   const [isFocused, setIsFocused] = React.useState(false)
 
   // Sync internal state with external value when it changes from outside
-  React.useEffect(() => {
-    if (isFocused) return
-
-    const d = parseExternalDate(externalValue)
-    if (!d) {
-      setDate(undefined)
-      setTextValue("")
-      return
+  // (guarded render-phase update: converges once the marker matches the inputs)
+  const [syncedInputs, setSyncedInputs] = React.useState({ externalValue, isFocused, displayFormat })
+  if (
+    syncedInputs.externalValue !== externalValue ||
+    syncedInputs.isFocused !== isFocused ||
+    syncedInputs.displayFormat !== displayFormat
+  ) {
+    setSyncedInputs({ externalValue, isFocused, displayFormat })
+    if (!isFocused) {
+      const d = parseExternalDate(externalValue)
+      if (!d) {
+        setDate(undefined)
+        setTextValue("")
+      } else {
+        setDate(d)
+        setMonth(d)
+        setTextValue(formatDate(d, displayFormat))
+      }
     }
-    setDate(d)
-    setMonth(d)
-    setTextValue(formatDate(d, displayFormat))
-  }, [externalValue, isFocused, displayFormat])
+  }
 
   const notifyChange = (newDate: Date | undefined) => {
     if (!externalOnChange) return

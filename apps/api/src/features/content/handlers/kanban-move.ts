@@ -3,48 +3,42 @@
 // See LICENSE in the repository root for license terms.
 
 import type { Context } from 'hono'
+import type { z } from 'zod'
 import {
   isKanbanAxisRequired,
   kanbanColumnEntryValue,
   resolveKanbanConfig,
   validateAndSanitizeSeedPayload,
-  type KanbanMoveBody,
 } from '@beechcms/core'
 import { publicProblem } from '../../../public/errors/problem-details'
 import { handleContentDatabaseError } from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import type { AppEnv } from '../../../types'
+import type { ZodJsonInput, ZodJsonRefusal } from '../../../shared/utils/zod-json'
+import type { kanbanMoveBodySchema } from '../crud.schema'
 
-function isAxisMove(axis: unknown): axis is NonNullable<KanbanMoveBody['axis']> {
-  if (typeof axis !== 'object' || axis === null || !('value' in axis)) return false
-  return typeof axis.value === 'string' || axis.value === null
+/**
+ * A refused move body: either the required strings are wrong (or the body is not JSON at all) or
+ * `axis` is. Both are `content-invalid-body`; the first issue of `kanbanMoveBodySchema` tells them
+ * apart, so a body wrong in both ways still reads as the strings, as it always did.
+ */
+export function rejectInvalidKanbanMove(context: Context, error: z.ZodError, cause: ZodJsonRefusal) {
+  if (cause === 'invalid' && error.issues[0].path[0] === 'axis') {
+    return publicProblem(context, { type: 'content-invalid-body', title: 'Bad Request', status: 400, detail: 'axis.value must be a string or null' })
+  }
+  return publicProblem(context, { type: 'content-invalid-body', title: 'Bad Request', status: 400, detail: 'position and axisBranchId are required strings' })
 }
 
-export async function kanbanMoveHandler(context: Context<AppEnv>) {
+export async function kanbanMoveHandler(context: Context<AppEnv, '/:slug/:id/kanban-move', ZodJsonInput<typeof kanbanMoveBodySchema>>) {
   const slug = context.req.param('slug')
   const id = context.req.param('id')
-  if (!slug || !id) {
-    return publicProblem(context, { type: 'content-invalid-slug-or-id', title: 'Bad Request', status: 400, detail: CONTENT_ERRORS.INVALID_SLUG_OR_ID })
-  }
 
   const seed = context.get('getSeed')(slug)
   if (!seed) {
     return publicProblem(context, { type: 'content-seed-not-found', title: 'Not Found', status: 404, detail: CONTENT_ERRORS.SEED_NOT_FOUND })
   }
 
-  let body: KanbanMoveBody
-  try {
-    const raw = await context.req.json<KanbanMoveBody>()
-    if (typeof raw.position !== 'string' || !raw.position || typeof raw.axisBranchId !== 'string' || !raw.axisBranchId) {
-      throw new Error('invalid')
-    }
-    body = raw
-  } catch {
-    return publicProblem(context, { type: 'content-invalid-body', title: 'Bad Request', status: 400, detail: 'position and axisBranchId are required strings' })
-  }
-  if (body.axis !== undefined && !isAxisMove(body.axis)) {
-    return publicProblem(context, { type: 'content-invalid-body', title: 'Bad Request', status: 400, detail: 'axis.value must be a string or null' })
-  }
+  const body = context.req.valid('json')
 
   const compat = resolveKanbanConfig(seed)
   const candidate = compat.candidates.find(c => c.branchId === body.axisBranchId)
@@ -95,5 +89,5 @@ export async function kanbanMoveHandler(context: Context<AppEnv>) {
     return handleContentDatabaseError(context, error)
   }
 
-  return context.json({ success: true })
+  return context.json({ success: true }, 200)
 }

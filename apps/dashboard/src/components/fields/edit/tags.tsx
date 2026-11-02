@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { Check, Plus, X } from "reicon-react"
+import { Check, Plus, X } from "@/components/icons"
 import { isSingleChoiceTags, tagOptionValues } from "@beechcms/core"
 
 import { Button } from "@/components/ui/button"

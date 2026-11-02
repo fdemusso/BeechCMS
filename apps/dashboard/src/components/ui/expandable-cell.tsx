@@ -64,12 +64,11 @@ export function ExpandableCell({
   }
 
   return (
-    <div
+    <button
+      type="button"
       data-expandable
-      role="button"
-      tabIndex={0}
       className={cn(
-        "relative cursor-pointer select-none block max-w-full",
+        "relative cursor-pointer select-none block max-w-full text-left",
         className
       )}
       // Fixed box: expansion is an overlay, so table layout never changes.
@@ -77,12 +76,6 @@ export function ExpandableCell({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={() => setIsPinned((prevPinned) => !prevPinned)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          setIsPinned((prevPinned) => !prevPinned)
-        }
-      }}
       title={isPinned ? "Clicca per comprimere" : "Passa il mouse o clicca per espandere"}
     >
       <span
@@ -98,6 +91,6 @@ export function ExpandableCell({
           {content}
         </span>
       )}
-    </div>
+    </button>
   )
 }

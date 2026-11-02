@@ -6,7 +6,7 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
-import { Trash2 } from "reicon-react"
+import { Trash2 } from "@/components/icons"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { Button } from "@/components/ui/button"
 
@@ -200,7 +200,7 @@ export function ContentListPage() {
                   <div>
                     <h1 className="font-heading text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
                     <p className="text-muted-foreground text-sm">
-                      Manage "{seed.slug}" content
+                      {t("content.list.subtitle", { slug: seed.slug })}
                     </p>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => navigate(`/content/${slug}/trash`)}>

@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   createAutomationSchema,
+  listAutomationsQuerySchema,
   updateAutomationSchema,
   toggleAutomationSchema,
 } from './automations.schema'
@@ -326,5 +327,19 @@ describe('createAutomationSchema — trigger_conditions nesting', () => {
     const result = createAutomationSchema.safeParse({ ...minimalValid, trigger_conditions: nestedGroup(10) })
 
     expect(result.success).toBe(true)
+  })
+})
+
+describe('listAutomationsQuerySchema', () => {
+  it('accepts a non-empty seed', () => {
+    const result = listAutomationsQuerySchema.safeParse({ seed: 'posts' })
+
+    expect(result.success).toBe(true)
+  })
+
+  it.each([{}, { seed: '' }])('rejects %j: a missing or empty seed names no seed to list', (query) => {
+    const result = listAutomationsQuerySchema.safeParse(query)
+
+    expect(result.success).toBe(false)
   })
 })

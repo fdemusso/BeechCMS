@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { DatabaseSync } from 'node:sqlite'
+import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -106,7 +106,7 @@ class D1TestStatement implements D1PreparedStatement {
   }
 
   async first<T = unknown>(colName?: string): Promise<T | null> {
-    const row = this.db.prepare(this.sql).get(...(toSqliteParams(this.params) as Parameters<typeof this.db.prepare>)) as Record<string, unknown> | undefined
+    const row = this.db.prepare(this.sql).get(...(toSqliteParams(this.params) as SQLInputValue[])) as Record<string, unknown> | undefined
     if (!row) return null
     return (colName ? row[colName] : row) as T
   }
@@ -127,7 +127,7 @@ class D1TestStatement implements D1PreparedStatement {
         meta: { duration: performance.now() - start, served_by: 'd1-test', changes: Number(info.changes), last_row_id: Number(info.lastInsertRowid), rows_read: 0, rows_written: Number(info.changes), size_after: 0, changed_db: false },
       }
     }
-    const results = statement.all(...(toSqliteParams(this.params) as Parameters<typeof this.db.prepare>)) as T[]
+    const results = statement.all(...(toSqliteParams(this.params) as SQLInputValue[])) as T[]
     return {
       results,
       success: true,
@@ -137,7 +137,7 @@ class D1TestStatement implements D1PreparedStatement {
 
   async run<T = unknown>(): Promise<D1Result<T>> {
     const start = performance.now()
-    const info = this.db.prepare(this.sql).run(...(toSqliteParams(this.params) as Parameters<typeof this.db.prepare>)) as { changes: number; lastInsertRowid: number | bigint }
+    const info = this.db.prepare(this.sql).run(...(toSqliteParams(this.params) as SQLInputValue[])) as { changes: number; lastInsertRowid: number | bigint }
     return {
       results: [] as T[],
       success: true,
@@ -148,7 +148,7 @@ class D1TestStatement implements D1PreparedStatement {
   raw<T = unknown[]>(options: { columnNames: true }): Promise<[string[], ...T[]]>
   raw<T = unknown[]>(options?: { columnNames?: false }): Promise<T[]>
   async raw<T = unknown[]>(options?: { columnNames?: boolean }): Promise<[string[], ...T[]] | T[]> {
-    const rows = this.db.prepare(this.sql).all(...(toSqliteParams(this.params) as Parameters<typeof this.db.prepare>)) as Record<string, unknown>[]
+    const rows = this.db.prepare(this.sql).all(...(toSqliteParams(this.params) as SQLInputValue[])) as Record<string, unknown>[]
     if (rows.length === 0) return options?.columnNames ? [[]] as unknown as [string[], ...T[]] : []
     const cols = Object.keys(rows[0])
     const data = rows.map(r => cols.map(c => r[c])) as unknown as T[]

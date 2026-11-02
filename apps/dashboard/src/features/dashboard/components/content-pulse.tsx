@@ -7,7 +7,7 @@ import { useContentBreakdown } from "../hooks/use-dashboard-stats"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Activity, Grid as LayoutGrid } from 'reicon-react'
+import { Activity, Grid as LayoutGrid } from '@/components/icons'
 import { Link } from "react-router-dom"
 
 export function ContentPulse() {

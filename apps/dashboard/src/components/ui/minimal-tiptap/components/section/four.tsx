@@ -8,7 +8,7 @@ import type { Editor } from "@tiptap/react"
 import type { FormatAction } from "../../types"
 import type { toggleVariants } from "@/components/ui/toggle"
 import type { VariantProps } from "class-variance-authority"
-import { ArrowDown as CaretDownIcon, List as ListBulletIcon } from 'reicon-react'
+import { ArrowDown as CaretDownIcon, List as ListBulletIcon } from '@/components/icons'
 import { ToolbarSection } from "../toolbar-section"
 
 type ListItemAction = "orderedList" | "bulletList"

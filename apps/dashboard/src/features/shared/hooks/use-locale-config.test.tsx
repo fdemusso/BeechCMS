@@ -8,11 +8,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createElement, type ReactNode } from "react"
 import type { Seed } from "@beechcms/core"
 
-vi.mock("@/lib/api", () => ({
-  api: { get: vi.fn() },
+const mocked = vi.hoisted(() => ({ settings: vi.fn(), schema: vi.fn() }))
+
+vi.mock("@/lib/rpc", () => ({
+  rpc: { api: { settings: { $get: mocked.settings }, schema: { $get: mocked.schema } } },
 }))
 
-import { api } from "@/lib/api"
 import { useLocaleConfig, useLocalizeEntryData } from "./use-locale-config"
 
 const PLAIN_SEED: Seed = {
@@ -37,11 +38,8 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 function mockApiRoutes(seeds: Seed[]) {
-  vi.mocked(api.get).mockImplementation(async (url: string) => {
-    if (url === "/schema") return { data: seeds }
-    if (url === "/settings") return { data: SETTINGS }
-    throw new Error(`unexpected request: ${url}`)
-  })
+  mocked.schema.mockResolvedValue({ json: async () => seeds })
+  mocked.settings.mockResolvedValue({ json: async () => SETTINGS })
 }
 
 describe("useLocaleConfig", () => {
@@ -52,8 +50,8 @@ describe("useLocaleConfig", () => {
 
     const { result } = renderHook(() => useLocaleConfig(), { wrapper })
 
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith("/schema"))
-    expect(api.get).not.toHaveBeenCalledWith("/settings")
+    await waitFor(() => expect(mocked.schema).toHaveBeenCalled())
+    expect(mocked.settings).not.toHaveBeenCalled()
     expect(result.current).toBeUndefined()
   })
 

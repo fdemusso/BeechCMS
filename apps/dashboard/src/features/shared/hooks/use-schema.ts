@@ -4,15 +4,15 @@
 
 import { useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { api } from "@/lib/api"
+import { rpc } from "@/lib/rpc"
 import { registerSeeds, SEED_REGISTRY, type Seed } from "@beechcms/core"
 
 export function useSchema() {
   const query = useQuery<Seed[]>({
     queryKey: ["schema"],
     queryFn: async () => {
-      const { data } = await api.get<Seed[]>("/schema")
-      return data
+      const response = await rpc.api.schema.$get()
+      return response.json()
     },
     staleTime: 1000 * 60 * 5,
   })

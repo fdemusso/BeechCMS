@@ -3,6 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { readFileSync, readdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, it, expect, afterEach } from 'vitest'
 import { FixedClock, UUID_V4_PATTERN, CANONICAL_USERS, provisionSeeds } from '@beechcms/testing'
 import { createBeechApp } from '../../src/factory'
@@ -10,9 +12,11 @@ import { JoseTokenService } from '../../src/auth/providers/jwt-token.service'
 import { D1TestDatabase } from '../helpers/d1-test-database'
 import { TEST_ENV, TEST_SEEDS } from '../fixtures'
 
-const migrationsDir = new URL('../../migrations/', import.meta.url)
+// Plain paths: `new URL()` resolves to the Workers URL type, which node:fs does not accept.
+const testDir = dirname(fileURLToPath(import.meta.url))
+const migrationsDir = join(testDir, '../../migrations')
 const files = readdirSync(migrationsDir).filter(file => /^\d{4}_.+\.sql$/.test(file)).sort()
-const readMigration = (file: string) => readFileSync(new URL(file, migrationsDir), 'utf8')
+const readMigration = (file: string) => readFileSync(join(migrationsDir, file), 'utf8')
 const TEST_USERS = [CANONICAL_USERS.admin, CANONICAL_USERS.editor]
 const clock = new FixedClock(1700000000000)
 
@@ -23,7 +27,7 @@ describe('Flow: RBAC upgrade from legacy accounts', () => {
   async function legacyDatabase() {
     const db = new D1TestDatabase({ applyMigrations: false })
     databases.push(db)
-    await db.exec(readFileSync(new URL('../fixtures/legacy-migrations/0000_v040_base.sql', import.meta.url), 'utf8'))
+    await db.exec(readFileSync(join(testDir, '../fixtures/legacy-migrations/0000_v040_base.sql'), 'utf8'))
     await db.exec(readMigration('0030_test_seeds.sql'))
     await provisionSeeds(db, TEST_SEEDS, clock.nowSeconds())
     for (const [index, user] of TEST_USERS.entries()) {
@@ -40,11 +44,13 @@ describe('Flow: RBAC upgrade from legacy accounts', () => {
     const db = await legacyDatabase()
     const app = createBeechApp({ seeds: TEST_SEEDS, authProviders: { clock } })
     const user = TEST_USERS[index]
-    const token = await new JoseTokenService(TEST_ENV.JWT_SECRET, {}, clock).issue({ sub: user.id, email: user.email, role })
+    const token = await new JoseTokenService(TEST_ENV.JWT_SECRET, {}, clock).issue({ sub: user.id, email: user.email })
 
     // Fresh fixtures conceal missing backfills.
     for (const file of files.filter(file => file > '0030_test_seeds.sql')) await db.exec(readMigration(file))
 
+    const userColumns = await db.prepare('PRAGMA table_info(users)').all<{ name: string }>()
+    expect(userColumns.results.map(column => column.name)).not.toContain('role')
     const contentResponse = await app.request('/api/content/posts', { headers: { Authorization: `Bearer ${token}` } }, { ...TEST_ENV, DB: db })
     expect(contentResponse.status).toBe(200)
     expect(await contentResponse.json<Record<string, unknown>[]>()).toEqual([])
@@ -58,7 +64,7 @@ describe('Flow: RBAC upgrade from legacy accounts', () => {
     expect(assignments.results[0].id).toMatch(UUID_V4_PATTERN)
     const permissions = await db.prepare(`SELECT p.permission FROM role_permissions p JOIN roles r ON r.id = p.role_id WHERE r.name = ? ORDER BY p.permission`).bind(expectedRole).all<{ permission: string }>()
     expect(permissions.results.map(row => row.permission)).toEqual(role === 'admin'
-      ? ['content:create', 'content:delete', 'content:read', 'content:update', 'manage_roles', 'manage_users', 'view_analytics']
+      ? ['content:create', 'content:delete', 'content:read', 'content:update', 'manage_layout', 'manage_roles', 'manage_seeds', 'manage_users', 'view_analytics']
       : ['content:create', 'content:delete', 'content:read', 'content:update'])
   })
 
@@ -95,5 +101,15 @@ describe('Flow: RBAC upgrade from legacy accounts', () => {
 
     expect(await db.prepare('SELECT count(*) AS count FROM user_role_assignments').first<{ count: number }>()).toEqual({ count: 0 })
     expect(await db.prepare("SELECT count(*) AS count FROM roles WHERE name = 'LegacyEditor'").first<{ count: number }>()).toEqual({ count: 0 })
+  })
+
+  it('a fresh database built from every migration has no users.role column', async () => {
+    const db = new D1TestDatabase({ applyMigrations: false })
+    databases.push(db)
+
+    for (const file of files) await db.exec(readMigration(file))
+
+    const userColumns = await db.prepare('PRAGMA table_info(users)').all<{ name: string }>()
+    expect(userColumns.results.map(column => column.name)).not.toContain('role')
   })
 })

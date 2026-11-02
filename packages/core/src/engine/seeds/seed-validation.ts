@@ -8,6 +8,7 @@ import { SYSTEM_COLUMNS } from '../ddl/ddl.js'
 import { LOCALIZABLE_BRANCH_TYPES } from '../localization/localization.js'
 import { resolveClassification } from '../privacy/policies.js'
 import { sortSeedsByDependencies } from './seed-registry.js'
+import { isImageMediaBranch } from '../../dashboard-layout/seed-layout.js'
 import { tagOptionsIssues } from './tag-options.js'
 import { SQL_RESERVED_WORDS } from '../sql-reserved-words.js'
 
@@ -75,6 +76,29 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
         messages.push(`branch '${branch.alias}' is a relation and requires a targetSeed`)
       } else if (!slugSet.has(branch.targetSeed)) {
         messages.push(`branch '${branch.alias}' targets unknown seed '${branch.targetSeed}'`)
+      }
+    }
+    if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })
+  }
+
+  // ── Fatal 1b: relation avatarSource must name an image file branch of the target ──
+  const seedBySlug = new Map(seeds.map(s => [s.slug, s]))
+  for (const seed of seeds) {
+    const messages: string[] = []
+    for (const branch of seed.branches) {
+      if (branch.avatarSource === undefined) continue
+      if (branch.type !== 'relation') {
+        messages.push(`branch '${branch.alias}' sets avatarSource but is not a relation`)
+        continue
+      }
+      // An unknown target is already reported by Fatal 1.
+      const target = branch.targetSeed ? seedBySlug.get(branch.targetSeed) : undefined
+      if (!target) continue
+      const source = target.branches.find(b => b.alias === branch.avatarSource)
+      if (!source || !isImageMediaBranch(source)) {
+        messages.push(
+          `branch '${branch.alias}' avatarSource '${branch.avatarSource}' must be a single image file branch of seed '${target.slug}'`,
+        )
       }
     }
     if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })

@@ -7,7 +7,7 @@ import { Hono } from 'hono'
 import type { IIdGenerator } from '@beechcms/core'
 import { sha256hex } from '@beechcms/core'
 import { FixedClock } from '@beechcms/testing'
-import { requestPasswordReset } from './request'
+import { passwordResetApp } from './index'
 
 const { sendPasswordResetEmailMock } = vi.hoisted(() => ({
   sendPasswordResetEmailMock: vi.fn(),
@@ -49,7 +49,7 @@ function buildApp(opts: {
     c.set('idGenerator' as never, idGenerator)
     await next()
   })
-  app.post('/auth/forgot-password', requestPasswordReset)
+  app.route('/', passwordResetApp)
 
   const defaultEnv = { RESEND_API_KEY: 'test-key', ENV: 'test' }
   const originalRequest = app.request.bind(app)

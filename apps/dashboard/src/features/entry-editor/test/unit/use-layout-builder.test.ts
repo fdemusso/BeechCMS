@@ -66,6 +66,19 @@ describe("useLayoutBuilder", () => {
     expect(result.current.activeTabId).toBe("tab-main")
   })
 
+  it("starts from a restored draft while still measuring unsaved work against the saved layout", () => {
+    const restored: FormLayout = structuredClone(mockInitialLayout)
+    restored.tabs[0].sections[0].columns[0].fields = []
+
+    const { result } = renderHook(() =>
+      useLayoutBuilder({ seed: mockSeed, initialLayout: mockInitialLayout, restoredDraft: restored })
+    )
+
+    expect(result.current.draft).toEqual(restored)
+    expect(result.current.saved).toEqual(mockInitialLayout)
+    expect(result.current.isDirty).toBe(true)
+  })
+
   describe("Tab operations", () => {
     it("adds, renames, reorders, and removes tabs", () => {
       const { result } = renderHook(() =>
@@ -244,6 +257,28 @@ describe("useLayoutBuilder", () => {
       ])
     })
 
+    it("moveField lands the field at the requested index of the destination column", () => {
+      const { result } = renderHook(() =>
+        useLayoutBuilder({ seed: mockSeed, initialLayout: mockInitialLayout })
+      )
+      act(() => {
+        result.current.assignField("tab-main", "sec-general", "col-right", "b-published")
+      })
+
+      act(() => {
+        result.current.moveField({
+          from: { tabId: "tab-main", sectionId: "sec-general", columnId: "col-left", branchId: "b-title" },
+          to: { tabId: "tab-main", sectionId: "sec-general", columnId: "col-right", index: 1 },
+        })
+      })
+
+      expect(result.current.draft.tabs[0].sections[0].columns[1].fields).toEqual([
+        { branchId: "b-content" },
+        { branchId: "b-title" },
+        { branchId: "b-published" },
+      ])
+    })
+
     it("respects full-width constraints and rejects layouts violating them", () => {
       const { result } = renderHook(() =>
         useLayoutBuilder({ seed: mockSeed, initialLayout: mockInitialLayout })
@@ -349,6 +384,100 @@ describe("useLayoutBuilder", () => {
         result.current.setSectionColumnCount("tab-main", "sec-json", 3)
       })
       expect(result.current.draft.tabs[0].sections[0].columns).toHaveLength(1)
+    })
+  })
+
+  describe("Stable references", () => {
+    const threeSectionLayout: FormLayout = {
+      version: 1,
+      tabs: [
+        {
+          id: "tab-main",
+          label: "Main Content",
+          sections: [
+            { id: "sec-a", label: "A", columns: [{ id: "col-a1", fields: [{ branchId: "b-title" }] }, { id: "col-a2", fields: [] }] },
+            { id: "sec-b", label: "B", columns: [{ id: "col-b1", fields: [{ branchId: "b-content" }] }] },
+            { id: "sec-c", label: "C", columns: [{ id: "col-c1", fields: [] }] },
+          ],
+        },
+      ],
+    }
+
+    it("keeps the actions object while the draft changes", () => {
+      const { result } = renderHook(() =>
+        useLayoutBuilder({ seed: mockSeed, initialLayout: threeSectionLayout })
+      )
+      const actionsBefore = result.current.actions
+
+      act(() => {
+        result.current.addSection("tab-main", 1)
+      })
+
+      expect(result.current.actions).toBe(actionsBefore)
+    })
+
+    it("keeps the identity of the sections an edit did not touch", () => {
+      const { result } = renderHook(() =>
+        useLayoutBuilder({ seed: mockSeed, initialLayout: threeSectionLayout })
+      )
+      const untouchedBefore = result.current.draft.tabs[0].sections[1]
+
+      act(() => {
+        result.current.renameSection("tab-main", "sec-a", "Renamed")
+      })
+
+      expect(result.current.draft.tabs[0].sections[0].label).toBe("Renamed")
+      expect(result.current.draft.tabs[0].sections[1]).toBe(untouchedBefore)
+    })
+
+    it("keeps the identity of the columns a move did not touch", () => {
+      const { result } = renderHook(() =>
+        useLayoutBuilder({ seed: mockSeed, initialLayout: threeSectionLayout })
+      )
+      const untouchedBefore = result.current.draft.tabs[0].sections[1].columns[0]
+
+      act(() => {
+        result.current.moveField({
+          from: { tabId: "tab-main", sectionId: "sec-a", columnId: "col-a1", branchId: "b-title" },
+          to: { tabId: "tab-main", sectionId: "sec-a", columnId: "col-a2" },
+        })
+      })
+
+      expect(result.current.draft.tabs[0].sections[0].columns[1].fields).toEqual([{ branchId: "b-title" }])
+      expect(result.current.draft.tabs[0].sections[1].columns[0]).toBe(untouchedBefore)
+    })
+
+    it("keeps the list of branches left to add while fields only move around", () => {
+      const { result } = renderHook(() =>
+        useLayoutBuilder({ seed: mockSeed, initialLayout: threeSectionLayout })
+      )
+      const availableBefore = result.current.getAvailableBranches()
+
+      act(() => {
+        result.current.moveField({
+          from: { tabId: "tab-main", sectionId: "sec-a", columnId: "col-a1", branchId: "b-title" },
+          to: { tabId: "tab-main", sectionId: "sec-b", columnId: "col-b1" },
+        })
+      })
+
+      expect(result.current.getAvailableBranches()).toBe(availableBefore)
+    })
+
+    it("validates an add against the draft as it is now, through the action it had before the edit", () => {
+      const { result } = renderHook(() =>
+        useLayoutBuilder({ seed: mockSeed, initialLayout: threeSectionLayout })
+      )
+      const assignBefore = result.current.actions.assignField
+      act(() => {
+        result.current.assignField("tab-main", "sec-c", "col-c1", "b-published")
+      })
+
+      // The gallery is full width, and sec-c holds a field now: an action that kept the draft it was made with
+      // would still see the section empty and accept it.
+      const accepted = assignBefore("tab-main", "sec-c", "col-c1", "b-gallery")
+
+      expect(accepted).toBe(false)
+      expect(result.current.draft.tabs[0].sections[2].columns[0].fields).toEqual([{ branchId: "b-published" }])
     })
   })
 

@@ -25,3 +25,11 @@
 > **sinceTimestamp**: `number`
 
 Lower bound (inclusive) for `createdAt` in seconds since epoch.
+
+***
+
+### visibility?
+
+> `optional` **visibility?**: [`ActivityLogVisibility`](ActivityLogVisibility.md)
+
+Authorization filter applied in the query.

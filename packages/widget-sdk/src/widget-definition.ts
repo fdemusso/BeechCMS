@@ -3,7 +3,7 @@
 
 import type { ComponentType } from 'react'
 import type { z } from 'zod'
-import type { DashboardWidgetInstance } from '@beechcms/core'
+import type { DashboardWidgetInstance, WidgetRequirement } from '@beechcms/core'
 
 /** Props every registered widget component receives. */
 export interface DashboardWidgetProps<TConfig = unknown> {
@@ -30,4 +30,8 @@ export interface WidgetDefinition<TConfig = unknown> {
   minColumnSpan?: number
   /** Builder hint: config panel. Absent = "no options" notice. */
   ConfigPanel?: ComponentType<{ config: TConfig; onChange: (next: TConfig) => void }>
+  /** What a caller needs to use this widget, evaluated with `@beechcms/core`'s `isWidgetRequirementMet`.
+   *  Absent = every caller. The dashboard hides a widget whose requirement is unmet, and the builder
+   *  palette does not offer it. Ignored for built-in `core/` types, whose requirement core resolves. */
+  requires?: WidgetRequirement
 }

@@ -1,4 +1,4 @@
-import stripAnsi from 'strip-ansi'
+import { stripVTControlCharacters as stripAnsi } from 'node:util'
 import { classifyLine, isStackTraceLine, isVersionNotice, levelForLine, type LogLevel } from './log-filters'
 
 export type LogSource = 'api' | 'dashboard' | 'core' | 'docker' | 'bootstrap' | 'system'

@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { Context } from 'hono'
+import type { Context } from 'hono'
 import {
   DEFAULT_EXPORT_MAX_ROWS,
   checkFormatCompatibility,
@@ -15,6 +15,8 @@ import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 import { createContentExportStream } from '../export-stream'
+import type { ZodQueryInput } from '../../../shared/utils/zod-query'
+import type { exportQuerySchema } from '../transfer.schema'
 
 /** NDJSON is the universal format (brief §2), so an omitted `format` can never 400. */
 const DEFAULT_FORMAT: TransferFormat = 'ndjson'
@@ -25,6 +27,12 @@ const CONTENT_TYPES: Record<TransferFormat, string> = {
 }
 
 const FILE_EXTENSIONS: Record<TransferFormat, string> = { csv: 'csv', ndjson: 'ndjson' }
+
+/** `?safe=1|true` opts in to formula neutralization. Anything else keeps the default format. */
+function isSafeFlag(raw: string | undefined): boolean {
+  const value = cleanStr(raw)
+  return value === '1' || value === 'true'
+}
 
 /**
  * Resolves the synchronous export cap. Mirrors `resolveMaxUploadBytes`
@@ -40,7 +48,7 @@ function resolveExportMaxRows(env: { EXPORT_MAX_ROWS?: string }): number {
   return parsed
 }
 
-export async function exportHandler(context: Context<AppEnv>) {
+export async function exportHandler(context: Context<AppEnv, '/:slug/export', ZodQueryInput<typeof exportQuerySchema>>) {
   const slug = context.req.param('slug')
   if (!slug) {
     return publicProblem(context, {
@@ -61,7 +69,8 @@ export async function exportHandler(context: Context<AppEnv>) {
     })
   }
 
-  const requestedFormat = cleanStr(context.req.query('format'))
+  const query = context.req.valid('query')
+  const requestedFormat = cleanStr(query.format)
   if (requestedFormat !== null && !isTransferFormat(requestedFormat)) {
     return publicProblem(context, {
       type: 'content-invalid-export-format',
@@ -96,8 +105,8 @@ export async function exportHandler(context: Context<AppEnv>) {
     })
   }
 
-  const search = cleanStr(context.req.query('search')) ?? ''
-  const filters = toEngineFilters(parseQueryFilters(context.req.query('filters')))
+  const search = cleanStr(query.search) ?? ''
+  const filters = toEngineFilters(parseQueryFilters(query.filters))
   const repository = context.get('repository')
 
   try {
@@ -110,7 +119,7 @@ export async function exportHandler(context: Context<AppEnv>) {
       filters,
       fields: ['id'],
       pagination: { limit: 1, offset: 0 },
-      ...(search ? { search } : {}),
+      ...(search ? { search, resolveSeed: context.get('getSeed') } : {}),
     })
 
     const maxRows = resolveExportMaxRows(context.env)
@@ -133,10 +142,9 @@ export async function exportHandler(context: Context<AppEnv>) {
     const actor: ActorContext = context.get('actor') ?? {
       type: 'authenticated',
       userId: jwtPayload?.sub,
-      role: jwtPayload?.role,
     }
 
-    const stream = createContentExportStream({ repository, seed, format, actor, filters, search: search || undefined })
+    const stream = createContentExportStream({ repository, seed, format, actor, filters, search: search || undefined, resolveSeed: context.get('getSeed'), neutralizeFormulas: isSafeFlag(query.safe) })
 
     return context.body(stream, 200, {
       'Content-Type': CONTENT_TYPES[format],

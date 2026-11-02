@@ -184,7 +184,7 @@ export type BulkFieldUpdate =
  * (extracted from the JWT) so lifecycle hooks can attribute changes.
  */
 export interface RepositoryOptions {
-  actor?: { id: string; role?: string; email?: string }
+  actor?: { id: string; email?: string }
   /**
    * Optimistic concurrency guard for `update`: the `updated_at` the caller last read.
    * When set, the write only applies if the live row's `updated_at` still matches;

@@ -10,12 +10,12 @@
   },
   "devDependencies": {
     "@beechcms/api": "workspace:*",
-    "@beechcms/core": "workspace:^0.8.0",
+    "@beechcms/core": "workspace:^0.9.6",
     "@beechcms/dashboard": "workspace:*",
     "@beechcms/testing": "workspace:*",
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.5.1",
-    "typescript": "^5.9.3"
+    "typescript": "~7.0.2"
   },
   "license": "BUSL-1.1"
 }

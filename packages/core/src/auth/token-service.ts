@@ -6,7 +6,6 @@ export interface JwtClaims {
   email?: string
   name?: string
   surname?: string
-  role?: string
   [key: string]: unknown
 }
 

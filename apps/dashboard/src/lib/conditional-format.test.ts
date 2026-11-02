@@ -92,7 +92,6 @@ describe("conditional-format - getConditionalFormatCellClass", () => {
 
 const BASE_ENTRY: ContentEntry = {
   id: "11111111-1111-4111-8111-111111111111",
-  schema_slug: "posts",
   slug: "canonical-post",
   status: "published",
   created_at: 0,

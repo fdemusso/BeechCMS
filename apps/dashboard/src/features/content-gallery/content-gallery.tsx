@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { FolderAdd, Image as ImageIcon } from 'reicon-react'
+import { FolderAdd, Image as ImageIcon } from '@/components/icons'
 
 import {
   Breadcrumb,

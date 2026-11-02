@@ -3,7 +3,7 @@ import type { IconComponent } from '@/lib/icon-registry'
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { Category as LayoutDashboard, Settings, PenLine, Plus, Calendar, ChartBar as BarChart2 } from 'reicon-react'
+import { Category as LayoutDashboard, Settings, PenLine, Plus, Calendar, ChartBar as BarChart2 } from '@/components/icons'
 import type { Seed } from "@beechcms/core"
 import { resolveIcon } from "@/lib/icon-registry"
 
@@ -31,7 +31,7 @@ export interface NavItem {
  * never the evaluator.
  *
  * Each flag mirrors a `PROTECTED_ROUTES` row and hides nothing the server allows:
- *  - `viewAnalytics`  → perm('view_analytics','global')  (`/api/content/stats/*`)
+ *  - `viewAnalytics`  → perm('view_analytics','global')  (`/api/content/stats/{health,cloudflare,storage/sync}`, `/api/settings/storage`)
  *  - `readContent`    → content:read on at least one seed (`GET /api/content/drafts`,
  *                       whose in-handler projection returns [] for a caller with none)
  *  - `createContent`  → content:create on at least one seed (`POST /api/content/:slug`)

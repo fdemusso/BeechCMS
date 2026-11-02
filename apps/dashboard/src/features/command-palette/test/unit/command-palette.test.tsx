@@ -10,7 +10,7 @@ vi.mock("react-router-dom", () => ({
   useNavigate: () => vi.fn(),
 }))
 
-vi.mock("next-themes", () => ({
+vi.mock("@/lib/theme", () => ({
   useTheme: () => ({
     resolvedTheme: "dark",
     setTheme: vi.fn(),

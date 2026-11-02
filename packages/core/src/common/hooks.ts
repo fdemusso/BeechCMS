@@ -8,7 +8,6 @@ import type { IQueueService } from '../queue/queue.interface.js'
 
 export interface HookActor {
   id: string
-  role?: string
   email?: string
 }
 

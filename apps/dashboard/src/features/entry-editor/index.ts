@@ -9,5 +9,3 @@ export type {
 } from "./renderer/schema-form-view-model"
 export { LayoutRenderer } from "./renderer/layout-renderer"
 export type { RendererBranchMap, RendererProps } from "./renderer/layout-renderer"
-export { LayoutBuilderDialog } from "./builder/layout-builder-dialog"
-export type { LayoutBuilderDialogProps } from "./builder/layout-builder-dialog"

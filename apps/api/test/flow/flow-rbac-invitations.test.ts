@@ -109,11 +109,7 @@ describe('Flow: RBAC invitations lifecycle', () => {
     expect((await authed('/api/content/posts', inviteeToken)).status).toBe(200)
     expect((await authed('/api/content/pages', inviteeToken)).status).toBe(403)
 
-    // 7. Redeemed account is minted 'editor', never 'admin'.
-    const inviteeRow = await db.prepare('SELECT role FROM users WHERE email = ?').bind('invitee@beech.local').first<{ role: string }>()
-    expect(inviteeRow?.role).toBe('editor')
-
-    // 8. Replay with the same token -> 404 invitation-invalid (single-use).
+    // 7. Replay with the same token -> 404 invitation-invalid (single-use).
     const replayRes = await anon('/auth/invitations/accept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -122,7 +118,7 @@ describe('Flow: RBAC invitations lifecycle', () => {
     expect(replayRes.status).toBe(404)
     expect(await replayRes.json()).toMatchObject({ type: expect.stringContaining('invitation-invalid') })
 
-    // 9. Issuer revocation: issue a second invite, then strip the issuer's authority.
+    // 8. Issuer revocation: issue a second invite, then strip the issuer's authority.
     const secondInviteRes = await authed('/api/rbac/invitations', superToken, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -143,7 +139,7 @@ describe('Flow: RBAC invitations lifecycle', () => {
     expect(revokedAcceptRes.status).toBe(409)
     expect(await revokedAcceptRes.json()).toMatchObject({ type: expect.stringContaining('invitation-revoked') })
 
-    // 10. Expired invite: preview 404, then regenerate mints a working token.
+    // 9. Expired invite: preview 404, then regenerate mints a working token.
     // Re-grant the SuperAdmin its global authority so it can regenerate.
     const superAdminRole = await db.prepare(`SELECT id FROM roles WHERE name = 'SuperAdmin'`).first<{ id: string }>()
     await db

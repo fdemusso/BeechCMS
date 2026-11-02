@@ -9,6 +9,7 @@ import { DeleteSeedDialog } from "@/features/seed-builder/components/DeleteSeedD
 import type { SeedRecordDTO } from "@/features/seed-builder"
 import type { Seed } from "@beechcms/core"
 import { toast } from "sonner"
+import { ApiError, type ApiErrorBody } from "@/lib/http/api-error"
 
 const mockDelete = vi.fn()
 
@@ -74,14 +75,7 @@ describe("DeleteSeedDialog", () => {
   it("triggers onError callback with 409 conflict and displays reference conflict toast", () => {
     const toastErrorSpy = vi.spyOn(toast, "error")
     mockDelete.mockImplementationOnce((_slug, options) => {
-      options?.onError({
-        response: {
-          status: 409,
-          data: {
-            referencedBy: ["post", "page"],
-          },
-        },
-      } as any)
+      options?.onError(new ApiError(409, { referencedBy: ["post", "page"] } as ApiErrorBody))
     })
 
     wrap(<DeleteSeedDialog seed={mockRecord} open={true} onOpenChange={vi.fn()} />)

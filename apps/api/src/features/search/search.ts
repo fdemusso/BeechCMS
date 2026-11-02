@@ -16,12 +16,15 @@
 import { Hono }              from 'hono'
 import type { AppEnv }       from '../../types'
 import { authMiddleware }    from '../../middleware/auth.middleware'
+import { zodQuery }           from '../../shared/utils/zod-query'
 import { fullTextSearchHandler } from './handlers/full-text-search'
+import { fullTextSearchQuerySchema } from './search.schema'
 
-/** Hono sub-app for the authenticated full-text search endpoint. */
+/**
+ * Hono sub-app for the authenticated full-text search endpoint, registered as one method chain so
+ * the route types reach `AppType` (see `../../routes.ts`).
+ */
 export const searchRouter = new Hono<AppEnv>()
-
-searchRouter.use('*', authMiddleware())
-
-// GET /api/search?q=…&schema_slug=…&status=…&limit=20&cursor=…
-searchRouter.get('/', fullTextSearchHandler)
+  .use('*', authMiddleware())
+  // GET /api/search?q=…&schema_slug=…&status=…&limit=20&cursor=…
+  .get('/', zodQuery(fullTextSearchQuerySchema), fullTextSearchHandler)

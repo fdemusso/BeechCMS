@@ -50,7 +50,7 @@ System roles (e.g. SuperAdmin) are seeded by migration and may not be deleted.
 
 ### permissions
 
-> **permissions**: (`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"`)[]
+> **permissions**: (`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"` \| `"manage_layout"` \| `"manage_seeds"`)[]
 
 Always a subset of `PERMISSIONS`; unknown values are dropped at the storage boundary.
 

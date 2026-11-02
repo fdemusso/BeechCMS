@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Flash as Zap } from 'reicon-react'
+import { Flash as Zap } from '@/components/icons'
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -256,6 +256,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                 handleSearchBlur={handleSearchBlur}
                 handleSearchClose={handleSearchClose}
                 handleSearchOpen={handleSearchOpen}
+                disabled={props.searchDisabled}
               />
             )}
 

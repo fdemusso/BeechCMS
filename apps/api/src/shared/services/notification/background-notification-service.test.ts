@@ -9,7 +9,6 @@ import type { INotificationRepository, NotificationRecord } from '@beechcms/core
 function makeRepository(opts: { createShouldThrow?: boolean } = {}): INotificationRepository {
   return {
     list: vi.fn().mockResolvedValue([]),
-    stats: vi.fn().mockResolvedValue({ totalCount: 0, latestCreatedAt: 0, readCount: 0 }),
     create: opts.createShouldThrow
       ? vi.fn().mockRejectedValue(new Error('db down'))
       : vi.fn().mockResolvedValue('generated-id'),

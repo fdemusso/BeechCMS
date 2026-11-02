@@ -130,7 +130,7 @@ describe('Flow: OAuth 2.1 Resource Server (scope enforcement)', () => {
     const planBody = await planRes.json<{ classification: string; expectedVersion: number }>()
     expect(planBody.classification).toBe('additive')
 
-    // Regression: requireAdmin (in-slice) is satisfied via hydrated jwtPayload — not a 403.
+    // Regression: the `manage_seeds@*` route gate is satisfied by the resource owner's permissions — not a 403.
     expect(listRes.status).not.toBe(403)
     expect(getSeedRes.status).not.toBe(403)
   })

@@ -1,0 +1,162 @@
+---
+title: Dashboard Builder
+description: How the dashboard composer (pages, sections, columns, widget ghosts, drag and drop, draft recovery) works and which behaviours are deliberate. It reuses the entry layout builder's model.
+---
+
+# Dashboard Builder
+
+The dashboard composer (`apps/dashboard/src/features/dashboard/builder/`) is the entry
+[layout builder](./layout-builder.md) applied to **widgets** instead of fields. Same feel, same rules: read
+that page first, the decisions there (neutral state colours, fewer boxes, disable don't remove, recover
+instead of ask, animate only what removes a jump) are not repeated here. This page records what is
+specific to the dashboard.
+
+A layout is a list of **pages**, each with **sections**, each with **columns** on a 12-unit grid
+(`columnSpans`, e.g. `[8, 4]`), each holding **widgets**. The first page is the default one the dashboard
+opens on (home icon, "Set as default" moves a page first).
+
+## What is shared with the entry builder
+
+Everything below lives in `src/components/builder/` (and `src/hooks/`) and is imported by both builders, so they
+are the same system with a small adapter each (`features/entry-editor/builder/` and
+`features/dashboard/builder/`; neither imports the other):
+
+- **Drag engine**: `layout-dnd.ts` (drag ids, what each kind may land on, collision detection, the drag-state
+  context) and `use-layout-dnd.ts` (`useLayoutDnd(adapter)`: drop-only drag, one move at the drop). Each builder's
+  `use-*-dnd.ts` only says how its layout is shaped and what its rules are.
+- **Frames**: `SectionShell` (sortable, header with inline rename, count, menu, remove confirmation, optional
+  `animateHeight`) and `ColumnShell` (sortable, drop zone, outlines, top handle, drop marker). The look of the column handle is
+  **not** shared: each builder passes its own `handleClassName` / `handleIconClassName` (entries: small and quiet like
+  the strip beside a field; dashboard: the larger bordered one).
+- **Drafts**: `draft-storage.ts` (`createDraftStorage`, `fingerprintLayout`); each builder wraps it with its key
+  prefix and the shape of its layout.
+- **Render stability**: `share-structure.ts` (`shareStructure`: an edited clone keeps the identity of what did not
+  change, so memoised blocks skip the redraw) and `use-animated-section-height.ts`.
+- `BuilderTabPill`: pill tabs (muted selection, double click renames, right click menu, red X on hover).
+- `FLUSH_MENU`: the flush menu style.
+- `GhostSkeleton`: the `bg-foreground/10` skeleton.
+
+What stays specific: the dashboard's 12-unit grid, widgets and ghosts, caps per column; the entry builder's
+equal-width grid, the full-width field rule, the "Add field" list, the left handle strip and the section height
+ease (`animateHeight`, on for entries only: the dashboard builder leaves it off, as before).
+
+## Widget ghosts
+
+A widget in the builder is a **ghost**: inert, data-less, shaped like the card the dashboard will draw
+(`builder/ghosts/`).
+
+- `GhostShell` has the real `WidgetShell`'s corner, padding and header, but no blur or hover shadow: those
+  are expensive to repaint while a drag moves dozens of ghosts.
+- One **archetype** per visual family (stat, trio, line/area/bar chart, pie, table, list, gallery, text, form,
+  actions, checklist, meter, status, generic), chosen by `ARCHETYPE_BY_TYPE` in `widget-ghost.tsx`. Custom
+  widgets get the generic card. Unknown or disabled types get the dashed amber "unavailable" box, as the real
+  host does. Recharts is never mounted: chart ghosts are plain SVG.
+- Real text where it is free: the title (or the user's override), the note widget's content. A note has no
+  card on the dashboard and has none here.
+- The **bound seed** is a tag in the header; a seed-bound widget whose seed is not picked yet shows an amber
+  "Needs setup" tag.
+- **Variation is deterministic**: widths and heights come from the widget id (`seededSeries`), not
+  `Math.random`. The drag overlay therefore draws exactly the original, and re-ordering never reshuffles
+  skeletons. (The entry builder's text ghosts are random per mount; there the overlay differs slightly.)
+- `WidgetGhost` is memoised on exactly what it draws (`ghostKey`), because the builder clones the whole draft on
+  every change and widget objects never keep their identity.
+- A widget whose `minColumnSpan` exceeds its column's span shows an amber hint (not blocking).
+
+## Widget block interactions
+
+- The whole card is the drag handle (5px activation, so a click stays a click).
+- On hover: a gear (configure sheet) and a red X (remove). Both stop `pointerdown` so they never start a drag.
+- **Double click** renames the title (override, max `DASHBOARD_WIDGET_TITLE_MAX`). Single click does nothing,
+  on purpose: it would collide with the double click.
+- **Right click**: configure, rename, duplicate, replace with, move to page, remove.
+- `Enter` on a focused block opens the configure sheet.
+- **Add widget** is a searchable `Command` list grouped by category (icon on the left); disabled widgets stay
+  listed, greyed.
+
+## Drag and drop
+
+The engine is shared (`src/components/builder/`: `layout-dnd.ts`, `use-layout-dnd.ts`, `column-shell.tsx`,
+`section-shell.tsx`); `use-dashboard-dnd.ts` only tells it how a dashboard layout is shaped. Four kinds:
+
+| Kind | Id | Lands on |
+| --- | --- | --- |
+| `page` | `page:<p>` | other pages |
+| `section` | `section:<p>:<s>` | other sections |
+| `column` | `column:<p>:<s>:<c>` | other columns of the same section |
+| `widget` | `widget:<widgetId>` | other widgets, or a column's `zone` |
+
+- **Nothing moves while dragging.** The draft is left alone; the pointer decides a drop target (a column and
+  the position in it), the column under it gets the darker outline and a thin marker is drawn between the
+  items where the widget would land, and the move is made once, at the drop. The dragged widget stays in place
+  at reduced opacity and the overlay follows the pointer. `Esc` and a drop outside any column change nothing.
+- Over a column's body but not over a widget (the gap between two, below the last) the nearest widget of that
+  column decides, so the marker does not jump to the end.
+- A full column (`MAX_WIDGETS_PER_COLUMN`) refuses the move: the widget stays, **one** toast at the drop.
+- **A column's span travels with it** when columns are swapped (`[8, 4]` becomes `[4, 8]`), see `moveColumn`.
+- The overlay is portalled to `document.body` and draws the real ghost(s) at the grabbed width.
+- Section heights ease from the pick-up height to the new one at the drop (`animateHeight`, same as the entry builder).
+- Cross-page moves are **not** drag: use the widget's right-click "Move to page".
+
+## Footer, drafts
+
+- Footer: `[Back]` set apart, then `[Preview | Reset | Save]` in one `ButtonGroup`; all `outline`, normal
+  weight, `rounded-control`. All disabled while dragging; `Esc` belongs to the drag (the dialog ignores it).
+- Preview swaps the editor for the real renderer, with a fade.
+- **Draft recovery** (`dashboard-draft-storage.ts`): `sessionStorage`, **one draft** (the dashboard has a single
+  layout, see [Dashboard layout](../reference/dashboard-layout.md)), validated structurally, with a fingerprint
+  of the server layout (a stale draft is discarded, so a 409 `layout-conflict` reload rebuilds from the server).
+  Written 400ms after the last change, never mid-drag, flushed on `pagehide`. No discard dialogs.
+- After a reload `DashboardPage` reopens the builder when a draft is waiting. If the draft turns out stale the
+  dialog closes again. **Leaving the builder** (Back, Esc, click outside, Save) drops the draft.
+- The dialog fades (200ms, no zoom); while the layout loads a skeleton of the page is shown, and the content
+  fades in over it.
+
+## What an author may touch
+
+The builder opens for `manage_layout@*` or `manage_roles@*` holders. `manage_layout` edits what is **inside**
+the tabs; the tabs themselves stay with `manage_roles@*`. The same server rules apply, the builder only stops
+the author before the save is refused.
+
+| Control | `manage_roles@*` | `manage_layout@*` only |
+| --- | --- | --- |
+| Add, rename, reorder, delete a tab; "Visible to" audience | yes | no (tabs can only be selected) |
+| Reset | yes | hidden |
+| First save (nothing stored yet) | yes | blocked, with a notice (creating tabs is structural) |
+| Add widget | only widgets the author can use (`requires`) | same |
+| "Replace with…" | only widgets the author can use | same |
+| Preview | the tab as a reader with the author's authority sees it | same |
+
+A widget the author cannot use arrives from the server as an opaque `core/locked` placeholder. It cannot be
+configured, renamed, moved, duplicated, replaced or removed, and it is not a drag source (other widgets can still
+be ordered around it). Server-side it is pinned to its page, section and column, so the builder also refuses the
+operations that would lose that column: a section holding one cannot be removed, and its column presets with
+fewer columns than the last locked column are disabled. The ops hook enforces the same rules, so a drag or a
+shortcut cannot bypass the menus.
+
+## Server validation
+
+`dashboardLayoutSchema` (`packages/core`) now trims labels and refuses control characters, like the entry
+layout: page label 1 to `DASHBOARD_PAGE_LABEL_MAX` (60), section label `DASHBOARD_SECTION_LABEL_MAX` (60),
+widget title `DASHBOARD_WIDGET_TITLE_MAX` (80). The builder imports the same constants for `maxLength`.
+
+## Invariants
+
+| Area | Invariant | Reason |
+| --- | --- | --- |
+| Ghosts | Deterministic variation from the widget id | Overlay matches the original; no reshuffle |
+| Ghosts | No blur or hover shadow, no Recharts | Repaint cost during a drag |
+| Widget block | Single click does nothing, double click renames | A click action would fire on every double click |
+| Columns | Span travels with its column | A column's width is part of what is moved |
+| Drag preview | Portal on `document.body` | A transformed dialog offsets `position: fixed` |
+| Drag | The draft is not touched until the drop | Every live move redrew the whole page and re-measured every droppable; it was the cost of the builder |
+| Drop marker | Takes no room (negative margins cancel the gaps) | Showing it must not move the targets under the pointer |
+| Drafts | One draft, dropped on leaving | Exit is not an interruption; a reload is |
+| Footer | Preview, Reset and Save in one group; disabled while dragging | One style per row; no half-moved saves |
+| Page | At least one section per page, at most 8 pages | Server schema |
+
+## Known open points
+
+- A widget dragged onto another page's tab (spring-loaded tab) is not implemented; the source sortable would
+  unmount when the page switches. "Move to page" covers it.
+- Ghost minimum heights per archetype are estimates of the real cards; compare them in the browser when a
+  widget's layout changes.

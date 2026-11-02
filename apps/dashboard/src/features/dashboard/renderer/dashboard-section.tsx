@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useState } from "react"
-import { ChevronDown } from 'reicon-react'
+import { ChevronDown } from '@/components/icons'
 import type { DashboardSection as DashboardSectionLayout } from "@beechcms/core"
 import { cn } from "@/lib/utils"
 import { DashboardColumn } from "./dashboard-column"

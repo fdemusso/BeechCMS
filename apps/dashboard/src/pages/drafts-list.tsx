@@ -7,7 +7,7 @@ import { useNavigate, Link } from "react-router-dom"
 import { formatDistanceToNow } from "date-fns"
 import { it as itLocale, enUS, type Locale } from "date-fns/locale"
 import type { ColumnDef, SortingState, VisibilityState } from "@tanstack/react-table"
-import { More as MoreHorizontal } from 'reicon-react'
+import { More as MoreHorizontal } from '@/components/icons'
 import { toast } from "sonner"
 import type { Seed } from "@beechcms/core"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"

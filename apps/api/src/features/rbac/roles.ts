@@ -5,13 +5,13 @@
 /// <reference types="@cloudflare/workers-types" />
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { RBAC_ERRORS } from './constants'
-import { canMutateRole, holdsAll, rbacProblem, readJson, type AppContext } from './guards'
-import { roleBodySchema } from './rbac.schema'
+import { canMutateRole, holdsAll, rbacProblem, type AppContext, type JsonContext } from './guards'
+import type { roleBodySchema } from './rbac.schema'
 
 /** GET /api/rbac/roles — the full catalogue, system roles included (they are assignable). */
 export const listRolesHandler = async (context: AppContext) => {
   const roles = await context.get('roleRepository').listAll()
-  return context.json({ roles })
+  return context.json({ roles }, 200)
 }
 
 /**
@@ -21,18 +21,11 @@ export const listRolesHandler = async (context: AppContext) => {
  * scope-precise rule stays `canGrant()` at assignment time — minting a role is never, by
  * itself, an escalation.
  */
-export const createRoleHandler = async (context: AppContext) => {
-  const body = await readJson(context)
-  if (body === undefined) {
-    return rbacProblem(context, RBAC_ERRORS.INVALID_JSON, 400, 'Bad Request', 'Request body is not valid JSON.')
-  }
-  const parsed = roleBodySchema.safeParse(body)
-  if (!parsed.success) {
-    return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', parsed.error.message)
-  }
+export const createRoleHandler = async (context: JsonContext<typeof roleBodySchema>) => {
+  const input = context.req.valid('json')
 
   const actor = await resolveEffectivePermissions(context)
-  if (!holdsAll(actor, parsed.data.permissions)) {
+  if (!holdsAll(actor, input.permissions)) {
     return rbacProblem(
       context,
       RBAC_ERRORS.ESCALATION_REFUSED,
@@ -46,10 +39,10 @@ export const createRoleHandler = async (context: AppContext) => {
 
   try {
     const id = await roleRepository.create({
-      name: parsed.data.name,
-      description: parsed.data.description ?? null,
-      icon: parsed.data.icon ?? null,
-      permissions: parsed.data.permissions,
+      name: input.name,
+      description: input.description ?? null,
+      icon: input.icon ?? null,
+      permissions: input.permissions,
     })
     return context.json({ id }, 201)
   } catch (error) {
@@ -67,21 +60,12 @@ export const createRoleHandler = async (context: AppContext) => {
  * permission in BOTH the current and the incoming set: editing a role more powerful than
  * yourself is escalation whichever direction it moves.
  */
-export const updateRoleHandler = async (context: AppContext) => {
+export const updateRoleHandler = async (context: JsonContext<typeof roleBodySchema, '/roles/:roleId'>) => {
   const roleId = context.req.param('roleId')
+  const input = context.req.valid('json')
   const roleRepository = context.get('roleRepository')
 
   const notFound = () => rbacProblem(context, RBAC_ERRORS.NOT_FOUND, 404, 'Not Found', 'No such role.')
-  if (!context.get('idGenerator').isValid(roleId)) return notFound()
-
-  const body = await readJson(context)
-  if (body === undefined) {
-    return rbacProblem(context, RBAC_ERRORS.INVALID_JSON, 400, 'Bad Request', 'Request body is not valid JSON.')
-  }
-  const parsed = roleBodySchema.safeParse(body)
-  if (!parsed.success) {
-    return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', parsed.error.message)
-  }
 
   const role = await roleRepository.findById(roleId)
   if (!role) return notFound()
@@ -98,7 +82,7 @@ export const updateRoleHandler = async (context: AppContext) => {
 
   const actor = await resolveEffectivePermissions(context)
   const assignments = await context.get('roleAssignmentRepository').listByRole(roleId)
-  if (!canMutateRole(actor, assignments, role.permissions, parsed.data.permissions)) {
+  if (!canMutateRole(actor, assignments, role.permissions, input.permissions)) {
     return rbacProblem(
       context,
       RBAC_ERRORS.ESCALATION_REFUSED,
@@ -110,10 +94,10 @@ export const updateRoleHandler = async (context: AppContext) => {
 
   try {
     const result = await roleRepository.update(roleId, {
-      name: parsed.data.name,
-      description: parsed.data.description ?? null,
-      icon: parsed.data.icon ?? null,
-      permissions: parsed.data.permissions,
+      name: input.name,
+      description: input.description ?? null,
+      icon: input.icon ?? null,
+      permissions: input.permissions,
     })
     if (result === 'not-found') return notFound()
     if (result === 'last-global-admin') return lastAdminRoleProblem(context)
@@ -125,7 +109,7 @@ export const updateRoleHandler = async (context: AppContext) => {
     throw error
   }
 
-  return context.json({ id: roleId })
+  return context.json({ id: roleId }, 200)
 }
 
 /** DELETE /api/rbac/roles/:roleId — cascades to role_permissions and every assignment (FK). */

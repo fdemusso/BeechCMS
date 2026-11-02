@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { Category as LayoutDashboard, Image as ImageIcon, Settings, Layers, Plus, Sun, Moon } from 'reicon-react'
+import { Category as LayoutDashboard, Image as ImageIcon, Settings, Layers, Plus, Sun, Moon, Search } from '@/components/icons'
 import {
   CommandGroup,
   CommandItem,
@@ -91,15 +91,10 @@ export function RootView({
       <CommandSeparator />
 
       <CommandGroup heading={t("commandPalette.tools")}>
-        {/* TODO: la ricerca globale non funziona — disabilitata temporaneamente */}
-        {/* <CommandItem onSelect={() => pushPage("search-results")}>
+        <CommandItem onSelect={() => pushPage("search-results")}>
           <Search className="size-4 shrink-0 text-muted-foreground" />
-          <span>Cerca nei contenuti…</span>
-          <CommandShortcut className="flex items-center gap-0.5">
-            <kbd className="text-xs font-mono bg-muted text-muted-foreground px-1 rounded">⌘</kbd>
-            <kbd className="text-xs font-mono bg-muted text-muted-foreground px-1 rounded">F</kbd>
-          </CommandShortcut>
-        </CommandItem> */}
+          <span>{t("commandPalette.searchContent")}</span>
+        </CommandItem>
         <CommandItem
           onSelect={toggleTheme}
           keywords={["dark mode", "light mode", "tema", "theme"]}

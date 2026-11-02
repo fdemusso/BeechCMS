@@ -7,6 +7,8 @@
 export { FieldDisplay } from "./FieldDisplay"
 export { FieldEdit } from "./FieldEdit"
 export type { FieldDisplayProps, FieldEditProps } from "./types"
+export { MultiRelationSkeleton } from "./edit/relation/relation-multi"
+export { FieldLabelRow, FieldLabelAside } from "./field-label-row"
 export {
   getDisplayComponent,
   getEditComponent,

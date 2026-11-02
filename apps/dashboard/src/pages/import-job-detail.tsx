@@ -4,7 +4,7 @@
 
 import { useTranslation } from "react-i18next"
 import { useNavigate, useParams } from "react-router-dom"
-import { ArrowLeft } from "reicon-react"
+import { ArrowLeft } from "@/components/icons"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { AppSidebar, SiteHeader } from "@/features/navigation"

@@ -31,7 +31,7 @@ The scope the new assignment would apply to.
 
 ### targetPermissions
 
-readonly (`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"`)[]
+readonly (`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"` \| `"manage_layout"` \| `"manage_seeds"`)[]
 
 The permissions carried by the role being assigned.
 

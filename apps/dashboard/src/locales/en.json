@@ -247,11 +247,18 @@
       "firstContent": "First content entry",
       "firstContentAction": "Create first entry"
     },
+    "empty": {
+      "title": "Nothing to show yet",
+      "description": "No dashboard tab is available for your roles and permissions."
+    },
     "builder": {
       "customize": "Customize",
       "title": "Dashboard Builder",
       "save": "Save",
       "saved": "Dashboard layout saved.",
+      "firstSaveNeedsRoles": "Only someone who manages roles can create the first dashboard layout.",
+      "conflictTitle": "The layout was changed by someone else",
+      "conflictDesc": "Another editor saved the dashboard after you opened it. Reload the latest version, then apply your changes again. Your unsaved edits will be lost.",
       "saveError": "Could not save the dashboard layout.",
       "reset": "Reset",
       "resetDone": "Dashboard reset to default.",
@@ -263,17 +270,22 @@
       "hidePreview": "Hide Preview",
       "warnNoCrossPageSection": "Move sections within their page.",
       "errorMoveWidget": "Could not move widget to that page.",
-      "scope": {
-        "default": "Default (all roles)",
-        "editor": "Editors",
-        "admin": "Admins",
-        "stored": "Stored",
-        "inheritsDefault": "Inherits default"
-      },
       "page": {
         "add": "Add Page",
         "rename": "Rename page",
-        "delete": "Delete page"
+        "delete": "Delete page",
+        "defaultBadge": "Default page",
+        "setDefault": "Set as default",
+        "newPage": "New page"
+      },
+      "audience": {
+        "label": "Visible to",
+        "everyoneHint": "Everyone · Add role",
+        "add": "Add role",
+        "search": "Search roles…",
+        "empty": "No roles found.",
+        "deletedRole": "Deleted role",
+        "loadError": "Could not load roles."
       },
       "section": {
         "add": "Add Section",
@@ -283,14 +295,31 @@
         "collapsible": "Collapsible",
         "columns": "Columns",
         "duplicate": "Duplicate",
-        "remove": "Remove"
+        "remove": "Remove",
+        "widgetCount_one": "{{count}} widget",
+        "widgetCount_other": "{{count}} widgets",
+        "widgetCount": "{{count}} widgets",
+        "removeConfirm": "Remove this section and its widgets?",
+        "dragHandle": "Drag to move the section",
+        "presetHint": "Column widths"
       },
       "widget": {
         "add": "Add Widget",
         "configure": "Configure",
         "moveToPage": "Move to page…",
         "remove": "Remove",
-        "unavailable": "Unavailable"
+        "unavailable": "Unavailable",
+        "needsSetup": "Needs setup",
+        "duplicate": "Duplicate",
+        "replaceWith": "Replace with…",
+        "rename": "Rename",
+        "dragHandle": "Drag to move the widget",
+        "tooNarrow": "This widget works best in a wider column.",
+        "warnFull": "That column is full.",
+        "searchPlaceholder": "Search widgets…",
+        "noResults": "No widgets found.",
+        "locked": "Widget unavailable",
+        "lockedHint": "You cannot see this widget's data. It stays where it is."
       },
       "picker": {
         "title": "Add Widget",
@@ -364,6 +393,14 @@
           "asc": "Ascending",
           "desc": "Descending"
         }
+      },
+      "back": "Back",
+      "warnPageLimit": "A dashboard can have at most 8 pages.",
+      "warnSectionLimit": "A page can have at most 50 sections.",
+      "warnColumnFull": "That column is full.",
+      "loadingLabel": "Loading the dashboard layout",
+      "column": {
+        "drag": "Drag to move the column"
       }
     }
   },
@@ -571,6 +608,7 @@
   },
   "content": {
     "list": {
+      "subtitle": "Manage \"{{slug}}\" content",
       "table": "Table",
       "gallery": "Gallery",
       "kanban": "Kanban",
@@ -670,10 +708,12 @@
       },
       "relationMulti": {
         "add": "Add…",
-        "moveUp": "Move up",
-        "moveDown": "Move down",
+        "dragHandle": "Drag to reorder",
         "remove": "Remove",
-        "selectedItems": "Selected items"
+        "selectedItems": "Selected items",
+        "selectedCount": "{{count}} selected",
+        "loadMore": "Load more",
+        "done": "Done"
       }
     },
     "trash": {
@@ -739,7 +779,8 @@
       "placeholder": "Search...",
       "ariaLabel": "Search",
       "close": "Close search",
-      "open": "Open search"
+      "open": "Open search",
+      "unavailable": "Search is not available for this content type"
     },
     "sort": {
       "tooltip": "Sort",
@@ -890,6 +931,7 @@
     "changeTheme": "Change theme",
     "searching": "Searching…",
     "noSearchResults": "No results found.",
+    "searchContent": "Search content…",
     "searchResults": "Search results",
     "settings": "Settings",
     "mediaLibrary": "Media Library",
@@ -1351,6 +1393,10 @@
     "discardDesc": "Unsaved layout edits will be lost.",
     "addSection": "Add Section",
     "addField": "Add Field",
+    "dragHandle": "Drag to move the field",
+    "removeField": "Remove from layout",
+    "dragColumn": "Drag to move the column",
+    "dragSection": "Drag to move the section",
     "addTab": "Add Tab",
     "newTab": "New Tab",
     "searchFields": "Search fields…",
@@ -1369,6 +1415,7 @@
     },
     "tabMenu": {
       "rename": "Rename tab",
+      "setDefault": "Set as default",
       "delete": "Delete tab"
     },
     "warnFullWidth": "{{label}} requires a dedicated full-width section.",
@@ -1387,6 +1434,9 @@
       "notInOptions": "{{value}} — not in the options"
     },
     "restricted": "Restricted",
+    "relation": {
+      "moreItems": "{{count}} more"
+    },
     "repeater": {
       "addItem": "Add item",
       "removeItem": "Remove item",
@@ -1485,6 +1535,10 @@
       "onDeleteCascade": "Cascade — delete linked entries",
       "onDeleteRestrict": "Restrict — block deletion if linked",
       "onDeleteSetNull": "Set null — clear the reference",
+      "avatarSource": "Avatar image",
+      "avatarSourceNone": "No avatar",
+      "avatarSourceUnavailable": "The target seed has no single image field. Add one to use it as avatar.",
+      "avatarSourceHint": "Image field of the target shown as avatar. Falls back to the initials of the display name.",
       "numberOptions": "Number options",
       "min": "Min",
       "max": "Max",
@@ -1692,7 +1746,6 @@
       "reactivate": "Reactivate",
       "manageRoles": "Manage roles",
       "zeroTrustHint": "The account is created with no role and no access until assigned.",
-      "cannotDeactivateDev": "Developer account cannot be deactivated",
       "cannotDeactivateSelf": "You cannot deactivate your own account",
       "deactivateWarning": "All active sessions are revoked immediately.",
       "createSuccess": "Account created"
@@ -1741,7 +1794,6 @@
       "role": "Role",
       "scope": "Scope",
       "inactiveScope": "Inactive scope",
-      "cannotRemoveDevSuperAdmin": "The developer account must retain the SuperAdmin role",
       "empty": "No assignments yet"
     },
     "scope": {
@@ -1756,6 +1808,8 @@
       "content:delete": "Delete content",
       "manage_users": "Manage users",
       "manage_roles": "Manage roles",
+      "manage_layout": "Manage dashboard layout",
+      "manage_seeds": "Manage content types",
       "view_analytics": "View analytics"
     },
     "errors": {

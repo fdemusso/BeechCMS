@@ -4,7 +4,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PlusCircle, Image as ImageIcon, Settings, Grid as LayoutGrid } from 'reicon-react'
+import { PlusCircle, Image as ImageIcon, Settings, Grid as LayoutGrid } from '@/components/icons'
 
 interface QuickActionsProps {
   onAction: (action: string) => void

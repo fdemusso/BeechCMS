@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { SidebarLeft as SidebarIcon } from 'reicon-react'
+import { SidebarLeft as SidebarIcon } from '@/components/icons'
 import { useLocation, useSearchParams, Link } from "react-router-dom"
 import { SEED_REGISTRY } from "@beechcms/core"
 

@@ -6,7 +6,7 @@
 
 # Function: permissionsForScope()
 
-> **permissionsForScope**(`effective`, `scope`): `ReadonlySet`&lt;`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"`&gt;
+> **permissionsForScope**(`effective`, `scope`): `ReadonlySet`&lt;`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"` \| `"manage_layout"` \| `"manage_seeds"`&gt;
 
 Returns everything the caller may do within one scope: the union of their global
 permissions and the permissions granted on that specific seed.
@@ -23,4 +23,4 @@ permissions and the permissions granted on that specific seed.
 
 ## Returns
 
-`ReadonlySet`&lt;`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"`&gt;
+`ReadonlySet`&lt;`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"` \| `"manage_layout"` \| `"manage_seeds"`&gt;

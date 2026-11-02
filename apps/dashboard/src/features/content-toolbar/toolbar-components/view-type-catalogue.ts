@@ -5,7 +5,7 @@
 import type { ComponentType } from "react"
 import type { DashboardView } from "@beechcms/core"
 import type { ViewTypeId } from "@/features/shared"
-import { Grid, Category, Kanban, ChartPie, Layout, List, Calendar, Map, Story, Feed, Edit } from "reicon-react"
+import { Grid, Category, Kanban, ChartPie, Layout, List, Calendar, Map, Story, Feed, Edit } from "@/components/icons"
 
 export interface ViewTypeCatalogueEntry {
   readonly type: ViewTypeId

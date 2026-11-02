@@ -2,14 +2,14 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi, type MockInstance } from 'vitest'
 import { createBeechApp } from '../../src/factory'
 import { TEST_ENV, TEST_USERS, TEST_SEEDS } from '../fixtures'
 import { D1TestDatabase } from '../helpers/d1-test-database'
 import { seedTestUsers } from '../helpers/seed-fixtures'
 import { JoseTokenService } from '../../src/auth/providers/jwt-token.service'
 import { SystemClock } from '@beechcms/core'
-import { S3Client, HeadObjectCommand, PutObjectCommand, type HeadObjectCommandOutput } from '@aws-sdk/client-s3'
+import { S3Client, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import * as uploadModule from '../../src/shared/storage/upload'
 import { StaticContentRepository } from '../mocks/static-content.repository'
 import { __resetSeedRegistryCache } from '../../src/shared/services/cache/seed-registry-cache'
@@ -24,6 +24,8 @@ const s3 = new S3Client({
   forcePathStyle: true,
 })
 
+const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+
 describe('Flow: Media & Assets (presigned URLs)', () => {
   let db: D1TestDatabase
   let app: ReturnType<typeof createBeechApp>
@@ -37,6 +39,17 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
     const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
     adminToken = await tokenService.issue({ sub: TEST_USERS[0].id, email: TEST_USERS[0].email })
   })
+
+  // seedTestUsers grants SuperAdmin to every row by default (seed-fixtures.ts), so the canonical editor
+  // would hold manage_users@* and clear the ownership check. This strips it down to the route gates only.
+  const seedContentOnlyEditor = async (): Promise<void> => {
+    const roleId = 'role_content_only'
+    await db.prepare('DELETE FROM user_role_assignments WHERE user_id = ?').bind(TEST_USERS[1].id).run()
+    await db.prepare('INSERT INTO roles (id, name) VALUES (?, ?)').bind(roleId, 'Content only').run()
+    await db.prepare('INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)').bind(roleId, 'content:read').run()
+    await db.prepare('INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)').bind(roleId, 'content:delete').run()
+    await db.prepare("INSERT INTO user_role_assignments (id, user_id, role_id, scope) VALUES (?, ?, ?, '*')").bind('ura_content_only', TEST_USERS[1].id, roleId).run()
+  }
 
   describe('POST /api/upload/presign', () => {
     it('returns 401 without JWT', async () => {
@@ -166,15 +179,15 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       const presignRes = await app.request('/api/upload/presign', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename, mimeType: 'image/png', sizeBytes: 3 }),
+        body: JSON.stringify({ filename, mimeType: 'image/png', sizeBytes: PNG_SIGNATURE.byteLength }),
       }, { ...TEST_ENV, DB: db })
       expect(presignRes.status).toBe(200)
       const { uploadUrl, key } = await presignRes.json<{ uploadUrl: string; key: string }>()
 
-      // 2. Upload to MinIO via presigned URL
+      // 2. Upload to MinIO via presigned URL (confirm checks the leading bytes against the declared type)
       const putRes = await fetch(uploadUrl, {
         method: 'PUT',
-        body: new Uint8Array([1, 2, 3]),
+        body: PNG_SIGNATURE,
         headers: { 'Content-Type': 'image/png' },
       })
       expect(putRes.ok).toBe(true)
@@ -268,12 +281,13 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       expect(res.status).toBe(404)
     })
 
-    it('returns 403 when user is not owner and not admin', async () => {
+    it('returns 403 when user is not the owner and lacks manage_users@*', async () => {
       const key = `${Date.now()}-download-test.png`
       await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'download-test.png', 'image/png', 100, TEST_USERS[0].id).run()
+      await seedContentOnlyEditor()
 
       const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
-      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email, role: 'editor' })
+      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email })
 
       const res = await app.request(`/api/upload/download-url/${key}`, {
         method: 'GET',
@@ -285,9 +299,10 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
     it('allows download when user is owner', async () => {
       const key = `${Date.now()}-download-owner.png`
       await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'download-owner.png', 'image/png', 100, TEST_USERS[1].id).run()
+      await seedContentOnlyEditor()
 
       const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
-      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email, role: 'editor' })
+      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email })
 
       await s3.send(new PutObjectCommand({
         Bucket: TEST_ENV.R2_BUCKET_NAME,
@@ -339,26 +354,50 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       expect(res.status).toBe(404)
     })
 
-    it('returns 403 when user is not owner and not admin', async () => {
+    it('returns 403 when user is not the owner and lacks manage_users@*', async () => {
       const key = `${Date.now()}-owner-test.png`
       await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'owner-test.png', 'image/png', 100, TEST_USERS[0].id).run()
+      await seedContentOnlyEditor()
 
       const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
-      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email, role: 'editor' })
+      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email })
 
       const res = await app.request(`/api/upload/${key}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${editorToken}` },
       }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(403)
+
+      const mediaObj = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(key).first()
+      expect(mediaObj).not.toBeNull()
     })
 
-    it('allows delete if user is admin even if not owner', async () => {
+    it('a non-owner holding content:read and content:delete at * but no manage_users is refused even though the JWT claims role admin', async () => {
+      const key = 'claim-ignored.png'
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'claim-ignored.png', 'image/png', 100, TEST_USERS[0].id).run()
+      await seedContentOnlyEditor()
+
+      // Regression guard: a legacy `role` claim on a still-valid token must never grant the override.
+      // `JwtClaims` no longer declares it, so it rides the index signature.
+      const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
+      const claimedAdminToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email, role: 'admin' })
+
+      const res = await app.request(`/api/upload/${key}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${claimedAdminToken}` },
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(403)
+
+      const mediaObj = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(key).first()
+      expect(mediaObj).not.toBeNull()
+    })
+
+    it('a manage_users@* holder deletes a file it did not upload', async () => {
       const key = `${Date.now()}-admin-delete-test.png`
       await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'admin-delete-test.png', 'image/png', 100, TEST_USERS[1].id).run()
 
       const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
-      const adminRoleToken = await tokenService.issue({ sub: TEST_USERS[0].id, email: TEST_USERS[0].email, role: 'admin' })
+      const adminRoleToken = await tokenService.issue({ sub: TEST_USERS[0].id, email: TEST_USERS[0].email })
 
       await s3.send(new PutObjectCommand({
         Bucket: TEST_ENV.R2_BUCKET_NAME,
@@ -372,6 +411,9 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
         headers: { 'Authorization': `Bearer ${adminRoleToken}` },
       }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(200)
+
+      const mediaObj = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(key).first()
+      expect(mediaObj).toBeNull()
     })
 
     it('sanitizes relative paths and non-standard characters from key before deletion', async () => {
@@ -775,21 +817,25 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
   describe('DELETE /api/content/:slug/:id (R2 cascade cleanup)', () => {
     let contentRepo: StaticContentRepository
     let contentApp: ReturnType<typeof createBeechApp>
-    let s3SendSpy: ReturnType<typeof vi.spyOn>
+    let s3FetchSpy: MockInstance<typeof fetch>
 
     beforeEach(() => {
       contentRepo = new StaticContentRepository(TEST_SEEDS)
       contentApp = createBeechApp({ seeds: TEST_SEEDS, repository: contentRepo })
       __resetSeedRegistryCache()
-      s3SendSpy = vi.spyOn(S3Client.prototype, 'send')
-      s3SendSpy.mockReset()
+      // S3Bucket talks to MinIO through global fetch (aws4fetch); intercept it to observe cleanup calls.
+      s3FetchSpy = vi.spyOn(globalThis, 'fetch')
+      s3FetchSpy.mockReset()
     })
 
     it('purging a trashed entry removes it and triggers R2 cleanup for its tracked media field', async () => {
       await db.prepare(
         'INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)'
       ).bind('f.png', 'f.png', 'image/png', 100, TEST_USERS[0].id).run()
-      s3SendSpy.mockResolvedValue({ ContentLength: 100 } satisfies Partial<HeadObjectCommandOutput>)
+      s3FetchSpy.mockImplementation(async (input: RequestInfo | URL) => {
+        const method = (input as Request).method
+        return new Response(null, method === 'HEAD' ? { status: 200, headers: { 'content-length': '100' } } : { status: 204 })
+      })
       contentRepo.load('posts', [{ id: 'p_del', status: 'published', deleted_at: 1, image: 'https://ex.com/api/media/f.png' }])
 
       const res = await contentApp.request('/api/content/posts/p_del?purge=true', {
@@ -798,7 +844,8 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(200)
-      expect(s3SendSpy).toHaveBeenCalled()
+      const methods = s3FetchSpy.mock.calls.map(([request]) => (request as Request).method)
+      expect(methods).toContain('DELETE')
     })
 
     it('logs but does not fail the request when R2 cleanup on purge fails', async () => {

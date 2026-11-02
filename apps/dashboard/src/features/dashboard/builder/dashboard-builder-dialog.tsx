@@ -7,181 +7,221 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   validateDashboardLayout,
   generateDefaultDashboardLayout,
-  DEFAULT_DASHBOARD_SCOPE,
-  roleScope,
-  KNOWN_DASHBOARD_ROLES,
+  GLOBAL_SCOPE,
+  hasPermission,
   type DashboardLayout,
+  type EffectivePermissions,
 } from '@beechcms/core'
 import { toast } from 'sonner'
-import { Loader as Loader2 } from 'reicon-react'
-import type { AxiosError } from 'axios'
+import { isApiError, problemCode } from '@/lib/http/api-error'
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useSchema } from '@/features/shared'
 import { DASHBOARD_QUERY_KEYS } from '@/features/shared'
+import { usePermissions } from '@/features/shared/hooks/use-permissions'
 import { BuilderPane } from './builder-pane'
+import { builderDialogWidth } from './builder-size'
 import { useDashboardBuilder } from './use-dashboard-builder'
+import { useLayoutRoles } from './use-layout-roles'
 import { dashboardBuilderApi } from './api/dashboard-layout.api'
+import {
+  DASHBOARD_DRAFT_KEY,
+  clearAllDashboardDrafts,
+  clearDashboardDraft,
+  loadDashboardDraft,
+} from './dashboard-draft-storage'
 import { knownWidgetTypes } from '../registry/widget-registry'
 
 export interface DashboardBuilderDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly initialLayout: DashboardLayout
+  /** Width of the dashboard's content area on screen, which the dialog is sized from (see `builderDialogWidth`). */
+  readonly referenceWidth?: number
+  /** Opened because a draft was found after a reload: if it turns out to be stale the dialog closes again. */
+  readonly recovering?: boolean
 }
 
-const SCOPE_OPTIONS: ReadonlyArray<{ value: string; labelKey: string }> = [
-  { value: DEFAULT_DASHBOARD_SCOPE, labelKey: 'dashboard.builder.scope.default' },
-  ...KNOWN_DASHBOARD_ROLES.map((role) => ({
-    value: roleScope(role),
-    labelKey: `dashboard.builder.scope.${role}`,
-  })),
-]
+/** The shape of a page while its layout loads, so the content fades in over a frame instead of popping in. */
+function BuilderSkeleton() {
+  return (
+    <div className="flex-1 space-y-4 px-6 pt-1" aria-hidden>
+      <div className="flex gap-2">
+        <Skeleton className="h-8 w-24 rounded-full" />
+        <Skeleton className="h-8 w-20 rounded-full" />
+      </div>
+      {[0, 1].map((i) => (
+        <div key={i} className="space-y-3 rounded-lg border p-3">
+          <Skeleton className="h-5 w-40" />
+          <div className="grid grid-cols-12 gap-3">
+            <Skeleton className="col-span-8 h-32 rounded-2xl" />
+            <Skeleton className="col-span-4 h-32 rounded-2xl" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
-export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: DashboardBuilderDialogProps) {
+export function DashboardBuilderDialog({
+  open,
+  onOpenChange,
+  initialLayout,
+  referenceWidth,
+  recovering = false,
+}: Readonly<DashboardBuilderDialogProps>) {
   const { t } = useTranslation()
   const { data: seeds = [] } = useSchema()
+  const [isDragging, setIsDragging] = React.useState(false)
+  // Each opening checks once whether a reload left a draft behind (reset while closed).
+  const recoveryChecked = React.useRef(false)
 
-  const [scope, setScope] = React.useState<string>(DEFAULT_DASHBOARD_SCOPE)
-  const [pendingScope, setPendingScope] = React.useState<string | null>(null)
-  const [isDirty, setIsDirty] = React.useState(false)
+  const { effective, isLoading: permissionsLoading } = usePermissions()
 
-  const [prevOpen, setPrevOpen] = React.useState(open)
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) {
-      setScope(DEFAULT_DASHBOARD_SCOPE)
-      setIsDirty(false)
-    }
+  const generatedDefault = React.useMemo(() => generateDefaultDashboardLayout(seeds, effective), [seeds, effective])
+
+  const queryClient = useQueryClient()
+  const [conflictOpen, setConflictOpen] = React.useState(false)
+
+  // Always fetch the current version: it is echoed as `If-Match`. Focus/reconnect refetches would drop the draft.
+  const { data, isFetching, refetch } = useQuery({
+    queryKey: ['dashboard-builder-layout'],
+    queryFn: dashboardBuilderApi.getLayout,
+    enabled: open,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+
+  function handleConflictReload() {
+    setConflictOpen(false)
+    queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.layout() })
+    refetch()
   }
 
-  const generatedDefault = React.useMemo(() => generateDefaultDashboardLayout(seeds), [seeds])
+  const draftSource: DashboardLayout = data?.layout ?? generatedDefault ?? initialLayout
+  // Only while open: Save refetches the layout as the dialog closes, and a skeleton swapped in then would replace
+  // the builder in the middle of its exit fade.
+  const isLoadingDraft = open && (isFetching || permissionsLoading)
 
-  const { data: scopeLayoutData, isLoading: isScopeLayoutLoading, refetch: refetchScopeLayout } = useQuery({
-    queryKey: ['dashboard-builder-layout', scope],
-    queryFn: () => dashboardBuilderApi.getLayout(scope),
-    enabled: open,
-  })
-  const { data: defaultLayoutData, isLoading: isDefaultLayoutLoading, refetch: refetchDefaultLayout } = useQuery({
-    queryKey: ['dashboard-builder-layout', DEFAULT_DASHBOARD_SCOPE],
-    queryFn: () => dashboardBuilderApi.getLayout(DEFAULT_DASHBOARD_SCOPE),
-    enabled: open && scope !== DEFAULT_DASHBOARD_SCOPE,
-  })
-  const { refetch: refetchScopes } = useQuery({
-    queryKey: ['dashboard-builder-scopes'],
-    queryFn: dashboardBuilderApi.getScopes,
-    enabled: open,
-  })
-
-  const isStored = scopeLayoutData?.layout != null
-  const isLoadingDraft =
-    isScopeLayoutLoading || (scope !== DEFAULT_DASHBOARD_SCOPE && isDefaultLayoutLoading)
-  const draftSource: DashboardLayout =
-    scopeLayoutData?.layout ?? defaultLayoutData?.layout ?? generatedDefault ?? initialLayout
-
-  function applyScopeChange(next: string) {
-    setScope(next)
-    setIsDirty(false)
-  }
-
-  function handleScopeChange(next: string) {
-    if (next === scope) return
-    if (isDirty) {
-      setPendingScope(next)
+  // Reopened after a reload for a draft: if that draft no longer applies (the server moved on, or it was
+  // already gone) there is nothing to resume, so the dialog steps aside instead of showing an unasked builder.
+  React.useEffect(() => {
+    if (!open) {
+      recoveryChecked.current = false
       return
     }
-    applyScopeChange(next)
+    if (!recovering || recoveryChecked.current || isLoadingDraft) return
+    recoveryChecked.current = true
+    if (loadDashboardDraft(DASHBOARD_DRAFT_KEY, data?.layout ?? null).status !== 'ready') {
+      clearAllDashboardDrafts()
+      onOpenChange(false)
+    }
+  }, [open, recovering, isLoadingDraft, data, onOpenChange])
+
+  // Leaving the builder (Back, Esc, Save, a click outside) is not an interruption: it drops the draft.
+  // A reload never runs this, which is the whole point.
+  function handleOpenChange(next: boolean) {
+    if (!next) clearAllDashboardDrafts()
+    onOpenChange(next)
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col p-0 gap-0 sm:max-w-[80vw] w-[80vw] h-[90vh] max-h-[90vh]" showCloseButton={false}>
-        <DialogHeader className="px-6 pt-6 pb-2">
-          <div className="flex items-center justify-between gap-4">
-            <DialogTitle>{t('dashboard.builder.title')}</DialogTitle>
-            <div className="flex items-center gap-2">
-              <Select value={scope} onValueChange={handleScopeChange}>
-                <SelectTrigger className="w-48" size="sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SCOPE_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {t(opt.labelKey)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!isLoadingDraft && (
-                <Badge variant={isStored ? 'default' : 'secondary'}>
-                  {isStored ? t('dashboard.builder.scope.stored') : t('dashboard.builder.scope.inheritsDefault')}
-                </Badge>
-              )}
-            </div>
-          </div>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        // The overlay fades as long as the content (its default is 100ms against the content's 200ms), so the
+        // blurred backdrop does not snap away while the dialog is still half visible.
+        overlayClassName="duration-200"
+        className="flex h-[90vh] max-h-[90vh] flex-col gap-0 p-0 duration-200 data-open:zoom-in-100 data-closed:zoom-out-100"
+        // Inline, and with the max-width lifted: the width is measured, and the default `sm:max-w-*` would cap it.
+        style={{ width: builderDialogWidth(referenceWidth), maxWidth: "96vw" }}
+        // Esc belongs to a drag in flight (it cancels it); it must not also close the builder.
+        onEscapeKeyDown={(event) => { if (isDragging) event.preventDefault() }}
+        onInteractOutside={(event) => { if (isDragging) event.preventDefault() }}
+      >
+        <DialogHeader className="px-6 pb-2 pt-6">
+          <DialogTitle className="text-xl font-semibold leading-tight">{t('dashboard.builder.title')}</DialogTitle>
         </DialogHeader>
         {isLoadingDraft ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-          </div>
+          <BuilderSkeleton />
         ) : (
-          <BuilderPaneController
-            key={scope}
-            scope={scope}
-            initialLayout={draftSource}
-            onDirtyChange={setIsDirty}
-            onClose={() => onOpenChange(false)}
-            onScopeMutated={() => {
-              refetchScopeLayout()
-              refetchDefaultLayout()
-              refetchScopes()
-            }}
-          />
+          <div className="flex min-h-0 flex-1 animate-in flex-col duration-200 fade-in-0">
+            <BuilderPaneController
+              serverLayout={data?.layout ?? null}
+              initialLayout={draftSource}
+              updatedAt={data?.updatedAt ?? null}
+              permissions={effective}
+              onDraggingChange={setIsDragging}
+              onClose={() => handleOpenChange(false)}
+              onMutated={() => { refetch() }}
+              onConflict={() => setConflictOpen(true)}
+            />
+          </div>
         )}
-
-        <ConfirmDialog
-          open={pendingScope !== null}
-          onOpenChange={(o) => { if (!o) setPendingScope(null) }}
-          title={t('dashboard.builder.discardTitle')}
-          description={t('dashboard.builder.discardDesc')}
-          confirmVariant="destructive"
-          onConfirm={() => {
-            const next = pendingScope
-            setPendingScope(null)
-            if (next) applyScopeChange(next)
-          }}
-        />
       </DialogContent>
+      <ConfirmDialog
+        open={conflictOpen}
+        onOpenChange={setConflictOpen}
+        title={t('dashboard.builder.conflictTitle')}
+        description={t('dashboard.builder.conflictDesc')}
+        onConfirm={handleConflictReload}
+      />
     </Dialog>
   )
 }
 
 interface BuilderPaneControllerProps {
-  readonly scope: string
+  /** The layout the server holds (null: nothing stored), to tell whether a kept draft still applies. */
+  readonly serverLayout: DashboardLayout | null
   readonly initialLayout: DashboardLayout
-  readonly onDirtyChange: (dirty: boolean) => void
+  readonly updatedAt: number | null
+  readonly permissions: EffectivePermissions
+  readonly onDraggingChange: (dragging: boolean) => void
   readonly onClose: () => void
-  readonly onScopeMutated: () => void
+  readonly onMutated: () => void
+  readonly onConflict: () => void
 }
 
-function BuilderPaneController({ scope, initialLayout, onDirtyChange, onClose, onScopeMutated }: BuilderPaneControllerProps) {
+function BuilderPaneController({
+  serverLayout,
+  initialLayout,
+  updatedAt,
+  permissions,
+  onDraggingChange,
+  onClose,
+  onMutated,
+  onConflict,
+}: Readonly<BuilderPaneControllerProps>) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data: seeds = [] } = useSchema()
 
-  const ops = useDashboardBuilder({ initialLayout })
-  const [isSaving, setIsSaving] = React.useState(false)
+  const { data: roles } = useLayoutRoles(hasPermission(permissions, 'manage_roles', GLOBAL_SCOPE))
 
-  React.useEffect(() => {
-    onDirtyChange(ops.isDirty)
-  }, [ops.isDirty, onDirtyChange])
+  // Unsaved work from before a reload, if the server layout has not moved on since.
+  const recovered = React.useMemo(() => {
+    const lookup = loadDashboardDraft(DASHBOARD_DRAFT_KEY, serverLayout)
+    return lookup.status === 'ready' ? lookup.draft : null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const ops = useDashboardBuilder({
+    initialLayout: recovered?.saved ?? initialLayout,
+    restoredDraft: recovered?.layout,
+  })
+  const [isSaving, setIsSaving] = React.useState(false)
 
   async function handleSave() {
     const seedSlugs = new Set(seeds.map((s) => s.slug))
-    const result = validateDashboardLayout(ops.draft, { seedSlugs, knownWidgetTypes: knownWidgetTypes() })
+    // Without a loaded list the server decides (422 on an unknown role id).
+    const roleIds = roles ? new Set(roles.map((r) => r.id)) : undefined
+    const result = validateDashboardLayout(ops.draft, {
+      seedSlugs,
+      knownWidgetTypes: knownWidgetTypes(),
+      ...(roleIds ? { roleIds } : {}),
+    })
     if (!result.ok) {
       toast.error(result.errors[0] ?? t('dashboard.builder.saveError'))
       return
@@ -189,14 +229,19 @@ function BuilderPaneController({ scope, initialLayout, onDirtyChange, onClose, o
 
     setIsSaving(true)
     try {
-      await dashboardBuilderApi.saveLayout(scope, result.cleaned)
+      await dashboardBuilderApi.saveLayout(result.cleaned, updatedAt)
+      clearDashboardDraft(DASHBOARD_DRAFT_KEY)
       toast.success(t('dashboard.builder.saved'))
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.layout() })
-      onScopeMutated()
+      onMutated()
       onClose()
     } catch (err) {
-      const ax = err as AxiosError<{ title?: string; detail?: string }>
-      toast.error(ax.response?.data?.detail ?? ax.response?.data?.title ?? t('dashboard.builder.saveError'))
+      if (problemCode(err) === 'layout-conflict') {
+        onConflict()
+        return
+      }
+      const body = isApiError(err) ? err.data : null
+      toast.error(body?.detail ?? body?.title ?? t('dashboard.builder.saveError'))
     } finally {
       setIsSaving(false)
     }
@@ -204,15 +249,32 @@ function BuilderPaneController({ scope, initialLayout, onDirtyChange, onClose, o
 
   async function handleReset() {
     try {
-      await dashboardBuilderApi.resetLayout(scope)
+      await dashboardBuilderApi.resetLayout(updatedAt)
+      clearDashboardDraft(DASHBOARD_DRAFT_KEY)
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.layout() })
-      onScopeMutated()
+      onMutated()
       toast.success(t('dashboard.builder.resetDone'))
       onClose()
-    } catch {
+    } catch (err) {
+      if (problemCode(err) === 'layout-conflict') {
+        onConflict()
+        return
+      }
       toast.error(t('dashboard.builder.saveError'))
     }
   }
 
-  return <BuilderPane ops={ops} isSaving={isSaving} onSave={handleSave} onReset={handleReset} onClose={onClose} />
+  return (
+    <BuilderPane
+      serverLayout={serverLayout}
+      ops={ops}
+      isSaving={isSaving}
+      onSave={handleSave}
+      onReset={handleReset}
+      onClose={onClose}
+      onDraggingChange={onDraggingChange}
+      permissions={permissions}
+      hasStoredLayout={updatedAt !== null}
+    />
+  )
 }

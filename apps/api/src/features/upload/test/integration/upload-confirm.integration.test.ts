@@ -14,7 +14,9 @@ import { createTestHarness, type TestClient, type TestHarness } from '@beechcms/
 import { createBeechApp } from '../../../../factory'
 import { __resetSeedRegistryCache } from '../../../../shared/services/cache/seed-registry-cache'
 
-const OBJECT_BYTES = new Uint8Array(100).fill(7)
+// PNG signature followed by filler: passes the byte-level check for a declared image/png.
+const OBJECT_BYTES = Uint8Array.from({ length: 100 }, (_, i) => [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a][i] ?? 7)
+const HTML_BYTES = new TextEncoder().encode('<html><script>alert(1)</script></html>')
 const OBJECT_KEY = '1700000000000-abc123-photo.png'
 
 describe('upload slice — confirm integration (real D1 + R2)', () => {
@@ -74,6 +76,17 @@ describe('upload slice — confirm integration (real D1 + R2)', () => {
 
     it('rejects a disallowed stored Content-Type and deletes the untracked object', async () => {
       await bucket.put(OBJECT_KEY, OBJECT_BYTES, { httpMetadata: { contentType: 'text/html' } })
+
+      const response = await confirm()
+
+      expect(response.status).toBe(400)
+      expect(await bucket.head(OBJECT_KEY)).toBeNull()
+      expect(await mediaRows()).toBe(0)
+      expect(await storageBytes()).toBe(0)
+    })
+
+    it('rejects an object whose bytes do not match the stored Content-Type and deletes it', async () => {
+      await bucket.put(OBJECT_KEY, HTML_BYTES, { httpMetadata: { contentType: 'image/png' } })
 
       const response = await confirm()
 
