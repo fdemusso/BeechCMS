@@ -424,7 +424,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       return context.json({ type: 'settings-storage-orphan-forbidden', keys: foreignKeys }, 403)
     }
 
-    const referencedMediaKeys = await context.get('contentScanRepository').getReferencedMediaKeys(context.get('seedRegistry').all())
+    const referencedMediaKeys = await context.get('contentScanRepository').getReferencedMediaKeys(context.get('seedRegistry').all(), { fresh: true })
     const referencedKeys = selectedKeys.filter(key => referencedMediaKeys.has(key))
     if (referencedKeys.length > 0) {
       return context.json({ type: 'settings-storage-orphan-referenced', keys: referencedKeys }, 409)
