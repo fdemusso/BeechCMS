@@ -119,6 +119,43 @@ describe('getHydratedRegistry', () => {
     expect(res2.registry).toBe(res3.registry)
   })
 
+  it('does not hand a build started at an older version to a request that read a newer one', async () => {
+    let resolveStale: (seeds: Seed[]) => void = () => {}
+    const repo = makeRepo(1)
+    repo.getRegistryVersion.mockResolvedValueOnce(1).mockResolvedValueOnce(2)
+    repo.listActive
+      .mockReturnValueOnce(new Promise<Seed[]>((resolve) => { resolveStale = resolve }))
+      .mockResolvedValueOnce([{ ...mockSeed, slug: 'after-bump' }])
+
+    const staleRequest = getHydratedRegistry(repo)
+    // Version bumped while the first build is still reading seeds.
+    const freshRequest = getHydratedRegistry(repo)
+    resolveStale([{ ...mockSeed, slug: 'before-bump' }])
+    const [stale, fresh] = await Promise.all([staleRequest, freshRequest])
+
+    expect(fresh.registry.all().map((seed) => seed.slug)).toEqual(['after-bump'])
+    expect(stale.registry.all().map((seed) => seed.slug)).toEqual(['before-bump'])
+  })
+
+  it('keeps the newer build in cache when an older build settles last', async () => {
+    let resolveStale: (seeds: Seed[]) => void = () => {}
+    const repo = makeRepo(1)
+    repo.getRegistryVersion.mockResolvedValueOnce(1).mockResolvedValueOnce(2).mockResolvedValue(2)
+    repo.listActive
+      .mockReturnValueOnce(new Promise<Seed[]>((resolve) => { resolveStale = resolve }))
+      .mockResolvedValueOnce([{ ...mockSeed, slug: 'after-bump' }])
+
+    const staleRequest = getHydratedRegistry(repo)
+    await getHydratedRegistry(repo)
+    // Older build settles after the newer one cached its result and must not overwrite it.
+    resolveStale([{ ...mockSeed, slug: 'before-bump' }])
+    await staleRequest
+
+    const { registry } = await getHydratedRegistry(repo)
+    expect(registry.all().map((seed) => seed.slug)).toEqual(['after-bump'])
+    expect(repo.listActive).toHaveBeenCalledTimes(2)
+  })
+
   it('reuses valid cache when getRegistryVersion throws', async () => {
     const repo = makeRepo(1)
     await getHydratedRegistry(repo)
