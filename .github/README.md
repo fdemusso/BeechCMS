@@ -181,6 +181,6 @@ The name came from the beech wood desktop I had just finished building, while I 
 | `apps/api` | BUSL-1.1 | Free for self-hosting; see the Additional Use Grant |
 | `apps/dashboard` | BUSL-1.1 | Free for self-hosting; see the Additional Use Grant |
 
-Self-hosting is always free. The BUSL-1.1 only restricts offering BeechCMS as a managed SaaS service in direct competition with BeechCMS Cloud. After 2030-05-26, these components convert automatically to GPL v2+.
+Self-hosting is always free. The BUSL-1.1 only restricts offering BeechCMS as a CMS-as-a-Service to third parties. On the Change Date stated in [`LICENSE`](../LICENSE), these components convert automatically to GPL v2+.
 
 More detail in the [licensing guide](https://github.com/fdemusso/BeechCMS/blob/master/docs/LICENSING.md). For commercial licensing inquiries: demusso1617@gmail.com

@@ -8,6 +8,11 @@ on:
   schedule:
     - cron: '0 5 * * *'
   workflow_dispatch:
+    inputs:
+      release_args:
+        description: 'Extra scripts/release.mjs arguments (e.g. "-p @beechcms/cms --no-cascade" or "--all"); empty releases what changed'
+        required: false
+        default: ''
 
 concurrency:
   group: auto-release-master
@@ -77,15 +82,21 @@ jobs:
         run: |
           set -euo pipefail
           echo "Executing release pipeline for modified packages..."
-          RELEASE_MANIFEST="$RUNNER_TEMP/release-manifest.json" node scripts/release.mjs patch
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          # Unquoted on purpose: RELEASE_ARGS is a space-separated list of flags from the dispatch input.
+          # shellcheck disable=SC2086
+          RELEASE_MANIFEST="$RUNNER_TEMP/release-manifest.json" node scripts/release.mjs patch ${RELEASE_ARGS:-}
+        env:
+          RELEASE_ARGS: ${{ inputs.release_args }}
 
       # Only the release commit and its tags matter from here on. Everything below runs only when
-      # the pipeline actually produced a "chore: release" commit.
+      # the pipeline actually produced a new "chore: release" commit: HEAD must have moved, because
+      # when nothing changed the last commit on master is still the previous release commit.
       - name: Push release commit and tags
         id: push
         run: |
           set -euo pipefail
-          if ! git log -1 --pretty=%s | grep -q '^chore: release'; then
+          if [ "$(git rev-parse HEAD)" = "$SHA_BEFORE" ] || ! git log -1 --pretty=%s | grep -q '^chore: release'; then
             echo "No packages were bumped or published."
             echo "released=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -125,6 +136,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          SHA_BEFORE: ${{ steps.release.outputs.sha }}
 
       - name: Verify packages on npm
         if: steps.push.outputs.released == 'true'

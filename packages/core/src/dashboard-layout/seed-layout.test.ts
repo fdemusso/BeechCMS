@@ -662,6 +662,34 @@ describe('formLayoutSchema bounds', () => {
       expect(formLayoutSchema.safeParse(layout).success).toBe(true)
     })
   })
+
+  describe('id uniqueness', () => {
+    const tab = (id: string, sections: unknown[]) => ({ id, label: id, sections })
+
+    it('rejects two tabs sharing an id', () => {
+      const layout = { version: 1, tabs: [tab('a', [section('s1')]), tab('a', [section('s2')])] }
+
+      expect(formLayoutSchema.safeParse(layout).success).toBe(false)
+    })
+
+    it('rejects two sections sharing an id, even across tabs', () => {
+      const layout = { version: 1, tabs: [tab('a', [section('s')]), tab('b', [section('s')])] }
+
+      expect(formLayoutSchema.safeParse(layout).success).toBe(false)
+    })
+
+    it('rejects two columns sharing an id', () => {
+      const sections = [{ id: 's', columns: [{ id: 'c', fields: [] }, { id: 'c', fields: [] }] }]
+
+      expect(formLayoutSchema.safeParse(layoutWith(sections)).success).toBe(false)
+    })
+
+    it('accepts a layout whose ids are all distinct', () => {
+      const layout = { version: 1, tabs: [tab('a', [section('s1')]), tab('b', [section('s2')])] }
+
+      expect(formLayoutSchema.safeParse(layout).success).toBe(true)
+    })
+  })
 })
 
 describe('reconcileLayoutWithSeed', () => {

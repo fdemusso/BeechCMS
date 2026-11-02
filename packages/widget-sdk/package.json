@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/widget-sdk",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -28,7 +28,7 @@
     "react": "^19.0.0"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.9.6",
+    "@beechcms/core": "workspace:^0.9.7",
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6"

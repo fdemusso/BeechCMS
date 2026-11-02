@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/dashboard",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "type": "module",
   "files": [
     "dist/admin"
@@ -16,8 +16,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.9.6",
-    "@beechcms/widget-sdk": "workspace:^0.9.6",
+    "@beechcms/core": "workspace:^0.9.7",
+    "@beechcms/widget-sdk": "workspace:^0.9.7",
     "@codemirror/lang-json": "^6.0.1",
     "@codemirror/language": "^6.10.8",
     "@codemirror/lint": "^6.8.4",
@@ -89,7 +89,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.6",
     "globals": "^17.12.0",
-    "happy-dom": "^20.11.0",
+    "happy-dom": "^21.0.4",
     "react-scan": "^0.5.7",
     "rollup-plugin-visualizer": "^7.1.1",
     "shadcn": "^4.21.0",
