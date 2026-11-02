@@ -244,4 +244,18 @@ describe("SchemaFormShell", () => {
     render(<SchemaFormShell vm={vm} open />)
     expect(screen.getByText("content.editor.draftModeNotice")).toBeInTheDocument()
   })
+
+  it("opens again when it is reopened after a close that has not unmounted it yet", async () => {
+    const vm = buildViewModel()
+    const user = userEvent.setup()
+    const { rerender } = render(<SchemaFormShell vm={vm} open />)
+    await user.keyboard("{Escape}")
+    // The route closes the dialog but the host keeps it mounted for a moment (use-content-list-modals), so a
+    // quick reopen reaches the same instance, which must not stay in its "closing" state.
+    rerender(<SchemaFormShell vm={vm} open={false} />)
+
+    rerender(<SchemaFormShell vm={vm} open />)
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument()
+  })
 })

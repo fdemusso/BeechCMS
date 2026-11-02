@@ -25,7 +25,8 @@ import { BuilderTabPill } from '@/components/builder/tab-pill'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionCard } from './section-card'
 import { DragPreview } from './drag-preview'
-import { BuilderDragContext, builderCollisionDetection, dragIds, useBuilderDnd } from './use-builder-dnd'
+import { BuilderDragContext } from '@/components/builder/layout-dnd'
+import { builderCollisionDetection, dragIds, useBuilderDnd } from './use-builder-dnd'
 import { clearLayoutDraft, fingerprintLayout, loadLayoutDraft, saveLayoutDraft } from './layout-draft-storage'
 import { useLayoutBuilder } from './use-layout-builder'
 import { saveLayout, resetLayout } from '../api/layout.api'
@@ -99,9 +100,9 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
 
   // ── Draft persistence ────────────────────────────────────────────────────
   // Unsaved work is kept in the tab's session storage so a reload resumes it (the entry editor shell reopens
-  // the builder when a draft is waiting). It is written shortly after each change, but never mid-drag (a
-  // field half-way between columns is not a state worth coming back to), and straight away when the page
-  // goes away, which a pending timer would not survive.
+  // the builder when a draft is waiting). It is written shortly after each change, but never mid-drag (the
+  // layout does not change while a drag is in flight, so there is nothing new to keep), and straight away
+  // when the page goes away, which a pending timer would not survive.
   const base = React.useMemo(() => fingerprintLayout(seed.layout as FormLayout | undefined), [seed.layout])
   const latestRef = React.useRef({ draft, saved: ops.saved, isDirty, isDragging })
   React.useEffect(() => {
@@ -134,8 +135,8 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
   React.useEffect(() => () => clearLayoutDraft(seed.slug), [seed.slug])
 
   const activeTab = draft.tabs.find((t) => t.id === activeTabId) ?? draft.tabs[0]
-  const { getAvailableBranches } = ops
-  const availableBranches = React.useMemo(() => getAvailableBranches(), [getAvailableBranches])
+  // Keeps its identity while fields only move around, so the columns' memoised "Add field" lists are not rebuilt.
+  const availableBranches = ops.getAvailableBranches()
 
   const tabDragIds = draft.tabs.map((t) => dragIds.tab(t.id))
   const sectionDragIds = (activeTab?.sections ?? []).map((s) => dragIds.section(activeTab?.id ?? '', s.id))
@@ -183,7 +184,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
           sensors={dnd.sensors}
           collisionDetection={builderCollisionDetection}
           onDragStart={dnd.onDragStart}
-          onDragOver={dnd.onDragOver}
+          onDragMove={dnd.onDragMove}
           onDragEnd={dnd.onDragEnd}
           onDragCancel={dnd.onDragCancel}
         >
@@ -239,8 +240,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
                     section={section}
                     branchById={branchById}
                     availableBranches={availableBranches}
-                    ops={ops}
-                    dragId={dragIds.section(activeTab.id, section.id)}
+                    ops={ops.actions}
                   />
                 ))}
               </div>

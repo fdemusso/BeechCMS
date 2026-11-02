@@ -13,10 +13,12 @@ import {
   filterDashboardLayoutByWidgetRequirements,
   hasPermission,
   type DashboardLayout,
+  type DashboardPageLayout,
   type EffectivePermissions,
 } from '@beechcms/core'
 
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DashboardLayoutRenderer } from '../renderer/dashboard-layout-renderer'
@@ -172,10 +174,18 @@ export function BuilderPane({
   useDashboardDraftPersistence({ serverLayout, draft, saved: ops.saved, isDirty, isDragging })
 
   const activePage = draft.pages.find((p) => p.id === activePageId) ?? draft.pages[0]
-  const otherPages = React.useMemo(
-    () => draft.pages.filter((p) => p.id !== activePage?.id),
-    [draft.pages, activePage?.id],
-  )
+  // The blocks only use the other pages' ids and names (the "Move to page" menu), so the list keeps its identity
+  // until one of those changes; otherwise every move would redraw every widget.
+  const otherPagesRef = React.useRef<readonly DashboardPageLayout[]>([])
+  const otherPagesNow = draft.pages.filter((p) => p.id !== activePage?.id)
+  const previousOtherPages = otherPagesRef.current
+  if (
+    previousOtherPages.length !== otherPagesNow.length ||
+    otherPagesNow.some((p, i) => p.id !== previousOtherPages[i].id || p.label !== previousOtherPages[i].label)
+  ) {
+    otherPagesRef.current = otherPagesNow
+  }
+  const otherPages = otherPagesRef.current
   const sectionDragIds = (activePage?.sections ?? []).map((s) => dragIds.section(activePage?.id ?? '', s.id))
 
   // The preview shows the tab as a reader with this authority would see it, without the widgets they cannot use.
@@ -198,88 +208,92 @@ export function BuilderPane({
 
   return (
     <>
-      <div className="min-w-0 max-w-full flex-1 overflow-y-auto overflow-x-hidden px-6 pb-4 pt-1">
-        <DndContext
-          sensors={dnd.sensors}
-          collisionDetection={dashboardCollisionDetection}
-          onDragStart={dnd.onDragStart}
-          onDragOver={dnd.onDragOver}
-          onDragEnd={dnd.onDragEnd}
-          onDragCancel={dnd.onDragCancel}
-        >
-          <DashboardDragContext.Provider value={dnd.dragState}>
-            {/* The spacing lives on this wrapper, not on the scroll container: DndContext appends its own
-                elements (screen reader text, live region) after the content, and with `space-y` on the
-                container they took part in the spacing and the box grew by 16px a moment after mounting. */}
-            <div className="space-y-4">
-              {/* Tabs on the left, the audience of the active tab on the right, on the same row. */}
-              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                <PageTabsManager
-                  pages={draft.pages}
-                  activePageId={activePage?.id ?? ''}
-                  canAdd={draft.pages.length < MAX_PAGES}
-                  onSetActive={ops.setActivePageId}
-                  onAddPage={() => { if (!ops.addPage(t('dashboard.builder.page.newPage'))) toast.warning(t('dashboard.builder.warnPageLimit')) }}
-                  onRenamePage={ops.renamePage}
-                  onRemovePage={ops.removePage}
-                  onSetDefault={(id) => ops.movePage(draft.pages.findIndex((p) => p.id === id), 0)}
-                  canEditStructure={canEditStructure}
-                />
-                {!showPreview && activePage && canEditStructure && (
-                  <div className="ml-auto">
-                    <PageAudiencePicker roleIds={activePage.roles ?? []} onChange={(ids) => ops.setPageRoles(activePage.id, ids)} />
+      {/* The viewport's inner box is `display: table` in Radix, which lets wide content push past the dialog; forcing
+          it to block keeps the columns' `min-w-0` and `truncate` working (same override as relation-multi). */}
+      <ScrollArea className="min-h-0 min-w-0 max-w-full flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
+        <div className="min-w-0 max-w-full px-6 pb-4 pt-1">
+          <DndContext
+            sensors={dnd.sensors}
+            collisionDetection={dashboardCollisionDetection}
+            onDragStart={dnd.onDragStart}
+            onDragMove={dnd.onDragMove}
+            onDragEnd={dnd.onDragEnd}
+            onDragCancel={dnd.onDragCancel}
+          >
+            <DashboardDragContext.Provider value={dnd.dragState}>
+              {/* The spacing lives on this wrapper, not on the scroll container: DndContext appends its own
+                  elements (screen reader text, live region) after the content, and with `space-y` on the
+                  container they took part in the spacing and the box grew by 16px a moment after mounting. */}
+              <div className="space-y-4">
+                {/* Tabs on the left, the audience of the active tab on the right, on the same row. */}
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  <PageTabsManager
+                    pages={draft.pages}
+                    activePageId={activePage?.id ?? ''}
+                    canAdd={draft.pages.length < MAX_PAGES}
+                    onSetActive={ops.setActivePageId}
+                    onAddPage={() => { if (!ops.addPage(t('dashboard.builder.page.newPage'))) toast.warning(t('dashboard.builder.warnPageLimit')) }}
+                    onRenamePage={ops.renamePage}
+                    onRemovePage={ops.removePage}
+                    onSetDefault={(id) => ops.movePage(draft.pages.findIndex((p) => p.id === id), 0)}
+                    canEditStructure={canEditStructure}
+                  />
+                  {!showPreview && activePage && canEditStructure && (
+                    <div className="ml-auto">
+                      <PageAudiencePicker roleIds={activePage.roles ?? []} onChange={(ids) => ops.setPageRoles(activePage.id, ids)} />
+                    </div>
+                  )}
+                </div>
+
+                {showPreview && previewLayout ? (
+                  <div className="animate-in fade-in-0 duration-200">
+                    <DashboardLayoutRenderer layout={previewLayout} />
                   </div>
+                ) : (
+                  activePage && (
+                    <>
+                      <SortableContext items={sectionDragIds} strategy={verticalListSortingStrategy}>
+                        <div className="space-y-3">
+                          {activePage.sections.map((section) => (
+                            <SectionCard
+                              key={section.id}
+                              pageId={activePage.id}
+                              section={section}
+                              otherPages={otherPages}
+                              ops={ops.actions}
+                              permissions={permissions}
+                              canRemove={activePage.sections.length > 1}
+                              onConfigureWidget={setConfigTarget}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={`w-full ${FOOTER_RADIUS}`}
+                        onClick={() => { if (!ops.addSection(activePage.id, 1)) toast.warning(t('dashboard.builder.warnSectionLimit')) }}
+                      >
+                        <Plus className="mr-2 size-4" />
+                        {t('dashboard.builder.section.add')}
+                      </Button>
+                    </>
+                  )
                 )}
               </div>
+            </DashboardDragContext.Provider>
 
-              {showPreview && previewLayout ? (
-                <div className="animate-in fade-in-0 duration-200">
-                  <DashboardLayoutRenderer layout={previewLayout} />
-                </div>
-              ) : (
-                activePage && (
-                  <>
-                    <SortableContext items={sectionDragIds} strategy={verticalListSortingStrategy}>
-                      <div className="space-y-3">
-                        {activePage.sections.map((section) => (
-                          <SectionCard
-                            key={section.id}
-                            pageId={activePage.id}
-                            section={section}
-                            otherPages={otherPages}
-                            ops={ops}
-                            permissions={permissions}
-                            canRemove={activePage.sections.length > 1}
-                            onConfigureWidget={setConfigTarget}
-                          />
-                        ))}
-                      </div>
-                    </SortableContext>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={`w-full ${FOOTER_RADIUS}`}
-                      onClick={() => { if (!ops.addSection(activePage.id, 1)) toast.warning(t('dashboard.builder.warnSectionLimit')) }}
-                    >
-                      <Plus className="mr-2 size-4" />
-                      {t('dashboard.builder.section.add')}
-                    </Button>
-                  </>
-                )
-              )}
-            </div>
-          </DashboardDragContext.Provider>
-
-          {/* In a portal on <body>: the builder sits inside a dialog positioned with a CSS transform, which
-              becomes the reference of the overlay's `position: fixed` and shifts it away from the pointer. */}
-          {createPortal(
-            <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
-              {dnd.preview ? <DragPreview info={dnd.preview} /> : null}
-            </DragOverlay>,
-            document.body,
-          )}
-        </DndContext>
-      </div>
+            {/* In a portal on <body>: the builder sits inside a dialog positioned with a CSS transform, which
+                becomes the reference of the overlay's `position: fixed` and shifts it away from the pointer. */}
+            {createPortal(
+              <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
+                {dnd.preview ? <DragPreview info={dnd.preview} /> : null}
+              </DragOverlay>,
+              document.body,
+            )}
+          </DndContext>
+        </div>
+      </ScrollArea>
 
       <BuilderFooter
         isDragging={isDragging}
