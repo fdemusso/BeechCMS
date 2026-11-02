@@ -22,7 +22,7 @@ When defining branches in a Seed, developers configure the `privacy` policy:
 | Privacy Policy | Storage in D1 | Read Behavior | Rotation / Edit |
 | :--- | :--- | :--- | :--- |
 | `plain` (default) | Plaintext string/JSON | Returned in read queries | Standard CRUD |
-| `hash` | Salted SHA-256 hash | Never returned (`null` on reads) | Rotated via `POST /rotate-field` |
+| `hash` | Deterministic HMAC-SHA256 keyed with `PRIVACY_MASTER_KEY` (hex digest) | Never returned (`null` on reads) | Rotated via `POST /rotate-field` |
 | `encrypt` / `confidential` | Encrypted payload | Only decrypted for authorized roles | Direct authenticated update |
 
 ```typescript
@@ -67,7 +67,7 @@ Fields protected with `privacy: 'hash'` can never be read back through the API. 
 This endpoint enforces a zero-knowledge challenge-response:
 1. The client must supply `currentValue` alongside `nextValue`.
 2. The server computes the verification against the existing stored hash.
-3. If and only if the current value matches, the new value is hashed with fresh entropy and persisted.
+3. If and only if the current value matches, the new value is hashed (same keyed HMAC-SHA256, so equal inputs give equal digests) and persisted.
 
 ### API Request
 
