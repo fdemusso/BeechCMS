@@ -60,6 +60,122 @@ interface SingleRelationEditProps {
   onInlineCreate?: () => void
 }
 
+type FieldsConfig = ReturnType<typeof useFieldsConfig>
+type RelationEntry = Awaited<ReturnType<FieldsConfig["searchRelations"]>>[number]
+type RelationLabelOf = ReturnType<typeof useRelationLabel>
+
+/** Fetches the currently selected entry and derives its display label. */
+function useSelectedRelationLabel(
+  targetSlug: string | undefined,
+  selectedId: string | null,
+  labelOf: RelationLabelOf,
+  labelAlias: string,
+): string {
+  const { fetchById, queryKeys } = useFieldsConfig()
+  const { data: selectedEntry } = useQuery({
+    queryKey: queryKeys.detail(targetSlug ?? "", selectedId ?? ""),
+    queryFn: () => fetchById(targetSlug!, selectedId!),
+    enabled: Boolean(targetSlug && selectedId),
+    staleTime: RELATION_STALE_MS,
+  })
+
+  return selectedEntry
+    ? String(labelOf(selectedEntry?.data, labelAlias) ?? selectedId)
+    : selectedId ?? ""
+}
+
+/** Runs the debounced server-side autocomplete search while the popover is open. */
+function useRelationSearch(
+  targetSlug: string | undefined,
+  open: boolean,
+  search: string,
+): { entries: RelationEntry[]; isFetching: boolean } {
+  const { searchRelations, queryKeys } = useFieldsConfig()
+  const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE_MS)
+
+  const { data: entriesData, isFetching } = useQuery({
+    queryKey: [...queryKeys.lists(), targetSlug, "relation-search", debouncedSearch],
+    queryFn: () =>
+      searchRelations(targetSlug!, {
+        search: debouncedSearch || undefined,
+        limit: LIST_LIMIT,
+      }),
+    enabled: Boolean(targetSlug && open),
+    staleTime: 10 * 1000,
+    placeholderData: (prev) => prev,
+  })
+
+  return { entries: entriesData ?? [], isFetching }
+}
+
+interface RelationEntryListProps {
+  /** Entries returned by the current search. */
+  entries: RelationEntry[]
+  /** Whether a search request is in flight. */
+  isFetching: boolean
+  /** Id of the currently selected entry, or null. */
+  selectedId: string | null
+  /** Resolves the display label of an entry. */
+  labelOf: RelationLabelOf
+  /** Schema alias used to read the label from entry data. */
+  labelAlias: string
+  /** Invoked with the id of the picked entry. */
+  onSelect: (entryId: string) => void
+}
+
+/** Loading / empty / results states of the relation search popover. */
+function RelationEntryList({
+  entries,
+  isFetching,
+  selectedId,
+  labelOf,
+  labelAlias,
+  onSelect,
+}: RelationEntryListProps) {
+  const { t: translate } = useTranslation()
+
+  const resolveLabel = (item: RelationEntry): string => {
+    const raw = labelOf(item.data, labelAlias)
+    if (raw != null && raw !== "") return String(raw)
+    const slug = (item as { slug?: unknown }).slug
+    return typeof slug === "string" ? slug : item.id
+  }
+
+  if (isFetching && entries.length === 0) {
+    return <CommandEmpty>{translate("content.editor.relation.loading")}</CommandEmpty>
+  }
+  if (entries.length === 0) {
+    return <CommandEmpty>{translate("content.editor.relation.empty")}</CommandEmpty>
+  }
+  return (
+    <CommandGroup>
+      {entries.map((item) => {
+        const label = resolveLabel(item)
+        const isSelected = item.id === selectedId
+        return (
+          <CommandItem
+            key={item.id}
+            value={item.id}
+            onSelect={() => onSelect(item.id)}
+            className="flex items-center gap-2"
+          >
+            <Check
+              className={cn(
+                "size-4 shrink-0",
+                isSelected ? "opacity-100" : "opacity-0"
+              )}
+            />
+            <span className="flex-1 truncate">{label}</span>
+            <span className="text-xs text-muted-foreground font-mono shrink-0 max-w-[6rem] truncate">
+              {item.id}
+            </span>
+          </CommandItem>
+        )
+      })}
+    </CommandGroup>
+  )
+}
+
 /**
  * Single-value relation field editor: shows the selected entry's label with a
  * clear button, and a searchable popover to pick a different entry.
@@ -73,10 +189,9 @@ export function SingleRelationEdit({
   onInlineCreate,
 }: SingleRelationEditProps) {
   const { t: translate } = useTranslation()
-  const { useSchema, fetchById, searchRelations, queryKeys } = useFieldsConfig()
+  const { useSchema } = useFieldsConfig()
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
-  const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE_MS)
   const singlePopoverId = React.useId()
 
   const targetSlug = branch.targetSeed
@@ -92,37 +207,8 @@ export function SingleRelationEdit({
     : branch.requiredOnUpdate === true
   const showClear = !isRequired && selectedId !== null
 
-  const { data: selectedEntry } = useQuery({
-    queryKey: queryKeys.detail(targetSlug ?? "", selectedId ?? ""),
-    queryFn: () => fetchById(targetSlug!, selectedId!),
-    enabled: Boolean(targetSlug && selectedId),
-    staleTime: RELATION_STALE_MS,
-  })
-
-  const selectedLabel = selectedEntry
-    ? String(labelOf(selectedEntry?.data, labelAlias) ?? selectedId)
-    : selectedId ?? ""
-
-  const { data: entriesData, isFetching: isListFetching } = useQuery({
-    queryKey: [...queryKeys.lists(), targetSlug, "relation-search", debouncedSearch],
-    queryFn: () =>
-      searchRelations(targetSlug!, {
-        search: debouncedSearch || undefined,
-        limit: LIST_LIMIT,
-      }),
-    enabled: Boolean(targetSlug && open),
-    staleTime: 10 * 1000,
-    placeholderData: (prev) => prev,
-  })
-
-  const entries = entriesData ?? []
-
-  const resolveLabel = (item: (typeof entries)[0]): string => {
-    const raw = labelOf(item.data, labelAlias)
-    if (raw != null && raw !== "") return String(raw)
-    const slug = (item as { slug?: unknown }).slug
-    return typeof slug === "string" ? slug : item.id
-  }
+  const selectedLabel = useSelectedRelationLabel(targetSlug, selectedId, labelOf, labelAlias)
+  const { entries, isFetching: isListFetching } = useRelationSearch(targetSlug, open, search)
 
   const handleSelect = React.useCallback(
     (entryId: string) => {
@@ -185,37 +271,14 @@ export function SingleRelationEdit({
             aria-label={translate("content.editor.relation.search")}
           />
           <CommandList>
-            {isListFetching && entries.length === 0 ? (
-              <CommandEmpty>{translate("content.editor.relation.loading")}</CommandEmpty>
-            ) : entries.length === 0 ? (
-              <CommandEmpty>{translate("content.editor.relation.empty")}</CommandEmpty>
-            ) : (
-              <CommandGroup>
-                {entries.map((item) => {
-                  const label = resolveLabel(item)
-                  const isSelected = item.id === selectedId
-                  return (
-                    <CommandItem
-                      key={item.id}
-                      value={item.id}
-                      onSelect={() => handleSelect(item.id)}
-                      className="flex items-center gap-2"
-                    >
-                      <Check
-                        className={cn(
-                          "size-4 shrink-0",
-                          isSelected ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      <span className="flex-1 truncate">{label}</span>
-                      <span className="text-xs text-muted-foreground font-mono shrink-0 max-w-[6rem] truncate">
-                        {item.id}
-                      </span>
-                    </CommandItem>
-                  )
-                })}
-              </CommandGroup>
-            )}
+            <RelationEntryList
+              entries={entries}
+              isFetching={isListFetching}
+              selectedId={selectedId}
+              labelOf={labelOf}
+              labelAlias={labelAlias}
+              onSelect={handleSelect}
+            />
           </CommandList>
         </Command>
       </PopoverContent>
