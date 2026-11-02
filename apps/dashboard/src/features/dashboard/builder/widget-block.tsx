@@ -179,7 +179,7 @@ const WidgetControls = React.memo(function WidgetControls({
 }: Readonly<{ onConfigure: () => void; onRemove: () => void }>) {
   const { t } = useTranslation()
   return (
-    <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-control bg-background/80 opacity-0 backdrop-blur-sm transition-opacity focus-within:opacity-100 group-hover/widget:opacity-100">
+    <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-control bg-popover/80 opacity-0 backdrop-blur-sm transition-opacity focus-within:opacity-100 group-hover/widget:opacity-100">
       <Button
         type="button"
         variant="ghost"
@@ -311,14 +311,14 @@ export const WidgetBlock = React.memo(function WidgetBlock({
           <WidgetGhost widget={widget} />
 
           {/* The handle's only visible hint: it appears with the other controls, on hover. */}
-          <span className="absolute left-2 top-1/2 z-10 flex -translate-y-1/2 cursor-grab items-center rounded-control border bg-background px-0.5 py-3 text-muted-foreground opacity-0 transition-opacity hover:bg-muted group-hover/widget:opacity-100">
+          <span className="absolute left-2 top-1/2 z-10 flex -translate-y-1/2 cursor-grab items-center rounded-control border bg-popover px-0.5 py-3 text-muted-foreground opacity-0 transition-opacity hover:bg-muted group-hover/widget:opacity-100">
             <GripDots className="size-6" />
           </span>
 
           {tooNarrow && (
             <span
               title={t('dashboard.builder.widget.tooNarrow')}
-              className="absolute bottom-2 right-2 rounded-full bg-background/80 p-1 text-amber-500"
+              className="absolute bottom-2 right-2 rounded-full bg-popover/80 p-1 text-amber-500"
             >
               <AlertTriangle className="size-3.5" />
             </span>
