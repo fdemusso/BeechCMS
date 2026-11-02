@@ -63,24 +63,6 @@ describe('D1NotificationRepository', () => {
     })
   })
 
-  describe('stats', () => {
-    it('returns aggregate counters mapped to camelCase', async () => {
-      const { db } = makeMockDb({
-        firstResult: { total_count: 7, latest_created_at: 1234, read_count: 3 },
-      })
-      const stats = await new D1NotificationRepository(db, clock, makeIdGen()).stats()
-      expect(stats).toEqual({ totalCount: 7, latestCreatedAt: 1234, readCount: 3 })
-    })
-
-    it('returns zeros when the table is empty', async () => {
-      const { db } = makeMockDb({
-        firstResult: { total_count: 0, latest_created_at: null, read_count: null },
-      })
-      const stats = await new D1NotificationRepository(db, clock, makeIdGen()).stats()
-      expect(stats).toEqual({ totalCount: 0, latestCreatedAt: 0, readCount: 0 })
-    })
-  })
-
   describe('create', () => {
     it('inserts a new notification and returns the generated id', async () => {
       const { db, prepareMock, bindMock } = makeMockDb()

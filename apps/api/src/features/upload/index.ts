@@ -8,7 +8,7 @@
  */
 import { Hono, type Context } from 'hono'
 import type { z } from 'zod'
-import { GLOBAL_SCOPE, getFileTypeByMime, hasPermission, isMimeAccepted, parseMediaTransformQuery, SystemClock, verifyMagicBytes, type BeechBucket } from '@beechcms/core'
+import { GLOBAL_SCOPE, getFileTypeByMime, hasPermission, isMimeAccepted, parseMediaTransformQuery, verifyMagicBytes, type BeechBucket, type IClock } from '@beechcms/core'
 import { AppEnv } from '../../types'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { deleteR2Objects } from '../../shared/storage/upload'
@@ -37,8 +37,8 @@ function sanitizeFilename(name: string): string {
   return base || 'file'
 }
 
-function generateObjectKey(originalName: string): string {
-  const timestamp = SystemClock.nowSeconds()
+function generateObjectKey(originalName: string, clock: IClock): string {
+  const timestamp = clock.nowSeconds()
   const randomSuffix = crypto.randomUUID().slice(0, 8)
   return `${timestamp}-${randomSuffix}-${sanitizeFilename(originalName)}`
 }
@@ -156,7 +156,7 @@ export const uploadRoutes = new Hono<AppEnv>()
       return c.json({ error: 'File type not allowed' }, 400)
     }
 
-    const key = generateObjectKey(filename)
+    const key = generateObjectKey(filename, c.get('clock'))
 
     await bucket.put(key, fileObj.stream(), {
       contentType: mimeType,
@@ -199,7 +199,7 @@ export const uploadRoutes = new Hono<AppEnv>()
     if (sizeBytes > maxBytes) return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
     if (!isMimeAccepted(mimeType, 'any')) return c.json({ error: 'File type not allowed' }, 400)
 
-    const generated = generateObjectKey(filename)
+    const generated = generateObjectKey(filename, c.get('clock'))
     const key = purpose === 'import' ? `${importObjectKeyPrefix(c.var.jwtPayload?.sub ?? '')}${generated}` : generated
     const uploadUrl = await c.var.bucket.presignPut(key, {
       expiresIn: PRESIGN_TTL_SECONDS,

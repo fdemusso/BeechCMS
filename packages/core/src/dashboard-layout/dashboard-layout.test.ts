@@ -355,6 +355,22 @@ describe('validateDashboardLayout', () => {
     expect(res.errors[0]).toContain("Section id 's-dup' appears more than once")
   })
 
+  it('rejects duplicate page ids', () => {
+    const page = (slug: string, n: number): DashboardLayout['pages'][number] => ({
+      id: 'p-dup',
+      slug,
+      label: slug,
+      sections: [{ id: `s-${n}`, columns: [{ id: `c-${n}`, widgets: [widget(`w-${n}`, 'core/site-status')] }] }],
+    })
+    const layout: DashboardLayout = { version: 1, pages: [page('one', 1), page('two', 2)] }
+
+    const res = validateDashboardLayout(layout, ctx)
+
+    expect(res.ok).toBe(false)
+    if (res.ok) throw new Error('expected ok: false')
+    expect(res.errors).toEqual(["Page id 'p-dup' appears more than once in the layout."])
+  })
+
   it('rejects duplicate column ids', () => {
     const layout = singleSectionLayout([[widget('w-1', 'core/site-status')], [widget('w-2', 'core/storage')]])
     layout.pages[0].sections[0].columns[1].id = 'c-1'

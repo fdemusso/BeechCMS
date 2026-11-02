@@ -284,11 +284,18 @@ export function validateDashboardLayout(
 
   // Semantic checks on the cleaned layout
   const seenWidgetIds = new Set<string>()
+  const seenPageIds = new Set<string>()
   const seenPageSlugs = new Set<string>()
   const seenSectionIds = new Set<string>()
   const seenColumnIds = new Set<string>()
 
   for (const page of cleanedPages) {
+    if (seenPageIds.has(page.id)) {
+      errors.push(`Page id '${page.id}' appears more than once in the layout.`)
+    } else {
+      seenPageIds.add(page.id)
+    }
+
     if (seenPageSlugs.has(page.slug)) {
       errors.push(`Page slug '${page.slug}' appears more than once in the layout.`)
     } else {
