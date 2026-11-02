@@ -17,6 +17,7 @@ import { D1WidgetRepository } from '../shared/db/repositories/d1-widget.reposito
 import { D1SearchRepository } from '../shared/db/repositories/d1-search.repository'
 import { D1AnalyticsRepository } from '../shared/db/repositories/d1-analytics.repository'
 import { D1ContentScanRepository } from '../shared/db/repositories/d1-content-scan.repository'
+import { CachedContentScanRepository } from '../shared/db/repositories/cached-content-scan.repository'
 import { D1SiteSettingsRepository } from '../shared/db/repositories/site-settings.repository.d1'
 import { D1DemoDataRepository } from '../shared/db/repositories/demo-data.repository.d1'
 import { D1SetupChecklistRepository } from '../shared/db/repositories/d1-setup-checklist.repository'
@@ -112,6 +113,8 @@ function buildScheduler(context: Context): IScheduler {
 }
 
 export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
+  // Lives as long as this middleware (one per isolate), so the cached scan serves every request it handles.
+  let defaultContentScan: { database: Env['DB'], repository: IContentScanRepository } | undefined
   return createMiddleware<{ Bindings: Env; Variables: Variables }>(async (context, next) => {
     const resolvedClock = overrides?.clock ?? SystemClock
     const resolvedIdGenerator = overrides?.idGenerator ?? SystemIdGenerator
@@ -139,7 +142,14 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('widgetRepository', overrides?.widgetRepository ?? new D1WidgetRepository(database))
     context.set('searchRepository', overrides?.searchRepository ?? new D1SearchRepository(database))
     context.set('analyticsRepository', overrides?.analyticsRepository ?? new D1AnalyticsRepository(database, resolvedClock))
-    context.set('contentScanRepository', overrides?.contentScanRepository ?? new D1ContentScanRepository(database))
+    let contentScanRepository = overrides?.contentScanRepository
+    if (!contentScanRepository) {
+      if (!defaultContentScan || defaultContentScan.database !== database) {
+        defaultContentScan = { database, repository: new CachedContentScanRepository(new D1ContentScanRepository(database), resolvedClock) }
+      }
+      contentScanRepository = defaultContentScan.repository
+    }
+    context.set('contentScanRepository', contentScanRepository)
     context.set('clock', resolvedClock)
     context.set('idGenerator', resolvedIdGenerator)
     const automationRepository = overrides?.automationRepository
