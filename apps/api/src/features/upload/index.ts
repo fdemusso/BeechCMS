@@ -8,7 +8,7 @@
  */
 import { Hono, type Context } from 'hono'
 import type { z } from 'zod'
-import { GLOBAL_SCOPE, hasPermission, isMimeAccepted, parseMediaTransformQuery, SystemClock, type BeechBucket } from '@beechcms/core'
+import { GLOBAL_SCOPE, getFileTypeByMime, hasPermission, isMimeAccepted, parseMediaTransformQuery, SystemClock, verifyMagicBytes, type BeechBucket } from '@beechcms/core'
 import { AppEnv } from '../../types'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { deleteR2Objects } from '../../shared/storage/upload'
@@ -21,6 +21,8 @@ import { confirmRequestSchema, firstIssueMessage, presignRequestSchema } from '.
 const DEFAULT_MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 const ABSOLUTE_MAX_UPLOAD_BYTES = 500 * 1024 * 1024
 const PRESIGN_TTL_SECONDS = 900
+/** Enough for every signature in the file-type registry (the longest, tar `ustar`, sits at offset 257). */
+const SIGNATURE_PROBE_BYTES = 512
 
 function resolveMaxUploadBytes(env: { MAX_UPLOAD_BYTES?: string }): number {
   const raw = env.MAX_UPLOAD_BYTES
@@ -63,6 +65,32 @@ function sanitizeStorageKey(rawKey: string): string {
   }
   key = key.replace(/^[/]+/, '')
   return key.replace(/[^a-zA-Z0-9._\-/]/g, '')
+}
+
+/** Reads at most `limit` leading bytes of a stored object; the rest of the body is never pulled. */
+async function readLeadingBytes(bucket: BeechBucket, key: string, limit: number): Promise<Uint8Array | null> {
+  const object = await bucket.get(key)
+  if (!object) return null
+  if (object.body instanceof ArrayBuffer) return new Uint8Array(object.body.slice(0, limit))
+
+  const reader = object.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  while (total < limit) {
+    const { done, value } = await reader.read()
+    if (done) break
+    chunks.push(value)
+    total += value.byteLength
+  }
+  await reader.cancel()
+
+  const bytes = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return bytes.subarray(0, limit)
 }
 
 /**
@@ -215,6 +243,16 @@ export const uploadRoutes = new Hono<AppEnv>()
     if (!isMimeAccepted(mime, 'any')) {
       await discardRejectedUpload(bucket, sanitizedKey)
       return c.json({ error: 'File type not allowed' }, 400)
+    }
+
+    // The Content-Type header is client-chosen at PUT time; only binary formats carry a signature to check.
+    if (getFileTypeByMime(mime.split(';')[0].trim().toLowerCase())?.isBinary) {
+      const leading = await readLeadingBytes(bucket, sanitizedKey, SIGNATURE_PROBE_BYTES)
+      if (!leading) return c.json({ error: 'Object not found in storage' }, 404)
+      if (!verifyMagicBytes(leading, mime).valid) {
+        await discardRejectedUpload(bucket, sanitizedKey)
+        return c.json({ error: 'File content does not match its declared type' }, 400)
+      }
     }
 
     const uploadedBy = c.var.jwtPayload?.sub ?? ''
