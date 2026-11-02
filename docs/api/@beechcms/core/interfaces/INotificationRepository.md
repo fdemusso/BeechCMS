@@ -111,19 +111,3 @@ Resolve `false` when no notification has this id, so the caller can answer 404.
 #### Returns
 
 `Promise`&lt;`boolean`&gt;
-
-***
-
-### stats()
-
-> **stats**(): `Promise`&lt;[`NotificationStats`](NotificationStats.md)&gt;
-
-Return aggregate counters used to build the GET /notifications ETag.
-
-Computing `totalCount`, `latestCreatedAt` and `readCount` on the database
-side lets the handler skip serialising the full list when nothing has
-changed since the client's last poll, saving bandwidth on the dashboard.
-
-#### Returns
-
-`Promise`&lt;[`NotificationStats`](NotificationStats.md)&gt;

@@ -184,7 +184,6 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [NewRoleInput](interfaces/NewRoleInput.md)
 - [NewUserInput](interfaces/NewUserInput.md)
 - [NotificationRecord](interfaces/NotificationRecord.md)
-- [NotificationStats](interfaces/NotificationStats.md)
 - [NumberFieldOptions](interfaces/NumberFieldOptions.md)
 - [OAuthClientRecord](interfaces/OAuthClientRecord.md)
 - [OAuthTokenRecord](interfaces/OAuthTokenRecord.md)
