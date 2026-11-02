@@ -6,7 +6,7 @@
 
 # Type Alias: SeedDestructiveApplyInput
 
-> **SeedDestructiveApplyInput** = `object` & \{ `definition`: [`Seed`](../interfaces/Seed.md); `operation`: `"update"`; \} \| \{ `operation`: `"delete"`; \}
+> **SeedDestructiveApplyInput** = `object` & (\{ `definition`: [`Seed`](../interfaces/Seed.md); `operation`: `"update"`; \} \| \{ `operation`: `"delete"`; \})
 
 A destructive schema change planned by the core DDL generators.
 
