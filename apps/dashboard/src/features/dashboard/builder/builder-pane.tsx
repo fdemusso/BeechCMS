@@ -176,16 +176,14 @@ export function BuilderPane({
   const activePage = draft.pages.find((p) => p.id === activePageId) ?? draft.pages[0]
   // The blocks only use the other pages' ids and names (the "Move to page" menu), so the list keeps its identity
   // until one of those changes; otherwise every move would redraw every widget.
-  const otherPagesRef = React.useRef<readonly DashboardPageLayout[]>([])
-  const otherPagesNow = draft.pages.filter((p) => p.id !== activePage?.id)
-  const previousOtherPages = otherPagesRef.current
-  if (
-    previousOtherPages.length !== otherPagesNow.length ||
-    otherPagesNow.some((p, i) => p.id !== previousOtherPages[i].id || p.label !== previousOtherPages[i].label)
-  ) {
-    otherPagesRef.current = otherPagesNow
-  }
-  const otherPages = otherPagesRef.current
+  const otherPagesKey = JSON.stringify(
+    draft.pages.filter((p) => p.id !== activePage?.id).map((p) => [p.id, p.label]),
+  )
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on ids and labels only, by design
+  const otherPages = React.useMemo<readonly DashboardPageLayout[]>(
+    () => draft.pages.filter((p) => p.id !== activePage?.id),
+    [otherPagesKey],
+  )
   const sectionDragIds = (activePage?.sections ?? []).map((s) => dragIds.section(activePage?.id ?? '', s.id))
 
   // The preview shows the tab as a reader with this authority would see it, without the widgets they cannot use.

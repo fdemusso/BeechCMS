@@ -97,6 +97,7 @@ export function useAnimatedModeHeight(mode: boolean) {
       lastHeightRef.current = natural
     }
     timerRef.current = window.setTimeout(settle, DURATION_MS + GRACE_MS)
+    return () => window.clearTimeout(timerRef.current)
   }, [mode])
 
   React.useEffect(() => () => {

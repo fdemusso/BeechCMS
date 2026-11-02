@@ -38,8 +38,11 @@ export function useAnimatedSectionHeight(dragging: boolean, enabled: boolean) {
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     if (from === to || reduceMotion || typeof element.animate !== 'function') return
 
+    // Height is the point here: the box really changes size in one frame, and the ease bridges that jump.
+    // react-doctor-disable-next-line no-layout-property-animation
     element.animate(
       [
+        // react-doctor-disable-next-line no-layout-property-animation
         { height: `${from}px`, overflow: 'hidden' },
         { height: `${to}px`, overflow: 'hidden' },
       ],

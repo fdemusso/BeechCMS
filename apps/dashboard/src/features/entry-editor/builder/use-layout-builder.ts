@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 import {
   type FormLayout,
   type LayoutTab,
@@ -162,7 +162,9 @@ export function useLayoutBuilder({ seed, initialLayout, restoredDraft }: UseLayo
 
   // The latest draft for the moves that validate before they mutate, so those callbacks need not depend on it.
   const draftRef = useRef(draft)
-  draftRef.current = draft
+  useLayoutEffect(() => {
+    draftRef.current = draft
+  }, [draft])
 
   const mutate = useCallback((fn: (d: FormLayout) => FormLayout) => {
     // Untouched tabs, sections and columns keep their identity, so memoised blocks skip the redraw.

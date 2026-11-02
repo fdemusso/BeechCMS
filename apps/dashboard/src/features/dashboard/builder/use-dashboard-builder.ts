@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { shareStructure } from '@/components/builder/share-structure'
 import {
   MAX_SECTIONS_PER_PAGE,
@@ -161,7 +161,9 @@ export function useDashboardBuilder({ initialLayout, restoredDraft }: UseDashboa
 
   // The latest draft for the moves that validate before they mutate, so those callbacks need not depend on it.
   const draftRef = useRef(draft)
-  draftRef.current = draft
+  useLayoutEffect(() => {
+    draftRef.current = draft
+  }, [draft])
 
   const mutate = useCallback((fn: (d: DashboardLayout) => DashboardLayout) => {
     // Untouched sections, columns and widgets keep their identity, so memoised blocks skip the redraw.
