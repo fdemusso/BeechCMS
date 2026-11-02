@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -100,6 +101,18 @@ export function SectionShell({
     opacity: isDragging ? 0.5 : 1,
   }
 
+  // Right click anywhere on the section opens the same menu as the "..." button, at the pointer.
+  const [contextPoint, setContextPoint] = React.useState<{ x: number; y: number } | null>(null)
+  function openContextMenu(event: React.MouseEvent<HTMLDivElement>) {
+    // Not for what has a menu of its own (an item's right-click already prevented the default), for text fields
+    // (their native menu has copy and paste), for events portalled out of the section (this menu's own items),
+    // or mid-drag.
+    if (event.defaultPrevented || isDragging || !event.currentTarget.contains(event.target as Node)) return
+    if ((event.target as HTMLElement).closest('input, textarea, [contenteditable="true"]')) return
+    event.preventDefault()
+    setContextPoint({ x: event.clientX, y: event.clientY })
+  }
+
   const startRename = React.useCallback(() => {
     setRenameValue(label ?? '')
     setIsRenaming(true)
@@ -120,7 +133,7 @@ export function SectionShell({
   )
 
   return (
-    <div ref={setRefs} style={style} className="min-w-0 max-w-full rounded-lg border">
+    <div ref={setRefs} style={style} className="min-w-0 max-w-full rounded-lg border" onContextMenu={openContextMenu}>
       <div>
         <div className="flex items-center gap-2 px-3 py-2">
           <button
@@ -186,6 +199,21 @@ export function SectionShell({
             {children}
           </SortableContext>
         </div>
+
+        {contextPoint &&
+          // In a portal on <body>: the builder sits inside a dialog positioned with a CSS transform, which becomes
+          // the reference of a `position: fixed` anchor and shifts it away from the pointer.
+          createPortal(
+            <DropdownMenu open onOpenChange={(open) => { if (!open) setContextPoint(null) }}>
+              <DropdownMenuTrigger asChild>
+                <span aria-hidden className="pointer-events-none fixed size-0" style={{ left: contextPoint.x, top: contextPoint.y }} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className={FLUSH_MENU}>
+                {renderMenu(menuApi)}
+              </DropdownMenuContent>
+            </DropdownMenu>,
+            document.body,
+          )}
 
         {showRemoveConfirm && (
           <div className="flex items-center gap-2 px-3 pb-3 text-sm text-muted-foreground">

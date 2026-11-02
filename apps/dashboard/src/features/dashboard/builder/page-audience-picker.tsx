@@ -62,7 +62,7 @@ export function PageAudiencePicker({ roleIds, onChange }: PageAudiencePickerProp
   return (
     <TooltipProvider>
       <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">{t("dashboard.builder.audience.label")}</span>
+        <span className="text-sm text-muted-foreground">{t("dashboard.builder.audience.label")}</span>
         {isPending && <Skeleton className="h-6 w-16" />}
         {isError && <span className="text-xs text-muted-foreground">{t("dashboard.builder.audience.loadError")}</span>}
         {badgeRoles.length > 0 && <RoleBadgeGroup roles={badgeRoles} max={3} />}

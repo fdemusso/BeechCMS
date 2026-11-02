@@ -208,43 +208,45 @@ export function BuilderPane({
 
   return (
     <>
-      {/* The viewport's inner box is `display: table` in Radix, which lets wide content push past the dialog; forcing
-          it to block keeps the columns' `min-w-0` and `truncate` working (same override as relation-multi). */}
-      <ScrollArea className="min-h-0 min-w-0 max-w-full flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
-        <div className="min-w-0 max-w-full px-6 pb-4 pt-1">
-          <DndContext
-            sensors={dnd.sensors}
-            collisionDetection={dashboardCollisionDetection}
-            onDragStart={dnd.onDragStart}
-            onDragMove={dnd.onDragMove}
-            onDragEnd={dnd.onDragEnd}
-            onDragCancel={dnd.onDragCancel}
-          >
-            <DashboardDragContext.Provider value={dnd.dragState}>
+      <DndContext
+        sensors={dnd.sensors}
+        collisionDetection={dashboardCollisionDetection}
+        onDragStart={dnd.onDragStart}
+        onDragMove={dnd.onDragMove}
+        onDragEnd={dnd.onDragEnd}
+        onDragCancel={dnd.onDragCancel}
+      >
+        <DashboardDragContext.Provider value={dnd.dragState}>
+          {/* Part of the dialog's header, outside the scroll area, so it stays put and nothing shows through it:
+              the tabs on the left, the audience of the active tab on the right. It sits inside the DndContext
+              because the tabs are sortable. */}
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-6 pb-3">
+            <PageTabsManager
+              pages={draft.pages}
+              activePageId={activePage?.id ?? ''}
+              canAdd={draft.pages.length < MAX_PAGES}
+              onSetActive={ops.setActivePageId}
+              onAddPage={() => { if (!ops.addPage(t('dashboard.builder.page.newPage'))) toast.warning(t('dashboard.builder.warnPageLimit')) }}
+              onRenamePage={ops.renamePage}
+              onRemovePage={ops.removePage}
+              onSetDefault={(id) => ops.movePage(draft.pages.findIndex((p) => p.id === id), 0)}
+              canEditStructure={canEditStructure}
+            />
+            {!showPreview && activePage && canEditStructure && (
+              <div className="ml-auto">
+                <PageAudiencePicker roleIds={activePage.roles ?? []} onChange={(ids) => ops.setPageRoles(activePage.id, ids)} />
+              </div>
+            )}
+          </div>
+
+          {/* The viewport's inner box is `display: table` in Radix, which lets wide content push past the dialog; forcing
+              it to block keeps the columns' `min-w-0` and `truncate` working (same override as relation-multi). */}
+          <ScrollArea className="min-h-0 min-w-0 max-w-full flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
+            <div className="min-w-0 max-w-full px-6 pb-4 pt-4">
               {/* The spacing lives on this wrapper, not on the scroll container: DndContext appends its own
                   elements (screen reader text, live region) after the content, and with `space-y` on the
                   container they took part in the spacing and the box grew by 16px a moment after mounting. */}
               <div className="space-y-4">
-                {/* Tabs on the left, the audience of the active tab on the right, on the same row. */}
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                  <PageTabsManager
-                    pages={draft.pages}
-                    activePageId={activePage?.id ?? ''}
-                    canAdd={draft.pages.length < MAX_PAGES}
-                    onSetActive={ops.setActivePageId}
-                    onAddPage={() => { if (!ops.addPage(t('dashboard.builder.page.newPage'))) toast.warning(t('dashboard.builder.warnPageLimit')) }}
-                    onRenamePage={ops.renamePage}
-                    onRemovePage={ops.removePage}
-                    onSetDefault={(id) => ops.movePage(draft.pages.findIndex((p) => p.id === id), 0)}
-                    canEditStructure={canEditStructure}
-                  />
-                  {!showPreview && activePage && canEditStructure && (
-                    <div className="ml-auto">
-                      <PageAudiencePicker roleIds={activePage.roles ?? []} onChange={(ids) => ops.setPageRoles(activePage.id, ids)} />
-                    </div>
-                  )}
-                </div>
-
                 {showPreview && previewLayout ? (
                   <div className="animate-in fade-in-0 duration-200">
                     <DashboardLayoutRenderer layout={previewLayout} />
@@ -281,19 +283,19 @@ export function BuilderPane({
                   )
                 )}
               </div>
-            </DashboardDragContext.Provider>
+            </div>
+          </ScrollArea>
+        </DashboardDragContext.Provider>
 
-            {/* In a portal on <body>: the builder sits inside a dialog positioned with a CSS transform, which
-                becomes the reference of the overlay's `position: fixed` and shifts it away from the pointer. */}
-            {createPortal(
-              <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
-                {dnd.preview ? <DragPreview info={dnd.preview} /> : null}
-              </DragOverlay>,
-              document.body,
-            )}
-          </DndContext>
-        </div>
-      </ScrollArea>
+        {/* In a portal on <body>: the builder sits inside a dialog positioned with a CSS transform, which
+            becomes the reference of the overlay's `position: fixed` and shifts it away from the pointer. */}
+        {createPortal(
+          <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
+            {dnd.preview ? <DragPreview info={dnd.preview} /> : null}
+          </DragOverlay>,
+          document.body,
+        )}
+      </DndContext>
 
       <BuilderFooter
         isDragging={isDragging}

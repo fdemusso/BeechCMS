@@ -102,7 +102,9 @@ export function DashboardBuilderDialog({
   }
 
   const draftSource: DashboardLayout = data?.layout ?? generatedDefault ?? initialLayout
-  const isLoadingDraft = isFetching || permissionsLoading
+  // Only while open: Save refetches the layout as the dialog closes, and a skeleton swapped in then would replace
+  // the builder in the middle of its exit fade.
+  const isLoadingDraft = open && (isFetching || permissionsLoading)
 
   // Reopened after a reload for a draft: if that draft no longer applies (the server moved on, or it was
   // already gone) there is nothing to resume, so the dialog steps aside instead of showing an unasked builder.
@@ -129,16 +131,18 @@ export function DashboardBuilderDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
+        // The overlay fades as long as the content (its default is 100ms against the content's 200ms), so the
+        // blurred backdrop does not snap away while the dialog is still half visible.
+        overlayClassName="duration-200"
         className="flex h-[90vh] max-h-[90vh] flex-col gap-0 p-0 duration-200 data-open:zoom-in-100 data-closed:zoom-out-100"
         // Inline, and with the max-width lifted: the width is measured, and the default `sm:max-w-*` would cap it.
         style={{ width: builderDialogWidth(referenceWidth), maxWidth: "96vw" }}
-        showCloseButton={false}
         // Esc belongs to a drag in flight (it cancels it); it must not also close the builder.
         onEscapeKeyDown={(event) => { if (isDragging) event.preventDefault() }}
         onInteractOutside={(event) => { if (isDragging) event.preventDefault() }}
       >
         <DialogHeader className="px-6 pb-2 pt-6">
-          <DialogTitle>{t('dashboard.builder.title')}</DialogTitle>
+          <DialogTitle className="text-xl font-semibold leading-tight">{t('dashboard.builder.title')}</DialogTitle>
         </DialogHeader>
         {isLoadingDraft ? (
           <BuilderSkeleton />

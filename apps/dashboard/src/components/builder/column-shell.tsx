@@ -29,6 +29,8 @@ export interface ColumnShellProps {
   /** Spacing between the items, in Tailwind spacing steps (`3` is `gap-3`, `0.5` is `gap-0.5`). */
   readonly gap: number
   readonly style?: React.CSSProperties
+  /** Extra classes on the frame, e.g. a corner radius that matches the items it holds. */
+  readonly className?: string
   /** The items. */
   readonly children: React.ReactNode
   /** What follows the items: the add button. */
@@ -66,6 +68,7 @@ export function ColumnShell({
   handleIconClassName,
   gap,
   style,
+  className,
   children,
   footer,
 }: Readonly<ColumnShellProps>) {
@@ -95,6 +98,7 @@ export function ColumnShell({
         // Dragging an item: every column gets a thin solid outline, the one under it a darker grey and a faint fill.
         (empty || draggingItem) && 'border-border',
         isActiveColumn && 'border-foreground/25 bg-muted/50',
+        className,
       )}
     >
       {reorderable && (

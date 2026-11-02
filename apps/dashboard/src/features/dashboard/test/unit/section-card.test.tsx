@@ -131,6 +131,24 @@ describe("SectionCard", () => {
     expect(ops.updateSection).toHaveBeenCalledWith("page-1", "section-1", { label: "New" })
   })
 
+  it("opens a second copy of the menu on a right click anywhere in the section", () => {
+    renderCard(makeSection({ label: "My Section" }))
+    expect(screen.getAllByRole("menuitem", { name: "Duplicate" })).toHaveLength(1)
+
+    fireEvent.contextMenu(screen.getByText("My Section"), { clientX: 120, clientY: 80 })
+
+    expect(screen.getAllByRole("menuitem", { name: "Duplicate" })).toHaveLength(2)
+  })
+
+  it("leaves the native menu of the rename field alone on a right click", async () => {
+    renderCard(makeSection({ label: "Old" }))
+    await userEvent.dblClick(screen.getByText("Old"))
+
+    fireEvent.contextMenu(screen.getByDisplayValue("Old"))
+
+    expect(screen.getAllByRole("menuitem", { name: "Duplicate" })).toHaveLength(1)
+  })
+
   it("commits an empty rename as no label", async () => {
     const { ops } = renderCard(makeSection({ label: "Old" }))
 
