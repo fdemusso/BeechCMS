@@ -25,15 +25,9 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ColumnCard } from './column-card'
 import { BuilderDragContext } from './use-builder-dnd'
-import { useAnimatedSectionHeight } from './use-animated-section-height'
+import { FLUSH_MENU } from '@/components/builder/flush-menu'
+import { useAnimatedSectionHeight } from '@/components/builder/use-animated-section-height'
 import type { UseLayoutBuilderResult } from './use-layout-builder'
-
-/**
- * Flush menu: no inner padding and square items, so the window's own rounded corners (it clips its content)
- * are the only rounding, and only the first and last item, the ones touching them, show it.
- */
-const FLUSH_MENU = 'p-0 [&_[data-slot=dropdown-menu-item]]:rounded-none [&_[data-slot=dropdown-menu-item]]:px-3 [&_[data-slot=dropdown-menu-sub-trigger]]:rounded-none [&_[data-slot=dropdown-menu-sub-trigger]]:px-3 [&_[data-slot=dropdown-menu-separator]]:mx-0 [&_[data-slot=dropdown-menu-separator]]:my-0'
-
 
 interface SectionCardProps {
   readonly tabId: string

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { GripDots } from '@/components/ui/grip-dots'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { Skeleton as BaseSkeleton } from '@/components/ui/skeleton'
+import { GhostSkeleton as Skeleton } from '@/components/builder/ghost-skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Toggle } from '@/components/ui/toggle'
 import { cn } from '@/lib/utils'
@@ -22,11 +22,6 @@ import { FieldEdit, MultiRelationSkeleton } from '@/components/fields'
  * skeletons stand in for what would be typed or loaded. The heavy editors (TipTap, CodeMirror) are never
  * mounted: a ghost only reproduces their footprint.
  */
-
-/** The skeleton of a ghost: a notch darker than the default so it holds up against the dialog background. */
-function Skeleton({ className, ...props }: React.ComponentProps<typeof BaseSkeleton>) {
-  return <BaseSkeleton className={cn('bg-foreground/10', className)} {...props} />
-}
 
 /** Lengths of the skeleton text lines, cycled so a block does not look like a bar chart. */
 const LINE_WIDTHS = ['w-11/12', 'w-4/5', 'w-full', 'w-2/3', 'w-5/6', 'w-1/2'] as const

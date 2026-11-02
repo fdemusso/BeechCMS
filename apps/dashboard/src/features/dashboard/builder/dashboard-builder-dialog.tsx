@@ -13,11 +13,11 @@ import {
   type EffectivePermissions,
 } from '@beechcms/core'
 import { toast } from 'sonner'
-import { Loader as Loader2 } from '@/components/icons'
 import { isApiError, problemCode } from '@/lib/http/api-error'
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useSchema } from '@/features/shared'
 import { DASHBOARD_QUERY_KEYS } from '@/features/shared'
 import { usePermissions } from '@/features/shared/hooks/use-permissions'
@@ -25,17 +25,60 @@ import { BuilderPane } from './builder-pane'
 import { useDashboardBuilder } from './use-dashboard-builder'
 import { useLayoutRoles } from './use-layout-roles'
 import { dashboardBuilderApi } from './api/dashboard-layout.api'
+import {
+  DASHBOARD_DRAFT_KEY,
+  clearAllDashboardDrafts,
+  clearDashboardDraft,
+  loadDashboardDraft,
+} from './dashboard-draft-storage'
 import { knownWidgetTypes } from '../registry/widget-registry'
 
 export interface DashboardBuilderDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly initialLayout: DashboardLayout
+  /** Opened because a draft was found after a reload: if it turns out to be stale the dialog closes again. */
+  readonly recovering?: boolean
 }
 
-export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: DashboardBuilderDialogProps) {
+/** The shape of a page while its layout loads, so the content fades in over a frame instead of popping in. */
+function BuilderSkeleton() {
+  return (
+    <div className="flex-1 space-y-4 px-6 pt-1" aria-hidden>
+      <div className="flex gap-2">
+        <Skeleton className="h-8 w-24 rounded-full" />
+        <Skeleton className="h-8 w-20 rounded-full" />
+      </div>
+      {[0, 1].map((i) => (
+        <div key={i} className="space-y-3 rounded-lg border p-3">
+          <Skeleton className="h-5 w-40" />
+          <div className="grid grid-cols-12 gap-3">
+            <Skeleton className="col-span-8 h-32 rounded-2xl" />
+            <Skeleton className="col-span-4 h-32 rounded-2xl" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function DashboardBuilderDialog({
+  open,
+  onOpenChange,
+  initialLayout,
+  recovering = false,
+}: Readonly<DashboardBuilderDialogProps>) {
   const { t } = useTranslation()
   const { data: seeds = [] } = useSchema()
+  const [isDragging, setIsDragging] = React.useState(false)
+  const [recoveryChecked, setRecoveryChecked] = React.useState(false)
+
+  // Each opening checks again whether a reload left a draft behind.
+  const [prevOpen, setPrevOpen] = React.useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) setRecoveryChecked(false)
+  }
 
   const { effective, isLoading: permissionsLoading } = usePermissions()
 
@@ -61,26 +104,53 @@ export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: Da
   }
 
   const draftSource: DashboardLayout = data?.layout ?? generatedDefault ?? initialLayout
+  const isLoadingDraft = isFetching || permissionsLoading
+
+  // Reopened after a reload for a draft: if that draft no longer applies (the server moved on, or it was
+  // already gone) there is nothing to resume, so the dialog steps aside instead of showing an unasked builder.
+  React.useEffect(() => {
+    if (!open || !recovering || recoveryChecked || isLoadingDraft) return
+    setRecoveryChecked(true)
+    if (loadDashboardDraft(DASHBOARD_DRAFT_KEY, data?.layout ?? null).status !== 'ready') {
+      clearAllDashboardDrafts()
+      onOpenChange(false)
+    }
+  }, [open, recovering, recoveryChecked, isLoadingDraft, data, onOpenChange])
+
+  // Leaving the builder (Back, Esc, Save, a click outside) is not an interruption: it drops the draft.
+  // A reload never runs this, which is the whole point.
+  function handleOpenChange(next: boolean) {
+    if (!next) clearAllDashboardDrafts()
+    onOpenChange(next)
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col p-0 gap-0 sm:max-w-[80vw] w-[80vw] h-[90vh] max-h-[90vh]" showCloseButton={false}>
-        <DialogHeader className="px-6 pt-6 pb-2">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        className="flex h-[90vh] max-h-[90vh] w-[80vw] flex-col gap-0 p-0 duration-200 data-open:zoom-in-100 data-closed:zoom-out-100 sm:max-w-[80vw]"
+        showCloseButton={false}
+        // Esc belongs to a drag in flight (it cancels it); it must not also close the builder.
+        onEscapeKeyDown={(event) => { if (isDragging) event.preventDefault() }}
+        onInteractOutside={(event) => { if (isDragging) event.preventDefault() }}
+      >
+        <DialogHeader className="px-6 pb-2 pt-6">
           <DialogTitle>{t('dashboard.builder.title')}</DialogTitle>
         </DialogHeader>
-        {isFetching || permissionsLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-          </div>
+        {isLoadingDraft ? (
+          <BuilderSkeleton />
         ) : (
-          <BuilderPaneController
-            initialLayout={draftSource}
-            updatedAt={data?.updatedAt ?? null}
-            permissions={effective}
-            onClose={() => onOpenChange(false)}
-            onMutated={() => { refetch() }}
-            onConflict={() => setConflictOpen(true)}
-          />
+          <div className="flex min-h-0 flex-1 animate-in flex-col duration-200 fade-in-0">
+            <BuilderPaneController
+              serverLayout={data?.layout ?? null}
+              initialLayout={draftSource}
+              updatedAt={data?.updatedAt ?? null}
+              permissions={effective}
+              onDraggingChange={setIsDragging}
+              onClose={() => handleOpenChange(false)}
+              onMutated={() => { refetch() }}
+              onConflict={() => setConflictOpen(true)}
+            />
+          </div>
         )}
       </DialogContent>
       <ConfirmDialog
@@ -95,22 +165,44 @@ export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: Da
 }
 
 interface BuilderPaneControllerProps {
+  /** The layout the server holds (null: nothing stored), to tell whether a kept draft still applies. */
+  readonly serverLayout: DashboardLayout | null
   readonly initialLayout: DashboardLayout
   readonly updatedAt: number | null
   readonly permissions: EffectivePermissions
+  readonly onDraggingChange: (dragging: boolean) => void
   readonly onClose: () => void
   readonly onMutated: () => void
   readonly onConflict: () => void
 }
 
-function BuilderPaneController({ initialLayout, updatedAt, permissions, onClose, onMutated, onConflict }: BuilderPaneControllerProps) {
+function BuilderPaneController({
+  serverLayout,
+  initialLayout,
+  updatedAt,
+  permissions,
+  onDraggingChange,
+  onClose,
+  onMutated,
+  onConflict,
+}: Readonly<BuilderPaneControllerProps>) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data: seeds = [] } = useSchema()
 
   const { data: roles } = useLayoutRoles(hasPermission(permissions, 'manage_roles', GLOBAL_SCOPE))
 
-  const ops = useDashboardBuilder({ initialLayout })
+  // Unsaved work from before a reload, if the server layout has not moved on since.
+  const recovered = React.useMemo(() => {
+    const lookup = loadDashboardDraft(DASHBOARD_DRAFT_KEY, serverLayout)
+    return lookup.status === 'ready' ? lookup.draft : null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const ops = useDashboardBuilder({
+    initialLayout: recovered?.saved ?? initialLayout,
+    restoredDraft: recovered?.layout,
+  })
   const [isSaving, setIsSaving] = React.useState(false)
 
   async function handleSave() {
@@ -130,6 +222,7 @@ function BuilderPaneController({ initialLayout, updatedAt, permissions, onClose,
     setIsSaving(true)
     try {
       await dashboardBuilderApi.saveLayout(result.cleaned, updatedAt)
+      clearDashboardDraft(DASHBOARD_DRAFT_KEY)
       toast.success(t('dashboard.builder.saved'))
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.layout() })
       onMutated()
@@ -149,6 +242,7 @@ function BuilderPaneController({ initialLayout, updatedAt, permissions, onClose,
   async function handleReset() {
     try {
       await dashboardBuilderApi.resetLayout(updatedAt)
+      clearDashboardDraft(DASHBOARD_DRAFT_KEY)
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.layout() })
       onMutated()
       toast.success(t('dashboard.builder.resetDone'))
@@ -164,11 +258,13 @@ function BuilderPaneController({ initialLayout, updatedAt, permissions, onClose,
 
   return (
     <BuilderPane
+      serverLayout={serverLayout}
       ops={ops}
       isSaving={isSaving}
       onSave={handleSave}
       onReset={handleReset}
       onClose={onClose}
+      onDraggingChange={onDraggingChange}
       permissions={permissions}
       hasStoredLayout={updatedAt !== null}
     />

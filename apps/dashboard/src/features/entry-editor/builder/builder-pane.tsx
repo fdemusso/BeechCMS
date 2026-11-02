@@ -10,10 +10,8 @@ import {
   SortableContext,
   verticalListSortingStrategy,
   horizontalListSortingStrategy,
-  useSortable,
 } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { ArrowLeft, Plus, Loader as Loader2, Edit as Pencil, Home, Trash2, X } from '@/components/icons'
+import { ArrowLeft, Plus, Loader as Loader2 } from '@/components/icons'
 import { toast } from 'sonner'
 import type { Seed, FormLayout, Branch } from '@beechcms/core'
 import { LAYOUT_TAB_LABEL_MAX, generateDefaultLayout, reconcileLayoutWithSeed } from '@beechcms/core'
@@ -22,8 +20,7 @@ import { isApiError } from '@/lib/http/api-error'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { FOOTER_RADIUS } from './footer-style'
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
-import { Input } from '@/components/ui/input'
+import { BuilderTabPill } from '@/components/builder/tab-pill'
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionCard } from './section-card'
@@ -330,111 +327,20 @@ interface TabPillProps {
   canDelete: boolean
 }
 
-function TabPill({
-  tab,
-  isActive,
-  isDefault,
-  dragId,
-  isRenaming,
-  renameValue,
-  onSetActive,
-  onStartRename,
-  onRenameChange,
-  onRenameCommit,
-  onRenameCancel,
-  onSetDefault,
-  onDelete,
-  canDelete,
-}: Readonly<TabPillProps>) {
+function TabPill({ tab, ...rest }: Readonly<TabPillProps>) {
   const { t } = useTranslation()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId, data: { type: 'tab' } })
-  const { role: _role, tabIndex: _tabIndex, ...restAttributes } = attributes
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      onSetActive()
-    }
-  }
-
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div
-          ref={setNodeRef}
-          style={style}
-          role="button"
-          tabIndex={0}
-          className={`group/tab flex h-8 shrink-0 items-center rounded-full px-3 text-sm cursor-pointer select-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            isActive ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'
-          }`}
-          onClick={onSetActive}
-          onDoubleClick={onStartRename}
-          onKeyDown={handleKeyDown}
-          {...restAttributes}
-          {...listeners}
-        >
-          {isDefault && !isRenaming && (
-            <Home className="mr-1.5 size-3.5 shrink-0" aria-label={t('layoutBuilder.defaultTabBadge')} />
-          )}
-          {isRenaming ? (
-            <Input autoFocus maxLength={LAYOUT_TAB_LABEL_MAX} className="h-6 w-24 rounded-md px-1 text-sm focus-visible:ring-1 focus-visible:ring-ring/30" value={renameValue}
-              onChange={(e) => onRenameChange(e.target.value)}
-              onBlur={onRenameCommit}
-              onClick={(e) => e.stopPropagation()}
-              onDoubleClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                e.stopPropagation()
-                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                  onRenameCommit()
-                }
-                if (e.key === 'Escape') {
-                  onRenameCancel()
-                }
-              }}
-            />
-          ) : (
-            <span className="truncate max-w-32">{tab.label}</span>
-          )}
-          {canDelete && !isRenaming && (
-            // The slot is 0 wide until the pill is hovered, then opens to the button's width, so the label
-            // does not sit off-centre while the X is hidden.
-            <span className="grid grid-cols-[0fr] transition-[grid-template-columns,margin] duration-150 group-hover/tab:ml-1.5 group-hover/tab:grid-cols-[1fr] group-focus-within/tab:ml-1.5 group-focus-within/tab:grid-cols-[1fr]">
-              <span className="overflow-hidden">
-                <button
-                  type="button"
-                  aria-label={t('layoutBuilder.tabMenu.delete')}
-                  className="flex size-4 items-center justify-center rounded-full text-destructive opacity-0 transition-opacity hover:bg-destructive/15 group-hover/tab:opacity-100 focus-visible:opacity-100 group-focus-within/tab:opacity-100"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => { e.stopPropagation(); onDelete() }}
-                >
-                  <X className="size-3" />
-                </button>
-              </span>
-            </span>
-          )}
-        </div>
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem onSelect={onStartRename}>
-          <Pencil className="size-4" />
-          {t('layoutBuilder.tabMenu.rename')}
-        </ContextMenuItem>
-        <ContextMenuItem disabled={isDefault} onSelect={onSetDefault}>
-          <Home className="size-4" />
-          {t('layoutBuilder.tabMenu.setDefault')}
-        </ContextMenuItem>
-        <ContextMenuItem variant="destructive" disabled={!canDelete} onSelect={onDelete}>
-          <Trash2 className="size-4" />
-          {t('layoutBuilder.tabMenu.delete')}
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+    <BuilderTabPill
+      {...rest}
+      label={tab.label}
+      dragType="tab"
+      maxLength={LAYOUT_TAB_LABEL_MAX}
+      labels={{
+        defaultBadge: t('layoutBuilder.defaultTabBadge'),
+        rename: t('layoutBuilder.tabMenu.rename'),
+        setDefault: t('layoutBuilder.tabMenu.setDefault'),
+        delete: t('layoutBuilder.tabMenu.delete'),
+      }}
+    />
   )
 }
