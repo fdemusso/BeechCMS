@@ -136,7 +136,6 @@ export async function exportHandler(context: Context<AppEnv, '/:slug/export', Zo
     const actor: ActorContext = context.get('actor') ?? {
       type: 'authenticated',
       userId: jwtPayload?.sub,
-      role: jwtPayload?.role,
     }
 
     const stream = createContentExportStream({ repository, seed, format, actor, filters, search: search || undefined, resolveSeed: context.get('getSeed') })

@@ -165,7 +165,7 @@ export async function updateHandler(context: Context<AppEnv, '/:slug/:id', ZodJs
     }
 
     const jwtPayload = context.get('jwtPayload')
-    const actor = { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
+    const actor = { id: jwtPayload.sub, email: jwtPayload.email }
     // The merge above is read-modify-write against `current`: without a version guard a concurrent write
     // landing in between would lose its translation silently. Fall back to the version we merged against
     // when the client sent none, turning that race into the usual 409.

@@ -52,7 +52,7 @@ describe('rbac last-admin guard — integration (real D1)', () => {
     firstAssignmentId = await assign(CANONICAL_USERS.editor.id, firstRoleId)
     secondAssignmentId = await assign(CANONICAL_USERS.viewer.id, secondRoleId)
 
-    // The canonical admin is the Developer and always a global admin; drop it so the two
+    // The canonical admin is the setup account (SuperAdmin@*); drop it so the two
     // accounts above are the only global administrators left.
     await harness.db.prepare('DELETE FROM user_role_assignments WHERE user_id = ?').bind(CANONICAL_USERS.admin.id).run()
     first = await harness.asUser('editor')

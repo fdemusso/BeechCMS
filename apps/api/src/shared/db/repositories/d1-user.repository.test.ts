@@ -10,7 +10,6 @@ const USER_ROW = {
   email: 'test@test.com',
   name: 'Test User',
   password_hash: 'hash-abc',
-  role: 'admin',
   avatar_url: null,
   notification_prefs: '{}',
   is_active: 1,
@@ -54,7 +53,6 @@ describe('D1UserRepository', () => {
         email: 'test@test.com',
         name: 'Test User',
         passwordHash: 'hash-abc',
-        role: 'admin',
         avatarUrl: null,
         notificationPreferences: '{}',
         isActive: true,
@@ -85,17 +83,17 @@ describe('D1UserRepository', () => {
     it('calls prepare with an INSERT INTO users statement', async () => {
       const { db, prepareMock } = makeMockDb()
       await new D1UserRepository(db).create({
-        id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
+        id: 'u1', email: 'a@b.com', passwordHash: 'hash', name: 'Test', surname: null,
       })
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO users'))
     })
 
-    it('binds id, email, passwordHash, role, name, surname in the correct order', async () => {
+    it('binds id, email, passwordHash, name, surname in the correct order', async () => {
       const { db, bindMock } = makeMockDb()
       await new D1UserRepository(db).create({
-        id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
+        id: 'u1', email: 'a@b.com', passwordHash: 'hash', name: 'Test', surname: null,
       })
-      expect(bindMock).toHaveBeenCalledWith('u1', 'a@b.com', 'hash', 'admin', 'Test', null)
+      expect(bindMock).toHaveBeenCalledWith('u1', 'a@b.com', 'hash', 'Test', null)
     })
   })
 
@@ -107,14 +105,14 @@ describe('D1UserRepository', () => {
       const { db, prepareMock, bindMock } = makeMockDb()
       ;(db as any).batch = batchMock
       const created = await new D1UserRepository(db).createInitialAdmin({
-        id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
+        id: 'u1', email: 'a@b.com', passwordHash: 'hash', name: 'Test', surname: null,
       }, roleGrant)
       expect(created).toBe(true)
       expect(batchMock).toHaveBeenCalledTimes(1)
       expect(batchMock.mock.calls[0][0]).toHaveLength(3)
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO setup_completed'))
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO user_role_assignments'))
-      expect(bindMock).toHaveBeenCalledWith('u1', 'a@b.com', 'hash', 'admin', 'Test', null)
+      expect(bindMock).toHaveBeenCalledWith('u1', 'a@b.com', 'hash', 'Test', null)
       expect(bindMock).toHaveBeenCalledWith('ura1', 'u1', 'role1', '*')
     })
 
@@ -123,7 +121,7 @@ describe('D1UserRepository', () => {
       const { db } = makeMockDb()
       ;(db as any).batch = batchMock
       const created = await new D1UserRepository(db).createInitialAdmin({
-        id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
+        id: 'u1', email: 'a@b.com', passwordHash: 'hash', name: 'Test', surname: null,
       }, roleGrant)
       expect(created).toBe(false)
     })
@@ -134,7 +132,7 @@ describe('D1UserRepository', () => {
       ;(db as any).batch = batchMock
       await expect(
         new D1UserRepository(db).createInitialAdmin({
-          id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
+          id: 'u1', email: 'a@b.com', passwordHash: 'hash', name: 'Test', surname: null,
         }, roleGrant),
       ).rejects.toThrow('database is locked')
     })
@@ -147,7 +145,6 @@ describe('D1UserRepository', () => {
       userInput.id = 'u1'
       userInput.email = 'a@b.com'
       userInput.passwordHash = 'hash'
-      userInput.role = 'admin'
       userInput.name = 'Test'
       userInput.surname = null
       userInput.constructor = 'proto-bypass-attempt'
@@ -214,15 +211,15 @@ describe('D1UserRepository', () => {
     it('maps rows to AccountSummary carrying no passwordHash key and reflecting is_active', async () => {
       const { db } = makeMockDb({
         allResults: [
-          { id: 'u1', email: 'a@b.com', name: 'A', surname: null, role: 'editor', is_active: 1, created_at: 100 },
-          { id: 'u2', email: 'c@d.com', name: null, surname: null, role: 'admin', is_active: 0, created_at: 200 },
+          { id: 'u1', email: 'a@b.com', name: 'A', surname: null, is_active: 1, created_at: 100 },
+          { id: 'u2', email: 'c@d.com', name: null, surname: null, is_active: 0, created_at: 200 },
         ],
       })
       const accounts = await new D1UserRepository(db).listAccounts({ limit: 10, offset: 0 })
 
       expect(accounts).toEqual([
-        { id: 'u1', email: 'a@b.com', name: 'A', surname: null, role: 'editor', isActive: true, createdAt: 100 },
-        { id: 'u2', email: 'c@d.com', name: null, surname: null, role: 'admin', isActive: false, createdAt: 200 },
+        { id: 'u1', email: 'a@b.com', name: 'A', surname: null, isActive: true, createdAt: 100 },
+        { id: 'u2', email: 'c@d.com', name: null, surname: null, isActive: false, createdAt: 200 },
       ])
       for (const account of accounts) {
         expect(Object.hasOwn(account, 'passwordHash')).toBe(false)
@@ -241,12 +238,12 @@ describe('D1UserRepository', () => {
   describe('findAccountById', () => {
     it('maps the row to an AccountSummary carrying no passwordHash key', async () => {
       const { db, bindMock } = makeMockDb({
-        firstResult: { id: 'u1', email: 'a@b.com', name: 'A', surname: null, role: 'editor', is_active: 0, created_at: 100 },
+        firstResult: { id: 'u1', email: 'a@b.com', name: 'A', surname: null, is_active: 0, created_at: 100 },
       })
 
       const account = await new D1UserRepository(db).findAccountById('u1')
 
-      expect(account).toEqual({ id: 'u1', email: 'a@b.com', name: 'A', surname: null, role: 'editor', isActive: false, createdAt: 100 })
+      expect(account).toEqual({ id: 'u1', email: 'a@b.com', name: 'A', surname: null, isActive: false, createdAt: 100 })
       expect(Object.hasOwn(account!, 'passwordHash')).toBe(false)
       expect(bindMock).toHaveBeenCalledWith('u1')
     })

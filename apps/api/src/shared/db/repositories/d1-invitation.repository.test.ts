@@ -34,7 +34,7 @@ async function makeRole(): Promise<string> {
 function redemption(invitationId: string, roleId: string, email: string) {
   return {
     invitationId,
-    user: { id: `user_${invitationId}`, email, passwordHash: 'x', role: 'editor', name: null, surname: null },
+    user: { id: `user_${invitationId}`, email, passwordHash: 'x', name: null, surname: null },
     assignmentId: `assignment_${invitationId}`,
     roleId,
     scope: GLOBAL_SCOPE,

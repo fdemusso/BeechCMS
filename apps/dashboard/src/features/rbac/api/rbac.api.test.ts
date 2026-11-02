@@ -12,7 +12,7 @@ function json(status: number, body: unknown): Response {
 }
 
 const account = (id: string) => ({
-  id, email: `${id}@beech.local`, name: null, surname: null, role: "editor", isActive: true, createdAt: 0, assignments: [],
+  id, email: `${id}@beech.local`, name: null, surname: null, isActive: true, createdAt: 0, assignments: [],
 })
 
 describe("rbacApi", () => {

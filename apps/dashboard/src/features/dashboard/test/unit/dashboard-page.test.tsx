@@ -25,7 +25,7 @@ vi.mock("@/features/navigation", () => ({
 
 // A legacy admin JWT is used on purpose, so a regression back to the role-based gate fails these tests.
 vi.mock("@/lib/auth-context", () => ({
-  useAuth: () => ({ user: { email: "ada@example.com", name: "Ada", role: "admin" } }),
+  useAuth: () => ({ user: { email: "ada@example.com", name: "Ada" } }),
 }))
 
 import { ME_QUERY_KEY } from "@/features/shared/hooks/use-me"

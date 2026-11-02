@@ -32,7 +32,6 @@ function buildApp(mocks: any = {}) {
         email: 'test@beechcms.com',
         name: 'Test',
         surname: 'User',
-        role: 'editor',
         passwordHash: 'hashed-pwd',
         avatarUrl: null,
         notificationPreferences: JSON.stringify({
@@ -303,11 +302,11 @@ describe('Settings Handler', () => {
       expect(body.manageableScopes).toEqual(['posts'])
     })
 
-    it('emits a global manage_seeds grant in permissions.global and no isDeveloper key, even for users.role admin', async () => {
+    it('emits a global manage_seeds grant in permissions.global and no isDeveloper key', async () => {
       const app = buildApp({
         userRepository: {
           findById: vi.fn().mockResolvedValue({
-            id: 'u1', email: 'admin@beechcms.com', name: 'Admin', surname: 'User', role: 'admin',
+            id: 'u1', email: 'admin@beechcms.com', name: 'Admin', surname: 'User',
             passwordHash: 'hashed-pwd', avatarUrl: null, notificationPreferences: '{}',
           }),
         },

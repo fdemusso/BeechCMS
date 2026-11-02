@@ -36,7 +36,6 @@ export async function getByIdHandler(context: Context<AppEnv, '/:slug/:id'>) {
     const actor: ActorContext = context.get('actor') ?? {
       type: 'authenticated',
       userId: jwtPayload?.sub,
-      role: jwtPayload?.role,
     }
 
     return context.json({
@@ -97,7 +96,6 @@ export async function getBySlugHandler(context: Context<AppEnv>) {
     const actor: ActorContext = context.get('actor') ?? {
       type: 'authenticated',
       userId: jwtPayload?.sub,
-      role: jwtPayload?.role,
     }
 
     return context.json({

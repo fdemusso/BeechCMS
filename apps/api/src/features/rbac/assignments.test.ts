@@ -164,13 +164,13 @@ describe('features/rbac/assignments', () => {
     expect(await res.json()).toMatchObject({ type: expect.stringContaining('last-global-admin') })
   })
 
-  it("DELETE of the SuperAdmin assignment of a users.role 'admin' account succeeds with 204 while another global administrator exists", async () => {
+  it("DELETE of a global administrator's SuperAdmin assignment succeeds with 204 while another global administrator exists", async () => {
     const hash = await bcrypt.hash('password123', 10)
     const ownerId = '22222222-2222-4222-8222-222222222222'
     const ownerAssignmentId = '33333333-3333-4333-8333-333333333333'
     await seedTestUsers(db, [
       { id: ownerId, email: 'owner@beechcms.io', password_hash: hash, grantSuperAdmin: false },
-      { id: 'user_co_admin', email: 'co-admin@beechcms.io', password_hash: hash, role: 'editor', grantSuperAdmin: true },
+      { id: 'user_co_admin', email: 'co-admin@beechcms.io', password_hash: hash, grantSuperAdmin: true },
     ])
     await db
       .prepare(

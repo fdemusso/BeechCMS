@@ -375,8 +375,8 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'claim-ignored.png', 'image/png', 100, TEST_USERS[0].id).run()
       await seedContentOnlyEditor()
 
-      // Regression guard: the legacy users.role claim must never grant the override again.
-      // This is the only token in the file that still carries `role`; the claim type leaves with the column.
+      // Regression guard: a legacy `role` claim on a still-valid token must never grant the override.
+      // `JwtClaims` no longer declares it, so it rides the index signature.
       const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
       const claimedAdminToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email, role: 'admin' })
 

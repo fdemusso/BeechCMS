@@ -4,8 +4,7 @@
 
 /**
  * Seeds slice — manage_seeds access integration tier.
- * Proves `/api/seeds/*` is gated by `manage_seeds` at the global scope alone: the legacy
- * `users.role` axis neither grants nor is required.
+ * Proves `/api/seeds/*` is gated by `manage_seeds` at the global scope alone.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -102,16 +101,6 @@ describe('seeds slice — manage_seeds access (real D1)', () => {
 
     expect(response.status).toBe(403)
     expect(await countSeeds('access_malformed')).toBe(0)
-  })
-
-  it("users.role 'admin' without a manage_seeds grant is refused 403 forbidden on GET /api/seeds", async () => {
-    await harness.db.prepare('DELETE FROM user_role_assignments WHERE user_id = ?').bind(CANONICAL_USERS.admin.id).run()
-    const admin = await harness.asUser('admin')
-
-    const response = await admin.get('/api/seeds')
-
-    expect(response.status).toBe(403)
-    expect(await response.json<{ error: string }>()).toMatchObject({ error: 'forbidden' })
   })
 
   it('the canonical admin (SuperAdmin) lists seeds with 200', async () => {

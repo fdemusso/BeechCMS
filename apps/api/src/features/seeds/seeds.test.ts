@@ -88,7 +88,7 @@ function makeActivityLogger() {
 // ─── App builder ─────────────────────────────────────────────────────────────
 
 function buildApp(opts: {
-  role?: string
+  authenticated?: boolean
   jwtPayload?: Record<string, unknown> | null
   repo?: ISeedRepository
   mutator?: ISchemaMutator
@@ -116,7 +116,7 @@ function buildApp(opts: {
   app.use('*', async (c, next) => {
     const jwtPayload = opts.jwtPayload !== undefined
       ? opts.jwtPayload
-      : (opts.role ? { sub: 'u1', email: 'a@b.com', role: opts.role } : null)
+      : (opts.authenticated ? { sub: 'u1', email: 'a@b.com' } : null)
     c.set('jwtPayload' as never, jwtPayload)
     c.set('seedRepository' as never, repo)
     c.set('schemaMutator' as never, mutator)
@@ -150,7 +150,7 @@ function buildApp(opts: {
 describe('GET /', () => {
 
   it('200 returns all records', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const res = await app.request('/', { method: 'GET' })
     expect(res.status).toBe(200)
     const body = await res.json() as any[]
@@ -160,7 +160,7 @@ describe('GET /', () => {
 
   it('sets X-Schema-Version from getRegistryVersion, body unchanged', async () => {
     const repo = makeRepo({ getRegistryVersion: vi.fn().mockResolvedValue(7) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
     const res = await app.request('/', { method: 'GET' })
     expect(res.headers.get('X-Schema-Version')).toBe('7')
     const body = await res.json() as any[]
@@ -170,14 +170,14 @@ describe('GET /', () => {
 
 describe('GET /:slug', () => {
   it('404 for missing seed', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const res = await app.request('/nope', { method: 'GET' })
     expect(res.status).toBe(404)
   })
 
   it('200 returns the record', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
     const res = await app.request('/articles', { method: 'GET' })
     expect(res.status).toBe(200)
     const body = await res.json() as any
@@ -189,7 +189,7 @@ describe('POST / (create)', () => {
 
   it('409 when slug already active', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
     const res = await app.request('/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -201,7 +201,7 @@ describe('POST / (create)', () => {
   it('creates new seed: planCreateSeed DDL submitted atomically, 201', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(null), listActive: vi.fn().mockResolvedValue([]) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(null) })
-    const { app, activityLogger } = buildApp({ role: 'admin', repo, mutator })
+    const { app, activityLogger } = buildApp({ authenticated: true, repo, mutator })
 
     const newSeed: Seed = {
       slug: 'notes',
@@ -233,7 +233,7 @@ describe('POST / (create)', () => {
   it('assigns br_NN ids to branches without ids', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(null), listActive: vi.fn().mockResolvedValue([]) })
     const mutator = makeMutator()
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const noIdSeed = {
       slug: 'tags',
@@ -259,7 +259,7 @@ describe('POST / (create)', () => {
     })
     const existingCols = new Set(['id', 'title'])
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(existingCols) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/', {
       method: 'POST',
@@ -274,7 +274,7 @@ describe('POST / (create)', () => {
 
   it('422 for unknown relation target', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(null), listActive: vi.fn().mockResolvedValue([]) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const relSeed: Seed = {
       slug: 'posts',
@@ -298,7 +298,7 @@ describe('PUT /:slug (edit)', () => {
 
   it('422 on alias rename (same id, different alias)', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const renamed: Seed = {
       ...baseSeed,
@@ -320,7 +320,7 @@ describe('PUT /:slug (edit)', () => {
   it('422 when PUT omits the displayNameAlias branch', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles', {
       method: 'PUT',
@@ -333,7 +333,7 @@ describe('PUT /:slug (edit)', () => {
 
   it('422 on branch type change', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const typeChanged: Seed = {
       ...baseSeed,
@@ -356,7 +356,7 @@ describe('PUT /:slug (edit)', () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const existingCols = new Set(['id', 'title', 'body'])
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(existingCols) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const withNew: Seed = {
       ...baseSeed,
@@ -381,7 +381,7 @@ describe('PUT /:slug (edit)', () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const existingCols = new Set(['id', 'title', 'body'])
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(existingCols) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const withRemoved: Seed = {
       ...baseSeed,
@@ -404,7 +404,7 @@ describe('POST /:slug/branches (add branch)', () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const existingCols = new Set(['id', 'title', 'body'])
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(existingCols) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/branches', {
       method: 'POST',
@@ -423,7 +423,7 @@ describe('POST /:slug/branches (add branch)', () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const existingCols = new Set(['id', 'title', 'body', 'excerpt', 'deleted_at'])
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(existingCols) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/branches', {
       method: 'POST',
@@ -442,7 +442,7 @@ describe('DELETE /:slug', () => {
   it('soft-deletes: status flips, table not dropped, version bumped', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles', { method: 'DELETE' })
     expect(res.status).toBe(200)
@@ -458,7 +458,7 @@ describe('DELETE /:slug', () => {
   it('409 when seed is referenced by another seed relation', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const backrefMap = new Map([['articles', [{ seedSlug: 'comments', branchAlias: 'article' }]]])
-    const { app } = buildApp({ role: 'admin', repo, backrefMap })
+    const { app } = buildApp({ authenticated: true, repo, backrefMap })
 
     const res = await app.request('/articles', { method: 'DELETE' })
     expect(res.status).toBe(409)
@@ -467,7 +467,7 @@ describe('DELETE /:slug', () => {
   })
 
   it('404 for non-existent seed', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const res = await app.request('/nope', { method: 'DELETE' })
     expect(res.status).toBe(404)
   })
@@ -481,7 +481,7 @@ describe('GET /:slug/orphans', () => {
     // DB has 'id', 'slug', 'status', 'created_at', 'updated_at', 'title', 'body', 'legacy'
     const dbCols = new Set(['id', 'slug', 'status', 'created_at', 'updated_at', 'title', 'body', 'legacy'])
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(dbCols) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/orphans', { method: 'GET' })
     expect(res.status).toBe(200)
@@ -494,7 +494,7 @@ describe('GET /:slug/orphans', () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const dbCols = new Set(['id', 'slug', 'status', 'created_at', 'updated_at', 'title', 'body'])
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(dbCols) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/orphans', { method: 'GET' })
     expect(res.status).toBe(200)
@@ -506,7 +506,7 @@ describe('GET /:slug/orphans', () => {
 describe('DELETE /:slug/hard', () => {
   it('400 on confirm mismatch', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/hard', {
       method: 'DELETE',
@@ -521,7 +521,7 @@ describe('DELETE /:slug/hard', () => {
   it('409 when seed is referenced', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const backrefMap = new Map([['articles', [{ sourceSlug: 'comments' }]]])
-    const { app } = buildApp({ role: 'admin', repo, backrefMap })
+    const { app } = buildApp({ authenticated: true, repo, backrefMap })
 
     const res = await app.request('/articles/hard', {
       method: 'DELETE',
@@ -535,7 +535,7 @@ describe('DELETE /:slug/hard', () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
     const purgeRepo = makePurgeRepo()
-    const { app, activityLogger, bucket } = buildApp({ role: 'admin', repo, mutator, purgeRepo })
+    const { app, activityLogger, bucket } = buildApp({ authenticated: true, repo, mutator, purgeRepo })
 
     const res = await app.request('/articles/hard', {
       method: 'DELETE',
@@ -558,7 +558,7 @@ describe('DELETE /:slug/hard', () => {
 describe('DELETE /:slug/branches/:branchId', () => {
   it('400 on confirm mismatch', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/branches/br_02', {
       method: 'DELETE',
@@ -571,7 +571,7 @@ describe('DELETE /:slug/branches/:branchId', () => {
   it('drops branch: DDL and definition submitted atomically', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/branches/br_02', {
       method: 'DELETE',
@@ -589,7 +589,7 @@ describe('DELETE /:slug/branches/:branchId', () => {
   it('422 when dropping the displayNameAlias branch, no DDL run', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/branches/br_01', {
       method: 'DELETE',
@@ -602,7 +602,7 @@ describe('DELETE /:slug/branches/:branchId', () => {
 
   it('404 for unknown branchId', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/branches/br_99', {
       method: 'DELETE',
@@ -626,7 +626,7 @@ describe('DELETE /:slug/orphans/:column', () => {
 
   it('drops the orphan column, definition unchanged', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo, mutator: withLegacy() })
+    const { app } = buildApp({ authenticated: true, repo, mutator: withLegacy() })
 
     const res = await dropOrphan(app, 'legacy', 'articles.legacy')
 
@@ -638,7 +638,7 @@ describe('DELETE /:slug/orphans/:column', () => {
 
   it('404 for a system column, a defined branch and an unknown column', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo, mutator: withLegacy() })
+    const { app } = buildApp({ authenticated: true, repo, mutator: withLegacy() })
 
     for (const column of ['status', 'body', 'ghost']) {
       expect((await dropOrphan(app, column, `articles.${column}`)).status, column).toBe(404)
@@ -648,7 +648,7 @@ describe('DELETE /:slug/orphans/:column', () => {
 
   it('400 on confirm mismatch, no DDL', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo, mutator: withLegacy() })
+    const { app } = buildApp({ authenticated: true, repo, mutator: withLegacy() })
 
     expect((await dropOrphan(app, 'legacy', 'wrong')).status).toBe(400)
     expect((repo.applyDestructiveAtomic as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
@@ -658,7 +658,7 @@ describe('DELETE /:slug/orphans/:column', () => {
 describe('PATCH /:slug/branches/:branchId/rename', () => {
   it('400 on confirm mismatch', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/branches/br_01/rename', {
       method: 'PATCH',
@@ -672,7 +672,7 @@ describe('PATCH /:slug/branches/:branchId/rename', () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
     const automationRepository = { list: vi.fn().mockResolvedValue([{ id: 'auto_1', conditions: 'title' }]) }
-    const { app } = buildApp({ role: 'admin', repo, mutator, automationRepository })
+    const { app } = buildApp({ authenticated: true, repo, mutator, automationRepository })
 
     const res = await app.request('/articles/branches/br_01/rename', {
       method: 'PATCH',
@@ -694,7 +694,7 @@ describe('PATCH /:slug/branches/:branchId/rename', () => {
 
   it('renaming the displayNameAlias branch repoints displayNameAlias', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/branches/br_01/rename', {
       method: 'PATCH',
@@ -709,7 +709,7 @@ describe('PATCH /:slug/branches/:branchId/rename', () => {
 
   it('renaming a non-display branch keeps displayNameAlias', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/branches/br_02/rename', {
       method: 'PATCH',
@@ -726,7 +726,7 @@ describe('PATCH /:slug/branches/:branchId/rename', () => {
 describe('PATCH /:slug/branches/:branchId/retype', () => {
   it('400 on confirm mismatch', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/branches/br_01/retype', {
       method: 'PATCH',
@@ -739,7 +739,7 @@ describe('PATCH /:slug/branches/:branchId/retype', () => {
   it('retypes branch: DDL and definition submitted atomically', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/branches/br_01/retype', {
       method: 'PATCH',
@@ -756,7 +756,7 @@ describe('PATCH /:slug/branches/:branchId/retype', () => {
   it('422 retype-data-incompatible when existing values would be lost, nothing applied', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator({ sumCounts: vi.fn().mockResolvedValue(3) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/branches/br_01/retype', {
       method: 'PATCH',
@@ -781,7 +781,7 @@ describe('PATCH /:slug/branches/:branchId/retype', () => {
       },
     }
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(repeaterRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/branches/br_02/retype', {
       method: 'PATCH',
@@ -795,7 +795,7 @@ describe('PATCH /:slug/branches/:branchId/retype', () => {
 
   it('422 retype-not-supported when retyping a branch to repeater', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/branches/br_01/retype', {
       method: 'PATCH',
@@ -812,7 +812,7 @@ describe('POST /:slug/fts/rebuild', () => {
   it('calls execDestructive with FTS statements and logs audit', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
-    const { app, activityLogger } = buildApp({ role: 'admin', repo, mutator })
+    const { app, activityLogger } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/fts/rebuild', { method: 'POST' })
     expect(res.status).toBe(200)
@@ -824,7 +824,7 @@ describe('POST /:slug/fts/rebuild', () => {
   })
 
   it('404 for non-existent seed', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const res = await app.request('/nope/fts/rebuild', { method: 'POST' })
     expect(res.status).toBe(404)
   })
@@ -834,7 +834,7 @@ describe('POST /:slug/fts/rebuild', () => {
 
 describe('Malformed JSON body', () => {
   it('POST / returns 400 invalid-json on bad body', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const res = await app.request('/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -847,7 +847,7 @@ describe('Malformed JSON body', () => {
 
   it('PUT /:slug returns 400 invalid-json on bad body', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
     const res = await app.request('/articles', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -858,7 +858,7 @@ describe('Malformed JSON body', () => {
 
   it('POST /:slug/branches returns 400 invalid-json on bad body', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
     const res = await app.request('/articles/branches', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -869,7 +869,7 @@ describe('Malformed JSON body', () => {
 
   it('DELETE /:slug/hard returns 400 invalid-json on bad body', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
     const res = await app.request('/articles/hard', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -880,7 +880,7 @@ describe('Malformed JSON body', () => {
 
   it('DELETE /:slug/branches/:branchId returns 400 invalid-json on bad body', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
     const res = await app.request('/articles/branches/br_01', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -891,7 +891,7 @@ describe('Malformed JSON body', () => {
 
   it('PATCH rename returns 400 invalid-json on bad body', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
     const res = await app.request('/articles/branches/br_01/rename', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -902,7 +902,7 @@ describe('Malformed JSON body', () => {
 
   it('PATCH retype returns 400 invalid-json on bad body', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
     const res = await app.request('/articles/branches/br_01/retype', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -916,7 +916,7 @@ describe('Malformed JSON body', () => {
 
 describe('Additional validation and 404 paths', () => {
   it('POST / 400 on invalid slug format', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const invalid: Seed = { ...baseSeed, slug: 'Invalid Slug!' }
     const res = await app.request('/', {
       method: 'POST',
@@ -928,7 +928,7 @@ describe('Additional validation and 404 paths', () => {
 
   it('POST / infers displayNameAlias from the first text branch when missing', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(null), listActive: vi.fn().mockResolvedValue([]) })
-    const { app, repo: usedRepo } = buildApp({ role: 'admin', repo })
+    const { app, repo: usedRepo } = buildApp({ authenticated: true, repo })
     const noDisplaySeed = {
       slug: 'snippets',
       label: 'Snippets',
@@ -949,7 +949,7 @@ describe('Additional validation and 404 paths', () => {
 
   it('POST / 400 when displayNameAlias missing and no text branch to infer from', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(null), listActive: vi.fn().mockResolvedValue([]) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
     const noTextSeed = {
       slug: 'numbers_only',
       label: 'Numbers',
@@ -966,7 +966,7 @@ describe('Additional validation and 404 paths', () => {
   it('POST / 422 ddl-failed when atomic apply throws', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(null), listActive: vi.fn().mockResolvedValue([]), applyAtomic: vi.fn().mockRejectedValue(new Error('boom')) })
     const mutator = makeMutator()
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const newSeed: Seed = {
       slug: 'broken',
@@ -986,7 +986,7 @@ describe('Additional validation and 404 paths', () => {
   })
 
   it('PUT /:slug 404 for non-existent seed', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const res = await app.request('/nope', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -999,7 +999,7 @@ describe('Additional validation and 404 paths', () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const existingCols = new Set(['id', 'title', 'body'])
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(existingCols) })
-    const { app, repo: usedRepo } = buildApp({ role: 'admin', repo, mutator })
+    const { app, repo: usedRepo } = buildApp({ authenticated: true, repo, mutator })
 
     const withNewUnidentified: Seed = {
       ...baseSeed,
@@ -1020,7 +1020,7 @@ describe('Additional validation and 404 paths', () => {
   })
 
   it('POST /:slug/branches 404 for non-existent seed', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const res = await app.request('/nope/branches', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1030,7 +1030,7 @@ describe('Additional validation and 404 paths', () => {
   })
 
   it('GET /:slug/orphans 404 for non-existent seed', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const res = await app.request('/nope/orphans', { method: 'GET' })
     expect(res.status).toBe(404)
   })
@@ -1038,7 +1038,7 @@ describe('Additional validation and 404 paths', () => {
   it('GET /:slug/orphans returns empty when DB columns are unknown (table does not exist)', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(null) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/orphans', { method: 'GET' })
     expect(res.status).toBe(200)
@@ -1051,7 +1051,7 @@ describe('Additional validation and 404 paths', () => {
 
 describe('DELETE /:slug/branches/:branchId — DDL failure', () => {
   it('404 for non-existent seed', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const res = await app.request('/nope/branches/br_01', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -1063,7 +1063,7 @@ describe('DELETE /:slug/branches/:branchId — DDL failure', () => {
   it('422 ddl-failed when destructive apply throws', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), applyDestructiveAtomic: vi.fn().mockRejectedValue(new Error('drop failed')) })
     const mutator = makeMutator()
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/branches/br_02', {
       method: 'DELETE',
@@ -1081,7 +1081,7 @@ describe('DELETE /:slug/branches/:branchId — DDL failure', () => {
 describe('PATCH /:slug/branches/:branchId/rename — extra validation paths', () => {
   it('400 when newAlias is invalid', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/branches/br_01/rename', {
       method: 'PATCH',
@@ -1096,7 +1096,7 @@ describe('PATCH /:slug/branches/:branchId/rename — extra validation paths', ()
     async (newAlias) => {
       const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
       const mutator = makeMutator()
-      const { app } = buildApp({ role: 'admin', repo, mutator })
+      const { app } = buildApp({ authenticated: true, repo, mutator })
 
       const res = await app.request('/articles/branches/br_01/rename', {
         method: 'PATCH',
@@ -1114,7 +1114,7 @@ describe('PATCH /:slug/branches/:branchId/rename — extra validation paths', ()
     async (newAlias) => {
       const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
       const mutator = makeMutator()
-      const { app } = buildApp({ role: 'admin', repo, mutator })
+      const { app } = buildApp({ authenticated: true, repo, mutator })
 
       const res = await app.request('/articles/branches/br_01/rename', {
         method: 'PATCH',
@@ -1129,7 +1129,7 @@ describe('PATCH /:slug/branches/:branchId/rename — extra validation paths', ()
   it('400 when newAlias is an SQL reserved keyword', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/branches/br_01/rename', {
       method: 'PATCH',
@@ -1143,7 +1143,7 @@ describe('PATCH /:slug/branches/:branchId/rename — extra validation paths', ()
   it('409 when newAlias duplicates a sibling branch alias', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/branches/br_01/rename', {
       method: 'PATCH',
@@ -1156,7 +1156,7 @@ describe('PATCH /:slug/branches/:branchId/rename — extra validation paths', ()
   })
 
   it('404 for non-existent seed', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const res = await app.request('/nope/branches/br_01/rename', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1167,7 +1167,7 @@ describe('PATCH /:slug/branches/:branchId/rename — extra validation paths', ()
 
   it('404 for unknown branchId', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/branches/br_99/rename', {
       method: 'PATCH',
@@ -1181,7 +1181,7 @@ describe('PATCH /:slug/branches/:branchId/rename — extra validation paths', ()
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const mutator = makeMutator()
     const automationRepository = { list: vi.fn().mockRejectedValue(new Error('automations unavailable')) }
-    const { app } = buildApp({ role: 'admin', repo, mutator, automationRepository })
+    const { app } = buildApp({ authenticated: true, repo, mutator, automationRepository })
 
     const res = await app.request('/articles/branches/br_01/rename', {
       method: 'PATCH',
@@ -1199,7 +1199,7 @@ describe('PATCH /:slug/branches/:branchId/rename — extra validation paths', ()
 describe('PATCH /:slug/branches/:branchId/retype — extra validation paths', () => {
   it('400 when newType is invalid', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/branches/br_01/retype', {
       method: 'PATCH',
@@ -1210,7 +1210,7 @@ describe('PATCH /:slug/branches/:branchId/retype — extra validation paths', ()
   })
 
   it('404 for non-existent seed', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const res = await app.request('/nope/branches/br_01/retype', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1221,7 +1221,7 @@ describe('PATCH /:slug/branches/:branchId/retype — extra validation paths', ()
 
   it('404 for unknown branchId', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/branches/br_99/retype', {
       method: 'PATCH',
@@ -1234,7 +1234,7 @@ describe('PATCH /:slug/branches/:branchId/retype — extra validation paths', ()
   it('422 ddl-failed when destructive apply throws', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), applyDestructiveAtomic: vi.fn().mockRejectedValue(new Error('retype failed')) })
     const mutator = makeMutator()
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/branches/br_01/retype', {
       method: 'PATCH',
@@ -1252,7 +1252,7 @@ describe('PATCH /:slug/branches/:branchId/retype — extra validation paths', ()
 describe('actorFromContext fallbacks', () => {
   it('falls back to "unknown" id/email and null name when JWT lacks those claims', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-    const { app, activityLogger } = buildApp({ jwtPayload: { role: 'admin' }, repo })
+    const { app, activityLogger } = buildApp({ jwtPayload: {}, repo })
 
     const res = await app.request('/articles', { method: 'DELETE' })
     expect(res.status).toBe(200)
@@ -1270,7 +1270,7 @@ describe('POST /:slug/mcp-plan', () => {
   it('is read-only: never calls applyAtomic, upsert, execDdl or execDestructive', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(null), listActive: vi.fn().mockResolvedValue([]) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(null) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/mcp-plan', {
       method: 'POST',
@@ -1288,7 +1288,7 @@ describe('POST /:slug/mcp-plan', () => {
   it('classifies "create" when no stored definition exists', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(null), listActive: vi.fn().mockResolvedValue([]) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(null) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/mcp-plan', {
       method: 'POST',
@@ -1303,7 +1303,7 @@ describe('POST /:slug/mcp-plan', () => {
   it('classifies "additive" when only new branches are added', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), listActive: vi.fn().mockResolvedValue([baseSeed]) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body'])) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const candidate: Seed = { ...baseSeed, branches: [...baseSeed.branches, { id: 'br_03', alias: 'price', label: 'Price', type: 'number' } as Branch] }
     const res = await app.request('/articles/mcp-plan', {
@@ -1326,7 +1326,7 @@ describe('POST /:slug/mcp-plan', () => {
     }
     const repo = makeRepo({ get: vi.fn().mockResolvedValue({ ...baseRecord, definition: stored }), listActive: vi.fn().mockResolvedValue([stored]) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body', 'links'])) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const candidate = {
       ...baseSeed,
@@ -1351,7 +1351,7 @@ describe('POST /:slug/mcp-plan', () => {
   it('classifies "additive" when new branches omit id (auto-assigned sequentially)', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), listActive: vi.fn().mockResolvedValue([baseSeed]) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body'])) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const candidate: Seed = {
       ...baseSeed,
@@ -1374,7 +1374,7 @@ describe('POST /:slug/mcp-plan', () => {
   it('classifies "destructive" when a branch would be dropped', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), listActive: vi.fn().mockResolvedValue([baseSeed]) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body'])) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const candidate: Seed = { ...baseSeed, branches: [baseSeed.branches[0]] }
     const res = await app.request('/articles/mcp-plan', {
@@ -1390,7 +1390,7 @@ describe('POST /:slug/mcp-plan', () => {
 
   it('returns expectedVersion from the current registry version', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(null), listActive: vi.fn().mockResolvedValue([]), getRegistryVersion: vi.fn().mockResolvedValue(9) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/mcp-plan', {
       method: 'POST',
@@ -1404,7 +1404,7 @@ describe('POST /:slug/mcp-plan', () => {
   it('reports definitionChanged true and the alias when a stored branch label changes', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), listActive: vi.fn().mockResolvedValue([]) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(null) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
     const relabeled: Seed = {
       ...baseSeed,
       branches: [baseSeed.branches[0], { ...baseSeed.branches[1], label: 'Body text' }],
@@ -1425,7 +1425,7 @@ describe('POST /:slug/mcp-plan', () => {
   it('reports definitionChanged false and no branches when the candidate equals the stored definition', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), listActive: vi.fn().mockResolvedValue([]) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(null) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/mcp-plan', {
       method: 'POST',
@@ -1441,7 +1441,7 @@ describe('POST /:slug/mcp-plan', () => {
 
 
   it('400 when slug format is invalid', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const res = await app.request('/Invalid%20Slug/mcp-plan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1464,7 +1464,7 @@ describe('POST /:slug/mcp-apply', () => {
       applyAtomic: vi.fn().mockResolvedValue({ applied: true, version: 4 }),
     })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(null) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const res = await app.request('/articles/mcp-apply', {
       method: 'POST',
@@ -1485,7 +1485,7 @@ describe('POST /:slug/mcp-apply', () => {
       applyAtomic: vi.fn().mockResolvedValue({ applied: true, version: 4 }),
     })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body'])) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const candidate: Seed = { ...baseSeed, branches: [...baseSeed.branches, { id: 'br_03', alias: 'price', label: 'Price', type: 'number' } as Branch] }
     const res = await app.request('/articles/mcp-apply', {
@@ -1505,7 +1505,7 @@ describe('POST /:slug/mcp-apply', () => {
       applyAtomic: vi.fn().mockResolvedValue({ applied: true, version: 4 }),
     })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body'])) })
-    const { app } = buildApp({ role: 'admin', repo, mutator })
+    const { app } = buildApp({ authenticated: true, repo, mutator })
 
     const candidate: Seed = {
       ...baseSeed,
@@ -1531,7 +1531,7 @@ describe('POST /:slug/mcp-apply', () => {
       listActive: vi.fn().mockResolvedValue([]),
       applyAtomic: vi.fn().mockResolvedValue({ applied: false, version: 5 }),
     })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const res = await app.request('/articles/mcp-apply', {
       method: 'POST',
@@ -1545,7 +1545,7 @@ describe('POST /:slug/mcp-apply', () => {
 
   it('422 on destructive intent: applyAtomic is never called', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), listActive: vi.fn().mockResolvedValue([baseSeed]) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const candidate: Seed = { ...baseSeed, branches: [baseSeed.branches[0]] }
     const res = await app.request('/articles/mcp-apply', {
@@ -1561,7 +1561,7 @@ describe('POST /:slug/mcp-apply', () => {
 
   it('422 on validation failure (unknown relation target)', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(null), listActive: vi.fn().mockResolvedValue([]) })
-    const { app } = buildApp({ role: 'admin', repo })
+    const { app } = buildApp({ authenticated: true, repo })
 
     const candidate: Seed = {
       ...baseSeed,
@@ -1578,7 +1578,7 @@ describe('POST /:slug/mcp-apply', () => {
   })
 
   it('400 on non-integer expectedVersion', async () => {
-    const { app } = buildApp({ role: 'admin' })
+    const { app } = buildApp({ authenticated: true })
     const res = await app.request('/articles/mcp-apply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1594,7 +1594,7 @@ describe('POST /:slug/mcp-apply', () => {
       listActive: vi.fn().mockResolvedValue([]),
       applyAtomic: vi.fn().mockResolvedValue({ applied: true, version: 2 }),
     })
-    const { app, activityLogger } = buildApp({ role: 'admin', repo })
+    const { app, activityLogger } = buildApp({ authenticated: true, repo })
 
     await app.request('/articles/mcp-apply', {
       method: 'POST',
@@ -1615,7 +1615,7 @@ describe('POST /:slug/mcp-apply', () => {
       listActive: vi.fn().mockResolvedValue([]),
       applyAtomic: vi.fn().mockResolvedValue({ applied: true, version: 2 }),
     })
-    const { app, activityLogger } = buildApp({ role: 'admin', repo })
+    const { app, activityLogger } = buildApp({ authenticated: true, repo })
     const relabeled: Seed = {
       ...baseSeed,
       branches: [baseSeed.branches[0], { ...baseSeed.branches[1], label: 'Body text' }],
@@ -1646,7 +1646,7 @@ describe('Request body contract — order of checks', () => {
   describe('POST /', () => {
     it.each([[5], [true], [null], [['articles']]])('refuses the non-string slug %j with 400 invalid-json and applies nothing', async (slug) => {
       const repo = makeRepo()
-      const { app } = buildApp({ role: 'admin', repo })
+      const { app } = buildApp({ authenticated: true, repo })
 
       const res = await send(app, 'POST', '/', { slug, label: 'Articles', branches: [] })
 
@@ -1662,7 +1662,7 @@ describe('Request body contract — order of checks', () => {
       ['POST', '/ghost/branches'],
     ])('%s %s reads the body before it looks for the seed: malformed JSON is 400, not 404', async (method, path) => {
       const repo = makeRepo()
-      const { app } = buildApp({ role: 'admin', repo })
+      const { app } = buildApp({ authenticated: true, repo })
 
       const res = await send(app, method, path, '{not valid json')
 
@@ -1676,7 +1676,7 @@ describe('Request body contract — order of checks', () => {
       ['POST', '/articles/branches'],
     ])('%s %s refuses a JSON body that is not an object with 400 invalid-json', async (method, path) => {
       const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-      const { app } = buildApp({ role: 'admin', repo })
+      const { app } = buildApp({ authenticated: true, repo })
 
       const res = await send(app, method, path, [])
 
@@ -1690,7 +1690,7 @@ describe('Request body contract — order of checks', () => {
     it.each([[null], [[]], [5]])('refuses the body %j with 400 confirmation-required and starts no purge', async (body) => {
       const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
       const purgeRepo = makePurgeRepo()
-      const { app } = buildApp({ role: 'admin', repo, purgeRepo })
+      const { app } = buildApp({ authenticated: true, repo, purgeRepo })
 
       const res = await send(app, 'DELETE', '/articles/hard', body)
 
@@ -1701,7 +1701,7 @@ describe('Request body contract — order of checks', () => {
 
     it('checks the confirmation before it looks for the seed: a wrong token on a missing seed is 400, not 404', async () => {
       const repo = makeRepo()
-      const { app } = buildApp({ role: 'admin', repo })
+      const { app } = buildApp({ authenticated: true, repo })
 
       const res = await send(app, 'DELETE', '/ghost/hard', { confirm: 'wrong' })
 
@@ -1714,7 +1714,7 @@ describe('Request body contract — order of checks', () => {
   describe('DELETE /:slug/branches/:branchId', () => {
     it('looks for the seed before it checks the confirmation: no token on a missing seed is 404', async () => {
       const repo = makeRepo()
-      const { app } = buildApp({ role: 'admin', repo })
+      const { app } = buildApp({ authenticated: true, repo })
 
       const res = await send(app, 'DELETE', '/ghost/branches/br_02', {})
 
@@ -1724,7 +1724,7 @@ describe('Request body contract — order of checks', () => {
 
     it.each([[null], [[]], [5]])('refuses the body %j on an existing seed with 400 confirmation-required and drops nothing', async (body) => {
       const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-      const { app } = buildApp({ role: 'admin', repo })
+      const { app } = buildApp({ authenticated: true, repo })
 
       const res = await send(app, 'DELETE', '/articles/branches/br_02', body)
 
@@ -1737,7 +1737,7 @@ describe('Request body contract — order of checks', () => {
   describe('PATCH /:slug/branches/:branchId/rename', () => {
     it.each([[null], [[]], ['"body"'], [{}], [{ newAlias: 5 }]])('refuses the body %j with 400 invalid-json before it looks for the seed', async (body) => {
       const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-      const { app } = buildApp({ role: 'admin', repo })
+      const { app } = buildApp({ authenticated: true, repo })
 
       const res = await send(app, 'PATCH', '/articles/branches/br_02/rename', body)
 
@@ -1750,7 +1750,7 @@ describe('Request body contract — order of checks', () => {
 
     it('looks for the seed before it checks the confirmation: no token on a missing seed is 404', async () => {
       const repo = makeRepo()
-      const { app } = buildApp({ role: 'admin', repo })
+      const { app } = buildApp({ authenticated: true, repo })
 
       const res = await send(app, 'PATCH', '/ghost/branches/br_02/rename', { newAlias: 'text' })
 
@@ -1760,7 +1760,7 @@ describe('Request body contract — order of checks', () => {
 
     it('reports a duplicate alias before a missing confirmation', async () => {
       const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-      const { app } = buildApp({ role: 'admin', repo })
+      const { app } = buildApp({ authenticated: true, repo })
 
       const res = await send(app, 'PATCH', '/articles/branches/br_02/rename', { newAlias: 'title' })
 
@@ -1771,7 +1771,7 @@ describe('Request body contract — order of checks', () => {
 
     it('refuses a missing confirmation with 400 confirmation-required once the branch is found', async () => {
       const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-      const { app } = buildApp({ role: 'admin', repo })
+      const { app } = buildApp({ authenticated: true, repo })
 
       const res = await send(app, 'PATCH', '/articles/branches/br_02/rename', { newAlias: 'text' })
 
@@ -1784,7 +1784,7 @@ describe('Request body contract — order of checks', () => {
   describe('PATCH /:slug/branches/:branchId/retype', () => {
     it.each([[null], [[]], [{}], [{ newType: 5 }], [{ newType: 'varchar' }]])('refuses the body %j with 400 invalid-json before it looks for the seed', async (body) => {
       const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
-      const { app } = buildApp({ role: 'admin', repo })
+      const { app } = buildApp({ authenticated: true, repo })
 
       const res = await send(app, 'PATCH', '/articles/branches/br_01/retype', body)
 
@@ -1797,7 +1797,7 @@ describe('Request body contract — order of checks', () => {
 
     it('looks for the seed before it checks the confirmation: no token on a missing seed is 404', async () => {
       const repo = makeRepo()
-      const { app } = buildApp({ role: 'admin', repo })
+      const { app } = buildApp({ authenticated: true, repo })
 
       const res = await send(app, 'PATCH', '/ghost/branches/br_01/retype', { newType: 'number' })
 

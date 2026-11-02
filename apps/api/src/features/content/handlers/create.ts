@@ -110,7 +110,7 @@ export async function createHandler(context: Context<AppEnv, '/:slug', ZodJsonIn
   try {
     const repository = context.get('repository')
     const jwtPayload = context.get('jwtPayload')
-    const actor = { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
+    const actor = { id: jwtPayload.sub, email: jwtPayload.email }
     await repository.create(seed, id, finalSlug, status, privacyData, { actor })
 
     const title = displayData.title || displayData.name || finalSlug

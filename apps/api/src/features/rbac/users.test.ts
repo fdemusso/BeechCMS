@@ -46,7 +46,7 @@ describe('features/rbac/users', () => {
   }
 
   describe('POST /api/rbac/users', () => {
-    it('creates a zero-trust account with role=editor and no assignments', async () => {
+    it('creates a zero-trust account with no assignments and no role key', async () => {
       const token = await login(ADMIN.email)
       const res = await authed('/api/rbac/users', token, {
         method: 'POST',
@@ -54,12 +54,12 @@ describe('features/rbac/users', () => {
         body: JSON.stringify({ email: 'partner@beechcms.io', password: 'password123' }),
       })
       expect(res.status).toBe(201)
-      const body = await res.json<{ id: string; role: string; assignments: unknown[] }>()
-      expect(body.role).toBe('editor')
+      const body = await res.json<{ id: string; assignments: unknown[] }>()
+      expect(body).not.toHaveProperty('role')
       expect(body.assignments).toEqual([])
 
-      const row = await db.prepare('SELECT role FROM users WHERE id = ?').bind(body.id).first<{ role: string }>()
-      expect(row?.role).toBe('editor')
+      const row = await db.prepare('SELECT COUNT(*) AS n FROM user_role_assignments WHERE user_id = ?').bind(body.id).first<{ n: number }>()
+      expect(row?.n).toBe(0)
     })
 
     it('rejects a duplicate email with 409 email-taken', async () => {
@@ -78,7 +78,8 @@ describe('features/rbac/users', () => {
       expect(await res.json()).toMatchObject({ type: expect.stringContaining('email-taken') })
     })
 
-    it('a request body field cannot set users.role to admin', async () => {
+    // Regression guard: zod strips unknown keys, and a future schema must not turn `role` into authority.
+    it('a role field in the request body grants nothing', async () => {
       const token = await login(ADMIN.email)
       const res = await authed('/api/rbac/users', token, {
         method: 'POST',
@@ -87,8 +88,8 @@ describe('features/rbac/users', () => {
       })
       expect(res.status).toBe(201)
       const body = await res.json<{ id: string }>()
-      const row = await db.prepare('SELECT role FROM users WHERE id = ?').bind(body.id).first<{ role: string }>()
-      expect(row?.role).toBe('editor')
+      const row = await db.prepare('SELECT COUNT(*) AS n FROM user_role_assignments WHERE user_id = ?').bind(body.id).first<{ n: number }>()
+      expect(row?.n).toBe(0)
     })
   })
 
@@ -124,12 +125,12 @@ describe('features/rbac/users', () => {
   })
 
   describe('PATCH /api/rbac/users/:userId/active', () => {
-    it("deactivating an account whose users.role is 'admin' succeeds with 200 while another global administrator exists", async () => {
+    it('deactivating a global administrator succeeds with 200 while another global administrator exists', async () => {
       const hash = await bcrypt.hash('password123', 10)
       const ownerId = '22222222-2222-4222-8222-222222222222'
       await seedTestUsers(db, [
         { id: ownerId, email: 'owner@beechcms.io', password_hash: hash },
-        { id: 'user_co_admin', email: 'co-admin@beechcms.io', password_hash: hash, role: 'editor', grantSuperAdmin: true },
+        { id: 'user_co_admin', email: 'co-admin@beechcms.io', password_hash: hash, grantSuperAdmin: true },
       ])
 
       const coAdminToken = await login('co-admin@beechcms.io')

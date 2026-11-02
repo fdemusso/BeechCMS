@@ -9,9 +9,6 @@ import { RBAC_ERRORS } from './constants'
 import { canAdministerAccount, pageOf, rbacProblem, type AppContext, type JsonContext, type PageContext } from './guards'
 import type { createUserSchema, setActiveSchema } from './rbac.schema'
 
-/** Every account minted here is created with the default `users.role` value. */
-const CREATED_ACCOUNT_ROLE = 'editor'
-
 type AccountView = AccountSummary & { assignments: PermissionAssignment[] }
 
 /**
@@ -73,7 +70,6 @@ export const createUserHandler = async (context: JsonContext<typeof createUserSc
       id,
       email,
       passwordHash,
-      role: CREATED_ACCOUNT_ROLE,
       name: input.name ?? null,
       surname: input.surname ?? null,
     })

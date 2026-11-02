@@ -229,8 +229,8 @@ describe('content slice — export integration (real D1)', () => {
     })
 
     it('a caller without content:read on the seed receives 403', async () => {
-      // 'viewer' is editor-shaped but deliberately given no RBAC role assignment, so the
-      // refusal below comes from the permission gate, not from the users.role CHECK.
+      // 'viewer' is deliberately given no RBAC role assignment, so the refusal below
+      // comes from the permission gate.
       const viewer = await harness.asUser('viewer')
 
       const response = await viewer.get('/api/content/categories/export')

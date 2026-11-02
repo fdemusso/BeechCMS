@@ -166,17 +166,6 @@ describe('schema slice — seed form layout (real D1)', () => {
       expect(await storedLayoutCount('posts')).toBe(0)
     })
 
-    it("users.role 'admin' without a manage_seeds grant is refused 403 on PUT and nothing is stored", async () => {
-      // Regression guard: the legacy users.role axis must not decide layout writes again.
-      await harness.db.prepare('DELETE FROM user_role_assignments WHERE user_id = ?').bind(CANONICAL_USERS.admin.id).run()
-      const roleAdmin = await harness.asUser('admin')
-
-      const response = await roleAdmin.put('/api/schema/posts/layout', SMALL_LAYOUT)
-
-      expect(response.status).toBe(403)
-      expect(await storedLayoutCount('posts')).toBe(0)
-    })
-
     it('returns 404 for an unknown seed and stores nothing', async () => {
       const response = await admin.put('/api/schema/no_such_seed/layout', SMALL_LAYOUT)
 

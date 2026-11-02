@@ -12,7 +12,7 @@ import { rbacApp } from './index'
 
 const account: AccountSummary = {
   id: CANONICAL_USERS.editor.id, email: CANONICAL_USERS.editor.email, name: null, surname: null,
-  role: 'editor', isActive: true, createdAt: 0,
+  isActive: true, createdAt: 0,
 }
 
 const userRepository = {

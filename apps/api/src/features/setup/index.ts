@@ -267,7 +267,6 @@ const setupApp = new Hono<AppEnv>()
         id: adminUserId,
         email: normalizedEmail,
         passwordHash,
-        role: 'admin',
         name: normalizedName,
         surname: normalizedSurname,
       },

@@ -111,7 +111,6 @@ export function authMiddleware(options: AuthMiddlewareOptions = {}) {
         email: user.email,
         name: user.name ?? undefined,
         surname: user.surname ?? undefined,
-        role: user.role,
       }
 
       c.set('jwtPayload', claims)

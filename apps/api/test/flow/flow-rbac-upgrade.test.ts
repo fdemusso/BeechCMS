@@ -44,11 +44,13 @@ describe('Flow: RBAC upgrade from legacy accounts', () => {
     const db = await legacyDatabase()
     const app = createBeechApp({ seeds: TEST_SEEDS, authProviders: { clock } })
     const user = TEST_USERS[index]
-    const token = await new JoseTokenService(TEST_ENV.JWT_SECRET, {}, clock).issue({ sub: user.id, email: user.email, role })
+    const token = await new JoseTokenService(TEST_ENV.JWT_SECRET, {}, clock).issue({ sub: user.id, email: user.email })
 
     // Fresh fixtures conceal missing backfills.
     for (const file of files.filter(file => file > '0030_test_seeds.sql')) await db.exec(readMigration(file))
 
+    const userColumns = await db.prepare('PRAGMA table_info(users)').all<{ name: string }>()
+    expect(userColumns.results.map(column => column.name)).not.toContain('role')
     const contentResponse = await app.request('/api/content/posts', { headers: { Authorization: `Bearer ${token}` } }, { ...TEST_ENV, DB: db })
     expect(contentResponse.status).toBe(200)
     expect(await contentResponse.json<Record<string, unknown>[]>()).toEqual([])
@@ -99,5 +101,15 @@ describe('Flow: RBAC upgrade from legacy accounts', () => {
 
     expect(await db.prepare('SELECT count(*) AS count FROM user_role_assignments').first<{ count: number }>()).toEqual({ count: 0 })
     expect(await db.prepare("SELECT count(*) AS count FROM roles WHERE name = 'LegacyEditor'").first<{ count: number }>()).toEqual({ count: 0 })
+  })
+
+  it('a fresh database built from every migration has no users.role column', async () => {
+    const db = new D1TestDatabase({ applyMigrations: false })
+    databases.push(db)
+
+    for (const file of files) await db.exec(readMigration(file))
+
+    const userColumns = await db.prepare('PRAGMA table_info(users)').all<{ name: string }>()
+    expect(userColumns.results.map(column => column.name)).not.toContain('role')
   })
 })

@@ -27,7 +27,7 @@ dashboard and is planned apart. Detailed Task Details exist ONLY for the sprint 
   today, and it must be releasable even if every later sprint slips. It changes no layout or
   dashboard contract, so nothing downstream blocks it.
 - **API before UI, per phase.** Phases 2 and 4 each change a server contract (layout shape,
-  save enforcement) that the dashboard then projects. Shipping both in one PR would leave the
+  save enforcement) that the dashboard then projects. Shipping both in one PR would leave thecom
   server contract unvalidated on its own, which is the split criterion in the stage contract.
 - **`requires` before `manage_layout`.** The locked-widget decision in sprint 5 ("can this author
   use this widget?") is exactly the `requires` evaluation sprint 4 introduces; doing it the other

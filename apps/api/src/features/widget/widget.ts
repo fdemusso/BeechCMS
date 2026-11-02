@@ -87,7 +87,6 @@ function resolveActor(context: Context<{ Bindings: Env; Variables: Variables }>)
   return context.get('actor') ?? {
     type: 'authenticated',
     userId: jwtPayload?.sub,
-    role: jwtPayload?.role,
   }
 }
 

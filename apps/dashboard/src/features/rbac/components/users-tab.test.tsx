@@ -33,8 +33,8 @@ describe("UsersTab", () => {
   it("renders rows from the mocked hook, disables the switch on caller's own row, and renders manage roles icon button", () => {
     mockUsers.mockReturnValue({
       data: [
-        { id: "u1", email: "me@beech.local", name: "Me", surname: null, role: "editor", isActive: true, createdAt: 0, assignments: [] },
-        { id: "u2", email: "other@beech.local", name: "Other", surname: null, role: "editor", isActive: true, createdAt: 0, assignments: [] },
+        { id: "u1", email: "me@beech.local", name: "Me", surname: null, isActive: true, createdAt: 0, assignments: [] },
+        { id: "u2", email: "other@beech.local", name: "Other", surname: null, isActive: true, createdAt: 0, assignments: [] },
       ],
       isLoading: false,
     })
@@ -60,9 +60,9 @@ describe("UsersTab", () => {
   it("always renders the current user in the first position even if returned later in the list", () => {
     mockUsers.mockReturnValue({
       data: [
-        { id: "u2", email: "other@beech.local", name: "Other", surname: null, role: "editor", isActive: true, createdAt: 0, assignments: [] },
-        { id: "u3", email: "third@beech.local", name: "Third", surname: null, role: "editor", isActive: true, createdAt: 0, assignments: [] },
-        { id: "u1", email: "me@beech.local", name: "Me", surname: null, role: "editor", isActive: true, createdAt: 0, assignments: [] },
+        { id: "u2", email: "other@beech.local", name: "Other", surname: null, isActive: true, createdAt: 0, assignments: [] },
+        { id: "u3", email: "third@beech.local", name: "Third", surname: null, isActive: true, createdAt: 0, assignments: [] },
+        { id: "u1", email: "me@beech.local", name: "Me", surname: null, isActive: true, createdAt: 0, assignments: [] },
       ],
       isLoading: false,
     })
@@ -73,11 +73,11 @@ describe("UsersTab", () => {
     expect(rows[1]).toHaveTextContent("me@beech.local")
   })
 
-  it("an account whose role is 'admin' that is not the caller has an enabled status switch", () => {
+  it("every active account other than the caller has an enabled status switch", () => {
     mockUsers.mockReturnValue({
       data: [
-        { id: "u2", email: "dev@beech.local", role: "admin", name: "Dev", surname: null, isActive: true, createdAt: 0, assignments: [] },
-        { id: "u3", email: "editor@beech.local", role: "editor", name: "Editor", surname: null, isActive: true, createdAt: 0, assignments: [] },
+        { id: "u2", email: "dev@beech.local", name: "Dev", surname: null, isActive: true, createdAt: 0, assignments: [] },
+        { id: "u3", email: "editor@beech.local", name: "Editor", surname: null, isActive: true, createdAt: 0, assignments: [] },
       ],
       isLoading: false,
     })
@@ -85,7 +85,7 @@ describe("UsersTab", () => {
 
     const switches = screen.getAllByRole("switch")
     expect(switches).toHaveLength(2)
-    // Regression guard: the legacy users.role axis must not disable the switch again.
+    // Regression guard: no per-account attribute may disable the switch.
     expect(switches[0]).not.toBeDisabled()
     expect(switches[1]).not.toBeDisabled()
   })

@@ -106,7 +106,6 @@ const draftApp = new Hono<AppEnv>()
     const actor: ActorContext = context.get('actor') ?? {
       type: 'authenticated',
       userId: jwtPayload?.sub,
-      role: jwtPayload?.role,
     }
     const seedsBySlug = new Map(seeds.map((seed) => [seed.slug, seed]))
     return context.json(drafts.map((draft) => {
@@ -236,7 +235,6 @@ const draftApp = new Hono<AppEnv>()
     const actor: ActorContext = context.get('actor') ?? {
       type: 'authenticated',
       userId: jwtPayload?.sub,
-      role: jwtPayload?.role,
     }
 
     return context.json({ data: applyVisibility(draft, seed, actor) }, 200)

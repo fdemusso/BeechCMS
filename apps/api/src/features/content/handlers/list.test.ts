@@ -44,7 +44,7 @@ async function list(query: string) {
     context.set('getSeed', () => SEED as never)
     context.set('repository', { findMany, hasDraft: vi.fn().mockResolvedValue(false) } as never)
     context.set('seedRegistry', { get: (s: string) => (s === 'authors' ? AUTHOR_SEED_DEF : undefined) } as never)
-    context.set('jwtPayload', { sub: 'user-1', role: 'admin' } as never)
+    context.set('jwtPayload', { sub: 'user-1' } as never)
     await next()
   })
   app.route('/api/content', contentCrudApp)

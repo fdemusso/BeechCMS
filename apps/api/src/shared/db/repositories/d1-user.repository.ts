@@ -11,7 +11,6 @@ type AccountRow = {
   email: string
   name: string | null
   surname: string | null
-  role: string
   is_active: number
   created_at: number
 }
@@ -22,7 +21,6 @@ function accountFromRow(row: AccountRow): AccountSummary {
     email: row.email,
     name: row.name,
     surname: row.surname,
-    role: row.role,
     isActive: row.is_active === 1,
     createdAt: row.created_at,
   }
@@ -34,7 +32,6 @@ type UserRow = {
   name: string | null
   surname: string | null
   password_hash: string
-  role: string
   avatar_url: string | null
   notification_prefs: string
   is_active: number
@@ -47,7 +44,6 @@ function rowToRecord(row: UserRow): UserRecord {
     name: row.name,
     surname: row.surname,
     passwordHash: row.password_hash,
-    role: row.role,
     avatarUrl: row.avatar_url,
     notificationPreferences: row.notification_prefs,
     isActive: row.is_active === 1,
@@ -66,7 +62,7 @@ export class D1UserRepository implements IUserRepository {
 
   async findById(userId: string): Promise<UserRecord | null> {
     const row = await this.db
-      .prepare('SELECT id, email, name, surname, password_hash, role, avatar_url, notification_prefs, is_active FROM users WHERE id = ? LIMIT 1')
+      .prepare('SELECT id, email, name, surname, password_hash, avatar_url, notification_prefs, is_active FROM users WHERE id = ? LIMIT 1')
       .bind(userId)
       .first<UserRow>()
     return row ? rowToRecord(row) : null
@@ -74,7 +70,7 @@ export class D1UserRepository implements IUserRepository {
 
   async findByEmail(email: string): Promise<UserRecord | null> {
     const row = await this.db
-      .prepare('SELECT id, email, name, surname, password_hash, role, avatar_url, notification_prefs, is_active FROM users WHERE email = ? LIMIT 1')
+      .prepare('SELECT id, email, name, surname, password_hash, avatar_url, notification_prefs, is_active FROM users WHERE email = ? LIMIT 1')
       .bind(email)
       .first<UserRow>()
     return row ? rowToRecord(row) : null
@@ -82,8 +78,8 @@ export class D1UserRepository implements IUserRepository {
 
   async create(user: NewUserInput): Promise<void> {
     await this.db
-      .prepare('INSERT INTO users (id, email, password_hash, role, name, surname) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(user.id, user.email, user.passwordHash, user.role, user.name, user.surname)
+      .prepare('INSERT INTO users (id, email, password_hash, name, surname) VALUES (?, ?, ?, ?, ?)')
+      .bind(user.id, user.email, user.passwordHash, user.name, user.surname)
       .run()
   }
 
@@ -92,8 +88,8 @@ export class D1UserRepository implements IUserRepository {
       await this.db.batch([
         this.db.prepare('INSERT INTO setup_completed (id) VALUES (1)'),
         this.db
-          .prepare('INSERT INTO users (id, email, password_hash, role, name, surname) VALUES (?, ?, ?, ?, ?, ?)')
-          .bind(user.id, user.email, user.passwordHash, user.role, user.name, user.surname),
+          .prepare('INSERT INTO users (id, email, password_hash, name, surname) VALUES (?, ?, ?, ?, ?)')
+          .bind(user.id, user.email, user.passwordHash, user.name, user.surname),
         this.db
           .prepare('INSERT INTO user_role_assignments (id, user_id, role_id, scope) VALUES (?, ?, ?, ?)')
           .bind(roleGrant.id, user.id, roleGrant.roleId, roleGrant.scope),
@@ -172,7 +168,7 @@ export class D1UserRepository implements IUserRepository {
   async listAccounts(page: PageRequest): Promise<AccountSummary[]> {
     const rows = await this.db
       .prepare(
-        `SELECT id, email, name, surname, role, is_active, created_at
+        `SELECT id, email, name, surname, is_active, created_at
          FROM users ORDER BY created_at ASC, id ASC LIMIT ? OFFSET ?`
       )
       .bind(page.limit, page.offset)
@@ -184,7 +180,7 @@ export class D1UserRepository implements IUserRepository {
   async findAccountById(userId: string): Promise<AccountSummary | null> {
     const row = await this.db
       .prepare(
-        `SELECT id, email, name, surname, role, is_active, created_at
+        `SELECT id, email, name, surname, is_active, created_at
          FROM users WHERE id = ?`
       )
       .bind(userId)

@@ -33,7 +33,7 @@ export async function deleteHandler(context: Context<AppEnv, '/:slug/:id', ZodQu
   try {
     const repository = context.get('repository')
     const jwtPayload = context.get('jwtPayload')
-    const actor = { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
+    const actor = { id: jwtPayload.sub, email: jwtPayload.email }
 
     const forcePurge = context.req.valid('query').purge === 'true'
 
