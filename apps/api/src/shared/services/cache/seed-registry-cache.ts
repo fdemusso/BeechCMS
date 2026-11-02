@@ -14,9 +14,14 @@ interface CachedRegistry {
 
 type HydratedRegistry = { registry: ISeedRegistry; backrefMap: BackrefMap }
 
+interface InFlightBuild {
+  version: number
+  promise: Promise<HydratedRegistry>
+}
+
 interface RepositoryCacheState {
   cache: CachedRegistry | null
-  inFlightPromise: Promise<HydratedRegistry> | null
+  inFlight: InFlightBuild | null
 }
 
 // Module-level = isolate-level. Survives across requests on the same isolate,
@@ -30,7 +35,7 @@ const TTL_MS = 5_000
 function stateFor(repo: ISeedRepository): RepositoryCacheState {
   let state = states.get(repo)
   if (!state) {
-    state = { cache: null, inFlightPromise: null }
+    state = { cache: null, inFlight: null }
     states.set(repo, state)
   }
   return state
@@ -65,17 +70,22 @@ export async function getHydratedRegistry(repo: ISeedRepository): Promise<Hydrat
     throw tokenError
   }
 
-  if (state.inFlightPromise) {
-    return state.inFlightPromise
+  // Join only a build started at the version this request read: an older build may have
+  // listed seeds before the write that bumped the token.
+  const joined = state.inFlight
+  if (joined && joined.version === version) {
+    return joined.promise
   }
 
-  state.inFlightPromise = repo.listActive().then((seeds) => {
-    return rebuild(state, seeds, version, now)
-  }).finally(() => {
-    state.inFlightPromise = null
-  })
+  const build: InFlightBuild = {
+    version,
+    promise: repo.listActive().then((seeds) => rebuild(state, build, seeds, version, now)).finally(() => {
+      if (state.inFlight === build) state.inFlight = null
+    }),
+  }
+  state.inFlight = build
 
-  return state.inFlightPromise
+  return build.promise
 }
 
 // A quarantined seed is reported once per isolate, not on every cache rebuild.
@@ -97,11 +107,14 @@ export function warnQuarantinedSeeds(quarantined: ReadonlyArray<QuarantinedSeed>
   }
 }
 
-function rebuild(state: RepositoryCacheState, seeds: Seed[], version: number, now: number) {
+function rebuild(state: RepositoryCacheState, build: InFlightBuild, seeds: Seed[], version: number, now: number) {
   const { registry, quarantined } = createTolerantSeedRegistry(seeds)
   warnQuarantinedSeeds(quarantined)
   const backrefMap = buildBackrefMap(registry.all())
-  state.cache = { version, builtAt: now, registry, backrefMap }
+  // A superseded build still serves its own callers but must not overwrite a newer cache entry.
+  if (state.inFlight === build) {
+    state.cache = { version, builtAt: now, registry, backrefMap }
+  }
   return { registry, backrefMap }
 }
 
