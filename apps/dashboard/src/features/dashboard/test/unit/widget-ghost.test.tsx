@@ -6,9 +6,8 @@ import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
 import type { DashboardWidgetInstance } from "@beechcms/core"
 import "@/features/dashboard/registry/builtin-widgets"
-import { WidgetGhost, widgetNeedsSetup } from "@/features/dashboard/builder/ghosts/widget-ghost"
-import { seededSeries } from "@/features/dashboard/builder/ghosts/ghost-parts"
-import { pieShares } from "@/features/dashboard/builder/ghosts/archetypes"
+import { WidgetGhost } from "@/features/dashboard/builder/ghosts/widget-ghost"
+import { pieShares, seededSeries, widgetNeedsSetup } from "@/features/dashboard/builder/ghosts/ghost-utils"
 
 const widget = (over: Partial<DashboardWidgetInstance> & Pick<DashboardWidgetInstance, "type">): DashboardWidgetInstance => ({
   id: "w1",
@@ -38,7 +37,7 @@ describe("seededSeries", () => {
 
 describe("pie ghost", () => {
   it("draws slices whose shares add up to the whole ring", () => {
-    const shares = pieShares("w1")
+    const shares = pieShares("w1", 4)
 
     expect(shares.reduce((sum, v) => sum + v, 0)).toBeCloseTo(100, 5)
   })

@@ -33,16 +33,8 @@ import {
   dragIds,
   useDashboardDnd,
 } from './use-dashboard-dnd'
-import {
-  DASHBOARD_DRAFT_KEY,
-  clearDashboardDraft,
-  fingerprintDashboardLayout,
-  saveDashboardDraft,
-} from './dashboard-draft-storage'
+import { useDashboardDraftPersistence } from './use-dashboard-draft-persistence'
 import type { ConfigureTarget } from './widget-block'
-
-/** How long after the last change the draft is written; changes in quick succession share one write. */
-const DRAFT_SAVE_DELAY_MS = 400
 
 /**
  * Corner radius of the footer buttons: the project-wide control radius (see "Radii" in the layout builder
@@ -66,6 +58,91 @@ export interface BuilderPaneProps {
   readonly hasStoredLayout: boolean
 }
 
+interface BuilderFooterProps {
+  readonly isDragging: boolean
+  readonly isDirty: boolean
+  readonly isSaving: boolean
+  readonly showPreview: boolean
+  readonly canReset: boolean
+  readonly firstSaveBlocked: boolean
+  readonly onClose: () => void
+  readonly onTogglePreview: () => void
+  readonly onRequestReset: () => void
+  readonly onSave: () => void
+}
+
+function BuilderFooter({
+  isDragging,
+  isDirty,
+  isSaving,
+  showPreview,
+  canReset,
+  firstSaveBlocked,
+  onClose,
+  onTogglePreview,
+  onRequestReset,
+  onSave,
+}: Readonly<BuilderFooterProps>) {
+  const { t } = useTranslation()
+  // Back set apart, then Preview, Reset and Save together.
+  return (
+  <div className="flex shrink-0 items-center justify-end gap-4 border-t px-6 py-4">
+    {firstSaveBlocked && (
+      <p className="mr-auto text-sm text-muted-foreground">{t('dashboard.builder.firstSaveNeedsRoles')}</p>
+    )}
+    <ButtonGroup className="[--button-group-radius:min(var(--radius-md),10px)]">
+      <ButtonGroup>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={FOOTER_RADIUS}
+          aria-label={t('common.back')}
+          onClick={onClose}
+          disabled={isDragging}
+        >
+          <ArrowLeft />
+        </Button>
+      </ButtonGroup>
+      <ButtonGroup>
+        <Button
+          type="button"
+          variant="outline"
+          className={`${FOOTER_RADIUS} font-normal`}
+          aria-pressed={showPreview}
+          onClick={onTogglePreview}
+          disabled={isDragging}
+        >
+          {showPreview ? <EyeOff /> : <Eye />}
+          {showPreview ? t('dashboard.builder.hidePreview') : t('dashboard.builder.showPreview')}
+        </Button>
+        {canReset && (
+          <Button
+            type="button"
+            variant="outline"
+            className={`${FOOTER_RADIUS} font-normal`}
+            onClick={onRequestReset}
+            disabled={isDragging}
+          >
+            {t('dashboard.builder.reset')}
+          </Button>
+        )}
+        <Button
+          type="button"
+          variant="outline"
+          className={`${FOOTER_RADIUS} font-normal`}
+          onClick={onSave}
+          disabled={!isDirty || isSaving || isDragging || firstSaveBlocked}
+        >
+          {isSaving && <Loader2 className="size-4 animate-spin" />}
+          {t('dashboard.builder.save')}
+        </Button>
+      </ButtonGroup>
+    </ButtonGroup>
+  </div>
+  )
+}
+
 export function BuilderPane({
   serverLayout,
   ops,
@@ -87,47 +164,12 @@ export function BuilderPane({
   const [showPreview, setShowPreview] = React.useState(false)
   const [configTarget, setConfigTarget] = React.useState<ConfigureTarget | null>(null)
 
-  const dnd = useDashboardDnd({ ops })
+  const dnd = useDashboardDnd({ ops, onDraggingChange })
   // Any drag (widget, column, section or page) freezes the footer: a click mid-drag would save, reset or
   // close a layout that is half-moved. At the drop the buttons go back to their own rules.
   const isDragging = dnd.preview !== null
 
-  React.useEffect(() => {
-    onDraggingChange?.(isDragging)
-    return () => onDraggingChange?.(false)
-  }, [isDragging, onDraggingChange])
-
-  // ── Draft persistence ────────────────────────────────────────────────────
-  // Unsaved work is kept in the tab's session storage so a reload resumes it (the dashboard page reopens the
-  // builder when a draft is waiting). It is written shortly after each change, but never mid-drag (a widget
-  // half-way between columns is not a state worth coming back to), and straight away when the page goes
-  // away, which a pending timer would not survive.
-  const base = React.useMemo(() => fingerprintDashboardLayout(serverLayout), [serverLayout])
-  const latestRef = React.useRef({ draft, saved: ops.saved, isDirty, isDragging })
-  React.useEffect(() => {
-    latestRef.current = { draft, saved: ops.saved, isDirty, isDragging }
-  })
-
-  const writeDraftNow = React.useCallback(() => {
-    const latest = latestRef.current
-    if (!latest.isDirty || latest.isDragging) return
-    saveDashboardDraft(DASHBOARD_DRAFT_KEY, { base, saved: latest.saved, layout: latest.draft })
-  }, [base])
-
-  React.useEffect(() => {
-    if (isDragging) return
-    if (!isDirty) {
-      clearDashboardDraft(DASHBOARD_DRAFT_KEY)
-      return
-    }
-    const timer = window.setTimeout(writeDraftNow, DRAFT_SAVE_DELAY_MS)
-    return () => window.clearTimeout(timer)
-  }, [draft, isDirty, isDragging, writeDraftNow])
-
-  React.useEffect(() => {
-    window.addEventListener('pagehide', writeDraftNow)
-    return () => window.removeEventListener('pagehide', writeDraftNow)
-  }, [writeDraftNow])
+  useDashboardDraftPersistence({ serverLayout, draft, saved: ops.saved, isDirty, isDragging })
 
   const activePage = draft.pages.find((p) => p.id === activePageId) ?? draft.pages[0]
   const otherPages = React.useMemo(
@@ -235,61 +277,18 @@ export function BuilderPane({
         </DndContext>
       </div>
 
-      {/* ── Footer: Back set apart, then Preview, Reset and Save together ── */}
-      <div className="flex shrink-0 items-center justify-end gap-4 border-t px-6 py-4">
-        {firstSaveBlocked && (
-          <p className="mr-auto text-sm text-muted-foreground">{t('dashboard.builder.firstSaveNeedsRoles')}</p>
-        )}
-        <ButtonGroup className="[--button-group-radius:min(var(--radius-md),10px)]">
-          <ButtonGroup>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className={FOOTER_RADIUS}
-              aria-label={t('common.back')}
-              onClick={onClose}
-              disabled={isDragging}
-            >
-              <ArrowLeft />
-            </Button>
-          </ButtonGroup>
-          <ButtonGroup>
-            <Button
-              type="button"
-              variant="outline"
-              className={`${FOOTER_RADIUS} font-normal`}
-              aria-pressed={showPreview}
-              onClick={() => setShowPreview((v) => !v)}
-              disabled={isDragging}
-            >
-              {showPreview ? <EyeOff /> : <Eye />}
-              {showPreview ? t('dashboard.builder.hidePreview') : t('dashboard.builder.showPreview')}
-            </Button>
-            {canEditStructure && (
-              <Button
-                type="button"
-                variant="outline"
-                className={`${FOOTER_RADIUS} font-normal`}
-                onClick={() => setShowResetConfirm(true)}
-                disabled={isDragging}
-              >
-                {t('dashboard.builder.reset')}
-              </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              className={`${FOOTER_RADIUS} font-normal`}
-              onClick={onSave}
-              disabled={!isDirty || isSaving || isDragging || firstSaveBlocked}
-            >
-              {isSaving && <Loader2 className="size-4 animate-spin" />}
-              {t('dashboard.builder.save')}
-            </Button>
-          </ButtonGroup>
-        </ButtonGroup>
-      </div>
+      <BuilderFooter
+        isDragging={isDragging}
+        isDirty={isDirty}
+        isSaving={isSaving}
+        showPreview={showPreview}
+        canReset={canEditStructure}
+        firstSaveBlocked={firstSaveBlocked}
+        onClose={onClose}
+        onTogglePreview={() => setShowPreview((v) => !v)}
+        onRequestReset={() => setShowResetConfirm(true)}
+        onSave={onSave}
+      />
 
       <WidgetConfigSheet
         widget={configWidget}

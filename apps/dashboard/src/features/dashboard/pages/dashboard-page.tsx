@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Settings } from '@/components/icons'
 import { Button } from "@/components/ui/button"
@@ -27,15 +27,15 @@ export default function DashboardPage() {
 
   // Unsaved builder work survives a reload: when one is waiting, the builder comes back without asking.
   // A reload never closes the builder on purpose, so a draft at load time means the work was cut short.
-  const [recoveryChecked, setRecoveryChecked] = useState(false)
+  const recoveryChecked = useRef(false)
   const [recovering, setRecovering] = useState(false)
   useEffect(() => {
-    if (!canEdit || recoveryChecked) return
-    setRecoveryChecked(true)
+    if (!canEdit || recoveryChecked.current) return
+    recoveryChecked.current = true
     if (listDashboardDraftScopes().length === 0) return
     setRecovering(true)
     setBuilderOpen(true)
-  }, [canEdit, recoveryChecked])
+  }, [canEdit])
   const hour = new Date().getHours()
   const greeting = hour >= 5 && hour < 12
     ? t("dashboard.greeting.morning")

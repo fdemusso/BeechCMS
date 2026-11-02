@@ -71,14 +71,8 @@ export function DashboardBuilderDialog({
   const { t } = useTranslation()
   const { data: seeds = [] } = useSchema()
   const [isDragging, setIsDragging] = React.useState(false)
-  const [recoveryChecked, setRecoveryChecked] = React.useState(false)
-
-  // Each opening checks again whether a reload left a draft behind.
-  const [prevOpen, setPrevOpen] = React.useState(open)
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) setRecoveryChecked(false)
-  }
+  // Each opening checks once whether a reload left a draft behind (reset while closed).
+  const recoveryChecked = React.useRef(false)
 
   const { effective, isLoading: permissionsLoading } = usePermissions()
 
@@ -109,13 +103,17 @@ export function DashboardBuilderDialog({
   // Reopened after a reload for a draft: if that draft no longer applies (the server moved on, or it was
   // already gone) there is nothing to resume, so the dialog steps aside instead of showing an unasked builder.
   React.useEffect(() => {
-    if (!open || !recovering || recoveryChecked || isLoadingDraft) return
-    setRecoveryChecked(true)
+    if (!open) {
+      recoveryChecked.current = false
+      return
+    }
+    if (!recovering || recoveryChecked.current || isLoadingDraft) return
+    recoveryChecked.current = true
     if (loadDashboardDraft(DASHBOARD_DRAFT_KEY, data?.layout ?? null).status !== 'ready') {
       clearAllDashboardDrafts()
       onOpenChange(false)
     }
-  }, [open, recovering, recoveryChecked, isLoadingDraft, data, onOpenChange])
+  }, [open, recovering, isLoadingDraft, data, onOpenChange])
 
   // Leaving the builder (Back, Esc, Save, a click outside) is not an interruption: it drops the draft.
   // A reload never runs this, which is the whole point.

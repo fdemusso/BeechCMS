@@ -43,11 +43,11 @@ export function kindOf(id: string): DragKind {
 }
 
 /** Which droppables each kind of drag may land on. */
-const ACCEPTS: Record<DragKind, readonly string[]> = {
-  widget: ['widget', 'zone'],
-  section: ['section'],
-  column: ['column'],
-  page: ['page'],
+const ACCEPTS: Record<DragKind, ReadonlySet<string>> = {
+  widget: new Set(['widget', 'zone']),
+  section: new Set(['section']),
+  column: new Set(['column']),
+  page: new Set(['page']),
 }
 
 /**
@@ -66,7 +66,7 @@ function acceptedContainers(all: DroppableContainer[], kind: DragKind): Droppabl
   let accepted = byKind.get(kind)
   if (!accepted) {
     const types = ACCEPTS[kind]
-    accepted = all.filter((container) => types.includes(String(container.data.current?.type)))
+    accepted = all.filter((container) => types.has(String(container.data.current?.type)))
     byKind.set(kind, accepted)
   }
   return accepted
@@ -140,6 +140,8 @@ export const DashboardDragContext = React.createContext<DashboardDragState>({ dr
 
 interface UseDashboardDndArgs {
   readonly ops: UseDashboardBuilderResult
+  /** Told when a drag starts and ends (and once more, false, if the builder unmounts mid-drag). */
+  readonly onDraggingChange?: (dragging: boolean) => void
 }
 
 /**
@@ -150,12 +152,19 @@ interface UseDashboardDndArgs {
  * same-column reordering is finished on drop. `Esc` restores the layout as it was when the drag began. A drop
  * the rules refuse (a full column) leaves the widget where it was and says why, once, at the drop.
  */
-export function useDashboardDnd({ ops }: UseDashboardDndArgs) {
+export function useDashboardDnd({ ops, onDraggingChange }: UseDashboardDndArgs) {
   const { t } = useTranslation()
   const { draft } = ops
   const [preview, setPreview] = React.useState<DragPreviewInfo | null>(null)
   const snapshotRef = React.useRef<DashboardLayout | null>(null)
   const rejectedRef = React.useRef(false)
+
+  const onDraggingChangeRef = React.useRef(onDraggingChange)
+  React.useEffect(() => {
+    onDraggingChangeRef.current = onDraggingChange
+  })
+  // The host must not stay locked on a drag that never got to end because the builder went away under it.
+  React.useEffect(() => () => onDraggingChangeRef.current?.(false), [])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -177,6 +186,7 @@ export function useDashboardDnd({ ops }: UseDashboardDndArgs) {
       const kind = kindOf(id)
       snapshotRef.current = structuredClone(draft)
       rejectedRef.current = false
+      onDraggingChange?.(true)
 
       const width = active.rect.current.initial?.width ?? 0
       if (kind === 'widget') {
@@ -200,7 +210,7 @@ export function useDashboardDnd({ ops }: UseDashboardDndArgs) {
         setPreview({ kind, width, label: '', widgets: column?.widgets ?? [] })
       }
     },
-    [draft],
+    [draft, onDraggingChange],
   )
 
   const onDragOver = React.useCallback(
@@ -312,6 +322,7 @@ export function useDashboardDnd({ ops }: UseDashboardDndArgs) {
   const onDragEnd = React.useCallback(
     (event: DragEndEvent) => {
       setPreview(null)
+      onDraggingChange?.(false)
       const kind = kindOf(String(event.active.id))
       if (kind === 'widget') finishWidget(event)
       else if (kind === 'section') finishSection(event)
@@ -320,15 +331,16 @@ export function useDashboardDnd({ ops }: UseDashboardDndArgs) {
       snapshotRef.current = null
       rejectedRef.current = false
     },
-    [finishWidget, finishSection, finishColumn, finishPage],
+    [finishWidget, finishSection, finishColumn, finishPage, onDraggingChange],
   )
 
   const onDragCancel = React.useCallback(() => {
     setPreview(null)
+    onDraggingChange?.(false)
     if (snapshotRef.current) ops.restoreDraft(snapshotRef.current)
     snapshotRef.current = null
     rejectedRef.current = false
-  }, [ops])
+  }, [ops, onDraggingChange])
 
   return { sensors, preview, dragState, onDragStart, onDragOver, onDragEnd, onDragCancel }
 }

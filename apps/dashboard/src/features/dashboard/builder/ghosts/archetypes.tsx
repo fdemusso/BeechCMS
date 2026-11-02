@@ -6,7 +6,8 @@ import { Plus } from '@/components/icons'
 import { GhostSkeleton as Skeleton } from '@/components/builder/ghost-skeleton'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { GhostShell, seededRandom, seededSeries, type GhostShellProps } from './ghost-parts'
+import { GhostShell, type GhostShellProps } from './ghost-parts'
+import { pieShares, seededRandom, seededSeries } from './ghost-utils'
 
 /**
  * Inert stand-ins for the widgets, one per visual family. Real text (the title, a note's content) and real
@@ -119,15 +120,8 @@ const PIE_STROKE = PIE_OUTER - PIE_INNER
 const PIE_GAP = 1.2
 const PIE_SHADES = ['opacity-25', 'opacity-[0.16]', 'opacity-10', 'opacity-[0.06]']
 
-/** Slice shares that add up to exactly 100, so the arcs close the ring with no hole and no overlap. */
-export function pieShares(seed: string): number[] {
-  const raw = seededSeries(seed, PIE_SHADES.length, 12, 40)
-  const total = raw.reduce((sum, v) => sum + v, 0)
-  return raw.map((v) => (v / total) * 100)
-}
-
 export function PieGhost({ seed, shell }: ArchetypeProps) {
-  const shares = pieShares(seed)
+  const shares = pieShares(seed, PIE_SHADES.length)
   const circ = 2 * Math.PI * PIE_RADIUS
   let start = 0
   return (

@@ -7,6 +7,7 @@ import type { DashboardWidgetInstance } from '@beechcms/core'
 import { AlertTriangle } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { resolveWidgetIcon } from '../widget-icon'
+import { widgetNeedsSetup } from './ghost-utils'
 import { getWidgetDefinition, isWidgetDisabled } from '../../registry/widget-registry'
 import {
   ActionsGhost,
@@ -51,11 +52,6 @@ const ARCHETYPE_BY_TYPE: Record<string, { Ghost: React.ComponentType<ArchetypePr
 }
 
 const str = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined)
-
-/** A widget bound to a seed that has not been picked yet cannot show anything on the dashboard. */
-export function widgetNeedsSetup(widget: DashboardWidgetInstance): boolean {
-  return widget.config?.seedSlug === ''
-}
 
 /** What a ghost draws from: change any of it and the ghost redraws, change nothing else and it does not. */
 function ghostKey(widget: DashboardWidgetInstance): string {

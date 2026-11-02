@@ -42,3 +42,22 @@ the match scoped.
   in `apps/dashboard/src/features/content-transfer/hooks/use-import-job.ts`) that its parents
   cannot observe directly. Reporting the terminal job state upward once, via `onCompleted`, is
   the intentional and documented exception case for this pattern, not misplaced state ownership.
+
+## react-doctor/no-array-index-as-key
+
+- `apps/dashboard/src/features/dashboard/builder/ghosts/archetypes.tsx` — the keyed lists are fixed-length
+  skeleton rows (`seededSeries(...)` widths, a literal `[0, 1, 2]`) with no identity, no reordering and no
+  state: they are redrawn from the widget id, so position is the only identity there is.
+
+## react-doctor/no-transition-all
+
+- `apps/dashboard/src/features/dashboard/builder/dashboard-builder-dialog.tsx:127` — no `transition` utility is
+  used; `duration-200` only sets `--tw-duration`, which the `animate-in` / `fade-in-0` keyframe animation
+  reads. Removing it would change the open/close animation timing, not narrow a transition.
+
+## react-doctor/no-prop-callback-in-effect
+
+- `apps/dashboard/src/features/dashboard/builder/dashboard-builder-dialog.tsx` — the effect does not mirror
+  local state to the parent: it closes the dialog once, when the layout query settles and the draft found
+  after a reload turns out to be stale. That outcome is only known after the async fetch, so there is no
+  event handler to put it in.
