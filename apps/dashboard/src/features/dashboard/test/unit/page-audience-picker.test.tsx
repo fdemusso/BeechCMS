@@ -48,33 +48,34 @@ describe("PageAudiencePicker", () => {
     mocked.getRoles.mockResolvedValue({ json: async () => ROLES })
   })
 
-  it("renders Everyone and no chip when roleIds is empty", async () => {
+  it("renders no badge and no Everyone text when roleIds is empty", async () => {
     renderPicker([])
 
-    expect(await screen.findByText("Everyone")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /^Remove/ })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add role" })).toBeEnabled())
+    expect(screen.queryByText("Everyone")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Editor")).not.toBeInTheDocument()
   })
 
-  it("renders one chip per targeted role, resolving the name by id", async () => {
+  it("renders one icon badge per targeted role, resolving the name by id", async () => {
     renderPicker([ROLE_MERCHANT_ID, ROLE_EDITOR_ID])
 
-    expect(await screen.findByRole("button", { name: "Remove Merchant" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Remove Editor" })).toBeInTheDocument()
-    expect(screen.queryByText("Everyone")).not.toBeInTheDocument()
+    expect(await screen.findByLabelText("Merchant")).toBeInTheDocument()
+    expect(screen.getByLabelText("Editor")).toBeInTheDocument()
   })
 
-  it("renders an id absent from the loaded list as a Deleted role chip and never prints the raw id", async () => {
+  it("renders an id absent from the loaded list as a Deleted role badge and never prints the raw id", async () => {
     renderPicker([ORPHAN_ROLE_ID])
 
-    expect(await screen.findByText("Deleted role")).toBeInTheDocument()
+    expect(await screen.findByLabelText("Deleted role")).toBeInTheDocument()
     expect(screen.queryByText(ORPHAN_ROLE_ID)).not.toBeInTheDocument()
   })
 
-  it("removing the Deleted role chip calls onChange with the list minus that id", async () => {
+  it("choosing the Deleted role item in the popover calls onChange with the list minus that id", async () => {
     const onChange = renderPicker([ROLE_EDITOR_ID, ORPHAN_ROLE_ID])
-    const removeOrphan = await screen.findByRole("button", { name: "Remove Deleted role" })
+    await screen.findByLabelText("Deleted role")
+    await openPopover()
 
-    await userEvent.click(removeOrphan)
+    await userEvent.click(await screen.findByRole("option", { name: /Deleted role/ }))
 
     expect(onChange).toHaveBeenCalledTimes(1)
     expect(onChange).toHaveBeenCalledWith([ROLE_EDITOR_ID])

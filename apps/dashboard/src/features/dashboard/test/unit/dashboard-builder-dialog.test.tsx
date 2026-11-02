@@ -347,7 +347,7 @@ describe("DashboardBuilderDialog", () => {
       <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={orphanLayout} />,
       { wrapper: wrapper(makeQueryClient()) },
     )
-    await screen.findByText("Deleted role")
+    await screen.findByLabelText("Deleted role")
     await userEvent.click(screen.getByRole("button", { name: "Add Section" }))
 
     await userEvent.click(screen.getByRole("button", { name: "Save" }))
@@ -366,7 +366,7 @@ describe("DashboardBuilderDialog", () => {
       <DashboardBuilderDialog open onOpenChange={vi.fn()} initialLayout={targetedLayout} />,
       { wrapper: wrapper(makeQueryClient()) },
     )
-    await screen.findByRole("button", { name: "Remove Editor" })
+    await screen.findByLabelText("Editor")
     await userEvent.click(screen.getByRole("button", { name: "Add Section" }))
 
     await userEvent.click(screen.getByRole("button", { name: "Save" }))

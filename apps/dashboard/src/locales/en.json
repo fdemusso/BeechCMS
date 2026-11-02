@@ -280,12 +280,11 @@
       },
       "audience": {
         "label": "Visible to",
-        "everyone": "Everyone",
+        "everyoneHint": "Everyone · Add role",
         "add": "Add role",
         "search": "Search roles…",
         "empty": "No roles found.",
         "deletedRole": "Deleted role",
-        "remove": "Remove {{name}}",
         "loadError": "Could not load roles."
       },
       "section": {

@@ -212,21 +212,25 @@ export function BuilderPane({
                 elements (screen reader text, live region) after the content, and with `space-y` on the
                 container they took part in the spacing and the box grew by 16px a moment after mounting. */}
             <div className="space-y-4">
-              <PageTabsManager
-                pages={draft.pages}
-                activePageId={activePage?.id ?? ''}
-                canAdd={draft.pages.length < MAX_PAGES}
-                onSetActive={ops.setActivePageId}
-                onAddPage={() => { if (!ops.addPage(t('dashboard.builder.page.newPage'))) toast.warning(t('dashboard.builder.warnPageLimit')) }}
-                onRenamePage={ops.renamePage}
-                onRemovePage={ops.removePage}
-                onSetDefault={(id) => ops.movePage(draft.pages.findIndex((p) => p.id === id), 0)}
-                canEditStructure={canEditStructure}
-              />
-
-              {!showPreview && activePage && canEditStructure && (
-                <PageAudiencePicker roleIds={activePage.roles ?? []} onChange={(ids) => ops.setPageRoles(activePage.id, ids)} />
-              )}
+              {/* Tabs on the left, the audience of the active tab on the right, on the same row. */}
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <PageTabsManager
+                  pages={draft.pages}
+                  activePageId={activePage?.id ?? ''}
+                  canAdd={draft.pages.length < MAX_PAGES}
+                  onSetActive={ops.setActivePageId}
+                  onAddPage={() => { if (!ops.addPage(t('dashboard.builder.page.newPage'))) toast.warning(t('dashboard.builder.warnPageLimit')) }}
+                  onRenamePage={ops.renamePage}
+                  onRemovePage={ops.removePage}
+                  onSetDefault={(id) => ops.movePage(draft.pages.findIndex((p) => p.id === id), 0)}
+                  canEditStructure={canEditStructure}
+                />
+                {!showPreview && activePage && canEditStructure && (
+                  <div className="ml-auto">
+                    <PageAudiencePicker roleIds={activePage.roles ?? []} onChange={(ids) => ops.setPageRoles(activePage.id, ids)} />
+                  </div>
+                )}
+              </div>
 
               {showPreview && previewLayout ? (
                 <div className="animate-in fade-in-0 duration-200">

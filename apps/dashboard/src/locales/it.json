@@ -280,12 +280,11 @@
       },
       "audience": {
         "label": "Visibile a",
-        "everyone": "Tutti",
+        "everyoneHint": "Tutti · Aggiungi ruolo",
         "add": "Aggiungi ruolo",
         "search": "Cerca ruoli…",
         "empty": "Nessun ruolo trovato.",
         "deletedRole": "Ruolo eliminato",
-        "remove": "Rimuovi {{name}}",
         "loadError": "Impossibile caricare i ruoli."
       },
       "section": {
