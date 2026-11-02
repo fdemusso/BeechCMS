@@ -94,6 +94,7 @@ The engine is shared (`src/components/builder/`: `layout-dnd.ts`, `use-layout-dn
 - A full column (`MAX_WIDGETS_PER_COLUMN`) refuses the move: the widget stays, **one** toast at the drop.
 - **A column's span travels with it** when columns are swapped (`[8, 4]` becomes `[4, 8]`), see `moveColumn`.
 - The overlay is portalled to `document.body` and draws the real ghost(s) at the grabbed width.
+- Section heights ease from the pick-up height to the new one at the drop (`animateHeight`, same as the entry builder).
 - Cross-page moves are **not** drag: use the widget's right-click "Move to page".
 
 ## Footer, drafts

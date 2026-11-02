@@ -82,6 +82,9 @@ export const SectionCard = React.memo(function SectionCard({
       onRemove={() => ops.removeSection(pageId, section.id)}
       columnDragIds={section.columns.map((c) => dragIds.column(pageId, section.id, c.id))}
       columnsClassName="grid min-w-0 max-w-full grid-cols-12 gap-3 px-3 pb-3"
+      // A widget dropped in another section changes two heights at once: they ease to the new size, like in the
+      // entry builder, instead of pushing the sections below in a single frame.
+      animateHeight
       renderMenu={({ startRename, requestRemove }) => (
         <>
           <DropdownMenuItem onSelect={startRename}>{t('dashboard.builder.section.rename')}</DropdownMenuItem>
