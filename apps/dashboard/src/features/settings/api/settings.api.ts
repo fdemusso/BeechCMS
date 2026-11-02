@@ -4,7 +4,15 @@
 
 import { rpc } from '@/lib/rpc'
 import { uploadFile } from '@/lib/upload'
-import type { NotificationPrefs, UserProfile, Session, ActivityEntry, StorageStats, GeneralSettings } from '../types/settings.types'
+import type {
+  NotificationPrefs,
+  UserProfile,
+  Session,
+  ActivityEntry,
+  StorageStats,
+  GeneralSettings,
+  UpdateGeneralSettingsPayload,
+} from '../types/settings.types'
 
 export const settingsApi = {
   getProfile: async (): Promise<UserProfile> => {
@@ -65,7 +73,7 @@ export const settingsApi = {
     return response.json()
   },
 
-  updateGeneralSettings: async (payload: Partial<GeneralSettings>): Promise<void> => {
+  updateGeneralSettings: async (payload: UpdateGeneralSettingsPayload): Promise<void> => {
     await rpc.api.settings.$put({ json: payload })
   },
 }

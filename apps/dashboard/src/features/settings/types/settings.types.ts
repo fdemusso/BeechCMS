@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { InferResponseType } from 'hono/client'
+import type { InferRequestType, InferResponseType } from 'hono/client'
 import type { rpc } from '@/lib/rpc'
 
 // Read off the routes, not restated: the API is the only place these shapes are defined.
@@ -14,6 +14,7 @@ export type Session = InferResponseType<Settings['sessions']['$get']>[number]
 export type ActivityEntry = InferResponseType<Settings['activity']['$get']>[number]
 export type StorageStats = InferResponseType<Settings['storage']['$get']>
 export type GeneralSettings = InferResponseType<Settings['$get']>
+export type UpdateGeneralSettingsPayload = InferRequestType<Settings['$put']>['json']
 
 export type SettingsTab =
   | 'profile' | 'interface' | 'security' | 'storage' | 'notifications'
