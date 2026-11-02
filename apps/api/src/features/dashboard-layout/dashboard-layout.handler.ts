@@ -17,7 +17,7 @@ import {
 import { publicProblem } from '../../public/errors/problem-details'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { resolveIfMatch } from '../../shared/utils/occ'
-import { zodJson, type ZodJsonInput, type ZodJsonRefusal } from '../../shared/utils/zod-json'
+import { formatZodIssues, zodJson, type ZodJsonInput, type ZodJsonRefusal } from '../../shared/utils/zod-json'
 import type { Context } from 'hono'
 import type { z } from 'zod'
 import type { DashboardLayout, DashboardLayoutViewer } from '@beechcms/core'
@@ -94,7 +94,7 @@ function rejectInvalidLayoutBody(context: AppContext, error: z.ZodError, cause: 
     type: 'invalid-layout',
     title: 'Invalid layout',
     status: 422,
-    detail: error.message,
+    detail: formatZodIssues(error),
   })
 }
 

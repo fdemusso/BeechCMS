@@ -285,6 +285,8 @@ export function validateDashboardLayout(
   // Semantic checks on the cleaned layout
   const seenWidgetIds = new Set<string>()
   const seenPageSlugs = new Set<string>()
+  const seenSectionIds = new Set<string>()
+  const seenColumnIds = new Set<string>()
 
   for (const page of cleanedPages) {
     if (seenPageSlugs.has(page.slug)) {
@@ -302,6 +304,12 @@ export function validateDashboardLayout(
     }
 
     for (const section of page.sections) {
+      if (seenSectionIds.has(section.id)) {
+        errors.push(`Section id '${section.id}' appears more than once in the layout.`)
+      } else {
+        seenSectionIds.add(section.id)
+      }
+
       if (section.columnSpans !== undefined) {
         if (section.columnSpans.length !== section.columns.length) {
           errors.push(
@@ -316,6 +324,12 @@ export function validateDashboardLayout(
       }
 
       for (const col of section.columns) {
+        if (seenColumnIds.has(col.id)) {
+          errors.push(`Column id '${col.id}' appears more than once in the layout.`)
+        } else {
+          seenColumnIds.add(col.id)
+        }
+
         for (const w of col.widgets) {
           if (seenWidgetIds.has(w.id)) {
             errors.push(`Widget id '${w.id}' appears more than once in the layout.`)

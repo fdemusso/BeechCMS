@@ -503,13 +503,13 @@ describe('dashboard-layout slice — integration (real D1)', () => {
           tab('team', [widgetOn('w-team')]),
         )
 
-      it('answers 403 layout-edit-forbidden to a holder of manage_layout on posts only and persists nothing', async () => {
+      it('refuses a holder of manage_layout on posts only at the route gate with 403 and persists nothing', async () => {
         await assignViewer('layout-viewer-scoped-layout', ROLE_SCOPED_LAYOUT, 'posts')
 
         const response = await put(viewer, layoutWith(tab('open', [widgetOn('w-open')])), null)
 
         expect(response.status).toBe(403)
-        expect((await response.json<ProblemBody>()).type).toBe(`${PROBLEM_BASE}layout-edit-forbidden`)
+        expect((await response.json<{ error: string }>()).error).toBe('forbidden')
         expect(await storedRowCount()).toBe(0)
       })
 

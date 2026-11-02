@@ -40,3 +40,12 @@ export function zodJson<S extends z.ZodType>(
     await next()
   }
 }
+
+/**
+ * Concise `path: message` summary of the first `limit` issues. Zod 4's `error.message` is a
+ * pretty-printed JSON dump of every issue, which is not fit for a problem `detail`.
+ */
+export function formatZodIssues(error: z.ZodError, limit = 5): string {
+  const issues = error.issues.slice(0, limit)
+  return issues.map(i => (i.path.length ? `${i.path.join('.')}: ${i.message}` : i.message)).join('; ')
+}

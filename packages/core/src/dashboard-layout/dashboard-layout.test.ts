@@ -335,6 +335,38 @@ describe('validateDashboardLayout', () => {
     expect(res.errors[0]).toContain("Page slug 'overview' appears more than once")
   })
 
+  it('rejects duplicate section ids across pages', () => {
+    const page = (id: string, slug: string, colId: string, widgetId: string) => ({
+      id,
+      slug,
+      label: slug,
+      sections: [{ id: 's-dup', columns: [{ id: colId, widgets: [widget(widgetId, 'core/site-status')] }] }],
+    })
+    const layout: DashboardLayout = {
+      version: 1,
+      pages: [page('p-1', 'one', 'c-1', 'w-1'), page('p-2', 'two', 'c-2', 'w-2')],
+    }
+
+    const res = validateDashboardLayout(layout, ctx)
+
+    expect(res.ok).toBe(false)
+    if (res.ok) throw new Error('expected ok: false')
+    expect(res.errors).toHaveLength(1)
+    expect(res.errors[0]).toContain("Section id 's-dup' appears more than once")
+  })
+
+  it('rejects duplicate column ids', () => {
+    const layout = singleSectionLayout([[widget('w-1', 'core/site-status')], [widget('w-2', 'core/storage')]])
+    layout.pages[0].sections[0].columns[1].id = 'c-1'
+
+    const res = validateDashboardLayout(layout, ctx)
+
+    expect(res.ok).toBe(false)
+    if (res.ok) throw new Error('expected ok: false')
+    expect(res.errors).toHaveLength(1)
+    expect(res.errors[0]).toContain("Column id 'c-1' appears more than once")
+  })
+
   it('rejects columnSpans that do not sum to 12', () => {
     const layout = singleSectionLayout(
       [[widget('w-1', 'core/site-status')], [widget('w-2', 'core/storage')]],
