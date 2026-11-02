@@ -8,7 +8,7 @@ import type { z } from 'zod'
 import type { EffectivePermissions, PageRequest, Permission, PermissionAssignment } from '@beechcms/core'
 import { MAX_PAGE_SIZE, canGrant, hasPermission, permissionsHeldAnywhere } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
-import type { ZodJsonInput, ZodJsonRefusal } from '../../shared/utils/zod-json'
+import { formatZodIssues, type ZodJsonInput, type ZodJsonRefusal } from '../../shared/utils/zod-json'
 import type { ZodQueryInput } from '../../shared/utils/zod-query'
 import type { AppEnv, Env, Variables } from '../../types'
 import { RBAC_ERRORS, type RbacErrorCode } from './constants'
@@ -100,7 +100,7 @@ export function rejectInvalidBody(context: AppContext, error: z.ZodError, cause:
   if (cause === 'malformed') {
     return rbacProblem(context, RBAC_ERRORS.INVALID_JSON, 400, 'Bad Request', 'Request body is not valid JSON.')
   }
-  return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', error.message)
+  return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', formatZodIssues(error))
 }
 
 /** `zodQuery` refusal of the paged listings: a malformed `limit` or `offset`. */

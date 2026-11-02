@@ -342,7 +342,7 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
         }
 
         // 2. Aggregate D1 requests (proxy for database health) - last 30 days
-        const thirtyDaysAgo = SystemClock.nowSeconds() - DAYS_30_IN_SECONDS
+        const thirtyDaysAgo = (context.get('clock') ?? SystemClock).nowSeconds() - DAYS_30_IN_SECONDS
         const totalRequests = await context
             .get('analyticsRepository')
             .sumByMetric('requests', '', thirtyDaysAgo)
@@ -365,7 +365,7 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
                 percentage: d1Percentage
             },
             status: healthStatus,
-            lastUpdate: SystemClock.nowSeconds()
+            lastUpdate: (context.get('clock') ?? SystemClock).nowSeconds()
         }, 200)
     } catch (error) {
         console.error('System health stats error:', error)
@@ -378,7 +378,7 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
    */
   .get('/stats/cloudflare', async (context) => {
     try {
-        const thirtyDaysAgo = SystemClock.nowSeconds() - DAYS_30_IN_SECONDS
+        const thirtyDaysAgo = (context.get('clock') ?? SystemClock).nowSeconds() - DAYS_30_IN_SECONDS
         const analyticsRepository = context.get('analyticsRepository')
 
         const [recordedRequests, recordedVisitors] = await Promise.all([
@@ -386,10 +386,8 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
             analyticsRepository.sumByMetric('visitors', '', thirtyDaysAgo),
         ])
 
-        // Simulate some Cloudflare metrics not directly tracked for a premium feel
-        const requestsCount = recordedRequests > 0 ? recordedRequests : Math.floor(Math.random() * 5000) + 1000
-        const visitorsCount = recordedVisitors > 0 ? recordedVisitors : Math.floor(requestsCount / 12) + 1
-        const bandwidthMB = Math.round((requestsCount * 0.15) * 10) / 10
+        // Only recorded traffic is reported; no comparison window is tracked, so trends are 0.
+        const bandwidthMB = recordedRequests > 0 ? Math.round((recordedRequests * 0.15) * 10) / 10 : 0
 
         const systemStatsRepository = context.get('systemStatsRepository')
         let storageUsedBytes = 0
@@ -404,25 +402,25 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
         return context.json({
             visitors: {
-                value: visitorsCount,
-                trend: 12, // simulated growth %
+                value: recordedVisitors,
+                trend: 0,
                 isPositive: true
             },
             requests: {
-                value: requestsCount,
-                trend: 8,
+                value: recordedRequests,
+                trend: 0,
                 isPositive: true
             },
             bandwidth: {
                 value: bandwidthMB,
                 unit: 'MB',
-                trend: 5,
-                isPositive: false
+                trend: 0,
+                isPositive: true
             },
             cacheRate: {
-                value: 94.2,
+                value: 0,
                 unit: '%',
-                trend: 0.5,
+                trend: 0,
                 isPositive: true
             },
             storage: {

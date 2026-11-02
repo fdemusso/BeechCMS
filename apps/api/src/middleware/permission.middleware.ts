@@ -30,11 +30,13 @@ type ScopeSource = 'global' | 'capture1'
  *                                 least one listed permission on at least one scope.
  *                                 The slice behind it MUST still make the exact
  *                                 per-scope decision (`hasPermission` / `canGrant`).
+ * - `{ permissions }` (any-global) — like any-scope, but the permission must be held at `GLOBAL_SCOPE`.
  * - `'authenticated'`           — any active account; self-service and dashboard chrome.
  */
 export type RouteRequirement =
   | { kind: 'permission'; permission: Permission; scope: ScopeSource }
   | { kind: 'permission-any-scope'; permissions: readonly Permission[] }
+  | { kind: 'permission-any-global'; permissions: readonly Permission[] }
   | { kind: 'authenticated' }
 
 interface ProtectedRoute {
@@ -48,6 +50,8 @@ const perm = (permission: Permission, scope: ScopeSource): RouteRequirement =>
   ({ kind: 'permission', permission, scope })
 const anyScope = (...permissions: Permission[]): RouteRequirement =>
   ({ kind: 'permission-any-scope', permissions })
+const anyGlobal = (...permissions: Permission[]): RouteRequirement =>
+  ({ kind: 'permission-any-global', permissions })
 const AUTHED: RouteRequirement = { kind: 'authenticated' }
 
 /**
@@ -95,9 +99,9 @@ const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   // caller's role audience and widgets on seeds they cannot read never leave the server.
   { method: 'GET',    pattern: /^\/api\/dashboard-layout\/?$/,             requirement: AUTHED },
   { method: 'GET',    pattern: /^\/api\/dashboard-layout\/roles$/,         requirement: perm('manage_roles', 'global') },
-  // Coarse gate only: the handler requires `manage_layout` or `manage_roles` at the GLOBAL scope, and
+  // Same bar as the handler: `manage_layout` or `manage_roles` at the GLOBAL scope. The handler still
   // refuses structural changes to callers without `manage_roles@*`.
-  { method: 'PUT',    pattern: /^\/api\/dashboard-layout\/?$/,             requirement: anyScope('manage_layout', 'manage_roles') },
+  { method: 'PUT',    pattern: /^\/api\/dashboard-layout\/?$/,             requirement: anyGlobal('manage_layout', 'manage_roles') },
   { method: 'DELETE', pattern: /^\/api\/dashboard-layout\/?$/,             requirement: perm('manage_roles', 'global') },
 
   // --- /api/content literal prefixes — MUST precede the :slug patterns ---------
@@ -298,6 +302,21 @@ export function permissionMiddleware() {
         return forbidden(
           PERMISSION_ERRORS.FORBIDDEN,
           `This endpoint requires one of '${rule.requirement.permissions.join("', '")}' on any scope.`,
+        )
+      }
+      await next()
+      return
+    }
+
+    if (rule.requirement.kind === 'permission-any-global') {
+      const effective = await resolveEffectivePermissions(c)
+      const permitted = rule.requirement.permissions.some(permission =>
+        hasPermission(effective, permission, GLOBAL_SCOPE),
+      )
+      if (!permitted) {
+        return forbidden(
+          PERMISSION_ERRORS.FORBIDDEN,
+          `This endpoint requires one of '${rule.requirement.permissions.join("', '")}' on scope '${GLOBAL_SCOPE}'.`,
         )
       }
       await next()
