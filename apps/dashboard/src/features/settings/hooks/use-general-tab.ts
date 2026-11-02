@@ -56,7 +56,7 @@ export function useGeneralTabLogic() {
 
     try {
       await updateSettings.mutateAsync({
-        siteTitle: siteTitle.trim() || undefined,
+        siteTitle: siteTitle.trim() || null,
         defaultLanguage,
         timezone,
         currency,

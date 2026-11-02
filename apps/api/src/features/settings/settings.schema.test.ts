@@ -19,6 +19,10 @@ describe('updateSettingsRequestSchema', () => {
     expect(result.data).toEqual({ siteTitle: 'Beech', defaultLanguage: 'it', currency: 'EUR' })
   })
 
+  it('accepts a null siteTitle, which clears the title', () => {
+    expect(updateSettingsRequestSchema.safeParse({ siteTitle: null }).data).toEqual({ siteTitle: null })
+  })
+
   it('accepts a blank company website, which the handler turns into a cleared column', () => {
     const result = updateSettingsRequestSchema.safeParse({ company: { website: '   ' } })
 

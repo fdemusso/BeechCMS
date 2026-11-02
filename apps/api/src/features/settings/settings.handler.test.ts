@@ -225,6 +225,25 @@ describe('Settings Handler', () => {
       })
     })
 
+    it('clears siteTitle with null by falling back to the stored company name', async () => {
+      const setManySpy = vi.fn().mockResolvedValue(undefined)
+      const app = buildApp({
+        siteSettingsRepository: {
+          getAll: vi.fn().mockResolvedValue({ companyName: 'Stored Corp' }),
+          setMany: setManySpy,
+        },
+      })
+
+      const res = await app.request('/', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteTitle: null }),
+      })
+
+      expect(res.status).toBe(200)
+      expect(setManySpy).toHaveBeenCalledWith({ siteTitle: 'Stored Corp' })
+    })
+
     it('allows resetting company fields by passing null', async () => {
       const setManySpy = vi.fn().mockResolvedValue(undefined)
       const app = buildApp({

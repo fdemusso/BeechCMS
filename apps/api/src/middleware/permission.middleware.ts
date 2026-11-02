@@ -107,8 +107,9 @@ const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   // --- /api/content literal prefixes — MUST precede the :slug patterns ---------
   { method: 'GET',    pattern: /^\/api\/content\/notifications$/,          requirement: AUTHED },
   { method: 'PATCH',  pattern: /^\/api\/content\/notifications\/[^/]+\/(read|unread)$/, requirement: AUTHED },
-  { method: 'DELETE', pattern: /^\/api\/content\/notifications\/[^/]+$/,   requirement: AUTHED },
-  { method: 'POST',   pattern: /^\/api\/content\/notifications\/mark-all-read$/, requirement: AUTHED },
+  // Notifications are a shared admin inbox: destructive / bulk mutations need the same bar as site settings.
+  { method: 'DELETE', pattern: /^\/api\/content\/notifications\/[^/]+$/,   requirement: perm('manage_users', 'global') },
+  { method: 'POST',   pattern: /^\/api\/content\/notifications\/mark-all-read$/, requirement: perm('manage_users', 'global') },
   // The handler's scope projection is the authorization decision for this route and is
   // strictly narrower than a global `content:read` gate — a caller with no readable seed
   // receives an empty list, a seed-scoped caller receives their own subset.

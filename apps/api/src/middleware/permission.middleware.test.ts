@@ -28,6 +28,15 @@ describe('resolveRouteRule', () => {
   })
 })
 
+describe('resolveRouteRule — notification mutations', () => {
+  it('keeps reads and per-item read/unread flags authenticated, gates delete and mark-all-read behind manage_users@global', () => {
+    expect(resolveRouteRule('PATCH', '/api/content/notifications/n1/read')).toMatchObject({ requirement: { kind: 'authenticated' } })
+    const gated = { requirement: { kind: 'permission', permission: 'manage_users', scope: 'global' } }
+    expect(resolveRouteRule('DELETE', '/api/content/notifications/n1')).toMatchObject(gated)
+    expect(resolveRouteRule('POST', '/api/content/notifications/mark-all-read')).toMatchObject(gated)
+  })
+})
+
 describe('resolveRouteRule — stats routes', () => {
   const STATS_REQUIREMENTS = [
     { method: 'GET', path: '/api/content/stats/total', requirement: { kind: 'authenticated' } },

@@ -151,7 +151,17 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
     const fieldsToUpdate: Partial<SiteSettings> = {}
     if (payload.trashRetentionDays !== undefined) fieldsToUpdate.trashRetentionDays = payload.trashRetentionDays
-    if (siteTitle !== undefined) fieldsToUpdate.siteTitle = siteTitle
+    if (siteTitle !== undefined) {
+      if (siteTitle) {
+        fieldsToUpdate.siteTitle = siteTitle
+      } else {
+        // Cleared: fall back to the (possibly just updated) company name; '' lets the repository default apply.
+        const effectiveCompanyName = companyName !== undefined
+          ? companyName
+          : (await context.get('siteSettingsRepository').getAll()).companyName
+        fieldsToUpdate.siteTitle = effectiveCompanyName ?? ''
+      }
+    }
     if (defaultLanguage !== undefined) fieldsToUpdate.defaultLanguage = defaultLanguage
     if (timezone !== undefined) fieldsToUpdate.timezone = timezone
     if (currency !== undefined) fieldsToUpdate.currency = currency

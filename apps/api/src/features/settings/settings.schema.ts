@@ -32,7 +32,8 @@ function isUrl(value: string): boolean {
  * must be one of the locales) cannot live here and stays in the handler.
  */
 export const updateSettingsRequestSchema = z.object({
-  siteTitle: z.string().trim().optional(),
+  /** `null` or an empty string clears the title: it then follows the company name. */
+  siteTitle: z.string().trim().nullable().optional(),
   defaultLanguage: z.string().trim().pipe(z.enum(['it', 'en'])).optional(),
   timezone: z.string().trim().optional(),
   currency: z.string().trim().optional(),
