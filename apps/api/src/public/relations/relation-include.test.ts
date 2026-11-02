@@ -147,26 +147,38 @@ describe('expandRelations', () => {
     })
   })
 
-  it('clamps target IDs to 200 per included branch', async () => {
-    const items: Record<string, unknown>[] = Array.from({ length: 250 }, (_, i) => ({
+  it('refuses an include resolving to more than 200 distinct target ids instead of truncating', async () => {
+    const items: Record<string, unknown>[] = Array.from({ length: 100 }, (_, i) => ({
       id: `post-${i}`,
-      category_id: `cat-${i}`,
+      tag_ids: [`tag-${i}-a`, `tag-${i}-b`, `tag-${i}-c`],
+    }))
+
+    const action = expandRelations(items, 'tag_ids', postsSeed, mockRepo, getSeed)
+
+    await expect(action).rejects.toThrow(
+      "Invalid include: branch 'tag_ids' resolves to 300 distinct targets, above the limit of 200; narrow the request.",
+    )
+    expect(mockRepo.findMany).not.toHaveBeenCalled()
+    expect(items.every(item => item._includes === undefined)).toBe(true)
+  })
+
+  it('expands an include resolving to exactly 200 distinct target ids', async () => {
+    const items: Record<string, unknown>[] = Array.from({ length: 100 }, (_, i) => ({
+      id: `post-${i}`,
+      tag_ids: [`tag-${i}-a`, `tag-${i}-b`],
     }))
     vi.mocked(mockRepo.findMany).mockResolvedValueOnce({
-      items: [{ id: 'cat-0', name: 'Cat 0', status: 'published' }],
+      items: [{ id: 'tag-99-b', tag_name: 'Last', status: 'published' }],
       total: 1,
     })
 
-    await expandRelations(items, 'category_id', postsSeed, mockRepo, getSeed)
+    await expandRelations(items, 'tag_ids', postsSeed, mockRepo, getSeed)
 
     const callFilters = (vi.mocked(mockRepo.findMany).mock.calls[0][1]?.filters as any)
-    expect(callFilters[0].conditions[0].value.length).toBe(200)
-    expect(mockRepo.findMany).toHaveBeenCalledWith(
-      categoriesSeed,
-      expect.objectContaining({
-        pagination: { limit: 200, offset: 0 },
-      })
-    )
+    expect(callFilters[0].conditions[0].value).toHaveLength(200)
+    expect(items[99]._includes).toEqual({
+      tag_ids: [{ id: 'tag-99-b', tag_name: 'Last', status: 'published' }],
+    })
   })
 
   it('expands both single and multi-relations on multiple items', async () => {
