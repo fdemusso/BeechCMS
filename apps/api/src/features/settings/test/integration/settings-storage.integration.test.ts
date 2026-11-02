@@ -4,7 +4,6 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
-import { SUPER_ADMIN_ROLE_NAME } from '@beechcms/core'
 import { CANONICAL_USERS, createTestHarness, type TestClient, type TestHarness } from '@beechcms/testing'
 import { createBeechApp } from '../../../../factory'
 import { __resetSeedRegistryCache } from '../../../../shared/services/cache/seed-registry-cache'
@@ -22,16 +21,17 @@ const ORPHAN_KEY = 'reviewed-orphan.png'
 const DRAFT_KEY = 'draft-only.png'
 const AVATAR_KEY = 'avatar-user.png'
 const RICHTEXT_KEY = 'richtext-img.png'
+const CONTENT_DELETER_ROLE_ID = 'c7d8e9f0-1a2b-4c3d-8e4f-5a6b7c8d9e0f'
 
 describe('settings slice — storage (real D1)', () => {
   let harness: TestHarness
   let admin: TestClient
 
-  async function trackMedia(key: string, sizeBytes: number): Promise<void> {
+  async function trackMedia(key: string, sizeBytes: number, uploadedBy: string = CANONICAL_USERS.admin.id): Promise<void> {
     await env.MEDIA_BUCKET.put(key, 'x'.repeat(sizeBytes))
     await harness.db.prepare(
       'INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).bind(key, key, 'image/png', sizeBytes, CANONICAL_USERS.admin.id, 100).run()
+    ).bind(key, key, 'image/png', sizeBytes, uploadedBy, 100).run()
   }
 
   async function referenceFromDraft(key: string): Promise<void> {
@@ -69,6 +69,8 @@ describe('settings slice — storage (real D1)', () => {
 
   beforeEach(async () => {
     __resetSeedRegistryCache()
+    // Custom roles (and their assignments, via FK cascade) outlive each test in the file's D1 storage frame.
+    await env.DB.prepare('DELETE FROM roles WHERE is_system = 0').run()
     harness = await createTestHarness({
       db: env.DB,
       env: { MEDIA_BUCKET: env.MEDIA_BUCKET },
@@ -247,12 +249,15 @@ describe('settings slice — storage (real D1)', () => {
       expect(await storageCounter()).toBe(1000)
     })
 
-    it("refuses another user's orphan to a non-admin holder of global content:delete", async () => {
-      // Same owner-or-admin rule as DELETE /api/upload/:key; the RBAC gate alone admits this editor.
-      await harness.db.prepare(
-        `INSERT OR IGNORE INTO user_role_assignments (id, user_id, role_id, scope)
-         SELECT 'ura_storage_editor', ?, r.id, '*' FROM roles r WHERE r.name = ?`
-      ).bind(CANONICAL_USERS.editor.id, SUPER_ADMIN_ROLE_NAME).run()
+    it("refuses another user's orphan to a holder of global content:delete without manage_users", async () => {
+      // Same owner-or-manage_users@* rule as DELETE /api/upload/:key; the RBAC gate alone admits this editor.
+      await harness.db.batch([
+        harness.db.prepare('INSERT INTO roles (id, name) VALUES (?, ?)').bind(CONTENT_DELETER_ROLE_ID, 'Content deleter'),
+        harness.db.prepare('INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)').bind(CONTENT_DELETER_ROLE_ID, 'content:delete'),
+        harness.db
+          .prepare('INSERT INTO user_role_assignments (id, user_id, role_id, scope) VALUES (?, ?, ?, ?)')
+          .bind('ura_storage_editor', CANONICAL_USERS.editor.id, CONTENT_DELETER_ROLE_ID, '*'),
+      ])
       await trackMedia(ORPHAN_KEY, 12)
       const editor = await harness.asUser('editor')
 
@@ -263,6 +268,19 @@ describe('settings slice — storage (real D1)', () => {
       expect(body).toEqual({ type: 'settings-storage-orphan-forbidden', keys: [ORPHAN_KEY] })
       expect(await env.MEDIA_BUCKET.head(ORPHAN_KEY)).not.toBeNull()
       expect(await countTracked([ORPHAN_KEY])).toBe(1)
+    })
+
+    it("a manage_users@* holder deletes another user's orphan", async () => {
+      await trackMedia(ORPHAN_KEY, 12, CANONICAL_USERS.editor.id)
+
+      const response = await admin.post('/api/settings/storage/orphans/delete', { keys: [ORPHAN_KEY] })
+
+      expect(response.status).toBe(200)
+      const body = await response.json<{ deleted: string[]; totalBytes: number; fileCount: number }>()
+      expect(body).toEqual({ deleted: [ORPHAN_KEY], totalBytes: 988, fileCount: 51 })
+      expect(await env.MEDIA_BUCKET.head(ORPHAN_KEY)).toBeNull()
+      expect(await countTracked([ORPHAN_KEY])).toBe(0)
+      expect(await storageCounter()).toBe(988)
     })
 
     it('rejects a selection that is missing, empty, duplicated, oversized or not a list of key strings', async () => {

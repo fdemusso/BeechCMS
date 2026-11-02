@@ -147,19 +147,33 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
   const modeHeightRef = useAnimatedModeHeight(builderMode)
 
   // Closing by X, overlay or Esc plays the exit fade before the route changes: the route change unmounts
-  // the dialog, which would otherwise vanish at once. `goBack` can be refused (unsaved changes), and then
-  // the dialog has to come back.
-  const FADE_MS = 200
+  // the dialog, which would otherwise vanish at once. The route change is made when the fade has ended, not
+  // on a timer started with it: the list behind redraws on every route change, and that redraw, landing
+  // mid-fade, froze the animation and cut it off. `goBack` can be refused (unsaved changes), and then the
+  // dialog has to come back.
+  const FADE_FALLBACK_MS = 500
   const [closing, setClosing] = useState(false)
   const closeTimerRef = useRef<number | undefined>(undefined)
+  const finishClose = () => {
+    window.clearTimeout(closeTimerRef.current)
+    goBack()
+  }
   const requestClose = () => {
     setClosing(true)
     window.clearTimeout(closeTimerRef.current)
-    closeTimerRef.current = window.setTimeout(goBack, FADE_MS)
+    // Only if the fade never reports its end (animations switched off, a hidden tab).
+    closeTimerRef.current = window.setTimeout(goBack, FADE_FALLBACK_MS)
   }
   useEffect(() => {
     if (blocker.state === "blocked") setClosing(false)
   }, [blocker.state])
+  // The host keeps the dialog mounted for a moment after the route closes it. Reopened in that window it is the
+  // same instance, and a `closing` left on from the last close would keep it shut for good.
+  useEffect(() => {
+    if (!open) return
+    window.clearTimeout(closeTimerRef.current)
+    setClosing(false)
+  }, [open])
   useEffect(() => () => window.clearTimeout(closeTimerRef.current), [])
 
   const [activeTabId, setActiveTabId] = useState(() => layout?.tabs[0]?.id ?? "")
@@ -412,9 +426,16 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
     <>
       <Dialog open={open && !closing} onOpenChange={(isOpen) => { if (!isOpen) requestClose() }}>
         <DialogContent
+          // The overlay fades as long as the content (its default is 100ms against the content's 200ms), so the
+          // blurred backdrop does not snap away while the dialog is still half visible.
+          overlayClassName="duration-200"
           className="flex flex-col max-h-[calc(100vh-2rem)] p-0 duration-200 data-open:zoom-in-100 data-closed:zoom-out-100 sm:max-w-2xl md:max-w-4xl"
           onOpenAutoFocus={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => { if (isBuilderDragging) e.preventDefault() }}
+          onAnimationEnd={(e) => {
+            // The content's own exit, not an animation of something inside it.
+            if (closing && e.target === e.currentTarget) finishClose()
+          }}
         >
           <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
             <DialogTitle>

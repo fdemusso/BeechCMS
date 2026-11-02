@@ -69,6 +69,20 @@ describe("DataTable page layout", () => {
   })
 })
 
+describe("DataTable tail separator", () => {
+  it("closes the rows with a line drawn on the space under them, inside the frame", () => {
+    // Regression guard: the last row has no border of its own, so a short table in a tall frame ended without a line.
+    const { container } = render(<ServerPaginatedTable rowsOnPage={3} totalRows={3} pageSize={10} />)
+
+    const frame = container.querySelector("[data-datatable-root]")
+    const tail = frame?.lastElementChild
+
+    expect(tail?.getAttribute("aria-hidden")).toBe("true")
+    expect(tail?.className).toContain("flex-1")
+    expect(tail?.className).toContain("inset_0_1px_0_0")
+  })
+})
+
 describe("DataTable pagination footer", () => {
   it("repaints the page counter when Next is pressed", () => {
     render(<ServerPaginatedTable rowsOnPage={10} totalRows={30} pageSize={10} />)

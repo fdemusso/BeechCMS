@@ -117,7 +117,6 @@ export const acceptInvitationHandler = async (context: JsonContext<typeof accept
         id: userId,
         email: invitation.email,
         passwordHash,
-        role: 'editor',
         name: input.name ?? null,
         surname: input.surname ?? null,
       },

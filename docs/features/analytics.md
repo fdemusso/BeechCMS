@@ -23,7 +23,7 @@ Instead, BeechCMS features an asynchronous, edge-native **System Telemetry & Ana
 - **Per-Seed Request Metrics**: Understand which content collections receive the highest read traffic over 24-hour, 7-day, and 30-day windows.
 - **D1 & R2 Quota Tracking**: Real-time tracking of Cloudflare D1 query operations and R2 storage consumption (bytes and total objects) relative to account limits.
 - **Unused Media Detection (`/stats/unused-media`)**: Cross-references files stored in R2 against every image/file branch across all Botanical Seeds. Unused or orphaned assets can be reviewed and deleted with a single click.
-- **Setup & Health Checklist (`/stats/setup-checklist`)**: Verifies schema integrity, D1 database tables, admin user creation, and seed table migrations.
+- **Setup & Health Checklist (`/stats/setup-checklist`)**: Verifies schema integrity, D1 database tables, a global administrator (`manage_users` at `*`), and seed table migrations.
 
 ---
 
@@ -31,11 +31,19 @@ Instead, BeechCMS features an asynchronous, edge-native **System Telemetry & Ana
 
 The Stats slice is mounted at `/api/content`:
 
-| Method | Endpoint | Purpose |
-| :--- | :--- | :--- |
-| `GET` | `/api/content/stats/setup-checklist` | System health check (tables, seeds, admin status) |
-| `GET` | `/api/content/stats/media-library` | Unified media catalog with cross-seed references |
-| `GET` | `/api/content/stats/unused-media` | Scans for orphaned files in R2 not referenced in any Fruit |
+| Method | Endpoint | Required | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/content/stats/total` | Authenticated | Entry totals (all time, today, week, month) |
+| `GET` | `/api/content/stats/breakdown` | Authenticated | Content distribution per seed for the "Content Pulse" widget |
+| `GET` | `/api/content/stats/recent-activity` | Authenticated | Recent activity feed |
+| `GET` | `/api/content/stats/media-library` | `content:read` at `*` | Unified media catalog with cross-seed references |
+| `GET` | `/api/content/stats/unused-media` | `content:read` at `*` | Scans for orphaned files in R2 not referenced in any Fruit |
+| `GET` | `/api/content/stats/setup-checklist` | `manage_users` at `*` | System health check (tables, seeds, admin status) |
+| `GET` | `/api/content/stats/health` | `view_analytics` at `*` | System health status and Cloudflare quotas |
+| `GET` | `/api/content/stats/cloudflare` | `view_analytics` at `*` | Visitors, requests and bandwidth over the last 30 days |
+| `POST` | `/api/content/stats/storage/sync` | `view_analytics` at `*` | Recalculates the space occupied on R2 (expensive) |
+
+`total`, `breakdown` and `recent-activity` are scope-projected per caller: see [Roles & Permissions](/manage/roles-permissions#platform-gates).
 
 ### Unused Media Scan Example
 

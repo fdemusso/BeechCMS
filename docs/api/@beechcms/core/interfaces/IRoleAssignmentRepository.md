@@ -65,27 +65,6 @@ One assignment by id, decay filter NOT applied. Null when absent.
 
 ***
 
-### isLastGlobalAdminAssignment()
-
-> **isLastGlobalAdminAssignment**(`assignmentId`): `Promise`&lt;`boolean`&gt;
-
-Read-only twin of the [delete](#delete) guard: would removing this assignment leave no
-other active global administrator? ADVISORY — it only lets a caller that refuses for
-another reason (the Developer account) report the more fundamental one; it is never a
-substitute for the guard inside [delete](#delete).
-
-#### Parameters
-
-##### assignmentId
-
-`string`
-
-#### Returns
-
-`Promise`&lt;`boolean`&gt;
-
-***
-
 ### listActiveForUser()
 
 > **listActiveForUser**(`userId`): `Promise`&lt;[`PermissionAssignment`](PermissionAssignment.md)[]&gt;

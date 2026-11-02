@@ -33,7 +33,7 @@ function resolveSeedOrProblem(context: Context<AppEnv>) {
 
 function actorFrom(context: Context<AppEnv>) {
   const jwtPayload = context.get('jwtPayload')
-  return { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
+  return { id: jwtPayload.sub, email: jwtPayload.email }
 }
 
 /**
@@ -79,7 +79,6 @@ export async function trashListHandler(context: Context<AppEnv, '/:slug/trash', 
     const actor: ActorContext = context.get('actor') ?? {
       type: 'authenticated',
       userId: jwtPayload?.sub,
-      role: jwtPayload?.role,
     }
     const entries = items.map((item) => toEntryEnvelope(item, seed, actor))
 

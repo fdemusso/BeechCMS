@@ -148,7 +148,7 @@ const scheduler = c.get('scheduler')              // IScheduler (waitUntil async
 const activityLogger = c.get('activityLogger')    // IActivityLogger (audit logging)
 const notificationService = c.get('notificationService') // INotificationService
 const privacyService = c.get('privacyService')    // IPrivacyService (ALE encryption/blind indexing)
-const jwtPayload = c.get('jwtPayload')            // Authenticated user claims (id, email, role)
+const jwtPayload = c.get('jwtPayload')            // Authenticated user claims (sub, email, name, surname)
 ```
 
 This dependency-injection architecture ensures handlers remain strictly testable with mock providers and fixed clocks.

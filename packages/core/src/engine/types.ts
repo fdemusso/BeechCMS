@@ -70,7 +70,6 @@ export type DataClassification = 'public' | 'internal' | 'confidential' | 'restr
 export interface ActorContext {
   type: 'public' | 'authenticated' | 'system'
   userId?: string
-  role?: string
 }
 
 /** One entry of a `tags` branch's closed vocabulary. Array order is significant (menu, kanban columns, sort). */

@@ -15,7 +15,7 @@ const SETUP_POLL_INTERVAL_MS = 30_000
 
 interface AuthState {
   status: AuthStatus
-  user: { email: string; name?: string; surname?: string; role?: 'admin' | 'editor' } | null
+  user: { email: string; name?: string; surname?: string } | null
   /** null = not checked yet. Distinguishing "unknown" from "confirmed false" stops
    *  SetupPage from bouncing a fresh install away before the first check resolves. */
   needsSetup: boolean | null
@@ -29,10 +29,10 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null)
 
-function decodeUser(token: string): { email: string; name?: string; surname?: string; role?: 'admin' | 'editor' } | null {
+function decodeUser(token: string): { email: string; name?: string; surname?: string } | null {
   try {
-    const payload = decodeJwtPayload(token) as { email?: string; name?: string; surname?: string; role?: 'admin' | 'editor' }
-    return { email: payload.email ?? '', name: payload.name ?? 'Admin', surname: payload.surname, role: payload.role }
+    const payload = decodeJwtPayload(token) as { email?: string; name?: string; surname?: string }
+    return { email: payload.email ?? '', name: payload.name ?? 'Admin', surname: payload.surname }
   } catch {
     return null
   }
@@ -40,7 +40,7 @@ function decodeUser(token: string): { email: string; name?: string; surname?: st
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading')
-  const [user, setUser] = useState<{ email: string; name?: string; surname?: string; role?: 'admin' | 'editor' } | null>(null)
+  const [user, setUser] = useState<{ email: string; name?: string; surname?: string } | null>(null)
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
 
   function setToken(token: string) {

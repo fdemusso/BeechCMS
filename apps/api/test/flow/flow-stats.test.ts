@@ -64,30 +64,12 @@ describe('Flow: Stats', () => {
     expect(checklist).toHaveProperty('adminExists')
     expect(checklist).toHaveProperty('hasContent')
 
-    // With TEST_USERS containing users, adminExists should be true
+    // The route gate is manage_users@*, so any caller who reaches the handler proves an administrator exists.
     expect(typeof checklist.systemTablesOk).toBe('boolean')
-    expect(typeof checklist.adminExists).toBe('boolean')
+    expect(checklist.adminExists).toBe(true)
     expect(checklist.seedsCount).toBe(TEST_SEEDS.length)
   })
 
-  it('GET /api/content/stats/setup-checklist returns adminExists=false when user table is empty', async () => {
-    const emptyDb = new D1TestDatabase()
-    // No role='admin' user seeded — adminExists must be false. The caller still needs a
-    // real, active, permission-holding account to clear the RBAC gate (sprint 2), so seed
-    // an editor-role account granted SuperAdmin directly, which is orthogonal to `role`.
-    await seedTestUsers(emptyDb, [{ id: 'u_fake', email: 'ghost@test.io', password_hash: 'x', role: 'editor', grantSuperAdmin: true }])
-
-    const { JoseTokenService } = await import('../../src/auth/providers/jwt-token.service')
-    const { SystemClock } = await import('@beechcms/core')
-    const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
-    const token = await tokenService.issue({ sub: 'u_fake', email: 'ghost@test.io' })
-
-    const res = await app.request('/api/content/stats/setup-checklist', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    }, { ...TEST_ENV, DB: emptyDb as any })
-
-    expect(res.status).toBe(200)
-    const checklist = await res.json() as any
-    expect(checklist.adminExists).toBe(false)
-  })
+  // Deliberate omission: adminExists=false is unreachable, because only global administrators clear the
+  // route gate. The field stays in the response for the dashboard widget contract.
 })

@@ -267,7 +267,6 @@ const setupApp = new Hono<AppEnv>()
         id: adminUserId,
         email: normalizedEmail,
         passwordHash,
-        role: 'admin',
         name: normalizedName,
         surname: normalizedSurname,
       },
@@ -406,7 +405,8 @@ const setupApp = new Hono<AppEnv>()
           }
         ]
       }
-      await context.get('dashboardLayoutRepository').upsert('default', layout as any, 'system')
+      // Expecting no row: the demo layout never overwrites a stored one.
+      await context.get('dashboardLayoutRepository').save('default', layout as any, 'system', null)
     }
 
     if (track === 'normal' && company && typeof company === 'object') {

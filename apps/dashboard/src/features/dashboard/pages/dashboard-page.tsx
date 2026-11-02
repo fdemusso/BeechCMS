@@ -2,24 +2,43 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Settings } from '@/components/icons'
-import { canEditDashboard } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar, SiteHeader } from "@/features/navigation"
+import { isDashboardLayoutEditor } from "@beechcms/core"
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { useAuth } from "@/lib/auth-context"
+import { useElementWidth } from "@/hooks/use-element-width"
 import { useDashboardLayout } from "../hooks/use-dashboard-layout"
 import { DashboardLayoutRenderer } from "../renderer/dashboard-layout-renderer"
 import { DashboardBuilderDialog } from "../builder/dashboard-builder-dialog"
+import { listDashboardDraftScopes } from "../builder/dashboard-draft-storage"
 
 export default function DashboardPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
-  const { layout } = useDashboardLayout()
+  const { layout, isLoading } = useDashboardLayout()
   const [builderOpen, setBuilderOpen] = useState(false)
-  const canEdit = canEditDashboard(user?.role)
+  const { effective } = usePermissions()
+  // Mirrors the PUT gate (manage_layout or manage_roles at *); the server enforces.
+  const canEdit = isDashboardLayoutEditor(effective)
+  // The builder sizes itself from the dashboard's content width, so its ghosts have the shape of the real cards.
+  const { ref: contentRef, width: contentWidth } = useElementWidth<HTMLDivElement>()
+
+  // Unsaved builder work survives a reload: when one is waiting, the builder comes back without asking.
+  // A reload never closes the builder on purpose, so a draft at load time means the work was cut short.
+  const recoveryChecked = useRef(false)
+  const [recovering, setRecovering] = useState(false)
+  useEffect(() => {
+    if (!canEdit || recoveryChecked.current) return
+    recoveryChecked.current = true
+    if (listDashboardDraftScopes().length === 0) return
+    setRecovering(true)
+    setBuilderOpen(true)
+  }, [canEdit])
   const hour = new Date().getHours()
   const greeting = hour >= 5 && hour < 12
     ? t("dashboard.greeting.morning")
@@ -46,7 +65,7 @@ export default function DashboardPage() {
             <main className="flex flex-1 flex-col gap-8 p-6 md:p-8 lg:p-10">
               {/* Contenitore interno: limita la larghezza massima a 2200px
                   per una lettura ottimale sia su 16:9 che su 21:9. */}
-              <div className="content-area-inner flex flex-col gap-8">
+              <div ref={contentRef} className="content-area-inner flex flex-col gap-8">
                 {/* Welcome Header */}
                 <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between">
                   <div className="flex flex-col gap-1.5">
@@ -58,21 +77,27 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   {canEdit && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => setBuilderOpen(true)}>
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setRecovering(false); setBuilderOpen(true) }}>
                       <Settings className="size-4 mr-2" />
                       {t("dashboard.builder.customize")}
                     </Button>
                   )}
                 </div>
 
-                <DashboardLayoutRenderer layout={layout} />
+                {!isLoading && <DashboardLayoutRenderer layout={layout} />}
               </div>
             </main>
           </SidebarInset>
         </div>
       </SidebarProvider>
       {canEdit && (
-        <DashboardBuilderDialog open={builderOpen} onOpenChange={setBuilderOpen} initialLayout={layout} />
+        <DashboardBuilderDialog
+          open={builderOpen}
+          onOpenChange={setBuilderOpen}
+          initialLayout={layout}
+          referenceWidth={contentWidth}
+          recovering={recovering}
+        />
       )}
     </div>
   )

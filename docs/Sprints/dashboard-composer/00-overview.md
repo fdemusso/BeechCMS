@@ -34,7 +34,7 @@ interface, RFC 7807 endpoints, an RBAC constant in core, and a dnd-kit builder.
 | [03 — Widget Registry & Renderer](./03-widget-registry-and-renderer.md) | Frontend `WidgetDefinition` contract + typed registry (replaces the if-chain), all 15 existing widgets re-registered as `core/*`, runtime renderer (Pages → Sections → Columns → Widgets), `dashboard-page.tsx` rewired. Default render is visually equivalent to today. |
 | [04 — Built-in Widgets](./04-builtin-widgets.md) | New configurable widgets: KPI stat card, line/bar/area chart, pie/donut chart, data table, text/notes. Adds the missing `distribution` query to `IWidgetRepository` + `GET /api/widget/distribution/:seed`. |
 | [05 — Dashboard Builder UI](./05-dashboard-builder-ui.md) | Admin-only drag-and-drop builder dialog (`@dnd-kit`): page manager, section/column editing, widget picker, per-widget config panel, Save / Reset / Preview. |
-| [06 — Role-based Dashboards](./06-role-based-dashboards.md) | Optional. Scope resolution `role:{role}` → `default` → generated default; scope switcher in the builder. |
+| [06 — Role-targeted Tabs](./06-role-based-dashboards.md) | Superseded. Per-role scopes replaced by one layout whose tabs carry target role ids; see the file. |
 | [07 — Custom Widget SDK](./07-custom-widget-sdk.md) | Optional. `@beechcms/widget-sdk` package: `defineWidget()`, data hooks over `/api/widget/*`, build-time registration entry point for pnpm-installable widget packages, author documentation. |
 
 ## Execution order
@@ -53,8 +53,8 @@ interface, RFC 7807 endpoints, an RBAC constant in core, and a dnd-kit builder.
 ## Key decisions (cross-cutting — do not re-litigate inside sub-sprints)
 
 - **D1 — One layout per scope, no per-user dashboards.** Sprint 02 ships a single
-  `default` scope shared by everyone. Sprint 06 adds per-role scopes. No
-  versioning, no rollback. Reset = revert to the generated default.
+  `default` scope shared by everyone; tabs are targeted to roles inside it
+  (Sprint 06). No versioning, no rollback. Reset = revert to the generated default.
 - **D2 — Structured hierarchy replaces bento coordinates.** Today's
   `WidgetInstance { x, y, span }` absolute grid is retired. Sections own a
   12-unit span grid (`columnSpans`, e.g. `[8, 4]`); columns stack widgets

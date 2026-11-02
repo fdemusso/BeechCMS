@@ -43,7 +43,8 @@ export function useContentListModals(slug: string | undefined) {
 
   React.useEffect(() => {
     if (!dialogOpen && target) {
-      const id = window.setTimeout(() => setTarget(null), 150)
+      // Outlasts the dialog's 200ms exit fade; unmounting sooner cuts it off mid-fade.
+      const id = window.setTimeout(() => setTarget(null), 250)
       return () => window.clearTimeout(id)
     }
   }, [dialogOpen, target])

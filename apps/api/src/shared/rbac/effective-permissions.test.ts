@@ -67,13 +67,13 @@ describe('resolveEffectivePermissions', () => {
     expect(body.first).toEqual({ global: [], byScope: {} })
   })
 
-  it('a SuperAdmin \'*\' assignment resolves to all 7 global permissions', async () => {
+  it('a SuperAdmin \'*\' assignment resolves to all 9 global permissions', async () => {
     await seedTestUsers(db, [{ id: USER_ID, email: 'eff@beechcms.io', password_hash: 'x', grantSuperAdmin: true }])
     const app = buildApp()
     const res = await app.request('/resolve')
     const body = await res.json<{ first: any }>()
     expect(body.first.global.sort()).toEqual(
-      ['content:read', 'content:create', 'content:update', 'content:delete', 'manage_users', 'manage_roles', 'view_analytics'].sort()
+      ['content:read', 'content:create', 'content:update', 'content:delete', 'manage_users', 'manage_roles', 'manage_layout', 'manage_seeds', 'view_analytics'].sort()
     )
   })
 

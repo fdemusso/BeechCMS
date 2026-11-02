@@ -30,6 +30,32 @@ describe('rbac roles — integration (real D1)', () => {
     return (await response.json<{ id: string }>()).id
   }
 
+  describe('POST /api/rbac/roles', () => {
+    it('lets SuperAdmin create a role carrying manage_layout, persisted in role_permissions', async () => {
+      const response = await admin.post('/api/rbac/roles', { name: 'Layout editor', permissions: ['manage_layout'] })
+
+      expect(response.status).toBe(201)
+      const { id } = await response.json<{ id: string }>()
+      const rows = await harness.db
+        .prepare('SELECT permission FROM role_permissions WHERE role_id = ?')
+        .bind(id)
+        .all<{ permission: string }>()
+      expect(rows.results).toEqual([{ permission: 'manage_layout' }])
+    })
+
+    it('lets SuperAdmin create a role carrying manage_seeds, persisted in role_permissions', async () => {
+      const response = await admin.post('/api/rbac/roles', { name: 'Seeds editor', permissions: ['manage_seeds'] })
+
+      expect(response.status).toBe(201)
+      const { id } = await response.json<{ id: string }>()
+      const rows = await harness.db
+        .prepare('SELECT permission FROM role_permissions WHERE role_id = ?')
+        .bind(id)
+        .all<{ permission: string }>()
+      expect(rows.results).toEqual([{ permission: 'manage_seeds' }])
+    })
+  })
+
   describe('PUT /api/rbac/roles/:roleId', () => {
     it('refuses a rename onto another role\'s name with 409 role-name-taken', async () => {
       const renamedId = await createRole('Alpha')

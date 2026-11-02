@@ -17,6 +17,7 @@ export type {
   DistributionSlice,
   TimeseriesPoint,
   DashboardWidgetInstance,
+  WidgetRequirement,
 } from '@beechcms/core'
 export { isDateRange } from '@beechcms/core'
 

@@ -24,25 +24,6 @@ export type AppContext = Context<{ Bindings: Env; Variables: Variables }>
 export { SLUG_RE }
 
 /**
- * Guard ensuring the authenticated caller possesses the `'admin'` role.
- *
- * @param context - The Hono request context with bound JWT payload variables.
- * @returns A 403 Forbidden RFC 7807 Problem Details Response if unauthorized, or `null` if authorized.
- */
-export function requireAdmin(context: AppContext) {
-  const role = context.get('jwtPayload')?.role
-  if (role !== 'admin') {
-    return publicProblem(context, {
-      type: 'forbidden',
-      title: 'Forbidden',
-      status: 403,
-      detail: 'Seed management requires admin role.',
-    })
-  }
-  return null
-}
-
-/**
  * Extracts audit logging actor metadata from the request's JWT payload.
  *
  * @param context - The Hono request context.

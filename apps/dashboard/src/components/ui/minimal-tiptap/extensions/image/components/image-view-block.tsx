@@ -11,29 +11,129 @@ import { cn } from "@/lib/utils"
 import { ImageLightbox } from "./image-lightbox"
 import { ActionButton, ActionWrapper, ImageActions } from "./image-actions"
 import { useImageActions } from "../hooks/use-image-actions"
-import { blobUrlToBase64, randomId } from "../../../utils"
 import { InfoCircle as InfoCircledIcon, Trash as TrashIcon } from '@/components/icons'
 import { ImageOverlay } from "./image-overlay"
 import { Spinner } from "../../../components/spinner"
-import type { UploadReturnType } from "../shared"
+import { useBlobImageUpload, type ImageState } from "../hooks/use-blob-image-upload"
 
 const MAX_HEIGHT = 600
 const MIN_HEIGHT = 120
 const MIN_WIDTH = 120
 
-interface ImageState {
-  src: string
+interface ImageStatusProps {
   isServerUploading: boolean
-  imageLoaded: boolean
-  isZoomed: boolean
   error: boolean
-  naturalSize: ElementDimensions
 }
 
-const normalizeUploadResponse = (res: UploadReturnType) => ({
-  src: typeof res === "string" ? res : res.src,
-  id: typeof res === "string" ? randomId() : res.id,
-})
+const ImageStatus: React.FC<ImageStatusProps> = ({
+  isServerUploading,
+  error,
+}) => (
+  <>
+    {isServerUploading && !error && (
+      <div className="absolute inset-0 flex items-center justify-center">
+        <Spinner className="size-7" />
+      </div>
+    )}
+
+    {error && (
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <InfoCircledIcon className="text-destructive size-8" />
+        <p className="text-muted-foreground mt-2 text-sm">
+          Failed to load image
+        </p>
+      </div>
+    )}
+  </>
+)
+
+interface ImageResizeHandlesProps {
+  isResizing: boolean
+  activeResizeHandle: "left" | "right" | null
+  onResizeStart: (
+    direction: "left" | "right"
+  ) => (event: React.PointerEvent<HTMLDivElement>) => void
+}
+
+const ImageResizeHandles: React.FC<ImageResizeHandlesProps> = ({
+  isResizing,
+  activeResizeHandle,
+  onResizeStart,
+}) => (
+  <>
+    <ResizeHandle
+      onPointerDown={onResizeStart("left")}
+      className={cn("left-1", {
+        hidden: isResizing && activeResizeHandle === "right",
+      })}
+      isResizing={isResizing && activeResizeHandle === "left"}
+    />
+    <ResizeHandle
+      onPointerDown={onResizeStart("right")}
+      className={cn("right-1", {
+        hidden: isResizing && activeResizeHandle === "left",
+      })}
+      isResizing={isResizing && activeResizeHandle === "right"}
+    />
+  </>
+)
+
+interface ImageToolbarProps {
+  error: boolean
+  isServerUploading: boolean
+  isResizing: boolean
+  shouldMerge: boolean
+  isLink: boolean
+  onView: () => void
+  onDownload: () => void
+  onCopy: () => void
+  onCopyLink: () => void
+  onRemoveImg: () => void
+}
+
+const ImageToolbar: React.FC<ImageToolbarProps> = ({
+  error,
+  isServerUploading,
+  isResizing,
+  shouldMerge,
+  isLink,
+  onView,
+  onDownload,
+  onCopy,
+  onCopyLink,
+  onRemoveImg,
+}) => (
+  <>
+    {error && (
+      <ActionWrapper>
+        <ActionButton
+          icon={<TrashIcon />}
+          tooltip="Remove image"
+          onClick={onRemoveImg}
+        />
+      </ActionWrapper>
+    )}
+
+    {!isResizing && !error && !isServerUploading && (
+      <ImageActions
+        shouldMerge={shouldMerge}
+        isLink={isLink}
+        onView={onView}
+        onDownload={onDownload}
+        onCopy={onCopy}
+        onCopyLink={onCopyLink}
+      />
+    )}
+  </>
+)
+
+const getInitSrc = (src: string | { src: string }) =>
+  typeof src === "string" ? src : src.src
+
+const getContainerMaxWidth = (container: HTMLElement | null) =>
+  container
+    ? parseFloat(getComputedStyle(container).getPropertyValue("--editor-width"))
+    : Infinity
 
 export const ImageViewBlock: React.FC<NodeViewProps> = ({
   editor,
@@ -47,14 +147,8 @@ export const ImageViewBlock: React.FC<NodeViewProps> = ({
     height: initialHeight,
     fileName,
   } = node.attrs
-  const uploadAttemptedRef = React.useRef(false)
 
-  const initSrc = React.useMemo(() => {
-    if (typeof initialSrc === "string") {
-      return initialSrc
-    }
-    return initialSrc.src
-  }, [initialSrc])
+  const initSrc = React.useMemo(() => getInitSrc(initialSrc), [initialSrc])
 
   const [imageState, setImageState] = React.useState<ImageState>({
     src: initSrc,
@@ -80,13 +174,7 @@ export const ImageViewBlock: React.FC<NodeViewProps> = ({
   const aspectRatio =
     imageState.naturalSize.width / imageState.naturalSize.height
   const maxWidth = MAX_HEIGHT * aspectRatio
-  const containerMaxWidth = containerRef.current
-    ? parseFloat(
-        getComputedStyle(containerRef.current).getPropertyValue(
-          "--editor-width"
-        )
-      )
-    : Infinity
+  const containerMaxWidth = getContainerMaxWidth(containerRef.current)
 
   const { isLink, onView, onDownload, onCopy, onCopyLink, onRemoveImg } =
     useImageActions({
@@ -160,56 +248,13 @@ export const ImageViewBlock: React.FC<NodeViewProps> = ({
     setActiveResizeHandle(null)
   }
 
-  React.useEffect(() => {
-    const handleImage = async () => {
-      if (!initSrc.startsWith("blob:") || uploadAttemptedRef.current) {
-        return
-      }
-
-      uploadAttemptedRef.current = true
-      const imageExtension = editor.options.extensions.find(
-        (ext) => ext.name === "image"
-      )
-      const { uploadFn } = imageExtension?.options ?? {}
-
-      if (!uploadFn) {
-        try {
-          const base64 = await blobUrlToBase64(initSrc)
-          setImageState((prev) => ({ ...prev, src: base64 }))
-          updateAttributes({ src: base64 })
-        } catch {
-          setImageState((prev) => ({ ...prev, error: true }))
-        }
-        return
-      }
-
-      try {
-        setImageState((prev) => ({ ...prev, isServerUploading: true }))
-        const response = await fetch(initSrc)
-        const blob = await response.blob()
-        const file = new File([blob], fileName, { type: blob.type })
-
-        const url = await uploadFn(file, editor)
-        const normalizedData = normalizeUploadResponse(url)
-
-        setImageState((prev) => ({
-          ...prev,
-          ...normalizedData,
-          isServerUploading: false,
-        }))
-
-        updateAttributes(normalizedData)
-      } catch {
-        setImageState((prev) => ({
-          ...prev,
-          error: true,
-          isServerUploading: false,
-        }))
-      }
-    }
-
-    handleImage()
-  }, [editor, fileName, initSrc, updateAttributes])
+  useBlobImageUpload({
+    editor,
+    initSrc,
+    fileName,
+    updateAttributes,
+    setImageState,
+  })
 
   return (
     <NodeViewWrapper
@@ -237,20 +282,10 @@ export const ImageViewBlock: React.FC<NodeViewProps> = ({
         >
           <div className="h-full contain-paint">
             <div className="relative h-full">
-              {imageState.isServerUploading && !imageState.error && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Spinner className="size-7" />
-                </div>
-              )}
-
-              {imageState.error && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <InfoCircledIcon className="text-destructive size-8" />
-                  <p className="text-muted-foreground mt-2 text-sm">
-                    Failed to load image
-                  </p>
-                </div>
-              )}
+              <ImageStatus
+                isServerUploading={imageState.isServerUploading}
+                error={imageState.error}
+              />
 
                 <img
                   className={cn(
@@ -290,47 +325,26 @@ export const ImageViewBlock: React.FC<NodeViewProps> = ({
               imageState.imageLoaded &&
               !imageState.error &&
               !imageState.isServerUploading && (
-                <>
-                  <ResizeHandle
-                    onPointerDown={handleResizeStart("left")}
-                    className={cn("left-1", {
-                      hidden: isResizing && activeResizeHandle === "right",
-                    })}
-                    isResizing={isResizing && activeResizeHandle === "left"}
-                  />
-                  <ResizeHandle
-                    onPointerDown={handleResizeStart("right")}
-                    className={cn("right-1", {
-                      hidden: isResizing && activeResizeHandle === "left",
-                    })}
-                    isResizing={isResizing && activeResizeHandle === "right"}
-                  />
-                </>
+                <ImageResizeHandles
+                  isResizing={isResizing}
+                  activeResizeHandle={activeResizeHandle}
+                  onResizeStart={handleResizeStart}
+                />
               )}
           </div>
 
-          {imageState.error && (
-            <ActionWrapper>
-              <ActionButton
-                icon={<TrashIcon />}
-                tooltip="Remove image"
-                onClick={onRemoveImg}
-              />
-            </ActionWrapper>
-          )}
-
-          {!isResizing &&
-            !imageState.error &&
-            !imageState.isServerUploading && (
-              <ImageActions
-                shouldMerge={shouldMerge}
-                isLink={isLink}
-                onView={onView}
-                onDownload={onDownload}
-                onCopy={onCopy}
-                onCopyLink={onCopyLink}
-              />
-            )}
+          <ImageToolbar
+            error={imageState.error}
+            isServerUploading={imageState.isServerUploading}
+            isResizing={isResizing}
+            shouldMerge={shouldMerge}
+            isLink={isLink}
+            onView={onView}
+            onDownload={onDownload}
+            onCopy={onCopy}
+            onCopyLink={onCopyLink}
+            onRemoveImg={onRemoveImg}
+          />
         </div>
       </div>
     </NodeViewWrapper>

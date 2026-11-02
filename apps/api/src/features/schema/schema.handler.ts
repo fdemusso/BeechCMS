@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { canEditLayout, formLayoutSchema, reconcileLayoutWithSeed, validateLayoutAgainstSeed } from '@beechcms/core'
+import { formLayoutSchema, reconcileLayoutWithSeed, validateLayoutAgainstSeed } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import { zodJson, type ZodJsonInput, type ZodJsonRefusal } from '../../shared/utils/zod-json'
 import type { Context, MiddlewareHandler } from 'hono'
@@ -15,20 +15,6 @@ import { filterSeedsByPermission } from '../../shared/rbac/scoped-projection'
 
 type AppContext = Context<{ Bindings: Env; Variables: Variables }>
 const LAYOUT_PATH = '/:slug/layout'
-
-/** Returns a 403 response if the caller lacks layout-edit permission, otherwise undefined. */
-function requireLayoutEditPermission(context: AppContext) {
-  const role = context.get('jwtPayload')?.role
-  if (!canEditLayout(role)) {
-    return publicProblem(context, {
-      type: 'forbidden',
-      title: 'Forbidden',
-      status: 403,
-      detail: 'Layout edit requires admin role.',
-    })
-  }
-  return undefined
-}
 
 /** Resolves the seed by slug. Returns a 404 response if not found, otherwise the seed. */
 function requireSeedBySlug(context: AppContext, slug: string) {
@@ -48,16 +34,10 @@ function requireSeedBySlug(context: AppContext, slug: string) {
 }
 
 /**
- * The two gates of the layout routes as middlewares, in the order the handler used to apply them:
- * the edit permission, then the seed. Both have to run before the body is read, so a caller who may
- * not edit, or who names no seed, learns nothing about the layout contract.
+ * The edit permission is decided by the route table (`permission.middleware.ts`) before this router
+ * runs. The seed check still has to run before the body is read, so a caller who names no seed
+ * learns nothing about the layout contract.
  */
-const requireLayoutEdit: MiddlewareHandler<AppEnv, typeof LAYOUT_PATH> = async (context, next) => {
-  const forbidden = requireLayoutEditPermission(context)
-  if (forbidden) return forbidden
-  await next()
-}
-
 const requireKnownSeed: MiddlewareHandler<AppEnv, typeof LAYOUT_PATH> = async (context, next) => {
   const { error } = requireSeedBySlug(context, context.req.param('slug'))
   if (error) return error
@@ -131,14 +111,14 @@ const schemaApp = new Hono<{ Bindings: Env; Variables: Variables }>()
   })
   /**
    * Upserts a custom FormLayout for a Seed.
-   * Admin-only. Validates shape (Zod) then semantic constraints against the Seed.
+   * Gated by `manage_seeds` at the global scope (route table). Validates shape (Zod) then semantic constraints against the Seed.
    */
-  .put(LAYOUT_PATH, requireLayoutEdit, requireKnownSeed, zodJson(formLayoutSchema, rejectInvalidLayoutBody), putLayout)
+  .put(LAYOUT_PATH, requireKnownSeed, zodJson(formLayoutSchema, rejectInvalidLayoutBody), putLayout)
   /**
    * Removes the stored layout for a Seed, reverting to the generated default.
-   * Admin-only. The "Reset" action in the Layout Builder calls this endpoint.
+   * Gated by `manage_seeds` at the global scope (route table). The "Reset" action in the Layout Builder calls this endpoint.
    */
-  .delete(LAYOUT_PATH, requireLayoutEdit, requireKnownSeed, async (context) => {
+  .delete(LAYOUT_PATH, requireKnownSeed, async (context) => {
     await context.get('seedLayoutRepository').remove(context.req.param('slug'))
     return context.json({ ok: true }, 200)
   })

@@ -21,7 +21,6 @@ import { publicProblem } from '../../public/errors/problem-details'
 import { zodJson } from '../../shared/utils/zod-json'
 import type { Env, Variables } from '../../types'
 import {
-  requireAdmin,
   actorFromContext,
   rejectInvalidBody,
   getActiveSeed,
@@ -43,15 +42,6 @@ import { branchBodySchema, createSeedBodySchema, seedBodySchema } from './seeds.
  */
 export const seedsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
   /**
-   * Global router middleware enforcing admin-only access on all seed management endpoints.
-   */
-  .use('*', async (context, next) => {
-    const denied = requireAdmin(context)
-    if (denied) return denied
-    await next()
-  })
-
-  /**
    * Mount sub-routers for destructive column/table operations and MCP agent tooling.
    */
   .route('/', destructiveApp)
@@ -61,7 +51,8 @@ export const seedsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
    * Lists all seed records (both active and soft-deleted).
    *
    * @remarks
-   * Admin-only. Emits the current `X-Schema-Version` response header carrying `seed_meta.registry_version`
+   * Requires `manage_seeds` at the global scope (route table).
+   * Emits the current `X-Schema-Version` response header carrying `seed_meta.registry_version`
    * for optimistic concurrency control (OCC) aware clients.
    *
    * @route GET /api/seeds
@@ -78,7 +69,7 @@ export const seedsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
    * Retrieves a single seed record by slug.
    *
    * @remarks
-   * Admin-only. Returns the complete seed record including definition, status, and audit metadata.
+   * Requires `manage_seeds` at the global scope (route table). Returns the complete seed record including definition, status, and audit metadata.
    *
    * @route GET /api/seeds/:slug
    * @param slug - Seed slug identifier.

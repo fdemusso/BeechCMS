@@ -54,7 +54,7 @@ async function put(overrides: {
     context.set('repository', { findById: vi.fn().mockResolvedValue({ ...CURRENT_ENTRY }), update, existsSlug: vi.fn().mockResolvedValue(false) } as never)
     context.set('siteSettingsRepository', { getAll: vi.fn().mockResolvedValue(SETTINGS) } as never)
     context.set('idGenerator', { uuid: () => 'gen-id' } as never)
-    context.set('jwtPayload', { sub: 'user-1', role: 'admin', email: 'user@x.test' } as never)
+    context.set('jwtPayload', { sub: 'user-1', email: 'user@x.test' } as never)
     context.set('activityLogger', { log: vi.fn() } as never)
     context.set('scheduler', { waitUntil: vi.fn() } as never)
     context.set('automationRunner', { run: vi.fn().mockResolvedValue(undefined) } as never)

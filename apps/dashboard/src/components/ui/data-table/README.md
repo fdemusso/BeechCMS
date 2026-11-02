@@ -57,7 +57,9 @@ Se aggiungi al footer un dato che dipende dallo stato della tabella, **passalo c
 `ROW_SEPARATOR_CLASS`, `COLUMN_SEPARATOR_CLASS`, `FOCUSED_ROW_CLASS`. Header, righe e segnaposto le
 importano: così non possono andare fuori sincrono. Per cambiare colore/spessore delle linee si modifica
 solo quel file. Il bordo inferiore di riga lo applica già `TableRow` (`border-b`); l'ultima riga non ha
-bordo (`TableBody`), lo disegna il frame.
+bordo (`TableBody`), lo disegna il frame. Se il frame è più alto delle righe (tabella corta in un widget alto)
+la linea sotto l'ultima riga la disegna l'elemento di coda (`TAIL_SEPARATOR_CLASS`): è un'ombra interna, quindi
+con zero spazio libero è alto 0px e non raddoppia il bordo del frame. *Test:* "closes the rows with a line…".
 
 ## Modalità raggruppata (grouping attivo)
 Paginazione disattivata (`pageSize` = infinito), righe virtualizzate con `@tanstack/react-virtual`:

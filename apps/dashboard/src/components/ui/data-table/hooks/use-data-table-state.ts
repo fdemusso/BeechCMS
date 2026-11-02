@@ -28,6 +28,70 @@ import {
 } from "@/lib/density"
 import { DEFAULT_PAGE_SIZE, type DataTableProps } from "../types"
 
+type Updater<T> = T | ((old: T) => T)
+
+/** State that follows the controlled prop when defined, else keeps internal state; notifies `onChange` either way. */
+function useControllableState<T>(
+  controlled: T | undefined,
+  initial: T,
+  onChange?: (value: T) => void
+): [T, (updaterOrValue: Updater<T>) => void] {
+  const [internal, setInternal] = React.useState<T>(initial)
+  const isControlled = controlled !== undefined
+  const value = controlled ?? internal
+  const handleChange = React.useCallback(
+    (updaterOrValue: Updater<T>) => {
+      const next = typeof updaterOrValue === "function" ? (updaterOrValue as (old: T) => T)(value) : updaterOrValue
+      if (!isControlled) setInternal(next)
+      onChange?.(next)
+    },
+    [isControlled, onChange, value]
+  )
+  return [value, handleChange]
+}
+
+function useDataTablePagination(
+  pageSizeProp: number | undefined,
+  pageIndexProp: number | undefined,
+  onPageSizeChange: ((pageSize: number) => void) | undefined,
+  onPageIndexChange: ((pageIndex: number) => void) | undefined
+) {
+  const [internalPagination, setInternalPagination] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: DEFAULT_PAGE_SIZE,
+  })
+  const isControlledPageSize = pageSizeProp !== undefined
+  const isControlledPageIndex = pageIndexProp !== undefined
+  const pagination: PaginationState = React.useMemo(
+    () => ({
+      ...internalPagination,
+      pageIndex: isControlledPageIndex ? (pageIndexProp ?? internalPagination.pageIndex) : internalPagination.pageIndex,
+      pageSize: isControlledPageSize ? (pageSizeProp ?? internalPagination.pageSize) : internalPagination.pageSize,
+    }),
+    [internalPagination, isControlledPageIndex, isControlledPageSize, pageIndexProp, pageSizeProp]
+  )
+
+  const handlePaginationChange = React.useCallback(
+    (updaterOrValue: Updater<PaginationState>) => {
+      const next = typeof updaterOrValue === "function" ? updaterOrValue(pagination) : updaterOrValue
+      if (!isControlledPageSize && !isControlledPageIndex) {
+        setInternalPagination(next)
+      } else {
+        setInternalPagination((prev) => ({
+          ...prev,
+          pageIndex: isControlledPageIndex ? prev.pageIndex : next.pageIndex,
+          pageSize: isControlledPageSize ? prev.pageSize : next.pageSize,
+        }))
+        if (next.pageIndex !== pagination.pageIndex) onPageIndexChange?.(next.pageIndex)
+        if (next.pageSize !== pagination.pageSize) onPageSizeChange?.(next.pageSize)
+      }
+    },
+    [isControlledPageIndex, isControlledPageSize, onPageIndexChange, onPageSizeChange, pagination]
+  )
+
+  return { pagination, handlePaginationChange }
+}
+
 export function useDataTableState<TData, TValue>(
   props: Readonly<DataTableProps<TData, TValue>>
 ) {
@@ -63,12 +127,12 @@ export function useDataTableState<TData, TValue>(
     density,
   } = props
 
-  const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
-  const [internalColumnFilters, setInternalColumnFilters] = React.useState<ColumnFiltersState>([])
-  const isControlledSorting = sortingProp !== undefined
-  const sorting = sortingProp ?? internalSorting
-  const isControlledColumnFilters = columnFiltersProp !== undefined
-  const columnFilters = columnFiltersProp ?? internalColumnFilters
+  const [sorting, handleSortingChange] = useControllableState<SortingState>(sortingProp, [], onSortingChange)
+  const [columnFilters, handleColumnFiltersChange] = useControllableState<ColumnFiltersState>(
+    columnFiltersProp,
+    [],
+    onColumnFiltersChange
+  )
 
   const initialVisibility = React.useMemo(() => {
     const visibility: VisibilityState = {}
@@ -78,13 +142,17 @@ export function useDataTableState<TData, TValue>(
     return visibility
   }, [initialHiddenColumns])
 
-  const [internalColumnVisibility, setInternalColumnVisibility] = React.useState<VisibilityState>(initialVisibility)
-  const isControlledColumnVisibility = columnVisibilityProp !== undefined
-  const columnVisibility = columnVisibilityProp ?? internalColumnVisibility
+  const [columnVisibility, handleColumnVisibilityChange] = useControllableState<VisibilityState>(
+    columnVisibilityProp,
+    initialVisibility,
+    onColumnVisibilityChange
+  )
 
-  const [internalColumnSizing, setInternalColumnSizing] = React.useState<ColumnSizingState>({})
-  const isControlledColumnSizing = columnSizingProp !== undefined
-  const columnSizing = columnSizingProp ?? internalColumnSizing
+  const [columnSizing, handleColumnSizingChange] = useControllableState<ColumnSizingState>(
+    columnSizingProp,
+    {},
+    onColumnSizingChange
+  )
 
   const [internalColumnOrder, setInternalColumnOrder] = React.useState<ColumnOrderState>([])
   const isControlledColumnOrder = columnOrderProp !== undefined
@@ -101,9 +169,11 @@ export function useDataTableState<TData, TValue>(
     return [...leading, ...columnOrder.filter((id) => !leading.includes(id))]
   }, [columns, columnOrder])
 
-  const [internalRowSelection, setInternalRowSelection] = React.useState<RowSelectionState>({})
-  const isControlledRowSelection = rowSelectionProp !== undefined
-  const rowSelection = rowSelectionProp ?? internalRowSelection
+  const [rowSelection, handleRowSelectionChange] = useControllableState<RowSelectionState>(
+    rowSelectionProp,
+    {},
+    onRowSelectionChange
+  )
 
   const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("")
   const isControlledFilter = globalFilterProp !== undefined
@@ -112,24 +182,14 @@ export function useDataTableState<TData, TValue>(
     ? (onGlobalFilterChange ?? (() => {}))
     : setInternalGlobalFilter
 
-  const [internalPagination, setInternalPagination] = React.useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: DEFAULT_PAGE_SIZE,
-  })
-  const isControlledPageSize = pageSizeProp !== undefined
-  const isControlledPageIndex = pageIndexProp !== undefined
-  const pagination: PaginationState = React.useMemo(
-    () => ({
-      ...internalPagination,
-      pageIndex: isControlledPageIndex ? (pageIndexProp ?? internalPagination.pageIndex) : internalPagination.pageIndex,
-      pageSize: isControlledPageSize ? (pageSizeProp ?? internalPagination.pageSize) : internalPagination.pageSize,
-    }),
-    [internalPagination, isControlledPageIndex, isControlledPageSize, pageIndexProp, pageSizeProp]
+  const { pagination, handlePaginationChange } = useDataTablePagination(
+    pageSizeProp,
+    pageIndexProp,
+    onPageSizeChange,
+    onPageIndexChange
   )
 
-  const isControlledGrouping = groupingProp !== undefined
-  const [internalGrouping, setInternalGrouping] = React.useState<GroupingState>([])
-  const grouping = groupingProp ?? internalGrouping
+  const [grouping, handleGroupingChange] = useControllableState<GroupingState>(groupingProp, [], onGroupingChange)
   const isGroupingActive = grouping.length > 0
 
   // The grouped column is hidden only while grouping is active; the user's own visibility
@@ -145,42 +205,6 @@ export function useDataTableState<TData, TValue>(
   const rowHeight = DENSITY_ROW_HEIGHT[activeDensity]
   const cellPadding = DENSITY_CELL_PADDING[activeDensity]
 
-  const handleSortingChange = React.useCallback(
-    (updaterOrValue: SortingState | ((old: SortingState) => SortingState)) => {
-      const nextSorting = typeof updaterOrValue === "function" ? updaterOrValue(sorting) : updaterOrValue
-      if (!isControlledSorting) setInternalSorting(nextSorting)
-      onSortingChange?.(nextSorting)
-    },
-    [isControlledSorting, onSortingChange, sorting]
-  )
-
-  const handleColumnFiltersChange = React.useCallback(
-    (updaterOrValue: ColumnFiltersState | ((old: ColumnFiltersState) => ColumnFiltersState)) => {
-      const next = typeof updaterOrValue === "function" ? updaterOrValue(columnFilters) : updaterOrValue
-      if (!isControlledColumnFilters) setInternalColumnFilters(next)
-      onColumnFiltersChange?.(next)
-    },
-    [columnFilters, isControlledColumnFilters, onColumnFiltersChange]
-  )
-
-  const handleColumnVisibilityChange = React.useCallback(
-    (updaterOrValue: VisibilityState | ((old: VisibilityState) => VisibilityState)) => {
-      const next = typeof updaterOrValue === "function" ? updaterOrValue(columnVisibility) : updaterOrValue
-      if (!isControlledColumnVisibility) setInternalColumnVisibility(next)
-      onColumnVisibilityChange?.(next)
-    },
-    [columnVisibility, isControlledColumnVisibility, onColumnVisibilityChange]
-  )
-
-  const handleColumnSizingChange = React.useCallback(
-    (updaterOrValue: ColumnSizingState | ((old: ColumnSizingState) => ColumnSizingState)) => {
-      const next = typeof updaterOrValue === "function" ? updaterOrValue(columnSizing) : updaterOrValue
-      if (!isControlledColumnSizing) setInternalColumnSizing(next)
-      onColumnSizingChange?.(next)
-    },
-    [columnSizing, isControlledColumnSizing, onColumnSizingChange]
-  )
-
   const handleColumnOrderChange = React.useCallback(
     (updaterOrValue: ColumnOrderState | ((old: ColumnOrderState) => ColumnOrderState)) => {
       const next = typeof updaterOrValue === "function" ? updaterOrValue(effectiveColumnOrder) : updaterOrValue
@@ -188,42 +212,6 @@ export function useDataTableState<TData, TValue>(
       onColumnOrderChange?.(next)
     },
     [effectiveColumnOrder, isControlledColumnOrder, onColumnOrderChange]
-  )
-
-  const handlePaginationChange = React.useCallback(
-    (updaterOrValue: PaginationState | ((old: PaginationState) => PaginationState)) => {
-      const next = typeof updaterOrValue === "function" ? updaterOrValue(pagination) : updaterOrValue
-      if (!isControlledPageSize && !isControlledPageIndex) {
-        setInternalPagination(next)
-      } else {
-        setInternalPagination((prev) => ({
-          ...prev,
-          pageIndex: isControlledPageIndex ? prev.pageIndex : next.pageIndex,
-          pageSize: isControlledPageSize ? prev.pageSize : next.pageSize,
-        }))
-        if (next.pageIndex !== pagination.pageIndex) onPageIndexChange?.(next.pageIndex)
-        if (next.pageSize !== pagination.pageSize) onPageSizeChange?.(next.pageSize)
-      }
-    },
-    [isControlledPageIndex, isControlledPageSize, onPageIndexChange, onPageSizeChange, pagination]
-  )
-
-  const handleRowSelectionChange = React.useCallback(
-    (updaterOrValue: RowSelectionState | ((old: RowSelectionState) => RowSelectionState)) => {
-      const next = typeof updaterOrValue === "function" ? updaterOrValue(rowSelection) : updaterOrValue
-      if (!isControlledRowSelection) setInternalRowSelection(next)
-      onRowSelectionChange?.(next)
-    },
-    [isControlledRowSelection, onRowSelectionChange, rowSelection]
-  )
-
-  const handleGroupingChange = React.useCallback(
-    (updaterOrValue: GroupingState | ((old: GroupingState) => GroupingState)) => {
-      const next = typeof updaterOrValue === "function" ? updaterOrValue(grouping) : updaterOrValue
-      if (!isControlledGrouping) setInternalGrouping(next)
-      onGroupingChange?.(next)
-    },
-    [grouping, isControlledGrouping, onGroupingChange]
   )
 
   const table = useReactTable({

@@ -14,7 +14,7 @@ import { TEST_SEEDS, TEST_ENV } from '../fixtures'
  * FLOW: a listing returns exactly what the caller could open one-by-one, never more.
  *
  * Covers all 8 T7 steps: /api/schema, /api/content/drafts and /api/search narrow to the
- * caller's readable seeds, /api/settings/me emits the raw authority + isDeveloper, and a
+ * caller's readable seeds, /api/settings/me emits the raw authority, and a
  * zero-trust account gets 200-with-empty-payload everywhere, never a 403 or a 500.
  */
 describe('Flow: RBAC scoped projections', () => {
@@ -142,19 +142,18 @@ describe('Flow: RBAC scoped projections', () => {
     // 6. GET /api/settings/me as the scoped account.
     const scopedMeRes = await authed('/api/settings/me', scopedToken)
     expect(scopedMeRes.status).toBe(200)
-    const scopedMe = await scopedMeRes.json<{ permissions: { global: string[]; byScope: Record<string, string[]> }; isDeveloper: boolean; manageableScopes: string[] }>()
+    const scopedMe = await scopedMeRes.json<{ permissions: { global: string[]; byScope: Record<string, string[]> }; manageableScopes: string[] }>()
     expect(scopedMe.permissions.global).toEqual([])
     expect(scopedMe.permissions.byScope.posts).toContain('content:read')
-    expect(scopedMe.isDeveloper).toBe(false)
     // A content:read-only holder holds no manage_users anywhere ⇒ [].
     expect(scopedMe.manageableScopes).toEqual([])
 
     // 7. GET /api/settings/me as the setup admin.
     const superMeRes = await authed('/api/settings/me', superToken)
-    const superMe = await superMeRes.json<{ permissions: { global: string[] }; isDeveloper: boolean; manageableScopes: string[] }>()
-    expect(superMe.isDeveloper).toBe(true)
+    const superMe = await superMeRes.json<{ permissions: { global: string[] }; manageableScopes: string[] }>()
+    expect(superMe).not.toHaveProperty('isDeveloper')
     expect(superMe.permissions.global.sort()).toEqual(
-      ['content:read', 'content:create', 'content:update', 'content:delete', 'manage_users', 'manage_roles', 'view_analytics'].sort(),
+      ['content:read', 'content:create', 'content:update', 'content:delete', 'manage_users', 'manage_roles', 'view_analytics', 'manage_layout', 'manage_seeds'].sort(),
     )
     // Global manage_users holder ⇒ '*' plus every seed slug, sorted.
     expect(superMe.manageableScopes).toEqual(['*', ...TEST_SEEDS.map(s => s.slug).sort()])

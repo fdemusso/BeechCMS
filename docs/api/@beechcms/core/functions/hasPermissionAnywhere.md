@@ -23,7 +23,7 @@ slice then makes the exact per-scope decision with [hasPermission](hasPermission
 
 ### permission
 
-`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"`
+`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"` \| `"manage_layout"` \| `"manage_seeds"`
 
 ## Returns
 

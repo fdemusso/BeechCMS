@@ -123,7 +123,7 @@ Content-Type: application/json
 
 Generates a presigned read URL with a 900-second TTL for private assets.
 
-**Access Control:** The caller must have the `admin` role or be the user who originally uploaded the file (`media.uploaded_by === userId`). Non-owners receive `403 Forbidden`.
+**Access Control:** Requires `content:read` at `*`. The caller must be the original uploader (`media.uploaded_by === userId`) or hold `manage_users` at the global scope (`*`). Others receive `403 Forbidden`.
 
 **Response `200 OK`**
 
@@ -201,7 +201,7 @@ media(key, { preset: 'card', format: 'webp', baseUrl })
 
 Deletes the object from storage, removes its tracking row from `media_objects`, and decrements `total_storage_bytes` in `system_stats`.
 
-**Access Control:** The caller must have the `admin` role or be the original uploader (`uploaded_by === userId`). Non-owners receive `403 Forbidden`.
+**Access Control:** Requires `content:delete` at `*`. The caller must be the original uploader (`uploaded_by === userId`) or hold `manage_users` at the global scope (`*`). Others receive `403 Forbidden`.
 
 **Response `200 OK`**
 
@@ -233,7 +233,7 @@ A file counts as referenced when a `file` field of any registered seed points to
 
 ## Reviewed orphan cleanup — `POST /api/settings/storage/orphans/delete`
 
-Deletes orphans selected from the storage report. Requires `content:delete` at global scope. A caller without the `admin` role may delete only their own uploads, which is the same rule as `DELETE /api/upload/:key`.
+Deletes orphans selected from the storage report. Requires `content:delete` at global scope. A caller without `manage_users` at `*` may delete only their own uploads, which is the same rule as `DELETE /api/upload/:key`.
 
 ```json
 { "keys": ["media/example.png"] }
@@ -244,7 +244,7 @@ Deletes orphans selected from the storage report. Requires `content:delete` at g
 | Status | `type` | Cause |
 |---|---|---|
 | 404 | `settings-storage-orphan-not-found` | The key is not tracked media. |
-| 403 | `settings-storage-orphan-forbidden` | The caller is not an admin and did not upload the file. |
+| 403 | `settings-storage-orphan-forbidden` | The caller did not upload the file and does not hold `manage_users` at `*`. |
 | 409 | `settings-storage-orphan-referenced` | A live or draft `file` field references the key again. |
 
 On success, each object is removed from the bucket and from `media_objects`. The storage counter is reduced by each file's tracked size, and the response returns the updated `totalBytes` and `fileCount`:

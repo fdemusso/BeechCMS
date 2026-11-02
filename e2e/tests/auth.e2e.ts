@@ -13,7 +13,12 @@ import { ADMIN_STATE } from '../playwright.config'
 
 test.describe('authenticated dashboard session', () => {
   test('a restored session lands on the dashboard instead of the login route', async ({ page }) => {
+    // The URL and the absent Login button are already true before the restore's /auth/refresh settles,
+    // so wait for that response explicitly: writing the state back any earlier saves the pre-rotation
+    // cookie, which the server has by then revoked.
+    const refreshed = page.waitForResponse((res) => res.url().includes('/auth/refresh'))
     const response = await page.goto('/admin/')
+    expect((await refreshed).status()).toBe(200)
 
     expect(response?.status()).toBe(200)
     await expect(page).toHaveURL(/\/admin\/?$/)

@@ -106,6 +106,61 @@ function SingleRelation({ targetSlug, id, labelAlias, avatarAlias, onClick }: Si
 }
 
 // ============================================================================
+// Multiple value component
+// ============================================================================
+
+/** Properties for the {@link MultipleRelation} component. */
+interface MultipleRelationProps {
+  /** The target schema seed slug (e.g. "posts"). */
+  readonly targetSlug: string
+  /** The raw field value; expected to be an array of entry IDs. */
+  readonly value: unknown
+  /** The field alias key to use as the display label (e.g. "title"). */
+  readonly labelAlias: string
+  /** Target branch supplying the avatar image; absent = name badges are shown instead. */
+  readonly avatarAlias: string | undefined
+  /** Whether to truncate the list to three entries. */
+  readonly compact: boolean
+  /** Callback triggered when an entry is clicked. */
+  readonly onSelect: (id: string) => void
+}
+
+/**
+ * MultipleRelation shows several related entries: overlapping avatars when the relation configures one,
+ * name badges otherwise.
+ *
+ * @param props - Component properties conforming to {@link MultipleRelationProps}.
+ */
+function MultipleRelation({ targetSlug, value, labelAlias, avatarAlias, compact, onSelect }: MultipleRelationProps) {
+  const entryIds = Array.isArray(value) ? (value as string[]).filter(Boolean) : []
+  if (entryIds.length === 0) return <span className="text-muted-foreground">—</span>
+
+  if (avatarAlias) {
+    return (
+      <RelationAvatarGroup
+        targetSlug={targetSlug}
+        ids={entryIds}
+        labelAlias={labelAlias}
+        avatarAlias={avatarAlias}
+        onSelect={onSelect}
+        max={compact ? 3 : Math.max(3, entryIds.length)}
+      />
+    )
+  }
+
+  const visible = compact ? entryIds.slice(0, 3) : entryIds
+  const overflow = entryIds.length - visible.length
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {visible.map((id) => (
+        <RelationNameBadge key={id} targetSlug={targetSlug} targetId={id} labelAlias={labelAlias} onClick={onSelect} />
+      ))}
+      {overflow > 0 && <span className="text-xs text-muted-foreground">+{overflow}</span>}
+    </div>
+  )
+}
+
+// ============================================================================
 // Main component
 // ============================================================================
 
@@ -130,44 +185,19 @@ export function RelationDisplay({ branch, value, options }: FieldDisplayProps) {
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  let content
-  if (isMultiple) {
-    const entryIds = Array.isArray(value) ? (value as string[]).filter(Boolean) : []
-    if (entryIds.length === 0) {
-      content = <span className="text-muted-foreground">—</span>
-    } else if (avatarAlias) {
-      content = (
-        <RelationAvatarGroup
-          targetSlug={targetSlug ?? ""}
-          ids={entryIds}
-          labelAlias={labelAlias}
-          avatarAlias={avatarAlias}
-          onSelect={setSelectedId}
-          max={options?.compact ? 3 : Math.max(3, entryIds.length)}
-        />
-      )
-    } else {
-      const visible = options?.compact ? entryIds.slice(0, 3) : entryIds
-      const overflow = entryIds.length - visible.length
-      content = (
-        <div className="flex flex-wrap items-center gap-1">
-          {visible.map((id) => (
-            <RelationNameBadge
-              key={id}
-              targetSlug={targetSlug ?? ""}
-              targetId={id}
-              labelAlias={labelAlias}
-              onClick={setSelectedId}
-            />
-          ))}
-          {overflow > 0 && <span className="text-xs text-muted-foreground">+{overflow}</span>}
-        </div>
-      )
-    }
-  } else {
-    const id = typeof value === "string" && value.length > 0 ? value : null
-    content = <SingleRelation targetSlug={targetSlug ?? ""} id={id} labelAlias={labelAlias} avatarAlias={avatarAlias} onClick={setSelectedId} />
-  }
+  const id = typeof value === "string" && value.length > 0 ? value : null
+  const content = isMultiple ? (
+    <MultipleRelation
+      targetSlug={targetSlug ?? ""}
+      value={value}
+      labelAlias={labelAlias}
+      avatarAlias={avatarAlias}
+      compact={options?.compact === true}
+      onSelect={setSelectedId}
+    />
+  ) : (
+    <SingleRelation targetSlug={targetSlug ?? ""} id={id} labelAlias={labelAlias} avatarAlias={avatarAlias} onClick={setSelectedId} />
+  )
 
   return (
     <>

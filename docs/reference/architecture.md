@@ -58,7 +58,7 @@ Three properties are enforced at this layer rather than in handlers:
 Each hook receives a `HookContext`: `{ seed, repository, actor?, db, queue? }`:
 - `seed`: The active Seed blueprint.
 - `repository`: The `ContentRepository` instance — the sanctioned channel for side-effect reads/writes from a hook.
-- `actor`: The JWT-derived `{ id, role, email? }` context (absent for background cron operations).
+- `actor`: The JWT-derived `{ id, email? }` context (absent for background cron operations).
 - `db`: The underlying database instance (`D1Database` in production, `better-sqlite3` in unit tests).
 - `queue`: Optional `IQueueService` enabling lifecycle hooks to enqueue asynchronous background jobs via Cloudflare Queues.
 

@@ -153,7 +153,7 @@ export function DataTableBody<TData, TValue>({
   return (
     <ScrollArea
       ref={scrollContainerRef}
-      className="h-full w-full"
+      className="min-h-0 w-full"
       style={isGroupingActive ? { maxHeight: VIRTUAL_CONTAINER_HEIGHT } : undefined}
     >
       <Table>

@@ -41,16 +41,6 @@ account listings must never put credential material on the wire.
 
 ***
 
-### role
-
-> **role**: `string`
-
-Developer/owner axis ('admin' | 'editor'), orthogonal to RBAC permissions.
-- 'admin' = Developer / Owner
-- 'editor' = Generic Beech user (RBAC-gated)
-
-***
-
 ### surname
 
 > **surname**: `string` \| `null`

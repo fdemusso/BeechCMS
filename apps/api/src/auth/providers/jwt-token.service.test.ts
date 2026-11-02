@@ -91,10 +91,10 @@ describe('JoseTokenService', () => {
   })
 
   it('verify returns null for a token whose payload segment was tampered with', async () => {
-    const token = await service.issue({ sub: 'user-1', role: 'viewer' })
+    const token = await service.issue({ sub: 'user-1' })
     const [header, payload, signature] = token.split('.')
     const decoded = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload)))
-    const forged = base64UrlEncode(new TextEncoder().encode(JSON.stringify({ ...decoded, role: 'admin' })))
+    const forged = base64UrlEncode(new TextEncoder().encode(JSON.stringify({ ...decoded, sub: 'user-2' })))
     expect(await service.verify(`${header}.${forged}.${signature}`)).toBeNull()
   })
 

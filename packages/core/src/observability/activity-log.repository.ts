@@ -27,11 +27,27 @@ export interface ActivityLogRecord {
   createdAt: number
 }
 
+/**
+ * Which activity rows a caller may see, keyed on the seed each row is tied to.
+ * Omitted from an options object = no restriction (the self-service per-user feed).
+ */
+export interface ActivityLogVisibility {
+  /**
+   * `'all'`: every row that carries a seed slug.
+   * A list: only rows whose `entitySlug` is in it. An empty list matches no slugged row.
+   */
+  readonly seeds: 'all' | readonly string[]
+  /** Whether rows with `entitySlug === null` (media uploads, schema events, security alerts) are visible. */
+  readonly includeUnscoped: boolean
+}
+
 export interface ActivityLogListOptions {
   /** Restrict the result to a specific user. Used by the per-user activity tab. */
   userId?: string
   /** Restrict the result to a specific content seed. Used by per-seed feeds. */
   entitySlug?: string
+  /** Authorization filter applied in the query, before `limit`. */
+  visibility?: ActivityLogVisibility
   /** Hard upper bound on the number of rows returned. */
   limit: number
 }
@@ -41,6 +57,8 @@ export interface CountSinceOptions {
   entityType: EntityType
   /** Lower bound (inclusive) for `createdAt` in seconds since epoch. */
   sinceTimestamp: number
+  /** Authorization filter applied in the query. */
+  visibility?: ActivityLogVisibility
 }
 
 export interface IActivityLogRepository {
@@ -49,7 +67,7 @@ export interface IActivityLogRepository {
    *
    * The list is always ordered by `createdAt` DESC so callers get newest-first
    * data without paying extra sort costs in TypeScript. Used by the settings
-   * activity tab (per-user) and by the stats recent-activity feed (global).
+   * activity tab (per-user) and by the stats recent-activity feed (scope-projected).
    */
   list(options: ActivityLogListOptions): Promise<ActivityLogRecord[]>
 

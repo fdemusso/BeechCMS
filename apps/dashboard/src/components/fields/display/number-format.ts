@@ -4,6 +4,18 @@
 
 import type { NumberFieldOptions } from "@beechcms/core"
 
+const formatterCache = new Map<string, Intl.NumberFormat>()
+
+function getFormatter(intlOpts: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = JSON.stringify(intlOpts)
+  let formatter = formatterCache.get(key)
+  if (!formatter) {
+    formatter = new Intl.NumberFormat("it-IT", intlOpts)
+    formatterCache.set(key, formatter)
+  }
+  return formatter
+}
+
 /**
  * Formats a number for display using the `it-IT` locale, honoring the field's
  * currency/percentage/compact format, decimals, grouping, and optional prefix/suffix.
@@ -39,7 +51,7 @@ export function formatNumber(num: number, options?: NumberFieldOptions): string 
     intlOpts.useGrouping = options.grouping
   }
 
-  let formatted = new Intl.NumberFormat("it-IT", intlOpts).format(num)
+  let formatted = getFormatter(intlOpts).format(num)
 
   // Percent and currency formats handle their own symbols usually, 
   // but if explicit prefix/suffix are provided we append them.

@@ -31,16 +31,11 @@ type ScopeSource = 'global' | 'capture1'
  *                                 The slice behind it MUST still make the exact
  *                                 per-scope decision (`hasPermission` / `canGrant`).
  * - `'authenticated'`           — any active account; self-service and dashboard chrome.
- * - `'legacy-admin'`            — deferred to the slice's own `users.role === 'admin'`
- *                                 guard. The developer axis (brief §2): schema mutation
- *                                 is NOT representable as an RBAC permission and must
- *                                 never become one.
  */
 export type RouteRequirement =
   | { kind: 'permission'; permission: Permission; scope: ScopeSource }
   | { kind: 'permission-any-scope'; permissions: readonly Permission[] }
   | { kind: 'authenticated' }
-  | { kind: 'legacy-admin' }
 
 interface ProtectedRoute {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
@@ -54,7 +49,6 @@ const perm = (permission: Permission, scope: ScopeSource): RouteRequirement =>
 const anyScope = (...permissions: Permission[]): RouteRequirement =>
   ({ kind: 'permission-any-scope', permissions })
 const AUTHED: RouteRequirement = { kind: 'authenticated' }
-const LEGACY_ADMIN: RouteRequirement = { kind: 'legacy-admin' }
 
 /**
  * Closed allowlist of every route mounted under `apiProtected`.
@@ -79,27 +73,32 @@ const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'PUT',    pattern: /^\/api\/settings\/notifications$/,         requirement: AUTHED },
   { method: 'GET',    pattern: /^\/api\/settings\/activity$/,              requirement: AUTHED },
   { method: 'GET',    pattern: /^\/api\/settings\/storage$/,               requirement: perm('view_analytics', 'global') },
-  // Same gate as DELETE /api/upload/:key; the handler adds the owner-or-admin check.
+  // Same gate as DELETE /api/upload/:key; the handler adds the owner-or-`manage_users@*` check.
   { method: 'POST',   pattern: /^\/api\/settings\/storage\/orphans\/delete$/, requirement: perm('content:delete', 'global') },
   { method: 'GET',    pattern: /^\/api\/settings\/?$/,                     requirement: AUTHED },
   { method: 'PUT',    pattern: /^\/api\/settings\/?$/,                     requirement: perm('manage_users', 'global') },
 
-  // --- schema: read is dashboard chrome; layout writes are the developer axis ---
+  // --- schema: read is dashboard chrome; seed form layout writes are schema authoring, so manage_seeds at the global scope ---
   { method: 'GET',    pattern: /^\/api\/schema\/?$/,                       requirement: AUTHED },
-  { method: 'PUT',    pattern: /^\/api\/schema\/[^/]+\/layout$/,           requirement: LEGACY_ADMIN },
-  { method: 'DELETE', pattern: /^\/api\/schema\/[^/]+\/layout$/,           requirement: LEGACY_ADMIN },
+  { method: 'PUT',    pattern: /^\/api\/schema\/[^/]+\/layout$/,           requirement: perm('manage_seeds', 'global') },
+  { method: 'DELETE', pattern: /^\/api\/schema\/[^/]+\/layout$/,           requirement: perm('manage_seeds', 'global') },
 
-  // --- seeds: developer axis in full (in-slice requireAdmin decides) -----------
-  { method: 'GET',    pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: LEGACY_ADMIN },
-  { method: 'POST',   pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: LEGACY_ADMIN },
-  { method: 'PUT',    pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: LEGACY_ADMIN },
-  { method: 'PATCH',  pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: LEGACY_ADMIN },
-  { method: 'DELETE', pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: LEGACY_ADMIN },
+  // --- seeds: schema mutation, manage_seeds at the global scope only ---
+  { method: 'GET',    pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: perm('manage_seeds', 'global') },
+  { method: 'POST',   pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: perm('manage_seeds', 'global') },
+  { method: 'PUT',    pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: perm('manage_seeds', 'global') },
+  { method: 'PATCH',  pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: perm('manage_seeds', 'global') },
+  { method: 'DELETE', pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: perm('manage_seeds', 'global') },
 
   // --- dashboard layout --------------------------------------------------------
-  { method: 'GET',    pattern: /^\/api\/dashboard-layout(\/.*)?$/,         requirement: AUTHED },
-  { method: 'PUT',    pattern: /^\/api\/dashboard-layout(\/.*)?$/,         requirement: perm('manage_users', 'global') },
-  { method: 'DELETE', pattern: /^\/api\/dashboard-layout(\/.*)?$/,         requirement: perm('manage_users', 'global') },
+  // The handler's projection is the authorization decision for the read: tabs outside the
+  // caller's role audience and widgets on seeds they cannot read never leave the server.
+  { method: 'GET',    pattern: /^\/api\/dashboard-layout\/?$/,             requirement: AUTHED },
+  { method: 'GET',    pattern: /^\/api\/dashboard-layout\/roles$/,         requirement: perm('manage_roles', 'global') },
+  // Coarse gate only: the handler requires `manage_layout` or `manage_roles` at the GLOBAL scope, and
+  // refuses structural changes to callers without `manage_roles@*`.
+  { method: 'PUT',    pattern: /^\/api\/dashboard-layout\/?$/,             requirement: anyScope('manage_layout', 'manage_roles') },
+  { method: 'DELETE', pattern: /^\/api\/dashboard-layout\/?$/,             requirement: perm('manage_roles', 'global') },
 
   // --- /api/content literal prefixes — MUST precede the :slug patterns ---------
   { method: 'GET',    pattern: /^\/api\/content\/notifications$/,          requirement: AUTHED },
@@ -110,7 +109,19 @@ const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   // strictly narrower than a global `content:read` gate — a caller with no readable seed
   // receives an empty list, a seed-scoped caller receives their own subset.
   { method: 'GET',    pattern: /^\/api\/content\/drafts$/,                 requirement: AUTHED },
-  { method: 'GET',    pattern: /^\/api\/content\/stats\/[^/]+$/,           requirement: perm('view_analytics', 'global') },
+  // The handler's scope projection is the authorization decision for these three routes:
+  // counts and the activity feed cover only seeds the caller may read (brief: stats leak).
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/total$/,           requirement: AUTHED },
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/breakdown$/,       requirement: AUTHED },
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/recent-activity$/, requirement: AUTHED },
+  // Media belongs to no seed: only a global reader may list it; one seed-scoped grant is not enough.
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/media-library$/,   requirement: perm('content:read', 'global') },
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/unused-media$/,    requirement: perm('content:read', 'global') },
+  // Exposes seed slugs and system state: administration only.
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/setup-checklist$/, requirement: perm('manage_users', 'global') },
+  // Infrastructure, not seed data.
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/health$/,          requirement: perm('view_analytics', 'global') },
+  { method: 'GET',    pattern: /^\/api\/content\/stats\/cloudflare$/,      requirement: perm('view_analytics', 'global') },
   { method: 'POST',   pattern: /^\/api\/content\/stats\/storage\/sync$/,   requirement: perm('view_analytics', 'global') },
   // Coarse gate only. The exact decision — creator OR holder of content:create on the job's
   // TARGET seed — is made in the handler, because that scope is not in the URL. Same shape as
@@ -259,10 +270,6 @@ export function requireActiveAccount() {
  *    which is what makes deactivation revoke access instantly despite 15-minute JWTs;
  * 2. unregistered route — fail-closed;
  * 3. missing permission at the route's scope.
- *
- * `legacy-admin` routes are passed through to their in-slice `users.role === 'admin'`
- * guard: seed-schema mutation is deliberately not expressible as an RBAC permission
- * (brief §2) and must never be granted one.
  */
 export function permissionMiddleware() {
   return async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next): Promise<Response | void> => {
@@ -277,7 +284,7 @@ export function permissionMiddleware() {
       )
     }
 
-    if (rule.requirement.kind === 'authenticated' || rule.requirement.kind === 'legacy-admin') {
+    if (rule.requirement.kind === 'authenticated') {
       await next()
       return
     }

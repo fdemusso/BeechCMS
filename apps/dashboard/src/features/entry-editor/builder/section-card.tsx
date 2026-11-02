@@ -3,273 +3,186 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSortable, SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { Check, More as MoreHorizontal } from '@/components/icons'
-import { GripDots } from '@/components/ui/grip-dots'
+import { Check } from '@/components/icons'
 import { toast } from 'sonner'
 import type { LayoutSection, Branch } from '@beechcms/core'
 import { LAYOUT_SECTION_LABEL_MAX, isFullWidthBranch } from '@beechcms/core'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ColumnCard } from './column-card'
-import { BuilderDragContext } from './use-builder-dnd'
-import { useAnimatedSectionHeight } from './use-animated-section-height'
-import type { UseLayoutBuilderResult } from './use-layout-builder'
+import { FLUSH_MENU } from '@/components/builder/flush-menu'
+import { SectionShell, type SectionMenuApi } from '@/components/builder/section-shell'
+import type { LayoutBuilderActions } from './use-layout-builder'
+import { dragIds } from './use-builder-dnd'
+
+interface SectionMenuProps {
+  readonly tabId: string
+  readonly sectionId: string
+  readonly hideLabel: boolean
+  readonly hideBorder: boolean
+  readonly collapsible: boolean
+  readonly columnCount: 1 | 2 | 3 | 4
+  /** A section holding a full-width field stays in one column. */
+  readonly hasFullWidthField: boolean
+  readonly fieldCount: number
+  readonly api: SectionMenuApi
+  readonly ops: LayoutBuilderActions
+}
 
 /**
- * Flush menu: no inner padding and square items, so the window's own rounded corners (it clips its content)
- * are the only rounding, and only the first and last item, the ones touching them, show it.
+ * The items of a section's menu. Memoised on primitives, apart from the section: dnd-kit redraws every section when
+ * the drop target changes, and without this each of those redraws rebuilt a dozen menu elements per section.
  */
-const FLUSH_MENU = 'p-0 [&_[data-slot=dropdown-menu-item]]:rounded-none [&_[data-slot=dropdown-menu-item]]:px-3 [&_[data-slot=dropdown-menu-sub-trigger]]:rounded-none [&_[data-slot=dropdown-menu-sub-trigger]]:px-3 [&_[data-slot=dropdown-menu-separator]]:mx-0 [&_[data-slot=dropdown-menu-separator]]:my-0'
-
+const SectionMenu = React.memo(function SectionMenu({
+  tabId,
+  sectionId,
+  hideLabel,
+  hideBorder,
+  collapsible,
+  columnCount,
+  hasFullWidthField,
+  fieldCount,
+  api,
+  ops,
+}: Readonly<SectionMenuProps>) {
+  const { t } = useTranslation()
+  return (
+    <>
+      <DropdownMenuItem onSelect={api.startRename}>{t('layoutBuilder.sectionMenu.rename')}</DropdownMenuItem>
+      <DropdownMenuSeparator />
+      {/* The toggles keep the menu open so several flags can be set in a row. */}
+      <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(tabId, sectionId, 'hideLabel') }}>
+        <Check className={hideLabel ? 'opacity-100' : 'opacity-0'} />
+        {t('layoutBuilder.sectionMenu.hideLabel')}
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(tabId, sectionId, 'hideBorder') }}>
+        <Check className={hideBorder ? 'opacity-100' : 'opacity-0'} />
+        {t('layoutBuilder.sectionMenu.hideBorder')}
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(tabId, sectionId, 'collapsible') }}>
+        <Check className={collapsible ? 'opacity-100' : 'opacity-0'} />
+        {t('layoutBuilder.sectionMenu.collapsible')}
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      {hasFullWidthField ? (
+        <DropdownMenuItem
+          className="text-muted-foreground"
+          onSelect={() => toast.warning(t('layoutBuilder.warnFullWidthColumns'))}
+        >
+          {t('layoutBuilder.sectionMenu.columns')}
+        </DropdownMenuItem>
+      ) : (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>{t('layoutBuilder.sectionMenu.columns')}</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className={FLUSH_MENU}>
+            {([1, 2, 3, 4] as const).map((n) => (
+              <DropdownMenuItem
+                key={n}
+                onSelect={(event) => { event.preventDefault(); ops.setSectionColumnCount(tabId, sectionId, n) }}
+              >
+                <Check className={columnCount === n ? 'opacity-100' : 'opacity-0'} />
+                <span className="ml-auto">{n}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
+      <DropdownMenuSeparator />
+      <DropdownMenuItem className="text-destructive" onSelect={() => api.requestRemove(fieldCount > 0)}>
+        {t('layoutBuilder.sectionMenu.remove')}
+      </DropdownMenuItem>
+    </>
+  )
+})
 
 interface SectionCardProps {
   readonly tabId: string
   readonly section: LayoutSection
   readonly branchById: Record<string, Branch>
   readonly availableBranches: Branch[]
-  readonly ops: UseLayoutBuilderResult
-  readonly dragId: string
+  readonly ops: LayoutBuilderActions
 }
 
-export function SectionCard({
+/**
+ * An entry-layout section: the shared section frame, with the entry builder's menu and its equal-width columns.
+ * Memoised: its props keep their identity while another section is edited or dragged into.
+ */
+export const SectionCard = React.memo(function SectionCard({
   tabId,
   section,
   branchById,
   availableBranches,
   ops,
-  dragId,
 }: Readonly<SectionCardProps>) {
   const { t } = useTranslation()
-  const [isRenaming, setIsRenaming] = React.useState(false)
-  const [renameValue, setRenameValue] = React.useState(section.label ?? '')
-  const [showRemoveConfirm, setShowRemoveConfirm] = React.useState(false)
-
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: dragId,
-    data: { type: 'section' },
-  })
-
-  // While a field is in flight the section may only grow, so lifting a field out of its column does not
-  // shrink it under the pointer; it eases to its real height at the drop.
-  const { draggingField } = React.useContext(BuilderDragContext)
-  const heightLock = useAnimatedSectionHeight(draggingField)
-  const setRefs = React.useCallback(
-    (node: HTMLDivElement | null) => {
-      setNodeRef(node)
-      heightLock.outerRef.current = node
-    },
-    [setNodeRef, heightLock.outerRef],
-  )
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    // The sortable's own transition (while another section is dragged past) and the height's, together.
-    transition: [transition, heightLock.style?.transition].filter(Boolean).join(', ') || undefined,
-    opacity: isDragging ? 0.5 : 1,
-    height: heightLock.style?.height,
-    overflow: heightLock.style?.overflow,
-  }
+  const sectionId = section.id
 
   const fieldCount = section.columns.reduce((sum, c) => sum + c.fields.length, 0)
-
   const hasFullWidthField = section.columns.some((c) =>
     c.fields.some((f) => {
       const b = branchById[f.branchId]
       return b != null && isFullWidthBranch(b)
     })
   )
-
-  function commitRename() {
-    ops.renameSection(tabId, section.id, renameValue.trim() || undefined)
-    setIsRenaming(false)
-  }
-
   const columnCount = section.columns.length as 1 | 2 | 3 | 4
-  const colDragIds = section.columns.map(
-    (c) => `column:${tabId}:${section.id}:${c.id}`
+
+  const onRename = React.useCallback(
+    (label: string | undefined) => ops.renameSection(tabId, sectionId, label),
+    [ops, tabId, sectionId],
   )
+  const onRemove = React.useCallback(() => ops.removeSection(tabId, sectionId), [ops, tabId, sectionId])
 
   return (
-    <div ref={setRefs} style={style} className="rounded-lg border min-w-0 max-w-full">
-      <div ref={heightLock.innerRef as React.RefObject<HTMLDivElement>}>
-      {/* Section header */}
-      <div className="flex items-center gap-2 px-3 py-2">
-        <button
-          type="button"
-          className="cursor-grab text-muted-foreground hover:text-foreground"
-          {...attributes}
-          {...listeners}
-        >
-          <GripDots className="size-4" />
-        </button>
-
-        {isRenaming ? (
-          <Input
-            autoFocus
-            className="h-7 flex-1 rounded-md text-sm focus-visible:ring-1 focus-visible:ring-ring/30"
-            value={renameValue}
-            maxLength={LAYOUT_SECTION_LABEL_MAX}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onBlur={commitRename}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') commitRename()
-              if (e.key === 'Escape') setIsRenaming(false)
-            }}
-          />
-        ) : (
-          <span
-            role="button"
-            tabIndex={0}
-            className={`flex-1 text-sm font-medium cursor-text focus-visible:outline-none focus-visible:underline ${
-              section.label ? '' : 'text-muted-foreground italic'
-            }`}
-            onDoubleClick={() => {
-              setRenameValue(section.label ?? '')
-              setIsRenaming(true)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                setRenameValue(section.label ?? '')
-                setIsRenaming(true)
-              }
-            }}
-          >
-            {section.label ?? t('layoutBuilder.noLabel')}
-          </span>
-        )}
-
-        <Badge variant="secondary" className="text-xs">
-          {t('layoutBuilder.fieldCount', { count: fieldCount })}
-        </Badge>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="ghost" size="icon" className="size-7">
-              <MoreHorizontal className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className={FLUSH_MENU}>
-            <DropdownMenuItem
-              onSelect={() => {
-                setRenameValue(section.label ?? '')
-                setIsRenaming(true)
-              }}
-            >
-              {t('layoutBuilder.sectionMenu.rename')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {/* The toggles keep the menu open so several flags can be set in a row. */}
-            <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(tabId, section.id, 'hideLabel') }}>
-              <Check className={section.hideLabel ? 'opacity-100' : 'opacity-0'} />
-              {t('layoutBuilder.sectionMenu.hideLabel')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(tabId, section.id, 'hideBorder') }}>
-              <Check className={section.hideBorder ? 'opacity-100' : 'opacity-0'} />
-              {t('layoutBuilder.sectionMenu.hideBorder')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(tabId, section.id, 'collapsible') }}>
-              <Check className={section.collapsible ? 'opacity-100' : 'opacity-0'} />
-              {t('layoutBuilder.sectionMenu.collapsible')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {hasFullWidthField ? (
-              <DropdownMenuItem
-                className="text-muted-foreground"
-                onSelect={() => toast.warning(t('layoutBuilder.warnFullWidthColumns'))}
-              >
-                {t('layoutBuilder.sectionMenu.columns')}
-              </DropdownMenuItem>
-            ) : (
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>{t('layoutBuilder.sectionMenu.columns')}</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className={FLUSH_MENU}>
-                {([1, 2, 3, 4] as const).map((n) => (
-                  <DropdownMenuItem
-                    key={n}
-                    onSelect={(event) => { event.preventDefault(); ops.setSectionColumnCount(tabId, section.id, n) }}
-                  >
-                    <Check className={columnCount === n ? 'opacity-100' : 'opacity-0'} />
-                    <span className="ml-auto">{n}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive"
-              // An empty section has nothing to lose: no confirmation.
-              onSelect={() => (fieldCount === 0 ? ops.removeSection(tabId, section.id) : setShowRemoveConfirm(true))}
-            >
-              {t('layoutBuilder.sectionMenu.remove')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Columns */}
-      <div className="px-3 pb-3 grid gap-3 min-w-0 max-w-full" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
-        <SortableContext items={colDragIds} strategy={horizontalListSortingStrategy}>
-          {section.columns.map((col) => {
-            const colDragId = `column:${tabId}:${section.id}:${col.id}`
-            return (
-              <ColumnCard
-                key={col.id}
-                tabId={tabId}
-                sectionId={section.id}
-                columnId={col.id}
-                fields={col.fields}
-                branchById={branchById}
-                availableBranches={availableBranches}
-                ops={ops}
-                dragId={colDragId}
-                reorderable={columnCount > 1}
-              />
-            )
-          })}
-        </SortableContext>
-      </div>
-
-      {/* Inline remove confirm */}
-      {showRemoveConfirm && (
-        <div className="px-3 pb-3 flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="flex-1">{t('layoutBuilder.sectionMenu.remove')}?</span>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => {
-              ops.removeSection(tabId, section.id)
-              setShowRemoveConfirm(false)
-            }}
-          >
-            {t('common.confirm')}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowRemoveConfirm(false)}
-          >
-            {t('common.cancel')}
-          </Button>
-        </div>
+    <SectionShell
+      dragId={dragIds.section(tabId, sectionId)}
+      label={section.label}
+      labelMax={LAYOUT_SECTION_LABEL_MAX}
+      noLabelText={t('layoutBuilder.noLabel')}
+      dragHandleLabel={t('layoutBuilder.dragSection')}
+      countText={t('layoutBuilder.fieldCount', { count: fieldCount })}
+      removeConfirmText={`${t('layoutBuilder.sectionMenu.remove')}?`}
+      onRename={onRename}
+      onRemove={onRemove}
+      columnDragIds={section.columns.map((c) => dragIds.column(tabId, sectionId, c.id))}
+      columnsClassName="grid min-w-0 max-w-full gap-3 px-3 pb-3"
+      columnsStyle={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
+      // The entry dialog is as tall as its content and centred: a field dropped in another section changes two
+      // heights at once and would recentre everything in a single frame.
+      animateHeight
+      renderMenu={(api) => (
+        <SectionMenu
+          tabId={tabId}
+          sectionId={sectionId}
+          hideLabel={!!section.hideLabel}
+          hideBorder={!!section.hideBorder}
+          collapsible={!!section.collapsible}
+          columnCount={columnCount}
+          hasFullWidthField={hasFullWidthField}
+          fieldCount={fieldCount}
+          api={api}
+          ops={ops}
+        />
       )}
-      </div>
-    </div>
+    >
+      {section.columns.map((col) => (
+        <ColumnCard
+          key={col.id}
+          tabId={tabId}
+          sectionId={sectionId}
+          columnId={col.id}
+          fields={col.fields}
+          branchById={branchById}
+          availableBranches={availableBranches}
+          ops={ops}
+          dragId={dragIds.column(tabId, sectionId, col.id)}
+          reorderable={columnCount > 1}
+        />
+      ))}
+    </SectionShell>
   )
-}
+})

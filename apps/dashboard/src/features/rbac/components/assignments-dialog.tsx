@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { SUPER_ADMIN_ROLE_NAME, type Scope } from "@beechcms/core"
+import type { Scope } from "@beechcms/core"
 import {
   Dialog,
   DialogContent,
@@ -29,7 +29,6 @@ export interface AssignmentsDialogProps {
   onOpenChange: (open: boolean) => void
   userId: string | null
   userEmail?: string
-  isDeveloper?: boolean
 }
 
 export function AssignmentsDialog({
@@ -37,7 +36,6 @@ export function AssignmentsDialog({
   onOpenChange,
   userId,
   userEmail,
-  isDeveloper = false,
 }: AssignmentsDialogProps) {
   const { t } = useTranslation()
   const { can } = usePermissions()
@@ -85,59 +83,39 @@ export function AssignmentsDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {/* PermissionBadgeGroup renders tooltips that need a provider. */}
         <TooltipProvider delayDuration={100} disableHoverableContent>
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-            {assignments.map((assignment) => {
-              const isSuperAdmin =
-                assignment.roleName === SUPER_ADMIN_ROLE_NAME || assignment.roleName === "SuperAdmin"
-              const cannotDelete = isDeveloper && isSuperAdmin
-
-              return (
-                <div
-                  key={assignment.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-muted/20 p-2.5 transition-colors"
-                >
-                  <div className="min-w-0 flex-1 flex items-center gap-2.5 flex-wrap">
-                    <span className="text-sm font-medium text-foreground">
-                      {assignment.roleName ?? assignment.roleId}
-                    </span>
-                    <PermissionBadgeGroup permissions={assignment.permissions} max={3} />
-                    <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded border border-border/50">
-                      {assignment.scope}
-                    </span>
-                    {!assignment.active && (
-                      <Badge variant="outline" className="text-[10px] text-destructive border-destructive/40">
-                        {t("rbac.assignments.inactiveScope", "Inactive scope")}
-                      </Badge>
-                    )}
-                  </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          disabled={cannotDelete}
-                          className="size-8 shrink-0 text-muted-foreground hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed"
-                          onClick={() => handleRemove(assignment.id)}
-                          aria-label={t("common.delete", "Delete")}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    {cannotDelete && (
-                      <TooltipContent side="left">
-                        {t(
-                          "rbac.assignments.cannotRemoveDevSuperAdmin",
-                          "The developer account must retain the SuperAdmin role"
-                        )}
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
+            {assignments.map((assignment) => (
+              <div
+                key={assignment.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-muted/20 p-2.5 transition-colors"
+              >
+                <div className="min-w-0 flex-1 flex items-center gap-2.5 flex-wrap">
+                  <span className="text-sm font-medium text-foreground">
+                    {assignment.roleName ?? assignment.roleId}
+                  </span>
+                  <PermissionBadgeGroup permissions={assignment.permissions} max={3} />
+                  <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded border border-border/50">
+                    {assignment.scope}
+                  </span>
+                  {!assignment.active && (
+                    <Badge variant="outline" className="text-[10px] text-destructive border-destructive/40">
+                      {t("rbac.assignments.inactiveScope", "Inactive scope")}
+                    </Badge>
+                  )}
                 </div>
-              )
-            })}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={() => handleRemove(assignment.id)}
+                  aria-label={t("common.delete", "Delete")}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ))}
             {assignments.length === 0 && (
               <p className="text-sm text-muted-foreground py-3 text-center">{t("rbac.assignments.empty", "No assignments yet")}</p>
             )}

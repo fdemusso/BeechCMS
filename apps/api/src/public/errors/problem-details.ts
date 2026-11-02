@@ -79,7 +79,7 @@ interface PublicProblemDetailItem {
   message: string
 }
 
-type PublicProblemStatus = 400 | 401 | 403 | 404 | 405 | 409 | 413 | 422 | 429 | 500 | 501 | 503
+type PublicProblemStatus = 400 | 401 | 403 | 404 | 405 | 409 | 413 | 422 | 428 | 429 | 500 | 501 | 503
 
 type PublicProblemInput<S extends PublicProblemStatus = PublicProblemStatus> = {
   type: string

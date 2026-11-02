@@ -151,7 +151,6 @@ async function loginHandler(context: Context<AuthEnv, string, ZodJsonInput<typeo
       email: user.email,
       name: user.name ?? undefined,
       surname: user.surname ?? undefined,
-      role: user.role,
     })
     const refreshToken = generateOpaqueToken()
     const refreshTokenHash = await sha256hex(refreshToken)
@@ -209,7 +208,6 @@ async function refreshHandler(context: AuthContext) {
       email: user.email,
       name: user.name ?? undefined,
       surname: user.surname ?? undefined,
-      role: user.role,
     })
     const newRefreshToken = generateOpaqueToken()
     const newRefreshTokenHash = await sha256hex(newRefreshToken)

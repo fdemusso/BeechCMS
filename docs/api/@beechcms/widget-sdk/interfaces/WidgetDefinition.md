@@ -80,6 +80,16 @@ Builder hint: minimum sensible column span out of 12.
 
 ***
 
+### requires?
+
+> `optional` **requires?**: [`WidgetRequirement`](../type-aliases/WidgetRequirement.md)
+
+What a caller needs to use this widget, evaluated with `@beechcms/core`'s `isWidgetRequirementMet`.
+ Absent = every caller. The dashboard hides a widget whose requirement is unmet, and the builder
+ palette does not offer it. Ignored for built-in `core/` types, whose requirement core resolves.
+
+***
+
 ### type
 
 > **type**: `string`

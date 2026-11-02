@@ -107,7 +107,7 @@ export function SettingsDialog({
   onTabChange,
 }: Readonly<SettingsDialogProps>) {
   const { t } = useTranslation()
-  const { canGlobally, canAnywhere, isDeveloper } = usePermissions()
+  const { canGlobally, canAnywhere } = usePermissions()
 
   const groups: ReadonlyArray<SettingsGroup> = [
     {
@@ -146,7 +146,7 @@ export function SettingsDialog({
     {
       id: "models",
       title: t("settings.groups.models", "Data Models"),
-      items: isDeveloper
+      items: canGlobally('manage_seeds')
         ? [{ id: "content-types" as const, label: t("seedBuilder.page.navTitle", "Content Types"), icon: Layers }]
         : [],
     },

@@ -94,6 +94,95 @@ describe('D1ActivityLogRepository', () => {
     expect(prepareMock.mock.calls[0][0]).toMatch(/LIMIT \?/)
   })
 
+  describe('visibility', () => {
+    it('list with a slug list emits the json_each clause and binds the JSON array before the limit', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb([])
+
+      await new D1ActivityLogRepository(db).list({ visibility: { seeds: ['posts'], includeUnscoped: false }, limit: 15 })
+
+      expect(prepareMock.mock.calls[0][0]).toMatch(/WHERE entity_slug IN \(SELECT value FROM json_each\(\?\)\)\s+ORDER BY/)
+      expect(bindMock).toHaveBeenCalledWith('["posts"]', 15)
+    })
+
+    it('list with a slug list and includeUnscoped ORs the null-slug rows inside parentheses', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb([])
+
+      await new D1ActivityLogRepository(db).list({ visibility: { seeds: ['posts', 'pages'], includeUnscoped: true }, limit: 15 })
+
+      expect(prepareMock.mock.calls[0][0]).toMatch(
+        /WHERE \(entity_slug IN \(SELECT value FROM json_each\(\?\)\) OR entity_slug IS NULL\)/,
+      )
+      expect(bindMock).toHaveBeenCalledWith('["posts","pages"]', 15)
+    })
+
+    it('list with all seeds and no unscoped rows emits IS NOT NULL without an extra binding', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb([])
+
+      await new D1ActivityLogRepository(db).list({ visibility: { seeds: 'all', includeUnscoped: false }, limit: 15 })
+
+      expect(prepareMock.mock.calls[0][0]).toMatch(/WHERE entity_slug IS NOT NULL\s+ORDER BY/)
+      expect(bindMock).toHaveBeenCalledWith(15)
+    })
+
+    it('list with an empty slug list and no unscoped rows emits 1 = 0, never an empty IN', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb([])
+
+      await new D1ActivityLogRepository(db).list({ visibility: { seeds: [], includeUnscoped: false }, limit: 15 })
+
+      expect(prepareMock.mock.calls[0][0]).toMatch(/WHERE 1 = 0\s+ORDER BY/)
+      expect(prepareMock.mock.calls[0][0]).not.toMatch(/IN \(\)/)
+      expect(bindMock).toHaveBeenCalledWith(15)
+    })
+
+    it('list with an empty slug list and unscoped rows matches only null-slug rows', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb([])
+
+      await new D1ActivityLogRepository(db).list({ visibility: { seeds: [], includeUnscoped: true }, limit: 15 })
+
+      expect(prepareMock.mock.calls[0][0]).toMatch(/WHERE entity_slug IS NULL\s+ORDER BY/)
+      expect(bindMock).toHaveBeenCalledWith(15)
+    })
+
+    it('list with all seeds and unscoped rows emits no visibility clause', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb([])
+
+      await new D1ActivityLogRepository(db).list({ visibility: { seeds: 'all', includeUnscoped: true }, limit: 15 })
+
+      expect(prepareMock.mock.calls[0][0]).not.toMatch(/WHERE/)
+      expect(bindMock).toHaveBeenCalledWith(15)
+    })
+
+    it('countSince appends the clause after created_at and binds the JSON array last', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb([], { count: 2 })
+
+      const result = await new D1ActivityLogRepository(db).countSince({
+        action: 'create',
+        entityType: 'content',
+        sinceTimestamp: 1000,
+        visibility: { seeds: ['posts'], includeUnscoped: false },
+      })
+
+      expect(result).toBe(2)
+      expect(prepareMock.mock.calls[0][0]).toMatch(/AND created_at >= \? AND entity_slug IN \(SELECT value FROM json_each\(\?\)\)/)
+      expect(bindMock).toHaveBeenCalledWith('create', 'content', 1000, '["posts"]')
+    })
+
+    it('list combines entitySlug and visibility with AND, binding entitySlug, visibility, then limit', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb([])
+
+      await new D1ActivityLogRepository(db).list({
+        entitySlug: 'posts',
+        visibility: { seeds: ['posts'], includeUnscoped: false },
+        limit: 15,
+      })
+
+      expect(prepareMock.mock.calls[0][0]).toMatch(
+        /WHERE entity_slug = \? AND entity_slug IN \(SELECT value FROM json_each\(\?\)\)/,
+      )
+      expect(bindMock).toHaveBeenCalledWith('posts', '["posts"]', 15)
+    })
+  })
+
   describe('countSince', () => {
     it('binds action, entityType and sinceTimestamp and returns the count', async () => {
       const { db, prepareMock, bindMock } = makeMockDb([], { count: 42 })

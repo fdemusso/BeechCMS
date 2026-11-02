@@ -6,7 +6,6 @@
 
 export interface ISetupChecklistRepository {
   getExistingTableNames(): Promise<Set<string>>
-  countAdmins(): Promise<number>
   countEntriesInSeed(slug: string): Promise<number>
 }
 
@@ -18,13 +17,6 @@ export class D1SetupChecklistRepository implements ISetupChecklistRepository {
       .prepare(`SELECT name FROM sqlite_master WHERE type='table'`)
       .all<{ name: string }>()
     return new Set((result.results ?? []).map(row => row.name))
-  }
-
-  async countAdmins(): Promise<number> {
-    const result = await this.db
-      .prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'admin'`)
-      .first<{ count: number }>()
-    return result?.count ?? 0
   }
 
   async countEntriesInSeed(slug: string): Promise<number> {

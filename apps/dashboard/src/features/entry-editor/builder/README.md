@@ -7,7 +7,10 @@ This folder is finished. Behaviours that look odd are deliberate; the reasons ar
 The ones most often broken by mistake:
 
 - `DragOverlay` is portalled to `document.body` (the dialog has a CSS transform).
-- Sections never shrink during a drag; they ease to their real height at the drop (`use-animated-section-height.ts`).
+- Nothing moves during a drag: the pointer picks a drop target, a marker (no room of its own) shows it, the move is made at the drop (`use-builder-dnd.ts` is only the adapter over the shared `useLayoutDnd`). Do not bring live moves back.
+- Sections are not touched during a drag; at the drop they ease from their pick-up height to the new one (`use-animated-section-height.ts`, `animateHeight` on `SectionCard`).
+- The drag engine, the section and column frames and the draft storage are shared with the dashboard builder (`src/components/builder/`); keep what is entry-specific (full-width rule, field list, handle strip, equal columns) in this folder.
+- `ColumnCard`, `SectionCard` and `FieldItem` are memoised and take the stable `ops.actions`; keep the draft out of their props.
 - Footer buttons are disabled while dragging; `Back` only closes. No discard dialog: the draft is recovered on reload instead.
 - The draft lives in `sessionStorage` and is cleared on exit (unmount), never on reload.
 - Drop areas are thin, solid, grey lines; no dashed borders, no accent colour.

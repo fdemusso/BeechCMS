@@ -247,8 +247,11 @@ export const useMinimalTiptapEditor = ({
     (editor: Editor) => {
       const normalized = normalizeContent(value)
       if (normalized && editor.isEmpty) {
+        // Hydrating from `value` is not an edit: Tiptap 3 emits `update` from setContent by default, and that
+        // marked every form with a rich text field as having unsaved changes the moment it opened.
         editor.commands.setContent(normalized, {
           contentType: output === "markdown" ? "markdown" : undefined,
+          emitUpdate: false,
         })
       }
     },
@@ -289,12 +292,13 @@ export const useMinimalTiptapEditor = ({
       const currentJson = JSON.stringify(currentOutput)
       const newJson = JSON.stringify(normalized)
       if (currentJson !== newJson) {
-        editor.commands.setContent(normalized)
+        editor.commands.setContent(normalized, { emitUpdate: false })
       }
     } else {
       if (currentOutput !== normalized) {
         editor.commands.setContent(normalized, {
           contentType: output === "markdown" ? "markdown" : undefined,
+          emitUpdate: false,
         })
       }
     }

@@ -21,7 +21,7 @@ never [GLOBAL\_SCOPE](../variables/GLOBAL_SCOPE.md) — that asymmetry is what s
 
 ### permission
 
-`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"`
+`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"` \| `"manage_layout"` \| `"manage_seeds"`
 
 ### scope
 

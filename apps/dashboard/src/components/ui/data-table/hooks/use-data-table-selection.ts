@@ -48,17 +48,22 @@ export function useDataTableSelection<TData>(
 ): DataTableSelection {
   const anchorRef = React.useRef<string | null>(null)
   // Esc clears the selection but must keep the focused row (second Esc drops it).
-  const keepFocusOnEmptyRef = React.useRef(false)
+  const [keepFocusOnEmpty, setKeepFocusOnEmpty] = React.useState(false)
   const [focusedRowId, setFocusedRowId] = React.useState<string | null>(null)
 
   const selectionCount = Object.keys(table.getState().rowSelection).length
-  React.useEffect(() => {
-    // Nothing selected anymore (checkbox, Esc, bulk action): drop focus marker and anchor.
+  const [prevSelectionCount, setPrevSelectionCount] = React.useState(selectionCount)
+  if (selectionCount !== prevSelectionCount) {
+    setPrevSelectionCount(selectionCount)
+    // Nothing selected anymore (checkbox, Esc, bulk action): drop focus marker.
     if (selectionCount === 0) {
-      anchorRef.current = null
-      if (keepFocusOnEmptyRef.current) keepFocusOnEmptyRef.current = false
+      if (keepFocusOnEmpty) setKeepFocusOnEmpty(false)
       else setFocusedRowId(null)
     }
+  }
+  React.useEffect(() => {
+    // Nothing selected anymore: drop the range anchor.
+    if (selectionCount === 0) anchorRef.current = null
   }, [selectionCount])
 
   const getLeafRows = React.useCallback(
@@ -310,7 +315,7 @@ export function useDataTableSelection<TData>(
         case "Escape":
           if (Object.keys(table.getState().rowSelection).length > 0) {
             e.preventDefault()
-            keepFocusOnEmptyRef.current = true
+            setKeepFocusOnEmpty(true)
             table.setRowSelection({})
           } else if (focusedRowId) {
             e.preventDefault()

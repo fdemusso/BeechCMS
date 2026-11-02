@@ -80,11 +80,10 @@ export async function seedUsers(
 ): Promise<void> {
   for (const user of users) {
     await db.prepare(
-      'INSERT OR IGNORE INTO users (id, email, password_hash, role, name) VALUES (?, ?, ?, ?, ?)',
-    ).bind(user.id, user.email, user.passwordHash, user.role, user.name).run()
+      'INSERT OR IGNORE INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)',
+    ).bind(user.id, user.email, user.passwordHash, user.name).run()
 
-    const grant = user.grantSuperAdmin ?? user.role === 'admin'
-    if (!grant) continue
+    if (!user.grantSuperAdmin) continue
 
     await db.prepare(
       `INSERT OR IGNORE INTO user_role_assignments (id, user_id, role_id, scope)

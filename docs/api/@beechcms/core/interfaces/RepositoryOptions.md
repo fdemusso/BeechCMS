@@ -27,10 +27,6 @@ Options passed to write operations. Currently carries the acting user
 
 > **id**: `string`
 
-#### role?
-
-> `optional` **role?**: `string`
-
 ***
 
 ### ifMatch?

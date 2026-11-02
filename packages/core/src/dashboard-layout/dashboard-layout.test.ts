@@ -3,8 +3,15 @@
 
 import { describe, expect, it } from 'vitest'
 import type { Seed } from '../engine/types.js'
+import { buildEffectivePermissions } from '../rbac/evaluate.js'
+import { PERMISSIONS, type Permission, type Scope } from '../rbac/permissions.js'
+import type { EffectivePermissions } from '../rbac/types.js'
 import {
+  DASHBOARD_PAGE_LABEL_MAX,
+  DASHBOARD_SECTION_LABEL_MAX,
+  DASHBOARD_WIDGET_TITLE_MAX,
   MAX_DASHBOARD_LAYOUT_BYTES,
+  MAX_ROLES_PER_PAGE,
   MAX_SECTIONS_PER_PAGE,
   MAX_WIDGETS_PER_COLUMN,
   MAX_WIDGET_CONFIG_BYTES,
@@ -15,10 +22,6 @@ import {
   type DashboardLayoutContext,
   type DashboardWidgetInstance,
 } from './dashboard-layout.js'
-import {
-  ROLES_ALLOWED_TO_EDIT_DASHBOARD,
-  canEditDashboard,
-} from './dashboard-permissions.js'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -75,13 +78,39 @@ function singleSectionLayout(
 
 const ctx: DashboardLayoutContext = { seedSlugs: new Set(['articoli', 'pagine']) }
 
+// The generator is permission-aware; the pre-existing cases exercise the full default, so they hold every permission.
+const FULL_AUTHORITY: EffectivePermissions = {
+  global: new Set<Permission>(PERMISSIONS),
+  byScope: new Map(),
+}
+
+/** Effective authority from (permissions, scope) grants, folded by the real core evaluator. */
+function authorityFrom(...grants: Array<{ permissions: Permission[]; scope: Scope }>): EffectivePermissions {
+  const roles = grants.map((grant, i) => ({
+    id: `role-${i}`,
+    name: `role-${i}`,
+    description: null,
+    isSystem: false,
+    permissions: grant.permissions,
+    createdAt: 0,
+    updatedAt: 0,
+  }))
+  const assignments = grants.map((grant, i) => ({
+    id: `assignment-${i}`,
+    userId: 'viewer-1',
+    roleId: `role-${i}`,
+    scope: grant.scope,
+  }))
+  return buildEffectivePermissions(assignments, roles)
+}
+
 // ---------------------------------------------------------------------------
 // generateDefaultDashboardLayout
 // ---------------------------------------------------------------------------
 
 describe('generateDefaultDashboardLayout', () => {
   it('with zero seeds emits one page with setup + 3-column status sections only', () => {
-    const layout = generateDefaultDashboardLayout([], { newId: sequentialIds() })
+    const layout = generateDefaultDashboardLayout([], FULL_AUTHORITY, { newId: sequentialIds() })
 
     expect(layout.version).toBe(1)
     expect(layout.pages).toHaveLength(1)
@@ -114,6 +143,7 @@ describe('generateDefaultDashboardLayout', () => {
   it('with seeds adds quick-draft, content and media sections bound to the first seed', () => {
     const layout = generateDefaultDashboardLayout(
       [seedStub('pagine'), seedStub('prodotti')],
+      FULL_AUTHORITY,
       { newId: sequentialIds() },
     )
 
@@ -145,6 +175,7 @@ describe('generateDefaultDashboardLayout', () => {
   it("prefers the 'articoli' seed when present", () => {
     const layout = generateDefaultDashboardLayout(
       [seedStub('pagine'), seedStub('articoli')],
+      FULL_AUTHORITY,
       { newId: sequentialIds() },
     )
 
@@ -160,16 +191,74 @@ describe('generateDefaultDashboardLayout', () => {
       [seedStub('pagine'), seedStub('prodotti')],
     ]
     for (const seeds of seedLists) {
-      const layout = generateDefaultDashboardLayout(seeds, { newId: sequentialIds() })
+      const layout = generateDefaultDashboardLayout(seeds, FULL_AUTHORITY, { newId: sequentialIds() })
       expect(dashboardLayoutSchema.parse(layout)).toEqual(layout)
     }
   })
 
   it('falls back to crypto.randomUUID when no id factory is injected', () => {
-    const layout = generateDefaultDashboardLayout([seedStub('articoli')])
+    const layout = generateDefaultDashboardLayout([seedStub('articoli')], FULL_AUTHORITY)
     const ids = allWidgets(layout).map((w) => w.id)
     expect(new Set(ids).size).toBe(ids.length)
     expect(dashboardLayoutSchema.parse(layout)).toEqual(layout)
+  })
+
+  it('a caller holding only content:read on posts gets no admin widgets and every seed widget bound to posts', () => {
+    const reader = authorityFrom({ permissions: ['content:read'], scope: 'posts' })
+
+    const layout = generateDefaultDashboardLayout(
+      [seedStub('articoli'), seedStub('posts')],
+      reader,
+      { newId: sequentialIds() },
+    )
+
+    const types = allWidgets(layout).map((w) => w.type)
+    expect(types).not.toContain('core/setup-checklist')
+    expect(types).not.toContain('core/site-status')
+    expect(types).not.toContain('core/storage')
+    expect(types).not.toContain('core/media-gallery')
+    expect(types).toEqual([
+      'core/publication-stats',
+      'core/quick-draft',
+      'core/recent-content',
+      'core/pending-drafts',
+      'core/activity-feed',
+    ])
+    const seedBound = allWidgets(layout).filter((w) => 'seedSlug' in w.config)
+    expect(seedBound).toHaveLength(3)
+    for (const w of seedBound) expect(w.config['seedSlug']).toBe('posts')
+  })
+
+  it('a caller with content:read and view_analytics but no manage_users gets everything except the setup section', () => {
+    const analyst = authorityFrom({ permissions: ['content:read', 'view_analytics'], scope: '*' })
+
+    const layout = generateDefaultDashboardLayout([seedStub('articoli')], analyst, { newId: sequentialIds() })
+
+    const types = allWidgets(layout).map((w) => w.type)
+    expect(types).not.toContain('core/setup-checklist')
+    expect(types).toHaveLength(8)
+    expect(layout.pages[0].sections).toHaveLength(3)
+    expect(layout.pages[0].sections.every((section) => section.columns.every((col) => col.widgets.length > 0))).toBe(true)
+  })
+
+  it('a caller with no authority gets a layout with no pages', () => {
+    const nobody = authorityFrom()
+
+    const layout = generateDefaultDashboardLayout([seedStub('articoli')], nobody, { newId: sequentialIds() })
+
+    expect(layout).toEqual({ version: 1, pages: [] })
+  })
+
+  it('a caller reading no seed gets no quick-draft even when seeds exist', () => {
+    const operator = authorityFrom({ permissions: ['view_analytics', 'manage_users'], scope: '*' })
+
+    const layout = generateDefaultDashboardLayout([seedStub('articoli')], operator, { newId: sequentialIds() })
+
+    expect(allWidgets(layout).map((w) => w.type)).toEqual([
+      'core/setup-checklist',
+      'core/site-status',
+      'core/storage',
+    ])
   })
 })
 
@@ -332,6 +421,77 @@ describe('validateDashboardLayout', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Tab audience (page.roles)
+// ---------------------------------------------------------------------------
+
+const ROLE_A = '3f2b8c1e-5a4d-4e7b-9c60-1d2e3f4a5b6c'
+const ROLE_B = '7a9d0e2f-1b3c-4d5e-8f6a-0b1c2d3e4f5a'
+
+function layoutWithPageRoles(roles: string[]): DashboardLayout {
+  const layout = singleSectionLayout([[widget('w-1', 'core/site-status')]])
+  layout.pages[0].roles = roles
+  return layout
+}
+
+describe('dashboardPageSchema roles', () => {
+  it('accepts a roles array of UUID strings', () => {
+    const layout = layoutWithPageRoles([ROLE_A, ROLE_B])
+
+    const res = dashboardLayoutSchema.safeParse(layout)
+
+    expect(res.success).toBe(true)
+  })
+
+  it('rejects more roles than the per-page cap', () => {
+    const roles = Array.from({ length: MAX_ROLES_PER_PAGE + 1 }, (_, i) => `role-${i}`)
+
+    const res = dashboardLayoutSchema.safeParse(layoutWithPageRoles(roles))
+
+    expect(res.success).toBe(false)
+  })
+
+  it('rejects an empty-string role id', () => {
+    const res = dashboardLayoutSchema.safeParse(layoutWithPageRoles(['']))
+
+    expect(res.success).toBe(false)
+  })
+})
+
+describe('validateDashboardLayout roleIds', () => {
+  const ctx: DashboardLayoutContext = { seedSlugs: new Set() }
+
+  it('errors on an unknown role id naming the page slug and the id, and keeps roles intact', () => {
+    const layout = layoutWithPageRoles([ROLE_A, ROLE_B])
+
+    const res = validateDashboardLayout(layout, { ...ctx, roleIds: new Set([ROLE_A]) })
+
+    expect(res).toMatchObject({
+      ok: false,
+      errors: [`Page 'overview': unknown role id '${ROLE_B}'.`],
+    })
+    expect(res.cleaned.pages[0].roles).toEqual([ROLE_A, ROLE_B])
+  })
+
+  it('accepts an unknown role id with no error and no warning when roleIds is absent', () => {
+    const layout = layoutWithPageRoles([ROLE_A])
+
+    const res = validateDashboardLayout(layout, ctx)
+
+    expect(res.ok).toBe(true)
+    expect(res.warnings).toEqual([])
+    expect(res.cleaned.pages[0].roles).toEqual([ROLE_A])
+  })
+
+  it('returns ok when roleIds contains every listed id', () => {
+    const layout = layoutWithPageRoles([ROLE_A, ROLE_B])
+
+    const res = validateDashboardLayout(layout, { ...ctx, roleIds: new Set([ROLE_A, ROLE_B]) })
+
+    expect(res.ok).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // dashboardLayoutSchema — aggregate size limits
 // ---------------------------------------------------------------------------
 
@@ -381,23 +541,41 @@ describe('dashboardLayoutSchema', () => {
   })
 
   it('accepts the generated default layout', () => {
-    const layout = generateDefaultDashboardLayout([seedStub('articoli')])
+    const layout = generateDefaultDashboardLayout([seedStub('articoli')], FULL_AUTHORITY)
 
     expect(dashboardLayoutSchema.safeParse(layout).success).toBe(true)
   })
-})
 
-// ---------------------------------------------------------------------------
-// dashboard-permissions
-// ---------------------------------------------------------------------------
+  describe('labels', () => {
+    const withLabels = (labels: { page?: string; section?: string; title?: string }) => {
+      const layout = singleSectionLayout([[{ ...widget('w-1', 'core/site-status'), title: labels.title }]])
+      layout.pages[0].label = labels.page ?? 'Overview'
+      layout.pages[0].sections[0].label = labels.section
+      return layout
+    }
 
-describe('canEditDashboard', () => {
-  it('allows only the configured roles', () => {
-    expect(ROLES_ALLOWED_TO_EDIT_DASHBOARD).toContain('admin')
-    expect(canEditDashboard('admin')).toBe(true)
-    expect(canEditDashboard('editor')).toBe(false)
-    expect(canEditDashboard('')).toBe(false)
-    expect(canEditDashboard(undefined)).toBe(false)
-    expect(canEditDashboard(null)).toBe(false)
+    it('trims page, section and widget labels before storing them', () => {
+      const res = dashboardLayoutSchema.safeParse(withLabels({ page: '  Home  ', section: ' Intro ', title: ' Hi ' }))
+
+      expect(res.success).toBe(true)
+      if (!res.success) throw new Error('expected success')
+      const page = res.data.pages[0]
+      expect([page.label, page.sections[0].label, page.sections[0].columns[0].widgets[0].title]).toEqual([
+        'Home',
+        'Intro',
+        'Hi',
+      ])
+    })
+
+    it.each([
+      ['a page label of only spaces', { page: '   ' }],
+      ['a page label over the limit', { page: 'x'.repeat(DASHBOARD_PAGE_LABEL_MAX + 1) }],
+      ['a section label over the limit', { section: 'x'.repeat(DASHBOARD_SECTION_LABEL_MAX + 1) }],
+      ['a widget title over the limit', { title: 'x'.repeat(DASHBOARD_WIDGET_TITLE_MAX + 1) }],
+      ['a page label holding a newline', { page: 'Home\nPage' }],
+      ['a section label holding a NUL', { section: 'a\u0000b' }],
+    ])('refuses %s', (_name, labels) => {
+      expect(dashboardLayoutSchema.safeParse(withLabels(labels)).success).toBe(false)
+    })
   })
 })

@@ -32,7 +32,6 @@ function buildApp(mocks: any = {}) {
         email: 'test@beechcms.com',
         name: 'Test',
         surname: 'User',
-        role: 'editor',
         passwordHash: 'hashed-pwd',
         avatarUrl: null,
         notificationPreferences: JSON.stringify({
@@ -277,7 +276,7 @@ describe('Settings Handler', () => {
       expect(body.manageableScopes).toEqual([])
     })
 
-    it('emits the caller\'s serialized permissions and isDeveloper=false for a non-admin', async () => {
+    it('emits the caller\'s serialized permissions for a seed-scoped reader', async () => {
       const app = buildApp({
         effectivePermissions: {
           global: new Set(),
@@ -288,7 +287,6 @@ describe('Settings Handler', () => {
       expect(res.status).toBe(200)
       const body = await res.json() as any
       expect(body.permissions).toEqual({ global: [], byScope: { posts: ['content:read'] } })
-      expect(body.isDeveloper).toBe(false)
       expect(body.manageableScopes).toEqual([])
     })
 
@@ -304,21 +302,20 @@ describe('Settings Handler', () => {
       expect(body.manageableScopes).toEqual(['posts'])
     })
 
-    it('emits isDeveloper=true when users.role is admin', async () => {
+    it('emits a global manage_seeds grant in permissions.global and no isDeveloper key', async () => {
       const app = buildApp({
         userRepository: {
           findById: vi.fn().mockResolvedValue({
-            id: 'u1', email: 'admin@beechcms.com', name: 'Admin', surname: 'User', role: 'admin',
+            id: 'u1', email: 'admin@beechcms.com', name: 'Admin', surname: 'User',
             passwordHash: 'hashed-pwd', avatarUrl: null, notificationPreferences: '{}',
           }),
         },
-        effectivePermissions: { global: new Set(['content:read', 'manage_users']), byScope: new Map() },
+        effectivePermissions: { global: new Set(['manage_seeds']), byScope: new Map() },
       })
       const res = await app.request('/me')
       const body = await res.json() as any
-      expect(body.isDeveloper).toBe(true)
-      expect(body.permissions.global).toEqual(['content:read', 'manage_users'])
-      expect(body.manageableScopes).toEqual(['*', 'posts'])
+      expect(body.permissions.global).toEqual(['manage_seeds'])
+      expect(body).not.toHaveProperty('isDeveloper')
     })
   })
 

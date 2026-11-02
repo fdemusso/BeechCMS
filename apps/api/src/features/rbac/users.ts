@@ -9,17 +9,6 @@ import { RBAC_ERRORS } from './constants'
 import { canAdministerAccount, pageOf, rbacProblem, type AppContext, type JsonContext, type PageContext } from './guards'
 import type { createUserSchema, setActiveSchema } from './rbac.schema'
 
-/**
- * The developer/owner axis (`users.role`) is NOT grantable from the dashboard:
- * - 'admin' is the Developer / instance owner (minted only by `POST /auth/setup`).
- * - 'editor' is a generic Beech user whose permissions are managed via RBAC.
- *   (Named 'editor' for legacy/CHECK-constraint compatibility, representing a standard user).
- *
- * Every account minted here receives CREATED_ACCOUNT_ROLE ('editor'), so no RBAC path can
- * produce an account that clears `requireAdmin()` and reaches `/api/seeds/*`.
- */
-const CREATED_ACCOUNT_ROLE = 'editor'
-
 type AccountView = AccountSummary & { assignments: PermissionAssignment[] }
 
 /**
@@ -81,7 +70,6 @@ export const createUserHandler = async (context: JsonContext<typeof createUserSc
       id,
       email,
       passwordHash,
-      role: CREATED_ACCOUNT_ROLE,
       name: input.name ?? null,
       surname: input.surname ?? null,
     })
@@ -148,18 +136,6 @@ export const setUserActiveHandler = async (context: JsonContext<typeof setActive
   const assignments = await assignmentRepository.listAllForUser(userId)
   const actor = await resolveEffectivePermissions(context)
   if (!canAdministerAccount(actor, assignments)) return notFound()
-
-  if (!isActive && target.role === 'admin') {
-    // The Developer is usually also the sole administrator; that is the more fundamental refusal.
-    if (await userRepository.isLastGlobalAdmin(userId)) return lastAdminProblem(context)
-    return rbacProblem(
-      context,
-      RBAC_ERRORS.DEVELOPER_PROTECTED,
-      409,
-      'Conflict',
-      'The developer account cannot be deactivated.',
-    )
-  }
 
   // LAST-ADMIN GUARDRAIL, enforced inside the UPDATE itself (brief §4: no self-revocation, so
   // the refusal applies to the holder too). A count read beforehand would let two concurrent

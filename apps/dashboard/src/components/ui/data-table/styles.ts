@@ -19,3 +19,12 @@ export const FOCUSED_ROW_CLASS = "group-focus-within/dt:data-[focused]:bg-muted"
 
 /** Vertical column separator (apply on a <th>/<td>); the last column has none, the frame draws that edge. */
 export const COLUMN_SEPARATOR_CLASS = "border-r border-border/60 last:border-r-0"
+
+/**
+ * The line under the last data row, drawn on the empty space that follows it inside the frame. The last row has no
+ * bottom border of its own (the frame draws that edge), so when the frame is taller than the rows (a short table in
+ * a tall widget) the rows would end without a line. An inset shadow takes no room: with no space left (the rows fill
+ * the frame) the element is 0px tall and draws nothing, so the frame's edge is never doubled.
+ */
+export const TAIL_SEPARATOR_CLASS =
+  "shadow-[inset_0_1px_0_0_color-mix(in_oklab,var(--color-border)_60%,transparent)]"

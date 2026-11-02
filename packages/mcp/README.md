@@ -68,11 +68,12 @@ To revoke access, open **Settings → Connected apps** in the dashboard and revo
 
 ## Permission model
 
-Every route lives behind `apiProtected` (JWT Bearer, `authMiddleware()`) and `seedsApp`'s
-`requireAdmin` gate. **Known limitation**: read-only tools (`beech_list_seeds`, `beech_get_seed`)
-currently need the same `admin` role as the write tools, because `seedsApp` is admin-gated as a
-whole — there are no finer-grained read/plan/apply scopes yet. A scoped service-token subsystem
-is tracked as a follow-up (Issue #328), not part of this release.
+Every route lives behind `apiProtected` (JWT Bearer, `authMiddleware()`) and the
+`manage_seeds`-at-`*` route gate on `/api/seeds/*`. The OAuth consent requires the same
+permission. **Known limitation**: read-only tools (`beech_list_seeds`, `beech_get_seed`) need
+`manage_seeds` at `*` like the write tools, because the gate covers `/api/seeds/*` as a whole.
+The OAuth scope (`schema:read` / `schema:write`) is the only read/write split. A scoped
+service-token subsystem is tracked as a follow-up (Issue #328), not part of this release.
 
 ## Failure semantics
 
@@ -80,7 +81,7 @@ is tracked as a follow-up (Issue #328), not part of this release.
 |---|---|---|
 | 400 | Bad input (bad slug, non-object candidate, non-integer `expectedVersion`) | Fix the input, do not retry blindly |
 | 401 | Auth failed after one refresh-and-retry attempt | Re-run any Beech tool to re-authorize in the browser |
-| 403 | Account lacks `admin` role | Ask the developer for an admin account |
+| 403 | Account lacks `manage_seeds` at `*` | Ask an administrator for a role carrying `manage_seeds` at `*` |
 | 409 | Registry drift — another writer moved `registry_version` | Re-run `beech_schema_plan` |
 | 422 | Validation failure, destructive intent, or DDL failure | Show the developer the detail; do not retry the same candidate |
 | connection refused | API unreachable | `pnpm beech dev` |

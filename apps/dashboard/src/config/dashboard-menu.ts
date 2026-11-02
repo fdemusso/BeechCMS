@@ -31,7 +31,7 @@ export interface NavItem {
  * never the evaluator.
  *
  * Each flag mirrors a `PROTECTED_ROUTES` row and hides nothing the server allows:
- *  - `viewAnalytics`  → perm('view_analytics','global')  (`/api/content/stats/*`)
+ *  - `viewAnalytics`  → perm('view_analytics','global')  (`/api/content/stats/{health,cloudflare,storage/sync}`, `/api/settings/storage`)
  *  - `readContent`    → content:read on at least one seed (`GET /api/content/drafts`,
  *                       whose in-handler projection returns [] for a caller with none)
  *  - `createContent`  → content:create on at least one seed (`POST /api/content/:slug`)

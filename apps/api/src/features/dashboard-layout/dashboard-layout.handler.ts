@@ -5,63 +5,79 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import {
-  canEditDashboard,
   dashboardLayoutSchema,
   validateDashboardLayout,
-  isValidDashboardScope,
-  resolveDashboardScopeChain,
-  roleScope,
-  KNOWN_DASHBOARD_ROLES,
+  filterDashboardLayoutForViewer,
+  hasDashboardLayoutStructuralChange,
+  reconcileLockedWidgets,
+  hasPermission,
   DEFAULT_DASHBOARD_SCOPE,
+  GLOBAL_SCOPE,
 } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
+import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
+import { resolveIfMatch } from '../../shared/utils/occ'
 import { zodJson, type ZodJsonInput, type ZodJsonRefusal } from '../../shared/utils/zod-json'
-import type { Context, MiddlewareHandler } from 'hono'
+import type { Context } from 'hono'
 import type { z } from 'zod'
-import type { DashboardLayout } from '@beechcms/core'
+import type { DashboardLayout, DashboardLayoutViewer } from '@beechcms/core'
 import type { AppEnv, Env, Variables } from '../../types'
 
 type AppContext = Context<{ Bindings: Env; Variables: Variables }>
 type LayoutBodyInput = ZodJsonInput<typeof dashboardLayoutSchema>
 
-/** Returns a 403 response if the caller lacks dashboard-edit permission, otherwise undefined. */
-function requireDashboardEditPermission(context: AppContext) {
-  const role = context.get('jwtPayload')?.role
-  if (!canEditDashboard(role)) {
-    return publicProblem(context, {
-      type: 'forbidden',
-      title: 'Forbidden',
-      status: 403,
-      detail: 'Dashboard layout edit requires admin role.',
-    })
+/** The stored layout with its version: the `updatedAt` a client echoes back as its precondition. */
+interface StoredLayoutRecord {
+  readonly layout: DashboardLayout
+  readonly updatedAt: number
+}
+
+/** The caller as the core filter sees them: active role ids at any scope + effective authority. */
+async function resolveLayoutViewer(context: AppContext): Promise<DashboardLayoutViewer> {
+  const userId = context.get('jwtPayload')?.sub
+  const assignments = userId ? await context.get('roleAssignmentRepository').listActiveForUser(userId) : []
+
+  return {
+    roleIds: new Set(assignments.map((assignment) => assignment.roleId)),
+    permissions: await resolveEffectivePermissions(context),
   }
-  return undefined
+}
+
+/** The stored layout, auto-cleaned against the seed registry, with its version; null when nothing is stored. */
+async function loadStoredRecord(context: AppContext): Promise<StoredLayoutRecord | null> {
+  const record = await context.get('dashboardLayoutRepository').get(DEFAULT_DASHBOARD_SCOPE)
+  if (!record) return null
+
+  const seedSlugs = new Set(context.get('seedRegistry').all().map((seed) => seed.slug))
+  return { layout: validateDashboardLayout(record.layout, { seedSlugs }).cleaned, updatedAt: record.updatedAt }
 }
 
 /**
- * The same check as a middleware, for the PUT routes: it has to run before the body is read, so a
- * caller who may not edit gets 403 whatever they send and learns nothing about the layout contract.
+ * The version the client expects to overwrite: a number from `If-Match`, `null` from `If-None-Match: *`
+ * (nothing stored), `undefined` when the request carries neither. `If-Match` wins when both are present.
  */
-const requireDashboardEdit: MiddlewareHandler<AppEnv> = async (context, next) => {
-  const forbidden = requireDashboardEditPermission(context)
-  if (forbidden) return forbidden
-  await next()
+function readLayoutPrecondition(context: AppContext): number | null | undefined {
+  const ifMatch = resolveIfMatch(context, {})
+  if (ifMatch !== undefined) return ifMatch
+  return context.req.header('If-None-Match')?.trim() === '*' ? null : undefined
 }
 
-function invalidScopeProblem(context: AppContext, scope: string) {
+function preconditionRequiredProblem(context: AppContext) {
   return publicProblem(context, {
-    type: 'invalid-scope',
-    title: 'Invalid scope',
-    status: 400,
-    detail: `Unknown dashboard scope '${scope}'.`,
+    type: 'precondition-required',
+    title: 'Precondition required',
+    status: 428,
+    detail: 'Send If-Match with the layout version you loaded, or If-None-Match: * when nothing is stored.',
   })
 }
 
-/** Refuses a `:scope` that is not `default` or `role:<known role>` before anything else looks at the request. */
-const requireValidScope: MiddlewareHandler<AppEnv, '/:scope'> = async (context, next) => {
-  const scope = context.req.param('scope')
-  if (!isValidDashboardScope(scope)) return invalidScopeProblem(context, scope)
-  await next()
+function layoutConflictProblem(context: AppContext) {
+  return publicProblem(context, {
+    type: 'layout-conflict',
+    title: 'Layout conflict',
+    status: 409,
+    detail: 'The dashboard layout was changed by someone else since you loaded it. Reload it and apply your changes again.',
+  })
 }
 
 /** The body of a PUT: not JSON at all is a 400, JSON that is not a layout is a 422. */
@@ -82,10 +98,29 @@ function rejectInvalidLayoutBody(context: AppContext, error: z.ZodError, cause: 
   })
 }
 
-/** Shared semantic-validate-and-upsert logic for the bare and `:scope` PUT routes. */
-async function saveLayout(context: AppContext, scope: string, layout: DashboardLayout) {
+/**
+ * Gate, precondition, semantic validation, version check, structural gate, locked-widget
+ * reconciliation, then the conditional write. Steps before the write never persist anything.
+ */
+async function putLayout(context: Context<AppEnv, '/', LayoutBodyInput>) {
+  const viewer = await resolveLayoutViewer(context)
+  const canStructure = hasPermission(viewer.permissions, 'manage_roles', GLOBAL_SCOPE)
+  const canContent = hasPermission(viewer.permissions, 'manage_layout', GLOBAL_SCOPE)
+  if (!canStructure && !canContent) {
+    return publicProblem(context, {
+      type: 'layout-edit-forbidden',
+      title: 'Layout edit forbidden',
+      status: 403,
+      detail: 'Editing the dashboard layout requires manage_layout or manage_roles on all seeds.',
+    })
+  }
+
+  const precondition = readLayoutPrecondition(context)
+  if (precondition === undefined) return preconditionRequiredProblem(context)
+
   const seedSlugs = new Set(context.get('seedRegistry').all().map((seed) => seed.slug))
-  const result = validateDashboardLayout(layout, { seedSlugs })
+  const roleIds = new Set((await context.get('roleRepository').listAll()).map((role) => role.id))
+  const result = validateDashboardLayout(context.req.valid('json'), { seedSlugs, roleIds })
   if (!result.ok) {
     return publicProblem(context, {
       type: 'invalid-layout',
@@ -95,18 +130,37 @@ async function saveLayout(context: AppContext, scope: string, layout: DashboardL
     })
   }
 
+  const stored = await loadStoredRecord(context)
+  if ((stored?.updatedAt ?? null) !== precondition) return layoutConflictProblem(context)
+
+  if (!canStructure && hasDashboardLayoutStructuralChange(stored?.layout ?? null, result.cleaned)) {
+    return publicProblem(context, {
+      type: 'layout-structure-forbidden',
+      title: 'Layout structure forbidden',
+      status: 403,
+      detail: 'Adding, removing, reordering or editing tabs requires manage_roles on all seeds.',
+    })
+  }
+
+  const reconciled = reconcileLockedWidgets(stored?.layout ?? null, result.cleaned, viewer.permissions)
+  if (!reconciled.ok) {
+    return publicProblem(context, {
+      type: 'invalid-layout',
+      title: 'Invalid layout',
+      status: 422,
+      detail: reconciled.errors.join('; '),
+    })
+  }
+
   const userId = context.get('jwtPayload')?.sub ?? 'unknown'
-  await context.get('dashboardLayoutRepository').upsert(scope, result.cleaned, userId)
+  const written = await context
+    .get('dashboardLayoutRepository')
+    .save(DEFAULT_DASHBOARD_SCOPE, reconciled.layout, userId, precondition)
+  if (!written.ok) return layoutConflictProblem(context)
 
-  return context.json({ ok: true, layout: result.cleaned, warnings: result.warnings }, 200)
-}
-
-async function putDefaultLayout(context: Context<AppEnv, '/', LayoutBodyInput>) {
-  return saveLayout(context, DEFAULT_DASHBOARD_SCOPE, context.req.valid('json'))
-}
-
-async function putScopedLayout(context: Context<AppEnv, '/:scope', LayoutBodyInput>) {
-  return saveLayout(context, context.req.param('scope'), context.req.valid('json'))
+  // Projected, never the raw layout: it holds the re-injected locked widgets.
+  const { layout } = filterDashboardLayoutForViewer(reconciled.layout, viewer)
+  return context.json({ ok: true, layout, warnings: result.warnings, updatedAt: written.updatedAt }, 200)
 }
 
 /**
@@ -114,93 +168,51 @@ async function putScopedLayout(context: Context<AppEnv, '/:scope', LayoutBodyInp
  */
 const dashboardLayoutApp = new Hono<{ Bindings: Env; Variables: Variables }>()
   /**
-   * Returns the dashboard layout for the caller, walking the scope chain
-   * derived from their role (`role:<role>` → `default`). Returns the winning
-   * scope alongside the (auto-cleaned) layout, or `{ scope: 'default', layout: null }`
-   * if nothing is stored anywhere. Any authenticated user may read it.
+   * Returns the dashboard layout projected for the caller, with the `updatedAt` version to echo back
+   * as `If-Match`. Tabs outside their role audience are removed server-side; widgets they cannot use are
+   * removed for readers and replaced by opaque placeholders for layout editors. Any authenticated user
+   * may call it; `{ layout: null, updatedAt: null }` when nothing is stored. `no-store` because the body
+   * is per-caller.
    */
   .get('/', async (context) => {
-    const role = context.get('jwtPayload')?.role
-    const chain = resolveDashboardScopeChain(role)
-    const repo = context.get('dashboardLayoutRepository')
+    context.header('Cache-Control', 'no-store')
 
-    for (const scope of chain) {
-      const record = await repo.get(scope)
-      if (!record) continue
+    const stored = await loadStoredRecord(context)
+    if (!stored) return context.json({ layout: null as DashboardLayout | null, updatedAt: null as number | null }, 200)
 
-      const seedSlugs = new Set(context.get('seedRegistry').all().map((seed) => seed.slug))
-      const { cleaned } = validateDashboardLayout(record.layout, { seedSlugs })
-      return context.json({ scope, layout: cleaned }, 200)
-    }
-
-    return context.json({ scope: DEFAULT_DASHBOARD_SCOPE, layout: null as DashboardLayout | null }, 200)
+    const { layout } = filterDashboardLayoutForViewer(stored.layout, await resolveLayoutViewer(context))
+    return context.json({ layout: layout as DashboardLayout | null, updatedAt: stored.updatedAt as number | null }, 200)
   })
   /**
-   * Lists the closed set of dashboard scopes (`default` + one per known role),
-   * annotated with whether each currently has a stored layout. Admin-only —
-   * builder furniture for the scope switcher.
+   * Lists every role as `{ id, name, icon }` for the tab audience picker.
+   * Gated to `manage_roles@*` by the route table.
    */
-  .get('/scopes', async (context) => {
-    const forbidden = requireDashboardEditPermission(context)
-    if (forbidden) return forbidden
+  .get('/roles', async (context) => {
+    context.header('Cache-Control', 'no-store')
 
-    const stored = new Set(await context.get('dashboardLayoutRepository').listScopes())
-    const scopes = [DEFAULT_DASHBOARD_SCOPE, ...KNOWN_DASHBOARD_ROLES.map(roleScope)]
-    return context.json(scopes.map((scope) => ({ scope, stored: stored.has(scope) })), 200)
+    const roles = await context.get('roleRepository').listAll()
+    return context.json(roles.map((role) => ({ id: role.id, name: role.name, icon: role.icon ?? null })), 200)
   })
   /**
-   * Returns the raw stored layout for an arbitrary scope (`'default'` or
-   * `'role:<role>'`), or `{ scope, layout: null }` if nothing is stored.
-   * Admin-only — builder furniture for loading a scope's draft.
+   * Replaces the dashboard layout. The route table admits holders of `manage_layout` or `manage_roles`
+   * on any scope; the handler requires one of them at `*`. `manage_layout` alone edits tab content only.
+   * `428` without `If-Match` / `If-None-Match: *`, `409` when the stored version differs, `403` when
+   * the caller may not edit or may not change the structure, `422` on an invalid layout or a locked-widget
+   * violation.
    */
-  .get('/:scope', async (context) => {
-    const forbidden = requireDashboardEditPermission(context)
-    if (forbidden) return forbidden
-
-    const scope = context.req.param('scope')
-    if (!isValidDashboardScope(scope)) return invalidScopeProblem(context, scope)
-
-    const record = await context.get('dashboardLayoutRepository').get(scope)
-    if (!record) return context.json({ scope, layout: null as DashboardLayout | null }, 200)
-
-    const seedSlugs = new Set(context.get('seedRegistry').all().map((seed) => seed.slug))
-    const { cleaned } = validateDashboardLayout(record.layout, { seedSlugs })
-    return context.json({ scope, layout: cleaned }, 200)
-  })
+  .put('/', zodJson(dashboardLayoutSchema, rejectInvalidLayoutBody), putLayout)
   /**
-   * Upserts the dashboard layout for the default scope.
-   * Admin-only. Validates Zod shape, then semantic constraints (seed
-   * auto-cleanup, span sums, config size cap) before persisting.
-   */
-  .put('/', requireDashboardEdit, zodJson(dashboardLayoutSchema, rejectInvalidLayoutBody), putDefaultLayout)
-  /**
-   * Removes the stored dashboard layout for the default scope ("Reset").
-   * Admin-only. The next GET regenerates the default layout client-side.
+   * Removes the stored dashboard layout ("Reset"), structural and so gated to `manage_roles@*` by the
+   * route table. `428` without a precondition, `409` when the stored version differs. The next GET
+   * regenerates the default layout client-side.
    */
   .delete('/', async (context) => {
-    const forbidden = requireDashboardEditPermission(context)
-    if (forbidden) return forbidden
+    const precondition = readLayoutPrecondition(context)
+    if (precondition === undefined) return preconditionRequiredProblem(context)
 
-    await context.get('dashboardLayoutRepository').remove(DEFAULT_DASHBOARD_SCOPE)
-    return context.json({ ok: true }, 200)
-  })
-  /**
-   * Upserts the dashboard layout for an arbitrary scope (`'default'` or
-   * `'role:<role>'`). Admin-only, `400` problem on an unknown scope.
-   */
-  .put('/:scope', requireValidScope, requireDashboardEdit, zodJson(dashboardLayoutSchema, rejectInvalidLayoutBody), putScopedLayout)
-  /**
-   * Removes the stored dashboard layout for an arbitrary scope ("Reset").
-   * Admin-only, `400` problem on an unknown scope.
-   */
-  .delete('/:scope', async (context) => {
-    const forbidden = requireDashboardEditPermission(context)
-    if (forbidden) return forbidden
+    const removed = await context.get('dashboardLayoutRepository').remove(DEFAULT_DASHBOARD_SCOPE, precondition)
+    if (!removed.ok) return layoutConflictProblem(context)
 
-    const scope = context.req.param('scope')
-    if (!isValidDashboardScope(scope)) return invalidScopeProblem(context, scope)
-
-    await context.get('dashboardLayoutRepository').remove(scope)
     return context.json({ ok: true }, 200)
   })
 

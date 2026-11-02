@@ -292,7 +292,7 @@ If you frequently review specific segments of content (e.g., *"Articles by Autho
 
 BeechCMS provides distinct permissions to ensure content creators have total freedom to edit without the risk of accidentally breaking site architecture.
 
-| Feature / Area | Content Editor | Administrator / Owner |
+| Feature / Area | Content Editor | Administrator |
 | :--- | :---: | :---: |
 | **Create & Edit Fruits** (Articles, Pages, Data) | Full Access | Full Access |
 | **Publish & Manage Drafts** | Full Access | Full Access |
@@ -303,6 +303,8 @@ BeechCMS provides distinct permissions to ensure content creators have total fre
 | **Customize Dashboard Layouts & Widgets** | Read-Only | Full Access |
 | **Seed & Branch Builder** (Changing Fields & Types) | Protected | Full Access |
 | **API Keys, Webhooks & System Integrations** | Protected | Full Access |
+
+The protected areas map to permissions an administrator can grant. Dashboard layout needs `manage_layout` (content) or `manage_roles` (tabs); the Seed & Branch Builder needs `manage_seeds`. See [Roles & Permissions](/manage/roles-permissions).
 
 <p align="center">
   <img src="/images/settings-profile.png" alt="Settings Page with Profile Tab" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />

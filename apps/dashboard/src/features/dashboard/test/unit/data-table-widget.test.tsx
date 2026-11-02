@@ -3,9 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, fireEvent } from "@testing-library/react"
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query"
-import { MemoryRouter } from "react-router-dom"
+import { MemoryRouter, useLocation } from "react-router-dom"
 import React from "react"
 import type { Seed } from "@beechcms/core"
 
@@ -13,6 +13,15 @@ const mocked = vi.hoisted(() => ({ schema: vi.fn() }))
 
 vi.mock("@/lib/rpc", () => ({
   rpc: { api: { schema: { $get: mocked.schema } } },
+}))
+
+vi.mock("@/features/entry-editor", () => ({
+  EntryEditorDialog: ({ entryId, schemaSlug, open }: { entryId?: string; schemaSlug: string; open: boolean }) => (
+    <div data-testid="entry-editor" data-open={String(open)}>{`${schemaSlug}/${entryId}`}</div>
+  ),
+}))
+vi.mock("@/features/shared/hooks/use-permissions", () => ({
+  usePermissions: () => ({ can: () => true }),
 }))
 
 import { widgetClientFromGet, type WidgetGet } from "@/test/widget-client"
@@ -37,12 +46,19 @@ function makeQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
 }
 
+function CurrentPath() {
+  return <span data-testid="path">{useLocation().pathname}</span>
+}
+
 function renderWithProviders(ui: React.ReactElement) {
   const client = makeQueryClient()
   return render(
     <QueryClientProvider client={client}>
       <WidgetSdkProvider client={widgetClient}>
-        <MemoryRouter>{ui}</MemoryRouter>
+        <MemoryRouter>
+          {ui}
+          <CurrentPath />
+        </MemoryRouter>
       </WidgetSdkProvider>
     </QueryClientProvider>,
   )
@@ -90,5 +106,22 @@ describe("DataTableWidget", () => {
     expect(screen.getByText("Status")).toBeInTheDocument()
     expect(screen.queryByText("Secret")).not.toBeInTheDocument()
     expect(screen.queryByText("TOP-SECRET-VALUE")).not.toBeInTheDocument()
+  })
+
+  it("opens the entry editor over the dashboard on a row double click, without leaving the page", async () => {
+    mockApiGet({
+      "/schema": [seed],
+      "/widget/list/posts": {
+        entries: [{ id: "e1", slug: "hello-world", status: "published", createdAt: 1000, updatedAt: 1000, title: "Hello World" }],
+        total: 1,
+      },
+    })
+    renderWithProviders(<DataTableWidget config={{ seedSlug: "posts" }} />)
+    const cell = await screen.findByText("Hello World")
+
+    fireEvent.doubleClick(cell)
+
+    expect(screen.getByTestId("entry-editor")).toHaveTextContent("posts/e1")
+    expect(screen.getByTestId("path")).toHaveTextContent(/^\/$/)
   })
 })

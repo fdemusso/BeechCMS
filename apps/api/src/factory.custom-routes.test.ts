@@ -21,7 +21,7 @@ import type { Env } from './types'
 const TEST_SECRET = 'super-secret-key-used-only-in-the-vitest-suite-min-length'
 
 function buildEnv(isActive = 1): Env {
-  const userRow = { id: 'user-1', email: 'dev@example.com', role: 'admin', is_active: isActive }
+  const userRow = { id: 'user-1', email: 'dev@example.com', is_active: isActive }
   const db = {
     prepare: () => ({ bind: () => ({ first: async () => userRow }) }),
   } as unknown as D1Database

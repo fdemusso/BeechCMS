@@ -30,6 +30,31 @@ function makeLayout(): DashboardLayout {
   }
 }
 
+/** Three columns; the locked placeholder sits in column 2, so the section may not shrink below two columns. */
+function makeLockedLayout(): DashboardLayout {
+  return {
+    version: 1,
+    pages: [
+      {
+        id: "page-1",
+        slug: "overview",
+        label: "Overview",
+        sections: [
+          {
+            id: "section-1",
+            columns: [
+              { id: "col-1", widgets: [{ id: "widget-1", type: "core/text", config: { content: "a" } }] },
+              { id: "col-2", widgets: [{ id: "widget-locked", type: "core/locked", config: {} }] },
+              { id: "col-3", widgets: [{ id: "widget-3", type: "core/text", config: { content: "c" } }] },
+            ],
+            columnSpans: [4, 4, 4],
+          },
+        ],
+      },
+    ],
+  }
+}
+
 describe("useDashboardBuilder", () => {
   it("adds, renames, reorders and removes pages", () => {
     const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
@@ -90,6 +115,24 @@ describe("useDashboardBuilder", () => {
     expect(section.columnSpans).toEqual([12])
     expect(section.columns).toHaveLength(1)
     expect(section.columns[0].widgets.map((w) => w.id)).toEqual(["widget-1", "widget-2"])
+  })
+
+  it("setColumnPreset below the locked column floor leaves the draft unchanged", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLockedLayout() }))
+    const before = structuredClone(result.current.draft)
+
+    act(() => result.current.setColumnPreset("page-1", "section-1", [12]))
+
+    expect(result.current.draft).toEqual(before)
+  })
+
+  it("setColumnPreset at the locked column floor folds only unlocked overflow widgets", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLockedLayout() }))
+
+    act(() => result.current.setColumnPreset("page-1", "section-1", [6, 6]))
+
+    const section = result.current.draft.pages[0].sections[0]
+    expect(section.columns.map((c) => c.widgets.map((w) => w.id))).toEqual([["widget-1"], ["widget-locked", "widget-3"]])
   })
 
   it("setColumnPreset grow rule adds empty columns", () => {
@@ -213,6 +256,17 @@ describe("useDashboardBuilder", () => {
     expect(sections[1].columns[0].widgets[0]?.type).toBe("core/stat")
   })
 
+  it("duplicateSection omits locked placeholders from the clone and keeps them in the original", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLockedLayout() }))
+
+    act(() => result.current.duplicateSection("page-1", "section-1"))
+
+    const [original, clone] = result.current.draft.pages[0].sections
+    const typesOf = (columns: typeof original.columns) => columns.map((c) => c.widgets.map((w) => w.type))
+    expect(typesOf(original.columns)).toEqual([["core/text"], ["core/locked"], ["core/text"]])
+    expect(typesOf(clone.columns)).toEqual([["core/text"], [], ["core/text"]])
+  })
+
   it("addWidget appends a new widget with the type's default config", () => {
     const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
 
@@ -327,5 +381,225 @@ describe("useDashboardBuilder", () => {
     act(() => result.current.reset())
     expect(result.current.isDirty).toBe(false)
     expect(result.current.draft).toEqual(initialLayout)
+  })
+
+  describe("setPageRoles", () => {
+    const ROLE_EDITOR_ID = "5b1f3c1e-7a42-4d2b-9c6e-0a1b2c3d4e51"
+    const ROLE_MERCHANT_ID = "c8e2a7d4-3f19-4b85-a1d0-6e7f8a9b0c62"
+
+    it("writes the ids on the target page only, leaving other pages without a roles key", () => {
+      const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+      act(() => result.current.addPage())
+      const targetPageId = result.current.draft.pages[0].id
+
+      act(() => result.current.setPageRoles(targetPageId, [ROLE_EDITOR_ID, ROLE_MERCHANT_ID]))
+
+      expect(result.current.draft.pages[0].roles).toEqual([ROLE_EDITOR_ID, ROLE_MERCHANT_ID])
+      expect(result.current.draft.pages[1]).not.toHaveProperty("roles")
+    })
+
+    it("keeps one occurrence of a duplicated id in first-seen order", () => {
+      const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+      act(() => result.current.setPageRoles("page-1", [ROLE_MERCHANT_ID, ROLE_EDITOR_ID, ROLE_MERCHANT_ID]))
+
+      expect(result.current.draft.pages[0].roles).toEqual([ROLE_MERCHANT_ID, ROLE_EDITOR_ID])
+    })
+
+    it("removes the roles key for an empty list, returning isDirty to false for a layout that had none", () => {
+      const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+      act(() => result.current.setPageRoles("page-1", [ROLE_EDITOR_ID]))
+      expect(result.current.isDirty).toBe(true)
+
+      act(() => result.current.setPageRoles("page-1", []))
+
+      expect(result.current.draft.pages[0]).not.toHaveProperty("roles")
+      expect(result.current.isDirty).toBe(false)
+    })
+
+    it("leaves the draft deep-equal to the previous draft for an unknown page id", () => {
+      const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+      const draftBefore = structuredClone(result.current.draft)
+
+      act(() => result.current.setPageRoles("page-missing", [ROLE_EDITOR_ID]))
+
+      expect(result.current.draft).toEqual(draftBefore)
+    })
+  })
+
+  it("moveColumn carries each column's span with it", () => {
+    const layout = makeLayout()
+    layout.pages[0].sections[0].columnSpans = [8, 4]
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+    act(() => result.current.moveColumn("page-1", "section-1", 0, 1))
+
+    const section = result.current.draft.pages[0].sections[0]
+    expect(section.columns.map((c) => c.id)).toEqual(["col-2", "col-1"])
+    expect(section.columnSpans).toEqual([4, 8])
+  })
+
+  it("moveColumn on a section without explicit spans keeps the equal split", () => {
+    const layout = makeLayout()
+    delete layout.pages[0].sections[0].columnSpans
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+    act(() => result.current.moveColumn("page-1", "section-1", 1, 0))
+
+    expect(result.current.draft.pages[0].sections[0].columnSpans).toEqual([6, 6])
+  })
+
+  it("toggleSectionFlag turns a flag on and clears it again", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    act(() => result.current.toggleSectionFlag("page-1", "section-1", "collapsible"))
+    expect(result.current.draft.pages[0].sections[0].collapsible).toBe(true)
+
+    act(() => result.current.toggleSectionFlag("page-1", "section-1", "collapsible"))
+    expect(result.current.draft.pages[0].sections[0].collapsible).toBeUndefined()
+  })
+
+  it("duplicateWidget inserts a copy with a fresh id right after the original", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    let ok = false
+    act(() => { ok = result.current.duplicateWidget("page-1", "section-1", "col-1", "widget-1") })
+
+    const widgets = result.current.draft.pages[0].sections[0].columns[0].widgets
+    expect(ok).toBe(true)
+    expect(widgets).toHaveLength(2)
+    expect(widgets[1].id).not.toBe("widget-1")
+    expect(widgets[1].config).toEqual(widgets[0].config)
+  })
+
+  it("reorderWidgetsInColumn moves a widget to the given index", () => {
+    const layout = makeLayout()
+    layout.pages[0].sections[0].columns[0].widgets.push({ id: "widget-3", type: "core/text", config: {} })
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+    act(() => result.current.reorderWidgetsInColumn("page-1", "section-1", "col-1", 0, 1))
+
+    expect(result.current.draft.pages[0].sections[0].columns[0].widgets.map((w) => w.id)).toEqual(["widget-3", "widget-1"])
+  })
+
+  it("refuses to add a widget to a column that is full, and to move one into it", () => {
+    const layout = makeLayout()
+    layout.pages[0].sections[0].columns[0].widgets = Array.from({ length: 50 }, (_, i) => ({
+      id: `full-${i}`,
+      type: "core/text",
+      config: {},
+    }))
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+    let added = true
+    let moved = true
+    act(() => { added = result.current.addWidget("page-1", "section-1", "col-1", "core/text") })
+    act(() => {
+      moved = result.current.moveWidget({
+        from: { pageId: "page-1", sectionId: "section-1", columnId: "col-2", widgetId: "widget-2" },
+        to: { pageId: "page-1", sectionId: "section-1", columnId: "col-1" },
+      })
+    })
+
+    expect(added).toBe(false)
+    expect(moved).toBe(false)
+    expect(result.current.draft.pages[0].sections[0].columns[0].widgets).toHaveLength(50)
+  })
+
+  it("refuses a ninth page", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    for (let i = 0; i < 7; i += 1) act(() => { result.current.addPage() })
+    let ninth = true
+    act(() => { ninth = result.current.addPage() })
+
+    expect(result.current.draft.pages).toHaveLength(8)
+    expect(ninth).toBe(false)
+  })
+
+  describe("locked widgets", () => {
+    const lockedLocation = { pageId: "page-1", sectionId: "section-1", columnId: "col-2", widgetId: "widget-locked" }
+
+    it("moveWidget refuses to take a locked widget to another column", () => {
+      const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLockedLayout() }))
+      const before = structuredClone(result.current.draft)
+      let moved = true
+
+      act(() => {
+        moved = result.current.moveWidget({
+          from: lockedLocation,
+          to: { pageId: "page-1", sectionId: "section-1", columnId: "col-1", index: 0 },
+        })
+      })
+
+      expect(moved).toBe(false)
+      expect(result.current.draft).toEqual(before)
+    })
+
+    it("moveWidgetToPage, duplicateWidget, removeWidget and replaceWidget leave a locked widget alone", () => {
+      const layout = makeLockedLayout()
+      layout.pages.push({ id: "page-2", slug: "second", label: "Second", sections: [{ id: "s2", columns: [{ id: "c2", widgets: [] }], columnSpans: [12] }] })
+      const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+      const before = structuredClone(result.current.draft)
+      let movedToPage = true
+      let duplicated = true
+
+      act(() => {
+        movedToPage = result.current.moveWidgetToPage(lockedLocation, "page-2")
+        duplicated = result.current.duplicateWidget("page-1", "section-1", "col-2", "widget-locked")
+        result.current.removeWidget("page-1", "section-1", "col-2", "widget-locked")
+        result.current.replaceWidget("page-1", "section-1", "col-2", "widget-locked", "core/text")
+      })
+
+      expect(movedToPage).toBe(false)
+      expect(duplicated).toBe(false)
+      expect(result.current.draft).toEqual(before)
+    })
+
+    it("removeSection keeps a section holding a locked widget and still removes one without", () => {
+      const layout = makeLockedLayout()
+      layout.pages[0].sections.push({ id: "section-2", columns: [{ id: "col-9", widgets: [] }], columnSpans: [12] })
+      const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+      act(() => {
+        result.current.removeSection("page-1", "section-1")
+        result.current.removeSection("page-1", "section-2")
+      })
+
+      expect(result.current.draft.pages[0].sections.map((section) => section.id)).toEqual(["section-1"])
+    })
+
+    it("still lets the other widgets be reordered in the column of a locked one", () => {
+      const layout = makeLockedLayout()
+      layout.pages[0].sections[0].columns[1].widgets.push({ id: "widget-2", type: "core/text", config: {} })
+      const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+      act(() => result.current.reorderWidgetsInColumn("page-1", "section-1", "col-2", 1, 0))
+
+      expect(result.current.draft.pages[0].sections[0].columns[1].widgets.map((w) => w.id)).toEqual(["widget-2", "widget-locked"])
+    })
+  })
+
+  it("starts from a restored draft while the initial layout stays the saved baseline", () => {
+    const saved = makeLayout()
+    const restored = makeLayout()
+    restored.pages[0].label = "Edited"
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: saved, restoredDraft: restored }))
+
+    expect(result.current.draft.pages[0].label).toBe("Edited")
+    expect(result.current.saved).toEqual(saved)
+    expect(result.current.isDirty).toBe(true)
+  })
+
+  it("restoreDraft puts a snapshot back without changing what counts as saved", () => {
+    const initialLayout = makeLayout()
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout }))
+    const snapshot = structuredClone(result.current.draft)
+
+    act(() => result.current.addSection("page-1"))
+    act(() => result.current.restoreDraft(snapshot))
+
+    expect(result.current.draft).toEqual(initialLayout)
+    expect(result.current.isDirty).toBe(false)
   })
 })

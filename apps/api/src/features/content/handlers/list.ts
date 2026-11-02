@@ -198,7 +198,6 @@ export async function listHandler(context: Context<AppEnv, '/:slug', ZodQueryInp
     const actor: ActorContext = context.get('actor') ?? {
       type: 'authenticated',
       userId: jwtPayload?.sub,
-      role: jwtPayload?.role,
     }
 
     const entries = await Promise.all(items.map(async (item) => {

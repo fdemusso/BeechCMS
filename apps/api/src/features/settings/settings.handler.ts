@@ -5,7 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono, type Context } from 'hono'
 import type { z } from 'zod'
-import { MAX_RETENTION_DAYS, resolveLocaleConfig, sha256hex, type SiteSettings } from '@beechcms/core'
+import { GLOBAL_SCOPE, hasPermission, MAX_RETENTION_DAYS, resolveLocaleConfig, sha256hex, type SiteSettings } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { manageableScopes, serializeEffectivePermissions } from '../../shared/rbac/scoped-projection'
@@ -219,10 +219,6 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       /** The caller's raw RBAC authority. Sprint 6 derives every UI visibility rule from
        *  this and from nothing else. */
       permissions: serializeEffectivePermissions(effective),
-      /** Developer/owner axis (`users.role === 'admin'`), orthogonal to RBAC and NOT a
-       *  permission: `manage_seeds` does not exist and must never exist (brief §2). Gates
-       *  the Seed Builder surface only. */
-      isDeveloper: currentUser.role === 'admin',
       /** Scopes this caller may ASSIGN on (`'*'` + slugs for a global `manage_users`
        *  holder; own scopes for a scoped one; `[]` otherwise). NOT derivable from
        *  `GET /api/schema`, which is filtered by `content:read`. */
@@ -420,9 +416,10 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       return context.json({ type: 'settings-storage-orphan-not-found', keys: untrackedKeys }, 404)
     }
 
-    // Same owner-or-admin rule as DELETE /api/upload/:key.
-    const { sub: userId, role } = context.get('jwtPayload')
-    const foreignKeys = role === 'admin' ? [] : selectedKeys.filter((_, index) => mediaFiles[index]?.uploaded_by !== userId)
+    // Same owner-or-`manage_users@*` rule as DELETE /api/upload/:key.
+    const { sub: userId } = context.get('jwtPayload')
+    const isGlobalAdministrator = hasPermission(await resolveEffectivePermissions(context), 'manage_users', GLOBAL_SCOPE)
+    const foreignKeys = isGlobalAdministrator ? [] : selectedKeys.filter((_, index) => mediaFiles[index]?.uploaded_by !== userId)
     if (foreignKeys.length > 0) {
       return context.json({ type: 'settings-storage-orphan-forbidden', keys: foreignKeys }, 403)
     }

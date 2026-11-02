@@ -38,7 +38,6 @@ function basePermissions() {
     can: (_permission: string, _scope?: string) => false,
     canAnywhere: (_permission: string) => false,
     canGlobally: (_permission: string) => false,
-    isDeveloper: false,
     manageableScopes: [],
     isLoading: false,
   }
@@ -112,10 +111,15 @@ describe("SettingsDialog", () => {
     expect(onTabChange).toHaveBeenCalledWith("general")
   })
 
-  it("isDeveloper=false hides Content Types even with every RBAC permission", () => {
+  it("a global manage_seeds holder sees the Data Models group with Content Types", () => {
+    setPermissions({ canGlobally: (permission: string) => permission === "manage_seeds" })
+    renderDialog("profile")
+    expect(screen.getByText(/Content Types/)).toBeInTheDocument()
+  })
+
+  it("every RBAC permission except a global manage_seeds hides Content Types", () => {
     setPermissions({
-      isDeveloper: false,
-      canGlobally: () => true,
+      canGlobally: (permission: string) => permission !== "manage_seeds",
       canAnywhere: () => true,
     })
     renderDialog("profile")

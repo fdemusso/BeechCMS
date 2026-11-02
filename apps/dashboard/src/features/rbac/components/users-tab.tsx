@@ -46,8 +46,6 @@ export function UsersTab() {
   const [assignmentsUser, setAssignmentsUser] = React.useState<AccountView | null>(null)
 
   const handleToggleActive = async (targetUser: AccountView) => {
-    const isDev = targetUser.role === "admin" || (targetUser as { isDeveloper?: boolean }).isDeveloper === true
-    if (isDev) return
     try {
       await setUserActive.mutateAsync({ userId: targetUser.id, isActive: !targetUser.isActive })
     } catch (err) {
@@ -88,8 +86,7 @@ export function UsersTab() {
             <TableBody>
               {sortedUsers.map((accountUser) => {
                 const isSelf = currentUser?.id === accountUser.id
-                const isDev = accountUser.role === "admin" || (accountUser as { isDeveloper?: boolean }).isDeveloper === true
-                const isSwitchDisabled = isSelf || isDev || setUserActive.isPending
+                const isSwitchDisabled = isSelf || setUserActive.isPending
                 return (
                   <TableRow key={accountUser.id}>
                     <TableCell className="font-medium max-w-[240px]">
@@ -144,9 +141,7 @@ export function UsersTab() {
                             </span>
                           </TooltipTrigger>
                           <TooltipContent side="top">
-                            {isDev
-                              ? t("rbac.users.cannotDeactivateDev", "Developer account cannot be deactivated")
-                              : isSelf
+                            {isSelf
                               ? t("rbac.users.cannotDeactivateSelf", "You cannot deactivate your own account")
                               : t("rbac.users.status", "Status")}
                           </TooltipContent>
@@ -168,7 +163,6 @@ export function UsersTab() {
         onOpenChange={(next) => { if (!next) setAssignmentsUser(null) }}
         userId={assignmentsUser?.id ?? null}
         userEmail={assignmentsUser?.email}
-        isDeveloper={assignmentsUser?.role === "admin"}
       />
     </Card>
   )

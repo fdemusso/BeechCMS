@@ -72,7 +72,7 @@ Visibility is computed with `canAdministerAccount()`: a global `manage_users` ho
 
 ```json
 { "users": [ { "id": "…", "email": "…", "name": null, "surname": null,
-               "role": "editor", "isActive": true, "assignments": [ … ] } ],
+               "isActive": true, "createdAt": …, "assignments": [ … ] } ],
   "nextOffset": null }
 ```
 
@@ -93,7 +93,7 @@ Content-Type: application/json
 | `password` | 8–128 chars **and** ≤ 72 bytes UTF-8 (bcrypt truncates past 72) |
 | `name`, `surname` | optional/nullable, trimmed, ≤ 120 chars |
 
-Accounts minted here always receive `users.role = 'editor'`, never `'admin'`. The developer/owner axis is not grantable through RBAC: `'admin'` is minted only by `POST /auth/setup`, so no RBAC path can produce an account that clears `requireAdmin()` and reaches `/api/seeds/*`.
+The account carries no authority of its own. Only an assignment confers any. The sole account created with authority is the first one, through `POST /auth/setup`, which receives `SuperAdmin` at `*`.
 
 | Status | Condition |
 |---|---|
@@ -301,7 +301,7 @@ Redemption order, which is load-bearing:
 2. Re-validate the scope against the live seed registry (`422 unknown-scope`).
 3. **Re-evaluate the issuer's live authority** without a JWT — the issuer must still be active and must still pass `hasPermission` + `canGrant` for this `(role, scope)`. Otherwise `409 invitation-revoked`. Authority granted by an admin who has since been demoted or deactivated never lands.
 4. `409 email-taken` if the address is already registered; the invitation is left untouched.
-5. `redeem()` — create the account (`users.role = 'editor'`), write the assignment and consume the invitation in **one** atomic write. A failure never burns the invitation or leaves an account without its role, and a race cannot redeem it twice (`404 invitation-invalid` for the loser).
+5. `redeem()` — create the account, write the assignment and consume the invitation in **one** atomic write. A failure never burns the invitation or leaves an account without its role, and a race cannot redeem it twice (`404 invitation-invalid` for the loser).
 
 No token and no session are returned: the activated account logs in through `POST /auth/login` like any other (`201 { id, email }`).
 

@@ -26,10 +26,6 @@ Options for `purge`.
 
 > **id**: `string`
 
-#### role?
-
-> `optional` **role?**: `string`
-
 #### Inherited from
 
 [`RepositoryOptions`](RepositoryOptions.md).[`actor`](RepositoryOptions.md#actor)

@@ -38,7 +38,7 @@ Before connecting an MCP client:
    pnpm beech dev
    # API running at http://localhost:8789, dashboard at http://localhost:5173
    ```
-3. **Admin Account**: You need credentials for an account with the `admin` role (created during onboarding or initial setup).
+3. **Seed-Admin Account**: You need credentials for an account holding `manage_seeds` at `*`. The first account created at setup holds `SuperAdmin`, which carries it.
 
 ---
 

@@ -9,13 +9,6 @@ export interface UserRecord {
   name: string | null
   surname: string | null
   passwordHash: string
-  /**
-   * System-level account type ('admin' | 'editor').
-   * - 'admin': Developer / instance owner with full system access and Seed Builder control.
-   * - 'editor': Generic Beech CMS user whose permissions are managed via RBAC assignments.
-   *   (Note: 'editor' is retained as technical debt for DB CHECK constraint and backwards compatibility).
-   */
-  role: string
   avatarUrl: string | null
   notificationPreferences: string
   /**
@@ -35,12 +28,6 @@ export interface AccountSummary {
   email: string
   name: string | null
   surname: string | null
-  /**
-   * Developer/owner axis ('admin' | 'editor'), orthogonal to RBAC permissions.
-   * - 'admin' = Developer / Owner
-   * - 'editor' = Generic Beech user (RBAC-gated)
-   */
-  role: string
   isActive: boolean
   createdAt: number
 }
@@ -49,7 +36,6 @@ export interface NewUserInput {
   id: string
   email: string
   passwordHash: string
-  role: string
   name: string | null
   surname: string | null
 }
@@ -129,10 +115,4 @@ export interface IUserRepository {
    * last active global administrator.
    */
   setActive(userId: string, isActive: boolean): Promise<AdminGuardedResult>
-
-  /**
-   * Read-only twin of the deactivation guard in {@link setActive}: is this account the last
-   * active global administrator? ADVISORY — see `IRoleAssignmentRepository.isLastGlobalAdminAssignment`.
-   */
-  isLastGlobalAdmin(userId: string): Promise<boolean>
 }
