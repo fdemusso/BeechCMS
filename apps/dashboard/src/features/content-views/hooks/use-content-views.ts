@@ -54,6 +54,9 @@ export function useUpdateContentView(slug: string) {
   const { t } = useTranslation()
   const queryKey = CONTENT_VIEWS_QUERY_KEY(slug)
   return useMutation({
+    // Same scope id => TanStack runs these mutations serially, so debounced autosave PATCHes
+    // for one seed cannot land out of order.
+    scope: { id: `view-${slug}` },
     mutationFn: ({ viewId, body }: UpdateContentViewVariables) => updateContentView(slug, viewId, body),
     onMutate: async ({ viewId, body }: UpdateContentViewVariables) => {
       await queryClient.cancelQueries({ queryKey })
