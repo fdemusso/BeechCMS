@@ -4,10 +4,11 @@
 //
 // test-coverage-diff.mjs
 // ─────────────────────────────────────────────────────────────────────────────
-// Run Vitest coverage ONLY for source files that changed on the current branch
-// compared to a base branch, respecting each workspace's vitest.config.ts
-// coverage exclusions. Files that are excluded in the vitest config are listed
-// as "excluded" and skipped from the run.
+// Run the tests related to files changed on the current branch compared to a base branch.
+// Test selection is independent of coverage: every changed source file and every changed test
+// file is run, even when the source is listed in a workspace's vitest.config.ts coverage.exclude.
+// coverage.exclude only decides which changed files are measured for changed-line coverage.
+// A related run that executes zero tests is a failure, never a silent pass.
 //
 // Coverage is judged on the CHANGED LINES only (from `git diff -U0`), combined across the V8
 // tiers that ran, against the workspace `lines` threshold. Whole-file figures stay in the
@@ -260,20 +261,26 @@ function isExcluded(relPath, { include, exclude }) {
 }
 
 // ─── Run Vitest for a workspace tier ────────────────────────────────────────
-function runVitestTier(workspace, runner, sourceFiles) {
+function runVitestTier(workspace, runner, { sourceFiles, testFiles, coverageFiles }) {
   const workspaceDir = path.join(ROOT, workspace.dir)
-  const relFiles = sourceFiles.map(f => path.relative(workspaceDir, f).replace(/\\/g, '/'))
+  const toRel = f => path.relative(workspaceDir, f).replace(/\\/g, '/')
+  // Test selection: every changed source file plus every changed test file. Independent of coverage.exclude.
+  const relFiles = [...sourceFiles, ...testFiles].map(toRel)
+  // Coverage measurement: only the changed files that are not exempt via coverage.exclude.
+  const relCoverageFiles = coverageFiles.map(toRel)
 
   const configFlags  = runner.config  ? ['--config', runner.config]  : []
   const projectFlags = runner.project ? [`--project=${runner.project}`] : []
 
-  const coverageFlags = runner.coverage
+  // A tier with nothing to measure still runs its tests, but without a coverage provider.
+  const measureCoverage = runner.coverage && relCoverageFiles.length > 0
+  const coverageFlags = measureCoverage
     ? [
         '--coverage',
         '--coverage.reporter=json-summary',
         '--coverage.reporter=json',
         '--coverage.reporter=text',
-        ...relFiles.map(f => `--coverage.include=${f}`),
+        ...relCoverageFiles.map(f => `--coverage.include=${f}`),
         '--coverage.thresholds.lines=0',
         '--coverage.thresholds.functions=0',
         '--coverage.thresholds.branches=0',
@@ -291,7 +298,7 @@ function runVitestTier(workspace, runner, sourceFiles) {
     cwd: workspaceDir, encoding: 'utf8', stdio: 'pipe', shell: true,
   })
 
-  return { stdout: result.stdout || '', stderr: result.stderr || '', status: result.status }
+  return { stdout: result.stdout || '', stderr: result.stderr || '', status: result.status, measuredCoverage: measureCoverage }
 }
 
 // ─── Parse Coverage Summary JSON ──────────────────────────────────────────
@@ -477,14 +484,14 @@ async function main() {
     console.log(bold(`[${workspace.name}]`))
     console.log(dim('  ' + '─'.repeat(60)))
 
-    // Classify files
-    const sourceFiles  = []
+    // Classify files. Test selection (sourceFiles + testFiles) is decoupled from coverage
+    // measurement (coverageFiles): coverage.exclude only affects the latter.
+    const sourceFiles   = []
+    const testFiles     = []
+    const coverageFiles = []
 
     for (const absFile of files) {
       const relToWs = path.relative(workspaceDir, absFile).replace(/\\/g, '/')
-
-      // Skip test files themselves — we care about source files
-      if (/\.test\.(ts|tsx|js|jsx)$/.test(relToWs)) continue
 
       // Skip non-TS/JS files (markdown, sql, json, etc.)
       if (!/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(relToWs)) continue
@@ -492,13 +499,18 @@ async function main() {
       // Skip deleted files
       if (!fs.existsSync(absFile)) continue
 
-      if (isExcluded(relToWs, { include, exclude })) continue
+      // Changed test files run directly; they carry no coverage obligation themselves.
+      if (/\.test\.(ts|tsx|js|jsx)$/.test(relToWs)) {
+        testFiles.push(absFile)
+        continue
+      }
 
       sourceFiles.push(absFile)
+      if (!isExcluded(relToWs, { include, exclude })) coverageFiles.push(absFile)
     }
 
-    if (sourceFiles.length === 0) {
-      console.log(dim('   (no testable source files in this workspace — all skipped or excluded)'))
+    if (sourceFiles.length === 0 && testFiles.length === 0) {
+      console.log(dim('   (no testable source or test files in this workspace — all non-source or deleted)'))
       console.log()
       continue
     }
@@ -514,9 +526,10 @@ async function main() {
       if (!runner) continue                      // workspace does not own this tier
 
       anyWorkspaceRan = true
-      console.log(`   ${dim(`[${tier}] vitest (${runner.mode === 'related' && !runAllMode ? 'related' : 'full'}) — ${sourceFiles.length} source file(s)…`)}`)
+      console.log(`   ${dim(`[${tier}] vitest (${runner.mode === 'related' && !runAllMode ? 'related' : 'full'}) — ${sourceFiles.length} source + ${testFiles.length} test file(s), ${coverageFiles.length} measured for coverage…`)}`)
 
-      const { stdout, stderr, status } = runVitestTier(workspace, runner, sourceFiles)
+      const { stdout, stderr, status: rawStatus, measuredCoverage } = runVitestTier(workspace, runner, { sourceFiles, testFiles, coverageFiles })
+      let status = rawStatus
 
       // Print vitest output (compact)
       const lines = (stdout + '\n' + stderr)
@@ -532,9 +545,15 @@ async function main() {
       }
       console.log()
 
+      // Never let a "related" run that executed zero tests pass silently.
+      if (status === 0 && runner.mode === 'related' && !runAllMode && !/Tests\s+[^\n]*\d+\s+passed/.test(stripAnsi(stdout + '\n' + stderr))) {
+        console.log(red(`   [${tier}] no tests were run for the changed files — add a test or fix test selection.`))
+        status = 1
+      }
+
       if (status !== 0) { anyTierFailed = true; workspaceTestsFailed = true }
 
-      if (!runner.coverage) {
+      if (!measuredCoverage) {
         // No coverage provider in this tier: pass/fail is the whole signal.
         if (status === 0) unmeasuredTierPassed = true
         console.log(status === 0 ? green(`   [${tier}] PASS`) : red(`   [${tier}] FAIL`))
@@ -548,7 +567,7 @@ async function main() {
       const tierHits = parseLineHits(workspaceDir)
       const tierTableRows = []
 
-      for (const absFile of sourceFiles) {
+      for (const absFile of coverageFiles) {
         const relFile = path.relative(workspaceDir, absFile).replace(/\\/g, '/')
         const display = path.join(workspace.dir, relFile).replace(/\\/g, '/')
 
@@ -585,7 +604,7 @@ async function main() {
     const verdictRows = []
     const uncoveredNotes = []
 
-    for (const absFile of sourceFiles) {
+    for (const absFile of coverageFiles) {
       const relToRoot = path.relative(ROOT, absFile).replace(/\\/g, '/')
       const hits = combinedHits.get(absFile)
 

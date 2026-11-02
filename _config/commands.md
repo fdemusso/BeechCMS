@@ -24,6 +24,8 @@ All commands are unified under the `pnpm beech` CLI.
 - `pnpm beech schema:audit`    : Read-only audit of relation FK/junction storage and legacy tag definitions (exit 1 on mismatch)
 - `pnpm beech schema:migrate`  : Migrates pre-0.9 tag/choice seeds to the tags contract (dry run; `--apply` writes; `--remote` for production)
 - `pnpm beech test`            : Runs workspace tests (accepts `--diff` or `--coverage`)
+  - Exit codes of `node scripts/test-coverage-diff.mjs` / `pnpm beech test --diff`: `0` = all related tests passed and changed-line coverage met the threshold; `1` = test failure, syntax/import error, a related run that executed zero tests, or fatal tooling error; `2` = all tests passed but changed-line coverage fell below threshold; `75` = no CPU slot, nothing ran.
+  - Test selection ignores `coverage.exclude`: every changed source and test file runs its related tests; `coverage.exclude` only removes files from the changed-line coverage verdict.
 - `pnpm beech lint`            : Runs lint checks across the monorepo
 - `pnpm beech deploy`          : Compiles and deploys Worker and assets to Cloudflare production
 - `pnpm beech doctor`          : Executes dashboard diagnostics checks

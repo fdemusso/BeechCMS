@@ -27,6 +27,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build packages
         run: pnpm build
+      - name: Run script helper tests
+        run: node --test scripts/lib/*.test.mjs
       # No Docker: the unit tier is Docker-free by construction (vitest project 'unit').
       - name: Run unit tier
         run: pnpm beech test --tier unit
