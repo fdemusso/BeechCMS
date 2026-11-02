@@ -160,10 +160,9 @@ export function SectionShell({
               }}
             />
           ) : (
-            <span
-              role="button"
-              tabIndex={0}
-              className={`flex-1 cursor-text text-sm font-medium focus-visible:underline focus-visible:outline-none ${
+            <button
+              type="button"
+              className={`flex-1 cursor-text text-left text-sm font-medium focus-visible:underline focus-visible:outline-none ${
                 label ? '' : 'italic text-muted-foreground'
               }`}
               onDoubleClick={startRename}
@@ -175,7 +174,7 @@ export function SectionShell({
               }}
             >
               {label ?? noLabelText}
-            </span>
+            </button>
           )}
 
           <Badge variant="secondary" className="text-xs">
