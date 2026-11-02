@@ -24,12 +24,6 @@
 
 ***
 
-### role?
-
-> `optional` **role?**: `string`
-
-***
-
 ### sub
 
 > **sub**: `string`

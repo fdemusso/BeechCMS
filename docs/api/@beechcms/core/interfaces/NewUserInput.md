@@ -32,12 +32,6 @@
 
 ***
 
-### role
-
-> **role**: `string`
-
-***
-
 ### surname
 
 > **surname**: `string` \| `null`

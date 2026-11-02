@@ -33,6 +33,7 @@
 
 - [AggregateFormula](type-aliases/AggregateFormula.md)
 - [TimeWindow](type-aliases/TimeWindow.md)
+- [WidgetRequirement](type-aliases/WidgetRequirement.md)
 - [WidgetWindow](type-aliases/WidgetWindow.md)
 
 ## Functions

@@ -6,7 +6,7 @@
 
 # Function: isPermission()
 
-> **isPermission**(`value`): value is "content:read" \| "content:create" \| "content:update" \| "content:delete" \| "manage\_users" \| "manage\_roles" \| "view\_analytics"
+> **isPermission**(`value`): value is "content:read" \| "content:create" \| "content:update" \| "content:delete" \| "manage\_users" \| "manage\_roles" \| "view\_analytics" \| "manage\_layout" \| "manage\_seeds"
 
 Narrows an arbitrary string to a known permission.
 
@@ -18,4 +18,4 @@ Narrows an arbitrary string to a known permission.
 
 ## Returns
 
-value is "content:read" \| "content:create" \| "content:update" \| "content:delete" \| "manage\_users" \| "manage\_roles" \| "view\_analytics"
+value is "content:read" \| "content:create" \| "content:update" \| "content:delete" \| "manage\_users" \| "manage\_roles" \| "view\_analytics" \| "manage\_layout" \| "manage\_seeds"

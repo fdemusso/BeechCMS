@@ -14,7 +14,7 @@ resolution between roles.
 
 ### byScope
 
-> **byScope**: `ReadonlyMap`&lt;`string`, `ReadonlySet`&lt;`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"`&gt;&gt;
+> **byScope**: `ReadonlyMap`&lt;`string`, `ReadonlySet`&lt;`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"` \| `"manage_layout"` \| `"manage_seeds"`&gt;&gt;
 
 Permissions held at a specific seed slug, keyed by that slug.
 
@@ -22,6 +22,6 @@ Permissions held at a specific seed slug, keyed by that slug.
 
 ### global
 
-> **global**: `ReadonlySet`&lt;`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"`&gt;
+> **global**: `ReadonlySet`&lt;`"content:read"` \| `"content:create"` \| `"content:update"` \| `"content:delete"` \| `"manage_users"` \| `"manage_roles"` \| `"view_analytics"` \| `"manage_layout"` \| `"manage_seeds"`&gt;
 
 Permissions held at [GLOBAL\_SCOPE](../variables/GLOBAL_SCOPE.md); they apply to every seed.

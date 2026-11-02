@@ -17,9 +17,3 @@
 ### id
 
 > **id**: `string`
-
-***
-
-### role?
-
-> `optional` **role?**: `string`

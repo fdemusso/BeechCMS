@@ -8,14 +8,6 @@
 
 ## Properties
 
-### hiddenWidgetCount
-
-> `readonly` **hiddenWidgetCount**: `number`
-
-Widgets removed because their `config.seedSlug` names a seed the viewer may not `content:read`.
-
-***
-
 ### layout
 
 > `readonly` **layout**: [`DashboardLayout`](DashboardLayout.md)

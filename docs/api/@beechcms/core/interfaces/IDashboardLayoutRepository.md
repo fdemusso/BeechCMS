@@ -28,9 +28,9 @@ Stored layout for a scope, or null if none was ever saved.
 
 ### remove()
 
-> **remove**(`scope`): `Promise`&lt;`void`&gt;
+> **remove**(`scope`, `expectedUpdatedAt`): `Promise`&lt;[`DashboardLayoutWriteResult`](../type-aliases/DashboardLayoutWriteResult.md)&gt;
 
-Remove the stored row — the "Reset" action.
+Removes the row only while its `updatedAt` equals `expectedUpdatedAt`; with null, succeeds only when no row is stored.
 
 #### Parameters
 
@@ -38,17 +38,21 @@ Remove the stored row — the "Reset" action.
 
 `string`
 
+##### expectedUpdatedAt
+
+`number` \| `null`
+
 #### Returns
 
-`Promise`&lt;`void`&gt;
+`Promise`&lt;[`DashboardLayoutWriteResult`](../type-aliases/DashboardLayoutWriteResult.md)&gt;
 
 ***
 
-### upsert()
+### save()
 
-> **upsert**(`scope`, `layout`, `updatedBy`): `Promise`&lt;`void`&gt;
+> **save**(`scope`, `layout`, `updatedBy`, `expectedUpdatedAt`): `Promise`&lt;[`DashboardLayoutWriteResult`](../type-aliases/DashboardLayoutWriteResult.md)&gt;
 
-Upsert. `updatedBy` is the writer's user id.
+Writes only while the stored `updatedAt` equals `expectedUpdatedAt` (null = no row stored). `updatedAt` strictly increases on every write.
 
 #### Parameters
 
@@ -64,6 +68,10 @@ Upsert. `updatedBy` is the writer's user id.
 
 `string`
 
+##### expectedUpdatedAt
+
+`number` \| `null`
+
 #### Returns
 
-`Promise`&lt;`void`&gt;
+`Promise`&lt;[`DashboardLayoutWriteResult`](../type-aliases/DashboardLayoutWriteResult.md)&gt;
