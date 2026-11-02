@@ -38,6 +38,7 @@ function DataTableInner<TData, TValue>(
       <div
         className="group/dt flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border outline-none"
         data-datatable-root=""
+        role="group"
         tabIndex={selectionEnabled ? 0 : undefined}
         onKeyDown={selection.handleKeyDown}
       >
