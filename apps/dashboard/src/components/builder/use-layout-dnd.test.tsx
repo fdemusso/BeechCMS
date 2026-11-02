@@ -10,7 +10,7 @@
 
 import { act, renderHook } from '@testing-library/react'
 import type { DragEndEvent, DragMoveEvent, DragStartEvent } from '@dnd-kit/core'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type { ColumnRef, ItemLocation } from './layout-dnd'
 import { useLayoutDnd, type LayoutDndAdapter } from './use-layout-dnd'
 
@@ -54,9 +54,9 @@ const dropOnNothing = () => ({ active: { id: 'widget:w1' }, over: null }) as unk
 
 describe('useLayoutDnd', () => {
   let adapter: LayoutDndAdapter<StubLayout, StubPreview>
-  let moveItem: ReturnType<typeof vi.fn>
-  let reorderItems: ReturnType<typeof vi.fn>
-  let notify: ReturnType<typeof vi.fn>
+  let moveItem: Mock<LayoutDndAdapter<StubLayout, StubPreview>['moveItem']>
+  let reorderItems: Mock<LayoutDndAdapter<StubLayout, StubPreview>['reorderItems']>
+  let notify: Mock<LayoutDndAdapter<StubLayout, StubPreview>['notify']>
 
   beforeEach(() => {
     moveItem = vi.fn(() => true)
