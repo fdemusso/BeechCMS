@@ -98,7 +98,7 @@ export function authMiddleware(options: AuthMiddlewareOptions = {}) {
         throw new HTTPException(401, { res: invalidTokenResponse() })
       }
 
-      // In-slice code (`actorFromContext`, the schema layout gate) and `permissionMiddleware` read `jwtPayload`. An OAuth
+      // In-slice code (`actorFromContext`, the slices' `sub` reads) and `permissionMiddleware` read `jwtPayload`. An OAuth
       // request must therefore present the SAME shape as a JWT request: the resource owner's
       // own claims, never elevated ones. If the account is gone, the grant is dead with it.
       const user = await c.get('userRepository').findById(record.userId)

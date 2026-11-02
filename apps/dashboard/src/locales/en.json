@@ -1719,7 +1719,6 @@
       "reactivate": "Reactivate",
       "manageRoles": "Manage roles",
       "zeroTrustHint": "The account is created with no role and no access until assigned.",
-      "cannotDeactivateDev": "Developer account cannot be deactivated",
       "cannotDeactivateSelf": "You cannot deactivate your own account",
       "deactivateWarning": "All active sessions are revoked immediately.",
       "createSuccess": "Account created"
@@ -1768,7 +1767,6 @@
       "role": "Role",
       "scope": "Scope",
       "inactiveScope": "Inactive scope",
-      "cannotRemoveDevSuperAdmin": "The developer account must retain the SuperAdmin role",
       "empty": "No assignments yet"
     },
     "scope": {

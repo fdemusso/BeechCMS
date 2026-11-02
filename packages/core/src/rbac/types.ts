@@ -125,14 +125,6 @@ export interface IRoleAssignmentRepository {
    */
   delete(assignmentId: string): Promise<AdminGuardedResult>
 
-  /**
-   * Read-only twin of the {@link delete} guard: would removing this assignment leave no
-   * other active global administrator? ADVISORY — it only lets a caller that refuses for
-   * another reason (the Developer account) report the more fundamental one; it is never a
-   * substitute for the guard inside {@link delete}.
-   */
-  isLastGlobalAdminAssignment(assignmentId: string): Promise<boolean>
-
   /** One assignment by id, decay filter NOT applied. Null when absent. */
   findById(assignmentId: string): Promise<PermissionAssignment | null>
 

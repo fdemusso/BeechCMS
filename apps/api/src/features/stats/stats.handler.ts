@@ -191,12 +191,9 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
         const seedsCount = seeds.length
         const contentTablesOk = seedsCount > 0 && seeds.every(seed => existingTables.has(`content_${seed.slug}`))
 
-        let adminExists = false
-        try {
-            adminExists = (await setupChecklistRepository.countAdmins()) > 0
-        } catch {
-            // users table may not exist yet
-        }
+        // The route gate is `manage_users@*` for an active account, so reaching this handler proves an
+        // active global administrator exists.
+        const adminExists = true
 
         let hasContent = false
         const firstSeedSlug = seeds[0]?.slug ?? null

@@ -1719,7 +1719,6 @@
       "reactivate": "Riattiva",
       "manageRoles": "Gestisci ruoli",
       "zeroTrustHint": "L'account viene creato senza ruolo e senza accesso finché non viene assegnato.",
-      "cannotDeactivateDev": "L'account sviluppatore non può essere disattivato",
       "cannotDeactivateSelf": "Non puoi disattivare il tuo account",
       "deactivateWarning": "Tutte le sessioni attive vengono revocate immediatamente.",
       "createSuccess": "Account creato"
@@ -1768,7 +1767,6 @@
       "role": "Ruolo",
       "scope": "Ambito",
       "inactiveScope": "Ambito inattivo",
-      "cannotRemoveDevSuperAdmin": "L'account sviluppatore non può rimuovere il ruolo SuperAdmin",
       "empty": "Ancora nessuna assegnazione"
     },
     "scope": {

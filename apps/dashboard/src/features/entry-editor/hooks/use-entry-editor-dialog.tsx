@@ -12,7 +12,6 @@ import { isApiError } from "@/lib/http/api-error"
 import {
   slugify,
   generateDefaultLayout,
-  canEditLayout,
   isLocalizedBranch,
   type Branch,
   type FormLayout,
@@ -29,7 +28,7 @@ import {
   contentErrorCode,
 } from "@/features/content-management"
 import { useActiveSeed, useLocaleConfig } from "@/features/shared"
-import { useAuth } from "@/lib/auth-context"
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { Loader as Loader2 } from '@/components/icons'
 import type { RendererBranchMap, RendererLocalization } from "../renderer/layout-renderer"
 import { LocaleSwitcher } from "../renderer/locale-switcher"
@@ -238,8 +237,8 @@ export function useEntryEditorDialog({
     setIsReadOnly(readonly ?? false)
   }, [readonly])
 
-  const { user } = useAuth()
-  const canEditLayoutFlag = canEditLayout(user?.role)
+  const { canGlobally } = usePermissions()
+  const canEditLayoutFlag = canGlobally("manage_seeds")
 
   const blocker = useBlocker(() => isDirty && !hasJustSavedRef.current)
 

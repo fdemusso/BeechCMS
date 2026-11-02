@@ -29,9 +29,9 @@ vi.mock("@/lib/rpc", () => ({
     },
   },
 }))
-vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { id: "u1", role: "editor" }, status: "authenticated" }) }))
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { id: "u1" }, status: "authenticated" }) }))
 vi.mock("@/features/shared/hooks/use-permissions", () => ({
-  usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }),
+  usePermissions: () => ({ can: () => true, canAnywhere: () => true, canGlobally: () => true, effective: {} }),
 }))
 vi.mock("@/features/backrefs", () => ({ ReferencedByPanel: () => null }))
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))

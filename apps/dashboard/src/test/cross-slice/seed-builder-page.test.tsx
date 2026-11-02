@@ -17,14 +17,10 @@ vi.mock("react-router-dom", () => ({
   useBlocker: () => mockBlocker,
 }))
 
-const mockAuthAdmin = { user: { email: "admin@test.com", role: "admin" as const } }
-const mockAuthEditor = { user: { email: "editor@test.com", role: "editor" as const } }
-const mockAuthRef = { current: mockAuthAdmin as { user: { email: string; role: "admin" | "editor" } } }
+const manageSeeds = { current: true }
 
-vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }) }))
-
-vi.mock("@/lib/auth-context", () => ({
-  useAuth: () => mockAuthRef.current,
+vi.mock("@/features/shared/hooks/use-permissions", () => ({
+  usePermissions: () => ({ can: () => true, canAnywhere: () => true, canGlobally: () => manageSeeds.current, effective: {} }),
 }))
 
 vi.mock("@/features/schema", () => ({
@@ -75,30 +71,30 @@ function wrap(ui: React.ReactElement) {
   )
 }
 
-describe("SeedBuilderPage — admin", () => {
+describe("SeedBuilderPage — manage_seeds holder", () => {
   it("renders content types from useSeeds", () => {
-    mockAuthRef.current = mockAuthAdmin
+    manageSeeds.current = true
     wrap(<SeedBuilderPage />)
     expect(screen.getByText("Article")).toBeDefined()
     expect(screen.getByText("article")).toBeDefined()
   })
 
-  it("shows New content type button for admin", () => {
-    mockAuthRef.current = mockAuthAdmin
+  it("shows New content type button for a manage_seeds@* holder", () => {
+    manageSeeds.current = true
     const { unmount } = wrap(<SeedBuilderPage />)
     expect(screen.getByText(/New content type/i)).toBeDefined()
     unmount()
   })
 
   it("shows source badge as Created here for runtime seed", () => {
-    mockAuthRef.current = mockAuthAdmin
+    manageSeeds.current = true
     const { unmount } = wrap(<SeedBuilderPage />)
     expect(screen.getByText(/Created here/i)).toBeDefined()
     unmount()
   })
 
-  it("shows edit and delete buttons for admin", () => {
-    mockAuthRef.current = mockAuthAdmin
+  it("shows edit and delete buttons for a manage_seeds@* holder", () => {
+    manageSeeds.current = true
     const { unmount } = wrap(<SeedBuilderPage />)
     expect(screen.getAllByTestId("edit-seed-btn").length).toBeGreaterThan(0)
     expect(screen.getAllByTestId("delete-seed-btn").length).toBeGreaterThan(0)
@@ -106,7 +102,7 @@ describe("SeedBuilderPage — admin", () => {
   })
 
   it("opens the shared SchemaFormShell (create title) when New content type is clicked", async () => {
-    mockAuthRef.current = mockAuthAdmin
+    manageSeeds.current = true
     const { unmount } = wrap(<SeedBuilderPage />)
     const { default: userEvent } = await import("@testing-library/user-event")
     const user = userEvent.setup()
@@ -124,7 +120,7 @@ describe("SeedBuilderPage — admin", () => {
   })
 
   it("opens the shared SchemaFormShell (edit title) when a row's edit button is clicked", async () => {
-    mockAuthRef.current = mockAuthAdmin
+    manageSeeds.current = true
     const { unmount } = wrap(<SeedBuilderPage />)
     const { default: userEvent } = await import("@testing-library/user-event")
     const user = userEvent.setup()
@@ -136,7 +132,7 @@ describe("SeedBuilderPage — admin", () => {
   })
 
   it("renders loading state when isLoading is true", () => {
-    mockAuthRef.current = mockAuthAdmin
+    manageSeeds.current = true
     mockUseSeeds.mockReturnValueOnce({ data: [], isLoading: true, refetch: vi.fn() })
     const { unmount } = wrap(<SeedBuilderPage />)
     expect(screen.getByText("Loading...")).toBeInTheDocument()
@@ -144,7 +140,7 @@ describe("SeedBuilderPage — admin", () => {
   })
 
   it("renders empty state when there are no results", () => {
-    mockAuthRef.current = mockAuthAdmin
+    manageSeeds.current = true
     mockUseSeeds.mockReturnValueOnce({ data: [], isLoading: false, refetch: vi.fn() })
     const { unmount } = wrap(<SeedBuilderPage />)
     expect(screen.getByText("No results")).toBeInTheDocument()
@@ -152,7 +148,7 @@ describe("SeedBuilderPage — admin", () => {
   })
 
   it("toggles showDeleted switch to display deleted content types", async () => {
-    mockAuthRef.current = mockAuthAdmin
+    manageSeeds.current = true
     const deletedRecord: SeedRecordDTO = {
       slug: "deleted-type",
       definition: {
@@ -186,7 +182,7 @@ describe("SeedBuilderPage — admin", () => {
   })
 
   it("calls refetch when the refresh button is clicked", async () => {
-    mockAuthRef.current = mockAuthAdmin
+    manageSeeds.current = true
     const refetchSpy = vi.fn()
     mockUseSeeds.mockReturnValueOnce({ data: [mockRecord], isLoading: false, refetch: refetchSpy })
     const { unmount } = wrap(<SeedBuilderPage />)
@@ -203,8 +199,8 @@ describe("SeedBuilderPage — admin", () => {
 })
 
 describe("SeedBuilderPage — editor", () => {
-  it("hides create/edit/delete for non-admin", () => {
-    mockAuthRef.current = mockAuthEditor
+  it("hides create/edit/delete without manage_seeds@*", () => {
+    manageSeeds.current = false
     const { unmount } = wrap(<SeedBuilderPage />)
     expect(screen.queryByText(/New content type/i)).toBeNull()
     expect(screen.queryByTestId("edit-seed-btn")).toBeNull()

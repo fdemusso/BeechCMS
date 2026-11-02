@@ -8,8 +8,9 @@
  */
 import { Hono, type Context } from 'hono'
 import type { z } from 'zod'
-import { isMimeAccepted, parseMediaTransformQuery, SystemClock, type BeechBucket } from '@beechcms/core'
+import { GLOBAL_SCOPE, hasPermission, isMimeAccepted, parseMediaTransformQuery, SystemClock, type BeechBucket } from '@beechcms/core'
 import { AppEnv } from '../../types'
+import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { deleteR2Objects } from '../../shared/storage/upload'
 import { importObjectKeyPrefix } from '../../shared/storage/import-object-key'
 import { zodJson, type ZodJsonRefusal } from '../../shared/utils/zod-json'
@@ -265,12 +266,10 @@ export const uploadRoutes = new Hono<AppEnv>()
       return c.json({ error: 'Media not found' }, 404)
     }
 
-    // Access Control: check owner (uploaded_by) or administrative role
-    const jwtPayload = c.var.jwtPayload
-    const userId = jwtPayload?.sub
-    const isAdmin = jwtPayload?.role === 'admin'
-
-    if (!isAdmin && userId !== media.uploaded_by) {
+    // Access Control: owner (uploaded_by) or a global administrator (`manage_users@*`).
+    // The RBAC side is evaluated only for a non-owner, so owners pay no extra read.
+    const isOwner = c.var.jwtPayload?.sub === media.uploaded_by
+    if (!isOwner && !hasPermission(await resolveEffectivePermissions(c), 'manage_users', GLOBAL_SCOPE)) {
       return c.json({ error: 'Forbidden' }, 403)
     }
 
@@ -299,12 +298,10 @@ export const uploadRoutes = new Hono<AppEnv>()
       return c.json({ error: 'Media not found' }, 404)
     }
 
-    // Access Control: check owner (uploaded_by) or administrative role
-    const jwtPayload = c.var.jwtPayload
-    const userId = jwtPayload?.sub
-    const isAdmin = jwtPayload?.role === 'admin'
-
-    if (!isAdmin && userId !== media.uploaded_by) {
+    // Access Control: owner (uploaded_by) or a global administrator (`manage_users@*`).
+    // The RBAC side is evaluated only for a non-owner, so owners pay no extra read.
+    const isOwner = c.var.jwtPayload?.sub === media.uploaded_by
+    if (!isOwner && !hasPermission(await resolveEffectivePermissions(c), 'manage_users', GLOBAL_SCOPE)) {
       return c.json({ error: 'Forbidden' }, 403)
     }
 

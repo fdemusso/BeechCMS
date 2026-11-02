@@ -4,7 +4,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const mocked = vi.hoisted(() => ({ schema: vi.fn(), entryGet: vi.fn(), draftGet: vi.fn(), draftPut: vi.fn(), publish: vi.fn(), discard: vi.fn() }))
+const mocked = vi.hoisted(() => ({ schema: vi.fn(), entryGet: vi.fn(), draftGet: vi.fn(), draftPut: vi.fn(), publish: vi.fn(), discard: vi.fn(), canGlobally: vi.fn() }))
 vi.mock("@/lib/rpc", () => ({
   rpc: {
     api: {
@@ -20,7 +20,9 @@ vi.mock("@/lib/rpc", () => ({
     },
   },
 }))
-vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ user: { role: "admin" } }) }))
+vi.mock("@/features/shared/hooks/use-permissions", () => ({
+  usePermissions: () => ({ can: () => true, canAnywhere: () => true, canGlobally: mocked.canGlobally, effective: {} }),
+}))
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 
@@ -47,7 +49,8 @@ describe("useEntryEditorDialog", () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    mocked.canGlobally.mockReturnValue(true)
+    client =new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
     onClose = vi.fn<() => void>()
     mocked.schema.mockResolvedValue({ json: async () => CANONICAL_SEEDS })
     mocked.draftGet.mockResolvedValue({ json: async () => ({ data: { title: "Draft" } }) })
@@ -71,6 +74,22 @@ describe("useEntryEditorDialog", () => {
     await waitFor(() => expect(hook.result.current.formData.title).toBe("Draft"))
     return hook
   }
+
+  it("offers the layout builder to a manage_seeds@* holder", async () => {
+    const { result } = await editor()
+
+    expect(result.current.canEditLayoutFlag).toBe(true)
+    expect(mocked.canGlobally).toHaveBeenCalledWith("manage_seeds")
+  })
+
+  it("withholds the layout builder without manage_seeds@*", async () => {
+    mocked.canGlobally.mockImplementation((permission: string) => permission !== "manage_seeds")
+
+    const { result } = await editor()
+
+    expect(result.current.canEditLayoutFlag).toBe(false)
+    expect(mocked.canGlobally).toHaveBeenCalledWith("manage_seeds")
+  })
 
   it.each(["save", "publish"])("highlights fields when draft %s returns validation errors", async (operation) => {
     const rejection = new ApiError(400, { type: "https://beechcms.dev/problems/content-validation-failed", errors: [{ field: "title", message: "Invalid title" }] })

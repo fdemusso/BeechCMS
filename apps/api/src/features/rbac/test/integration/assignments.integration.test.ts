@@ -100,7 +100,7 @@ describe('rbac assignments — integration (real D1)', () => {
       expect(await countAdminAssignments()).toBe(1)
     })
 
-    it('refuses removing the Developer\'s only assignment with last-global-admin, the more fundamental refusal', async () => {
+    it("refuses removing the only global administrator's assignment with last-global-admin", async () => {
       // The harness seeds the admin's assignment with a non-UUID id, which the route rejects as malformed.
       await harness.db
         .prepare('UPDATE user_role_assignments SET id = ? WHERE user_id = ?')
@@ -114,7 +114,7 @@ describe('rbac assignments — integration (real D1)', () => {
       expect(await countAdminAssignments()).toBe(1)
     })
 
-    it('refuses removing the Developer\'s SuperAdmin assignment with developer-protected while another administrator exists', async () => {
+    it("removes the canonical admin's SuperAdmin assignment with 204 while another global administrator exists", async () => {
       await harness.db
         .prepare('UPDATE user_role_assignments SET id = ? WHERE user_id = ?')
         .bind(ONLY_ADMIN_ASSIGNMENT_ID, CANONICAL_USERS.admin.id)
@@ -127,9 +127,8 @@ describe('rbac assignments — integration (real D1)', () => {
 
       const response = await admin.delete(`/api/rbac/assignments/${ONLY_ADMIN_ASSIGNMENT_ID}`)
 
-      expect(response.status).toBe(409)
-      expect(await response.json<{ type: string }>()).toMatchObject({ type: 'https://beechcms.dev/problems/developer-protected' })
-      expect(await countAdminAssignments()).toBe(1)
+      expect(response.status).toBe(204)
+      expect(await countAdminAssignments()).toBe(0)
     })
   })
 })

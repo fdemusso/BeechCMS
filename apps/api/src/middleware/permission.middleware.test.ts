@@ -65,10 +65,13 @@ describe('resolveRouteRule — seeds routes', () => {
     expect(resolved).toEqual(SEEDS_ROUTES.map(() => ({ kind: 'permission', permission: 'manage_seeds', scope: 'global' })))
   })
 
-  it('the entry-editor layout routes still resolve to legacy-admin', () => {
+  it('the entry-editor layout routes resolve to manage_seeds at the global scope', () => {
     const resolved = (['PUT', 'DELETE'] as const).map((method) => resolveRouteRule(method, '/api/schema/x/layout')?.requirement)
 
-    expect(resolved).toEqual([{ kind: 'legacy-admin' }, { kind: 'legacy-admin' }])
+    expect(resolved).toEqual([
+      { kind: 'permission', permission: 'manage_seeds', scope: 'global' },
+      { kind: 'permission', permission: 'manage_seeds', scope: 'global' },
+    ])
   })
 })
 

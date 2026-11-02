@@ -38,6 +38,17 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
     adminToken = await tokenService.issue({ sub: TEST_USERS[0].id, email: TEST_USERS[0].email })
   })
 
+  // seedTestUsers grants SuperAdmin to every row by default (seed-fixtures.ts), so the canonical editor
+  // would hold manage_users@* and clear the ownership check. This strips it down to the route gates only.
+  const seedContentOnlyEditor = async (): Promise<void> => {
+    const roleId = 'role_content_only'
+    await db.prepare('DELETE FROM user_role_assignments WHERE user_id = ?').bind(TEST_USERS[1].id).run()
+    await db.prepare('INSERT INTO roles (id, name) VALUES (?, ?)').bind(roleId, 'Content only').run()
+    await db.prepare('INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)').bind(roleId, 'content:read').run()
+    await db.prepare('INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)').bind(roleId, 'content:delete').run()
+    await db.prepare("INSERT INTO user_role_assignments (id, user_id, role_id, scope) VALUES (?, ?, ?, '*')").bind('ura_content_only', TEST_USERS[1].id, roleId).run()
+  }
+
   describe('POST /api/upload/presign', () => {
     it('returns 401 without JWT', async () => {
       const res = await app.request('/api/upload/presign', {
@@ -268,12 +279,13 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       expect(res.status).toBe(404)
     })
 
-    it('returns 403 when user is not owner and not admin', async () => {
+    it('returns 403 when user is not the owner and lacks manage_users@*', async () => {
       const key = `${Date.now()}-download-test.png`
       await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'download-test.png', 'image/png', 100, TEST_USERS[0].id).run()
+      await seedContentOnlyEditor()
 
       const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
-      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email, role: 'editor' })
+      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email })
 
       const res = await app.request(`/api/upload/download-url/${key}`, {
         method: 'GET',
@@ -285,9 +297,10 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
     it('allows download when user is owner', async () => {
       const key = `${Date.now()}-download-owner.png`
       await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'download-owner.png', 'image/png', 100, TEST_USERS[1].id).run()
+      await seedContentOnlyEditor()
 
       const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
-      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email, role: 'editor' })
+      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email })
 
       await s3.send(new PutObjectCommand({
         Bucket: TEST_ENV.R2_BUCKET_NAME,
@@ -339,26 +352,50 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       expect(res.status).toBe(404)
     })
 
-    it('returns 403 when user is not owner and not admin', async () => {
+    it('returns 403 when user is not the owner and lacks manage_users@*', async () => {
       const key = `${Date.now()}-owner-test.png`
       await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'owner-test.png', 'image/png', 100, TEST_USERS[0].id).run()
+      await seedContentOnlyEditor()
 
       const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
-      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email, role: 'editor' })
+      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email })
 
       const res = await app.request(`/api/upload/${key}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${editorToken}` },
       }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(403)
+
+      const mediaObj = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(key).first()
+      expect(mediaObj).not.toBeNull()
     })
 
-    it('allows delete if user is admin even if not owner', async () => {
+    it('a non-owner holding content:read and content:delete at * but no manage_users is refused even though the JWT claims role admin', async () => {
+      const key = 'claim-ignored.png'
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'claim-ignored.png', 'image/png', 100, TEST_USERS[0].id).run()
+      await seedContentOnlyEditor()
+
+      // Regression guard: the legacy users.role claim must never grant the override again.
+      // This is the only token in the file that still carries `role`; the claim type leaves with the column.
+      const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
+      const claimedAdminToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email, role: 'admin' })
+
+      const res = await app.request(`/api/upload/${key}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${claimedAdminToken}` },
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(403)
+
+      const mediaObj = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(key).first()
+      expect(mediaObj).not.toBeNull()
+    })
+
+    it('a manage_users@* holder deletes a file it did not upload', async () => {
       const key = `${Date.now()}-admin-delete-test.png`
       await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'admin-delete-test.png', 'image/png', 100, TEST_USERS[1].id).run()
 
       const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
-      const adminRoleToken = await tokenService.issue({ sub: TEST_USERS[0].id, email: TEST_USERS[0].email, role: 'admin' })
+      const adminRoleToken = await tokenService.issue({ sub: TEST_USERS[0].id, email: TEST_USERS[0].email })
 
       await s3.send(new PutObjectCommand({
         Bucket: TEST_ENV.R2_BUCKET_NAME,
@@ -372,6 +409,9 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
         headers: { 'Authorization': `Bearer ${adminRoleToken}` },
       }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(200)
+
+      const mediaObj = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(key).first()
+      expect(mediaObj).toBeNull()
     })
 
     it('sanitizes relative paths and non-standard characters from key before deletion', async () => {

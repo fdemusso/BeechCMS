@@ -124,7 +124,7 @@ describe('features/rbac/users', () => {
   })
 
   describe('PATCH /api/rbac/users/:userId/active', () => {
-    it('refuses deactivating the Developer account even when another admin exists (409)', async () => {
+    it("deactivating an account whose users.role is 'admin' succeeds with 200 while another global administrator exists", async () => {
       const hash = await bcrypt.hash('password123', 10)
       const ownerId = '22222222-2222-4222-8222-222222222222'
       await seedTestUsers(db, [
@@ -139,10 +139,9 @@ describe('features/rbac/users', () => {
         body: JSON.stringify({ isActive: false }),
       })
 
-      expect(res.status).toBe(409)
-      expect(await res.json()).toMatchObject({ type: expect.stringContaining('developer-protected') })
+      expect(res.status).toBe(200)
       const row = await db.prepare('SELECT is_active FROM users WHERE id = ?').bind(ownerId).first<{ is_active: number }>()
-      expect(row?.is_active).toBe(1)
+      expect(row?.is_active).toBe(0)
     })
   })
 })

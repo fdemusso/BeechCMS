@@ -5,9 +5,9 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Plus, Edit as Pencil, Trash2, Refresh as RefreshCw } from '@/components/icons'
-import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
 import { useSchema } from "@/features/shared"
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
@@ -41,8 +41,8 @@ function SeedFormDialog({ open, editRecord, activeSeedsForRelation, onClose }: S
 
 export function SeedBuilderPage() {
   const { t } = useTranslation()
-  const { user } = useAuth()
-  const isAdmin = user?.role === "admin"
+  const { canGlobally } = usePermissions()
+  const canManageSeeds = canGlobally("manage_seeds")
 
   const { data: records = [], isLoading, refetch } = useSeeds()
   const { data: activeSeeds = [] } = useSchema()
@@ -66,7 +66,7 @@ export function SeedBuilderPage() {
           <Button variant="ghost" size="icon-sm" onClick={() => refetch()} title={t("common.retry")}>
             <RefreshCw className="size-4" />
           </Button>
-          {isAdmin && (
+          {canManageSeeds && (
             <Button onClick={() => setCreateOpen(true)} size="sm" className="gap-1.5">
               <Plus className="size-4" />
               {t("seedBuilder.page.newButton")}
@@ -97,19 +97,19 @@ export function SeedBuilderPage() {
                   <TableHead>{t("seedBuilder.table.branches")}</TableHead>
                   <TableHead>{t("seedBuilder.table.source")}</TableHead>
                   <TableHead>{t("seedBuilder.table.status")}</TableHead>
-                  {isAdmin && <TableHead className="w-20">{t("seedBuilder.table.actions")}</TableHead>}
+                  {canManageSeeds && <TableHead className="w-20">{t("seedBuilder.table.actions")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow style={{ height: ROW_HEIGHT_PX }}>
-                    <TableCell colSpan={isAdmin ? 6 : 5} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={canManageSeeds ? 6 : 5} className="text-center text-muted-foreground py-8">
                       {t("common.loading")}
                     </TableCell>
                   </TableRow>
                 ) : visible.length === 0 ? (
                   <TableRow style={{ height: ROW_HEIGHT_PX }}>
-                    <TableCell colSpan={isAdmin ? 6 : 5} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={canManageSeeds ? 6 : 5} className="text-center text-muted-foreground py-8">
                       {t("common.noResults")}
                     </TableCell>
                   </TableRow>
@@ -147,7 +147,7 @@ export function SeedBuilderPage() {
                             : t("seedBuilder.table.statusDeleted")}
                         </Badge>
                       </TableCell>
-                      {isAdmin && (
+                      {canManageSeeds && (
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Button

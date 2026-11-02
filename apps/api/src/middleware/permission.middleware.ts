@@ -31,14 +31,11 @@ type ScopeSource = 'global' | 'capture1'
  *                                 The slice behind it MUST still make the exact
  *                                 per-scope decision (`hasPermission` / `canGrant`).
  * - `'authenticated'`           — any active account; self-service and dashboard chrome.
- * - `'legacy-admin'`            — deferred to the slice's own `users.role === 'admin'`
- *                                 guard. Only the entry-editor layout rows still use it.
  */
 export type RouteRequirement =
   | { kind: 'permission'; permission: Permission; scope: ScopeSource }
   | { kind: 'permission-any-scope'; permissions: readonly Permission[] }
   | { kind: 'authenticated' }
-  | { kind: 'legacy-admin' }
 
 interface ProtectedRoute {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
@@ -52,7 +49,6 @@ const perm = (permission: Permission, scope: ScopeSource): RouteRequirement =>
 const anyScope = (...permissions: Permission[]): RouteRequirement =>
   ({ kind: 'permission-any-scope', permissions })
 const AUTHED: RouteRequirement = { kind: 'authenticated' }
-const LEGACY_ADMIN: RouteRequirement = { kind: 'legacy-admin' }
 
 /**
  * Closed allowlist of every route mounted under `apiProtected`.
@@ -77,15 +73,15 @@ const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'PUT',    pattern: /^\/api\/settings\/notifications$/,         requirement: AUTHED },
   { method: 'GET',    pattern: /^\/api\/settings\/activity$/,              requirement: AUTHED },
   { method: 'GET',    pattern: /^\/api\/settings\/storage$/,               requirement: perm('view_analytics', 'global') },
-  // Same gate as DELETE /api/upload/:key; the handler adds the owner-or-admin check.
+  // Same gate as DELETE /api/upload/:key; the handler adds the owner-or-`manage_users@*` check.
   { method: 'POST',   pattern: /^\/api\/settings\/storage\/orphans\/delete$/, requirement: perm('content:delete', 'global') },
   { method: 'GET',    pattern: /^\/api\/settings\/?$/,                     requirement: AUTHED },
   { method: 'PUT',    pattern: /^\/api\/settings\/?$/,                     requirement: perm('manage_users', 'global') },
 
-  // --- schema: read is dashboard chrome; layout writes keep the entry-editor gate (brief §5) ---
+  // --- schema: read is dashboard chrome; seed form layout writes are schema authoring, so manage_seeds at the global scope ---
   { method: 'GET',    pattern: /^\/api\/schema\/?$/,                       requirement: AUTHED },
-  { method: 'PUT',    pattern: /^\/api\/schema\/[^/]+\/layout$/,           requirement: LEGACY_ADMIN },
-  { method: 'DELETE', pattern: /^\/api\/schema\/[^/]+\/layout$/,           requirement: LEGACY_ADMIN },
+  { method: 'PUT',    pattern: /^\/api\/schema\/[^/]+\/layout$/,           requirement: perm('manage_seeds', 'global') },
+  { method: 'DELETE', pattern: /^\/api\/schema\/[^/]+\/layout$/,           requirement: perm('manage_seeds', 'global') },
 
   // --- seeds: schema mutation, manage_seeds at the global scope only ---
   { method: 'GET',    pattern: /^\/api\/seeds(\/.*)?$/,                    requirement: perm('manage_seeds', 'global') },
@@ -274,9 +270,6 @@ export function requireActiveAccount() {
  *    which is what makes deactivation revoke access instantly despite 15-minute JWTs;
  * 2. unregistered route — fail-closed;
  * 3. missing permission at the route's scope.
- *
- * `legacy-admin` routes are passed through to their in-slice `users.role === 'admin'`
- * guard; only the entry-editor layout rows still use it.
  */
 export function permissionMiddleware() {
   return async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next): Promise<Response | void> => {
@@ -291,7 +284,7 @@ export function permissionMiddleware() {
       )
     }
 
-    if (rule.requirement.kind === 'authenticated' || rule.requirement.kind === 'legacy-admin') {
+    if (rule.requirement.kind === 'authenticated') {
       await next()
       return
     }

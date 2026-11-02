@@ -73,7 +73,7 @@ describe("UsersTab", () => {
     expect(rows[1]).toHaveTextContent("me@beech.local")
   })
 
-  it("disables status switch for a developer account (role === 'admin')", () => {
+  it("an account whose role is 'admin' that is not the caller has an enabled status switch", () => {
     mockUsers.mockReturnValue({
       data: [
         { id: "u2", email: "dev@beech.local", role: "admin", name: "Dev", surname: null, isActive: true, createdAt: 0, assignments: [] },
@@ -85,9 +85,8 @@ describe("UsersTab", () => {
 
     const switches = screen.getAllByRole("switch")
     expect(switches).toHaveLength(2)
-    // Developer account switch must be disabled even if not current user
-    expect(switches[0]).toBeDisabled()
-    // Standard user switch remains enabled
+    // Regression guard: the legacy users.role axis must not disable the switch again.
+    expect(switches[0]).not.toBeDisabled()
     expect(switches[1]).not.toBeDisabled()
   })
 })

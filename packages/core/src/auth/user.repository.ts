@@ -129,10 +129,4 @@ export interface IUserRepository {
    * last active global administrator.
    */
   setActive(userId: string, isActive: boolean): Promise<AdminGuardedResult>
-
-  /**
-   * Read-only twin of the deactivation guard in {@link setActive}: is this account the last
-   * active global administrator? ADVISORY — see `IRoleAssignmentRepository.isLastGlobalAdminAssignment`.
-   */
-  isLastGlobalAdmin(userId: string): Promise<boolean>
 }
