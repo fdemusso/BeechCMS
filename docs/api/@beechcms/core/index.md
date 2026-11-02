@@ -70,6 +70,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [ContractSeed](interfaces/ContractSeed.md)
 - [CountSinceOptions](interfaces/CountSinceOptions.md)
 - [CreateAutomationInput](interfaces/CreateAutomationInput.md)
+- [CsvEncodeOptions](interfaces/CsvEncodeOptions.md)
 - [DashboardColumn](interfaces/DashboardColumn.md)
 - [DashboardLayout](interfaces/DashboardLayout.md)
 - [DashboardLayoutContext](interfaces/DashboardLayoutContext.md)

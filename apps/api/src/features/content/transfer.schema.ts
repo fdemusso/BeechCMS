@@ -13,6 +13,8 @@ export const exportQuerySchema = z.object({
   format: z.string().optional(),
   search: z.string().optional(),
   filters: z.string().optional(),
+  /** `1`/`true`: CSV only. Prefixes `'` to formula-like cells (one-way, not re-importable as-is). */
+  safe: z.string().optional(),
 })
 
 /** What the import endpoint reads from its body. */

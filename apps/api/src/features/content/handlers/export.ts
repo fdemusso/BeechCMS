@@ -28,6 +28,12 @@ const CONTENT_TYPES: Record<TransferFormat, string> = {
 
 const FILE_EXTENSIONS: Record<TransferFormat, string> = { csv: 'csv', ndjson: 'ndjson' }
 
+/** `?safe=1|true` opts in to formula neutralization. Anything else keeps the default format. */
+function isSafeFlag(raw: string | undefined): boolean {
+  const value = cleanStr(raw)
+  return value === '1' || value === 'true'
+}
+
 /**
  * Resolves the synchronous export cap. Mirrors `resolveMaxUploadBytes`
  * (features/upload/index.ts:L18): an unset or unparseable binding means "use the default",
@@ -138,7 +144,7 @@ export async function exportHandler(context: Context<AppEnv, '/:slug/export', Zo
       userId: jwtPayload?.sub,
     }
 
-    const stream = createContentExportStream({ repository, seed, format, actor, filters, search: search || undefined, resolveSeed: context.get('getSeed') })
+    const stream = createContentExportStream({ repository, seed, format, actor, filters, search: search || undefined, resolveSeed: context.get('getSeed'), neutralizeFormulas: isSafeFlag(query.safe) })
 
     return context.body(stream, 200, {
       'Content-Type': CONTENT_TYPES[format],
