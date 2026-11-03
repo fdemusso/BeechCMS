@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/api",
-  "version": "0.9.9",
+  "version": "0.9.10",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/factory.d.ts",

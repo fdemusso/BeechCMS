@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/dashboard",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "type": "module",
   "files": [
     "dist/admin"
@@ -72,7 +72,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@beechcms/api": "workspace:^0.9.9",
+    "@beechcms/api": "workspace:^0.9.10",
     "@beechcms/testing": "workspace:*",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.1.18",

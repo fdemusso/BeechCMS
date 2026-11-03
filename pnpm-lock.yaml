@@ -325,7 +325,7 @@ importers:
         version: 4.6.7
     devDependencies:
       '@beechcms/api':
-        specifier: workspace:^0.9.9
+        specifier: workspace:^0.9.10
         version: link:../api
       '@beechcms/testing':
         specifier: workspace:*
@@ -6037,8 +6037,8 @@ packages:
     resolution: {integrity: sha512-1mfeb/jzXnduWOZJxrvdJjvKT0pFNKrNFYcPO4ncpFAnfW41M0mLz/23lAFzHb0knNLYayEgIQ5DjI4ZfFe+DQ==}
     engines: {node: ^20.19.0 || >=22.13.0}
 
-  oxlint-plugin-react-doctor@0.9.21:
-    resolution: {integrity: sha512-6uezGzM98w3qS3q89NpfFm5melOhCoIsixc+C5bNQx7p4IZvfK/lkSrud3xmjNCu14N3WCSnPOXz0fRjmJWipQ==}
+  oxlint-plugin-react-doctor@0.9.22:
+    resolution: {integrity: sha512-kf9MwCpK3YlAWYUyX5Zx7XYrdIbA/4lQD2QREIqC8DvmNb2I+wP8zyjL4NeGl2FO2EC1sLuYvW8ir4Ooq1Xd2A==}
     engines: {node: ^20.19.0 || >=22.13.0}
 
   oxlint@1.81.0:
@@ -6272,8 +6272,8 @@ packages:
     engines: {node: ^20.19.0 || >=22.13.0}
     hasBin: true
 
-  react-doctor@0.9.21:
-    resolution: {integrity: sha512-ahV3umcswkGThtDng2tBpJSwRLz+B9t2H9iAXglgwsbRa++g7sJGKy46sYIf56eGQpAJAKUy0ak4dfzz638+5Q==}
+  react-doctor@0.9.22:
+    resolution: {integrity: sha512-SyZOIl61VMCZ3sN7v7Vr2zCsPlyy7nNnBshtIrl0B/X+uY+rL9MGfyNhTmp/FLXfuDKEv61Y6xMguya7vn1Ulg==}
     engines: {node: ^20.19.0 || >=22.13.0}
     hasBin: true
 
@@ -12587,7 +12587,7 @@ snapshots:
       lightningcss: 1.33.0
       oxc-parser: 0.148.0
 
-  oxlint-plugin-react-doctor@0.9.21:
+  oxlint-plugin-react-doctor@0.9.22:
     dependencies:
       '@shaderfrog/glsl-parser': 7.0.1
       '@typescript-eslint/types': 8.71.2
@@ -12910,7 +12910,7 @@ snapshots:
       - supports-color
       - vite-plus
 
-  react-doctor@0.9.21(eslint@10.13.0(jiti@2.7.0)(supports-color@10.2.2))(react@19.3.1)(supports-color@10.2.2):
+  react-doctor@0.9.22(eslint@10.13.0(jiti@2.7.0)(supports-color@10.2.2))(react@19.3.1)(supports-color@10.2.2):
     dependencies:
       '@astrojs/compiler': 4.0.0
       '@sentry/node': 10.57.0(supports-color@10.2.2)
@@ -12925,7 +12925,7 @@ snapshots:
       oxc-parser: 0.148.0
       oxc-resolver: 11.24.2
       oxlint: 1.81.0
-      oxlint-plugin-react-doctor: 0.9.21
+      oxlint-plugin-react-doctor: 0.9.22
       playwright-core: 1.64.1
       prompts: 2.4.2
       typescript: 5.9.3
@@ -13031,7 +13031,7 @@ snapshots:
       preact: 10.29.4
       prompts: 2.4.2
       react: 19.3.1
-      react-doctor: 0.9.21(eslint@10.13.0(jiti@2.7.0)(supports-color@10.2.2))(react@19.3.1)(supports-color@10.2.2)
+      react-doctor: 0.9.22(eslint@10.13.0(jiti@2.7.0)(supports-color@10.2.2))(react@19.3.1)(supports-color@10.2.2)
       react-dom: 19.3.1(react@19.3.1)
       react-grab: 0.2.0(react@19.3.1)
     optionalDependencies:
