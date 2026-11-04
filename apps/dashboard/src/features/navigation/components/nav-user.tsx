@@ -4,7 +4,7 @@
 
 "use client"
 
-import { CheckCircle as BadgeCheck, More, Logout as LogOut } from '@/components/icons'
+import { More, Logout as LogOut, Settings } from '@/components/icons'
 import { useSettingsDialog } from "@/features/settings"
 
 import { cn } from "@/lib/utils"
@@ -19,7 +19,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -27,7 +26,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar"
 
 function getInitials(name: string, email: string): string {
@@ -55,7 +53,6 @@ export function NavUser({
   user,
   onLogout,
 }: NavUserProps) {
-  const { isMobile } = useSidebar()
   const { openSettings } = useSettingsDialog()
   const initials = getInitials(user.name, user.email)
 
@@ -71,46 +68,38 @@ export function NavUser({
                 // Concentric corners: image sits 4px from the outer edge on top/left/bottom (1px border + 3px; h-12 minus
                 // border leaves 3px above/below the 40px image, pl-[3px] matches it), so outer radius = inner radius + 4:
                 // rounded-lg (16) around rounded-sm (12).
-                "rounded-lg border border-border pl-[3px]",
+                "rounded-lg border border-border pl-[3px] transition-[width,height,padding,border-color,background-color] duration-300",
+                // Rail: only the picture, 30px inside the 1px (now transparent) border of the 32px button.
+                "group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:pl-0!",
               )}
             >
               {/* Same box as the logo it replaces (size-10, clipped); radius derived from the card, see the button above. */}
-              <div className="flex aspect-square size-10 items-center justify-center rounded-sm overflow-hidden">
+              <div className="flex aspect-square size-10 shrink-0 items-center justify-center overflow-hidden rounded-sm transition-[width,height] duration-300 group-data-[collapsible=icon]:size-[30px]">
                 {/* Avatar defaults to a circle (root, image, fallback and the after: ring all use rounded-full). */}
-                <Avatar className="size-10 rounded-sm after:hidden">
+                <Avatar className="size-full rounded-sm after:hidden">
                   <AvatarImage className="rounded-sm" src={user.avatar} alt={user.name} />
                   <AvatarFallback className="rounded-sm">{initials}</AvatarFallback>
                 </Avatar>
               </div>
-              <div className="grid min-w-0 flex-1 text-left text-[13px] leading-tight">
+              <div className="grid min-w-0 flex-1 text-left text-[13px] leading-tight transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0">
                 <span className="truncate font-medium">{user.name}</span>
                 <span className="truncate text-[11px] opacity-60">{user.email}</span>
               </div>
-              <More className="ml-auto size-4 shrink-0 rotate-90 text-muted-foreground" />
+              <More className="ml-auto size-4 shrink-0 rotate-90 text-muted-foreground transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-            side={isMobile ? "bottom" : "right"}
-            align="end"
-            sideOffset={4}
+            // bg-popover overrides the translucent default so the menu is opaque.
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg bg-popover"
+            side="bottom"
+            align="start"
+            // Opens below the card, nudged right, so it reads as hanging off the button instead of covering it.
+            alignOffset={12}
+            sideOffset={6}
           >
-            <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <Avatar className="h-8 w-8 rounded-full">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-full">{initials}</AvatarFallback>
-                </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
-                  <span className="truncate text-xs">{user.email}</span>
-                </div>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={() => openSettings()}>
-                <BadgeCheck />
+                <Settings />
                 Account
               </DropdownMenuItem>
             </DropdownMenuGroup>
