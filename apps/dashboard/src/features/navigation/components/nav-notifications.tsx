@@ -17,10 +17,20 @@ export function NavNotifications() {
         side="right"
         align="start"
         renderTrigger={({ hasUnread, unreadCount }) => (
-          <SidebarMenuButton tooltip={t("notifications.title")}>
+          <SidebarMenuButton tooltip={t("notifications.title")} className="relative">
             <Bell />
             <span>{t("notifications.title")}</span>
-            {hasUnread && <SidebarMenuBadge>{unreadCount}</SidebarMenuBadge>}
+            {/* The badge is built to sit beside the button; here it lives inside the popover trigger, so it flows
+                in the row instead of being absolutely positioned. */}
+            {/* The rail has no room for the count (the badge is hidden there): show a dot on the icon instead. */}
+            {hasUnread && (
+              <span aria-hidden className="absolute right-1.5 top-1.5 hidden size-2 rounded-full bg-destructive group-data-[collapsible=icon]:block" />
+            )}
+            {hasUnread && (
+              <SidebarMenuBadge className="static ml-auto h-5 rounded-full bg-destructive px-1.5 text-white peer-hover/menu-button:text-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </SidebarMenuBadge>
+            )}
           </SidebarMenuButton>
         )}
       />
