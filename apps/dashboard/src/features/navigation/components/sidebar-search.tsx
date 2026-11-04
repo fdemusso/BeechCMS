@@ -26,15 +26,16 @@ export function SidebarSearch() {
           type="button"
           onClick={openCommandPalette}
           aria-label={t("commandPalette.ariaLabel")}
-          className="flex h-9 w-full items-center gap-2 rounded-lg border border-border pl-3 pr-[7px] text-left text-sm text-muted-foreground outline-hidden transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+          className="flex h-9 w-full items-center gap-2 rounded-lg border border-border bg-background pl-3 pr-[7px] text-left text-sm text-muted-foreground outline-hidden transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring"
         >
           <Search className="size-4 shrink-0" />
           <span className="flex-1 truncate">{t("sidebar.search")}</span>
           {/* Concentric with the bar (rounded-lg = 16px, same border as the profile card): the h-5 chips sit 8px from
-              the outer edge (1px border + 7px: (36 - 2 - 20) / 2 vertically, pr-[7px] on the right), so their radius is 16 - 8. */}
+              the outer edge (1px border + 7px: (36 - 2 - 20) / 2 vertically, pr-[7px] on the right), so their radius is 16 - 8.
+              Soft global tokens (bg-sidebar-accent): visible against the bar on both themes without the heavy contrast of bg-foreground / bg-primary. */}
           <KbdGroup>
-            {IS_MAC ? <Kbd className="rounded-[8px]">⌘</Kbd> : <Kbd className="rounded-[8px]">Ctrl</Kbd>}
-            <Kbd className="rounded-[8px]">K</Kbd>
+            {IS_MAC ? <Kbd className="rounded-[8px] bg-sidebar-accent text-sidebar-accent-foreground">⌘</Kbd> : <Kbd className="rounded-[8px] bg-sidebar-accent text-sidebar-accent-foreground">Ctrl</Kbd>}
+            <Kbd className="rounded-[8px] bg-sidebar-accent text-sidebar-accent-foreground">K</Kbd>
           </KbdGroup>
         </button>
       </SidebarMenuItem>
