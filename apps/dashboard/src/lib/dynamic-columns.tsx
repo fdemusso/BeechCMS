@@ -201,7 +201,7 @@ export function generateColumns(
     // Colonna di sistema: ID
     {
       id: "id",
-      size: 160,
+      size: 140,
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.id,
@@ -219,7 +219,7 @@ export function generateColumns(
     // Colonna di sistema: Slug
     {
       id: "slug",
-      size: 160,
+      size: 140,
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.slug,
@@ -234,7 +234,7 @@ export function generateColumns(
     // Colonna di sistema: Status (indicator dot + label)
     {
       id: "status",
-      size: 160,
+      size: 140,
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.status,
@@ -266,7 +266,7 @@ export function generateColumns(
     // System columns: timestamps
     {
       id: "updated_at",
-      size: 160,
+      size: 140,
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.updated_at,
@@ -278,7 +278,7 @@ export function generateColumns(
     },
     {
       id: "created_at",
-      size: 160,
+      size: 140,
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.created_at,
@@ -297,7 +297,7 @@ export function generateColumns(
     const baseColumn: ColumnDef<ContentEntry> & GroupingColumnDef<ContentEntry, unknown> = {
       accessorFn: (row) => row.data[branch.alias],
       id: branch.alias,
-      size: 200,
+      size: 170,
       minSize: 80,
       maxSize: 600,
       header: () => (
@@ -393,7 +393,7 @@ export function generateColumns(
     id: "actions",
     enableHiding: false,
     enableResizing: false,
-    size: 56,
+    size: 48,
     cell: function ActionsCellRender({ row }) {
       const entry = row.original
       const currentSelectedIds = typeof selectedIds === "function" ? selectedIds() : selectedIds
@@ -403,7 +403,7 @@ export function generateColumns(
       const canDelete = can("content:delete", seed.slug)
 
       return (
-        <div className="text-right">
+        <div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon-xs">

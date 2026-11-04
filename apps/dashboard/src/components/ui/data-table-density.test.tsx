@@ -49,7 +49,7 @@ describe("DataTable — density", () => {
 })
 
 describe("DataTable — column resizing", () => {
-  it("header <th> receives width from columnSizing when enableColumnResizing", () => {
+  it("header <th> receives its columnSizing as a minimum width (not a width) when enableColumnResizing", () => {
     const entry = makeEntry("e1")
     const sizingCols: ColumnDef<ContentEntry, unknown>[] = [
       { id: "id", accessorKey: "id", header: "ID", cell: ({ row }) => row.original.id, size: 200 },
@@ -63,8 +63,25 @@ describe("DataTable — column resizing", () => {
       />
     )
     const headers = getAllByRole("columnheader")
-    const idHeader = headers.find((h) => h.style.width !== "")
+    const idHeader = headers.find((h) => h.style.minWidth !== "")
     expect(idHeader).toBeTruthy()
-    expect(idHeader?.style.width).toBe("300px")
+    expect(idHeader?.style.minWidth).toBe("300px")
+    expect(idHeader?.style.width).toBe("")
+  })
+
+  it("a column with enableResizing false is pinned to its size, header and cells alike", () => {
+    const entry = makeEntry("e1")
+    const pinnedCols: ColumnDef<ContentEntry, unknown>[] = [
+      { id: "select", header: "", cell: () => "x", size: 40, enableResizing: false },
+      { id: "id", accessorKey: "id", header: "ID", cell: ({ row }) => row.original.id, size: 200 },
+    ]
+
+    const { getAllByRole } = render(<DataTable columns={pinnedCols} data={[entry]} enableColumnResizing />)
+
+    const [selectHeader] = getAllByRole("columnheader")
+    const [selectCell] = getAllByRole("cell")
+    for (const el of [selectHeader, selectCell]) {
+      expect([el.style.width, el.style.minWidth, el.style.maxWidth]).toEqual(["40px", "40px", "40px"])
+    }
   })
 })

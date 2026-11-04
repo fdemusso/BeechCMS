@@ -405,7 +405,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
       })
       const cols = generateColumns(seed, vi.fn(), vi.fn())
       const titleCol = cols.find((c) => c.id === "title") as any
-      expect(titleCol.size).toBe(200)
+      expect(titleCol.size).toBe(170)
       expect(titleCol.minSize).toBe(80)
       expect(titleCol.maxSize).toBe(600)
     })
