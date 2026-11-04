@@ -8,12 +8,11 @@ import { cn } from "@/lib/utils"
 import { useRailLens } from "../hooks/use-rail-lens"
 import { toRouterPath, usePrefetchRoute } from "../lib/route-prefetch-context"
 
-import { NavMain } from "./nav-main"
+import { NavSection } from "./nav-section"
 import { NavNotifications } from "./nav-notifications"
-import { NavSecondary } from "./nav-secondary"
 import { NavUser } from "./nav-user"
 import { SidebarSearch } from "./sidebar-search"
-import { getStaticMenu, getContentCategoryMenu, getSettingsMenu, buildContentMenu, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
+import { getStaticMenu, getContentCategoryMenu, getSettingsMenu, buildContentMenu } from "@/config/dashboard-menu"
 import { logout } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 import { useProfile, useSettingsDialog } from "@/features/settings"
@@ -91,19 +90,19 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
         <SidebarSearch />
       </SidebarHeader>
       <SidebarContent className="group-data-[collapsible=icon]:overflow-auto">
-        <NavMain items={getStaticMenu(t, gates)} groupLabel={t("sidebar.navigation")}>
+        <NavSection items={getStaticMenu(t, gates)} groupLabel={t("sidebar.navigation")}>
           <NavNotifications />
-        </NavMain>
+        </NavSection>
         {contentCategoryItems.length > 0 && (
           <>
             <RailDivider spaced />
-            <NavMain items={contentCategoryItems} groupLabel={t("sidebar.contentGroup")} />
+            <NavSection items={contentCategoryItems} groupLabel={t("sidebar.contentGroup")} />
           </>
         )}
         {contentGroups.map((group, i) => (
           <React.Fragment key={group.label}>
             <RailDivider spaced={i === 0} />
-            <NavMain
+            <NavSection
               items={group.items}
               groupLabel={group.label}
               className={i === 0 ? "mt-4 group-data-[collapsible=icon]:mt-0" : undefined}
@@ -111,13 +110,10 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
             />
           </React.Fragment>
         ))}
-        {STATIC_NAV_SECONDARY.length > 0 && (
-          <NavSecondary items={STATIC_NAV_SECONDARY} />
-        )}
         {/* Settings entry with the sidebar close button beside it. */}
         {/* Collapsed (icon rail): the row stacks, settings icon above the toggle. */}
         <div data-rail-static className="mt-auto flex items-center pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:pr-0">
-          <NavMain items={getSettingsMenu(t).map((item) => ({ ...item, onSelect: () => openSettings() }))} className="min-w-0 flex-1 pt-0" />
+          <NavSection items={getSettingsMenu(t).map((item) => ({ ...item, onSelect: () => openSettings() }))} className="min-w-0 flex-1 pt-0" />
           {/* Same box, radius, icon size, colour and hover as the Settings SidebarMenuButton beside it (size-8, rounded-md,
               16px icon), on the same centre line: self-start because the Settings group has pt-0, so centring in the row would
               sit 4px below the button. In the rail it stacks under it, left-aligned to the button (group p-2). */}

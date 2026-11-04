@@ -42,14 +42,7 @@ export interface MenuGates {
   createContent: boolean
 }
 
-/** Secondary navigation entry */
-export interface NavSecondaryItem {
-  title: string
-  url: string
-  icon: IconComponent
-}
-
-/** Grouped block of nav items — maps to one NavMain section in the sidebar */
+/** Grouped block of nav items — maps to one NavSection in the sidebar */
 export interface NavGroup {
   label: string
   items: NavItem[]
@@ -126,5 +119,3 @@ export function buildContentMenu(seeds: Seed[], defaultGroupLabel: string): NavG
       })),
   }))
 }
-
-export const STATIC_NAV_SECONDARY: NavSecondaryItem[] = []

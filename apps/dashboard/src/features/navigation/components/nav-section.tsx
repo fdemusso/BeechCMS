@@ -37,17 +37,17 @@ function PrefetchLink({ to, ...props }: Omit<ComponentProps<typeof Link>, "to"> 
   return <Link to={to} {...intent} {...props} />
 }
 
-type NavMainSubItem = {
+type NavSectionSubItem = {
   readonly title: string
   readonly url: string
 }
 
-type NavMainItem = {
+type NavSectionItem = {
   readonly title: string
   readonly url: string
   readonly icon: IconComponent
   readonly isActive?: boolean
-  readonly items?: ReadonlyArray<NavMainSubItem>
+  readonly items?: ReadonlyArray<NavSectionSubItem>
   readonly disabled?: boolean
   readonly disabledReason?: string
   readonly notImplemented?: boolean
@@ -55,8 +55,8 @@ type NavMainItem = {
   readonly onSelect?: () => void
 }
 
-type NavMainProps = {
-  readonly items: ReadonlyArray<NavMainItem>
+type NavSectionProps = {
+  readonly items: ReadonlyArray<NavSectionItem>
   readonly groupLabel?: string
   readonly className?: string
   readonly hasLine?: boolean
@@ -64,17 +64,17 @@ type NavMainProps = {
   readonly children?: ReactNode
 }
 
-type NavMainMenuItemProps = {
-  readonly item: NavMainItem
+type NavSectionMenuItemProps = {
+  readonly item: NavSectionItem
   readonly currentPath: string
   readonly currentSearch: string
 }
 
-function NavMainMenuItem({
+function NavSectionMenuItem({
   item,
   currentPath,
   currentSearch,
-}: NavMainMenuItemProps) {
+}: NavSectionMenuItemProps) {
   const itemRef = useRef<HTMLLIElement>(null)
 
   // A collapsible parent is open when the current path starts with its base path
@@ -195,13 +195,13 @@ function NavMainMenuItem({
   )
 }
 
-export function NavMain({
+export function NavSection({
   items,
   groupLabel,
   className,
   hasLine = false,
   children,
-}: NavMainProps) {
+}: NavSectionProps) {
   const location = useLocation()
   const currentPath = location.pathname
   const currentSearch = location.search
@@ -209,19 +209,25 @@ export function NavMain({
   return (
     <SidebarGroup className={className}>
       {groupLabel && <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>}
-      <div className={cn(hasLine && "border-l border-sidebar-border/40 ml-3.5 pl-3.5 group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:pl-0")}>
-        <SidebarMenu>
-          {items.map((item) => (
-            <NavMainMenuItem
-              key={item.title}
-              item={item}
-              currentPath={currentPath}
-              currentSearch={currentSearch}
-            />
-          ))}
-          {children}
-        </SidebarMenu>
-      </div>
+      <SidebarMenu
+        className={cn(
+          // A tree line under the group label's icon axis; the buttons inside start closer to it (--sb-pad-start).
+          // w-auto: SidebarMenu is w-full, which plus the left margin would run past the sidebar's right edge (and
+          // so would the hover pills). The rail has no room for the line.
+          hasLine &&
+            "ml-[calc(var(--sb-pad-start)+0.5rem)] w-auto border-l border-sidebar-border/40 *:[--sb-pad-start:0.5rem] group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:border-transparent",
+        )}
+      >
+        {items.map((item) => (
+          <NavSectionMenuItem
+            key={item.title}
+            item={item}
+            currentPath={currentPath}
+            currentSearch={currentSearch}
+          />
+        ))}
+        {children}
+      </SidebarMenu>
     </SidebarGroup>
   )
 }
