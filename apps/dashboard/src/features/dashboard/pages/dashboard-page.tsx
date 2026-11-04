@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Settings } from '@/components/icons'
 import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { SiteHeader } from "@/features/navigation"
 import { isDashboardLayoutEditor } from "@beechcms/core"
@@ -17,6 +18,9 @@ import { DashboardSidebar } from "../components/sidebar/dashboard-sidebar"
 import { DashboardLayoutRenderer } from "../renderer/dashboard-layout-renderer"
 import { DashboardBuilderDialog } from "../builder/dashboard-builder-dialog"
 import { listDashboardDraftScopes } from "../builder/dashboard-draft-storage"
+
+// TODO(sidebar-redesign): flip back (or delete with SiteHeader) once toggle/notifications are re-homed.
+const SHOW_SITE_HEADER = false
 
 export default function DashboardPage() {
   const { t } = useTranslation()
@@ -51,26 +55,33 @@ export default function DashboardPage() {
   const userName = user?.name || "Admin"
 
   return (
-    <div className="[--header-height:calc(--spacing(14))] overflow-x-clip min-h-screen bg-background/50 dark:bg-background/50 relative">
-      {/* Background Decorative Elements */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[120px]" />
-      </div>
-
-      <SidebarProvider className="flex flex-col relative z-10">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <DashboardSidebar />
-          <SidebarInset className="min-w-0">
-            <main className="flex flex-1 flex-col gap-8 p-6 md:p-8 lg:p-10">
+    <div className="relative">
+      {/* TODO(sidebar-redesign): the decorative blurred blobs and the translucent page background were
+          removed so the page floor is one flat `--sidebar` colour. Decide whether the blobs return
+          inside the inset card. */}
+      <SidebarProvider className="h-svh overflow-hidden">
+        {/* TODO(sidebar-redesign): SiteHeader is hidden, not deleted. Its jobs still need a new home:
+            sidebar toggle (also the only way to open the sidebar on mobile), NotificationsPopover,
+            breadcrumbs. */}
+        {SHOW_SITE_HEADER && <SiteHeader />}
+        <DashboardSidebar />
+        {/* "body-dashboard": the inset card. It scrolls internally via ScrollArea; md:m-2 on the inset variant eats 1rem of height. */}
+        {/* TODO(sidebar-redesign): card border/contrast is still the default `shadow-sm`; tune the edge
+            (ring/border + --background vs --sidebar tokens, scoped to the dashboard). */}
+        <SidebarInset className="h-svh min-w-0 overflow-hidden md:h-[calc(100svh-1rem)]">
+          <ScrollArea className="h-full">
+            {/* Vertical alignment with the sidebar logo row (md+, where the sidebar is docked):
+                the logo is centred on this greeting block (h1 36px pinned by leading-9! + gap 6 + subtitle 24 = 66px),
+                which starts at 8 (card m-2) + 14 (pt-3.5) = 22px, so its centre is 55px.
+                DashboardSidebar's header pt-[23px] puts the logo centre there. Keep both files in sync. */}
+            <main className="flex flex-1 flex-col gap-8 p-6 md:p-8 md:pt-3.5 lg:p-10 lg:pt-3.5">
               {/* Contenitore interno: limita la larghezza massima a 2200px
                   per una lettura ottimale sia su 16:9 che su 21:9. */}
               <div ref={contentRef} className="content-area-inner flex flex-col gap-8">
                 {/* Welcome Header */}
                 <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between">
                   <div className="flex flex-col gap-1.5">
-                    <h1 className="font-heading text-2xl font-bold tracking-tight md:text-3xl text-foreground">
+                    <h1 className="font-heading text-2xl font-bold leading-9! tracking-tight md:text-3xl text-foreground">
                       {greeting}, <span className="font-semibold">{userName}</span>
                     </h1>
                     <p className="text-muted-foreground">
@@ -88,8 +99,8 @@ export default function DashboardPage() {
                 {!isLoading && <DashboardLayoutRenderer layout={layout} />}
               </div>
             </main>
-          </SidebarInset>
-        </div>
+          </ScrollArea>
+        </SidebarInset>
       </SidebarProvider>
       {canEdit && (
         <DashboardBuilderDialog

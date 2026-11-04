@@ -4,7 +4,6 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { useTheme } from "@/lib/theme"
 
 import { DashboardNavMain } from "./dashboard-nav-main"
 import { DashboardNavSecondary } from "./dashboard-nav-secondary"
@@ -20,14 +19,10 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
 export const DashboardSidebar = React.memo(function DashboardSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation()
-  const { resolvedTheme } = useTheme()
   const { user: storedUser } = useAuth()
   const { data: profile } = useProfile()
   const { data: seeds = [] } = useSchema()
@@ -55,30 +50,14 @@ export const DashboardSidebar = React.memo(function DashboardSidebar({ ...props 
   const contentCategoryItems = getContentCategoryMenu(t, gates)
 
   return (
-    <Sidebar
-      className="top-(--header-height) h-[calc(100svh-var(--header-height))]!"
-      {...props}
-    >
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <a href="/">
-                <div className="flex aspect-square size-10 items-center justify-center rounded-lg overflow-hidden">
-                  <img
-                    src={resolvedTheme === "dark" ? `${import.meta.env.BASE_URL}beechLogoDark.svg` : `${import.meta.env.BASE_URL}BeechLogoLIght.svg`}
-                    alt="BeechCMS"
-                    className="size-10 object-contain"
-                  />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">Beech CMS</span>
-                  <span className="truncate text-xs">Dashboard</span>
-                </div>
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+    <Sidebar variant="inset" {...props}>
+      {/* Logo row is vertically centred on the dashboard greeting block (title + subtitle, see dashboard-page.tsx):
+          greeting centre = 8 (card m-2) + 14 (main pt-3.5) + 66/2 = 55px, logo button is h-12 so its top sits at 31px,
+          i.e. 8 (inset p-2) + 23 (pt). Keep both files in sync. */}
+      <SidebarHeader className="pt-[23px]">
+        {/* TODO(sidebar-redesign): the profile block now lives here (was the logo + "Beech CMS / Dashboard").
+            The logo needs a new home, and the footer DashboardNavUser below is now a duplicate to remove. */}
+        <DashboardNavUser user={user} onLogout={logout} layout="header" />
       </SidebarHeader>
       <SidebarContent>
         <DashboardNavMain items={getStaticMenu(t, gates)} groupLabel={t("sidebar.navigation")} />
