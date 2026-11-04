@@ -5,7 +5,7 @@
 import * as React from "react"
 import type { Branch } from "@beechcms/core"
 import { FieldEdit } from "@/components/fields"
-import { AppShell } from "@/features/navigation"
+import { AppShell, PageHeader } from "@/features/navigation"
 import { sanitizeHtml } from "@/lib/sanitize-html"
 
 
@@ -32,12 +32,10 @@ export function TestFieldsPage() {
   return (
     <AppShell>
       <div className="mx-auto w-full max-w-screen-2xl p-6 space-y-8">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold">Field Playground</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Pagina di test per il campo <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">richtext</code>
-          </p>
-        </div>
+        <PageHeader
+          title="Field Playground"
+          description={<>Pagina di test per il campo <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">richtext</code></>}
+        />
 
         {/* Editor */}
         <section className="space-y-3">

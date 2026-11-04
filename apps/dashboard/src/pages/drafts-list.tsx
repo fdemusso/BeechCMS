@@ -10,7 +10,7 @@ import type { ColumnDef, SortingState, VisibilityState } from "@tanstack/react-t
 import { More as MoreHorizontal } from '@/components/icons'
 import { toast } from "sonner"
 import type { Seed } from "@beechcms/core"
-import { AppShell } from "@/features/navigation"
+import { AppShell, PageBody, PageHeader } from "@/features/navigation"
 import { DataTable } from "@/components/ui/data-table"
 import { SmallCta } from "@/components/ui/small-cta"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -384,84 +384,79 @@ export function DraftsListPage() {
   return (
     <>
       <AppShell>
-        <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
-          <div className="content-area-inner">
-            <div className="mb-6">
-              <h1 className="font-heading text-2xl font-semibold">{t("drafts.title")}</h1>
-              <p className="text-muted-foreground text-sm">{t("drafts.subtitle")}</p>
-            </div>
+        <PageBody>
+          <PageHeader className="mb-6" title={t("drafts.title")} description={t("drafts.subtitle")} />
 
-            <ContentToolbar
-              seed={virtualSeed}
-              views={views}
-              activeViewId="table"
-              onChangeView={() => void 0}
-              onCreate={handleCreate}
-              searchValue={tableSearch}
-              onSearchChange={setTableSearch}
-              sortState={{
-                columnId: singleSort?.id ?? null,
-                desc: singleSort?.desc ?? false,
-              }}
-              onSortChange={(state) => {
-                if (state.columnId) {
-                  setSorting([{ id: state.columnId, desc: state.desc }])
-                } else {
-                  setSorting([])
+          <ContentToolbar
+            seed={virtualSeed}
+            views={views}
+            activeViewId="table"
+            onChangeView={() => void 0}
+            onCreate={handleCreate}
+            searchValue={tableSearch}
+            onSearchChange={setTableSearch}
+            sortState={{
+              columnId: singleSort?.id ?? null,
+              desc: singleSort?.desc ?? false,
+            }}
+            onSortChange={(state) => {
+              if (state.columnId) {
+                setSorting([{ id: state.columnId, desc: state.desc }])
+              } else {
+                setSorting([])
+              }
+            }}
+            filters={toolbarFilters}
+            onFiltersChange={setToolbarFilters}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
+          >
+            {isError && (
+              <div className="flex flex-col items-center gap-3 py-12 text-muted-foreground">
+                <p>{t("common.error")}</p>
+                <Button variant="outline" size="sm" onClick={() => refetch()}>
+                  {t("common.retry")}
+                </Button>
+              </div>
+            )}
+
+            {!isError && !isLoading && (
+              <DataTable
+                columns={columns}
+                data={filteredData}
+                manualSorting
+                manualFiltering
+                sorting={sorting}
+                onSortingChange={setSorting}
+                columnVisibility={columnVisibility}
+                onColumnVisibilityChange={setColumnVisibility}
+                globalFilter={tableSearch}
+                onGlobalFilterChange={setTableSearch}
+                emptyState={
+                  isEmptyDrafts ? (
+                    <SmallCta
+                      svgPath={`${import.meta.env.BASE_URL}working.svg`}
+                      title={t("drafts.empty")}
+                      buttonText={t("drafts.actions.create")}
+                      onButtonClick={handleCreate}
+                    />
+                  ) : (
+                    <SmallCta
+                      svgPath={`${import.meta.env.BASE_URL}noResult.svg`}
+                      title={t("common.noResults")}
+                    />
+                  )
                 }
-              }}
-              filters={toolbarFilters}
-              onFiltersChange={setToolbarFilters}
-              columnVisibility={columnVisibility}
-              onColumnVisibilityChange={setColumnVisibility}
-            >
-              {isError && (
-                <div className="flex flex-col items-center gap-3 py-12 text-muted-foreground">
-                  <p>{t("common.error")}</p>
-                  <Button variant="outline" size="sm" onClick={() => refetch()}>
-                    {t("common.retry")}
-                  </Button>
-                </div>
-              )}
+              />
+            )}
 
-              {!isError && !isLoading && (
-                <DataTable
-                  columns={columns}
-                  data={filteredData}
-                  manualSorting
-                  manualFiltering
-                  sorting={sorting}
-                  onSortingChange={setSorting}
-                  columnVisibility={columnVisibility}
-                  onColumnVisibilityChange={setColumnVisibility}
-                  globalFilter={tableSearch}
-                  onGlobalFilterChange={setTableSearch}
-                  emptyState={
-                    isEmptyDrafts ? (
-                      <SmallCta
-                        svgPath={`${import.meta.env.BASE_URL}working.svg`}
-                        title={t("drafts.empty")}
-                        buttonText={t("drafts.actions.create")}
-                        onButtonClick={handleCreate}
-                      />
-                    ) : (
-                      <SmallCta
-                        svgPath={`${import.meta.env.BASE_URL}noResult.svg`}
-                        title={t("common.noResults")}
-                      />
-                    )
-                  }
-                />
-              )}
-
-              {!isError && isLoading && (
-                <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  {t("common.loading")}
-                </div>
-              )}
-            </ContentToolbar>
-          </div>
-        </div>
+            {!isError && isLoading && (
+              <div className="flex items-center justify-center py-12 text-muted-foreground">
+                {t("common.loading")}
+              </div>
+            )}
+          </ContentToolbar>
+        </PageBody>
       </AppShell>
 
       <Dialog open={seedPickerOpen} onOpenChange={setSeedPickerOpen}>

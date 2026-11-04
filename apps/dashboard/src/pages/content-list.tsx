@@ -10,7 +10,7 @@ import { Trash2 } from "@/components/icons"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { Button } from "@/components/ui/button"
 
-import { AppShell, PageShellLoading } from "@/features/navigation"
+import { AppShell, PageBody, PageHeader, PageShellLoading } from "@/features/navigation"
 import { useActiveSeed } from "@/features/schema"
 import { resolveAuthorizedViews, type ContentView, type DashboardView } from "@beechcms/core"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -161,65 +161,61 @@ export function ContentListPage() {
   return (
     <>
       <AppShell>
-        <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
-          <div className="content-area-inner">
-            {/* Header with title */}
-            <div className="mb-6 flex items-start justify-between">
-              <div>
-                <h1 className="font-heading text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
-                <p className="text-muted-foreground text-sm">
-                  {t("content.list.subtitle", { slug: seed.slug })}
-                </p>
-              </div>
+        <PageBody>
+          <PageHeader
+            className="mb-6"
+            title={seed.labelPlural ?? seed.label}
+            description={t("content.list.subtitle", { slug: seed.slug })}
+            actions={
               <Button variant="outline" size="sm" onClick={() => navigate(`/content/${slug}/trash`)}>
                 <Trash2 className="size-4" />
                 {t("content.trash.open")}
               </Button>
-            </div>
+            }
+          />
 
-            {viewsQuery.isLoading ? (
-              <div className="flex items-center justify-center py-12 text-muted-foreground">Loading configuration...</div>
-            ) : viewsQuery.isError || (!activeView && !emptyStateType) ? (
-              <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-                <p className="text-sm text-destructive">{t("content.views.errors.loadFailed")}</p>
-              </div>
-            ) : emptyStateType ? (
-              <>
-                <ToolbarStrip>
-                  <ViewSwitcher
-                    views={switcherViews}
-                    activeViewId={null}
-                    onChangeView={handleChangeView}
-                    onCreateView={canManageViews ? handleCreateView : undefined}
-                    creatableViewTypes={creatableViewTypes}
-                    onReorderViews={canManageViews ? handleReorderViews : undefined}
-                    onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
-                  />
-                </ToolbarStrip>
-                <ViewEmptyState
-                  typeLabel={typeLabel(emptyStateType)}
-                  onCreate={canManageViews ? () => handleCreateView(emptyStateType) : undefined}
+          {viewsQuery.isLoading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground">Loading configuration...</div>
+          ) : viewsQuery.isError || (!activeView && !emptyStateType) ? (
+            <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+              <p className="text-sm text-destructive">{t("content.views.errors.loadFailed")}</p>
+            </div>
+          ) : emptyStateType ? (
+            <>
+              <ToolbarStrip>
+                <ViewSwitcher
+                  views={switcherViews}
+                  activeViewId={null}
+                  onChangeView={handleChangeView}
+                  onCreateView={canManageViews ? handleCreateView : undefined}
+                  creatableViewTypes={creatableViewTypes}
+                  onReorderViews={canManageViews ? handleReorderViews : undefined}
+                  onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
                 />
-              </>
-            ) : (
-              <ContentViewWorkspace
-                key={activeView!.id}
-                seed={seed}
-                slug={slug!}
-                view={activeView!}
-                switcherViews={switcherViews}
-                creatableViewTypes={creatableViewTypes}
-                canManageViews={canManageViews}
-                canDeleteView={canManageViews && !(activeView!.type === "table" && tableViewCount <= 1)}
-                onChangeView={handleChangeView}
-                onCreateView={canManageViews ? handleCreateView : undefined}
-                onRenameView={canManageViews ? handleRenameView : undefined}
-                onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
-                onReorderViews={canManageViews ? handleReorderViews : undefined}
+              </ToolbarStrip>
+              <ViewEmptyState
+                typeLabel={typeLabel(emptyStateType)}
+                onCreate={canManageViews ? () => handleCreateView(emptyStateType) : undefined}
               />
-            )}
-          </div>
-        </div>
+            </>
+          ) : (
+            <ContentViewWorkspace
+              key={activeView!.id}
+              seed={seed}
+              slug={slug!}
+              view={activeView!}
+              switcherViews={switcherViews}
+              creatableViewTypes={creatableViewTypes}
+              canManageViews={canManageViews}
+              canDeleteView={canManageViews && !(activeView!.type === "table" && tableViewCount <= 1)}
+              onChangeView={handleChangeView}
+              onCreateView={canManageViews ? handleCreateView : undefined}
+              onRenameView={canManageViews ? handleRenameView : undefined}
+              onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
+              onReorderViews={canManageViews ? handleReorderViews : undefined}
+            />
+          )}
+        </PageBody>
       </AppShell>
 
       <ConfirmDialog

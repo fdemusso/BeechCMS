@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { AppShell } from "@/features/navigation"
+import { AppShell, PageHeader } from "@/features/navigation"
 import {
   SiteStatusWidget,
   StorageWidget,
@@ -90,13 +90,10 @@ export function WidgetLabPage() {
       <div className="mx-auto w-full max-w-screen-2xl p-6 space-y-12">
 
         {/* Page header */}
-        <div>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">Widget Lab</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Sandbox for developing and inspecting widgets before adding them to the dashboard.
-            Each section displays a widget in all its size variants.
-          </p>
-        </div>
+        <PageHeader
+          title="Widget Lab"
+          description="Sandbox for developing and inspecting widgets before adding them to the dashboard. Each section displays a widget in all its size variants."
+        />
 
         {/* ── SiteStatus ────────────────────────────────────────────── */}
         <LabSection

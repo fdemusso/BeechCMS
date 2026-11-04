@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Settings } from '@/components/icons'
 import { Button } from "@/components/ui/button"
-import { AppShell } from "@/features/navigation"
+import { AppShell, PageBody, PageHeader } from "@/features/navigation"
 import { isDashboardLayoutEditor } from "@beechcms/core"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { useAuth } from "@/lib/auth-context"
@@ -50,37 +50,25 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* TODO(sidebar-redesign): the decorative blurred blobs and translucent page background were removed; decide whether the blobs return inside the card. */}
       <AppShell>
-        {/* Vertical alignment with the sidebar profile card (md+, where the sidebar is docked):
-            the card is centred on this greeting block (h1 36px pinned by leading-9! + gap 6 + subtitle 24 = 66px),
-            which starts at 8 (card m-2) + 14 (pt-3.5) = 22px, so its centre is 55px.
-            AppSidebar's header pt-[23px] puts the card centre there. Keep both files in sync. */}
-        <main className="flex flex-1 flex-col gap-6 p-6 md:p-6 md:pt-3.5 lg:p-8 lg:pt-3.5">
-          {/* Contenitore interno: limita la larghezza massima a 2200px
-              per una lettura ottimale sia su 16:9 che su 21:9. */}
-          <div ref={contentRef} className="content-area-inner flex flex-col gap-6">
-            {/* Welcome Header */}
-            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex flex-col gap-1.5">
-                <h1 className="font-heading text-2xl font-bold leading-9! tracking-tight md:text-3xl text-foreground">
-                  {greeting}, <span className="font-semibold">{userName}</span>
-                </h1>
-                <p className="text-muted-foreground">
-                  {t("dashboard.greeting.subtitle")}
-                </p>
-              </div>
-              {canEdit && (
+        {/* Title block and padding come from PageHeader / PageBody, shared with every page: they line the greeting up
+            with the sidebar profile card (see AppSidebar's header pt-[23px]). */}
+        <PageBody innerRef={contentRef} innerClassName="flex flex-col gap-6">
+          <PageHeader
+            title={<>{greeting}, <span className="font-semibold">{userName}</span></>}
+            description={t("dashboard.greeting.subtitle")}
+            actions={
+              canEdit && (
                 <Button type="button" variant="outline" size="sm" onClick={() => { setRecovering(false); setBuilderOpen(true) }}>
                   <Settings className="size-4 mr-2" />
                   {t("dashboard.builder.customize")}
                 </Button>
-              )}
-            </div>
+              )
+            }
+          />
 
-            {!isLoading && <DashboardLayoutRenderer layout={layout} />}
-          </div>
-        </main>
+          {!isLoading && <DashboardLayoutRenderer layout={layout} />}
+        </PageBody>
       </AppShell>
       {canEdit && (
         <DashboardBuilderDialog

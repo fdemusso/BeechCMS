@@ -22,6 +22,10 @@ vi.mock("react-router-dom", () => ({
 vi.mock("@/features/auth/components/login-form", () => ({ LoginForm: () => <div>LOGIN_FORM</div> }))
 vi.mock("@/features/navigation", () => ({
   AppShell: ({ children }: { children?: React.ReactNode }) => <div><div>APP_SIDEBAR</div>{children}</div>,
+  PageBody: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  PageHeader: ({ title, description, actions }: { title?: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode }) => (
+    <div><h1>{title}</h1>{description}{actions}</div>
+  ),
   AppSidebar: () => <div>APP_SIDEBAR</div>,
 }))
 vi.mock("@/components/ui/sidebar", () => ({
