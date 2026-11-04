@@ -201,7 +201,7 @@ export function NavMain({
   return (
     <SidebarGroup className={className}>
       {groupLabel && <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>}
-      <div className={cn(hasLine && "border-l border-sidebar-border/40 ml-3.5 pl-3.5")}>
+      <div className={cn(hasLine && "border-l border-sidebar-border/40 ml-3.5 pl-3.5 group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:pl-0")}>
         <SidebarMenu>
           {items.map((item) => (
             <NavMainMenuItem

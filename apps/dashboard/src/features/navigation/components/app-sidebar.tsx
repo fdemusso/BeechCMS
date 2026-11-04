@@ -4,6 +4,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
+import { cn } from "@/lib/utils"
 
 import { NavMain } from "./nav-main"
 import { NavNotifications } from "./nav-notifications"
@@ -20,7 +21,25 @@ import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
+
+/**
+ * Short line between groups; only shown in the icon rail, where the group labels are gone.
+ * `spaced` adds extra room around it: used between the system blocks (Main / Content) and the seed-defined custom
+ * groups, not between two custom groups.
+ */
+function RailDivider({ spaced = false }: { readonly spaced?: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        "mx-auto h-0 w-5 shrink-0 bg-sidebar-border opacity-0 transition-[opacity,height,margin] duration-300 group-data-[collapsible=icon]:h-px group-data-[collapsible=icon]:opacity-100",
+        spaced && "group-data-[collapsible=icon]:my-2",
+      )}
+    />
+  )
+}
 
 export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation()
@@ -52,7 +71,7 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
   const contentCategoryItems = getContentCategoryMenu(t, gates)
 
   return (
-    <Sidebar variant="inset" {...props}>
+    <Sidebar variant="inset" collapsible="icon" {...props}>
       {/* Logo row is vertically centred on the dashboard greeting block (title + subtitle, see dashboard-page.tsx):
           greeting centre = 8 (card m-2) + 14 (main pt-3.5) + 66/2 = 55px, logo button is h-12 so its top sits at 31px,
           i.e. 8 (inset p-2) + 23 (pt). Keep both files in sync. */}
@@ -62,26 +81,36 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
         <NavUser user={user} onLogout={logout} />
         <SidebarSearch />
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="group-data-[collapsible=icon]:overflow-auto">
         <NavMain items={getStaticMenu(t, gates)} groupLabel={t("sidebar.navigation")}>
           <NavNotifications />
         </NavMain>
         {contentCategoryItems.length > 0 && (
-          <NavMain items={contentCategoryItems} groupLabel={t("sidebar.contentGroup")} />
+          <>
+            <RailDivider spaced />
+            <NavMain items={contentCategoryItems} groupLabel={t("sidebar.contentGroup")} />
+          </>
         )}
         {contentGroups.map((group, i) => (
-          <NavMain
-            key={group.label}
-            items={group.items}
-            groupLabel={group.label}
-            className={i === 0 ? "mt-4" : undefined}
-            hasLine
-          />
+          <React.Fragment key={group.label}>
+            <RailDivider spaced={i === 0} />
+            <NavMain
+              items={group.items}
+              groupLabel={group.label}
+              className={i === 0 ? "mt-4 group-data-[collapsible=icon]:mt-0" : undefined}
+              hasLine
+            />
+          </React.Fragment>
         ))}
         {STATIC_NAV_SECONDARY.length > 0 && (
           <NavSecondary items={STATIC_NAV_SECONDARY} />
         )}
-        <NavMain items={getSettingsMenu(t).map((item) => ({ ...item, onSelect: () => openSettings() }))} className="mt-auto pt-0" />
+        {/* Settings entry with the sidebar close button beside it. */}
+        {/* Collapsed (icon rail): the row stacks, settings icon above the toggle. */}
+        <div className="mt-auto flex items-center pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:pr-0">
+          <NavMain items={getSettingsMenu(t).map((item) => ({ ...item, onSelect: () => openSettings() }))} className="min-w-0 flex-1 pt-0" />
+          <SidebarTrigger className="shrink-0 text-sidebar-foreground/70 group-data-[collapsible=icon]:mb-2" />
+        </div>
       </SidebarContent>
     </Sidebar>
   )

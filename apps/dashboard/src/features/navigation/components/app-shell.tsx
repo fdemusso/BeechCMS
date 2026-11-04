@@ -4,12 +4,19 @@
 
 import type { CSSProperties, ReactNode } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
 import { SiteHeader } from "./site-header"
 
 // TODO(sidebar-redesign): flip back (or delete with SiteHeader) once toggle/notifications are re-homed.
 const SHOW_SITE_HEADER = false
+
+/** Opens the sidebar sheet on mobile; on desktop the sidebar collapses to an icon rail that keeps its own toggle. */
+function SidebarReopenTrigger() {
+  const { isMobile } = useSidebar()
+  if (!isMobile) return null
+  return <SidebarTrigger className="fixed left-4 top-4 z-20 bg-background/80 backdrop-blur" />
+}
 
 interface AppShellProps {
   readonly children?: ReactNode
@@ -31,9 +38,10 @@ export function AppShell({ children }: AppShellProps) {
             breadcrumbs. */}
         {SHOW_SITE_HEADER && <SiteHeader />}
         <AppSidebar />
+        <SidebarReopenTrigger />
         {/* md:m-2 on the inset variant eats 1rem of height. */}
         {/* TODO(sidebar-redesign): card border/contrast is still the default `shadow-sm`; tune the edge. */}
-        <SidebarInset className="h-svh min-w-0 overflow-hidden md:h-[calc(100svh-1rem)]">
+        <SidebarInset className="h-svh min-w-0 overflow-hidden md:h-[calc(100svh-1rem)] md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-0">
           <ScrollArea className="h-full">{children}</ScrollArea>
         </SidebarInset>
       </SidebarProvider>
