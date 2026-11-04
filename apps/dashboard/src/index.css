@@ -45,11 +45,13 @@
      Change a level here, not in the components. */
   --radius-control: min(var(--radius-md), 10px);
 
-  /* ── Light mode tokens — palette neutro/nero, nessuna tinta di colore ── */
-  --background: oklch(1 0 0);
+  /* ── Light mode tokens — palette neutro/nero, nessuna tinta di colore ──
+     Niente bianco puro su background/card (affaticava la vista a luminosità alta): tre livelli
+     pavimento (--sidebar 0.94) < body (--background 0.972) < widget (--card 0.99), bordi 0.89. ── */
+  --background: oklch(0.972 0.002 286);
   --foreground: oklch(0.141 0.005 285.823);
 
-  --card: oklch(1 0 0);
+  --card: oklch(0.99 0.001 286);
   --card-foreground: oklch(0.141 0.005 285.823);
 
   --popover: oklch(1 0 0);       /* sfondo palette cmdk */
@@ -58,18 +60,18 @@
   --primary: oklch(0.488 0.243 264.376);       /* bottoni CTA: nero */
   --primary-foreground: oklch(0.97 0.014 254.604);       /* testo sul nero: bianco */
 
-  --secondary: oklch(0.967 0.001 286.375);
+  --secondary: oklch(0.945 0.003 286);
   --secondary-foreground: oklch(0.21 0.006 285.885);
 
-  --muted: oklch(0.967 0.001 286.375);
+  --muted: oklch(0.945 0.003 286);
   --muted-foreground: oklch(0.552 0.016 285.938);       /* grigio medio — ≥ 4.5:1 su --muted */
 
-  --accent: oklch(0.967 0.001 286.375);       /* hover item: grigio chiarissimo su bianco */
+  --accent: oklch(0.945 0.003 286);       /* hover item: grigio chiarissimo su bianco */
   --accent-foreground: oklch(0.21 0.006 285.885);       /* testo sull'hover: nero – sempre leggibile */
 
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
+  --border: oklch(0.89 0.005 286);
+  --input: oklch(0.89 0.005 286);
   --ring: oklch(0.705 0.015 286.067);
 
   --chart-1: oklch(0.809 0.105 251.813);
@@ -78,16 +80,16 @@
   --chart-4: oklch(0.488 0.243 264.376);
   --chart-5: oklch(0.424 0.199 265.638);
 
-  --sidebar: oklch(0.985 0 0);       /* sfondo sidebar light */
+  --sidebar: oklch(0.94 0.003 286);       /* sfondo sidebar light */
   --sidebar-foreground: oklch(0.141 0.005 285.823);       /* testo sidebar: quasi nero */
   --sidebar-primary: oklch(0.546 0.245 262.881);       /* icona logo: nero */
   --sidebar-primary-foreground: oklch(0.97 0.014 254.604);       /* testo su icona logo: bianco */
-  --sidebar-accent: oklch(0.967 0.001 286.375);        /* hover: grigio visibile (ΔL 0.075 vs sfondo) */
+  --sidebar-accent: oklch(0.915 0.004 286);        /* hover: grigio visibile (ΔL 0.075 vs sfondo) */
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);       /* testo hover: stesso del testo normale */
-  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-border: oklch(0.88 0.005 286);
   --sidebar-ring: oklch(0.705 0.015 286.067);
 
-  --table-header:               oklch(0.95 0 0);
+  --table-header:               oklch(0.93 0.003 286);
 }
 
 a {
