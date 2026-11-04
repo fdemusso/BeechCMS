@@ -6,6 +6,7 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 
 import { NavMain } from "./nav-main"
+import { NavNotifications } from "./nav-notifications"
 import { NavSecondary } from "./nav-secondary"
 import { NavUser } from "./nav-user"
 import { SidebarSearch } from "./sidebar-search"
@@ -62,7 +63,9 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
         <SidebarSearch />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={getStaticMenu(t, gates)} groupLabel={t("sidebar.navigation")} />
+        <NavMain items={getStaticMenu(t, gates)} groupLabel={t("sidebar.navigation")}>
+          <NavNotifications />
+        </NavMain>
         {contentCategoryItems.length > 0 && (
           <NavMain items={contentCategoryItems} groupLabel={t("sidebar.contentGroup")} />
         )}

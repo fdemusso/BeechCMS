@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import type { IconComponent } from '@/lib/icon-registry'
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
@@ -51,6 +52,8 @@ type NavMainProps = {
   readonly groupLabel?: string
   readonly className?: string
   readonly hasLine?: boolean
+  /** Extra rows rendered after `items`, for entries that are not plain links (e.g. a popover trigger). */
+  readonly children?: ReactNode
 }
 
 type NavMainMenuItemProps = {
@@ -189,6 +192,7 @@ export function NavMain({
   groupLabel,
   className,
   hasLine = false,
+  children,
 }: NavMainProps) {
   const location = useLocation()
   const currentPath = location.pathname
@@ -207,6 +211,7 @@ export function NavMain({
               currentSearch={currentSearch}
             />
           ))}
+          {children}
         </SidebarMenu>
       </div>
     </SidebarGroup>

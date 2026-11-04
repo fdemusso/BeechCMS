@@ -5,6 +5,7 @@
 "use client"
 
 import { useCallback } from "react"
+import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { Bell, EyeOff, Trash2 } from '@/components/icons'
 
@@ -171,10 +172,17 @@ function dispatchCloseContextMenu(container: HTMLElement) {
   container.dispatchEvent(event)
 }
 
+interface NotificationsPopoverProps {
+  /** Replaces the default bell button; receives the unread state so a custom trigger can show it. */
+  readonly renderTrigger?: (state: { hasUnread: boolean; unreadCount: number }) => ReactNode
+  readonly side?: "top" | "right" | "bottom" | "left"
+  readonly align?: "start" | "center" | "end"
+}
+
 /**
  * Componente principale per la gestione e visualizzazione delle notifiche.
  */
-export function NotificationsPopover() {
+export function NotificationsPopover({ renderTrigger, side = "bottom", align = "end" }: NotificationsPopoverProps = {}) {
   const { t } = useTranslation()
   const {
     notifications,
@@ -196,6 +204,9 @@ export function NotificationsPopover() {
   return (
     <Popover>
       <PopoverTrigger asChild>
+        {renderTrigger ? (
+          renderTrigger({ hasUnread: hasUnreadNotifications, unreadCount })
+        ) : (
         <Button
           className="relative ml-auto h-8 w-8"
           variant="ghost"
@@ -215,10 +226,11 @@ export function NotificationsPopover() {
               : t("notifications.noUnread")}
           </span>
         </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent
-        align="end"
-        side="bottom"
+        align={align}
+        side={side}
         className="w-80 p-0 sm:w-96"
       >
         <div className="border-b px-4 py-3">
