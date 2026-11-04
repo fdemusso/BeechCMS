@@ -3,12 +3,50 @@
 // See LICENSE in the repository root for license terms.
 
 import { useCallback, useEffect } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { queryOptions, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query"
+import type { SortingState } from "@tanstack/react-table"
 import { isLocalizedBranch, resolveRelationAvatar } from "@beechcms/core"
 import { useLocalizeEntryData, useSchema } from "@/features/shared"
 import { contentApi, type ContentListQueryParams, type ContentListWithMeta } from "../api/content.api"
 import { CONTENT_QUERY_KEYS } from "../consts/content.keys"
 import type { ContentEntry } from "@/lib/dynamic-columns"
+
+export const CONTENT_LIST_STALE_TIME = 10 * 1000 // 10 seconds
+
+interface ContentListParamsInput {
+  readonly pageIndex: number
+  readonly pageSize: number
+  readonly search?: string
+  readonly sorting: SortingState
+  readonly filters: unknown
+}
+
+/**
+ * The request params of one list page. The cache key carries them, so everything that has to hit the same cache
+ * entry (the hook, a route prefetch) must build them here.
+ */
+export function buildContentListParams({ pageIndex, pageSize, search, sorting, filters }: ContentListParamsInput): ContentListQueryParams {
+  return {
+    page: pageIndex + 1,
+    limit: pageSize,
+    search: search?.trim() || undefined,
+    sortBy: sorting[0]?.id,
+    sortDir: sorting[0]?.desc ? "desc" : "asc",
+    filters,
+  }
+}
+
+const contentListQueryOptions = (slug: string, params: ContentListQueryParams) =>
+  queryOptions({
+    queryKey: CONTENT_QUERY_KEYS.list(slug, params),
+    queryFn: () => contentApi.fetchList(slug, params),
+    staleTime: CONTENT_LIST_STALE_TIME,
+  })
+
+/** Starts (or reuses) a list fetch ahead of the page that reads it. Rejects like the query does. */
+export function prefetchContentList(queryClient: QueryClient, slug: string, params: ContentListQueryParams) {
+  return queryClient.fetchQuery(contentListQueryOptions(slug, params))
+}
 
 /**
  * Hook for fetching paginated content entries.
@@ -36,15 +74,10 @@ export function useContentList(slug: string | undefined, params: ContentListQuer
   )
 
   const query = useQuery({
-    queryKey: CONTENT_QUERY_KEYS.list(slug || "", params),
-    queryFn: async () => {
-      if (!slug) throw new Error("Slug is required")
-      return contentApi.fetchList(slug, params)
-    },
+    ...contentListQueryOptions(slug ?? "", params),
     enabled: Boolean(slug),
     // Keep previous data while fetching new data to avoid flickering
     placeholderData: (previous) => previous,
-    staleTime: 10 * 1000, // 10 seconds
     select,
   })
 

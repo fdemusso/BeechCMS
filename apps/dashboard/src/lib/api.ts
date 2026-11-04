@@ -34,6 +34,8 @@ export interface LoginResponse {
 let _accessToken: string | null = null;
 
 function getAccessToken(): string | null { return _accessToken }
+/** True once a session token is held (route loaders only prefetch when it is: before that, nothing may call the API). */
+export function hasAccessToken(): boolean { return _accessToken !== null }
 export function setAccessToken(token: string): void { _accessToken = token }
 export function clearAccessToken(): void { _accessToken = null }
 

@@ -49,7 +49,9 @@ vi.mock("@/features/schema", () => ({
   })
 }))
 
-vi.mock("@/features/content-management/hooks/use-content-list", () => ({
+vi.mock("@/features/content-management/hooks/use-content-list", async (importOriginal) => ({
+  // buildContentListParams stays real: the page builds the request params with it.
+  ...(await importOriginal<typeof import("@/features/content-management/hooks/use-content-list")>()),
   useContentList: (...args: any[]) => ({
     data: mockFetchContentListServer(...args),
     isLoading: false,

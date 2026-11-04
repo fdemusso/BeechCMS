@@ -8,6 +8,7 @@
  */
 export {
   CONTENT_VIEWS_QUERY_KEY,
+  prefetchContentViews,
   useContentViews,
   useCreateContentView,
   useUpdateContentView,

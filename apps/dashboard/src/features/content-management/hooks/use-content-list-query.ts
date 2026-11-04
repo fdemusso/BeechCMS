@@ -18,7 +18,7 @@ import {
 import { extractTagNames, tagFilterValues } from "@/lib/tags-utils"
 import { normalizeDateToYmd, getEntryValueForColumn, type FilterGroupType } from "@/lib/filter-dsl"
 import type { ContentEntry } from "@/lib/dynamic-columns"
-import { useContentList } from "./use-content-list"
+import { buildContentListParams, useContentList } from "./use-content-list"
 import { useContentFacets } from "./use-content-facets"
 import { useAutomations } from "@/features/automations"
 
@@ -99,14 +99,13 @@ export function useContentListQuery(
     data: listData, 
     isLoading: isListLoading, 
     error: listError,
-  } = useContentList(slug, {
-    page: pageIndex + 1,
-    limit: pageSize,
-    search: debouncedSearch.trim() || undefined,
-    sortBy: sorting[0]?.id,
-    sortDir: sorting[0]?.desc ? "desc" : "asc",
+  } = useContentList(slug, buildContentListParams({
+    pageIndex,
+    pageSize,
+    search: debouncedSearch,
+    sorting,
     filters: toolbarFilters,
-  })
+  }))
 
   const { 
     data: facetsData,
