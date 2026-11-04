@@ -28,40 +28,42 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 
-type DashboardNavMainSubItem = {
+type NavMainSubItem = {
   readonly title: string
   readonly url: string
 }
 
-type DashboardNavMainItem = {
+type NavMainItem = {
   readonly title: string
   readonly url: string
   readonly icon: IconComponent
   readonly isActive?: boolean
-  readonly items?: ReadonlyArray<DashboardNavMainSubItem>
+  readonly items?: ReadonlyArray<NavMainSubItem>
   readonly disabled?: boolean
   readonly disabledReason?: string
   readonly notImplemented?: boolean
+  /** Runs instead of navigating to `url` (e.g. opens a dialog over the current page). */
+  readonly onSelect?: () => void
 }
 
-type DashboardNavMainProps = {
-  readonly items: ReadonlyArray<DashboardNavMainItem>
+type NavMainProps = {
+  readonly items: ReadonlyArray<NavMainItem>
   readonly groupLabel?: string
   readonly className?: string
   readonly hasLine?: boolean
 }
 
-type DashboardNavMainMenuItemProps = {
-  readonly item: DashboardNavMainItem
+type NavMainMenuItemProps = {
+  readonly item: NavMainItem
   readonly currentPath: string
   readonly currentSearch: string
 }
 
-function DashboardNavMainMenuItem({
+function NavMainMenuItem({
   item,
   currentPath,
   currentSearch,
-}: DashboardNavMainMenuItemProps) {
+}: NavMainMenuItemProps) {
   const itemRef = useRef<HTMLLIElement>(null)
 
   // A collapsible parent is open when the current path starts with its base path
@@ -125,6 +127,17 @@ function DashboardNavMainMenuItem({
     )
   }
 
+  if (item.onSelect) {
+    return (
+      <SidebarMenuItem ref={itemRef}>
+        <SidebarMenuButton tooltip={item.title} onClick={item.onSelect}>
+          <item.icon />
+          <span>{item.title}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+  }
+
   if (item.notImplemented) {
     return (
       <SidebarMenuItem ref={itemRef}>
@@ -171,12 +184,12 @@ function DashboardNavMainMenuItem({
   )
 }
 
-export function DashboardNavMain({
+export function NavMain({
   items,
   groupLabel,
   className,
   hasLine = false,
-}: DashboardNavMainProps) {
+}: NavMainProps) {
   const location = useLocation()
   const currentPath = location.pathname
   const currentSearch = location.search
@@ -187,7 +200,7 @@ export function DashboardNavMain({
       <div className={cn(hasLine && "border-l border-sidebar-border/40 ml-3.5 pl-3.5")}>
         <SidebarMenu>
           {items.map((item) => (
-            <DashboardNavMainMenuItem
+            <NavMainMenuItem
               key={item.title}
               item={item}
               currentPath={currentPath}

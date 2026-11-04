@@ -8,7 +8,7 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import { toast } from "sonner"
 import { MemoryRouter } from "react-router-dom"
 import { getStaticMenu, getContentCategoryMenu, type MenuGates } from "@/config/dashboard-menu"
-import { NavMain } from "@/components/nav-main"
+import { NavMain } from "@/features/navigation/components/nav-main"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 

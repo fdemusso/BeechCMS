@@ -10,11 +10,7 @@ import { Trash2 } from "@/components/icons"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { Button } from "@/components/ui/button"
 
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
-import { AppSidebar, SiteHeader, PageShellLoading } from "@/features/navigation"
+import { AppShell, PageShellLoading } from "@/features/navigation"
 import { useActiveSeed } from "@/features/schema"
 import { resolveAuthorizedViews, type ContentView, type DashboardView } from "@beechcms/core"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -156,28 +152,20 @@ export function ContentListPage() {
   // Show error if seed doesn't exist
   if (!seed && !isSeedLoading) {
     return (
-      <div className="[--header-height:calc(--spacing(14))]">
-        <SidebarProvider className="flex flex-col">
-          <SiteHeader />
-          <div className="flex flex-1">
-            <AppSidebar />
-            <SidebarInset>
-              <div className="flex flex-1 flex-col gap-4 p-4">
-                <div className="content-area-inner">
-                  <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-                    <h2 className="font-heading text-lg font-semibold text-destructive">
-                      Error
-                    </h2>
-                    <p className="text-sm text-destructive/90">
-                      {`Seed "${slug}" not found`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </SidebarInset>
+      <AppShell>
+        <div className="flex flex-1 flex-col gap-4 p-4">
+          <div className="content-area-inner">
+            <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+              <h2 className="font-heading text-lg font-semibold text-destructive">
+                Error
+              </h2>
+              <p className="text-sm text-destructive/90">
+                {`Seed "${slug}" not found`}
+              </p>
+            </div>
           </div>
-        </SidebarProvider>
-      </div>
+        </div>
+      </AppShell>
     )
   }
 
@@ -187,72 +175,66 @@ export function ContentListPage() {
   }
 
   return (
-    <div className="[--header-height:calc(--spacing(14))] overflow-x-clip">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <AppSidebar />
-          <SidebarInset className="min-w-0">
-            <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
-              <div className="content-area-inner">
-                {/* Header with title */}
-                <div className="mb-6 flex items-start justify-between">
-                  <div>
-                    <h1 className="font-heading text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
-                    <p className="text-muted-foreground text-sm">
-                      {t("content.list.subtitle", { slug: seed.slug })}
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/content/${slug}/trash`)}>
-                    <Trash2 className="size-4" />
-                    {t("content.trash.open")}
-                  </Button>
-                </div>
+    <>
+      <AppShell>
+        <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
+          <div className="content-area-inner">
+            {/* Header with title */}
+            <div className="mb-6 flex items-start justify-between">
+              <div>
+                <h1 className="font-heading text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
+                <p className="text-muted-foreground text-sm">
+                  {t("content.list.subtitle", { slug: seed.slug })}
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/content/${slug}/trash`)}>
+                <Trash2 className="size-4" />
+                {t("content.trash.open")}
+              </Button>
+            </div>
 
-                {viewsQuery.isError || (!activeView && !emptyStateType) ? (
-                  <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-                    <p className="text-sm text-destructive">{t("content.views.errors.loadFailed")}</p>
-                  </div>
-                ) : emptyStateType ? (
-                  <>
-                    <ToolbarStrip>
-                      <ViewSwitcher
-                        views={switcherViews}
-                        activeViewId={null}
-                        onChangeView={handleChangeView}
-                        onCreateView={canManageViews ? handleCreateView : undefined}
-                        creatableViewTypes={creatableViewTypes}
-                        onReorderViews={canManageViews ? handleReorderViews : undefined}
-                        onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
-                      />
-                    </ToolbarStrip>
-                    <ViewEmptyState
-                      typeLabel={typeLabel(emptyStateType)}
-                      onCreate={canManageViews ? () => handleCreateView(emptyStateType) : undefined}
-                    />
-                  </>
-                ) : (
-                  <ContentViewWorkspace
-                    key={activeView!.id}
-                    seed={seed}
-                    slug={slug!}
-                    view={activeView!}
-                    switcherViews={switcherViews}
-                    creatableViewTypes={creatableViewTypes}
-                    canManageViews={canManageViews}
-                    canDeleteView={canManageViews && !(activeView!.type === "table" && tableViewCount <= 1)}
+            {viewsQuery.isError || (!activeView && !emptyStateType) ? (
+              <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+                <p className="text-sm text-destructive">{t("content.views.errors.loadFailed")}</p>
+              </div>
+            ) : emptyStateType ? (
+              <>
+                <ToolbarStrip>
+                  <ViewSwitcher
+                    views={switcherViews}
+                    activeViewId={null}
                     onChangeView={handleChangeView}
                     onCreateView={canManageViews ? handleCreateView : undefined}
-                    onRenameView={canManageViews ? handleRenameView : undefined}
-                    onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
+                    creatableViewTypes={creatableViewTypes}
                     onReorderViews={canManageViews ? handleReorderViews : undefined}
+                    onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
                   />
-                )}
-              </div>
-            </div>
-          </SidebarInset>
+                </ToolbarStrip>
+                <ViewEmptyState
+                  typeLabel={typeLabel(emptyStateType)}
+                  onCreate={canManageViews ? () => handleCreateView(emptyStateType) : undefined}
+                />
+              </>
+            ) : (
+              <ContentViewWorkspace
+                key={activeView!.id}
+                seed={seed}
+                slug={slug!}
+                view={activeView!}
+                switcherViews={switcherViews}
+                creatableViewTypes={creatableViewTypes}
+                canManageViews={canManageViews}
+                canDeleteView={canManageViews && !(activeView!.type === "table" && tableViewCount <= 1)}
+                onChangeView={handleChangeView}
+                onCreateView={canManageViews ? handleCreateView : undefined}
+                onRenameView={canManageViews ? handleRenameView : undefined}
+                onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
+                onReorderViews={canManageViews ? handleReorderViews : undefined}
+              />
+            )}
+          </div>
         </div>
-      </SidebarProvider>
+      </AppShell>
 
       <ConfirmDialog
         open={viewPendingDelete !== null}
@@ -264,6 +246,6 @@ export function ContentListPage() {
         confirmVariant="destructive"
         onConfirm={handleConfirmDeleteView}
       />
-    </div>
+    </>
   )
 }

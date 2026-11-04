@@ -5,7 +5,9 @@
 "use client"
 
 import { CheckCircle as BadgeCheck, More, Logout as LogOut } from '@/components/icons'
-import { useNavigate } from "react-router-dom"
+import { useSettingsDialog } from "@/features/settings"
+
+import { cn } from "@/lib/utils"
 
 import {
   Avatar,
@@ -54,7 +56,7 @@ export function NavUser({
   onLogout,
 }: NavUserProps) {
   const { isMobile } = useSidebar()
-  const navigate = useNavigate()
+  const { openSettings } = useSettingsDialog()
   const initials = getInitials(user.name, user.email)
 
   return (
@@ -64,17 +66,27 @@ export function NavUser({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              className={cn(
+                "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
+                // Concentric corners: image sits 4px from the outer edge on top/left/bottom (1px border + 3px; h-12 minus
+                // border leaves 3px above/below the 40px image, pl-[3px] matches it), so outer radius = inner radius + 4:
+                // rounded-lg (16) around rounded-sm (12).
+                "rounded-lg border border-border pl-[3px]",
+              )}
             >
-              <Avatar className="h-8 w-8 rounded-full">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-full">{initials}</AvatarFallback>
-              </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                <span className="truncate text-xs">{user.email}</span>
+              {/* Same box as the logo it replaces (size-10, clipped); radius derived from the card, see the button above. */}
+              <div className="flex aspect-square size-10 items-center justify-center rounded-sm overflow-hidden">
+                {/* Avatar defaults to a circle (root, image, fallback and the after: ring all use rounded-full). */}
+                <Avatar className="size-10 rounded-sm after:hidden">
+                  <AvatarImage className="rounded-sm" src={user.avatar} alt={user.name} />
+                  <AvatarFallback className="rounded-sm">{initials}</AvatarFallback>
+                </Avatar>
               </div>
-              <More className="ml-auto size-4 rotate-90 text-muted-foreground" />
+              <div className="grid min-w-0 flex-1 text-left text-[13px] leading-tight">
+                <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate text-[11px] opacity-60">{user.email}</span>
+              </div>
+              <More className="ml-auto size-4 shrink-0 rotate-90 text-muted-foreground" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -97,7 +109,7 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => navigate('/settings')}>
+              <DropdownMenuItem onClick={() => openSettings()}>
                 <BadgeCheck />
                 Account
               </DropdownMenuItem>

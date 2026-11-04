@@ -2,8 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar, SiteHeader } from "@/features/navigation"
+import { AppShell } from "@/features/navigation"
 import {
   SiteStatusWidget,
   StorageWidget,
@@ -87,199 +86,191 @@ export function WidgetLabPage() {
   const firstBranchAlias = seeds[0]?.branches[0]?.alias ?? ""
 
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <AppSidebar />
-          <SidebarInset>
-            <div className="mx-auto w-full max-w-screen-2xl p-6 space-y-12">
+    <AppShell>
+      <div className="mx-auto w-full max-w-screen-2xl p-6 space-y-12">
 
-              {/* Page header */}
-              <div>
-                <h1 className="font-heading text-2xl font-bold tracking-tight">Widget Lab</h1>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Sandbox for developing and inspecting widgets before adding them to the dashboard.
-                  Each section displays a widget in all its size variants.
-                </p>
-              </div>
-
-              {/* ── SiteStatus ────────────────────────────────────────────── */}
-              <LabSection
-                title="SiteStatusWidget"
-                description={'type="site-status" — displays API online/offline status'}
-              >
-                <LabRow className="grid-cols-2">
-                  <LabCell label={'variant="badge" · span w:2 h:1'}>
-                    <SiteStatusWidget variant="badge" />
-                  </LabCell>
-                  <LabCell label={'variant="pill-row" · span w:3 h:1'}>
-                    <SiteStatusWidget variant="pill-row" />
-                  </LabCell>
-                </LabRow>
-              </LabSection>
-
-              {/* ── Storage ───────────────────────────────────────────────── */}
-              <LabSection
-                title="StorageWidget"
-                description={'type="storage" — R2 storage usage'}
-              >
-                <LabRow className="grid-cols-2">
-                  <LabCell label={'variant="gauge" · span w:2 h:1'}>
-                    <StorageWidget variant="gauge" />
-                  </LabCell>
-                  <LabCell label={'variant="bar" · span w:3 h:1'}>
-                    <StorageWidget variant="bar" />
-                  </LabCell>
-                </LabRow>
-              </LabSection>
-
-              {/* ── PublicationStats ──────────────────────────────────────── */}
-              <LabSection
-                title="PublicationStatsWidget"
-                description={'type="publication-stats" — content published today / week / month'}
-              >
-                <LabRow className="grid-cols-2">
-                  <LabCell label={'variant="trio" · span w:2 h:1'}>
-                    <PublicationStatsWidget variant="trio" />
-                  </LabCell>
-                  <LabCell label={'variant="single" · span w:2 h:1'}>
-                    <PublicationStatsWidget variant="single" />
-                  </LabCell>
-                </LabRow>
-              </LabSection>
-
-              {/* ── QuickDraft ────────────────────────────────────────────── */}
-              <LabSection
-                title="QuickDraftWidget"
-                description={'type="quick-draft" — quickly create a draft without navigating away'}
-              >
-                <LabRow className="grid-cols-2">
-                  <LabCell label={'variant="minimal" · span w:2 h:1'}>
-                    <QuickDraftWidget variant="minimal" seeds={allSeeds} />
-                  </LabCell>
-                  <LabCell label={'variant="expanded" · span w:4 h:2'} h={200}>
-                    <QuickDraftWidget variant="expanded" seeds={allSeeds} />
-                  </LabCell>
-                </LabRow>
-              </LabSection>
-
-              {/* ── RecentContent ─────────────────────────────────────────── */}
-              <LabSection
-                title="RecentContentWidget"
-                description={'type="recent-content" — list of recently updated content'}
-              >
-                <LabRow className="grid-cols-2">
-                  <LabCell label={'variant="list" · span w:4 h:2'} h={280}>
-                    <RecentContentWidget seedSlug={firstSeedSlug} variant="list" />
-                  </LabCell>
-                  <LabCell label={'variant="cards" · span w:4 h:2'} h={280}>
-                    <RecentContentWidget seedSlug={firstSeedSlug} variant="cards" />
-                  </LabCell>
-                </LabRow>
-              </LabSection>
-
-              {/* ── PendingDrafts ─────────────────────────────────────────── */}
-              <LabSection
-                title="PendingDraftsWidget"
-                description={'type="pending-drafts" — drafts awaiting review / publication'}
-              >
-                <LabRow className="grid-cols-2">
-                  <LabCell label={'variant="counter" · span w:2 h:1'}>
-                    <PendingDraftsWidget seedSlug={firstSeedSlug} variant="counter" />
-                  </LabCell>
-                  <LabCell label={'variant="list" · span w:4 h:2'} h={280}>
-                    <PendingDraftsWidget seedSlug={firstSeedSlug} variant="list" />
-                  </LabCell>
-                </LabRow>
-              </LabSection>
-
-              {/* ── MediaGallery ──────────────────────────────────────────── */}
-              <LabSection
-                title="MediaGalleryWidget"
-                description={'type="media-gallery" — grid preview of uploaded media'}
-              >
-                <LabRow className="grid-cols-2">
-                  <LabCell label={'variant="grid" · span w:4 h:2'} h={280}>
-                    <MediaGalleryWidget seedSlug={firstSeedSlug} variant="grid" />
-                  </LabCell>
-                  <LabCell label={'variant="unused" · span w:4 h:2'} h={280}>
-                    <MediaGalleryWidget seedSlug={firstSeedSlug} variant="unused" />
-                  </LabCell>
-                </LabRow>
-              </LabSection>
-
-              {/* ── ActivityFeed ──────────────────────────────────────────── */}
-              <LabSection
-                title="ActivityFeedWidget"
-                description={'type="activity-feed" — log of recent actions across the CMS'}
-              >
-                <LabRow className="grid-cols-2">
-                  <LabCell label={'variant="compact" · span w:2 h:1'}>
-                    <ActivityFeedWidget variant="compact" />
-                  </LabCell>
-                  <LabCell label={'variant="feed" · span w:4 h:2'} h={280}>
-                    <ActivityFeedWidget variant="feed" />
-                  </LabCell>
-                </LabRow>
-              </LabSection>
-
-              {/* ── Composer widgets (Sprint 04) ─────────────────────────── */}
-              <LabSection
-                title="Composer widgets"
-                description="Sprint 04 — formula-driven widgets powered by /api/widget/* routes"
-              >
-                <LabRow className="grid-cols-3">
-                  <LabCell label={"core/stat (formula) · span w:3 h:1"}>
-                    <StatWidget config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "month", label: "Total" }} />
-                  </LabCell>
-                  <LabCell label={"core/stat (statKey legacy) · span w:3 h:1"}>
-                    <StatWidget config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "all", label: "All time", icon: "Database", showTrend: false }} />
-                  </LabCell>
-                  <LabCell label={"core/text · span w:2 h:1"}>
-                    <TextWidget config={{ content: "Sample text note.\nSupports multiple lines.", align: "left" }} />
-                  </LabCell>
-                </LabRow>
-                <LabRow className="grid-cols-3">
-                  <LabCell label={"core/line-chart · span w:4 h:2"} h={280}>
-                    <TimeseriesChartWidget
-                      config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "month" }}
-                      kind="line"
-                      title="Line Chart"
-                      icon={LineChart}
-                    />
-                  </LabCell>
-                  <LabCell label={"core/bar-chart · span w:4 h:2"} h={280}>
-                    <TimeseriesChartWidget
-                      config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "month" }}
-                      kind="bar"
-                      title="Bar Chart"
-                      icon={BarChart3}
-                    />
-                  </LabCell>
-                  <LabCell label={"core/area-chart · span w:4 h:2"} h={280}>
-                    <TimeseriesChartWidget
-                      config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "month" }}
-                      kind="area"
-                      title="Area Chart"
-                      icon={AreaChart}
-                    />
-                  </LabCell>
-                </LabRow>
-                <LabRow className="grid-cols-2">
-                  <LabCell label={"core/pie-chart · span w:4 h:2"} h={280}>
-                    <PieChartWidget config={{ seedSlug: firstSeedSlug, column: firstBranchAlias, donut: true, limit: 5 }} title="Pie Chart" />
-                  </LabCell>
-                  <LabCell label={"core/data-table · span w:4 h:2"} h={280}>
-                    <DataTableWidget config={{ seedSlug: firstSeedSlug, pageSize: 5 }} />
-                  </LabCell>
-                </LabRow>
-              </LabSection>
-
-            </div>
-          </SidebarInset>
+        {/* Page header */}
+        <div>
+          <h1 className="font-heading text-2xl font-bold tracking-tight">Widget Lab</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Sandbox for developing and inspecting widgets before adding them to the dashboard.
+            Each section displays a widget in all its size variants.
+          </p>
         </div>
-      </SidebarProvider>
-    </div>
+
+        {/* ── SiteStatus ────────────────────────────────────────────── */}
+        <LabSection
+          title="SiteStatusWidget"
+          description={'type="site-status" — displays API online/offline status'}
+        >
+          <LabRow className="grid-cols-2">
+            <LabCell label={'variant="badge" · span w:2 h:1'}>
+              <SiteStatusWidget variant="badge" />
+            </LabCell>
+            <LabCell label={'variant="pill-row" · span w:3 h:1'}>
+              <SiteStatusWidget variant="pill-row" />
+            </LabCell>
+          </LabRow>
+        </LabSection>
+
+        {/* ── Storage ───────────────────────────────────────────────── */}
+        <LabSection
+          title="StorageWidget"
+          description={'type="storage" — R2 storage usage'}
+        >
+          <LabRow className="grid-cols-2">
+            <LabCell label={'variant="gauge" · span w:2 h:1'}>
+              <StorageWidget variant="gauge" />
+            </LabCell>
+            <LabCell label={'variant="bar" · span w:3 h:1'}>
+              <StorageWidget variant="bar" />
+            </LabCell>
+          </LabRow>
+        </LabSection>
+
+        {/* ── PublicationStats ──────────────────────────────────────── */}
+        <LabSection
+          title="PublicationStatsWidget"
+          description={'type="publication-stats" — content published today / week / month'}
+        >
+          <LabRow className="grid-cols-2">
+            <LabCell label={'variant="trio" · span w:2 h:1'}>
+              <PublicationStatsWidget variant="trio" />
+            </LabCell>
+            <LabCell label={'variant="single" · span w:2 h:1'}>
+              <PublicationStatsWidget variant="single" />
+            </LabCell>
+          </LabRow>
+        </LabSection>
+
+        {/* ── QuickDraft ────────────────────────────────────────────── */}
+        <LabSection
+          title="QuickDraftWidget"
+          description={'type="quick-draft" — quickly create a draft without navigating away'}
+        >
+          <LabRow className="grid-cols-2">
+            <LabCell label={'variant="minimal" · span w:2 h:1'}>
+              <QuickDraftWidget variant="minimal" seeds={allSeeds} />
+            </LabCell>
+            <LabCell label={'variant="expanded" · span w:4 h:2'} h={200}>
+              <QuickDraftWidget variant="expanded" seeds={allSeeds} />
+            </LabCell>
+          </LabRow>
+        </LabSection>
+
+        {/* ── RecentContent ─────────────────────────────────────────── */}
+        <LabSection
+          title="RecentContentWidget"
+          description={'type="recent-content" — list of recently updated content'}
+        >
+          <LabRow className="grid-cols-2">
+            <LabCell label={'variant="list" · span w:4 h:2'} h={280}>
+              <RecentContentWidget seedSlug={firstSeedSlug} variant="list" />
+            </LabCell>
+            <LabCell label={'variant="cards" · span w:4 h:2'} h={280}>
+              <RecentContentWidget seedSlug={firstSeedSlug} variant="cards" />
+            </LabCell>
+          </LabRow>
+        </LabSection>
+
+        {/* ── PendingDrafts ─────────────────────────────────────────── */}
+        <LabSection
+          title="PendingDraftsWidget"
+          description={'type="pending-drafts" — drafts awaiting review / publication'}
+        >
+          <LabRow className="grid-cols-2">
+            <LabCell label={'variant="counter" · span w:2 h:1'}>
+              <PendingDraftsWidget seedSlug={firstSeedSlug} variant="counter" />
+            </LabCell>
+            <LabCell label={'variant="list" · span w:4 h:2'} h={280}>
+              <PendingDraftsWidget seedSlug={firstSeedSlug} variant="list" />
+            </LabCell>
+          </LabRow>
+        </LabSection>
+
+        {/* ── MediaGallery ──────────────────────────────────────────── */}
+        <LabSection
+          title="MediaGalleryWidget"
+          description={'type="media-gallery" — grid preview of uploaded media'}
+        >
+          <LabRow className="grid-cols-2">
+            <LabCell label={'variant="grid" · span w:4 h:2'} h={280}>
+              <MediaGalleryWidget seedSlug={firstSeedSlug} variant="grid" />
+            </LabCell>
+            <LabCell label={'variant="unused" · span w:4 h:2'} h={280}>
+              <MediaGalleryWidget seedSlug={firstSeedSlug} variant="unused" />
+            </LabCell>
+          </LabRow>
+        </LabSection>
+
+        {/* ── ActivityFeed ──────────────────────────────────────────── */}
+        <LabSection
+          title="ActivityFeedWidget"
+          description={'type="activity-feed" — log of recent actions across the CMS'}
+        >
+          <LabRow className="grid-cols-2">
+            <LabCell label={'variant="compact" · span w:2 h:1'}>
+              <ActivityFeedWidget variant="compact" />
+            </LabCell>
+            <LabCell label={'variant="feed" · span w:4 h:2'} h={280}>
+              <ActivityFeedWidget variant="feed" />
+            </LabCell>
+          </LabRow>
+        </LabSection>
+
+        {/* ── Composer widgets (Sprint 04) ─────────────────────────── */}
+        <LabSection
+          title="Composer widgets"
+          description="Sprint 04 — formula-driven widgets powered by /api/widget/* routes"
+        >
+          <LabRow className="grid-cols-3">
+            <LabCell label={"core/stat (formula) · span w:3 h:1"}>
+              <StatWidget config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "month", label: "Total" }} />
+            </LabCell>
+            <LabCell label={"core/stat (statKey legacy) · span w:3 h:1"}>
+              <StatWidget config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "all", label: "All time", icon: "Database", showTrend: false }} />
+            </LabCell>
+            <LabCell label={"core/text · span w:2 h:1"}>
+              <TextWidget config={{ content: "Sample text note.\nSupports multiple lines.", align: "left" }} />
+            </LabCell>
+          </LabRow>
+          <LabRow className="grid-cols-3">
+            <LabCell label={"core/line-chart · span w:4 h:2"} h={280}>
+              <TimeseriesChartWidget
+                config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "month" }}
+                kind="line"
+                title="Line Chart"
+                icon={LineChart}
+              />
+            </LabCell>
+            <LabCell label={"core/bar-chart · span w:4 h:2"} h={280}>
+              <TimeseriesChartWidget
+                config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "month" }}
+                kind="bar"
+                title="Bar Chart"
+                icon={BarChart3}
+              />
+            </LabCell>
+            <LabCell label={"core/area-chart · span w:4 h:2"} h={280}>
+              <TimeseriesChartWidget
+                config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "month" }}
+                kind="area"
+                title="Area Chart"
+                icon={AreaChart}
+              />
+            </LabCell>
+          </LabRow>
+          <LabRow className="grid-cols-2">
+            <LabCell label={"core/pie-chart · span w:4 h:2"} h={280}>
+              <PieChartWidget config={{ seedSlug: firstSeedSlug, column: firstBranchAlias, donut: true, limit: 5 }} title="Pie Chart" />
+            </LabCell>
+            <LabCell label={"core/data-table · span w:4 h:2"} h={280}>
+              <DataTableWidget config={{ seedSlug: firstSeedSlug, pageSize: 5 }} />
+            </LabCell>
+          </LabRow>
+        </LabSection>
+
+      </div>
+    </AppShell>
   )
 }

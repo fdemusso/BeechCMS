@@ -4,34 +4,30 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { useTheme } from "@/lib/theme"
 
-import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
+import { NavMain } from "./nav-main"
+import { NavSecondary } from "./nav-secondary"
+import { NavUser } from "./nav-user"
+import { SidebarSearch } from "./sidebar-search"
 import { getStaticMenu, getContentCategoryMenu, getSettingsMenu, buildContentMenu, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
 import { logout } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
-import { useProfile } from "@/features/settings"
+import { useProfile, useSettingsDialog } from "@/features/settings"
 import { useSchema, usePermissions } from "@/features/shared"
 import type { MenuGates } from "@/config/dashboard-menu"
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
 export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation()
-  const { resolvedTheme } = useTheme()
   const { user: storedUser } = useAuth()
   const { data: profile } = useProfile()
   const { data: seeds = [] } = useSchema()
   const { canGlobally, canAnywhere } = usePermissions()
+  const { openSettings } = useSettingsDialog()
 
   const gates: MenuGates = React.useMemo(() => ({
     viewAnalytics: canGlobally('view_analytics'),
@@ -55,30 +51,15 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
   const contentCategoryItems = getContentCategoryMenu(t, gates)
 
   return (
-    <Sidebar
-      className="top-(--header-height) h-[calc(100svh-var(--header-height))]!"
-      {...props}
-    >
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <a href="/">
-                <div className="flex aspect-square size-10 items-center justify-center rounded-lg overflow-hidden">
-                  <img
-                    src={resolvedTheme === "dark" ? `${import.meta.env.BASE_URL}beechLogoDark.svg` : `${import.meta.env.BASE_URL}BeechLogoLIght.svg`}
-                    alt="BeechCMS"
-                    className="size-10 object-contain"
-                  />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">Beech CMS</span>
-                  <span className="truncate text-xs">Dashboard</span>
-                </div>
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+    <Sidebar variant="inset" {...props}>
+      {/* Logo row is vertically centred on the dashboard greeting block (title + subtitle, see dashboard-page.tsx):
+          greeting centre = 8 (card m-2) + 14 (main pt-3.5) + 66/2 = 55px, logo button is h-12 so its top sits at 31px,
+          i.e. 8 (inset p-2) + 23 (pt). Keep both files in sync. */}
+      <SidebarHeader className="pt-[23px]">
+        {/* TODO(sidebar-redesign): the profile block now lives here (was the logo + "Beech CMS / Dashboard").
+            The logo needs a new home. */}
+        <NavUser user={user} onLogout={logout} />
+        <SidebarSearch />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={getStaticMenu(t, gates)} groupLabel={t("sidebar.navigation")} />
@@ -97,11 +78,8 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
         {STATIC_NAV_SECONDARY.length > 0 && (
           <NavSecondary items={STATIC_NAV_SECONDARY} />
         )}
-        <NavMain items={getSettingsMenu(t)} className="mt-auto pt-0" />
+        <NavMain items={getSettingsMenu(t).map((item) => ({ ...item, onSelect: () => openSettings() }))} className="mt-auto pt-0" />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={user} onLogout={logout} />
-      </SidebarFooter>
     </Sidebar>
   )
 })
