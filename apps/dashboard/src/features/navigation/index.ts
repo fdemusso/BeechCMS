@@ -9,4 +9,5 @@
 export { AppShell } from "./components/app-shell"
 export { AppSidebar } from "./components/app-sidebar"
 export { SiteHeader } from "./components/site-header"
+export { RoutePrefetchProvider } from "./lib/route-prefetch-context"
 export { PageShellLoading } from "./components/page-shell-loading"

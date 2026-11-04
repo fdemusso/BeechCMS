@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useCallback, useRef } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import type { MouseEvent, PointerEvent } from "react"
 
 const ITEM_SELECTOR = '[data-sidebar="menu-button"], [data-slot="sidebar-trigger"], [data-rail-item]'
@@ -21,6 +21,7 @@ const ACTIVE_PX = 38 // pointer further than this from every icon: lens off
 const STICKY_PX = 5 // the current icon keeps the lens until another is this much nearer (no flicker on the boundary)
 const LOOKAHEAD_MS = 70 // aim ahead of the pointer by its velocity, so the lens is on the icon it is heading to
 const LOOKAHEAD_MAX_PX = 22
+const INTENT_DWELL_MS = 75 // the lens must rest on one icon this long before it counts as intent (see onIntent)
 
 function items(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(ITEM_SELECTOR)).filter((el) => !el.closest(STATIC_SELECTOR))
@@ -48,11 +49,16 @@ function lensAllowed(): boolean {
  * The scale is a transform, so layout never moves and the icons do not run away from the pointer (the usual Dock
  * problem). Keyboard focus is unaffected by all of this; focus styling lives in index.css.
  */
-export function useRailLens(enabled: boolean) {
+export function useRailLens(enabled: boolean, onIntent?: (icon: HTMLElement) => void) {
   const lensRef = useRef<HTMLElement | null>(null)
+  const intentTimer = useRef<number | undefined>(undefined)
+  const onIntentRef = useRef(onIntent)
+  onIntentRef.current = onIntent
+  useEffect(() => () => window.clearTimeout(intentTimer.current), [])
   const lastRef = useRef<{ y: number; t: number; vy: number } | null>(null)
 
   const reset = useCallback((root: HTMLElement) => {
+    window.clearTimeout(intentTimer.current)
     clear(root)
     lensRef.current = null
     lastRef.current = null
@@ -91,6 +97,11 @@ export function useRailLens(enabled: boolean) {
       if (current && current.distance <= nearest.distance + STICKY_PX) nearest = current
 
       const lensed = nearest.distance <= PEAK_REACH_PX ? nearest.el : null
+      if (lensed !== lensRef.current) {
+        // The lens landed on another icon: it counts as intent once it stays there (sweeping past is not).
+        window.clearTimeout(intentTimer.current)
+        if (lensed) intentTimer.current = window.setTimeout(() => onIntentRef.current?.(lensed), INTENT_DWELL_MS)
+      }
       lensRef.current = lensed
       root.toggleAttribute(ACTIVE_ATTR, lensed !== null)
       for (const { el, distance } of measured) {

@@ -6,6 +6,7 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import { useRailLens } from "../hooks/use-rail-lens"
+import { toRouterPath, usePrefetchRoute } from "../lib/route-prefetch-context"
 
 import { NavMain } from "./nav-main"
 import { NavNotifications } from "./nav-notifications"
@@ -51,7 +52,12 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
   const { canGlobally, canAnywhere } = usePermissions()
   const { openSettings } = useSettingsDialog()
   const { state, isMobile } = useSidebar()
-  const railLens = useRailLens(state === "collapsed" && !isMobile)
+  const prefetchRoute = usePrefetchRoute()
+  // The lens knows the icon the pointer is heading to before the click: warm its page then.
+  const railLens = useRailLens(state === "collapsed" && !isMobile, (icon) => {
+    const href = icon.closest("a")?.getAttribute("href")
+    if (href) prefetchRoute(toRouterPath(href))
+  })
 
   const gates: MenuGates = React.useMemo(() => ({
     viewAnalytics: canGlobally('view_analytics'),

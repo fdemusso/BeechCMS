@@ -7,11 +7,13 @@ import type { IconComponent } from '@/lib/icon-registry'
 "use client"
 
 import { useRef } from "react"
+import type { ComponentProps } from "react"
 import { ChevronRight } from '@/components/icons'
 import { Link, useLocation } from "react-router-dom"
 import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
+import { usePrefetchOnIntent } from "../lib/route-prefetch-context"
 import {
   Collapsible,
   CollapsibleContent,
@@ -28,6 +30,12 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+
+/** A router Link that warms its target page when the pointer rests on it or it takes focus. */
+function PrefetchLink({ to, ...props }: Omit<ComponentProps<typeof Link>, "to"> & { readonly to: string }) {
+  const intent = usePrefetchOnIntent(to)
+  return <Link to={to} {...intent} {...props} />
+}
 
 type NavMainSubItem = {
   readonly title: string
@@ -88,9 +96,9 @@ function NavMainMenuItem({
         return (
           <SidebarMenuSubItem key={subItem.title}>
             <SidebarMenuSubButton asChild isActive={isSubActive}>
-              <Link to={subItem.url}>
+              <PrefetchLink to={subItem.url}>
                 <span>{subItem.title}</span>
-              </Link>
+              </PrefetchLink>
             </SidebarMenuSubButton>
           </SidebarMenuSubItem>
         )
@@ -164,10 +172,10 @@ function NavMainMenuItem({
     >
       <SidebarMenuItem ref={itemRef}>
         <SidebarMenuButton asChild tooltip={item.title} isActive={isParentActive && !item.items?.length}>
-          <Link to={item.url}>
+          <PrefetchLink to={item.url}>
             <item.icon />
             <span>{item.title}</span>
-          </Link>
+          </PrefetchLink>
         </SidebarMenuButton>
         {item.items?.length ? (
           <>
