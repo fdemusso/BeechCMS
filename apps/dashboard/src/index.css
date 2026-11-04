@@ -602,4 +602,15 @@ input[type="search"]::-webkit-search-results-decoration {
       border-color 0.3s,
       transform 0.18s ease-out;
   }
+
+  /* Pointer is on the lens icon (set by useRailLens): the forgiving area around it is clickable, so show it. */
+  [data-slot="sidebar"][data-collapsible="icon"] [data-lens-active],
+  [data-slot="sidebar"][data-collapsible="icon"] [data-lens-active] *:not([data-rail-static], [data-rail-static] *) {
+    cursor: pointer;
+  }
+
+  /* Keyboard focus gets a lens of its own (no pointer involved). */
+  [data-slot="sidebar"][data-collapsible="icon"] :is([data-sidebar="menu-button"], [data-slot="sidebar-trigger"], [data-rail-item]):not([data-rail-static], [data-rail-static] *):focus-visible {
+    transform: scale(1.2);
+  }
 }

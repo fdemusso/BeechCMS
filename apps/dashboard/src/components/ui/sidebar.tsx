@@ -23,11 +23,19 @@ import {
 import { SidebarLeft as PanelLeftIcon } from '@/components/icons'
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
+const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
+
+/** The open/closed state saved by a previous provider (the cookie is written on every change), if any. */
+function readStoredOpen(): boolean | undefined {
+  if (typeof document === "undefined") return undefined
+  const match = document.cookie.split("; ").find((entry) => entry.startsWith(`${SIDEBAR_COOKIE_NAME}=`))
+  if (!match) return undefined
+  return match.slice(SIDEBAR_COOKIE_NAME.length + 1) === "true"
+}
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed"
@@ -68,7 +76,7 @@ function SidebarProvider({
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
-  const [_open, _setOpen] = React.useState(defaultOpen)
+  const [_open, _setOpen] = React.useState(() => readStoredOpen() ?? defaultOpen)
   const open = openProp ?? _open
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
