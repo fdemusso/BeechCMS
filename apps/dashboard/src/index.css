@@ -108,6 +108,18 @@ a:hover {
 [data-sidebar] a:hover,
 nav a:hover {
   color: inherit;
+  opacity: 1;
+}
+
+/* Sidebar grid. Every row of the sidebar (profile, search, menu buttons, group labels) starts its leading icon
+   --sb-pad-start from the row's edge, so all icons sit on one vertical axis (edge + pad + 8px = icon centre, and the
+   profile picture is centred on it too). Icon to label is always 0.5rem (gap-2). The rail (icon-only) uses a smaller
+   start so the icons sit centred in it; padding transitions, so rows slide as the sidebar collapses. */
+:root {
+  --sb-pad-start: 1rem;
+}
+[data-slot="sidebar"][data-collapsible="icon"] {
+  --sb-pad-start: 0.5rem;
 }
 
 html {
@@ -122,10 +134,13 @@ body {
   min-height: 100vh;
 }
 
-h1 {
-  font-size: var(--font-size-2xl);
-  font-weight: 600;
-  line-height: 1.2;
+/* Base layer: a utility on an h1 (size, weight, line height) overrides this default, as on any other element. */
+@layer base {
+  h1 {
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+    line-height: 1.2;
+  }
 }
 
 @theme inline {

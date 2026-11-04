@@ -66,22 +66,20 @@ export function NavUser({
               data-rail-static
               className={cn(
                 "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
-                // Concentric corners: image sits 4px from the outer edge on top/left/bottom (1px border + 3px; h-12 minus
-                // border leaves 3px above/below the 40px image, pl-[3px] matches it), so outer radius = inner radius + 4:
-                // rounded-lg (16) around rounded-sm (12).
-                "rounded-lg border border-border pl-[3px] transition-[width,height,padding,border-color,background-color] duration-300",
+                // Concentric corners: the image sits 4px from the outer edge on top/left/bottom (1px border + 3px; h-12 minus
+                // border leaves 3px above/below the 40px image), so outer radius = inner radius + 4: rounded-lg (16)
+                // around rounded-sm (12). The left padding puts the picture's centre on the sidebar's icon axis
+                // (row edge + --sb-pad-start + 8px): 1px border + pl + 20px = pad + 8px, so pl = pad - 13px (3px at 16px).
+                "rounded-lg border border-border pl-[calc(var(--sb-pad-start)-13px)] transition-[width,height,padding,border-color,background-color] duration-300",
                 // Rail: only the picture, 30px inside the 1px (now transparent) border of the 32px button.
                 "group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:pl-0!",
               )}
             >
-              {/* Same box as the logo it replaces (size-10, clipped); radius derived from the card, see the button above. */}
-              <div className="flex aspect-square size-10 shrink-0 items-center justify-center overflow-hidden rounded-sm transition-[width,height] duration-300 group-data-[collapsible=icon]:size-[30px]">
-                {/* Avatar defaults to a circle (root, image, fallback and the after: ring all use rounded-full). */}
-                <Avatar className="size-full rounded-sm after:hidden">
-                  <AvatarImage className="rounded-sm" src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-sm">{initials}</AvatarFallback>
-                </Avatar>
-              </div>
+              {/* Avatar defaults to a circle (root, image, fallback and the after: ring all use rounded-full). */}
+              <Avatar className="size-10 shrink-0 rounded-sm transition-[width,height] duration-300 after:hidden group-data-[collapsible=icon]:size-[30px]">
+                <AvatarImage className="rounded-sm" src={user.avatar} alt={user.name} />
+                <AvatarFallback className="rounded-sm">{initials}</AvatarFallback>
+              </Avatar>
               <div className="grid min-w-0 flex-1 text-left text-[13px] leading-tight transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0">
                 <span className="truncate font-medium">{user.name}</span>
                 <span className="truncate text-[11px] opacity-60">{user.email}</span>
