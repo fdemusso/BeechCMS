@@ -2,11 +2,23 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { lazy, Suspense, useEffect } from "react"
-import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom"
+import { Suspense, useEffect } from "react"
+import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation, useNavigate, type LoaderFunction } from "react-router-dom"
 import { LoginForm } from "@/features/auth"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { ContentListPage } from "@/pages/content-list"
+import {
+  AnalyticsPage,
+  ContentTrashPage,
+  CreateNewPage,
+  DraftsListPage,
+  ImportJobDetailPage,
+  ScheduledPage,
+  TestFieldsPage,
+  WidgetLabPage,
+} from "@/pages/lazy-pages"
+import { prefetchRoute } from "@/pages/route-prefetch"
+import { RoutePrefetchProvider } from "@/features/navigation"
 import { ErrorPage } from "@/pages/error-page"
 import { ForgotPasswordPage } from "@/pages/forgot-password/ForgotPasswordPage"
 import { ResetPasswordPage } from "@/pages/reset-password/ResetPasswordPage"
@@ -23,17 +35,6 @@ import { EntryEditorDialog } from "@/features/entry-editor"
 import { RichtextEditor } from "@/features/richtext-editor"
 import { ConsentPage } from "@/features/oauth-consent"
 import "./App.css"
-
-// Route-level code splitting: pages off the hot path (content list, dashboard)
-// stay out of the initial bundle.
-const ContentTrashPage = lazy(() => import("@/pages/content-trash").then((m) => ({ default: m.ContentTrashPage })))
-const ImportJobDetailPage = lazy(() => import("@/pages/import-job-detail").then((m) => ({ default: m.ImportJobDetailPage })))
-const TestFieldsPage = lazy(() => import("@/pages/test-fields").then((m) => ({ default: m.TestFieldsPage })))
-const WidgetLabPage = lazy(() => import("@/pages/widget-lab").then((m) => ({ default: m.WidgetLabPage })))
-const AnalyticsPage = lazy(() => import("@/pages/analytics").then((m) => ({ default: m.AnalyticsPage })))
-const CreateNewPage = lazy(() => import("@/pages/create-new").then((m) => ({ default: m.CreateNewPage })))
-const ScheduledPage = lazy(() => import("@/pages/scheduled").then((m) => ({ default: m.ScheduledPage })))
-const DraftsListPage = lazy(() => import("@/pages/drafts-list").then((m) => ({ default: m.DraftsListPage })))
 
 /**
  * Concrete implementation of {@link FieldsContextType} serving as the dependency
@@ -109,9 +110,15 @@ function RootLayout() {
     }
   }, [])
 
-  const { needsSetup } = useAuth()
+  const { needsSetup, status } = useAuth()
   const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
+
+  // A cold load or reload has no session token while the route loader runs, so it skipped the data: start it the
+  // moment the session is known, in parallel, instead of leaving it to the chain of page-level queries.
+  useEffect(() => {
+    if (status === "authenticated") prefetchRoute(pathname + search)
+  }, [status, pathname, search])
 
   // Global integrity gate: if a DB reset/restore wipes the admin user while
   // this tab is open (db:reset:local, session revoke, etc.), force everyone
@@ -124,14 +131,24 @@ function RootLayout() {
 
   if (needsSetup && pathname !== '/setup') return <SplashScreen />
   return (
-    <>
+    <RoutePrefetchProvider prefetch={prefetchRoute}>
       <CommandPalette />
       <SettingsDialogHost />
       <Suspense fallback={<SplashScreen />}>
         <Outlet />
       </Suspense>
-    </>
+    </RoutePrefetchProvider>
   )
+}
+
+const ROUTER_BASENAME = "/admin"
+
+// Runs when a navigation starts, before the page renders: the page's code and first requests start downloading
+// while it is still rendering. Fire and forget, it never delays the navigation.
+const prefetchLoader: LoaderFunction = ({ request }) => {
+  const { pathname, search } = new URL(request.url)
+  prefetchRoute((pathname.startsWith(ROUTER_BASENAME) ? pathname.slice(ROUTER_BASENAME.length) || "/" : pathname) + search)
+  return null
 }
 
 const router = createBrowserRouter([
@@ -165,6 +182,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/",
+        loader: prefetchLoader,
         element: (
           <ProtectedRoute>
             <DashboardPage />
@@ -173,6 +191,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/analytics",
+        loader: prefetchLoader,
         element: (
           <ProtectedRoute>
             <AnalyticsPage />
@@ -181,6 +200,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/drafts",
+        loader: prefetchLoader,
         element: (
           <ProtectedRoute>
             <DraftsListPage />
@@ -189,6 +209,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/content/create-new",
+        loader: prefetchLoader,
         element: (
           <ProtectedRoute>
             <CreateNewPage />
@@ -197,6 +218,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/scheduled",
+        loader: prefetchLoader,
         element: (
           <ProtectedRoute>
             <ScheduledPage />
@@ -221,6 +243,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/content/:slug/trash",
+        loader: prefetchLoader,
         element: (
           <ProtectedRoute>
             <ContentTrashPage />
@@ -237,6 +260,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/content/:slug",
+        loader: prefetchLoader,
         element: (
           <ProtectedRoute>
             <ContentListPage />
@@ -277,7 +301,7 @@ const router = createBrowserRouter([
       },
     ],
   },
-], { basename: '/admin' })
+], { basename: ROUTER_BASENAME })
 
 /**
  * The root Application component.

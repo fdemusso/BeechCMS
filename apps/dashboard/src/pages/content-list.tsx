@@ -27,24 +27,7 @@ import {
   ViewEmptyState,
 } from "@/features/content-views"
 import { ContentViewWorkspace } from "./content-view-workspace"
-
-/**
- * Persistenza locale (per seed) della vista attiva in /admin/content/:slug.
- * Il valore memorizzato è un instance id. Non gestisce la pulizia se il seed
- * viene poi eliminato: la entry resta orfana in localStorage, inoffensiva,
- * finché non viene sovrascritta.
- */
-const ACTIVE_VIEW_STORAGE_PREFIX = "beech_content_view_"
-
-function getStoredActiveView(slug: string | undefined): string | null {
-  if (!slug) return null
-  return localStorage.getItem(`${ACTIVE_VIEW_STORAGE_PREFIX}${slug}`)
-}
-
-function setStoredActiveView(slug: string | undefined, viewId: string): void {
-  if (!slug) return
-  localStorage.setItem(`${ACTIVE_VIEW_STORAGE_PREFIX}${slug}`, viewId)
-}
+import { getStoredActiveView, setStoredActiveView } from "./active-view-storage"
 
 const EMPTY_VIEWS: ContentView[] = []
 
@@ -169,8 +152,9 @@ export function ContentListPage() {
     )
   }
 
-  // Loading skeleton while the seed or the views are fetching
-  if (isSeedLoading || !seed || viewsQuery.isLoading) {
+  // Loading skeleton while the seed is fetching. The views load below the header, so the title (the page's largest
+  // paint) does not wait for them.
+  if (isSeedLoading || !seed) {
     return <PageShellLoading message="Loading configuration..." />
   }
 
@@ -193,7 +177,9 @@ export function ContentListPage() {
               </Button>
             </div>
 
-            {viewsQuery.isError || (!activeView && !emptyStateType) ? (
+            {viewsQuery.isLoading ? (
+              <div className="flex items-center justify-center py-12 text-muted-foreground">Loading configuration...</div>
+            ) : viewsQuery.isError || (!activeView && !emptyStateType) ? (
               <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
                 <p className="text-sm text-destructive">{t("content.views.errors.loadFailed")}</p>
               </div>
