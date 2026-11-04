@@ -5,6 +5,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { setAccessToken, clearAccessToken, refreshToken, decodeJwtPayload } from './api'
 import { rpc } from './rpc'
+import { queryCachePersistence } from './query-cache-persistence'
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -45,7 +46,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   function setToken(token: string) {
     setAccessToken(token)
-    setUser(decodeUser(token))
+    const decoded = decodeUser(token)
+    // The cached schema/profile restored at startup belong to whoever saved them: keep them only for this user.
+    if (decoded) queryCachePersistence.bindUser(decoded.email)
+    setUser(decoded)
     setStatus('authenticated')
   }
 

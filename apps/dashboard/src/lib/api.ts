@@ -9,6 +9,7 @@
  */
 import { apiErrorFromResponse } from './http/api-error'
 import { createApiFetch } from './http/api-fetch'
+import { queryCachePersistence } from './query-cache-persistence'
 
 const LOGIN_PATH = '/admin/login';
 
@@ -37,7 +38,11 @@ function getAccessToken(): string | null { return _accessToken }
 /** True once a session token is held (route loaders only prefetch when it is: before that, nothing may call the API). */
 export function hasAccessToken(): boolean { return _accessToken !== null }
 export function setAccessToken(token: string): void { _accessToken = token }
-export function clearAccessToken(): void { _accessToken = null }
+export function clearAccessToken(): void {
+  _accessToken = null
+  // A session that ended must not leave its cached profile/schema behind for the next one.
+  queryCachePersistence.clear()
+}
 
 let refreshPromise: Promise<string> | null = null;
 
