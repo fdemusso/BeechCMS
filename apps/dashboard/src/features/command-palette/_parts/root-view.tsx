@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
+import { useSettingsDialog } from "@/features/settings"
 import { Category as LayoutDashboard, Image as ImageIcon, Settings, Layers, Plus, Sun, Moon, Search } from '@/components/icons'
 import {
   CommandGroup,
@@ -32,6 +33,7 @@ export function RootView({
   toggleTheme,
 }: RootViewProps) {
   const { t } = useTranslation()
+  const { openSettings } = useSettingsDialog()
   const nav = (path: string) => { navigate(path); setOpen(false) }
 
   return (
@@ -45,7 +47,7 @@ export function RootView({
           <ImageIcon className="size-4 shrink-0 text-muted-foreground" />
           <span>{t("commandPalette.mediaLibrary")}</span>
         </CommandItem>
-        <CommandItem onSelect={() => nav("/settings")}>
+        <CommandItem onSelect={() => { openSettings(); setOpen(false) }}>
           <Settings className="size-4 shrink-0 text-muted-foreground" />
           <span>{t("commandPalette.settings")}</span>
         </CommandItem>

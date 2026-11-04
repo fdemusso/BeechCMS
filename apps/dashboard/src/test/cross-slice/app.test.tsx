@@ -21,6 +21,7 @@ vi.mock("react-router-dom", () => ({
 
 vi.mock("@/features/auth/components/login-form", () => ({ LoginForm: () => <div>LOGIN_FORM</div> }))
 vi.mock("@/features/navigation", () => ({
+  AppShell: ({ children }: { children?: React.ReactNode }) => <div><div>APP_SIDEBAR</div>{children}</div>,
   AppSidebar: () => <div>APP_SIDEBAR</div>,
   SiteHeader: () => <div>SITE_HEADER</div>,
 }))
@@ -32,7 +33,11 @@ vi.mock("@/pages/content-list", () => ({ ContentListPage: () => <div>CONTENT_LIS
 vi.mock("@/pages/test-fields", () => ({ TestFieldsPage: () => <div>TEST_FIELDS</div> }))
 vi.mock("@/pages/error-page", () => ({ ErrorPage: () => <div>ERROR_PAGE</div> }))
 vi.mock("@/features/dashboard", () => ({ DashboardPage: () => <div>DASHBOARD_PAGE</div> }))
-vi.mock("@/features/settings", () => ({ SettingsPage: () => <div>SETTINGS_PAGE</div> }))
+vi.mock("@/features/settings", () => ({
+  SettingsDialogHost: () => null,
+  SettingsRedirect: () => <div>SETTINGS_PAGE</div>,
+  useSettingsDialog: () => ({ open: false, tab: "profile", openSettings: vi.fn(), setTab: vi.fn(), closeSettings: vi.fn() }),
+}))
 vi.mock("@/features/command-palette", () => ({ CommandPalette: () => null }))
 vi.mock("@/pages/widget-lab", () => ({ WidgetLabPage: () => <div>WIDGET_LAB</div> }))
 vi.mock("@/pages/forgot-password/ForgotPasswordPage", () => ({ ForgotPasswordPage: () => <div>FORGOT_PASSWORD</div> }))

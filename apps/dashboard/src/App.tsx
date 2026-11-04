@@ -13,7 +13,7 @@ import { ResetPasswordPage } from "@/pages/reset-password/ResetPasswordPage"
 import { AcceptInvitePage } from "@/pages/accept-invite/AcceptInvitePage"
 import { SetupPage } from "@/pages/setup/SetupPage"
 import { DashboardPage } from "@/features/dashboard"
-import { SettingsPage } from "@/features/settings"
+import { SettingsDialogHost, SettingsRedirect } from "@/features/settings"
 import { CommandPalette } from "@/features/command-palette"
 import { FieldsProvider } from "@/components/fields/context"
 import { useLocaleConfig, useSchema } from "@/features/shared"
@@ -126,6 +126,7 @@ function RootLayout() {
   return (
     <>
       <CommandPalette />
+      <SettingsDialogHost />
       <Suspense fallback={<SplashScreen />}>
         <Outlet />
       </Suspense>
@@ -246,7 +247,7 @@ const router = createBrowserRouter([
         path: "/settings",
         element: (
           <ProtectedRoute>
-            <SettingsPage />
+            <SettingsRedirect />
           </ProtectedRoute>
         ),
       },
