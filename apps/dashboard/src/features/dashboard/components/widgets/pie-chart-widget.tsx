@@ -76,7 +76,8 @@ export function PieChartWidget({ config, title }: { config: PieChartConfig; titl
   return (
     <DashboardWidgetShell title={title} icon={PieChartIcon} action={dateFilter}>
       <div className="flex h-full flex-col justify-center gap-2">
-        <div className="aspect-square max-h-full w-full min-h-0">
+        {/* Capped: an uncapped square follows the column width and made the whole chart row very tall. */}
+        <div className="aspect-square max-h-56 w-full min-h-0">
           <Suspense fallback={<Skeleton className="h-full w-full rounded-lg" />}>
             <RechartsPieChart data={visible} donut={donut} chartConfig={chartConfig} />
           </Suspense>
