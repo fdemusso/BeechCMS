@@ -29,6 +29,11 @@ const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
+/** A text field, or anything the user types into (rich text and code editors are contenteditable). */
+function isEditableTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || target.matches("input, textarea, select"))
+}
+
 /** The open/closed state saved by a previous provider (the cookie is written on every change), if any. */
 function readStoredOpen(): boolean | undefined {
   if (typeof document === "undefined") return undefined
@@ -103,7 +108,10 @@ function SidebarProvider({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
-        (event.metaKey || event.ctrlKey)
+        (event.metaKey || event.ctrlKey) &&
+        // Ctrl/Cmd+B is "bold" while typing: leave it to the field, or to an editor that already handled it.
+        !event.defaultPrevented &&
+        !isEditableTarget(event.target)
       ) {
         event.preventDefault()
         toggleSidebar()
