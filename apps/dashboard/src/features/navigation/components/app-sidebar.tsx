@@ -5,6 +5,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
+import { useRailLens } from "../hooks/use-rail-lens"
 
 import { NavMain } from "./nav-main"
 import { NavNotifications } from "./nav-notifications"
@@ -22,6 +23,7 @@ import {
   SidebarContent,
   SidebarHeader,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 /**
@@ -48,6 +50,8 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
   const { data: seeds = [] } = useSchema()
   const { canGlobally, canAnywhere } = usePermissions()
   const { openSettings } = useSettingsDialog()
+  const { state, isMobile } = useSidebar()
+  const railLens = useRailLens(state === "collapsed" && !isMobile)
 
   const gates: MenuGates = React.useMemo(() => ({
     viewAnalytics: canGlobally('view_analytics'),
@@ -71,7 +75,7 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
   const contentCategoryItems = getContentCategoryMenu(t, gates)
 
   return (
-    <Sidebar variant="inset" collapsible="icon" {...props}>
+    <Sidebar variant="inset" collapsible="icon" {...railLens} {...props}>
       {/* Logo row is vertically centred on the dashboard greeting block (title + subtitle, see dashboard-page.tsx):
           greeting centre = 8 (card m-2) + 14 (main pt-3.5) + 66/2 = 55px, logo button is h-12 so its top sits at 31px,
           i.e. 8 (inset p-2) + 23 (pt). Keep both files in sync. */}
@@ -107,7 +111,7 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
         )}
         {/* Settings entry with the sidebar close button beside it. */}
         {/* Collapsed (icon rail): the row stacks, settings icon above the toggle. */}
-        <div className="mt-auto flex items-center pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:pr-0">
+        <div data-rail-static className="mt-auto flex items-center pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:pr-0">
           <NavMain items={getSettingsMenu(t).map((item) => ({ ...item, onSelect: () => openSettings() }))} className="min-w-0 flex-1 pt-0" />
           {/* Same box, radius, icon size, colour and hover as the Settings SidebarMenuButton beside it (size-8, rounded-md,
               16px icon), on the same centre line: self-start because the Settings group has pt-0, so centring in the row would

@@ -583,3 +583,23 @@ input[type="search"]::-webkit-search-results-decoration {
 @utility rounded-control {
   border-radius: var(--radius-control);
 }
+
+/* Icon rail "lens": scale comes from --lens-scale, set per item by useRailLens (distance from the pointer: the icon
+   under it grows, the others shrink less the further they are). Items are the menu buttons, the sidebar toggle and
+   anything marked data-rail-item (the search button); profile, Settings and the toggle are excluded
+   (data-rail-static, on the element or an ancestor).
+   The transition list repeats the properties the buttons already animate (width/height/padding for the collapse)
+   because this unlayered rule replaces their `transition`. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  [data-slot="sidebar"][data-collapsible="icon"] :is([data-sidebar="menu-button"], [data-slot="sidebar-trigger"], [data-rail-item]):not([data-rail-static], [data-rail-static] *) {
+    transform: scale(var(--lens-scale, 1));
+    transition:
+      width 0.3s,
+      height 0.3s,
+      padding 0.3s,
+      background-color 0.15s,
+      color 0.15s,
+      border-color 0.3s,
+      transform 0.18s ease-out;
+  }
+}

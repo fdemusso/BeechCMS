@@ -25,6 +25,7 @@ export function SidebarSearch() {
         <button
           type="button"
           onClick={openCommandPalette}
+          data-rail-item
           aria-label={t("commandPalette.ariaLabel")}
           className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-lg border border-border bg-background pl-3 pr-[7px] text-left text-sm text-muted-foreground outline-hidden transition-[width,height,padding,background-color,border-color] duration-300 hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:pl-[7px] group-data-[collapsible=icon]:pr-0"
         >

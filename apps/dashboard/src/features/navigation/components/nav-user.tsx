@@ -63,6 +63,7 @@ export function NavUser({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
+              data-rail-static
               className={cn(
                 "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
                 // Concentric corners: image sits 4px from the outer edge on top/left/bottom (1px border + 3px; h-12 minus
