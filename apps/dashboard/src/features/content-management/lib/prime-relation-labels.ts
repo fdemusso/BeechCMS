@@ -22,19 +22,21 @@ export function primeRelationLabels(
   response: Pick<ContentListWithMeta, "relations" | "relationAvatars">,
 ): void {
   if (!response.relations) return
-  const currentSeed = seeds.find((seed) => seed.slug === slug)
+  const seedBySlug = new Map(seeds.map((seed) => [seed.slug, seed]))
+  const currentSeed = seedBySlug.get(slug)
   if (!currentSeed) return
+  const branchByAlias = new Map(currentSeed.branches.map((candidate) => [candidate.alias, candidate]))
 
   for (const [alias, idLabelMap] of Object.entries(response.relations)) {
-    const branch = currentSeed.branches.find((candidate) => candidate.alias === alias)
+    const branch = branchByAlias.get(alias)
     if (!branch || branch.type !== "relation") continue
     const targetSlug = (branch as { targetSeed?: string }).targetSeed
     if (!targetSlug) continue
 
-    const targetSeed = seeds.find((seed) => seed.slug === targetSlug)
+    const targetSeed = seedBySlug.get(targetSlug)
     const labelAlias = targetSeed?.displayNameAlias ?? "title"
     // The avatar URL rides in the same stub, so a relation avatar costs no per-row fetchById either.
-    const avatarAlias = resolveRelationAvatar(branch, (candidate) => seeds.find((seed) => seed.slug === candidate))?.alias
+    const avatarAlias = resolveRelationAvatar(branch, (candidate) => seedBySlug.get(candidate))?.alias
     const avatars = avatarAlias ? response.relationAvatars?.[alias] : undefined
 
     for (const [id, label] of Object.entries(idLabelMap)) {
