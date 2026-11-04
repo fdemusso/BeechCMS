@@ -18,8 +18,11 @@ vi.mock("@/lib/rpc", () => ({
 }))
 
 vi.mock("@/features/navigation", () => ({
-  AppSidebar: () => null,
   SiteHeader: () => null,
+}))
+
+vi.mock("@/features/dashboard/components/sidebar/dashboard-sidebar", () => ({
+  DashboardSidebar: () => null,
 }))
 
 // A legacy admin JWT is used on purpose, so a regression back to the role-based gate fails these tests.

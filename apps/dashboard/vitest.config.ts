@@ -57,6 +57,7 @@ export default defineConfig({
         // from components/ to features/. The nature of the code is identical
         // to what was already excluded before the move.
         "src/features/navigation/**",
+        "src/features/dashboard/components/sidebar/**",
         "src/features/notifications/**",
         "src/components/nav-*.tsx",
         "src/components/search-form.tsx",

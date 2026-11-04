@@ -7,12 +7,13 @@ import { useTranslation } from "react-i18next"
 import { Settings } from '@/components/icons'
 import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar, SiteHeader } from "@/features/navigation"
+import { SiteHeader } from "@/features/navigation"
 import { isDashboardLayoutEditor } from "@beechcms/core"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { useAuth } from "@/lib/auth-context"
 import { useElementWidth } from "@/hooks/use-element-width"
 import { useDashboardLayout } from "../hooks/use-dashboard-layout"
+import { DashboardSidebar } from "../components/sidebar/dashboard-sidebar"
 import { DashboardLayoutRenderer } from "../renderer/dashboard-layout-renderer"
 import { DashboardBuilderDialog } from "../builder/dashboard-builder-dialog"
 import { listDashboardDraftScopes } from "../builder/dashboard-draft-storage"
@@ -60,7 +61,7 @@ export default function DashboardPage() {
       <SidebarProvider className="flex flex-col relative z-10">
         <SiteHeader />
         <div className="flex flex-1">
-          <AppSidebar />
+          <DashboardSidebar />
           <SidebarInset className="min-w-0">
             <main className="flex flex-1 flex-col gap-8 p-6 md:p-8 lg:p-10">
               {/* Contenitore interno: limita la larghezza massima a 2200px
