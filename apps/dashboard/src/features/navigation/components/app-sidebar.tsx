@@ -107,9 +107,12 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
         )}
         {/* Settings entry with the sidebar close button beside it. */}
         {/* Collapsed (icon rail): the row stacks, settings icon above the toggle. */}
-        <div className="mt-auto flex items-center pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:pr-0">
+        <div className="mt-auto flex items-center pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:pr-0">
           <NavMain items={getSettingsMenu(t).map((item) => ({ ...item, onSelect: () => openSettings() }))} className="min-w-0 flex-1 pt-0" />
-          <SidebarTrigger className="shrink-0 text-sidebar-foreground/70 group-data-[collapsible=icon]:mb-2" />
+          {/* Same box, radius, icon size, colour and hover as the Settings SidebarMenuButton beside it (size-8, rounded-md,
+              16px icon), on the same centre line: self-start because the Settings group has pt-0, so centring in the row would
+              sit 4px below the button. In the rail it stacks under it, left-aligned to the button (group p-2). */}
+          <SidebarTrigger className="size-8 shrink-0 self-start rounded-md [&_svg]:size-4 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:ml-2 group-data-[collapsible=icon]:mb-2" />
         </div>
       </SidebarContent>
     </Sidebar>
