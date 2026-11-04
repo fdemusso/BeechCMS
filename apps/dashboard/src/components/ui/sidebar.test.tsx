@@ -23,7 +23,7 @@ function renderSidebar() {
 
 describe("SidebarProvider keyboard shortcut", () => {
   beforeEach(() => {
-    document.cookie = "sidebar_state=; max-age=0; path=/"
+    document.cookie = "sidebar_state=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
   })
 
   it("Ctrl+B outside a field collapses the sidebar", () => {

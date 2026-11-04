@@ -38,8 +38,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
 function readStoredOpen(): boolean | undefined {
   if (typeof document === "undefined") return undefined
   const match = document.cookie.split("; ").find((entry) => entry.startsWith(`${SIDEBAR_COOKIE_NAME}=`))
-  if (!match) return undefined
-  return match.slice(SIDEBAR_COOKIE_NAME.length + 1) === "true"
+  const value = match?.slice(SIDEBAR_COOKIE_NAME.length + 1)
+  // Anything but the two values the provider writes (an emptied or foreign cookie) is "nothing saved".
+  if (value === "true") return true
+  if (value === "false") return false
+  return undefined
 }
 
 type SidebarContextProps = {
