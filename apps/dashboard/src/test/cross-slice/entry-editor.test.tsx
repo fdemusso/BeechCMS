@@ -208,7 +208,6 @@ vi.mock("@/components/ui/sidebar", () => ({
 vi.mock("@/features/navigation", () => ({
   AppShell: ({ children }: { children?: ReactNode }) => <div><div>APP_SIDEBAR</div>{children}</div>,
   AppSidebar: () => <div>APP_SIDEBAR</div>,
-  SiteHeader: () => <div>SITE_HEADER</div>,
 }))
 
 vi.mock("@/components/fields", async (importOriginal) => ({

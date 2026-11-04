@@ -23,7 +23,6 @@ vi.mock("@/features/auth/components/login-form", () => ({ LoginForm: () => <div>
 vi.mock("@/features/navigation", () => ({
   AppShell: ({ children }: { children?: React.ReactNode }) => <div><div>APP_SIDEBAR</div>{children}</div>,
   AppSidebar: () => <div>APP_SIDEBAR</div>,
-  SiteHeader: () => <div>SITE_HEADER</div>,
 }))
 vi.mock("@/components/ui/sidebar", () => ({
   SidebarProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

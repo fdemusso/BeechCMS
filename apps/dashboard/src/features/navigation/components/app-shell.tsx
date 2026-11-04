@@ -6,10 +6,6 @@ import type { CSSProperties, ReactNode } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 import { AppSidebar } from "./app-sidebar"
-import { SiteHeader } from "./site-header"
-
-// TODO(sidebar-redesign): flip back (or delete with SiteHeader) once toggle/notifications are re-homed.
-const SHOW_SITE_HEADER = false
 
 /** Opens the sidebar sheet on mobile; on desktop the sidebar collapses to an icon rail that keeps its own toggle. */
 function SidebarReopenTrigger() {
@@ -28,15 +24,9 @@ interface AppShellProps {
  */
 export function AppShell({ children }: AppShellProps) {
   return (
-    // --header-height is 0 while SiteHeader is hidden: sticky bars inside the body (top-(--header-height)) stick to the
-    // top of the ScrollArea viewport.
-    <div className="relative [--header-height:0px]">
+    <div className="relative">
       {/* Wider than the 16rem default; the style prop is merged after the defaults. */}
       <SidebarProvider className="h-svh overflow-hidden" style={{ "--sidebar-width": "18rem" } as CSSProperties}>
-        {/* TODO(sidebar-redesign): SiteHeader is hidden, not deleted. Its jobs still need a new home:
-            sidebar toggle (also the only way to open the sidebar on mobile), NotificationsPopover,
-            breadcrumbs. */}
-        {SHOW_SITE_HEADER && <SiteHeader />}
         <AppSidebar />
         <SidebarReopenTrigger />
         {/* md:m-2 on the inset variant eats 1rem of height. */}

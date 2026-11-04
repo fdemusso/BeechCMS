@@ -129,7 +129,6 @@ vi.mock("@/components/ui/context-menu", () => ({
 vi.mock("@/features/navigation", () => ({
   AppShell: ({ children }: { children?: ReactNode }) => <div><div>APP_SIDEBAR</div>{children}</div>,
   AppSidebar: () => <div>APP_SIDEBAR</div>,
-  SiteHeader: () => <div>SITE_HEADER</div>,
 }))
 
 vi.mock("@/lib/dynamic-columns", () => ({

@@ -52,10 +52,10 @@ export default function DashboardPage() {
     <>
       {/* TODO(sidebar-redesign): the decorative blurred blobs and translucent page background were removed; decide whether the blobs return inside the card. */}
       <AppShell>
-        {/* Vertical alignment with the sidebar logo row (md+, where the sidebar is docked):
-            the logo is centred on this greeting block (h1 36px pinned by leading-9! + gap 6 + subtitle 24 = 66px),
+        {/* Vertical alignment with the sidebar profile card (md+, where the sidebar is docked):
+            the card is centred on this greeting block (h1 36px pinned by leading-9! + gap 6 + subtitle 24 = 66px),
             which starts at 8 (card m-2) + 14 (pt-3.5) = 22px, so its centre is 55px.
-            AppSidebar's header pt-[23px] puts the logo centre there. Keep both files in sync. */}
+            AppSidebar's header pt-[23px] puts the card centre there. Keep both files in sync. */}
         <main className="flex flex-1 flex-col gap-6 p-6 md:p-6 md:pt-3.5 lg:p-8 lg:pt-3.5">
           {/* Contenitore interno: limita la larghezza massima a 2200px
               per una lettura ottimale sia su 16:9 che su 21:9. */}
