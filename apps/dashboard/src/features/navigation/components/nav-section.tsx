@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import type { IconComponent } from '@/lib/icon-registry'
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
@@ -6,11 +7,13 @@ import type { IconComponent } from '@/lib/icon-registry'
 "use client"
 
 import { useRef } from "react"
+import type { ComponentProps } from "react"
 import { ChevronRight } from '@/components/icons'
 import { Link, useLocation } from "react-router-dom"
 import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
+import { usePrefetchOnIntent } from "../lib/route-prefetch"
 import {
   Collapsible,
   CollapsibleContent,
@@ -28,40 +31,50 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 
-type NavMainSubItem = {
+/** A router Link that warms its target page when the pointer rests on it or it takes focus. */
+function PrefetchLink({ to, ...props }: Omit<ComponentProps<typeof Link>, "to"> & { readonly to: string }) {
+  const intent = usePrefetchOnIntent(to)
+  return <Link to={to} {...intent} {...props} />
+}
+
+type NavSectionSubItem = {
   readonly title: string
   readonly url: string
 }
 
-type NavMainItem = {
+type NavSectionItem = {
   readonly title: string
   readonly url: string
   readonly icon: IconComponent
   readonly isActive?: boolean
-  readonly items?: ReadonlyArray<NavMainSubItem>
+  readonly items?: ReadonlyArray<NavSectionSubItem>
   readonly disabled?: boolean
   readonly disabledReason?: string
   readonly notImplemented?: boolean
+  /** Runs instead of navigating to `url` (e.g. opens a dialog over the current page). */
+  readonly onSelect?: () => void
 }
 
-type NavMainProps = {
-  readonly items: ReadonlyArray<NavMainItem>
+type NavSectionProps = {
+  readonly items: ReadonlyArray<NavSectionItem>
   readonly groupLabel?: string
   readonly className?: string
   readonly hasLine?: boolean
+  /** Extra rows rendered after `items`, for entries that are not plain links (e.g. a popover trigger). */
+  readonly children?: ReactNode
 }
 
-type NavMainMenuItemProps = {
-  readonly item: NavMainItem
+type NavSectionMenuItemProps = {
+  readonly item: NavSectionItem
   readonly currentPath: string
   readonly currentSearch: string
 }
 
-function NavMainMenuItem({
+function NavSectionMenuItem({
   item,
   currentPath,
   currentSearch,
-}: NavMainMenuItemProps) {
+}: NavSectionMenuItemProps) {
   const itemRef = useRef<HTMLLIElement>(null)
 
   // A collapsible parent is open when the current path starts with its base path
@@ -83,9 +96,9 @@ function NavMainMenuItem({
         return (
           <SidebarMenuSubItem key={subItem.title}>
             <SidebarMenuSubButton asChild isActive={isSubActive}>
-              <Link to={subItem.url}>
+              <PrefetchLink to={subItem.url}>
                 <span>{subItem.title}</span>
-              </Link>
+              </PrefetchLink>
             </SidebarMenuSubButton>
           </SidebarMenuSubItem>
         )
@@ -125,6 +138,17 @@ function NavMainMenuItem({
     )
   }
 
+  if (item.onSelect) {
+    return (
+      <SidebarMenuItem ref={itemRef}>
+        <SidebarMenuButton tooltip={item.title} onClick={item.onSelect}>
+          <item.icon />
+          <span>{item.title}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+  }
+
   if (item.notImplemented) {
     return (
       <SidebarMenuItem ref={itemRef}>
@@ -148,10 +172,10 @@ function NavMainMenuItem({
     >
       <SidebarMenuItem ref={itemRef}>
         <SidebarMenuButton asChild tooltip={item.title} isActive={isParentActive && !item.items?.length}>
-          <Link to={item.url}>
+          <PrefetchLink to={item.url}>
             <item.icon />
             <span>{item.title}</span>
-          </Link>
+          </PrefetchLink>
         </SidebarMenuButton>
         {item.items?.length ? (
           <>
@@ -171,12 +195,13 @@ function NavMainMenuItem({
   )
 }
 
-export function NavMain({
+export function NavSection({
   items,
   groupLabel,
   className,
   hasLine = false,
-}: NavMainProps) {
+  children,
+}: NavSectionProps) {
   const location = useLocation()
   const currentPath = location.pathname
   const currentSearch = location.search
@@ -184,18 +209,25 @@ export function NavMain({
   return (
     <SidebarGroup className={className}>
       {groupLabel && <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>}
-      <div className={cn(hasLine && "border-l border-sidebar-border/40 ml-3.5 pl-3.5")}>
-        <SidebarMenu>
-          {items.map((item) => (
-            <NavMainMenuItem
-              key={item.title}
-              item={item}
-              currentPath={currentPath}
-              currentSearch={currentSearch}
-            />
-          ))}
-        </SidebarMenu>
-      </div>
+      <SidebarMenu
+        className={cn(
+          // A tree line under the group label's icon axis; the buttons inside start closer to it (--sb-pad-start).
+          // w-auto: SidebarMenu is w-full, which plus the left margin would run past the sidebar's right edge (and
+          // so would the hover pills). The rail has no room for the line.
+          hasLine &&
+            "ml-[calc(var(--sb-pad-start)+0.5rem)] w-auto border-l border-sidebar-border/40 *:[--sb-pad-start:0.5rem] group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:border-transparent",
+        )}
+      >
+        {items.map((item) => (
+          <NavSectionMenuItem
+            key={item.title}
+            item={item}
+            currentPath={currentPath}
+            currentSearch={currentSearch}
+          />
+        ))}
+        {children}
+      </SidebarMenu>
     </SidebarGroup>
   )
 }

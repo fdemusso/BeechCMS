@@ -1002,12 +1002,10 @@
     }
   },
   "siteHeader": {
-    "settings": "Settings",
-    "contents": "Contents",
-    "new": "New",
-    "edit": "Edit"
+    "new": "New"
   },
   "sidebar": {
+    "search": "Search…",
     "navigation": "Main",
     "contents": "Contents",
     "drafts": "Drafts",

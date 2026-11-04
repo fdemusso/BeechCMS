@@ -14,6 +14,7 @@ import {
 import type { DataTableSelection } from "../hooks/use-data-table-selection"
 import type { DataTableProps } from "../types"
 import { CELL_CLICK_DELAY_MS } from "../types"
+import { fixedColumnStyle, FIXED_COLUMN_CLASS, isFixedColumn, resizableColumnStyle } from "../fixed-column"
 import { COLUMN_SEPARATOR_CLASS, FOCUSED_ROW_CLASS, ROW_SEPARATOR_CLASS } from "../styles"
 
 const HIT_TOLERANCE_PX = 2
@@ -129,10 +130,14 @@ function DataTableRowInner<TData, TValue>({
         const cellClassName = cn(
           cellPadding,
           COLUMN_SEPARATOR_CLASS,
+          isFixedColumn(cell.column) && FIXED_COLUMN_CLASS,
           rowStyles?.cellClassNameByColumnId?.[cell.column.id] ?? getCellClassName?.(row.original, cell.column.id),
           canActivateCell && "cursor-pointer"
         )
-        const cellStyle = enableColumnResizing ? { width: cell.column.getSize() } : undefined
+        const cellStyle = {
+          ...(enableColumnResizing ? resizableColumnStyle(cell.column) : undefined),
+          ...fixedColumnStyle(cell.column),
+        }
 
         const handleCellClick = (e: React.MouseEvent<HTMLTableCellElement>) => {
           if (!canActivateCell) return

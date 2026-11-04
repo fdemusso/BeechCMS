@@ -21,6 +21,7 @@ import {
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import { TableHead, TableRow } from "@/components/ui/table"
+import { fixedColumnStyle, FIXED_COLUMN_CLASS, isFixedColumn, resizableColumnStyle } from "../fixed-column"
 import { COLUMN_SEPARATOR_CLASS } from "../styles"
 
 interface DataTableHeaderProps<TData> {
@@ -49,12 +50,14 @@ function HeaderCell<TData>({ header, enableColumnResizing, sortable }: HeaderCel
       {...(sortable ? listeners : undefined)}
       aria-roledescription={sortable ? attributes["aria-roledescription"] : undefined}
       style={{
-        ...(enableColumnResizing ? { position: "relative", width: header.getSize() } : undefined),
+        ...(enableColumnResizing ? { position: "relative", ...resizableColumnStyle(header.column) } : undefined),
+        ...fixedColumnStyle(header.column),
         ...(sortable && transform ? { transform: `translate3d(${transform.x}px, 0, 0)` } : undefined),
         ...(isDragging ? { zIndex: 10, opacity: 0.85 } : undefined),
       }}
       className={cn(
         COLUMN_SEPARATOR_CLASS,
+        isFixedColumn(header.column) && FIXED_COLUMN_CLASS,
         "bg-border/40",
         sortable && "cursor-grab select-none touch-none",
         isDragging && "cursor-grabbing bg-muted shadow-sm"

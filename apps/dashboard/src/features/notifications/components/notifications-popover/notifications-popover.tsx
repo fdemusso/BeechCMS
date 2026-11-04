@@ -5,6 +5,7 @@
 "use client"
 
 import { useCallback } from "react"
+import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { Bell, EyeOff, Trash2 } from '@/components/icons'
 
@@ -28,16 +29,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group"
+import { ButtonGroup } from "@/components/ui/button-group"
 import { cn } from "@/lib/utils"
 
 import { useNotificationsPopover } from "./use-notifications-popover"
 import type { Notification, NotificationFilter } from "./types"
 
-const NOTIFICATION_SCROLL_HEIGHT = 320
+const FILTERS: ReadonlyArray<NotificationFilter> = ["all", "new"]
 
 interface NotificationListProps {
   readonly notifications: ReadonlyArray<Notification>
@@ -65,13 +63,14 @@ function NotificationList({
   return (
     <div className="space-y-3 p-2">
       {notifications.length === 0 ? (
-        <Empty className="border-0 p-6">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Bell className="size-6" />
+        // Scaled for the narrow popover; md:p-4 because Empty carries md:p-12.
+        <Empty className="gap-0 border-0 p-4 md:p-4">
+          <EmptyHeader className="gap-1">
+            <EmptyMedia variant="icon" className="mb-1 size-9 bg-transparent">
+              <Bell className="size-5" />
             </EmptyMedia>
-            <EmptyTitle>{t("notifications.noNotifications")}</EmptyTitle>
-            <EmptyDescription>
+            <EmptyTitle className="text-sm font-medium">{t("notifications.noNotifications")}</EmptyTitle>
+            <EmptyDescription className="text-xs/relaxed">
               {filter === "new"
                 ? t("notifications.noNotificationsNew")
                 : t("notifications.noNotificationsAll")}
@@ -171,13 +170,21 @@ function dispatchCloseContextMenu(container: HTMLElement) {
   container.dispatchEvent(event)
 }
 
+interface NotificationsPopoverProps {
+  /** Replaces the default bell button; receives the unread state so a custom trigger can show it. */
+  readonly renderTrigger?: (state: { hasUnread: boolean; unreadCount: number }) => ReactNode
+  readonly side?: "top" | "right" | "bottom" | "left"
+  readonly align?: "start" | "center" | "end"
+}
+
 /**
  * Componente principale per la gestione e visualizzazione delle notifiche.
  */
-export function NotificationsPopover() {
+export function NotificationsPopover({ renderTrigger, side = "bottom", align = "end" }: NotificationsPopoverProps = {}) {
   const { t } = useTranslation()
   const {
     notifications,
+    hasNotifications,
     filter,
     setFilter,
     hasUnreadNotifications,
@@ -196,6 +203,9 @@ export function NotificationsPopover() {
   return (
     <Popover>
       <PopoverTrigger asChild>
+        {renderTrigger ? (
+          renderTrigger({ hasUnread: hasUnreadNotifications, unreadCount })
+        ) : (
         <Button
           className="relative ml-auto h-8 w-8"
           variant="ghost"
@@ -215,46 +225,51 @@ export function NotificationsPopover() {
               : t("notifications.noUnread")}
           </span>
         </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent
-        align="end"
-        side="bottom"
-        className="w-80 p-0 sm:w-96"
+        align={align}
+        side={side}
+        sideOffset={12}
+        // Lifted off the page: opaque surface, system border colour and a deeper shadow than the default popover.
+        // Narrower when there is nothing to list.
+        className={cn(
+          "p-0 shadow-xl ring-border",
+          hasNotifications ? "w-80 sm:w-96" : "w-72",
+        )}
       >
-        <div className="border-b px-4 py-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-heading font-semibold">{t("notifications.title")}</h3>
-            {hasUnreadNotifications && (
+        <div className="flex items-center gap-3 border-b px-3 py-2.5">
+          {/* Visible title dropped (the popover opens from the "Notifications" entry); kept for screen readers. */}
+          <h3 className="sr-only">{t("notifications.title")}</h3>
+          {/* Same outline buttons (system border + control radius) as the rest of the app, grouped as a segmented filter. */}
+          <ButtonGroup className="flex-1">
+            {FILTERS.map((value) => (
               <Button
-                variant="link"
+                key={value}
+                type="button"
+                variant="outline"
                 size="sm"
-                className="h-auto p-0 text-xs"
-                onClick={() => handleMarkAllRead()}
+                aria-pressed={filter === value}
+                onClick={() => setFilter(value)}
+                className={cn("flex-1", filter === value && "bg-muted text-foreground")}
               >
-                {t("notifications.markAllRead")}
+                {t(`notifications.${value}`)}
               </Button>
-            )}
-          </div>
-          <ToggleGroup
-            type="single"
-            value={filter}
-            onValueChange={(value) =>
-              value && setFilter(value as NotificationFilter)
-            }
-            variant="outline"
-            className="mt-2 w-full justify-start"
-          >
-            <ToggleGroupItem value="all" className="flex-1">
-              {t("notifications.all")}
-            </ToggleGroupItem>
-            <ToggleGroupItem value="new" className="flex-1">
-              {t("notifications.new")}
-            </ToggleGroupItem>
-          </ToggleGroup>
+            ))}
+          </ButtonGroup>
+          {hasUnreadNotifications && (
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto shrink-0 p-0 text-xs"
+              onClick={() => handleMarkAllRead()}
+            >
+              {t("notifications.markAllRead")}
+            </Button>
+          )}
         </div>
         <div
-          style={{ height: NOTIFICATION_SCROLL_HEIGHT }}
-          className="overflow-y-auto overflow-x-hidden"
+          className="max-h-80 overflow-y-auto overflow-x-hidden"
           onScroll={handleScrollClose}
           onWheel={handleScrollClose}
         >

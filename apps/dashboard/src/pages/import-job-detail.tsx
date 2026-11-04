@@ -5,9 +5,8 @@
 import { useTranslation } from "react-i18next"
 import { useNavigate, useParams } from "react-router-dom"
 import { ArrowLeft } from "@/components/icons"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { AppSidebar, SiteHeader } from "@/features/navigation"
+import { AppShell, PageBody, PageHeader } from "@/features/navigation"
 import { ImportJobPanel } from "@/features/content-transfer"
 
 export function ImportJobDetailPage() {
@@ -16,27 +15,17 @@ export function ImportJobDetailPage() {
   const { t } = useTranslation()
 
   return (
-    <div className="[--header-height:calc(--spacing(14))] overflow-x-clip">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <AppSidebar />
-          <SidebarInset className="min-w-0">
-            <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
-              <div className="content-area-inner space-y-4">
-                <div className="mb-2 flex items-center gap-3">
-                  <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-                    <ArrowLeft className="size-4" />
-                    {t("common.back")}
-                  </Button>
-                </div>
-                <h1 className="font-heading text-2xl font-semibold">{t("transfer.job.pageTitle")}</h1>
-                {jobId && <ImportJobPanel jobId={jobId} />}
-              </div>
-            </div>
-          </SidebarInset>
+    <AppShell>
+      <PageBody innerClassName="space-y-4">
+        <div className="mb-2 flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+            <ArrowLeft className="size-4" />
+            {t("common.back")}
+          </Button>
         </div>
-      </SidebarProvider>
-    </div>
+        <PageHeader title={t("transfer.job.pageTitle")} />
+        {jobId && <ImportJobPanel jobId={jobId} />}
+      </PageBody>
+    </AppShell>
   )
 }

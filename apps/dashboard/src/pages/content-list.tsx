@@ -10,11 +10,7 @@ import { Trash2 } from "@/components/icons"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { Button } from "@/components/ui/button"
 
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
-import { AppSidebar, SiteHeader, PageShellLoading } from "@/features/navigation"
+import { AppShell, PageBody, PageHeader, PageShellLoading } from "@/features/navigation"
 import { useActiveSeed } from "@/features/schema"
 import { resolveAuthorizedViews, type ContentView, type DashboardView } from "@beechcms/core"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -31,24 +27,7 @@ import {
   ViewEmptyState,
 } from "@/features/content-views"
 import { ContentViewWorkspace } from "./content-view-workspace"
-
-/**
- * Persistenza locale (per seed) della vista attiva in /admin/content/:slug.
- * Il valore memorizzato è un instance id. Non gestisce la pulizia se il seed
- * viene poi eliminato: la entry resta orfana in localStorage, inoffensiva,
- * finché non viene sovrascritta.
- */
-const ACTIVE_VIEW_STORAGE_PREFIX = "beech_content_view_"
-
-function getStoredActiveView(slug: string | undefined): string | null {
-  if (!slug) return null
-  return localStorage.getItem(`${ACTIVE_VIEW_STORAGE_PREFIX}${slug}`)
-}
-
-function setStoredActiveView(slug: string | undefined, viewId: string): void {
-  if (!slug) return
-  localStorage.setItem(`${ACTIVE_VIEW_STORAGE_PREFIX}${slug}`, viewId)
-}
+import { getStoredActiveView, setStoredActiveView } from "./active-view-storage"
 
 const EMPTY_VIEWS: ContentView[] = []
 
@@ -156,103 +135,88 @@ export function ContentListPage() {
   // Show error if seed doesn't exist
   if (!seed && !isSeedLoading) {
     return (
-      <div className="[--header-height:calc(--spacing(14))]">
-        <SidebarProvider className="flex flex-col">
-          <SiteHeader />
-          <div className="flex flex-1">
-            <AppSidebar />
-            <SidebarInset>
-              <div className="flex flex-1 flex-col gap-4 p-4">
-                <div className="content-area-inner">
-                  <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-                    <h2 className="font-heading text-lg font-semibold text-destructive">
-                      Error
-                    </h2>
-                    <p className="text-sm text-destructive/90">
-                      {`Seed "${slug}" not found`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </SidebarInset>
+      <AppShell>
+        <div className="flex flex-1 flex-col gap-4 p-4">
+          <div className="content-area-inner">
+            <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+              <h2 className="font-heading text-lg font-semibold text-destructive">
+                Error
+              </h2>
+              <p className="text-sm text-destructive/90">
+                {`Seed "${slug}" not found`}
+              </p>
+            </div>
           </div>
-        </SidebarProvider>
-      </div>
+        </div>
+      </AppShell>
     )
   }
 
-  // Loading skeleton while the seed or the views are fetching
-  if (isSeedLoading || !seed || viewsQuery.isLoading) {
+  // Loading skeleton while the seed is fetching. The views load below the header, so the title (the page's largest
+  // paint) does not wait for them.
+  if (isSeedLoading || !seed) {
     return <PageShellLoading message="Loading configuration..." />
   }
 
   return (
-    <div className="[--header-height:calc(--spacing(14))] overflow-x-clip">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <AppSidebar />
-          <SidebarInset className="min-w-0">
-            <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
-              <div className="content-area-inner">
-                {/* Header with title */}
-                <div className="mb-6 flex items-start justify-between">
-                  <div>
-                    <h1 className="font-heading text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
-                    <p className="text-muted-foreground text-sm">
-                      {t("content.list.subtitle", { slug: seed.slug })}
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/content/${slug}/trash`)}>
-                    <Trash2 className="size-4" />
-                    {t("content.trash.open")}
-                  </Button>
-                </div>
+    <>
+      <AppShell>
+        <PageBody>
+          <PageHeader
+            className="mb-6"
+            title={seed.labelPlural ?? seed.label}
+            description={t("content.list.subtitle", { slug: seed.slug })}
+            actions={
+              <Button variant="outline" size="sm" onClick={() => navigate(`/content/${slug}/trash`)}>
+                <Trash2 className="size-4" />
+                {t("content.trash.open")}
+              </Button>
+            }
+          />
 
-                {viewsQuery.isError || (!activeView && !emptyStateType) ? (
-                  <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-                    <p className="text-sm text-destructive">{t("content.views.errors.loadFailed")}</p>
-                  </div>
-                ) : emptyStateType ? (
-                  <>
-                    <ToolbarStrip>
-                      <ViewSwitcher
-                        views={switcherViews}
-                        activeViewId={null}
-                        onChangeView={handleChangeView}
-                        onCreateView={canManageViews ? handleCreateView : undefined}
-                        creatableViewTypes={creatableViewTypes}
-                        onReorderViews={canManageViews ? handleReorderViews : undefined}
-                        onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
-                      />
-                    </ToolbarStrip>
-                    <ViewEmptyState
-                      typeLabel={typeLabel(emptyStateType)}
-                      onCreate={canManageViews ? () => handleCreateView(emptyStateType) : undefined}
-                    />
-                  </>
-                ) : (
-                  <ContentViewWorkspace
-                    key={activeView!.id}
-                    seed={seed}
-                    slug={slug!}
-                    view={activeView!}
-                    switcherViews={switcherViews}
-                    creatableViewTypes={creatableViewTypes}
-                    canManageViews={canManageViews}
-                    canDeleteView={canManageViews && !(activeView!.type === "table" && tableViewCount <= 1)}
-                    onChangeView={handleChangeView}
-                    onCreateView={canManageViews ? handleCreateView : undefined}
-                    onRenameView={canManageViews ? handleRenameView : undefined}
-                    onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
-                    onReorderViews={canManageViews ? handleReorderViews : undefined}
-                  />
-                )}
-              </div>
+          {viewsQuery.isLoading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground">Loading configuration...</div>
+          ) : viewsQuery.isError || (!activeView && !emptyStateType) ? (
+            <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+              <p className="text-sm text-destructive">{t("content.views.errors.loadFailed")}</p>
             </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
+          ) : emptyStateType ? (
+            <>
+              <ToolbarStrip>
+                <ViewSwitcher
+                  views={switcherViews}
+                  activeViewId={null}
+                  onChangeView={handleChangeView}
+                  onCreateView={canManageViews ? handleCreateView : undefined}
+                  creatableViewTypes={creatableViewTypes}
+                  onReorderViews={canManageViews ? handleReorderViews : undefined}
+                  onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
+                />
+              </ToolbarStrip>
+              <ViewEmptyState
+                typeLabel={typeLabel(emptyStateType)}
+                onCreate={canManageViews ? () => handleCreateView(emptyStateType) : undefined}
+              />
+            </>
+          ) : (
+            <ContentViewWorkspace
+              key={activeView!.id}
+              seed={seed}
+              slug={slug!}
+              view={activeView!}
+              switcherViews={switcherViews}
+              creatableViewTypes={creatableViewTypes}
+              canManageViews={canManageViews}
+              canDeleteView={canManageViews && !(activeView!.type === "table" && tableViewCount <= 1)}
+              onChangeView={handleChangeView}
+              onCreateView={canManageViews ? handleCreateView : undefined}
+              onRenameView={canManageViews ? handleRenameView : undefined}
+              onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
+              onReorderViews={canManageViews ? handleReorderViews : undefined}
+            />
+          )}
+        </PageBody>
+      </AppShell>
 
       <ConfirmDialog
         open={viewPendingDelete !== null}
@@ -264,6 +228,6 @@ export function ContentListPage() {
         confirmVariant="destructive"
         onConfirm={handleConfirmDeleteView}
       />
-    </div>
+    </>
   )
 }

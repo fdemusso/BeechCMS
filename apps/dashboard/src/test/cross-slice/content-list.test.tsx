@@ -49,7 +49,9 @@ vi.mock("@/features/schema", () => ({
   })
 }))
 
-vi.mock("@/features/content-management/hooks/use-content-list", () => ({
+vi.mock("@/features/content-management/hooks/use-content-list", async (importOriginal) => ({
+  // buildContentListParams stays real: the page builds the request params with it.
+  ...(await importOriginal<typeof import("@/features/content-management/hooks/use-content-list")>()),
   useContentList: (...args: any[]) => ({
     data: mockFetchContentListServer(...args),
     isLoading: false,
@@ -125,8 +127,12 @@ vi.mock("@/components/ui/context-menu", () => ({
 }))
 
 vi.mock("@/features/navigation", () => ({
+  AppShell: ({ children }: { children?: ReactNode }) => <div><div>APP_SIDEBAR</div>{children}</div>,
+  PageBody: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  PageHeader: ({ title, description, actions }: { title?: ReactNode; description?: ReactNode; actions?: ReactNode }) => (
+    <div><h1>{title}</h1>{description}{actions}</div>
+  ),
   AppSidebar: () => <div>APP_SIDEBAR</div>,
-  SiteHeader: () => <div>SITE_HEADER</div>,
 }))
 
 vi.mock("@/lib/dynamic-columns", () => ({

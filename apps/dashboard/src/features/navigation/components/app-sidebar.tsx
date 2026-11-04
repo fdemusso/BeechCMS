@@ -4,34 +4,59 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { useTheme } from "@/lib/theme"
+import { cn } from "@/lib/utils"
+import { useRailLens } from "../hooks/use-rail-lens"
+import { toRouterPath, usePrefetchRoute } from "../lib/route-prefetch"
 
-import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
-import { getStaticMenu, getContentCategoryMenu, getSettingsMenu, buildContentMenu, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
+import { NavSection } from "./nav-section"
+import { NavNotifications } from "./nav-notifications"
+import { NavUser } from "./nav-user"
+import { SidebarSearch } from "./sidebar-search"
+import { getStaticMenu, getContentCategoryMenu, getSettingsMenu, buildContentMenu } from "@/config/dashboard-menu"
 import { logout } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
-import { useProfile } from "@/features/settings"
+import { useProfile, useSettingsDialog } from "@/features/settings"
 import { useSchema, usePermissions } from "@/features/shared"
 import type { MenuGates } from "@/config/dashboard-menu"
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
+  SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar"
+
+/**
+ * Short line between groups; only shown in the icon rail, where the group labels are gone.
+ * `spaced` adds extra room around it: used between the system blocks (Main / Content) and the seed-defined custom
+ * groups, not between two custom groups.
+ */
+function RailDivider({ spaced = false }: { readonly spaced?: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        "mx-auto h-0 w-5 shrink-0 bg-sidebar-border opacity-0 transition-[opacity,height,margin] duration-300 group-data-[collapsible=icon]:h-px group-data-[collapsible=icon]:opacity-100",
+        spaced && "group-data-[collapsible=icon]:my-2",
+      )}
+    />
+  )
+}
 
 export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation()
-  const { resolvedTheme } = useTheme()
   const { user: storedUser } = useAuth()
   const { data: profile } = useProfile()
   const { data: seeds = [] } = useSchema()
   const { canGlobally, canAnywhere } = usePermissions()
+  const { openSettings } = useSettingsDialog()
+  const { state, isMobile } = useSidebar()
+  const prefetchRoute = usePrefetchRoute()
+  // The lens knows the icon the pointer is heading to before the click: warm its page then.
+  const railLens = useRailLens(state === "collapsed" && !isMobile, (icon) => {
+    const href = icon.closest("a")?.getAttribute("href")
+    if (href) prefetchRoute(toRouterPath(href))
+  })
 
   const gates: MenuGates = React.useMemo(() => ({
     viewAnalytics: canGlobally('view_analytics'),
@@ -55,53 +80,46 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
   const contentCategoryItems = getContentCategoryMenu(t, gates)
 
   return (
-    <Sidebar
-      className="top-(--header-height) h-[calc(100svh-var(--header-height))]!"
-      {...props}
-    >
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <a href="/">
-                <div className="flex aspect-square size-10 items-center justify-center rounded-lg overflow-hidden">
-                  <img
-                    src={resolvedTheme === "dark" ? `${import.meta.env.BASE_URL}beechLogoDark.svg` : `${import.meta.env.BASE_URL}BeechLogoLIght.svg`}
-                    alt="BeechCMS"
-                    className="size-10 object-contain"
-                  />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">Beech CMS</span>
-                  <span className="truncate text-xs">Dashboard</span>
-                </div>
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+    <Sidebar variant="inset" collapsible="icon" {...railLens} {...props}>
+      {/* The profile card is vertically centred on the page title block (PageHeader). The page card's m-2 and this
+          sidebar's p-2 are the same inset and cancel, so the header starts its content at
+          --page-pad-top + (--page-title-h - --sb-profile-h) / 2 (all three in index.css). */}
+      <SidebarHeader className="gap-3 pt-[calc(var(--page-pad-top)+(var(--page-title-h)-var(--sb-profile-h))/2)]">
+        {/* The profile block replaced the logo + "Beech CMS / Dashboard" row; the logo is dropped on purpose. */}
+        <NavUser user={user} onLogout={logout} />
+        <SidebarSearch />
       </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={getStaticMenu(t, gates)} groupLabel={t("sidebar.navigation")} />
+      <SidebarContent className="group-data-[collapsible=icon]:overflow-auto">
+        <NavSection items={getStaticMenu(t, gates)} groupLabel={t("sidebar.navigation")}>
+          <NavNotifications />
+        </NavSection>
         {contentCategoryItems.length > 0 && (
-          <NavMain items={contentCategoryItems} groupLabel={t("sidebar.contentGroup")} />
+          <>
+            <RailDivider spaced />
+            <NavSection items={contentCategoryItems} groupLabel={t("sidebar.contentGroup")} />
+          </>
         )}
         {contentGroups.map((group, i) => (
-          <NavMain
-            key={group.label}
-            items={group.items}
-            groupLabel={group.label}
-            className={i === 0 ? "mt-4" : undefined}
-            hasLine
-          />
+          <React.Fragment key={group.label}>
+            <RailDivider spaced={i === 0} />
+            <NavSection
+              items={group.items}
+              groupLabel={group.label}
+              className={i === 0 ? "mt-4 group-data-[collapsible=icon]:mt-0" : undefined}
+              hasLine
+            />
+          </React.Fragment>
         ))}
-        {STATIC_NAV_SECONDARY.length > 0 && (
-          <NavSecondary items={STATIC_NAV_SECONDARY} />
-        )}
-        <NavMain items={getSettingsMenu(t)} className="mt-auto pt-0" />
+        {/* Settings entry with the sidebar close button beside it. */}
+        {/* Collapsed (icon rail): the row stacks, settings icon above the toggle. */}
+        <div data-rail-static className="mt-auto flex items-center pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:pr-0">
+          <NavSection items={getSettingsMenu(t).map((item) => ({ ...item, onSelect: () => openSettings() }))} className="min-w-0 flex-1 pt-0" />
+          {/* Same box, radius, icon size, colour and hover as the Settings SidebarMenuButton beside it (size-8, rounded-md,
+              16px icon), on the same centre line: self-start because the Settings group has pt-0, so centring in the row would
+              sit 4px below the button. In the rail it stacks under it, left-aligned to the button (group p-2). */}
+          <SidebarTrigger className="size-8 shrink-0 self-start rounded-md [&_svg]:size-4 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:ml-2 group-data-[collapsible=icon]:mb-2" />
+        </div>
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={user} onLogout={logout} />
-      </SidebarFooter>
     </Sidebar>
   )
 })

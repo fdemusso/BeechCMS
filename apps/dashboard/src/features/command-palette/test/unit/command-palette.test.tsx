@@ -8,6 +8,8 @@ import { CommandPalette } from "@/features/command-palette"
 
 vi.mock("react-router-dom", () => ({
   useNavigate: () => vi.fn(),
+  // useSettingsDialog (the palette's settings entry) reads the ?settings= param.
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
 vi.mock("@/lib/theme", () => ({

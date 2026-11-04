@@ -20,6 +20,8 @@ vi.mock("@/lib/rpc", () => ({
 }))
 
 vi.mock("@/features/shared", () => ({
+  // The list's queryFn reads the schema from this cache entry to prime the relation labels.
+  schemaQueryOptions: () => ({ queryKey: ["schema"] }),
   useSchema: vi.fn(),
   useActiveSeed: vi.fn(),
   useLocalizeEntryData: () => (_seed: unknown, data: Record<string, unknown>) => data,
@@ -117,6 +119,7 @@ describe("useContentList — cache priming from relations", () => {
       isLoading: false,
     })
     mocked.list.mockResolvedValue({ json: async () => listResponseWithRelations })
+    queryClient.setQueryData(["schema"], [articlesSeed, teamSeed])
   })
 
   it("primes relation detail caches after list fetch", async () => {
@@ -142,6 +145,24 @@ describe("useContentList — cache priming from relations", () => {
 
     expect(team2Cache).toBeDefined()
     expect((team2Cache as any)?.data?.name).toBe("Grace Hopper")
+  })
+
+  it("has the labels cached by the first render that sees the rows, before any effect runs", async () => {
+    let cachedAtFirstData: unknown
+    const { result } = renderHook(
+      () => {
+        const list = useContentList("articles", { page: 1, limit: 10 })
+        if (list.data && cachedAtFirstData === undefined) {
+          cachedAtFirstData = queryClient.getQueryData(CONTENT_QUERY_KEYS.detail("team", "team-1"))
+        }
+        return list
+      },
+      { wrapper: ({ children }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider> },
+    )
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(cachedAtFirstData).toMatchObject({ data: { name: "Ada Lovelace" } })
   })
 })
 

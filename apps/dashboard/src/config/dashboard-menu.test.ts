@@ -8,7 +8,7 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import { toast } from "sonner"
 import { MemoryRouter } from "react-router-dom"
 import { getStaticMenu, getContentCategoryMenu, type MenuGates } from "@/config/dashboard-menu"
-import { NavMain } from "@/components/nav-main"
+import { NavSection } from "@/features/navigation/components/nav-section"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
@@ -55,7 +55,7 @@ describe("getStaticMenu (axis one)", () => {
   })
 })
 
-describe("NavMain disabled rendering", () => {
+describe("NavSection disabled rendering", () => {
   it("a disabled item renders no anchor/link and carries aria-disabled=true", () => {
     const items = getContentCategoryMenu(t, gates({ readContent: true, createContent: false }))
     render(
@@ -65,7 +65,7 @@ describe("NavMain disabled rendering", () => {
         createElement(
           TooltipProvider,
           null,
-          createElement(SidebarProvider, null, createElement(NavMain, { items })),
+          createElement(SidebarProvider, null, createElement(NavSection, { items })),
         ),
       ),
     )
@@ -75,7 +75,7 @@ describe("NavMain disabled rendering", () => {
   })
 })
 
-describe("NavMain not-implemented rendering", () => {
+describe("NavSection not-implemented rendering", () => {
   it("Scheduled and Create New show a toast instead of linking", () => {
     const items = getContentCategoryMenu(t, gates({ readContent: true, createContent: true }))
     render(
@@ -85,7 +85,7 @@ describe("NavMain not-implemented rendering", () => {
         createElement(
           TooltipProvider,
           null,
-          createElement(SidebarProvider, null, createElement(NavMain, { items })),
+          createElement(SidebarProvider, null, createElement(NavSection, { items })),
         ),
       ),
     )

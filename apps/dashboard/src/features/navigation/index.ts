@@ -6,6 +6,9 @@
  * Public API for the application navigation shell.
  * Houses layout components that coordinate routing, slice states, and schemas.
  */
+export { AppShell } from "./components/app-shell"
 export { AppSidebar } from "./components/app-sidebar"
-export { SiteHeader } from "./components/site-header"
+export { RoutePrefetchProvider } from "./lib/route-prefetch-provider"
 export { PageShellLoading } from "./components/page-shell-loading"
+export { PageHeader } from "./components/page-header"
+export { PageBody } from "./components/page-body"

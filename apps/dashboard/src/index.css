@@ -45,11 +45,13 @@
      Change a level here, not in the components. */
   --radius-control: min(var(--radius-md), 10px);
 
-  /* ── Light mode tokens — palette neutro/nero, nessuna tinta di colore ── */
-  --background: oklch(1 0 0);
+  /* ── Light mode tokens — palette neutro/nero, nessuna tinta di colore ──
+     Niente bianco puro su background/card (affaticava la vista a luminosità alta): tre livelli
+     pavimento (--sidebar 0.94) < body (--background 0.972) < widget (--card 0.99), bordi 0.89. ── */
+  --background: oklch(0.972 0.002 286);
   --foreground: oklch(0.141 0.005 285.823);
 
-  --card: oklch(1 0 0);
+  --card: oklch(0.99 0.001 286);
   --card-foreground: oklch(0.141 0.005 285.823);
 
   --popover: oklch(1 0 0);       /* sfondo palette cmdk */
@@ -58,18 +60,18 @@
   --primary: oklch(0.488 0.243 264.376);       /* bottoni CTA: nero */
   --primary-foreground: oklch(0.97 0.014 254.604);       /* testo sul nero: bianco */
 
-  --secondary: oklch(0.967 0.001 286.375);
+  --secondary: oklch(0.945 0.003 286);
   --secondary-foreground: oklch(0.21 0.006 285.885);
 
-  --muted: oklch(0.967 0.001 286.375);
+  --muted: oklch(0.945 0.003 286);
   --muted-foreground: oklch(0.552 0.016 285.938);       /* grigio medio — ≥ 4.5:1 su --muted */
 
-  --accent: oklch(0.967 0.001 286.375);       /* hover item: grigio chiarissimo su bianco */
+  --accent: oklch(0.945 0.003 286);       /* hover item: grigio chiarissimo su bianco */
   --accent-foreground: oklch(0.21 0.006 285.885);       /* testo sull'hover: nero – sempre leggibile */
 
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
+  --border: oklch(0.89 0.005 286);
+  --input: oklch(0.89 0.005 286);
   --ring: oklch(0.705 0.015 286.067);
 
   --chart-1: oklch(0.809 0.105 251.813);
@@ -78,16 +80,16 @@
   --chart-4: oklch(0.488 0.243 264.376);
   --chart-5: oklch(0.424 0.199 265.638);
 
-  --sidebar: oklch(0.985 0 0);       /* sfondo sidebar light */
+  --sidebar: oklch(0.94 0.003 286);       /* sfondo sidebar light */
   --sidebar-foreground: oklch(0.141 0.005 285.823);       /* testo sidebar: quasi nero */
   --sidebar-primary: oklch(0.546 0.245 262.881);       /* icona logo: nero */
   --sidebar-primary-foreground: oklch(0.97 0.014 254.604);       /* testo su icona logo: bianco */
-  --sidebar-accent: oklch(0.967 0.001 286.375);        /* hover: grigio visibile (ΔL 0.075 vs sfondo) */
+  --sidebar-accent: oklch(0.915 0.004 286);        /* hover: grigio visibile (ΔL 0.075 vs sfondo) */
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);       /* testo hover: stesso del testo normale */
-  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-border: oklch(0.88 0.005 286);
   --sidebar-ring: oklch(0.705 0.015 286.067);
 
-  --table-header:               oklch(0.95 0 0);
+  --table-header:               oklch(0.93 0.003 286);
 }
 
 a {
@@ -106,6 +108,31 @@ a:hover {
 [data-sidebar] a:hover,
 nav a:hover {
   color: inherit;
+  opacity: 1;
+}
+
+/* Sidebar grid. Every row of the sidebar (profile, search, menu buttons, group labels) starts its leading icon
+   --sb-pad-start from the row's edge, so all icons sit on one vertical axis (edge + pad + 8px = icon centre, and the
+   profile picture is centred on it too). Icon to label is always 0.5rem (gap-2). The rail (icon-only) uses a smaller
+   start so the icons sit centred in it; padding transitions, so rows slide as the sidebar collapses. */
+:root {
+  --sb-pad-start: 1rem;
+}
+
+/* The sidebar profile card is centred on the page title block (md+, where the sidebar is docked). Three measures
+   decide where each side starts, so neither hard-codes the other's numbers:
+   --page-pad-top   top padding of the page body (PageBody), above the title block
+   --page-title-h   height of the title block with a description (PageHeader: 36px line + 6px gap + 24px line)
+   --sb-profile-h   height of the profile card (NavUser)
+   The card (inside the sidebar's p-2) and the page card (m-2) have the same 0.5rem inset, so it cancels: the header
+   of the sidebar starts its content at --page-pad-top + (--page-title-h - --sb-profile-h) / 2 (AppSidebar). */
+:root {
+  --page-pad-top: 0.875rem;
+  --page-title-h: 4.125rem;
+  --sb-profile-h: 3rem;
+}
+[data-slot="sidebar"][data-collapsible="icon"] {
+  --sb-pad-start: 0.5rem;
 }
 
 html {
@@ -120,10 +147,13 @@ body {
   min-height: 100vh;
 }
 
-h1 {
-  font-size: var(--font-size-2xl);
-  font-weight: 600;
-  line-height: 1.2;
+/* Base layer: a utility on an h1 (size, weight, line height) overrides this default, as on any other element. */
+@layer base {
+  h1 {
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+    line-height: 1.2;
+  }
 }
 
 @theme inline {
@@ -580,4 +610,35 @@ input[type="search"]::-webkit-search-results-decoration {
 
 @utility rounded-control {
   border-radius: var(--radius-control);
+}
+
+/* Icon rail "lens": scale comes from --lens-scale, set per item by useRailLens (distance from the pointer: the icon
+   under it grows, the others shrink less the further they are). Items are the menu buttons, the sidebar toggle and
+   anything marked data-rail-item (the search button); profile, Settings and the toggle are excluded
+   (data-rail-static, on the element or an ancestor).
+   The transition list repeats the properties the buttons already animate (width/height/padding for the collapse)
+   because this unlayered rule replaces their `transition`. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  [data-slot="sidebar"][data-collapsible="icon"] :is([data-sidebar="menu-button"], [data-slot="sidebar-trigger"], [data-rail-item]):not([data-rail-static], [data-rail-static] *) {
+    transform: scale(var(--lens-scale, 1));
+    transition:
+      width 0.3s,
+      height 0.3s,
+      padding 0.3s,
+      background-color 0.15s,
+      color 0.15s,
+      border-color 0.3s,
+      transform 0.18s ease-out;
+  }
+
+  /* Pointer is on the lens icon (set by useRailLens): the forgiving area around it is clickable, so show it. */
+  [data-slot="sidebar"][data-collapsible="icon"] [data-lens-active],
+  [data-slot="sidebar"][data-collapsible="icon"] [data-lens-active] *:not([data-rail-static], [data-rail-static] *) {
+    cursor: pointer;
+  }
+
+  /* Keyboard focus gets a lens of its own (no pointer involved). */
+  [data-slot="sidebar"][data-collapsible="icon"] :is([data-sidebar="menu-button"], [data-slot="sidebar-trigger"], [data-rail-item]):not([data-rail-static], [data-rail-static] *):focus-visible {
+    transform: scale(1.2);
+  }
 }

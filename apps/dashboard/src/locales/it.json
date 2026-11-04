@@ -1003,12 +1003,10 @@
     }
   },
   "siteHeader": {
-    "settings": "Impostazioni",
-    "contents": "Contenuti",
-    "new": "Nuovo",
-    "edit": "Modifica"
+    "new": "Nuovo"
   },
   "sidebar": {
+    "search": "Cerca…",
     "navigation": "Main",
     "contents": "Contenuti",
     "drafts": "Bozze",
