@@ -3,22 +3,14 @@
 // See LICENSE in the repository root for license terms.
 
 import { createContext, useContext, useEffect, useMemo, useRef } from "react"
-import type { FocusEvent, PointerEvent, ReactNode } from "react"
+import type { FocusEvent, PointerEvent } from "react"
 
-type Prefetch = (to: string) => void
+export type Prefetch = (to: string) => void
 
 /** How long the pointer must rest on a link before its page is warmed (hover is not yet intent while sweeping past). */
 const HOVER_DWELL_MS = 75
 
-const RoutePrefetchContext = createContext<Prefetch>(() => undefined)
-
-/**
- * Lets the composition root hand navigation a way to warm a route (its code and first requests) without this slice
- * knowing which pages or data exist.
- */
-export function RoutePrefetchProvider({ prefetch, children }: { readonly prefetch: Prefetch; readonly children: ReactNode }) {
-  return <RoutePrefetchContext.Provider value={prefetch}>{children}</RoutePrefetchContext.Provider>
-}
+export const RoutePrefetchContext = createContext<Prefetch>(() => undefined)
 
 /** Warms `to` (router-relative path). Safe to call often: the prefetch itself dedupes. */
 export function usePrefetchRoute(): Prefetch {

@@ -6,7 +6,7 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import { useRailLens } from "../hooks/use-rail-lens"
-import { toRouterPath, usePrefetchRoute } from "../lib/route-prefetch-context"
+import { toRouterPath, usePrefetchRoute } from "../lib/route-prefetch"
 
 import { NavSection } from "./nav-section"
 import { NavNotifications } from "./nav-notifications"

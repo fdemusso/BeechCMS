@@ -11,7 +11,7 @@ import { prefetchSchema } from "@/features/shared"
 import { hasAccessToken } from "@/lib/api"
 import { queryClient } from "@/lib/query-client"
 import { getStoredActiveView } from "./active-view-storage"
-import { preloadPageChunk } from "./lazy-pages"
+import { preloadPageChunk } from "./page-chunks"
 
 const DEFAULT_PAGE_SIZE = 10 // ROWS_PER_PAGE in use-content-list-query
 // /content/:slug paths that are not a content list.

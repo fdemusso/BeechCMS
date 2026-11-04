@@ -53,7 +53,10 @@ export function useRailLens(enabled: boolean, onIntent?: (icon: HTMLElement) => 
   const lensRef = useRef<HTMLElement | null>(null)
   const intentTimer = useRef<number | undefined>(undefined)
   const onIntentRef = useRef(onIntent)
-  onIntentRef.current = onIntent
+  // Kept current after each render so the pointer handler (stable, memoised) always calls the latest callback.
+  useEffect(() => {
+    onIntentRef.current = onIntent
+  })
   useEffect(() => () => window.clearTimeout(intentTimer.current), [])
   const lastRef = useRef<{ y: number; t: number; vy: number } | null>(null)
 

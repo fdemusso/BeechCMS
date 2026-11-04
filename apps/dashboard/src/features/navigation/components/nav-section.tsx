@@ -13,7 +13,7 @@ import { Link, useLocation } from "react-router-dom"
 import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
-import { usePrefetchOnIntent } from "../lib/route-prefetch-context"
+import { usePrefetchOnIntent } from "../lib/route-prefetch"
 import {
   Collapsible,
   CollapsibleContent,

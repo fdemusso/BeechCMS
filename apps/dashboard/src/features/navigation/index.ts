@@ -8,7 +8,7 @@
  */
 export { AppShell } from "./components/app-shell"
 export { AppSidebar } from "./components/app-sidebar"
-export { RoutePrefetchProvider } from "./lib/route-prefetch-context"
+export { RoutePrefetchProvider } from "./lib/route-prefetch-provider"
 export { PageShellLoading } from "./components/page-shell-loading"
 export { PageHeader } from "./components/page-header"
 export { PageBody } from "./components/page-body"
