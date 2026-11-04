@@ -5,11 +5,11 @@
 import { useCallback, useEffect } from "react"
 import { queryOptions, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query"
 import type { SortingState } from "@tanstack/react-table"
-import { isLocalizedBranch, resolveRelationAvatar } from "@beechcms/core"
-import { useLocalizeEntryData, useSchema } from "@/features/shared"
+import { isLocalizedBranch } from "@beechcms/core"
+import { schemaQueryOptions, useLocalizeEntryData, useSchema } from "@/features/shared"
 import { contentApi, type ContentListQueryParams, type ContentListWithMeta } from "../api/content.api"
 import { CONTENT_QUERY_KEYS } from "../consts/content.keys"
-import type { ContentEntry } from "@/lib/dynamic-columns"
+import { primeRelationLabels } from "../lib/prime-relation-labels"
 
 export const CONTENT_LIST_STALE_TIME = 10 * 1000 // 10 seconds
 
@@ -39,7 +39,14 @@ export function buildContentListParams({ pageIndex, pageSize, search, sorting, f
 const contentListQueryOptions = (slug: string, params: ContentListQueryParams) =>
   queryOptions({
     queryKey: CONTENT_QUERY_KEYS.list(slug, params),
-    queryFn: () => contentApi.fetchList(slug, params),
+    queryFn: async ({ client }) => {
+      const response = await contentApi.fetchList(slug, params)
+      // Primed here, before any row renders: a cell that mounts with the data and subscribes to its own detail query
+      // before a component effect could prime it would fetch that entry (the N+1).
+      const seeds = client.getQueryData(schemaQueryOptions().queryKey)
+      if (seeds) primeRelationLabels(client, seeds, slug, response)
+      return response
+    },
     staleTime: CONTENT_LIST_STALE_TIME,
   })
 
@@ -81,44 +88,9 @@ export function useContentList(slug: string | undefined, params: ContentListQuer
     select,
   })
 
-  // Prime the TanStack Query cache with relation labels from the list response.
-  // This avoids N+1 per-row fetchById calls in RelationDisplay on the list view.
+  // Fallback for a response that landed before the schema was cached (the queryFn primes it first, see below).
   useEffect(() => {
-    const response = query.data
-    if (!response?.relations || !seeds || !slug) return
-
-    const currentSeed = seeds.find((s) => s.slug === slug)
-    if (!currentSeed) return
-
-    for (const [alias, idLabelMap] of Object.entries(response.relations)) {
-      const branch = currentSeed.branches.find((b) => b.alias === alias)
-      if (!branch || branch.type !== "relation") continue
-      const targetSlug = (branch as { targetSeed?: string }).targetSeed
-      if (!targetSlug) continue
-
-      const targetSeed = seeds.find((s) => s.slug === targetSlug)
-      const labelAlias = targetSeed?.displayNameAlias ?? "title"
-      // The avatar URL rides in the same stub, so a relation avatar costs no per-row fetchById either.
-      const avatarAlias = resolveRelationAvatar(branch, (candidate) => seeds.find((s) => s.slug === candidate))?.alias
-      const avatars = avatarAlias ? response.relationAvatars?.[alias] : undefined
-
-      for (const [id, label] of Object.entries(idLabelMap)) {
-        const cacheKey = CONTENT_QUERY_KEYS.detail(targetSlug, id)
-        // Only prime if not already in cache to avoid overwriting fresh data
-        const existing = queryClient.getQueryData<ContentEntry>(cacheKey)
-        if (!existing) {
-          const avatar = avatarAlias ? avatars?.[id] : undefined
-          queryClient.setQueryData<ContentEntry>(cacheKey, {
-            id,
-            slug: null,
-            status: "published",
-            data: avatarAlias && avatar ? { [labelAlias]: label, [avatarAlias]: avatar } : { [labelAlias]: label },
-            created_at: null,
-            updated_at: null, // stub marker read by isRelationLabelStub (use-content-item.ts)
-          })
-        }
-      }
-    }
+    if (query.data && seeds && slug) primeRelationLabels(queryClient, seeds, slug, query.data)
   }, [query.data, seeds, slug, queryClient])
 
   return query
