@@ -15,8 +15,9 @@ interface PageHeaderProps {
 
 /**
  * Title block shared by every page: the size of the dashboard greeting. The h1 is pinned to a 36px line (leading-9) so
- * the block is 36 + 6 + 24 = 66px tall when it has a description. The sidebar
- * profile card is centred on that block (see AppSidebar), which is why every page starts it at the same height.
+ * the block is 36 + 6 + 24 = 66px tall (--page-title-h) when it has a description. The sidebar
+ * profile card is centred on that block (see index.css and AppSidebar), which is why every page starts it at the same
+ * height.
  */
 export function PageHeader({ title, description, actions, className }: PageHeaderProps) {
   return (

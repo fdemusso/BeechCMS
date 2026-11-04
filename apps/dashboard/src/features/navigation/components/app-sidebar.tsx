@@ -81,10 +81,10 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
 
   return (
     <Sidebar variant="inset" collapsible="icon" {...railLens} {...props}>
-      {/* The profile card is vertically centred on the dashboard greeting block (title + subtitle, see dashboard-page.tsx):
-          greeting centre = 8 (card m-2) + 14 (main pt-3.5) + 66/2 = 55px, the card is h-12 so its top sits at 31px,
-          i.e. 8 (inset p-2) + 23 (pt). Keep both files in sync. */}
-      <SidebarHeader className="gap-3 pt-[23px]">
+      {/* The profile card is vertically centred on the page title block (PageHeader). The page card's m-2 and this
+          sidebar's p-2 are the same inset and cancel, so the header starts its content at
+          --page-pad-top + (--page-title-h - --sb-profile-h) / 2 (all three in index.css). */}
+      <SidebarHeader className="gap-3 pt-[calc(var(--page-pad-top)+(var(--page-title-h)-var(--sb-profile-h))/2)]">
         {/* The profile block replaced the logo + "Beech CMS / Dashboard" row; the logo is dropped on purpose. */}
         <NavUser user={user} onLogout={logout} />
         <SidebarSearch />

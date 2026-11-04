@@ -52,7 +52,7 @@ export default function DashboardPage() {
     <>
       <AppShell>
         {/* Title block and padding come from PageHeader / PageBody, shared with every page: they line the greeting up
-            with the sidebar profile card (see AppSidebar's header pt-[23px]). */}
+            with the sidebar profile card (the measures are in index.css, used by AppSidebar's header). */}
         <PageBody innerRef={contentRef} innerClassName="flex flex-col gap-6">
           <PageHeader
             title={<>{greeting}, <span className="font-semibold">{userName}</span></>}

@@ -65,7 +65,7 @@ export function NavUser({
               size="lg"
               data-rail-static
               className={cn(
-                "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
+                "h-(--sb-profile-h) data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
                 // Concentric corners: the image sits 4px from the outer edge on top/left/bottom (1px border + 3px; h-12 minus
                 // border leaves 3px above/below the 40px image), so outer radius = inner radius + 4: rounded-lg (16)
                 // around rounded-sm (12). The left padding puts the picture's centre on the sidebar's icon axis
