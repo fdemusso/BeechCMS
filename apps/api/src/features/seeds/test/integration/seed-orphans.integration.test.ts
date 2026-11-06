@@ -97,6 +97,22 @@ describe('seeds slice — orphan columns (real D1)', () => {
     expect(await orphans('orph_soft')).toEqual([])
   })
 
+  it('does not treat the blind index of a confidential field as an orphan, and refuses to drop it', async () => {
+    const response = await admin.post('/api/seeds', {
+      slug: 'orph_bidx',
+      label: 'orph_bidx',
+      branches: [titleBranch, { alias: 'email', label: 'Email', type: 'text', policies: { classification: 'confidential' } }],
+    })
+    expect(response.status).toBe(201)
+    expect(await columns('content_orph_bidx')).toContain('email_bidx')
+
+    expect(await orphans('orph_bidx')).toEqual([])
+    const drop = await dropOrphan('orph_bidx', 'email_bidx', 'orph_bidx.email_bidx')
+
+    expect(drop.status).toBe(404)
+    expect(await columns('content_orph_bidx')).toContain('email_bidx')
+  })
+
   it('refuses to drop system columns, defined branches, invalid and unknown columns without altering the table', async () => {
     await createSeed('orph_guard', { softDelete: true })
     const before = await columns('content_orph_guard')
