@@ -1727,62 +1727,90 @@
     },
     "dangerZone": {
       "title": "Zona pericolosa",
-      "subtitle": "Queste operazioni sono irreversibili e possono causare perdita permanente di dati.",
-      "hardDelete": {
-        "title": "Elimina definitivamente questo tipo di contenuto",
-        "description": "Nasconde subito questo tipo di contenuto, poi elimina tabelle e media in background. L'operazione è irreversibile.",
-        "confirmPlaceholder": "Scrivi lo slug per confermare",
-        "confirmLabel": "Scrivi \"{{slug}}\" per confermare",
-        "button": "Elimina definitivamente",
-        "successToast": "Eliminazione di \"{{slug}}\" avviata. La pulizia dei media è in corso."
+      "manifest": {
+        "title": "Gestito da beech.schema.ts.",
+        "body": "Modifica il manifest e riapplicalo per cambiare i campi o eliminare questo tipo. Qui si può solo ricostruire l'indice di ricerca."
       },
-      "dropColumn": {
-        "title": "Rimuovi campo",
-        "description": "Rimuove permanentemente la colonna e tutti i suoi dati dal database.",
-        "confirmPlaceholder": "Scrivi slug.alias per confermare",
-        "button": "Rimuovi campo",
-        "successToast": "Campo \"{{alias}}\" rimosso."
+      "maintenance": {
+        "title": "Manutenzione",
+        "badge": "sicura",
+        "subtitle": "Nessun dato va perso. Usala quando qualcosa sembra fuori sincronia."
       },
-      "renameAlias": {
-        "title": "Rinomina alias campo",
-        "description": "Rinomina la colonna nel database. L'FTS viene ricostruito. Le automazioni che referenziano il vecchio alias potrebbero smettere di funzionare.",
-        "newAliasLabel": "Nuovo alias",
-        "newAliasPlaceholder": "nuovo_alias",
-        "confirmPlaceholder": "Scrivi slug.alias per confermare",
-        "button": "Rinomina",
-        "successToast": "Campo rinominato in \"{{newAlias}}\".",
-        "automationWarning": "Attenzione: {{count}} automazione/i referenzia il vecchio alias e potrebbe non funzionare: {{ids}}"
-      },
-      "retypeField": {
-        "title": "Cambia tipo campo",
-        "description": "Ricostruisce il tipo di colonna via add/copy/drop/rename. I dati esistenti vengono convertiti — i valori incompatibili con il nuovo tipo andranno persi.",
-        "newTypeLabel": "Nuovo tipo",
-        "confirmPlaceholder": "Scrivi slug.alias per confermare",
-        "button": "Cambia tipo",
-        "successToast": "Campo \"{{alias}}\" convertito in {{newType}}."
+      "ftsRebuild": {
+        "title": "Indice di ricerca",
+        "description": "Ricostruisce l'indice full-text e i suoi trigger a partire dai campi testuali attuali.",
+        "button": "Ricostruisci",
+        "successToast": "Indice di ricerca ricostruito."
       },
       "orphans": {
         "title": "Colonne orfane",
-        "description": "Colonne presenti nel database ma assenti dalla definizione corrente.",
+        "description": "Colonne ancora presenti nel database ma non più nella definizione.",
         "empty": "Nessuna colonna orfana.",
+        "review": "Mostra",
+        "hide": "Nascondi",
         "dropButton": "Rimuovi",
-        "refreshButton": "Aggiorna"
+        "refreshButton": "Aggiorna",
+        "successToast": "Colonna \"{{column}}\" rimossa."
       },
-      "ftsRebuild": {
-        "title": "Ricostruisci indice ricerca full-text",
-        "description": "Elimina e ricrea la tabella virtuale FTS e i suoi trigger, poi ripopola dalla tabella contenuto.",
-        "button": "Ricostruisci FTS",
-        "successToast": "Indice FTS ricostruito."
+      "fieldOps": {
+        "title": "Operazioni sui campi",
+        "badge": "modifica il database",
+        "subtitle": "Scegli un campo, poi cosa farne. Le opzioni non disponibili ne spiegano il motivo.",
+        "empty": "Questo tipo di contenuto non ha ancora campi salvati.",
+        "rename": "Rinomina",
+        "retype": "Cambia tipo",
+        "drop": "Rimuovi"
       },
-      "branchDangerToggle": "Avanzato (distruttivo)",
-      "confirmMismatch": "La conferma non corrisponde — scrivi l'identificatore esatto mostrato.",
+      "blocked": {
+        "displayName": "è il campo del nome visualizzato. Imposta prima un altro campo come nome visualizzato.",
+        "repeater": "i campi ripetibili non si possono cambiare di tipo.",
+        "multiRelation": "una relazione multipla vive in una tabella di giunzione, quindi non ha una colonna da cambiare.",
+        "localized": "il campo è localizzato. Disattiva prima la localizzazione, poi cambia il tipo."
+      },
+      "rename": {
+        "newAliasLabel": "Nuovo alias",
+        "impactTitle": "Rinomina la colonna del database e ricostruisce la ricerca.",
+        "impactBody": "Le automazioni che usano il vecchio alias andranno aggiornate; ti diremo quali.",
+        "button": "Rinomina campo",
+        "successToast": "\"{{alias}}\" rinominato in \"{{newAlias}}\".",
+        "automationWarning": "{{count}} automazione/i usano il vecchio alias e potrebbero non funzionare: {{ids}}"
+      },
+      "retype": {
+        "newTypeLabel": "Nuovo tipo",
+        "impactTitle": "Converte ogni valore salvato.",
+        "impactBody": "Se un valore non è convertibile senza perdite, la modifica viene rifiutata e nulla viene toccato.",
+        "button": "Cambia tipo",
+        "successToast": "\"{{alias}}\" ora è {{newType}}."
+      },
+      "dropField": {
+        "impactTitle": "Rimuove la colonna e tutti i suoi dati.",
+        "impactBody": "I valori di questo campo vanno persi per ogni voce e non si possono ripristinare.",
+        "confirmLabel": "Scrivi per confermare",
+        "fillHint": "Clicca per compilarlo",
+        "button": "Rimuovi campo",
+        "successToast": "Campo \"{{alias}}\" rimosso."
+      },
+      "hardDelete": {
+        "footerButton": "Elimina tipo di contenuto",
+        "footerHint": "Eliminare il tipo di contenuto ne rimuove voci, tabelle e media.",
+        "manifestHint": "Gestito da beech.schema.ts: toglilo dal manifest per eliminarlo.",
+        "title": "Elimina definitivamente {{label}}",
+        "description": "Nasconde subito questo tipo di contenuto, poi rimuove tabelle e media in background. L'operazione è irreversibile.",
+        "impactEntries": "Tutte le sue voci",
+        "impactFields": "{{count}} campi e le relative tabelle, bozze incluse",
+        "impactMedia": "I file media associati",
+        "confirmLabel": "Scrivi \"{{slug}}\" per confermare",
+        "confirmPlaceholder": "Scrivi lo slug per confermare",
+        "button": "Elimina definitivamente",
+        "successToast": "Eliminazione di \"{{slug}}\" avviata. La pulizia dei media è in corso."
+      },
       "errors": {
-        "hardDeleteFailed": "Eliminazione definitiva fallita",
-        "dropColumnFailed": "Rimozione colonna fallita",
-        "renameFailed": "Rinomina fallita",
-        "retypeFailed": "Conversione tipo fallita",
-        "orphansFailed": "Caricamento colonne orfane fallito",
-        "ftsRebuildFailed": "Ricostruzione FTS fallita"
+        "hardDeleteFailed": "Eliminazione definitiva non riuscita",
+        "dropColumnFailed": "Rimozione non riuscita",
+        "renameFailed": "Rinomina non riuscita",
+        "retypeFailed": "Cambio tipo non riuscito",
+        "orphansFailed": "Impossibile caricare le colonne orfane",
+        "ftsRebuildFailed": "Ricostruzione dell'indice non riuscita"
       }
     }
   },

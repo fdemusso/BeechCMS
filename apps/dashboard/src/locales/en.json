@@ -1725,63 +1725,91 @@
       "description": "This content type was soft-deleted. Purging removes its tables and media for good."
     },
     "dangerZone": {
-      "title": "Danger Zone",
-      "subtitle": "These operations are irreversible and may cause permanent data loss.",
-      "hardDelete": {
-        "title": "Permanently delete this content type",
-        "description": "Hides this content type immediately, then deletes its tables and media in the background. This cannot be undone.",
-        "confirmPlaceholder": "Type the slug to confirm",
-        "confirmLabel": "Type \"{{slug}}\" to confirm",
-        "button": "Delete permanently",
-        "successToast": "Deletion of \"{{slug}}\" started. Media cleanup is pending."
+      "title": "Danger zone",
+      "manifest": {
+        "title": "Managed by beech.schema.ts.",
+        "body": "Edit the manifest and re-apply it to change fields or delete this type. Only the search index can be rebuilt here."
       },
-      "dropColumn": {
-        "title": "Drop field",
-        "description": "Permanently removes the column and all its data from the database.",
-        "confirmPlaceholder": "Type slug.alias to confirm",
+      "maintenance": {
+        "title": "Maintenance",
+        "badge": "safe",
+        "subtitle": "No data is lost. Use it when something looks out of sync."
+      },
+      "ftsRebuild": {
+        "title": "Search index",
+        "description": "Rebuilds the full-text index and its triggers from the current text fields.",
+        "button": "Rebuild",
+        "successToast": "Search index rebuilt."
+      },
+      "orphans": {
+        "title": "Orphan columns",
+        "description": "Columns still in the database but no longer in the definition.",
+        "empty": "No orphan columns.",
+        "review": "Review",
+        "hide": "Hide",
+        "dropButton": "Drop",
+        "refreshButton": "Refresh",
+        "successToast": "Column \"{{column}}\" dropped."
+      },
+      "fieldOps": {
+        "title": "Field operations",
+        "badge": "changes the database",
+        "subtitle": "Pick a field, then choose what to do. Unavailable options say why.",
+        "empty": "This content type has no saved fields yet.",
+        "rename": "Rename",
+        "retype": "Change type",
+        "drop": "Drop"
+      },
+      "blocked": {
+        "displayName": "this is the display name. Point the display name at another field first.",
+        "repeater": "repeater fields cannot be retyped.",
+        "multiRelation": "a multi-relation lives in a junction table, so there is no column to retype.",
+        "localized": "this field is localized. Turn localization off first, then retype."
+      },
+      "rename": {
+        "newAliasLabel": "New alias",
+        "impactTitle": "Renames the database column and rebuilds search.",
+        "impactBody": "Automations that reference the old alias will need updating; you will be told which ones.",
+        "button": "Rename field",
+        "successToast": "\"{{alias}}\" renamed to \"{{newAlias}}\".",
+        "automationWarning": "{{count}} automation(s) reference the old alias and may be broken: {{ids}}"
+      },
+      "retype": {
+        "newTypeLabel": "New type",
+        "impactTitle": "Converts every stored value.",
+        "impactBody": "If any value cannot be converted without loss, the change is refused and nothing is touched.",
+        "button": "Change type",
+        "successToast": "\"{{alias}}\" is now {{newType}}."
+      },
+      "dropField": {
+        "impactTitle": "Removes the column and all its data.",
+        "impactBody": "The values of this field are lost for every entry and cannot be restored.",
+        "confirmLabel": "Type to confirm",
+        "fillHint": "Click to fill it in",
         "button": "Drop field",
         "successToast": "Field \"{{alias}}\" dropped."
       },
-      "renameAlias": {
-        "title": "Rename field alias",
-        "description": "Renames the database column. FTS is rebuilt. Automations referencing the old alias will break.",
-        "newAliasLabel": "New alias",
-        "newAliasPlaceholder": "new_alias",
-        "confirmPlaceholder": "Type slug.alias to confirm",
-        "button": "Rename",
-        "successToast": "Field renamed to \"{{newAlias}}\".",
-        "automationWarning": "Warning: {{count}} automation(s) reference the old alias and may be broken: {{ids}}"
+      "hardDelete": {
+        "footerButton": "Delete content type",
+        "footerHint": "Deleting the content type removes its entries, tables and media.",
+        "manifestHint": "Managed by beech.schema.ts: remove it from the manifest to delete it.",
+        "title": "Permanently delete {{label}}",
+        "description": "Hides this content type immediately, then removes its tables and media in the background. This cannot be undone.",
+        "impactEntries": "All its entries",
+        "impactFields": "{{count}} fields and their tables, drafts included",
+        "impactMedia": "The media files stored for it",
+        "confirmLabel": "Type \"{{slug}}\" to confirm",
+        "confirmPlaceholder": "Type the slug to confirm",
+        "button": "Delete permanently",
+        "successToast": "Deletion of \"{{slug}}\" started. Media cleanup is pending."
       },
-      "retypeField": {
-        "title": "Change field type",
-        "description": "Rebuilds the column type via add/copy/drop/rename. Existing data is CAST — values incompatible with the new type will be lost.",
-        "newTypeLabel": "New type",
-        "confirmPlaceholder": "Type slug.alias to confirm",
-        "button": "Change type",
-        "successToast": "Field \"{{alias}}\" retyped to {{newType}}."
-      },
-      "orphans": {
-        "title": "Orphaned columns",
-        "description": "Columns present in the database but absent from the current definition.",
-        "empty": "No orphaned columns.",
-        "dropButton": "Drop",
-        "refreshButton": "Refresh"
-      },
-      "ftsRebuild": {
-        "title": "Rebuild full-text search index",
-        "description": "Drops and recreates the FTS virtual table and its triggers, then backfills from the content table.",
-        "button": "Rebuild FTS",
-        "successToast": "FTS index rebuilt."
-      },
-      "branchDangerToggle": "Advanced (destructive)",
-      "confirmMismatch": "Confirmation does not match — type the exact identifier shown.",
       "errors": {
         "hardDeleteFailed": "Hard delete failed",
-        "dropColumnFailed": "Drop column failed",
+        "dropColumnFailed": "Drop failed",
         "renameFailed": "Rename failed",
         "retypeFailed": "Retype failed",
         "orphansFailed": "Failed to load orphans",
-        "ftsRebuildFailed": "FTS rebuild failed"
+        "ftsRebuildFailed": "Search index rebuild failed"
       }
     }
   },

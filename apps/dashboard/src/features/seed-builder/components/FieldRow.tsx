@@ -5,15 +5,15 @@
 import { useTranslation } from "react-i18next"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { resolveClassification } from "@beechcms/core"
 import type { Branch } from "@beechcms/core"
-import { Globe, Star, Trash2 } from "@/components/icons"
+import { Trash2 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { GripDots } from "@/components/ui/grip-dots"
-import { IconBadgeGroup, type IconBadgeItem } from "@/components/ui/icon-badge"
+import { IconBadgeGroup } from "@/components/ui/icon-badge"
 import { cn } from "@/lib/utils"
 import type { BranchIssue } from "../lib/field-alias"
-import { CLASSIFICATION_ICONS, FIELD_TYPE_ICONS } from "../lib/field-types"
+import { fieldBadges } from "../lib/field-badges"
+import { FIELD_TYPE_ICONS } from "../lib/field-types"
 
 export interface FieldRowProps {
   branch: Branch
@@ -32,18 +32,7 @@ export function FieldRow({ branch, selected, issue, removable, onSelect, onRemov
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: branch.id })
 
   const TypeIcon = FIELD_TYPE_ICONS[branch.type]
-  const tier = resolveClassification(branch).classification
-  const badges: IconBadgeItem[] = [
-    ...(branch.requiredOnCreate === true
-      ? [{ id: "required", icon: Star, label: t("seedBuilder.branchEditor.required") }]
-      : []),
-    ...(branch.localized === true
-      ? [{ id: "localized", icon: Globe, label: t("seedBuilder.branchEditor.localized") }]
-      : []),
-    ...(tier !== "public"
-      ? [{ id: "tier", icon: CLASSIFICATION_ICONS[tier], label: t(`seedBuilder.policies.classification_${tier}`) }]
-      : []),
-  ]
+  const badges = fieldBadges(branch, t)
 
   return (
     <div

@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import type { Seed } from "@beechcms/core"
-import { Check, Globe } from "@/components/icons"
+import { Check, Globe, Trash2 } from "@/components/icons"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +35,7 @@ import { GroupPicker } from "./GroupPicker"
 import { SidebarPreview } from "./SidebarPreview"
 import { ViewsPicker } from "./ViewsPicker"
 import { FieldsStep } from "./FieldsStep"
+import { HardDeleteDialog } from "./HardDeleteDialog"
 import { SeedDangerZone } from "./SeedDangerZone"
 
 export interface SeedFormDialogProps {
@@ -98,6 +99,7 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
   const { formData, isCreate, setField } = form
 
   const labelInputRef = React.useRef<HTMLInputElement>(null)
+  const [deleteOpen, setDeleteOpen] = React.useState(false)
   const label = String(formData.label ?? "")
   const slug = String(formData.slug ?? "")
 
@@ -389,14 +391,31 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
 
                   {editRecord && (
                     <TabsContent value="danger" className="mt-0">
-                      <SeedDangerZone record={editRecord} onClose={onClose} />
+                      <SeedDangerZone record={editRecord} />
                     </TabsContent>
                   )}
                 </div>
               </ScrollArea>
             </Tabs>
 
-            {form.step !== "danger" && (
+            {form.step === "danger" && editRecord ? (
+              <div className="flex flex-shrink-0 items-center justify-between gap-3 border-t px-6 py-4">
+                <p className="text-xs text-muted-foreground">
+                  {editRecord.source === "code"
+                    ? t("seedBuilder.dangerZone.hardDelete.manifestHint")
+                    : t("seedBuilder.dangerZone.hardDelete.footerHint")}
+                </p>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={editRecord.source === "code"}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="size-4" />
+                  {t("seedBuilder.dangerZone.hardDelete.footerButton")}
+                </Button>
+              </div>
+            ) : (
               <div className="flex flex-shrink-0 items-center justify-between gap-3 border-t px-6 py-4">
                 <div className="flex items-center gap-3">
                   {isCreate && form.step !== SEED_FORM_STEPS[0] && (
@@ -426,6 +445,8 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
           </form>
         </DialogContent>
       </Dialog>
+
+      <HardDeleteDialog seed={editRecord ?? null} open={deleteOpen} onOpenChange={setDeleteOpen} onDeleted={onClose} />
 
       {/* Leaving with unsaved edits: closing the dialog, or navigating away */}
       <AlertDialog open={form.confirmDiscardOpen || form.blocker.state === "blocked"}>
