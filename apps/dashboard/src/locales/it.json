@@ -1791,6 +1791,7 @@
         "successToast": "Campo \"{{alias}}\" rimosso."
       },
       "hardDelete": {
+        "fillSlug": "Compila con {{slug}}",
         "footerButton": "Elimina tipo di contenuto",
         "footerHint": "Eliminare il tipo di contenuto ne rimuove voci, tabelle e media.",
         "manifestHint": "Gestito da beech.schema.ts: toglilo dal manifest per eliminarlo.",

@@ -64,7 +64,7 @@ export function FieldsStep({
   const [name, setName] = React.useState("")
   const [type, setType] = React.useState<BranchType>("text")
   const [selectedId, setSelectedId] = React.useState<string | null>(branches[0]?.id ?? null)
-  const listRef = React.useRef<HTMLDivElement>(null)
+  const listRef = React.useRef<HTMLUListElement>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -102,7 +102,7 @@ export function FieldsStep({
   }
 
   /** Arrows move between rows; Alt+arrows reorder the focused one. */
-  function handleListKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+  function handleListKeyDown(e: React.KeyboardEvent<HTMLUListElement>) {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return
     const rows = Array.from(listRef.current?.querySelectorAll<HTMLElement>("[data-field-row]") ?? [])
     const index = rows.indexOf(e.target as HTMLElement)
@@ -205,7 +205,7 @@ export function FieldsStep({
               {/* Eight rows are visible (3.375rem each, 0.375rem apart, plus the 0.5rem of padding); the rest scrolls. The -m-1 / p-1 pair keeps
                   the rows' focus ring from being clipped without moving them. */}
               <ScrollArea className="-m-1 max-h-[30.125rem] self-start">
-                <div ref={listRef} onKeyDown={handleListKeyDown} className="space-y-1.5 p-1 pr-3">
+                <ul ref={listRef} onKeyDown={handleListKeyDown} aria-label={t("seedBuilder.editor.tabFields")} className="space-y-1.5 p-1 pr-3">
                   {branches.map((branch) => (
                     <FieldRow
                       key={branch.id}
@@ -217,7 +217,7 @@ export function FieldsStep({
                       onRemove={() => removeBranch(branch.id)}
                     />
                   ))}
-                </div>
+                </ul>
               </ScrollArea>
             </SortableContext>
           </DndContext>

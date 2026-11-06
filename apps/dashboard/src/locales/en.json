@@ -1790,6 +1790,7 @@
         "successToast": "Field \"{{alias}}\" dropped."
       },
       "hardDelete": {
+        "fillSlug": "Fill in {{slug}}",
         "footerButton": "Delete content type",
         "footerHint": "Deleting the content type removes its entries, tables and media.",
         "manifestHint": "Managed by beech.schema.ts: remove it from the manifest to delete it.",

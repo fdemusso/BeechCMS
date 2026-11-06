@@ -79,7 +79,13 @@ export function HardDeleteDialog({ seed, open, onOpenChange, onDeleted, title, d
               className="font-mono text-xs"
               autoComplete="off"
             />
-            <Button type="button" variant="outline" onClick={() => setConfirm(slug)} className="font-mono text-xs">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirm(slug)}
+              aria-label={t("seedBuilder.dangerZone.hardDelete.fillSlug", { slug })}
+              className="font-mono text-xs"
+            >
               {slug}
             </Button>
           </div>

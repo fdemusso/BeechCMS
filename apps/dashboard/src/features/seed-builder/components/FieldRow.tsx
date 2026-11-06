@@ -35,7 +35,7 @@ export function FieldRow({ branch, selected, issue, removable, onSelect, onRemov
   const badges = fieldBadges(branch, t)
 
   return (
-    <div
+    <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
       className={cn(
@@ -85,6 +85,6 @@ export function FieldRow({ branch, selected, issue, removable, onSelect, onRemov
           <Trash2 className="size-4" />
         </Button>
       )}
-    </div>
+    </li>
   )
 }

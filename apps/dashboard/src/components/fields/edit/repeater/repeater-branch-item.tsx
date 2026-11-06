@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -109,6 +109,37 @@ export interface BranchEditorFormProps {
 }
 
 /**
+ * The "why is this read-only" icon of a stored field's alias or type. It is the tooltip's own trigger, so it shows on
+ * keyboard focus as well as on hover; with `onOpen` it is a button that goes to where the change is made.
+ */
+function LockedHint({ hint, onOpen }: { hint: string; onOpen?: () => void }) {
+  const icon = <Info aria-hidden className="h-3 w-3" />
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {onOpen ? (
+            <button
+              type="button"
+              onClick={onOpen}
+              aria-label={hint}
+              className="shrink-0 rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              {icon}
+            </button>
+          ) : (
+            <span tabIndex={0} role="img" aria-label={hint} className="shrink-0 rounded-full text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring">
+              {icon}
+            </span>
+          )}
+        </TooltipTrigger>
+        <TooltipContent>{hint}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
+/**
  * The editing form of a single branch (alias, type, label, requirement, hint and the type-specific
  * options). Shared by the collapsible {@link BranchItemRow} and the Seed Builder's field panel.
  */
@@ -122,6 +153,7 @@ export function BranchEditorForm({
   onOpenDangerZone,
 }: BranchEditorFormProps) {
   const { t } = useTranslation()
+  const uid = useId()
   // Once a top-level branch is persisted (id no longer has the "br_new_" prefix
   // assigned on creation), alias/type are locked: renaming/retyping would orphan
   // the underlying SQL column. Sub-fields (subField) never get this lock since
@@ -157,36 +189,20 @@ export function BranchEditorForm({
       {/* Alias */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <Label className="text-xs">{t("seedBuilder.branchEditor.alias")}</Label>
+          <Label htmlFor={`${uid}-alias`} className="text-xs">{t("seedBuilder.branchEditor.alias")}</Label>
           {isExisting ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1">
-                    <Input
-                      value={branch.alias}
-                      readOnly
-                      className="bg-muted text-muted-foreground cursor-not-allowed"
-                    />
-                    {onOpenDangerZone ? (
-                      <button
-                        type="button"
-                        onClick={onOpenDangerZone}
-                        aria-label={t("seedBuilder.branchEditor.aliasReadOnlyHint")}
-                        className="shrink-0 rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-                      >
-                        <Info className="h-3 w-3" />
-                      </button>
-                    ) : (
-                      <Info className="h-3 w-3 text-muted-foreground shrink-0" />
-                    )}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>{t("seedBuilder.branchEditor.aliasReadOnlyHint")}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <div className="flex items-center gap-1">
+              <Input
+                id={`${uid}-alias`}
+                value={branch.alias}
+                readOnly
+                className="bg-muted text-muted-foreground cursor-not-allowed"
+              />
+              <LockedHint hint={t("seedBuilder.branchEditor.aliasReadOnlyHint")} onOpen={onOpenDangerZone} />
+            </div>
           ) : (
             <Input
+              id={`${uid}-alias`}
               value={branch.alias}
               onChange={(e) =>
                 set("alias", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))
@@ -199,37 +215,20 @@ export function BranchEditorForm({
 
         {/* Type */}
         <div className="space-y-1">
-          <Label className="text-xs">{t("seedBuilder.branchEditor.type")}</Label>
+          <Label htmlFor={`${uid}-type`} className="text-xs">{t("seedBuilder.branchEditor.type")}</Label>
           {isExisting ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1">
-                    <Input
-                      value={branch.type}
-                      readOnly
-                      className="bg-muted text-muted-foreground cursor-not-allowed"
-                    />
-                    {onOpenDangerZone ? (
-                      <button
-                        type="button"
-                        onClick={onOpenDangerZone}
-                        aria-label={t("seedBuilder.branchEditor.typeReadOnlyHint")}
-                        className="shrink-0 rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-                      >
-                        <Info className="h-3 w-3" />
-                      </button>
-                    ) : (
-                      <Info className="h-3 w-3 text-muted-foreground shrink-0" />
-                    )}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>{t("seedBuilder.branchEditor.typeReadOnlyHint")}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <div className="flex items-center gap-1">
+              <Input
+                id={`${uid}-type`}
+                value={branch.type}
+                readOnly
+                className="bg-muted text-muted-foreground cursor-not-allowed"
+              />
+              <LockedHint hint={t("seedBuilder.branchEditor.typeReadOnlyHint")} onOpen={onOpenDangerZone} />
+            </div>
           ) : (
             <Select value={branch.type} onValueChange={(v) => set("type", v as BranchType)}>
-              <SelectTrigger>
+              <SelectTrigger id={`${uid}-type`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -246,8 +245,9 @@ export function BranchEditorForm({
 
       {/* Label */}
       <div className="space-y-1">
-        <Label className="text-xs">{t("seedBuilder.branchEditor.label")}</Label>
+        <Label htmlFor={`${uid}-label`} className="text-xs">{t("seedBuilder.branchEditor.label")}</Label>
         <Input
+          id={`${uid}-label`}
           value={branch.label}
           onChange={(e) => set("label", e.target.value)}
           placeholder={t("seedBuilder.branchEditor.labelPlaceholder")}
@@ -256,8 +256,9 @@ export function BranchEditorForm({
 
       {/* Hint */}
       <div className="space-y-1">
-        <Label className="text-xs">{t("seedBuilder.branchEditor.hint")}</Label>
+        <Label htmlFor={`${uid}-hint`} className="text-xs">{t("seedBuilder.branchEditor.hint")}</Label>
         <Input
+          id={`${uid}-hint`}
           value={branch.hint ?? ""}
           onChange={(e) => set("hint", e.target.value || undefined)}
           placeholder={t("seedBuilder.branchEditor.hintPlaceholder")}

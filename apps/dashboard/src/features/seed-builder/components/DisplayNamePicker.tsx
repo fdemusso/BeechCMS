@@ -36,6 +36,7 @@ export function DisplayNamePicker({ branches, value, onChange, id }: DisplayName
           type="button"
           variant="outline"
           role="combobox"
+          aria-haspopup="listbox"
           aria-expanded={open}
           className="w-full justify-between font-normal"
         >

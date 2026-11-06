@@ -4,6 +4,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
+import { Tabs as TabsPrimitive } from "radix-ui"
 import { toast } from "sonner"
 import type { Branch, BranchType } from "@beechcms/core"
 import { AlertTriangle, Refresh } from "@/components/icons"
@@ -45,6 +46,7 @@ function MaintenanceSection({ record, manifestOwned }: { record: SeedRecordDTO; 
   const { data, refetch, isFetching } = useOrphans(record.slug)
   const dropOrphan = useDropOrphan()
   const [open, setOpen] = React.useState(false)
+  const listId = React.useId()
   const [confirms, setConfirms] = React.useState<Record<string, string>>({})
   const orphans = data?.orphans ?? []
 
@@ -68,10 +70,12 @@ function MaintenanceSection({ record, manifestOwned }: { record: SeedRecordDTO; 
   return (
     <section className="space-y-2">
       <header className="space-y-1">
-        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t("seedBuilder.dangerZone.maintenance.title")}
-          <Badge variant="outline" className="normal-case tracking-normal">{t("seedBuilder.dangerZone.maintenance.badge")}</Badge>
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("seedBuilder.dangerZone.maintenance.title")}
+          </h3>
+          <Badge variant="outline">{t("seedBuilder.dangerZone.maintenance.badge")}</Badge>
+        </div>
         <p className="text-xs text-muted-foreground">{t("seedBuilder.dangerZone.maintenance.subtitle")}</p>
       </header>
 
@@ -80,7 +84,7 @@ function MaintenanceSection({ record, manifestOwned }: { record: SeedRecordDTO; 
       <div className="grid grid-cols-[minmax(0,1fr)_auto] divide-y overflow-hidden rounded-lg border">
         <div className="col-span-full grid grid-cols-subgrid items-center gap-x-3 p-3">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">{t("seedBuilder.dangerZone.ftsRebuild.title")}</p>
+            <h4 className="text-sm font-medium">{t("seedBuilder.dangerZone.ftsRebuild.title")}</h4>
             <p className="text-xs text-muted-foreground">{t("seedBuilder.dangerZone.ftsRebuild.description")}</p>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={handleRebuild} disabled={rebuildFts.isPending} className="w-full whitespace-nowrap">
@@ -92,10 +96,10 @@ function MaintenanceSection({ record, manifestOwned }: { record: SeedRecordDTO; 
         <div className="col-span-full grid grid-cols-subgrid">
           <div className="col-span-full grid grid-cols-subgrid items-center gap-x-3 p-3">
             <div className="min-w-0">
-              <p className="flex items-center gap-2 text-sm font-medium">
-                {t("seedBuilder.dangerZone.orphans.title")}
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-medium">{t("seedBuilder.dangerZone.orphans.title")}</h4>
                 <Badge variant="secondary">{orphans.length}</Badge>
-              </p>
+              </div>
               <p className="text-xs text-muted-foreground">{t("seedBuilder.dangerZone.orphans.description")}</p>
             </div>
             <ButtonGroup className="w-full">
@@ -108,7 +112,7 @@ function MaintenanceSection({ record, manifestOwned }: { record: SeedRecordDTO; 
                 <TooltipContent side="top">{t("seedBuilder.dangerZone.orphans.refreshButton")}</TooltipContent>
               </Tooltip>
               {/* The width is always that of "Review": the invisible label sizes the button, the current one sits over it. */}
-              <Button type="button" variant="outline" size="sm" className="relative flex-1 whitespace-nowrap" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+              <Button type="button" variant="outline" size="sm" className="relative flex-1 whitespace-nowrap" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={listId}>
                 <span className="invisible" aria-hidden>{t("seedBuilder.dangerZone.orphans.review")}</span>
                 <span className="absolute inset-0 flex items-center justify-center">
                   {open ? t("seedBuilder.dangerZone.orphans.hide") : t("seedBuilder.dangerZone.orphans.review")}
@@ -119,11 +123,11 @@ function MaintenanceSection({ record, manifestOwned }: { record: SeedRecordDTO; 
 
           {/* Always mounted: the row grows from 0fr to 1fr, so the list slides out from under the row above. */}
           <div
+            id={listId}
             className={cn(
               "col-span-full grid transition-[grid-template-rows] ease-out motion-reduce:transition-none",
               open ? "grid-rows-[1fr] duration-[220ms]" : "grid-rows-[0fr] duration-[176ms]"
             )}
-            aria-hidden={!open}
             inert={!open}
           >
             <div
@@ -132,33 +136,40 @@ function MaintenanceSection({ record, manifestOwned }: { record: SeedRecordDTO; 
                 open ? "translate-y-0 opacity-100 duration-[220ms]" : "-translate-y-2 opacity-0 duration-[176ms]"
               )}
             >
-            <div className="col-span-full space-y-2 border-t bg-muted/30 p-3">
-              {orphans.length === 0 ? (
-                <p className="text-xs italic text-muted-foreground">{t("seedBuilder.dangerZone.orphans.empty")}</p>
-              ) : (
-                orphans.map((column) => (
-                  <div key={column} className="flex items-center gap-2">
-                    <code className="flex-1 text-xs">{column}</code>
-                    <Input
-                      value={confirms[column] ?? ""}
-                      onChange={(e) => setConfirms((prev) => ({ ...prev, [column]: e.target.value }))}
-                      placeholder={`${record.slug}.${column}`}
-                      className="w-52 font-mono text-xs"
-                      autoComplete="off"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      disabled={manifestOwned || confirms[column] !== `${record.slug}.${column}` || dropOrphan.isPending}
-                      onClick={() => void handleDrop(column)}
-                    >
-                      {t("seedBuilder.dangerZone.orphans.dropButton")}
-                    </Button>
-                  </div>
-                ))
-              )}
-            </div>
+              <div className="border-t bg-muted/30 p-3">
+                {orphans.length === 0 ? (
+                  <p className="text-xs italic text-muted-foreground">{t("seedBuilder.dangerZone.orphans.empty")}</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {orphans.map((column) => {
+                      const expected = `${record.slug}.${column}`
+                      const placeholder = t("seedBuilder.dangerZone.dropField.confirmPlaceholder", { expected })
+                      return (
+                        <li key={column} className="flex items-center gap-2">
+                          <code className="flex-1 text-xs">{column}</code>
+                          <Input
+                            aria-label={placeholder}
+                            value={confirms[column] ?? ""}
+                            onChange={(e) => setConfirms((prev) => ({ ...prev, [column]: e.target.value }))}
+                            placeholder={placeholder}
+                            className="w-52 font-mono text-xs"
+                            autoComplete="off"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            disabled={manifestOwned || confirms[column] !== expected || dropOrphan.isPending}
+                            onClick={() => void handleDrop(column)}
+                          >
+                            {t("seedBuilder.dangerZone.orphans.dropButton")}
+                          </Button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -178,14 +189,17 @@ function FieldOperations({ record, disabled, onChooseDisplayName }: { record: Se
   const selected = branches.find((b) => b.id === selectedId) ?? branches[0] ?? null
 
   return (
-    <section className={cn("space-y-2", disabled && "pointer-events-none opacity-50")} aria-disabled={disabled}>
+    // `inert` takes the whole section out of reach, keyboard included: pointer-events alone would leave it tabbable.
+    <section className={cn("space-y-2", disabled && "opacity-50")} inert={disabled}>
       <header className="space-y-1">
-        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t("seedBuilder.dangerZone.fieldOps.title")}
-          <Badge variant="outline" className="border-amber-500/50 normal-case tracking-normal text-amber-500">
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("seedBuilder.dangerZone.fieldOps.title")}
+          </h3>
+          <Badge variant="outline" className="border-amber-500/50 text-amber-500">
             {t("seedBuilder.dangerZone.fieldOps.badge")}
           </Badge>
-        </h3>
+        </div>
         <p className="text-xs text-muted-foreground">{t("seedBuilder.dangerZone.fieldOps.subtitle")}</p>
       </header>
 
@@ -198,16 +212,15 @@ function FieldOperations({ record, disabled, onChooseDisplayName }: { record: Se
           {/* Four rows are visible (3.375rem each, 0.375rem apart, plus the 0.5rem of padding): that is what lets the whole tab fit the
               dialog without scrolling the page. The rest of the list scrolls. */}
           <ScrollArea className="-m-1 max-h-[15.125rem] self-start">
-            <div className="space-y-1.5 p-1 pr-3" role="listbox" aria-label={t("seedBuilder.dangerZone.fieldOps.title")}>
+            <ul className="space-y-1.5 p-1 pr-3" aria-label={t("seedBuilder.dangerZone.fieldOps.title")}>
               {branches.map((branch) => {
                 const Icon = FIELD_TYPE_ICONS[branch.type]
                 const active = branch.id === selected?.id
                 return (
+                  <li key={branch.id}>
                   <button
-                    key={branch.id}
                     type="button"
-                    role="option"
-                    aria-selected={active}
+                    aria-current={active}
                     onClick={() => setSelectedId(branch.id)}
                     className={cn(
                       "flex h-[3.375rem] w-full items-center gap-3 rounded-control border bg-card px-3 text-left transition-colors",
@@ -221,9 +234,10 @@ function FieldOperations({ record, disabled, onChooseDisplayName }: { record: Se
                     </span>
                     <IconBadgeGroup items={fieldBadges(branch, t)} moreLabel={(count) => t("rbac.roles.moreRoles", "+{{count}} more", { count })} />
                   </button>
+                  </li>
                 )
               })}
-            </div>
+            </ul>
           </ScrollArea>
 
           {selected && <FieldOperationPanel key={selected.id} branch={selected} slug={slug} displayNameAlias={record.definition.displayNameAlias} onChooseDisplayName={onChooseDisplayName} />}
@@ -270,20 +284,17 @@ function FieldOperationPanel({ branch, slug, displayNameAlias, onChooseDisplayNa
   }
 
   const segment = (op: Operation, label: string) => (
-    <button
+    <TabsPrimitive.Trigger
       key={op}
-      type="button"
-      role="tab"
-      aria-selected={mode === op}
+      value={op}
       disabled={blocked[op] !== undefined}
-      onClick={() => setMode(op)}
       className={cn(
-        "relative z-10 flex-1 rounded-[calc(var(--radius-control)-3px)] px-3 py-1 text-sm text-muted-foreground transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40",
+        "relative z-10 flex-1 rounded-[calc(var(--radius-control)-3px)] px-3 py-1 text-sm text-muted-foreground outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-40",
         mode === op && (op === "drop" ? "text-destructive" : "text-foreground")
       )}
     >
       {label}
-    </button>
+    </TabsPrimitive.Trigger>
   )
 
   const effectiveMode = blocked[mode] ? "rename" : mode
@@ -316,8 +327,8 @@ function FieldOperationPanel({ branch, slug, displayNameAlias, onChooseDisplayNa
   return (
     <div className="self-start rounded-[calc(var(--radius-control)+7px)] border bg-card">
       <ScrollArea className="max-h-[calc(15.125rem-2px)]">
-        <div className="space-y-3 p-1.5">
-          <div role="tablist" className="relative flex gap-0.5 rounded-control border p-0.5">
+        <TabsPrimitive.Root value={mode} onValueChange={(value) => setMode(value as Operation)} className="space-y-3 p-1.5">
+          <TabsPrimitive.List aria-label={t("seedBuilder.dangerZone.fieldOps.title")} className="relative flex gap-0.5 rounded-control border p-0.5">
             {/* The pill slides under the tabs: three equal columns of (100% - 4px padding - 4px gaps) / 3, moved by one column
                 plus one gap per step. */}
             <span
@@ -331,7 +342,7 @@ function FieldOperationPanel({ branch, slug, displayNameAlias, onChooseDisplayNa
             {segment("rename", t("seedBuilder.dangerZone.fieldOps.rename"))}
             {segment("retype", t("seedBuilder.dangerZone.fieldOps.retype"))}
             {segment("drop", t("seedBuilder.dangerZone.fieldOps.drop"))}
-          </div>
+          </TabsPrimitive.List>
 
           {(blocked.retype || blocked.drop) && (
             <ul className="space-y-0.5 px-1.5 text-xs text-amber-500">
@@ -352,6 +363,7 @@ function FieldOperationPanel({ branch, slug, displayNameAlias, onChooseDisplayNa
             </ul>
           )}
 
+          <TabsPrimitive.Content value={mode} className="space-y-3 outline-none">
           {effectiveMode === "rename" && (
             <>
               <Impact tone="warn" title={t("seedBuilder.dangerZone.rename.impactTitle")} body={t("seedBuilder.dangerZone.rename.impactBody")} />
@@ -402,7 +414,8 @@ function FieldOperationPanel({ branch, slug, displayNameAlias, onChooseDisplayNa
               </div>
             </>
           )}
-        </div>
+          </TabsPrimitive.Content>
+        </TabsPrimitive.Root>
       </ScrollArea>
     </div>
   )
@@ -410,7 +423,7 @@ function FieldOperationPanel({ branch, slug, displayNameAlias, onChooseDisplayNa
 
 function Impact({ tone, title, body }: { tone: "warn" | "danger"; title: string; body: string }) {
   return (
-    <div className={cn("mx-1.5 space-y-0.5 border-l-2 py-1 pl-3 text-sm", tone === "danger" ? "border-destructive" : "border-amber-500")}>
+    <div role="note" className={cn("mx-1.5 space-y-0.5 border-l-2 py-1 pl-3 text-sm", tone === "danger" ? "border-destructive" : "border-amber-500")}>
       <p className="font-medium">{title}</p>
       <p className="text-xs text-muted-foreground">{body}</p>
     </div>

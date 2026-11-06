@@ -84,9 +84,15 @@ function SwitchRow({
     <div className="flex items-center justify-between gap-6">
       <div className="min-w-0 space-y-0.5">
         <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
-        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+        {hint && <p id={`${id}-hint`} className="text-xs text-muted-foreground">{hint}</p>}
       </div>
-      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} className="shrink-0" />
+      <Switch
+        id={id}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        aria-describedby={hint ? `${id}-hint` : undefined}
+        className="shrink-0"
+      />
     </div>
   )
 }
@@ -148,18 +154,16 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
   }
 
   // A tab slides in from the side it sits on, relative to the one just left: later tabs come from the right.
-  const stepOrder: readonly string[] = editRecord ? [...SEED_FORM_STEPS, "danger"] : SEED_FORM_STEPS
-  const previousStep = React.useRef(form.step)
-  const forward = stepOrder.indexOf(form.step) >= stepOrder.indexOf(previousStep.current)
-  React.useEffect(() => {
-    previousStep.current = form.step
-  }, [form.step])
+  const steps = editRecord ? ([...SEED_FORM_STEPS, "danger"] as const) : SEED_FORM_STEPS
+  const [stepMove, setStepMove] = React.useState<{ step: string; forward: boolean }>({ step: form.step, forward: true })
+  if (stepMove.step !== form.step) {
+    // Derived during render, so the new tab already mounts with the right direction.
+    setStepMove({ step: form.step, forward: (steps as readonly string[]).indexOf(form.step) >= (steps as readonly string[]).indexOf(stepMove.step) })
+  }
   const enter = cn(
     "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200",
-    forward ? "motion-safe:slide-in-from-right-2" : "motion-safe:slide-in-from-left-2"
+    stepMove.forward ? "motion-safe:slide-in-from-right-2" : "motion-safe:slide-in-from-left-2"
   )
-
-  const steps = editRecord ? ([...SEED_FORM_STEPS, "danger"] as const) : SEED_FORM_STEPS
 
   return (
     <>
@@ -268,11 +272,13 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                               data-enter-next=""
                               value={slug}
                               readOnly={!isCreate}
+                              aria-invalid={form.slugTaken || undefined}
+                              aria-describedby={form.slugTaken ? "sf-slug-hint sf-slug-error" : "sf-slug-hint"}
                               onChange={(e) => form.setSlug(e.target.value)}
                               className="pl-0"
                             />
                           </InputGroup>
-                          {form.slugTaken && <FieldError>{t("seedBuilder.editor.slugTaken")}</FieldError>}
+                          {form.slugTaken && <FieldError id="sf-slug-error">{t("seedBuilder.editor.slugTaken")}</FieldError>}
                         </Field>
                         <Field>
                           <FieldLabel htmlFor="sf-plural">{t("seedBuilder.editor.labelPlural")}</FieldLabel>
@@ -285,7 +291,7 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                           />
                         </Field>
                       </div>
-                      <FieldDescription>{t("seedBuilder.editor.hints.slug")}</FieldDescription>
+                      <FieldDescription id="sf-slug-hint">{t("seedBuilder.editor.hints.slug")}</FieldDescription>
                     </FieldGroup>
 
                     <SwitchRow
@@ -297,10 +303,10 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                     />
 
                     {/* Anonymous visitors: a layer apart from roles (RBAC) */}
-                    <section className="space-y-3 rounded-lg border bg-muted/30 p-4">
+                    <section aria-labelledby="sf-public-title" className="space-y-3 rounded-lg border bg-muted/30 p-4">
                       <div className="space-y-1">
-                        <h3 className="flex items-center gap-2 text-sm font-medium">
-                          <Globe className="size-4 shrink-0 text-muted-foreground" />
+                        <h3 id="sf-public-title" className="flex items-center gap-2 text-sm font-medium">
+                          <Globe aria-hidden className="size-4 shrink-0 text-muted-foreground" />
                           {t("seedBuilder.editor.publicAccessTitle")}
                         </h3>
                         <p className="text-xs text-muted-foreground">{t("seedBuilder.editor.publicAccessDescription")}</p>
@@ -371,6 +377,7 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                               data-enter-next=""
                               type="number"
                               min={0}
+                              aria-describedby="sf-order-hint"
                               value={dashOrder ?? ""}
                               placeholder={String(DEFAULT_SIDEBAR_ORDER)}
                               onChange={(e) =>
@@ -379,7 +386,7 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                             />
                           </Field>
                         </div>
-                        <p className="-mt-2 text-xs text-muted-foreground">{t("seedBuilder.editor.dashOrderHint")}</p>
+                        <p id="sf-order-hint" className="-mt-2 text-xs text-muted-foreground">{t("seedBuilder.editor.dashOrderHint")}</p>
                         <Field>
                           <FieldLabel htmlFor="sf-description">{t("seedBuilder.editor.dashDescription")}</FieldLabel>
                           <Input
@@ -406,7 +413,7 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                     </div>
 
                     <div className="space-y-3 border-t pt-5">
-                      <p className="text-sm font-medium">{t("seedBuilder.editor.dashViewsSection")}</p>
+                      <h3 className="text-sm font-medium">{t("seedBuilder.editor.dashViewsSection")}</h3>
                       <ViewsPicker
                         selected={authorizedViews}
                         onToggle={(view, checked) => setField(`dash_view_${view}`, checked)}
@@ -424,8 +431,8 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
             </Tabs>
 
             {form.step === "danger" && editRecord ? (
-              <div className="flex flex-shrink-0 items-center justify-between gap-3 border-t px-6 py-4">
-                <p className="text-xs text-muted-foreground">
+              <footer className="flex flex-shrink-0 items-center justify-between gap-3 border-t px-6 py-4">
+                <p id="sf-delete-hint" className="text-xs text-muted-foreground">
                   {editRecord.source === "code"
                     ? t("seedBuilder.dangerZone.hardDelete.manifestHint")
                     : t("seedBuilder.dangerZone.hardDelete.footerHint")}
@@ -434,14 +441,15 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                   type="button"
                   variant="destructive"
                   disabled={editRecord.source === "code"}
+                  aria-describedby="sf-delete-hint"
                   onClick={() => setDeleteOpen(true)}
                 >
                   <Trash2 className="size-4" />
                   {t("seedBuilder.dangerZone.hardDelete.footerButton")}
                 </Button>
-              </div>
+              </footer>
             ) : (
-              <div className="flex flex-shrink-0 items-center justify-between gap-3 border-t px-6 py-4">
+              <footer className="flex flex-shrink-0 items-center justify-between gap-3 border-t px-6 py-4">
                 <div className="flex items-center gap-3">
                   {isCreate && form.step !== SEED_FORM_STEPS[0] && (
                     <Button type="button" variant="outline" onClick={form.goBack}>
@@ -468,7 +476,7 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                     </Button>
                   )}
                 </div>
-              </div>
+              </footer>
             )}
           </form>
         </DialogContent>
@@ -477,7 +485,14 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
       <HardDeleteDialog seed={editRecord ?? null} open={deleteOpen} onOpenChange={setDeleteOpen} onDeleted={onClose} />
 
       {/* Leaving with unsaved edits: closing the dialog, or navigating away */}
-      <AlertDialog open={form.confirmDiscardOpen || form.blocker.state === "blocked"}>
+      <AlertDialog
+        open={form.confirmDiscardOpen || form.blocker.state === "blocked"}
+        onOpenChange={(next) => {
+          if (next) return
+          form.setConfirmDiscardOpen(false)
+          form.blocker.reset?.()
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("content.editor.unsavedTitle")}</AlertDialogTitle>

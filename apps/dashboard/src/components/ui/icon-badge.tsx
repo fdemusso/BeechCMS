@@ -30,6 +30,7 @@ export function IconBadge({ icon: Icon, label, className }: IconBadgeProps) {
             "transition-colors leading-none size-6 p-0 inline-flex items-center justify-center rounded-md [&>svg]:size-4!",
             className
           )}
+          role="img"
           aria-label={label}
         >
           <Icon size={16} className="shrink-0 block" />
