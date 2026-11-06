@@ -18,10 +18,9 @@ import type { Branch, BranchType, Seed } from "@beechcms/core"
 import { Plus } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ButtonGroup } from "@/components/ui/button-group"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
 import { BranchEditorForm } from "@/components/fields"
 import { useSettingsDialog } from "@/features/settings"
 import { branchIssue, deriveAlias } from "../lib/field-alias"
@@ -162,32 +161,36 @@ export function FieldsStep({
           }}
           className="min-w-40 flex-1"
         />
-        {/* Like the keys of a tape recorder: the chosen type stays pressed, the others fade back. */}
-        <ButtonGroup role="radiogroup" aria-label={t("seedBuilder.branchEditor.type")}>
+        {/* Like the keys of a tape recorder: the chosen type stays pressed, the others fade back. A ToggleGroup gives the
+            radio semantics, the roving focus and the arrow keys; the classes give it back the look of attached buttons. */}
+        <ToggleGroup
+          type="single"
+          value={type}
+          // A single group lets the pressed item be pressed again, which would leave no type: it stays as it is.
+          onValueChange={(value) => value && setType(value as BranchType)}
+          variant="outline"
+          spacing={0}
+          aria-label={t("seedBuilder.branchEditor.type")}
+          className="rounded-control"
+        >
           {FIELD_TYPES.map((fieldType) => {
             const Icon = FIELD_TYPE_ICONS[fieldType]
-            const active = fieldType === type
             return (
               <Tooltip key={fieldType}>
                 <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
+                  <ToggleGroupItem
+                    value={fieldType}
                     aria-label={t(`seedBuilder.fieldTypes.${fieldType}`)}
-                    variant={active ? "default" : "outline"}
-                    size="icon"
-                    onClick={() => setType(fieldType)}
-                    className={cn(!active && "text-muted-foreground hover:text-foreground")}
+                    className="size-8 px-0 text-muted-foreground group-data-horizontal/toggle-group:data-[spacing=0]:first:rounded-l-control group-data-horizontal/toggle-group:data-[spacing=0]:last:rounded-r-control data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary/90"
                   >
                     <Icon className="size-4" />
-                  </Button>
+                  </ToggleGroupItem>
                 </TooltipTrigger>
                 <TooltipContent side="top">{t(`seedBuilder.fieldTypes.${fieldType}`)}</TooltipContent>
               </Tooltip>
             )
           })}
-        </ButtonGroup>
+        </ToggleGroup>
         <Button type="button" variant="outline" onClick={addField} disabled={!name.trim()}>
           <Plus className="size-4" />
           {t("seedBuilder.fields.add")}
