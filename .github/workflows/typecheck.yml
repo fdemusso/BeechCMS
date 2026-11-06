@@ -4,8 +4,10 @@ name: Type Check
 # and pull requests targeting it). Runs `pnpm type-check` (turbo: each package's own `type-check`
 # script).
 #
-# apps/api checks its test files too (tsconfig.json); several packages exclude tests in their own
-# tsconfig, so their tests are not covered. The local pre-push hook only warns; this job fails.
+# Test files are type-checked too. Packages whose build tsconfig.json excludes tests (client, core,
+# search-client, testing, widget-sdk, forms-react) have a tsconfig.typecheck.json that extends it
+# and includes them; their `type-check` script uses it. Keep that file when adding a package that
+# excludes tests from its build. The local pre-push hook only warns; this job fails.
 # For it to actually gate merges, mark "Type Check / tsc" as a required status check on master.
 on:
   push:

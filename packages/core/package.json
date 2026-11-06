@@ -31,7 +31,7 @@
     "build": "tsc",
     "dev": "tsc -w --preserveWatchOutput",
     "lint": "eslint .",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc -p tsconfig.typecheck.json",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage"

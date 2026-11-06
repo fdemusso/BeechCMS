@@ -200,6 +200,7 @@ describe('validateCardConfigAgainstSeed', () => {
       bigSeed,
     )
     expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected ok: false')
     expect(result.cleaned.metadata).toHaveLength(METADATA_SLOT_CAP)
     expect(result.errors.some((e: string) => e.includes('cap'))).toBe(true)
   })
@@ -210,6 +211,7 @@ describe('validateCardConfigAgainstSeed', () => {
       mockSeed,
     )
     expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected ok: false')
     expect(result.errors.some((e) => e.includes('br_01'))).toBe(true)
     expect(result.cleaned.header?.branchId).toBe('br_01')
     expect(result.cleaned.subtitle).toBeNull()
@@ -266,6 +268,7 @@ describe('validateLayoutAgainstSeed', () => {
     const emptyLayout = {} as any
     const result = validateLayoutAgainstSeed(emptyLayout, mockSeed)
     expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected ok: false')
     expect(result.errors[0]).toContain('Invalid layout structure')
     expect(result.cleaned.tabs).toBeDefined()
     expect(result.cleaned.tabs.length).toBeGreaterThan(0)
@@ -354,6 +357,7 @@ describe('validateLayoutAgainstSeed', () => {
 
     const result = validateLayoutAgainstSeed(layout, seedWithJson)
     expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected ok: false')
     expect(result.errors.some((e: string) => e.includes('must occupy a dedicated section'))).toBe(true)
   })
 
@@ -388,6 +392,7 @@ describe('validateLayoutAgainstSeed', () => {
 
     const result = validateLayoutAgainstSeed(layout, seedWithJson)
     expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected ok: false')
     expect(result.errors.some((e: string) => e.includes('must occupy a single-column section'))).toBe(true)
   })
 })
@@ -498,13 +503,13 @@ describe('generateDefaultLayout', () => {
   })
 
   it('leaves the layout unchanged when two image file branches exist', () => {
-    const seed = {
+    const seed = defineSeed({
       ...COVER_SEED,
       branches: [
         ...COVER_SEED.branches,
         { id: 'br_05', alias: 'image2', label: 'Image 2', type: 'file', fileOptions: { accept: 'image' } },
       ],
-    }
+    })
 
     const layout = generateDefaultLayout(seed, { newId: makeIdCounter() })
     const dataTab = layout.tabs[0]
