@@ -41,6 +41,11 @@ if (typeof globalThis.ResizeObserver === "undefined") {
 }
 
 if (typeof window !== "undefined") {
+  // Drafts and other per-browser state kept in localStorage must not leak from one test into the next.
+  afterEach(() => {
+    localStorage.clear()
+  })
+
   if (!window.HTMLElement.prototype.scrollIntoView) {
     window.HTMLElement.prototype.scrollIntoView = function() {};
   }

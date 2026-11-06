@@ -2,15 +2,20 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useState } from "react"
-import { useTranslation } from "react-i18next"
+import { useState, type ComponentType, type ReactNode } from "react"
+import { Trans, useTranslation } from "react-i18next"
 import { LOCALIZABLE_BRANCH_TYPES, isImageMediaBranch, isSingleChoiceTags, resolvePolicies, tagOptionsIssues, TAG_OPTIONS_MAX_COUNT, type Branch, type DataClassification, type Seed } from "@beechcms/core"
-import { ChevronDown, ChevronUp, Trash2 } from "@/components/icons"
+import { ChevronDown, ChevronUp, Filter, Globe, HelpCircle, Key, Lock, Search, Shield, SortAsc, Trash2 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ButtonGroup } from "@/components/ui/button-group"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 import { FieldEditRepeater } from "./repeater"
 import { localizationBlocker, type LocalizationBlocker } from "./repeater-localization"
 
@@ -443,6 +448,12 @@ export interface PoliciesOptionsFormProps {
 
 const CLASSIFICATIONS: DataClassification[] = ["public", "internal", "confidential", "restricted"]
 
+/** One icon per tier, from open (globe) to sealed (key). */
+const CLASSIFICATION_ICONS = { public: Globe, internal: Shield, confidential: Lock, restricted: Key } as const
+
+const POLICY_FLAGS = ["search", "filter", "sort", "public"] as const
+const POLICY_FLAG_ICONS = { search: Search, filter: Filter, sort: SortAsc, public: Globe } as const
+
 /**
  * Form fragment for configuring CRUD, privacy, and search index policies on top-level branch fields.
  */
@@ -534,83 +545,133 @@ export function PoliciesOptionsForm({
     })
   }
 
+  const lockedNotice = !tableEmpty
+    ? initialClassification === "confidential"
+      ? t("seedBuilder.policies.classification_locked_encrypted")
+      : initialClassification === "restricted"
+        ? t("seedBuilder.policies.classification_locked_restricted")
+        : t("seedBuilder.policies.classification_locked_entries")
+    : null
+
   return (
-    <div className="space-y-3 rounded-lg border p-2.5">
-      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.policies")}</p>
+    // Nested in the field panel (a surface, rounded-lg): it takes the corner of the controls beside it.
+    <div className="space-y-3 rounded-control border p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium">{t("seedBuilder.branchEditor.policies")}</p>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("seedBuilder.policies.help")}
+              className="-my-1 text-muted-foreground"
+            >
+              <HelpCircle className="size-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 space-y-3 p-3 text-xs">
+            <section className="space-y-1.5">
+              <p className="font-medium">{t("seedBuilder.policies.classification")}</p>
+              {CLASSIFICATIONS.map((c) => {
+                const Icon = CLASSIFICATION_ICONS[c]
+                return (
+                  <div key={c} className="flex gap-2">
+                    <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <p>
+                      <span className="font-medium">{t(`seedBuilder.policies.classification_${c}`)}</span>
+                      <span className="text-muted-foreground"> — {t(`seedBuilder.policies.classification_${c}_desc`)}</span>
+                    </p>
+                  </div>
+                )
+              })}
+            </section>
+            <section className="space-y-1.5 border-t pt-3">
+              <p className="font-medium">{t("seedBuilder.policies.flagsTitle")}</p>
+              {POLICY_FLAGS.map((pol) => {
+                const Icon = POLICY_FLAG_ICONS[pol]
+                return (
+                  <div key={pol} className="flex items-center gap-2">
+                    <Icon className="size-4 shrink-0 text-muted-foreground" />
+                    {t(`seedBuilder.policies.${pol}`)}
+                  </div>
+                )
+              })}
+            </section>
+            {lockedNotice && (
+              <p className="border-t pt-3 text-amber-600 dark:text-amber-400">{lockedNotice}</p>
+            )}
+          </PopoverContent>
+        </Popover>
+      </div>
 
-      {/* Primary Selector: Data Classification */}
-      <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <Label className="text-xs">{t("seedBuilder.policies.classification")}</Label>
-          {effective.privacy === "encrypt" && (
-            <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-              {t("seedBuilder.policies.storage_encrypted")}
-            </span>
-          )}
-        </div>
-        <Select
-          value={effective.classification}
-          onValueChange={(v) => handleClassificationChange(v as DataClassification)}
-        >
-          <SelectTrigger className="h-7 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
+      <TooltipProvider delayDuration={150}>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {/* Privacy tier: single choice, like the keys of a tape recorder */}
+          <ButtonGroup role="radiogroup" aria-label={t("seedBuilder.policies.classification")}>
             {CLASSIFICATIONS.map((c) => (
-              <SelectItem
+              <PolicyKey
                 key={c}
-                value={c}
+                icon={CLASSIFICATION_ICONS[c]}
+                label={t(`seedBuilder.policies.classification_${c}`)}
+                role="radio"
+                active={effective.classification === c}
                 disabled={isClassificationOptionDisabled(c)}
-                className="text-xs"
-              >
-                {t(`seedBuilder.policies.classification_${c}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-[11px] text-muted-foreground">
-          {t(`seedBuilder.policies.classification_${effective.classification}_desc`)}
-        </p>
-        {!tableEmpty && isInitiallyPlain && (
-          <p className="text-[11px] text-amber-600 dark:text-amber-400">
-            {t("seedBuilder.policies.classification_locked_entries")}
-          </p>
-        )}
-        {!tableEmpty && initialClassification === "confidential" && (
-          <p className="text-[11px] text-amber-600 dark:text-amber-400">
-            {t("seedBuilder.policies.classification_locked_encrypted")}
-          </p>
-        )}
-        {!tableEmpty && initialClassification === "restricted" && (
-          <p className="text-[11px] text-amber-600 dark:text-amber-400">
-            {t("seedBuilder.policies.classification_locked_restricted")}
-          </p>
-        )}
-      </div>
-
-      {/* Advanced Flags */}
-      <div className="grid grid-cols-2 gap-2 pt-1 border-t">
-        {(["search", "filter", "sort", "public"] as const).map((pol) => {
-          const disabled = isPolicyDisabled(pol)
-          return (
-            <div key={pol} className="flex items-center gap-2">
-              <Checkbox
-                id={`policy-${branch.id}-${pol}`}
-                checked={effective[pol]}
-                disabled={disabled}
-                onCheckedChange={(v) => setPolicy(pol, !!v)}
+                onClick={() => handleClassificationChange(c)}
               />
-              <Label
-                htmlFor={`policy-${branch.id}-${pol}`}
-                className={`text-xs ${disabled ? "text-muted-foreground cursor-not-allowed opacity-70" : ""}`}
-              >
-                {t(`seedBuilder.policies.${pol}`)}
-              </Label>
-            </div>
-          )
-        })}
-      </div>
+            ))}
+          </ButtonGroup>
+
+          {/* Switches: each one stays pressed while on */}
+          <ButtonGroup aria-label={t("seedBuilder.policies.flagsTitle")}>
+            {POLICY_FLAGS.map((pol) => (
+              <PolicyKey
+                key={pol}
+                icon={POLICY_FLAG_ICONS[pol]}
+                label={t(`seedBuilder.policies.${pol}`)}
+                role="checkbox"
+                active={effective[pol]}
+                disabled={isPolicyDisabled(pol)}
+                onClick={() => setPolicy(pol, !effective[pol])}
+              />
+            ))}
+          </ButtonGroup>
+        </div>
+      </TooltipProvider>
     </div>
+  )
+}
+
+interface PolicyKeyProps {
+  icon: ComponentType<{ className?: string }>
+  label: string
+  role: "radio" | "checkbox"
+  active: boolean
+  disabled: boolean
+  onClick: () => void
+}
+
+/** An icon-only key: filled while on, faded while off, with its name as tooltip. */
+function PolicyKey({ icon: Icon, label, role, active, disabled, onClick }: PolicyKeyProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          role={role}
+          aria-checked={active}
+          aria-label={label}
+          variant={active ? "default" : "outline"}
+          size="icon"
+          disabled={disabled}
+          onClick={onClick}
+          className={cn(!active && "text-muted-foreground hover:text-foreground")}
+        >
+          <Icon className="size-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top">{label}</TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -629,6 +690,8 @@ export interface LocalizedOptionsFormProps {
   isExisting: boolean
   /** False when the seed's table already has entries. */
   tableEmpty?: boolean
+  /** Opens the content-language settings; without it the hint names them as plain text. */
+  onOpenLanguages?: () => void
 }
 
 /**
@@ -642,6 +705,7 @@ export function LocalizedOptionsForm({
   subField = false,
   isExisting,
   tableEmpty = true,
+  onOpenLanguages,
 }: LocalizedOptionsFormProps) {
   const { t } = useTranslation()
   const [showDisableWarning, setShowDisableWarning] = useState(false)
@@ -659,20 +723,31 @@ export function LocalizedOptionsForm({
     onChange(next)
   }
 
-  let hint = t("seedBuilder.branchEditor.localizedHint")
+  let hint: ReactNode = (
+    <Trans
+      i18nKey="seedBuilder.branchEditor.localizedHint"
+      components={{
+        languages: onOpenLanguages ? (
+          <button type="button" onClick={onOpenLanguages} className="underline underline-offset-2 hover:text-foreground" />
+        ) : (
+          <span />
+        ),
+      }}
+    />
+  )
   if (blocker === "sub-field") hint = t("seedBuilder.branchEditor.localizedBlockedSubField")
   if (blocker === "classification") hint = t("seedBuilder.branchEditor.localizedBlockedClassification")
 
   return (
-    <div className="space-y-1 rounded-lg border p-2">
-      <div className="flex items-center gap-2">
-        <Checkbox
+    <div className="space-y-1 border-t pt-3">
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <Label htmlFor={checkboxId} className="text-xs">{t("seedBuilder.branchEditor.localized")}</Label>
+        <Switch
           id={checkboxId}
           checked={branch.localized === true}
           disabled={blocker !== null}
-          onCheckedChange={(value) => handleToggle(value === true)}
+          onCheckedChange={handleToggle}
         />
-        <Label htmlFor={checkboxId} className="text-xs">{t("seedBuilder.branchEditor.localized")}</Label>
       </div>
       <p className="text-[11px] text-muted-foreground">{hint}</p>
       {showDisableWarning && (

@@ -3,13 +3,12 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { Globe } from "@/components/icons"
+import { Globe, Key } from "@/components/icons"
 import { GLOBAL_SCOPE, type Permission } from "@beechcms/core"
 import { Badge } from "@/components/ui/badge"
+import { IconBadge, IconBadgeGroup } from "@/components/ui/icon-badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import { useHoverPopover } from "@/hooks/use-hover-popover"
 import { resolveIcon } from "@/lib/icon-registry"
 import { useSchema } from "@/features/shared"
 import { PERMISSION_METADATA } from "./permission-metadata"
@@ -30,22 +29,18 @@ export function PermissionBadge({
   const Icon = meta?.icon
   const label = meta ? t(meta.translationKey, meta.defaultLabel) : permission
 
+  if (!showLabel) return <IconBadge icon={Icon ?? Key} label={label} className={className} />
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Badge
           variant="secondary"
-          className={cn(
-            "transition-colors leading-none",
-            showLabel
-              ? "h-5 px-1.5 inline-flex items-center gap-1 text-[10px]"
-              : "size-6 p-0 inline-flex items-center justify-center rounded-md",
-            className
-          )}
+          className={cn("transition-colors leading-none h-5 px-1.5 inline-flex items-center gap-1 text-[10px]", className)}
           aria-label={label}
         >
           {Icon ? <Icon size={14} className="!size-3.5 shrink-0 block" /> : null}
-          {showLabel && <span className="text-[10px]">{label}</span>}
+          <span className="text-[10px]">{label}</span>
         </Badge>
       </TooltipTrigger>
       <TooltipContent side="top">
@@ -53,6 +48,11 @@ export function PermissionBadge({
       </TooltipContent>
     </Tooltip>
   )
+}
+
+function permissionBadge(permission: string, t: (key: string, fallback: string) => string) {
+  const meta = PERMISSION_METADATA[permission as Permission]
+  return { id: permission, icon: meta?.icon ?? Key, label: meta ? t(meta.translationKey, meta.defaultLabel) : permission }
 }
 
 export interface PermissionBadgeGroupProps {
@@ -68,58 +68,13 @@ export function PermissionBadgeGroup({
   className,
 }: PermissionBadgeGroupProps) {
   const { t } = useTranslation()
-  const { open, onOpenChange, triggerProps } = useHoverPopover()
-
-  if (permissions.length === 0) {
-    return <span className="text-xs text-muted-foreground">—</span>
-  }
-
-  const shouldTruncate = permissions.length > max
-  const visibleCount = shouldTruncate ? max - 1 : permissions.length
-  const visible = permissions.slice(0, visibleCount)
-  const remaining = permissions.slice(visibleCount)
-
-  const isSingle = !shouldTruncate && visible.length === 1
-
   return (
-    <div className={cn("flex items-center -space-x-1.5", isSingle && "justify-center", className)}>
-      {visible.map((permission) => (
-        <div
-          key={permission}
-          className="relative ring-1 ring-border rounded-md transition-transform hover:z-10 hover:scale-105"
-        >
-          <PermissionBadge permission={permission} />
-        </div>
-      ))}
-
-      {shouldTruncate && (
-        <Popover open={open} onOpenChange={onOpenChange}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              {...triggerProps}
-              className="relative z-0 ring-1 ring-border size-6 rounded-md bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground text-[10px] font-semibold inline-flex items-center justify-center transition-transform hover:z-10 hover:scale-105 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={t("rbac.roles.morePermissions", "+{{count}} more", { count: remaining.length })}
-            >
-              +{remaining.length}
-            </button>
-          </PopoverTrigger>
-
-          <PopoverContent
-            align="start"
-            side="top"
-            {...triggerProps}
-            className="w-auto p-2 shadow-lg border-border/80 bg-popover"
-          >
-            <div className="flex items-center gap-1.5">
-              {remaining.map((permission) => (
-                <PermissionBadge key={permission} permission={permission} />
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-      )}
-    </div>
+    <IconBadgeGroup
+      items={permissions.map((permission) => permissionBadge(permission, t))}
+      max={max}
+      moreLabel={(count) => t("rbac.roles.morePermissions", "+{{count}} more", { count })}
+      className={className}
+    />
   )
 }
 
@@ -139,21 +94,5 @@ export function ScopeBadge({ scope, className }: ScopeBadgeProps) {
     ? t("rbac.scope.global", "All seeds (global)")
     : seed?.labelPlural ?? seed?.label ?? scope
 
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Badge
-          variant="secondary"
-          className={cn(
-            "transition-colors leading-none size-6 p-0 inline-flex items-center justify-center rounded-md",
-            className
-          )}
-          aria-label={label}
-        >
-          <Icon size={14} className="!size-3.5 shrink-0 block" />
-        </Badge>
-      </TooltipTrigger>
-      <TooltipContent side="top">{label}</TooltipContent>
-    </Tooltip>
-  )
+  return <IconBadge icon={Icon} label={label} className={className} />
 }

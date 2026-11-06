@@ -57,6 +57,7 @@ describe("seedToFormData", () => {
       dash_order: 5,
       dash_hidden: false,
       dash_description: "Articles",
+      dash_view_table: true,
       dash_view_gallery: false,
       dash_view_kanban: false,
     })
@@ -76,6 +77,17 @@ describe("formDataToSeed", () => {
     const seed = formDataToSeed(seedToFormData(record))
     // views is always emitted by formDataToSeed (defaults to ['table'])
     expect(seed).toEqual({ ...record.definition, dashboard: { ...record.definition.dashboard, views: ['table'] } })
+  })
+
+  it("carries over settings the form has no input for when editing", () => {
+    const base = {
+      ...record.definition,
+      retentionDays: 30,
+      dashboard: { ...record.definition.dashboard, features: { export: false } },
+    } as Seed
+    const seed = formDataToSeed(seedToFormData({ ...record, definition: base }), base)
+    expect(seed.retentionDays).toBe(30)
+    expect(seed.dashboard?.features).toEqual({ export: false })
   })
 
   it("strips client-only ids from new branches (br_new_*)", () => {

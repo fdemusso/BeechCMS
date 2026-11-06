@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
@@ -16,28 +16,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { ROW_HEIGHT_PX } from "@/components/ui/data-table"
 import { useSeeds } from "../hooks/use-seeds"
-import { useSeedEditorDialog } from "../hooks/use-seed-editor-dialog"
+import { SeedFormDialog } from "./SeedFormDialog"
+import { findEditDraftSlug, hasCreateDraft } from "../lib/seed-draft"
 import { DeleteSeedDialog } from "./DeleteSeedDialog"
 import { PurgeSeedDialog } from "./PurgeSeedDialog"
-import { SchemaFormShell } from "@/features/entry-editor"
 import type { SeedRecordDTO } from "../api/seeds.api"
 import type { Seed } from "@beechcms/core"
-
-interface SeedFormDialogProps {
-  open: boolean
-  editRecord: SeedRecordDTO | null
-  activeSeedsForRelation: Seed[]
-  onClose: () => void
-}
-
-// Adapter: SchemaFormShell is a controlled dialog driven by a view-model.
-// The hook must always run (stable hook order) â€” `open` gates the shell AND
-// the hook's own dirty-guard/reset, since this component stays permanently
-// mounted (see useSeedEditorDialog).
-function SeedFormDialog({ open, editRecord, activeSeedsForRelation, onClose }: SeedFormDialogProps) {
-  const vm = useSeedEditorDialog({ editRecord, activeSeedsForRelation, onClose, open })
-  return <SchemaFormShell vm={vm} open={open} />
-}
 
 export function SeedBuilderPage() {
   const { t } = useTranslation()
@@ -48,14 +32,17 @@ export function SeedBuilderPage() {
   const { data: activeSeeds = [] } = useSchema()
 
   const [showDeleted, setShowDeleted] = useState(false)
-  const [createOpen, setCreateOpen] = useState(false)
+  // A dialog left open and edited when the page reloaded reopens with its draft (see lib/seed-draft).
+  const [createOpen, setCreateOpen] = useState(hasCreateDraft)
   // Track the slug, not a record snapshot: the live record must follow the
   // ["seeds"] refetch triggered by Danger Zone mutations.
-  const [editSlug, setEditSlug] = useState<string | null>(null)
+  const [editSlug, setEditSlug] = useState<string | null>(findEditDraftSlug)
   const editRecord = editSlug ? records.find(r => r.slug === editSlug) ?? null : null
   const [deleteRecord, setDeleteRecord] = useState<SeedRecordDTO | null>(null)
   const [purgeRecord, setPurgeRecord] = useState<SeedRecordDTO | null>(null)
 
+  const takenSlugs = records.map(r => r.slug)
+  const existingSeeds = records.filter(r => r.status !== "deleted").map(r => r.definition)
   const visible = showDeleted ? records : records.filter(r => r.status !== "deleted")
 
   return (
@@ -158,7 +145,7 @@ export function SeedBuilderPage() {
                               aria-label={t("common.edit")}
                               data-testid="edit-seed-btn"
                             >
-                              <Pencil className="size-3.5" />
+                              <Pencil className="size-4" />
                             </Button>
                             {record.status === "deleted" ? (
                               <Button
@@ -169,7 +156,7 @@ export function SeedBuilderPage() {
                                 data-testid="purge-seed-btn"
                                 className="text-destructive hover:text-destructive"
                               >
-                                <Trash2 className="size-3.5" />
+                                <Trash2 className="size-4" />
                               </Button>
                             ) : (
                               <Button
@@ -180,7 +167,7 @@ export function SeedBuilderPage() {
                                 data-testid="delete-seed-btn"
                                 className="text-destructive hover:text-destructive"
                               >
-                                <Trash2 className="size-3.5" />
+                                <Trash2 className="size-4" />
                               </Button>
                             )}
                           </div>
@@ -200,6 +187,8 @@ export function SeedBuilderPage() {
         open={createOpen}
         editRecord={null}
         activeSeedsForRelation={activeSeeds as Seed[]}
+        takenSlugs={takenSlugs}
+        existingSeeds={existingSeeds}
         onClose={() => setCreateOpen(false)}
       />
 
@@ -207,6 +196,8 @@ export function SeedBuilderPage() {
         open={!!editRecord}
         editRecord={editRecord}
         activeSeedsForRelation={activeSeeds as Seed[]}
+        takenSlugs={takenSlugs}
+        existingSeeds={existingSeeds}
         onClose={() => setEditSlug(null)}
       />
 

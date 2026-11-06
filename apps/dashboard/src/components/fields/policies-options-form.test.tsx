@@ -38,7 +38,7 @@ describe("PoliciesOptionsForm", () => {
     expect(publicCheckbox).toBeEnabled()
 
     // No visibility combobox in the DOM
-    expect(screen.getAllByRole("combobox")).toHaveLength(1)
+    expect(screen.queryByRole("combobox")).toBeNull()
   })
 
   it("handles restricted classification correctly: all flags disabled and unchecked", () => {
@@ -68,11 +68,11 @@ describe("PoliciesOptionsForm", () => {
     expect(publicCheckbox).not.toBeChecked()
     expect(publicCheckbox).toBeDisabled()
 
-    // Only 1 combobox (Classification) exists — visibility is removed
-    expect(screen.getAllByRole("combobox")).toHaveLength(1)
+    // Classification is a radio group, not a select — and there is no visibility select
+    expect(screen.queryByRole("combobox")).toBeNull()
   })
 
-  it("handles confidential classification correctly: encrypted badge displayed, search/sort/public disabled, filter enabled", () => {
+  it("handles confidential classification correctly: tier selected, search/sort/public disabled, filter enabled", () => {
     const branch: Branch = {
       id: "br_ssn",
       alias: "ssn",
@@ -82,7 +82,7 @@ describe("PoliciesOptionsForm", () => {
     }
     render(<PoliciesOptionsForm branch={branch} onChange={vi.fn()} />)
 
-    expect(screen.getByText("Encrypted at rest")).toBeInTheDocument()
+    expect(screen.getByRole("radio", { name: "Confidential" })).toBeChecked()
 
     const searchCheckbox = screen.getByLabelText(/Full-text search/i)
     const filterCheckbox = screen.getByLabelText(/Filterable/i)
@@ -189,10 +189,7 @@ describe("PoliciesOptionsForm", () => {
     }
     render(<PoliciesOptionsForm branch={branch} onChange={onChange} tableEmpty={true} />)
 
-    const classificationTrigger = screen.getByRole("combobox")
-    fireEvent.click(classificationTrigger)
-
-    const restrictedOption = screen.getByRole("option", { name: "Restricted" })
+    const restrictedOption = screen.getByRole("radio", { name: "Restricted" })
     fireEvent.click(restrictedOption)
 
     expect(onChange).toHaveBeenCalledTimes(1)
@@ -211,10 +208,7 @@ describe("PoliciesOptionsForm", () => {
     }
     render(<PoliciesOptionsForm branch={branch} onChange={onChange} tableEmpty={true} />)
 
-    const classificationTrigger = screen.getByRole("combobox")
-    fireEvent.click(classificationTrigger)
-
-    const confidentialOption = screen.getByRole("option", { name: "Confidential" })
+    const confidentialOption = screen.getByRole("radio", { name: "Confidential" })
     fireEvent.click(confidentialOption)
 
     expect(onChange).toHaveBeenCalledTimes(1)
@@ -232,25 +226,24 @@ describe("PoliciesOptionsForm", () => {
     }
     render(<PoliciesOptionsForm branch={branch} onChange={vi.fn()} tableEmpty={false} />)
 
+    // The explanations live in the "?" popover
+    fireEvent.click(screen.getByRole("button", { name: "About privacy" }))
     expect(
       screen.getByText("Confidential and Restricted are only available when the table has no entries.")
     ).toBeInTheDocument()
 
-    const classificationTrigger = screen.getByRole("combobox")
-    fireEvent.click(classificationTrigger)
-
-    const publicOption = screen.getByRole("option", { name: "Public" })
-    const internalOption = screen.getByRole("option", { name: "Internal" })
-    const confidentialOption = screen.getByRole("option", { name: "Confidential" })
-    const restrictedOption = screen.getByRole("option", { name: "Restricted" })
+    const publicOption = screen.getByRole("radio", { name: "Public" })
+    const internalOption = screen.getByRole("radio", { name: "Internal" })
+    const confidentialOption = screen.getByRole("radio", { name: "Confidential" })
+    const restrictedOption = screen.getByRole("radio", { name: "Restricted" })
 
     // Plain options allowed
-    expect(publicOption).not.toHaveAttribute("data-disabled")
-    expect(internalOption).not.toHaveAttribute("data-disabled")
+    expect(publicOption).toBeEnabled()
+    expect(internalOption).toBeEnabled()
 
     // Storage-changing options disabled
-    expect(confidentialOption).toHaveAttribute("data-disabled")
-    expect(restrictedOption).toHaveAttribute("data-disabled")
+    expect(confidentialOption).toBeDisabled()
+    expect(restrictedOption).toBeDisabled()
   })
 
   it("when table is empty (tableEmpty=true), switching from restricted to public is allowed", () => {
@@ -269,11 +262,8 @@ describe("PoliciesOptionsForm", () => {
       screen.queryByText("Hashed columns cannot be decrypted or converted when the table contains entries.")
     ).not.toBeInTheDocument()
 
-    const classificationTrigger = screen.getByRole("combobox")
-    fireEvent.click(classificationTrigger)
-
-    const publicOption = screen.getByRole("option", { name: "Public" })
-    expect(publicOption).not.toHaveAttribute("data-disabled")
+    const publicOption = screen.getByRole("radio", { name: "Public" })
+    expect(publicOption).toBeEnabled()
 
     fireEvent.click(publicOption)
     expect(onChange).toHaveBeenCalledTimes(1)
@@ -291,17 +281,16 @@ describe("PoliciesOptionsForm", () => {
     }
     render(<PoliciesOptionsForm branch={branch} onChange={vi.fn()} tableEmpty={false} />)
 
+    // The explanations live in the "?" popover
+    fireEvent.click(screen.getByRole("button", { name: "About privacy" }))
     expect(
       screen.getByText("Encrypted columns cannot be decrypted or converted when the table contains entries.")
     ).toBeInTheDocument()
 
-    const classificationTrigger = screen.getByRole("combobox")
-    fireEvent.click(classificationTrigger)
-
-    expect(screen.getByRole("option", { name: "Public" })).toHaveAttribute("data-disabled")
-    expect(screen.getByRole("option", { name: "Internal" })).toHaveAttribute("data-disabled")
-    expect(screen.getByRole("option", { name: "Confidential" })).not.toHaveAttribute("data-disabled")
-    expect(screen.getByRole("option", { name: "Restricted" })).toHaveAttribute("data-disabled")
+    expect(screen.getByRole("radio", { name: "Public" })).toBeDisabled()
+    expect(screen.getByRole("radio", { name: "Internal" })).toBeDisabled()
+    expect(screen.getByRole("radio", { name: "Confidential" })).toBeEnabled()
+    expect(screen.getByRole("radio", { name: "Restricted" })).toBeDisabled()
   })
 
   it("when table has entries (tableEmpty=false), restricted field cannot be decrypted or converted", () => {
@@ -314,17 +303,16 @@ describe("PoliciesOptionsForm", () => {
     }
     render(<PoliciesOptionsForm branch={branch} onChange={vi.fn()} tableEmpty={false} />)
 
+    // The explanations live in the "?" popover
+    fireEvent.click(screen.getByRole("button", { name: "About privacy" }))
     expect(
       screen.getByText("Hashed columns cannot be decrypted or converted when the table contains entries.")
     ).toBeInTheDocument()
 
-    const classificationTrigger = screen.getByRole("combobox")
-    fireEvent.click(classificationTrigger)
-
-    expect(screen.getByRole("option", { name: "Public" })).toHaveAttribute("data-disabled")
-    expect(screen.getByRole("option", { name: "Internal" })).toHaveAttribute("data-disabled")
-    expect(screen.getByRole("option", { name: "Confidential" })).toHaveAttribute("data-disabled")
-    expect(screen.getByRole("option", { name: "Restricted" })).not.toHaveAttribute("data-disabled")
+    expect(screen.getByRole("radio", { name: "Public" })).toBeDisabled()
+    expect(screen.getByRole("radio", { name: "Internal" })).toBeDisabled()
+    expect(screen.getByRole("radio", { name: "Confidential" })).toBeDisabled()
+    expect(screen.getByRole("radio", { name: "Restricted" })).toBeEnabled()
   })
 })
 
