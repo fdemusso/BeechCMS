@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"
 import { useDropBranch, useDropOrphan, useOrphans, useRebuildFts, useRenameBranch, useRetypeBranch } from "../hooks/use-seeds"
 import type { SeedRecordDTO } from "../api/seeds.api"
 import { fieldBadges } from "../lib/field-badges"
+import type { DangerDraft } from "../lib/seed-draft"
 import { FIELD_TYPE_ICONS } from "../lib/field-types"
 
 /** What a retype can target: a relation needs a target seed and a repeater needs sub-fields, neither of which a retype carries. */
@@ -27,6 +28,11 @@ const RETYPE_TARGETS: BranchType[] = ["text", "richtext", "number", "boolean", "
 
 type Operation = "rename" | "retype" | "drop"
 const OPERATIONS: Operation[] = ["rename", "retype", "drop"]
+
+/** The stored operation, or the first one when the draft names something that no longer exists. */
+function asOperation(value: string): Operation {
+  return OPERATIONS.find((operation) => operation === value) ?? "rename"
+}
 
 /** Mirrors the server's refusals, so an operation that would fail is disabled with the reason instead. */
 function blockedReasons(branch: Branch, displayNameAlias: string, t: (key: string) => string) {
@@ -40,12 +46,11 @@ function blockedReasons(branch: Branch, displayNameAlias: string, t: (key: strin
 
 // ─── Maintenance ──────────────────────────────────────────────────────────────
 
-function MaintenanceSection({ record, manifestOwned }: { record: SeedRecordDTO; manifestOwned: boolean }) {
+function MaintenanceSection({ record, manifestOwned, open, onOpenChange }: { record: SeedRecordDTO; manifestOwned: boolean; open: boolean; onOpenChange: (open: boolean) => void }) {
   const { t } = useTranslation()
   const rebuildFts = useRebuildFts(record.slug)
   const { data, refetch, isFetching } = useOrphans(record.slug)
   const dropOrphan = useDropOrphan()
-  const [open, setOpen] = React.useState(false)
   const listId = React.useId()
   const [confirms, setConfirms] = React.useState<Record<string, string>>({})
   const orphans = data?.orphans ?? []
@@ -112,7 +117,7 @@ function MaintenanceSection({ record, manifestOwned }: { record: SeedRecordDTO; 
                 <TooltipContent side="top">{t("seedBuilder.dangerZone.orphans.refreshButton")}</TooltipContent>
               </Tooltip>
               {/* The width is always that of "Review": the invisible label sizes the button, the current one sits over it. */}
-              <Button type="button" variant="outline" size="sm" className="relative flex-1 whitespace-nowrap" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={listId}>
+              <Button type="button" variant="outline" size="sm" className="relative flex-1 whitespace-nowrap" onClick={() => onOpenChange(!open)} aria-expanded={open} aria-controls={listId}>
                 <span className="invisible" aria-hidden>{t("seedBuilder.dangerZone.orphans.review")}</span>
                 <span className="absolute inset-0 flex items-center justify-center">
                   {open ? t("seedBuilder.dangerZone.orphans.hide") : t("seedBuilder.dangerZone.orphans.review")}
@@ -180,13 +185,13 @@ function MaintenanceSection({ record, manifestOwned }: { record: SeedRecordDTO; 
 
 // ─── Field operations ─────────────────────────────────────────────────────────
 
-function FieldOperations({ record, disabled, onChooseDisplayName }: { record: SeedRecordDTO; disabled: boolean; onChooseDisplayName?: () => void }) {
+function FieldOperations({ record, disabled, state, onStateChange, onChooseDisplayName }: { record: SeedRecordDTO; disabled: boolean; state: DangerDraft; onStateChange: (state: DangerDraft) => void; onChooseDisplayName?: () => void }) {
   const { t } = useTranslation()
   const slug = record.slug
   // A field added in the Fields tab and not saved yet has no column: there is nothing to operate on.
   const branches = record.definition.branches.filter((b) => !b.id.startsWith("br_new_"))
-  const [selectedId, setSelectedId] = React.useState<string | null>(branches[0]?.id ?? null)
-  const selected = branches.find((b) => b.id === selectedId) ?? branches[0] ?? null
+  // The field and the operation come from the state kept across a reload; a field that no longer exists falls back to the first.
+  const selected = branches.find((b) => b.id === state.branchId) ?? branches[0] ?? null
 
   return (
     // `inert` takes the whole section out of reach, keyboard included: pointer-events alone would leave it tabbable.
@@ -221,7 +226,7 @@ function FieldOperations({ record, disabled, onChooseDisplayName }: { record: Se
                   <button
                     type="button"
                     aria-current={active}
-                    onClick={() => setSelectedId(branch.id)}
+                    onClick={() => onStateChange({ ...state, branchId: branch.id, mode: "rename" })}
                     className={cn(
                       "flex h-[3.375rem] w-full items-center gap-3 rounded-control border bg-card px-3 text-left transition-colors",
                       active ? "border-primary/60 bg-accent" : "hover:bg-accent/60"
@@ -240,19 +245,18 @@ function FieldOperations({ record, disabled, onChooseDisplayName }: { record: Se
             </ul>
           </ScrollArea>
 
-          {selected && <FieldOperationPanel key={selected.id} branch={selected} slug={slug} displayNameAlias={record.definition.displayNameAlias} onChooseDisplayName={onChooseDisplayName} />}
+          {selected && <FieldOperationPanel key={selected.id} branch={selected} mode={selected.id === state.branchId ? asOperation(state.mode) : "rename"} onModeChange={(mode) => onStateChange({ ...state, branchId: selected.id, mode })} slug={slug} displayNameAlias={record.definition.displayNameAlias} onChooseDisplayName={onChooseDisplayName} />}
         </div>
       )}
     </section>
   )
 }
 
-function FieldOperationPanel({ branch, slug, displayNameAlias, onChooseDisplayName }: { branch: Branch; slug: string; displayNameAlias: string; onChooseDisplayName?: () => void }) {
+function FieldOperationPanel({ branch, mode, onModeChange, slug, displayNameAlias, onChooseDisplayName }: { branch: Branch; mode: Operation; onModeChange: (mode: Operation) => void; slug: string; displayNameAlias: string; onChooseDisplayName?: () => void }) {
   const { t } = useTranslation()
   const renameBranch = useRenameBranch()
   const retypeBranch = useRetypeBranch()
   const dropBranch = useDropBranch()
-  const [mode, setMode] = React.useState<Operation>("rename")
   const [newAlias, setNewAlias] = React.useState("")
   const [newType, setNewType] = React.useState<BranchType>(branch.type)
   const [confirm, setConfirm] = React.useState("")
@@ -327,7 +331,7 @@ function FieldOperationPanel({ branch, slug, displayNameAlias, onChooseDisplayNa
   return (
     <div className="self-start rounded-[calc(var(--radius-control)+7px)] border bg-card">
       <ScrollArea className="max-h-[calc(15.125rem-2px)]">
-        <TabsPrimitive.Root value={mode} onValueChange={(value) => setMode(value as Operation)} className="space-y-3 p-1.5">
+        <TabsPrimitive.Root value={mode} onValueChange={(value) => onModeChange(value as Operation)} className="space-y-3 p-1.5">
           <TabsPrimitive.List aria-label={t("seedBuilder.dangerZone.fieldOps.title")} className="relative flex gap-0.5 rounded-control border p-0.5">
             {/* The pill slides under the tabs: three equal columns of (100% - 4px padding - 4px gaps) / 3, moved by one column
                 plus one gap per step. */}
@@ -434,6 +438,9 @@ function Impact({ tone, title, body }: { tone: "warn" | "danger"; title: string;
 
 export interface SeedDangerZoneProps {
   record: SeedRecordDTO
+  /** Where the user is in the tab (field, operation, orphan list). It lives in the dialog, so it can survive a reload. */
+  state: DangerDraft
+  onStateChange: (state: DangerDraft) => void
   /** Jumps to where the display name is chosen (the Dashboard tab), so a blocked Drop has a way out. */
   onChooseDisplayName?: () => void
 }
@@ -442,7 +449,7 @@ export interface SeedDangerZoneProps {
  * The "Danger zone" tab: safe maintenance first, then the operations that change the database one field at a time.
  * Deleting the whole content type is the footer's red button (`HardDeleteDialog`), so it is never a stray click here.
  */
-export function SeedDangerZone({ record, onChooseDisplayName }: SeedDangerZoneProps) {
+export function SeedDangerZone({ record, state, onStateChange, onChooseDisplayName }: SeedDangerZoneProps) {
   const { t } = useTranslation()
   const manifestOwned = record.source === "code"
 
@@ -456,8 +463,8 @@ export function SeedDangerZone({ record, onChooseDisplayName }: SeedDangerZonePr
           </p>
         </div>
       )}
-      <MaintenanceSection record={record} manifestOwned={manifestOwned} />
-      <FieldOperations record={record} disabled={manifestOwned} onChooseDisplayName={onChooseDisplayName} />
+      <MaintenanceSection record={record} manifestOwned={manifestOwned} open={state.orphansOpen} onOpenChange={(orphansOpen) => onStateChange({ ...state, orphansOpen })} />
+      <FieldOperations record={record} disabled={manifestOwned} state={state} onStateChange={onStateChange} onChooseDisplayName={onChooseDisplayName} />
     </div>
   )
 }

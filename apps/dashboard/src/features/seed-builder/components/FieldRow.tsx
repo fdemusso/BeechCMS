@@ -80,7 +80,7 @@ export function FieldRow({ branch, selected, issue, removable, onSelect, onRemov
           size="icon-sm"
           onClick={onRemove}
           aria-label={t("fields.repeater.removeItem")}
-          className="w-0 shrink-0 overflow-hidden text-muted-foreground opacity-0 transition-all duration-200 hover:text-destructive focus-visible:w-8 focus-visible:opacity-100 group-hover:w-8 group-hover:opacity-100"
+          className="w-0 shrink-0 overflow-hidden text-muted-foreground opacity-0 transition-[width,opacity] duration-200 hover:text-destructive focus-visible:w-8 focus-visible:opacity-100 group-hover:w-8 group-hover:opacity-100"
         >
           <Trash2 className="size-4" />
         </Button>

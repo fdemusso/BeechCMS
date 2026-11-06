@@ -27,6 +27,19 @@ describe("seed draft", () => {
     expect(findEditDraftSlug()).toBe("article")
   })
 
+  it("round-trips where the user was in the Danger zone, and the flag that the form is clean", () => {
+    const danger = { branchId: "br_title", mode: "drop", orphansOpen: true }
+    writeDraft(draftKey("article"), { ...draft, step: "danger", dirty: false, danger })
+
+    expect(readDraft(draftKey("article"))).toMatchObject({ step: "danger", dirty: false, danger })
+  })
+
+  it("ignores a draft whose Danger zone position is malformed", () => {
+    writeDraft(draftKey("article"), { ...draft, danger: { branchId: 3, mode: "drop", orphansOpen: true } as never })
+
+    expect(readDraft(draftKey("article"))).toBeNull()
+  })
+
   it("finds no draft in empty storage", () => {
     expect(hasCreateDraft()).toBe(false)
     expect(findEditDraftSlug()).toBeNull()

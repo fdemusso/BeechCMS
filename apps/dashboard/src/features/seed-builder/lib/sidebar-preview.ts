@@ -31,12 +31,13 @@ export const PREVIEW_RADIUS = 2
 
 /** The sidebar groups already in use, in the order the sidebar shows them (first seed that names one first). */
 export function existingGroups(seeds: readonly Seed[]): string[] {
-  const groups: string[] = []
+  // A Set keeps insertion order, which is the order the sidebar shows the groups in.
+  const groups = new Set<string>()
   for (const seed of seeds) {
     const group = seed.dashboard?.group
-    if (group && !groups.includes(group)) groups.push(group)
+    if (group) groups.add(group)
   }
-  return groups
+  return [...groups]
 }
 
 /**

@@ -323,6 +323,42 @@ describe("useSeedForm — draft", () => {
     expect(result.current.branches.find((b) => b.alias === "title")?.label).toBe("Headline")
   })
 
+  it("keeps the Danger zone tab in storage without any edit, as a draft that is not dirty", () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useSeedForm({ editRecord, takenSlugs: [], onClose: vi.fn(), open: true }))
+
+    act(() => result.current.setStep("danger"))
+    act(() => result.current.setDanger({ branchId: "br_title", mode: "drop", orphansOpen: true }))
+    act(() => { vi.advanceTimersByTime(300) })
+
+    expect(readDraft(draftKey("article"))).toMatchObject({
+      step: "danger",
+      dirty: false,
+      danger: { branchId: "br_title", mode: "drop", orphansOpen: true },
+    })
+  })
+
+  it("brings back the Danger zone tab and its position at reload, without asking to discard anything", () => {
+    const { result, rerender } = renderHook(
+      ({ record }: { record: SeedRecordDTO | null }) =>
+        useSeedForm({ editRecord: record, takenSlugs: [], onClose: vi.fn(), open: record !== null }),
+      { initialProps: { record: null as SeedRecordDTO | null } }
+    )
+    writeDraft(draftKey("article"), {
+      formData: seedToFormData(editRecord),
+      step: "danger",
+      slugTouched: false,
+      dirty: false,
+      danger: { branchId: "br_title", mode: "retype", orphansOpen: false },
+    })
+
+    rerender({ record: editRecord })
+
+    expect(result.current.step).toBe("danger")
+    expect(result.current.danger).toEqual({ branchId: "br_title", mode: "retype", orphansOpen: false })
+    expect(result.current.isDirty).toBe(false)
+  })
+
   it("clears the draft when a discard is confirmed through the router", () => {
     writeDraft(draftKey(null), { formData: seedToFormData(null), step: "general", slugTouched: false })
     const { result } = renderCreate()

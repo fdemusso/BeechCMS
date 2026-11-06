@@ -5,40 +5,21 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import type { Seed } from "@beechcms/core"
-import { Check, Globe, Trash2, X } from "@/components/icons"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { Check, X } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
-import { IconPicker } from "@/components/ui/icon-picker"
-import { Input } from "@/components/ui/input"
-import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
-import { Kbd, KbdGroup } from "@/components/ui/kbd"
-import { MOD_KEY_LABEL } from "@/lib/platform"
-import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { SEED_FORM_STEPS, useSeedForm, type SeedFormStep } from "../hooks/use-seed-form"
-import { DEFAULT_SIDEBAR_ORDER, existingGroups, sidebarGroupPreview } from "../lib/sidebar-preview"
 import type { SeedRecordDTO } from "../api/seeds.api"
-import { DisplayNamePicker } from "./DisplayNamePicker"
-import { GroupPicker } from "./GroupPicker"
-import { SidebarPreview } from "./SidebarPreview"
-import { ViewsPicker } from "./ViewsPicker"
 import { FieldsStep } from "./FieldsStep"
 import { HardDeleteDialog } from "./HardDeleteDialog"
+import { DashboardStep } from "./DashboardStep"
+import { DiscardChangesDialog } from "./DiscardChangesDialog"
+import { GeneralStep } from "./GeneralStep"
 import { SeedDangerZone } from "./SeedDangerZone"
+import { SeedFormFooter } from "./SeedFormFooter"
 import { SlidingTabIndicator } from "./SlidingTabIndicator"
 
 export interface SeedFormDialogProps {
@@ -53,48 +34,10 @@ export interface SeedFormDialogProps {
   onClose: () => void
 }
 
-/** Public API flags, in the order they are shown: form-data alias and the i18n key of their label/hint. */
-const PUBLIC_FLAGS = [
-  { alias: "allow_public_read", key: "allowPublicRead" },
-  { alias: "allow_public_post", key: "allowPublicPost" },
-  { alias: "allow_public_edit", key: "allowPublicEdit" },
-] as const
-
 const STEP_LABEL_KEYS: Record<SeedFormStep, string> = {
   general: "seedBuilder.editor.tabGeneral",
   fields: "seedBuilder.editor.tabFields",
   dashboard: "seedBuilder.editor.tabDashboard",
-}
-
-/** A label, its control and an optional hint, with the control on the right (switch rows). */
-function SwitchRow({
-  id,
-  label,
-  hint,
-  checked,
-  onCheckedChange,
-}: {
-  id: string
-  label: string
-  hint?: string
-  checked: boolean
-  onCheckedChange: (checked: boolean) => void
-}) {
-  return (
-    <div className="flex items-center justify-between gap-6">
-      <div className="min-w-0 space-y-0.5">
-        <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
-        {hint && <p id={`${id}-hint`} className="text-xs text-muted-foreground">{hint}</p>}
-      </div>
-      <Switch
-        id={id}
-        checked={checked}
-        onCheckedChange={onCheckedChange}
-        aria-describedby={hint ? `${id}-hint` : undefined}
-        className="shrink-0"
-      />
-    </div>
-  )
 }
 
 /**
@@ -105,32 +48,13 @@ function SwitchRow({
 export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, takenSlugs, existingSeeds, onClose }: SeedFormDialogProps) {
   const { t } = useTranslation()
   const form = useSeedForm({ editRecord, takenSlugs, onClose, open })
-  const { formData, isCreate, setField } = form
+  const { isCreate } = form
 
   const labelInputRef = React.useRef<HTMLInputElement>(null)
   const [deleteOpen, setDeleteOpen] = React.useState(false)
-  const label = String(formData.label ?? "")
-  const slug = String(formData.slug ?? "")
-
   const title = editRecord
     ? t("seedBuilder.editor.editTitle", { label: editRecord.definition.label })
     : t("seedBuilder.editor.createTitle")
-
-  const defaultGroupLabel = t("sidebar.contents")
-  const dashGroup = String(formData.dash_group ?? "")
-  const dashOrder = typeof formData.dash_order === "number" ? formData.dash_order : undefined
-  const groupPreview = sidebarGroupPreview(
-    existingSeeds,
-    {
-      slug: editRecord?.slug ?? null,
-      title: String(formData.label_plural || formData.label || "") || t("seedBuilder.editor.dashPreviewNew"),
-      icon: String(formData.dash_icon ?? ""),
-      description: String(formData.dash_description ?? "") || undefined,
-      order: dashOrder,
-    },
-    dashGroup
-  )
-  const authorizedViews = (["gallery", "kanban"] as const).filter((view) => !!formData[`dash_view_${view}`])
 
   /**
    * Enter never submits by accident from a text input: it moves to the next input marked `data-enter-next`
@@ -237,94 +161,7 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                 <div className="px-6 py-4">
                   {/* Step 1 — identity and public access */}
                   <TabsContent value="general" className={cn("mt-0 space-y-6", enter)}>
-                    <FieldGroup>
-                      <Field>
-                        <FieldLabel htmlFor="sf-label">{t("seedBuilder.editor.label")}</FieldLabel>
-                        <div className="flex items-center gap-2">
-                          <IconPicker
-                            value={String(formData.dash_icon ?? "")}
-                            onChange={(icon) => setField("dash_icon", icon)}
-                            fallback="Folder"
-                            ariaLabel={t("seedBuilder.editor.selectIcon")}
-                            searchPlaceholder={t("seedBuilder.editor.searchIcons")}
-                            emptyLabel={t("seedBuilder.editor.noIconsFound")}
-                          />
-                          <Input
-                            id="sf-label"
-                            ref={labelInputRef}
-                            data-enter-next=""
-                            value={label}
-                            placeholder={t("seedBuilder.editor.labelPlaceholder")}
-                            onChange={(e) => form.setLabel(e.target.value)}
-                            className="flex-1"
-                          />
-                        </div>
-                      </Field>
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <Field>
-                          <FieldLabel htmlFor="sf-slug">{t("seedBuilder.editor.slug")}</FieldLabel>
-                          <InputGroup>
-                            <InputGroupAddon>
-                              <InputGroupText>content_</InputGroupText>
-                            </InputGroupAddon>
-                            <InputGroupInput
-                              id="sf-slug"
-                              data-enter-next=""
-                              value={slug}
-                              readOnly={!isCreate}
-                              aria-invalid={form.slugTaken || undefined}
-                              aria-describedby={form.slugTaken ? "sf-slug-hint sf-slug-error" : "sf-slug-hint"}
-                              onChange={(e) => form.setSlug(e.target.value)}
-                              className="pl-0"
-                            />
-                          </InputGroup>
-                          {form.slugTaken && <FieldError id="sf-slug-error">{t("seedBuilder.editor.slugTaken")}</FieldError>}
-                        </Field>
-                        <Field>
-                          <FieldLabel htmlFor="sf-plural">{t("seedBuilder.editor.labelPlural")}</FieldLabel>
-                          <Input
-                            id="sf-plural"
-                            data-enter-next=""
-                            value={String(formData.label_plural ?? "")}
-                            placeholder={label || t("seedBuilder.editor.labelPluralPlaceholder")}
-                            onChange={(e) => setField("label_plural", e.target.value)}
-                          />
-                        </Field>
-                      </div>
-                      <FieldDescription id="sf-slug-hint">{t("seedBuilder.editor.hints.slug")}</FieldDescription>
-                    </FieldGroup>
-
-                    <SwitchRow
-                      id="sf-allow_drafts"
-                      label={t("seedBuilder.editor.allowDrafts")}
-                      hint={t("seedBuilder.editor.hints.allowDrafts")}
-                      checked={!!formData.allow_drafts}
-                      onCheckedChange={(checked) => setField("allow_drafts", checked)}
-                    />
-
-                    {/* Anonymous visitors: a layer apart from roles (RBAC) */}
-                    <section aria-labelledby="sf-public-title" className="space-y-3 rounded-lg border bg-muted/30 p-4">
-                      <div className="space-y-1">
-                        <h3 id="sf-public-title" className="flex items-center gap-2 text-sm font-medium">
-                          <Globe aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-                          {t("seedBuilder.editor.publicAccessTitle")}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">{t("seedBuilder.editor.publicAccessDescription")}</p>
-                      </div>
-                      <div className="space-y-3 border-t pt-3">
-                        {PUBLIC_FLAGS.map(({ alias, key }) => (
-                          <SwitchRow
-                            key={alias}
-                            id={`sf-${alias}`}
-                            label={t(`seedBuilder.editor.${key}`)}
-                            hint={t(`seedBuilder.editor.hints.${key}`)}
-                            checked={!!formData[alias]}
-                            onCheckedChange={(checked) => setField(alias, checked)}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-xs text-muted-foreground">{t("seedBuilder.editor.publicAccessRbacNote")}</p>
-                    </section>
+                    <GeneralStep form={form} labelInputRef={labelInputRef} />
                   </TabsContent>
 
                   {/* Step 2 — fields */}
@@ -346,181 +183,26 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
 
                   {/* Step 3 — how the content type appears in the dashboard */}
                   <TabsContent value="dashboard" className={cn("mt-0 space-y-6", enter)}>
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-                      <FieldGroup>
-                        {form.branches.length > 0 && (
-                          <Field>
-                            <FieldLabel htmlFor="sf-display">{t("seedBuilder.editor.displayNameAlias")}</FieldLabel>
-                            <DisplayNamePicker
-                              id="sf-display"
-                              branches={form.branches}
-                              value={form.displayNameAlias}
-                              onChange={(alias) => setField("display_name_alias", alias)}
-                            />
-                          </Field>
-                        )}
-                        <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-4">
-                          <Field>
-                            <FieldLabel htmlFor="sf-group">{t("seedBuilder.editor.dashGroup")}</FieldLabel>
-                            <GroupPicker
-                              id="sf-group"
-                              value={dashGroup}
-                              groups={existingGroups(existingSeeds)}
-                              defaultLabel={defaultGroupLabel}
-                              onChange={(group) => setField("dash_group", group)}
-                            />
-                          </Field>
-                          <Field>
-                            <FieldLabel htmlFor="sf-order">{t("seedBuilder.editor.dashOrder")}</FieldLabel>
-                            <Input
-                              id="sf-order"
-                              data-enter-next=""
-                              type="number"
-                              min={0}
-                              aria-describedby="sf-order-hint"
-                              value={dashOrder ?? ""}
-                              placeholder={String(DEFAULT_SIDEBAR_ORDER)}
-                              onChange={(e) =>
-                                setField("dash_order", e.target.value === "" ? undefined : Number(e.target.value))
-                              }
-                            />
-                          </Field>
-                        </div>
-                        <p id="sf-order-hint" className="-mt-2 text-xs text-muted-foreground">{t("seedBuilder.editor.dashOrderHint")}</p>
-                        <Field>
-                          <FieldLabel htmlFor="sf-description">{t("seedBuilder.editor.dashDescription")}</FieldLabel>
-                          <Input
-                            id="sf-description"
-                            data-enter-next=""
-                            value={String(formData.dash_description ?? "")}
-                            placeholder={t("seedBuilder.editor.dashDescriptionPlaceholder")}
-                            onChange={(e) => setField("dash_description", e.target.value)}
-                          />
-                        </Field>
-                        <SwitchRow
-                          id="sf-hidden"
-                          label={t("seedBuilder.editor.dashHidden")}
-                          checked={!!formData.dash_hidden}
-                          onCheckedChange={(checked) => setField("dash_hidden", checked)}
-                        />
-                      </FieldGroup>
-
-                      <SidebarPreview
-                        groupLabel={dashGroup || defaultGroupLabel}
-                        {...groupPreview}
-                        hidden={!!formData.dash_hidden}
-                      />
-                    </div>
-
-                    <div className="space-y-3 border-t pt-5">
-                      <h3 className="text-sm font-medium">{t("seedBuilder.editor.dashViewsSection")}</h3>
-                      <ViewsPicker
-                        selected={authorizedViews}
-                        onToggle={(view, checked) => setField(`dash_view_${view}`, checked)}
-                      />
-                    </div>
+                    <DashboardStep form={form} editRecord={editRecord ?? null} existingSeeds={existingSeeds} />
                   </TabsContent>
 
                   {editRecord && (
                     <TabsContent value="danger" className={cn("mt-0", enter)}>
-                      <SeedDangerZone record={editRecord} onChooseDisplayName={() => form.setStep("dashboard")} />
+                      <SeedDangerZone record={editRecord} state={form.danger} onStateChange={form.setDanger} onChooseDisplayName={() => form.setStep("dashboard")} />
                     </TabsContent>
                   )}
                 </div>
               </ScrollArea>
             </Tabs>
 
-            {form.step === "danger" && editRecord ? (
-              <footer className="flex flex-shrink-0 items-center justify-between gap-3 border-t px-6 py-4">
-                <p id="sf-delete-hint" className="text-xs text-muted-foreground">
-                  {editRecord.source === "code"
-                    ? t("seedBuilder.dangerZone.hardDelete.manifestHint")
-                    : t("seedBuilder.dangerZone.hardDelete.footerHint")}
-                </p>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={editRecord.source === "code"}
-                  aria-describedby="sf-delete-hint"
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <Trash2 className="size-4" />
-                  {t("seedBuilder.dangerZone.hardDelete.footerButton")}
-                </Button>
-              </footer>
-            ) : (
-              <footer className="flex flex-shrink-0 items-center justify-between gap-3 border-t px-6 py-4">
-                <div className="flex items-center gap-3">
-                  {isCreate && form.step !== SEED_FORM_STEPS[0] && (
-                    <Button type="button" variant="outline" onClick={form.goBack}>
-                      {t("seedBuilder.editor.back")}
-                    </Button>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
-                    <KbdGroup>
-                      <Kbd>{MOD_KEY_LABEL}</Kbd>
-                      <span>+</span>
-                      <Kbd>↵</Kbd>
-                    </KbdGroup>
-                    {isCreate && !form.isLastStep ? t("seedBuilder.editor.nextShortcut") : t("seedBuilder.editor.saveShortcut")}
-                  </span>
-                  {isCreate && !form.isLastStep ? (
-                    <Button type="submit" disabled={!form.canAdvance}>
-                      {t("seedBuilder.editor.next")}
-                    </Button>
-                  ) : (
-                    <Button type="submit" disabled={!form.canSubmit}>
-                      {isCreate ? t("common.create") : t("common.save")}
-                    </Button>
-                  )}
-                </div>
-              </footer>
-            )}
+            <SeedFormFooter form={form} editRecord={editRecord ?? null} onDelete={() => setDeleteOpen(true)} />
           </form>
         </DialogContent>
       </Dialog>
 
       <HardDeleteDialog seed={editRecord ?? null} open={deleteOpen} onOpenChange={setDeleteOpen} onDeleted={onClose} />
 
-      {/* Leaving with unsaved edits: closing the dialog, or navigating away */}
-      <AlertDialog
-        open={form.confirmDiscardOpen || form.blocker.state === "blocked"}
-        onOpenChange={(next) => {
-          if (next) return
-          form.setConfirmDiscardOpen(false)
-          form.blocker.reset?.()
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("content.editor.unsavedTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("content.editor.unsavedDesc")}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => {
-                form.setConfirmDiscardOpen(false)
-                form.blocker.reset?.()
-              }}
-            >
-              {t("content.editor.stay")}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                form.setConfirmDiscardOpen(false)
-                form.discardDraft()
-                if (form.blocker.state === "blocked") form.blocker.proceed?.()
-                else onClose()
-              }}
-            >
-              {t("content.editor.exitWithout")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DiscardChangesDialog form={form} onClose={onClose} />
     </>
   )
 }

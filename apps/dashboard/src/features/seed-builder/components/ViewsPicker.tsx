@@ -26,6 +26,7 @@ const isImplemented = (type: ViewTypeId): type is DashboardView =>
  */
 export function ViewsPicker({ selected, onToggle }: ViewsPickerProps) {
   const { t } = useTranslation()
+  const selectedViews = new Set<DashboardView>(selected)
 
   return (
     <div className="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-4">
@@ -51,7 +52,7 @@ export function ViewsPicker({ selected, onToggle }: ViewsPickerProps) {
                 )}
               >
                 <Checkbox
-                  checked={locked || (implemented && selected.includes(type))}
+                  checked={locked || (implemented && selectedViews.has(type))}
                   disabled={disabled}
                   onCheckedChange={(checked) => implemented && onToggle(type, checked === true)}
                 />
