@@ -18,6 +18,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w --preserveWatchOutput",
+    "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
     "test:unit": "vitest run",

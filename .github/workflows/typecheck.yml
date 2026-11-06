@@ -1,0 +1,37 @@
+name: Type Check
+
+# Blocking type check of every workspace package, only for code headed to master (pushes to master
+# and pull requests targeting it). Runs `pnpm type-check` (turbo: each package's own `type-check`
+# script).
+#
+# apps/api checks its test files too (tsconfig.json); several packages exclude tests in their own
+# tsconfig, so their tests are not covered. The local pre-push hook only warns; this job fails.
+# For it to actually gate merges, mark "Type Check / tsc" as a required status check on master.
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  tsc:
+    name: tsc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # type-check depends on the dist/ of the workspace packages it imports (turbo "^build").
+      - name: Type check all packages
+        run: pnpm type-check

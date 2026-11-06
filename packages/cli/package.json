@@ -13,6 +13,7 @@
   "scripts": {
     "build": "tsc --noEmit && esbuild src/index.ts --bundle --external:@beechcms/core --external:@clack/prompts --external:picocolors --platform=node --format=esm --outfile=dist/index.js",
     "dev": "esbuild src/index.ts --bundle --external:@beechcms/core --external:@clack/prompts --external:picocolors --platform=node --format=esm --outfile=dist/index.js --watch",
+    "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
     "test:unit": "vitest run",
