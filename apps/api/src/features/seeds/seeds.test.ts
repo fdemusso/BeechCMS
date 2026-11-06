@@ -166,6 +166,21 @@ describe('GET /', () => {
     const body = await res.json() as any[]
     expect(body).toEqual([baseRecord])
   })
+
+  it('omits system seeds (import_jobs) but keeps every other record, soft-deleted included', async () => {
+    const importJobs: SeedRecord = {
+      ...baseRecord,
+      slug: 'import_jobs',
+      source: 'code',
+      definition: { ...baseSeed, slug: 'import_jobs', label: 'Import Job' },
+    }
+    const deleted: SeedRecord = { ...baseRecord, slug: 'legacy', status: 'deleted' }
+    const repo = makeRepo({ listAll: vi.fn().mockResolvedValue([baseRecord, importJobs, deleted]) })
+    const { app } = buildApp({ authenticated: true, repo })
+    const res = await app.request('/', { method: 'GET' })
+    const body = await res.json() as SeedRecord[]
+    expect(body.map(r => r.slug)).toEqual(['articles', 'legacy'])
+  })
 })
 
 describe('GET /:slug', () => {

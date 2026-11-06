@@ -21,7 +21,7 @@ import { findEditDraftSlug, hasCreateDraft } from "../lib/seed-draft"
 import { DeleteSeedDialog } from "./DeleteSeedDialog"
 import { PurgeSeedDialog } from "./PurgeSeedDialog"
 import type { SeedRecordDTO } from "../api/seeds.api"
-import type { Seed } from "@beechcms/core"
+import { isSystemSeedSlug, type Seed } from "@beechcms/core"
 
 export function SeedBuilderPage() {
   const { t } = useTranslation()
@@ -41,9 +41,13 @@ export function SeedBuilderPage() {
   const [deleteRecord, setDeleteRecord] = useState<SeedRecordDTO | null>(null)
   const [purgeRecord, setPurgeRecord] = useState<SeedRecordDTO | null>(null)
 
+  // Platform-owned seeds (e.g. import_jobs) are not content types a user designs: leave them out of
+  // the list and out of the relation-target candidates. They stay in takenSlugs, so a new type
+  // cannot reuse their slug. See engine/seeds/system-seeds.ts in @beechcms/core.
+  const userRecords = records.filter(r => !isSystemSeedSlug(r.slug))
   const takenSlugs = records.map(r => r.slug)
-  const existingSeeds = records.filter(r => r.status !== "deleted").map(r => r.definition)
-  const visible = showDeleted ? records : records.filter(r => r.status !== "deleted")
+  const existingSeeds = userRecords.filter(r => r.status !== "deleted").map(r => r.definition)
+  const visible = showDeleted ? userRecords : userRecords.filter(r => r.status !== "deleted")
 
   return (
     <div className="flex flex-col gap-6">

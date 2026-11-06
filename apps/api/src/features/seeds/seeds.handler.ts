@@ -16,7 +16,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import type { Branch, Seed } from '@beechcms/core'
-import { planFtsRebuild, SYSTEM_COLUMNS } from '@beechcms/core'
+import { isSystemSeedSlug, planFtsRebuild, SYSTEM_COLUMNS } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import { zodJson } from '../../shared/utils/zod-json'
 import type { Env, Variables } from '../../types'
@@ -48,9 +48,13 @@ export const seedsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
   .route('/', mcpApp)
 
   /**
-   * Lists all seed records (both active and soft-deleted).
+   * Lists all user-manageable seed records (both active and soft-deleted).
    *
    * @remarks
+   * System seeds (`SYSTEM_SEED_SLUGS`, e.g. `import_jobs`) are omitted: they are platform
+   * machinery, not content types an admin manages. This is the only seeds route that filters them;
+   * `GET /api/seeds/:slug` still resolves one by slug, and `/api/schema` (the runtime registry)
+   * is unaffected.
    * Requires `manage_seeds` at the global scope (route table).
    * Emits the current `X-Schema-Version` response header carrying `seed_meta.registry_version`
    * for optimistic concurrency control (OCC) aware clients.
@@ -60,7 +64,7 @@ export const seedsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
    */
   .get('/', async (context) => {
     const repo = context.get('seedRepository')
-    const records = await repo.listAll()
+    const records = (await repo.listAll()).filter(record => !isSystemSeedSlug(record.slug))
     context.header('X-Schema-Version', String(await repo.getRegistryVersion()))
     return context.json(records, 200)
   })
