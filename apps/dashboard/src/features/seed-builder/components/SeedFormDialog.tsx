@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import type { Seed } from "@beechcms/core"
-import { Check, Globe, Trash2 } from "@/components/icons"
+import { Check, Globe, Trash2, X } from "@/components/icons"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,11 +22,13 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { IconPicker } from "@/components/ui/icon-picker"
 import { Input } from "@/components/ui/input"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
-import { Kbd } from "@/components/ui/kbd"
+import { Kbd, KbdGroup } from "@/components/ui/kbd"
+import { MOD_KEY_LABEL } from "@/lib/platform"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from "@/lib/utils"
 import { SEED_FORM_STEPS, useSeedForm, type SeedFormStep } from "../hooks/use-seed-form"
 import { DEFAULT_SIDEBAR_ORDER, existingGroups, sidebarGroupPreview } from "../lib/sidebar-preview"
 import type { SeedRecordDTO } from "../api/seeds.api"
@@ -37,6 +39,7 @@ import { ViewsPicker } from "./ViewsPicker"
 import { FieldsStep } from "./FieldsStep"
 import { HardDeleteDialog } from "./HardDeleteDialog"
 import { SeedDangerZone } from "./SeedDangerZone"
+import { SlidingTabIndicator } from "./SlidingTabIndicator"
 
 export interface SeedFormDialogProps {
   open: boolean
@@ -144,6 +147,18 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
     else if (isCreate) form.goNext()
   }
 
+  // A tab slides in from the side it sits on, relative to the one just left: later tabs come from the right.
+  const stepOrder: readonly string[] = editRecord ? [...SEED_FORM_STEPS, "danger"] : SEED_FORM_STEPS
+  const previousStep = React.useRef(form.step)
+  const forward = stepOrder.indexOf(form.step) >= stepOrder.indexOf(previousStep.current)
+  React.useEffect(() => {
+    previousStep.current = form.step
+  }, [form.step])
+  const enter = cn(
+    "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200",
+    forward ? "motion-safe:slide-in-from-right-2" : "motion-safe:slide-in-from-left-2"
+  )
+
   const steps = editRecord ? ([...SEED_FORM_STEPS, "danger"] as const) : SEED_FORM_STEPS
 
   return (
@@ -152,7 +167,11 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
         <DialogContent
           // Fixed height, sized to the Fields step with a full list (the tallest): the steps differ in length and the
           // centred dialog would otherwise jump on every tab.
-          className="flex h-[min(46.5rem,calc(100vh-2rem))] flex-col gap-0 p-0 sm:max-w-3xl md:max-w-5xl"
+          className="flex h-[min(46.5rem,calc(100vh-2rem))] flex-col gap-0 p-0 sm:max-w-3xl md:max-w-5xl data-open:zoom-in-100 data-open:duration-[220ms] data-closed:zoom-out-100 data-closed:duration-[176ms]"
+          // A plain fade, 220ms in and 20% quicker out, for the backdrop as well as the dialog.
+          overlayClassName="data-open:duration-[220ms] data-closed:duration-[176ms]"
+          // Outside click and Escape ask before dropping unsaved edits; the X below is deliberate and does not.
+          showCloseButton={false}
           // Radix focuses the first tab; a new content type starts with the name instead.
           onOpenAutoFocus={(e) => {
             if (!isCreate) return
@@ -164,6 +183,10 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription className="sr-only">{title}</DialogDescription>
           </DialogHeader>
+          <Button type="button" variant="ghost" size="icon-sm" className="absolute top-2 right-2" onClick={onClose}>
+            <X />
+            <span className="sr-only">{t("common.close")}</span>
+          </Button>
 
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={form.handleSubmit} onKeyDown={handleFormKeyDown}>
             <Tabs
@@ -172,7 +195,8 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
               className="flex min-h-0 flex-1 flex-col gap-0"
             >
               <div className="flex-shrink-0 border-b px-6">
-                <TabsList variant="line" className="h-auto w-fit justify-start gap-6 p-0">
+                <TabsList variant="line" className="relative h-auto w-fit justify-start gap-6 p-0">
+                  <SlidingTabIndicator activeValue={form.step} />
                   {steps.map((id, index) => {
                     const isStep = id !== "danger"
                     // Only a step already passed shows its check: a locked one must not look done.
@@ -183,7 +207,7 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                         value={id}
                         disabled={isStep && !form.isStepReachable(id)}
                         // The trigger ends 1px above the header's border (h-[calc(100%-1px)]): -2px lays the 2px line over it.
-                        className="gap-2 px-0 py-3 font-medium group-data-horizontal/tabs:after:bottom-[-2px]"
+                        className="gap-2 px-0 py-3 font-medium group-data-[variant=line]/tabs-list:data-active:after:opacity-0"
                       >
                         {isStep && isCreate && (
                           <span
@@ -208,7 +232,7 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
               <ScrollArea className="min-h-0 flex-1">
                 <div className="px-6 py-4">
                   {/* Step 1 — identity and public access */}
-                  <TabsContent value="general" className="mt-0 space-y-6">
+                  <TabsContent value="general" className={cn("mt-0 space-y-6", enter)}>
                     <FieldGroup>
                       <Field>
                         <FieldLabel htmlFor="sf-label">{t("seedBuilder.editor.label")}</FieldLabel>
@@ -298,13 +322,14 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                   </TabsContent>
 
                   {/* Step 2 — fields */}
-                  <TabsContent value="fields" className="mt-0 space-y-4">
+                  <TabsContent value="fields" className={cn("mt-0 space-y-4", enter)}>
                     <FieldsStep
                       branches={form.branches}
                       onChange={(branches) => setField("branches", branches)}
                       activeSeedsForRelation={activeSeedsForRelation}
                       tableEmpty={form.tableEmpty}
                       canUseTemplates={isCreate}
+                      onOpenDangerZone={editRecord ? () => form.setStep("danger") : undefined}
                       onApplyTemplate={(template) => {
                         setField("branches", template.branches)
                         setField("display_name_alias", template.displayNameAlias)
@@ -314,7 +339,7 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                   </TabsContent>
 
                   {/* Step 3 — how the content type appears in the dashboard */}
-                  <TabsContent value="dashboard" className="mt-0 space-y-6">
+                  <TabsContent value="dashboard" className={cn("mt-0 space-y-6", enter)}>
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                       <FieldGroup>
                         {form.branches.length > 0 && (
@@ -390,8 +415,8 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                   </TabsContent>
 
                   {editRecord && (
-                    <TabsContent value="danger" className="mt-0">
-                      <SeedDangerZone record={editRecord} />
+                    <TabsContent value="danger" className={cn("mt-0", enter)}>
+                      <SeedDangerZone record={editRecord} onChooseDisplayName={() => form.setStep("dashboard")} />
                     </TabsContent>
                   )}
                 </div>
@@ -426,8 +451,11 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
-                    <Kbd>Ctrl</Kbd>
-                    <Kbd>↵</Kbd>
+                    <KbdGroup>
+                      <Kbd>{MOD_KEY_LABEL}</Kbd>
+                      <span>+</span>
+                      <Kbd>↵</Kbd>
+                    </KbdGroup>
                     {isCreate && !form.isLastStep ? t("seedBuilder.editor.nextShortcut") : t("seedBuilder.editor.saveShortcut")}
                   </span>
                   {isCreate && !form.isLastStep ? (

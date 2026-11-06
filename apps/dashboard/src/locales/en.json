@@ -1556,9 +1556,9 @@
       "newField": "New field",
       "addField": "Add field",
       "alias": "Alias",
-      "aliasReadOnlyHint": "Renaming a field requires the Danger Zone — coming soon.",
+      "aliasReadOnlyHint": "A stored field is renamed from the Danger zone tab.",
       "type": "Type",
-      "typeReadOnlyHint": "Changing a field type requires the Danger Zone — coming soon.",
+      "typeReadOnlyHint": "A stored field changes type from the Danger zone tab.",
       "label": "Label",
       "labelPlaceholder": "Field label",
       "repeaterFields": "Repeater fields",
@@ -1761,7 +1761,8 @@
         "drop": "Drop"
       },
       "blocked": {
-        "displayName": "this is the display name. Point the display name at another field first.",
+        "displayName": "this field is the display name of the content type.",
+        "displayNameLink": "Choose another field →",
         "repeater": "repeater fields cannot be retyped.",
         "multiRelation": "a multi-relation lives in a junction table, so there is no column to retype.",
         "localized": "this field is localized. Turn localization off first, then retype."
@@ -1784,8 +1785,7 @@
       "dropField": {
         "impactTitle": "Removes the column and all its data.",
         "impactBody": "The values of this field are lost for every entry and cannot be restored.",
-        "confirmLabel": "Type to confirm",
-        "fillHint": "Click to fill it in",
+        "confirmPlaceholder": "Type {{expected}} here",
         "button": "Drop field",
         "successToast": "Field \"{{alias}}\" dropped."
       },

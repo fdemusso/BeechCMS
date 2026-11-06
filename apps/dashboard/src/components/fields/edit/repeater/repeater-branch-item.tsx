@@ -104,6 +104,8 @@ export interface BranchEditorFormProps {
   tableEmpty?: boolean
   /** Opens the content-language settings; makes the Localized hint a link. */
   onOpenLanguages?: () => void
+  /** Opens the Danger zone; makes the info icon of a stored field's alias and type a link to it. */
+  onOpenDangerZone?: () => void
 }
 
 /**
@@ -117,6 +119,7 @@ export function BranchEditorForm({
   subField = false,
   tableEmpty,
   onOpenLanguages,
+  onOpenDangerZone,
 }: BranchEditorFormProps) {
   const { t } = useTranslation()
   // Once a top-level branch is persisted (id no longer has the "br_new_" prefix
@@ -165,7 +168,18 @@ export function BranchEditorForm({
                       readOnly
                       className="bg-muted text-muted-foreground cursor-not-allowed"
                     />
-                    <Info className="h-3 w-3 text-muted-foreground shrink-0" />
+                    {onOpenDangerZone ? (
+                      <button
+                        type="button"
+                        onClick={onOpenDangerZone}
+                        aria-label={t("seedBuilder.branchEditor.aliasReadOnlyHint")}
+                        className="shrink-0 rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                      >
+                        <Info className="h-3 w-3" />
+                      </button>
+                    ) : (
+                      <Info className="h-3 w-3 text-muted-foreground shrink-0" />
+                    )}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>{t("seedBuilder.branchEditor.aliasReadOnlyHint")}</TooltipContent>
@@ -196,7 +210,18 @@ export function BranchEditorForm({
                       readOnly
                       className="bg-muted text-muted-foreground cursor-not-allowed"
                     />
-                    <Info className="h-3 w-3 text-muted-foreground shrink-0" />
+                    {onOpenDangerZone ? (
+                      <button
+                        type="button"
+                        onClick={onOpenDangerZone}
+                        aria-label={t("seedBuilder.branchEditor.typeReadOnlyHint")}
+                        className="shrink-0 rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                      >
+                        <Info className="h-3 w-3" />
+                      </button>
+                    ) : (
+                      <Info className="h-3 w-3 text-muted-foreground shrink-0" />
+                    )}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>{t("seedBuilder.branchEditor.typeReadOnlyHint")}</TooltipContent>

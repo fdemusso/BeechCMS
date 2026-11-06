@@ -1557,9 +1557,9 @@
       "newField": "Nuovo campo",
       "addField": "Aggiungi campo",
       "alias": "Alias",
-      "aliasReadOnlyHint": "Rinominare un campo richiede la Danger Zone — disponibile a breve.",
+      "aliasReadOnlyHint": "Un campo già salvato si rinomina dalla tab Zona pericolosa.",
       "type": "Tipo",
-      "typeReadOnlyHint": "Cambiare il tipo di un campo richiede la Danger Zone — disponibile a breve.",
+      "typeReadOnlyHint": "Il tipo di un campo già salvato si cambia dalla tab Zona pericolosa.",
       "label": "Etichetta",
       "labelPlaceholder": "Etichetta del campo",
       "repeaterFields": "Campi del ripetitore",
@@ -1762,7 +1762,8 @@
         "drop": "Rimuovi"
       },
       "blocked": {
-        "displayName": "è il campo del nome visualizzato. Imposta prima un altro campo come nome visualizzato.",
+        "displayName": "questo campo è il nome visualizzato del tipo di contenuto.",
+        "displayNameLink": "Scegli un altro campo →",
         "repeater": "i campi ripetibili non si possono cambiare di tipo.",
         "multiRelation": "una relazione multipla vive in una tabella di giunzione, quindi non ha una colonna da cambiare.",
         "localized": "il campo è localizzato. Disattiva prima la localizzazione, poi cambia il tipo."
@@ -1785,8 +1786,7 @@
       "dropField": {
         "impactTitle": "Rimuove la colonna e tutti i suoi dati.",
         "impactBody": "I valori di questo campo vanno persi per ogni voce e non si possono ripristinare.",
-        "confirmLabel": "Scrivi per confermare",
-        "fillHint": "Clicca per compilarlo",
+        "confirmPlaceholder": "Scrivi {{expected}} qui",
         "button": "Rimuovi campo",
         "successToast": "Campo \"{{alias}}\" rimosso."
       },

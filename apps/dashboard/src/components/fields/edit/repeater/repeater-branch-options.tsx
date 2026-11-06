@@ -52,10 +52,10 @@ export function RelationOptionsForm({
   const avatarCandidates = (activeSeedsForRelation.find(s => s.slug === branch.targetSeed)?.branches ?? []).filter(isImageMediaBranch)
 
   return (
-    <div className="space-y-2 rounded-lg border p-2">
-      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.relationOptions")}</p>
+    <div className="space-y-2 rounded-[calc(var(--radius-control)+9px)] border p-2">
+      <p className="px-1 text-xs font-medium">{t("seedBuilder.branchEditor.relationOptions")}</p>
       <div className="space-y-1">
-        <Label className="text-xs">{t("seedBuilder.branchEditor.targetSeed")}</Label>
+        <Label className="px-1 text-xs">{t("seedBuilder.branchEditor.targetSeed")}</Label>
         {/* A new target invalidates the avatar source: it names a field of the previous target. */}
         <Select value={branch.targetSeed ?? ""} onValueChange={v => onChange({ ...branch, targetSeed: v, avatarSource: undefined })}>
           <SelectTrigger>
@@ -68,7 +68,7 @@ export function RelationOptionsForm({
           </SelectContent>
         </Select>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 px-1">
         <Checkbox
           id={`multiple-${branch.id}`}
           checked={!!branch.multiple}
@@ -77,7 +77,7 @@ export function RelationOptionsForm({
         <Label htmlFor={`multiple-${branch.id}`} className="text-xs">{t("seedBuilder.branchEditor.multiple")}</Label>
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">{t("seedBuilder.branchEditor.onDelete")}</Label>
+        <Label className="px-1 text-xs">{t("seedBuilder.branchEditor.onDelete")}</Label>
         <Select
           value={branch.onDelete ?? "SET NULL"}
           onValueChange={v => set("onDelete", v as Branch["onDelete"])}
@@ -93,7 +93,7 @@ export function RelationOptionsForm({
         </Select>
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">{t("seedBuilder.branchEditor.avatarSource")}</Label>
+        <Label className="px-1 text-xs">{t("seedBuilder.branchEditor.avatarSource")}</Label>
         <Select
           value={branch.avatarSource ?? NO_AVATAR}
           onValueChange={v => set("avatarSource", v === NO_AVATAR ? undefined : v)}
@@ -110,7 +110,7 @@ export function RelationOptionsForm({
           </SelectContent>
         </Select>
         {/* Always rendered: a control that appears only when the target qualifies cannot be discovered. */}
-        <p className="text-xs text-muted-foreground">
+        <p className="px-1 text-xs text-muted-foreground">
           {t(branch.targetSeed && avatarCandidates.length === 0
             ? "seedBuilder.branchEditor.avatarSourceUnavailable"
             : "seedBuilder.branchEditor.avatarSourceHint")}
@@ -137,11 +137,11 @@ export function NumberOptionsForm({ branch, onChange }: NumberOptionsFormProps) 
   const { t } = useTranslation()
 
   return (
-    <div className="space-y-2 rounded-lg border p-2">
-      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.numberOptions")}</p>
+    <div className="space-y-2 rounded-[calc(var(--radius-control)+9px)] border p-2">
+      <p className="px-1 text-xs font-medium">{t("seedBuilder.branchEditor.numberOptions")}</p>
       <div className="grid grid-cols-3 gap-2">
         <div className="space-y-1">
-          <Label className="text-xs">{t("seedBuilder.branchEditor.min")}</Label>
+          <Label className="px-1 text-xs">{t("seedBuilder.branchEditor.min")}</Label>
           <Input
             type="number"
             value={branch.numberOptions?.min ?? ""}
@@ -149,7 +149,7 @@ export function NumberOptionsForm({ branch, onChange }: NumberOptionsFormProps) 
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">{t("seedBuilder.branchEditor.max")}</Label>
+          <Label className="px-1 text-xs">{t("seedBuilder.branchEditor.max")}</Label>
           <Input
             type="number"
             value={branch.numberOptions?.max ?? ""}
@@ -157,7 +157,7 @@ export function NumberOptionsForm({ branch, onChange }: NumberOptionsFormProps) 
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">{t("seedBuilder.branchEditor.step")}</Label>
+          <Label className="px-1 text-xs">{t("seedBuilder.branchEditor.step")}</Label>
           <Input
             type="number"
             value={branch.numberOptions?.step ?? ""}
@@ -166,7 +166,7 @@ export function NumberOptionsForm({ branch, onChange }: NumberOptionsFormProps) 
         </div>
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">{t("seedBuilder.branchEditor.control")}</Label>
+        <Label className="px-1 text-xs">{t("seedBuilder.branchEditor.control")}</Label>
         <Select
           value={branch.numberOptions?.control ?? "input"}
           onValueChange={v => onChange({ ...branch, numberOptions: { ...branch.numberOptions, control: v as "input" | "slider" | "rating" | "stepper" } })}
@@ -204,9 +204,9 @@ export function FileOptionsForm({ branch, onChange }: FileOptionsFormProps) {
   }
 
   return (
-    <div className="space-y-2 rounded-lg border p-2">
-      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.fileOptions")}</p>
-      <div className="flex items-center gap-2">
+    <div className="space-y-2 rounded-[calc(var(--radius-control)+9px)] border p-2">
+      <p className="px-1 text-xs font-medium">{t("seedBuilder.branchEditor.fileOptions")}</p>
+      <div className="flex items-center gap-2 px-1">
         <Checkbox
           id={`file-multiple-${branch.id}`}
           checked={!!branch.multiple}
@@ -215,7 +215,7 @@ export function FileOptionsForm({ branch, onChange }: FileOptionsFormProps) {
         <Label htmlFor={`file-multiple-${branch.id}`} className="text-xs">{t("seedBuilder.branchEditor.multiple")}</Label>
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">{t("seedBuilder.branchEditor.fileAccept")}</Label>
+        <Label className="px-1 text-xs">{t("seedBuilder.branchEditor.fileAccept")}</Label>
         <Select
           value={branch.fileOptions?.accept ?? "any"}
           onValueChange={v => onChange({ ...branch, fileOptions: { ...branch.fileOptions, accept: v as "image" | "document" | "any" } })}
@@ -280,9 +280,9 @@ export function TagOptionsForm({ branch, onChange }: TagOptionsFormProps) {
   }
 
   return (
-    <div className="space-y-2 rounded-lg border p-2">
-      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.options")}</p>
-      <div className="flex items-center gap-2">
+    <div className="space-y-2 rounded-[calc(var(--radius-control)+9px)] border p-2">
+      <p className="px-1 text-xs font-medium">{t("seedBuilder.branchEditor.options")}</p>
+      <div className="flex items-center gap-2 px-1">
         <Checkbox
           id={`tags-multiple-${branch.id}`}
           checked={!isSingleChoiceTags(branch)}
@@ -292,7 +292,7 @@ export function TagOptionsForm({ branch, onChange }: TagOptionsFormProps) {
       </div>
 
       {options.length === 0 && (
-        <p className="text-xs text-muted-foreground">{t("seedBuilder.branchEditor.freeTagsHint")}</p>
+        <p className="px-1 text-xs text-muted-foreground">{t("seedBuilder.branchEditor.freeTagsHint")}</p>
       )}
 
       {options.map((option, index) => (
@@ -388,11 +388,11 @@ export function RepeaterOptionsForm({ branch, onChange, subField }: RepeaterOpti
   if (subField) return null
 
   return (
-    <div className="space-y-2 rounded-lg border p-2">
-      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.repeaterFields")}</p>
+    <div className="space-y-2 rounded-[calc(var(--radius-control)+9px)] border p-2">
+      <p className="px-1 text-xs font-medium">{t("seedBuilder.branchEditor.repeaterFields")}</p>
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <Label className="text-xs">{t("seedBuilder.branchEditor.minItems")}</Label>
+          <Label className="px-1 text-xs">{t("seedBuilder.branchEditor.minItems")}</Label>
           <Input
             type="number"
             min={0}
@@ -401,7 +401,7 @@ export function RepeaterOptionsForm({ branch, onChange, subField }: RepeaterOpti
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">{t("seedBuilder.branchEditor.maxItems")}</Label>
+          <Label className="px-1 text-xs">{t("seedBuilder.branchEditor.maxItems")}</Label>
           <Input
             type="number"
             min={0}
@@ -554,10 +554,10 @@ export function PoliciesOptionsForm({
     : null
 
   return (
-    // Nested in the field panel (a surface, rounded-lg): it takes the corner of the controls beside it.
-    <div className="space-y-3 rounded-control border p-3">
+    // Same box as the other option groups: the corner is the controls' (10px) plus the 8px padding and 1px border around them.
+    <div className="space-y-2 rounded-[calc(var(--radius-control)+9px)] border p-2">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium">{t("seedBuilder.branchEditor.policies")}</p>
+        <p className="px-1 text-xs font-medium">{t("seedBuilder.branchEditor.policies")}</p>
         <Popover>
           <PopoverTrigger asChild>
             <Button

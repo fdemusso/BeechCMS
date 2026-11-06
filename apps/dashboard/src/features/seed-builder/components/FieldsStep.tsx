@@ -38,6 +38,8 @@ export interface FieldsStepProps {
   /** Templates are offered only while creating, on an empty list. */
   canUseTemplates: boolean
   onApplyTemplate: (template: BuiltTemplate) => void
+  /** Jumps to the Danger zone tab, where a stored field is renamed or retyped. */
+  onOpenDangerZone?: () => void
 }
 
 let newFieldCounter = 0
@@ -54,6 +56,7 @@ export function FieldsStep({
   tableEmpty,
   canUseTemplates,
   onApplyTemplate,
+  onOpenDangerZone,
 }: FieldsStepProps) {
   const { t } = useTranslation()
   // The content languages live in the Site tab of the settings dialog that hosts this wizard.
@@ -231,6 +234,7 @@ export function FieldsStep({
                     onChange={updateBranch}
                     tableEmpty={tableEmpty}
                     onOpenLanguages={() => setTab("general")}
+                    onOpenDangerZone={onOpenDangerZone}
                   />
                 ) : (
                   <p className="py-6 text-center text-sm text-muted-foreground">{t("seedBuilder.fields.select")}</p>
