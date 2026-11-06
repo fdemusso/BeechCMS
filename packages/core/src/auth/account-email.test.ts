@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, expect, it } from 'vitest'
-import { isValidAccountEmail } from './account-email'
+import { isValidAccountEmail } from './account-email.js'
 
 // Shared account validation must preserve login's shape and normalized length limit.
 const cases: [string, boolean][] = [

@@ -6,8 +6,8 @@ import { useTranslation } from "react-i18next"
 import { Search } from "@/components/icons"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { SidebarMenu, SidebarMenuItem } from "@/components/ui/sidebar"
+import { IS_MAC, MOD_KEY_LABEL } from "@/lib/platform"
 
-const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
 
 // The global CommandPalette owns its open state and listens for Cmd/Ctrl+K on `document`.
 // Re-dispatching that key combo opens it without coupling this slice to the command-palette slice.
@@ -35,8 +35,8 @@ export function SidebarSearch() {
               the outer edge (1px border + 7px: (36 - 2 - 20) / 2 vertically, pr-[7px] on the right), so their radius is 16 - 8.
               Soft global tokens (bg-sidebar-accent): visible against the bar on both themes without the heavy contrast of bg-foreground / bg-primary. */}
           <KbdGroup className="transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0">
-            {IS_MAC ? <Kbd className="rounded-[8px] bg-sidebar-accent text-sidebar-accent-foreground">⌘</Kbd> : <Kbd className="rounded-[8px] bg-sidebar-accent text-sidebar-accent-foreground">Ctrl</Kbd>}
-            <Kbd className="rounded-[8px] bg-sidebar-accent text-sidebar-accent-foreground">K</Kbd>
+            <Kbd className="bg-sidebar-accent text-sidebar-accent-foreground">{MOD_KEY_LABEL}</Kbd>
+            <Kbd className="bg-sidebar-accent text-sidebar-accent-foreground">K</Kbd>
           </KbdGroup>
         </button>
       </SidebarMenuItem>

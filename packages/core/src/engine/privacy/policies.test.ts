@@ -239,11 +239,11 @@ describe('filterEntryForActor', () => {
     label: 'User Profile',
     displayNameAlias: 'name',
     branches: [
-      { id: 'br_01', alias: 'name', type: 'text', policies: { classification: 'public' } },
-      { id: 'br_02', alias: 'email', type: 'text', policies: { classification: 'internal' } },
-      { id: 'br_03', alias: 'ssn', type: 'text', policies: { classification: 'confidential' } },
-      { id: 'br_04', alias: 'password_hash', type: 'text', policies: { classification: 'restricted' } },
-      { id: 'br_05', alias: 'pin', type: 'text', policies: { classification: 'public', visibility: 'masked' } },
+      { id: 'br_01', alias: 'name', label: 'name', type: 'text', policies: { classification: 'public' } },
+      { id: 'br_02', alias: 'email', label: 'email', type: 'text', policies: { classification: 'internal' } },
+      { id: 'br_03', alias: 'ssn', label: 'ssn', type: 'text', policies: { classification: 'confidential' } },
+      { id: 'br_04', alias: 'password_hash', label: 'password_hash', type: 'text', policies: { classification: 'restricted' } },
+      { id: 'br_05', alias: 'pin', label: 'pin', type: 'text', policies: { classification: 'public', visibility: 'masked' } },
     ],
   }
 
@@ -316,7 +316,7 @@ describe('filterEntryForActor', () => {
       label: 'Products',
       displayNameAlias: 'title',
       branches: [
-        { id: 'br_01', alias: 'tagline', type: 'text', localized: true, policies: { visibility: 'masked' } },
+        { id: 'br_01', alias: 'tagline', label: 'tagline', type: 'text', localized: true, policies: { visibility: 'masked' } },
       ],
     }
 
@@ -332,7 +332,7 @@ describe('filterEntryForActor', () => {
       label: 'Products',
       displayNameAlias: 'title',
       branches: [
-        { id: 'br_01', alias: 'meta', type: 'json', policies: { visibility: 'masked' } },
+        { id: 'br_01', alias: 'meta', label: 'meta', type: 'json', policies: { visibility: 'masked' } },
       ],
     }
 
@@ -347,8 +347,8 @@ describe('filterEntryForActor', () => {
       label: 'Profiles',
       displayNameAlias: 'name',
       branches: [
-        { id: 'br_01', alias: 'name', type: 'text' },
-        { id: 'br_02', alias: 'bio', type: 'text', policies: { public: false } },
+        { id: 'br_01', alias: 'name', label: 'name', type: 'text' },
+        { id: 'br_02', alias: 'bio', label: 'bio', type: 'text', policies: { public: false } },
       ],
     }
     const data = { id: 'p1', name: 'Jane', bio: 'private' }

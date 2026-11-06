@@ -54,8 +54,8 @@ describe('interfaceForSeed', () => {
     label: 'Articles',
     displayNameAlias: 'title',
     branches: [
-      { alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
-      { alias: 'body', label: 'Body', type: 'richtext' },
+      { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+      { id: 'br_02', alias: 'body', label: 'Body', type: 'richtext' },
     ],
   }
 

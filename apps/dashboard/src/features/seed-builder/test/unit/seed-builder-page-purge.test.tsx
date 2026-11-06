@@ -21,8 +21,7 @@ const deletedSeed: SeedRecordDTO = {
 
 vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ canGlobally: () => true }) }))
 vi.mock("@/features/shared", () => ({ useSchema: () => ({ data: [] }) }))
-vi.mock("@/features/entry-editor", () => ({ SchemaFormShell: () => null }))
-vi.mock("@/features/seed-builder/hooks/use-seed-editor-dialog", () => ({ useSeedEditorDialog: () => ({}) }))
+vi.mock("@/features/seed-builder/components/SeedFormDialog", () => ({ SeedFormDialog: () => null }))
 vi.mock("@/features/seed-builder/hooks/use-seeds", () => ({
   useSeeds: () => ({ data: [deletedSeed], isLoading: false, refetch: vi.fn() }),
   useDeleteSeed: () => ({ mutate: vi.fn(), isPending: false }),

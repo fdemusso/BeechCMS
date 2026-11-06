@@ -1478,21 +1478,51 @@
       "labelPlural": "Label (plural)",
       "labelPluralPlaceholder": "Articles",
       "displayNameAlias": "Display name field",
-      "displayNameAliasPlaceholder": "Select or type an alias",
+      "displayNameAliasPlaceholder": "Select a field",
+      "displayNameSearch": "Search fields…",
+      "displayNameEmpty": "No field found.",
       "capabilities": "Capabilities",
-      "allowPublicRead": "Allow public read",
-      "allowPublicPost": "Allow public create",
-      "allowPublicEdit": "Allow public edit",
+      "allowPublicRead": "Read",
+      "allowPublicPost": "Create",
+      "allowPublicEdit": "Edit",
       "allowDrafts": "Enable drafts",
       "dashIcon": "Icon",
       "dashIconPlaceholder": "Select an icon",
       "dashIconDefault": "Default (Folder)",
       "dashGroup": "Sidebar group",
-      "dashGroupPlaceholder": "Contents",
       "dashOrder": "Sort order",
       "dashHidden": "Hide from sidebar",
       "dashDescription": "Description",
       "dashDescriptionPlaceholder": "Short tooltip shown in the sidebar",
+      "dashViewsSection": "Authorized views",
+      "dashGroupSearch": "Search or create a group…",
+      "dashGroupDefault": "default",
+      "dashGroupCreate": "Create “{{name}}”",
+      "dashOrderHint": "Lower numbers come first in the group. Empty means last (99).",
+      "dashPreview": "How it looks in the sidebar",
+      "dashPreviewNew": "New content type",
+      "dashPreviewMore": "{{count}} more",
+      "dashPreviewHidden": "Hidden: it will not appear in the sidebar.",
+      "viewGroups": {
+        "browse": "Browse",
+        "organize": "Organize",
+        "plan": "Time & place",
+        "insight": "Insight & input"
+      },
+      "selectIcon": "Select icon",
+      "searchIcons": "Search icons...",
+      "noIconsFound": "No icons found",
+      "fieldsRequiredHint": "Add at least one field to save.",
+      "publicAccessTitle": "Public access",
+      "publicAccessDescription": "For anonymous visitors, through the public API. Only public fields are exposed.",
+      "publicAccessRbacNote": "Signed-in users follow their roles, not these switches.",
+      "settingsToggle": "Settings",
+      "dangerZoneToggle": "Danger zone",
+      "back": "Back",
+      "next": "Next",
+      "nextShortcut": "to continue",
+      "slugTaken": "This slug is already in use.",
+      "saveShortcut": "to save",
       "features": "Dashboard features",
       "featSearch": "Search",
       "featFilter": "Filters",
@@ -1503,9 +1533,9 @@
       "hints": {
         "slug": "Unique identifier for this content type. Becomes the database table name (content_slug) and is used in URLs. Cannot be changed after creation.",
         "displayNameAlias": "The field used as the representative title of each entry in dashboard lists and references. Choose a text field that clearly identifies each record.",
-        "allowPublicRead": "Allows anyone to read this content via the Public API without authentication. Useful for content like articles or products meant to be publicly accessible.",
-        "allowPublicPost": "Allows anyone to create new entries via the Public API without authentication. Enable with caution: exposes content creation to anonymous users.",
-        "allowPublicEdit": "Allows anyone to update existing entries via the Public API without authentication. Enable only in controlled scenarios.",
+        "allowPublicRead": "Anyone can read entries.",
+        "allowPublicPost": "Anyone can submit new entries.",
+        "allowPublicEdit": "Anyone can change existing entries.",
         "allowDrafts": "Enables a parallel drafts table. Editors can save unpublished versions and manually promote them to published content.",
         "dashGroup": "Name of the sidebar section this content type is grouped under. Types sharing the same group appear together. Leave empty to use the default section.",
         "dashOrder": "Position within the group in the sidebar. Lower values appear first. Default: 99.",
@@ -1513,12 +1543,22 @@
       }
     },
     "branchEditor": {
+      "required": "Required",
+      "requiredBadge": "Required",
+      "hint": "Hint",
+      "hintPlaceholder": "Help text under the field",
+      "issues": {
+        "alias": "Invalid alias",
+        "reserved": "Reserved alias",
+        "duplicate": "Duplicate alias",
+        "target": "Pick a target"
+      },
       "newField": "New field",
       "addField": "Add field",
       "alias": "Alias",
-      "aliasReadOnlyHint": "Renaming a field requires the Danger Zone — coming soon.",
+      "aliasReadOnlyHint": "A stored field is renamed from the Danger zone tab.",
       "type": "Type",
-      "typeReadOnlyHint": "Changing a field type requires the Danger Zone — coming soon.",
+      "typeReadOnlyHint": "A stored field changes type from the Danger zone tab.",
       "label": "Label",
       "labelPlaceholder": "Field label",
       "repeaterFields": "Repeater fields",
@@ -1564,7 +1604,7 @@
       "reservedAliasError": "One or more aliases conflict with reserved system field names.",
       "localized": "Localized",
       "localizedBadge": "localized",
-      "localizedHint": "Editors fill this field once per content language (Settings → Site → Content languages).",
+      "localizedHint": "Editors fill this field once per content language. Manage them in <languages>Content languages</languages>.",
       "localizedBlockedSubField": "Repeater sub-fields can't be localized.",
       "localizedBlockedClassification": "Confidential and restricted fields are stored encrypted or hashed, so they can't be localized.",
       "localizedDisableWarning": "Existing translations stay stored. Until you turn localization back on, this field shows them as raw text."
@@ -1583,6 +1623,8 @@
       "classification_locked_encrypted": "Encrypted columns cannot be decrypted or converted when the table contains entries.",
       "classification_locked_restricted": "Hashed columns cannot be decrypted or converted when the table contains entries.",
       "storage_encrypted": "Encrypted at rest",
+      "help": "About privacy",
+      "flagsTitle": "Options",
       "search": "Full-text search",
       "filter": "Filterable",
       "sort": "Sortable",
@@ -1591,6 +1633,64 @@
       "visibility_full": "Full",
       "visibility_masked": "Masked",
       "visibility_hidden": "Hidden"
+    },
+    "fields": {
+      "add": "Add",
+      "addPlaceholder": "Field name, then Enter",
+      "empty": "No fields yet. Type a name above.",
+      "select": "Select a field to edit it."
+    },
+    "templates": {
+      "title": "Start from",
+      "person": {
+        "name": "Person",
+        "last_name": "Last name",
+        "first_name": "First name",
+        "email": "Email",
+        "phone": "Phone",
+        "birth_date": "Date of birth",
+        "tax_id": "Tax ID",
+        "address": "Address",
+        "city": "City",
+        "country": "Country",
+        "photo": "Photo",
+        "relationship": "Relationship",
+        "marketing_consent": "Marketing consent",
+        "notes": "Notes"
+      },
+      "event": {
+        "name": "Event",
+        "title": "Title",
+        "description": "Description",
+        "start_at": "Starts",
+        "end_at": "Ends",
+        "all_day": "All day",
+        "location": "Location",
+        "event_status": "Status",
+      "capacity": "Capacity",
+        "contact_name": "Contact name",
+        "contact_email": "Contact email",
+        "contact_phone": "Contact phone"
+      },
+      "article": {
+        "name": "Article",
+        "title": "Title",
+        "excerpt": "Excerpt",
+        "cover": "Cover image",
+        "body": "Body",
+        "author": "Author",
+        "published_at": "Published on",
+        "categories": "Categories"
+      },
+      "contact": {
+        "name": "Contact request",
+        "subject": "Subject",
+        "sender": "Name",
+        "email": "Email",
+        "message": "Message",
+        "reason": "Reason",
+        "state": "Status"
+      }
     },
     "fieldTypes": {
       "text": "Text",
@@ -1625,63 +1725,92 @@
       "description": "This content type was soft-deleted. Purging removes its tables and media for good."
     },
     "dangerZone": {
-      "title": "Danger Zone",
-      "subtitle": "These operations are irreversible and may cause permanent data loss.",
-      "hardDelete": {
-        "title": "Permanently delete this content type",
-        "description": "Hides this content type immediately, then deletes its tables and media in the background. This cannot be undone.",
-        "confirmPlaceholder": "Type the slug to confirm",
-        "confirmLabel": "Type \"{{slug}}\" to confirm",
-        "button": "Delete permanently",
-        "successToast": "Deletion of \"{{slug}}\" started. Media cleanup is pending."
+      "title": "Danger zone",
+      "manifest": {
+        "title": "Managed by beech.schema.ts.",
+        "body": "Edit the manifest and re-apply it to change fields or delete this type. Only the search index can be rebuilt here."
       },
-      "dropColumn": {
-        "title": "Drop field",
-        "description": "Permanently removes the column and all its data from the database.",
-        "confirmPlaceholder": "Type slug.alias to confirm",
+      "maintenance": {
+        "title": "Maintenance",
+        "badge": "safe",
+        "subtitle": "No data is lost. Use it when something looks out of sync."
+      },
+      "ftsRebuild": {
+        "title": "Search index",
+        "description": "Rebuilds the full-text index and its triggers from the current text fields.",
+        "button": "Rebuild",
+        "successToast": "Search index rebuilt."
+      },
+      "orphans": {
+        "title": "Orphan columns",
+        "description": "Columns still in the database but no longer in the definition.",
+        "empty": "No orphan columns.",
+        "review": "Review",
+        "hide": "Hide",
+        "dropButton": "Drop",
+        "refreshButton": "Refresh",
+        "successToast": "Column \"{{column}}\" dropped."
+      },
+      "fieldOps": {
+        "title": "Field operations",
+        "badge": "changes the database",
+        "subtitle": "Pick a field, then choose what to do. Unavailable options say why.",
+        "empty": "This content type has no saved fields yet.",
+        "rename": "Rename",
+        "retype": "Change type",
+        "drop": "Drop"
+      },
+      "blocked": {
+        "displayName": "this field is the display name of the content type.",
+        "displayNameLink": "Choose another field →",
+        "repeater": "repeater fields cannot be retyped.",
+        "multiRelation": "a multi-relation lives in a junction table, so there is no column to retype.",
+        "localized": "this field is localized. Turn localization off first, then retype."
+      },
+      "rename": {
+        "newAliasLabel": "New alias",
+        "impactTitle": "Renames the database column and rebuilds search.",
+        "impactBody": "Automations that reference the old alias will need updating; you will be told which ones.",
+        "button": "Rename field",
+        "successToast": "\"{{alias}}\" renamed to \"{{newAlias}}\".",
+        "automationWarning": "{{count}} automation(s) reference the old alias and may be broken: {{ids}}"
+      },
+      "retype": {
+        "newTypeLabel": "New type",
+        "impactTitle": "Converts every stored value.",
+        "impactBody": "If any value cannot be converted without loss, the change is refused and nothing is touched.",
+        "button": "Change type",
+        "successToast": "\"{{alias}}\" is now {{newType}}."
+      },
+      "dropField": {
+        "impactTitle": "Removes the column and all its data.",
+        "impactBody": "The values of this field are lost for every entry and cannot be restored.",
+        "confirmPlaceholder": "Type {{expected}} here",
         "button": "Drop field",
         "successToast": "Field \"{{alias}}\" dropped."
       },
-      "renameAlias": {
-        "title": "Rename field alias",
-        "description": "Renames the database column. FTS is rebuilt. Automations referencing the old alias will break.",
-        "newAliasLabel": "New alias",
-        "newAliasPlaceholder": "new_alias",
-        "confirmPlaceholder": "Type slug.alias to confirm",
-        "button": "Rename",
-        "successToast": "Field renamed to \"{{newAlias}}\".",
-        "automationWarning": "Warning: {{count}} automation(s) reference the old alias and may be broken: {{ids}}"
+      "hardDelete": {
+        "fillSlug": "Fill in {{slug}}",
+        "footerButton": "Delete content type",
+        "footerHint": "Deleting the content type removes its entries, tables and media.",
+        "manifestHint": "Managed by beech.schema.ts: remove it from the manifest to delete it.",
+        "title": "Permanently delete {{label}}",
+        "description": "Hides this content type immediately, then removes its tables and media in the background. This cannot be undone.",
+        "impactEntries": "All its entries",
+        "impactFields": "{{count}} fields and their tables, drafts included",
+        "impactMedia": "The media files stored for it",
+        "confirmLabel": "Type \"{{slug}}\" to confirm",
+        "confirmPlaceholder": "Type the slug to confirm",
+        "button": "Delete permanently",
+        "successToast": "Deletion of \"{{slug}}\" started. Media cleanup is pending."
       },
-      "retypeField": {
-        "title": "Change field type",
-        "description": "Rebuilds the column type via add/copy/drop/rename. Existing data is CAST — values incompatible with the new type will be lost.",
-        "newTypeLabel": "New type",
-        "confirmPlaceholder": "Type slug.alias to confirm",
-        "button": "Change type",
-        "successToast": "Field \"{{alias}}\" retyped to {{newType}}."
-      },
-      "orphans": {
-        "title": "Orphaned columns",
-        "description": "Columns present in the database but absent from the current definition.",
-        "empty": "No orphaned columns.",
-        "dropButton": "Drop",
-        "refreshButton": "Refresh"
-      },
-      "ftsRebuild": {
-        "title": "Rebuild full-text search index",
-        "description": "Drops and recreates the FTS virtual table and its triggers, then backfills from the content table.",
-        "button": "Rebuild FTS",
-        "successToast": "FTS index rebuilt."
-      },
-      "branchDangerToggle": "Advanced (destructive)",
-      "confirmMismatch": "Confirmation does not match — type the exact identifier shown.",
       "errors": {
         "hardDeleteFailed": "Hard delete failed",
-        "dropColumnFailed": "Drop column failed",
+        "dropColumnFailed": "Drop failed",
         "renameFailed": "Rename failed",
         "retypeFailed": "Retype failed",
         "orphansFailed": "Failed to load orphans",
-        "ftsRebuildFailed": "FTS rebuild failed"
+        "ftsRebuildFailed": "Search index rebuild failed"
       }
     }
   },

@@ -24,5 +24,6 @@ export type {
 } from "./shared"
 export { DEFAULT_ENABLED_TOOLS, DEFAULT_VIEW_SETTINGS, buildFilterableColumns, defaultOperatorForType, generateConditionId } from "./shared"
 export type { FilterableColumn } from "./shared"
+export { VIEW_TYPE_CATALOGUE } from "./toolbar-components/view-type-catalogue"
 export { ViewSwitcher } from "./toolbar-components/view-switcher"
 export { ToolbarStrip } from "./toolbar-components/toolbar-strip"

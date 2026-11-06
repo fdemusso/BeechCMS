@@ -5,7 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { z } from 'zod'
 import type { Branch, Seed, SeedRecord } from '@beechcms/core'
-import { nextBranchId, validateSeedDefinitions, SLUG_RE } from '@beechcms/core'
+import { nextBranchId, validateSeedDefinitions, hasBlindIndex, SLUG_RE, SYSTEM_COLUMNS } from '@beechcms/core'
 import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
 import { BODY_NOT_JSON_DETAIL, BODY_NOT_OBJECT_DETAIL } from './seeds.schema'
 import type { ZodJsonRefusal } from '../../shared/utils/zod-json'
@@ -150,6 +150,21 @@ export async function getSeedAnyStatus(context: AppContext, slug: string) {
  *
  * @returns A 409 Problem Details Response when the seed is manifest-owned, or `null` when it is not.
  */
+/**
+ * Physical columns a seed's definition accounts for: the system columns, one per branch, and the `<alias>_bidx` blind
+ * index that the engine keeps beside every encrypted, filterable branch. A column outside this set is an orphan.
+ * Multi-relations have no column (they live in a junction table).
+ */
+export function definedColumns(definition: Seed): Set<string> {
+  const columns = new Set<string>(SYSTEM_COLUMNS)
+  for (const branch of definition.branches) {
+    if (branch.type === 'relation' && branch.multiple === true) continue
+    columns.add(branch.alias)
+    if (hasBlindIndex(branch)) columns.add(`${branch.alias}_bidx`)
+  }
+  return columns
+}
+
 export function rejectManifestOwned(context: AppContext, record: SeedRecord) {
   if (record.source !== 'code') return null
   return publicProblem(context, {

@@ -10,7 +10,6 @@ import {
   generateDropOrphanColumn,
   draftTableName,
   tableName,
-  SYSTEM_COLUMNS,
   generateRenameColumn,
   generateRetypeColumn,
   generateRetypeIncompatibleCount,
@@ -30,6 +29,7 @@ import {
   actorFromContext,
   externalReferencers,
   automationReferencesAlias,
+  definedColumns,
 } from './seeds.helpers'
 import { SEED_MEDIA_PURGE_JOB } from './seed-media-purge'
 import { confirmBodySchema, renameBranchBodySchema, retypeBranchBodySchema } from './seeds.schema'
@@ -194,8 +194,7 @@ export const destructiveApp = new Hono<{ Bindings: Env; Variables: Variables }>(
     const mutator = context.get('schemaMutator')
     const columns = await mutator.getColumns(tableName(definition))
     const isOrphan = BRANCH_ALIAS_RE.test(column)
-      && !SYSTEM_COLUMNS.has(column)
-      && !definition.branches.some((b: Branch) => b.alias === column)
+      && !definedColumns(definition).has(column)
       && columns?.has(column) === true
     if (!isOrphan) {
       return publicProblem(context, { type: 'orphan-not-found', title: 'Orphan column not found', status: 404, detail: `Seed '${slug}' has no orphan column '${column}'.` })

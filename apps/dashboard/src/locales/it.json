@@ -1479,21 +1479,51 @@
       "labelPlural": "Etichetta (plurale)",
       "labelPluralPlaceholder": "Articoli",
       "displayNameAlias": "Campo nome visualizzato",
-      "displayNameAliasPlaceholder": "Seleziona o digita un alias",
+      "displayNameAliasPlaceholder": "Seleziona un campo",
+      "displayNameSearch": "Cerca un campo…",
+      "displayNameEmpty": "Nessun campo trovato.",
       "capabilities": "Funzionalità",
-      "allowPublicRead": "Abilita lettura pubblica",
-      "allowPublicPost": "Abilita creazione pubblica",
-      "allowPublicEdit": "Abilita modifica pubblica",
+      "allowPublicRead": "Lettura",
+      "allowPublicPost": "Creazione",
+      "allowPublicEdit": "Modifica",
       "allowDrafts": "Abilita bozze",
       "dashIcon": "Icona",
       "dashIconPlaceholder": "Seleziona un'icona",
       "dashIconDefault": "Predefinita (Cartella)",
       "dashGroup": "Gruppo sidebar",
-      "dashGroupPlaceholder": "Contenuti",
       "dashOrder": "Ordinamento",
       "dashHidden": "Nascondi dalla sidebar",
       "dashDescription": "Descrizione",
       "dashDescriptionPlaceholder": "Breve tooltip mostrato nella sidebar",
+      "dashViewsSection": "Viste autorizzate",
+      "dashGroupSearch": "Cerca o crea un gruppo…",
+      "dashGroupDefault": "predefinito",
+      "dashGroupCreate": "Crea “{{name}}”",
+      "dashOrderHint": "I numeri più bassi vengono prima nel gruppo. Vuoto significa ultimo (99).",
+      "dashPreview": "Come appare nella sidebar",
+      "dashPreviewNew": "Nuovo tipo di contenuto",
+      "dashPreviewMore": "altri {{count}}",
+      "dashPreviewHidden": "Nascosto: non comparirà nella sidebar.",
+      "viewGroups": {
+        "browse": "Consultare",
+        "organize": "Organizzare",
+        "plan": "Tempo e luogo",
+        "insight": "Analisi e raccolta"
+      },
+      "selectIcon": "Seleziona icona",
+      "searchIcons": "Cerca icone...",
+      "noIconsFound": "Nessuna icona trovata",
+      "fieldsRequiredHint": "Aggiungi almeno un campo per salvare.",
+      "publicAccessTitle": "Accesso pubblico",
+      "publicAccessDescription": "Per i visitatori anonimi, tramite la API pubblica. Sono esposti solo i campi pubblici.",
+      "publicAccessRbacNote": "Gli utenti autenticati seguono i ruoli, non questi interruttori.",
+      "settingsToggle": "Impostazioni",
+      "dangerZoneToggle": "Zona pericolosa",
+      "back": "Indietro",
+      "next": "Avanti",
+      "nextShortcut": "per continuare",
+      "slugTaken": "Questo slug è già in uso.",
+      "saveShortcut": "per salvare",
       "features": "Funzionalità dashboard",
       "featSearch": "Ricerca",
       "featFilter": "Filtri",
@@ -1504,9 +1534,9 @@
       "hints": {
         "slug": "Identificatore univoco del tipo di contenuto. Diventa il nome della tabella nel database (content_slug) e viene usato negli URL. Non può essere modificato dopo la creazione.",
         "displayNameAlias": "Il campo del contenuto usato come titolo rappresentativo nelle liste e nei riferimenti della dashboard. Scegli un campo di tipo testo che identifichi chiaramente ogni voce.",
-        "allowPublicRead": "Permette a chiunque di leggere i contenuti di questo tipo tramite la Public API, senza autenticazione. Utile per contenuti come articoli o prodotti da esporre al pubblico.",
-        "allowPublicPost": "Permette a chiunque di creare nuove voci tramite la Public API, senza autenticazione. Abilitare con cautela: espone la creazione di contenuti a utenti anonimi.",
-        "allowPublicEdit": "Permette a chiunque di modificare voci esistenti tramite la Public API, senza autenticazione. Abilitare solo in scenari controllati.",
+        "allowPublicRead": "Chiunque può leggere i contenuti.",
+        "allowPublicPost": "Chiunque può inviare nuovi contenuti.",
+        "allowPublicEdit": "Chiunque può modificare i contenuti esistenti.",
         "allowDrafts": "Abilita una tabella bozze parallela. Gli editor possono salvare versioni non pubblicate e promuoverle manualmente al contenuto pubblicato.",
         "dashGroup": "Nome della sezione nella sidebar della dashboard sotto cui raggruppare questo tipo di contenuto. Tipi con lo stesso gruppo appaiono insieme. Se vuoto, finisce nella sezione predefinita.",
         "dashOrder": "Posizione all'interno del gruppo nella sidebar. I valori più bassi appaiono per primi. Default: 99.",
@@ -1514,12 +1544,22 @@
       }
     },
     "branchEditor": {
+      "required": "Obbligatorio",
+      "requiredBadge": "Obbl.",
+      "hint": "Suggerimento",
+      "hintPlaceholder": "Testo di aiuto sotto il campo",
+      "issues": {
+        "alias": "Alias non valido",
+        "reserved": "Alias riservato",
+        "duplicate": "Alias duplicato",
+        "target": "Scegli la destinazione"
+      },
       "newField": "Nuovo campo",
       "addField": "Aggiungi campo",
       "alias": "Alias",
-      "aliasReadOnlyHint": "Rinominare un campo richiede la Danger Zone — disponibile a breve.",
+      "aliasReadOnlyHint": "Un campo già salvato si rinomina dalla tab Zona pericolosa.",
       "type": "Tipo",
-      "typeReadOnlyHint": "Cambiare il tipo di un campo richiede la Danger Zone — disponibile a breve.",
+      "typeReadOnlyHint": "Il tipo di un campo già salvato si cambia dalla tab Zona pericolosa.",
       "label": "Etichetta",
       "labelPlaceholder": "Etichetta del campo",
       "repeaterFields": "Campi del ripetitore",
@@ -1565,7 +1605,7 @@
       "reservedAliasError": "Uno o più alias confliggono con nomi di campo di sistema riservati.",
       "localized": "Localizzato",
       "localizedBadge": "localizzato",
-      "localizedHint": "Gli editor compilano questo campo per ogni lingua dei contenuti (Impostazioni → Sito → Lingue dei contenuti).",
+      "localizedHint": "Gli editor compilano questo campo per ogni lingua dei contenuti. Gestiscile in <languages>Lingue dei contenuti</languages>.",
       "localizedBlockedSubField": "I sotto-campi di un repeater non possono essere localizzati.",
       "localizedBlockedClassification": "I campi riservati e ristretti sono salvati cifrati o come hash, quindi non possono essere localizzati.",
       "localizedDisableWarning": "Le traduzioni esistenti restano salvate. Finché non riattivi la localizzazione, questo campo le mostra come testo grezzo."
@@ -1584,6 +1624,8 @@
       "classification_locked_encrypted": "Non è possibile decifrare o convertire una colonna crittografata se la tabella contiene dati.",
       "classification_locked_restricted": "Non è possibile convertire o mostrare una colonna con hash se la tabella contiene dati.",
       "storage_encrypted": "Crittografato at-rest",
+      "help": "Info sulla privacy",
+      "flagsTitle": "Opzioni",
       "search": "Ricerca full-text",
       "filter": "Filtrabile",
       "sort": "Ordinabile",
@@ -1592,6 +1634,64 @@
       "visibility_full": "Completa",
       "visibility_masked": "Mascherata",
       "visibility_hidden": "Nascosta"
+    },
+    "fields": {
+      "add": "Aggiungi",
+      "addPlaceholder": "Nome del campo, poi Invio",
+      "empty": "Nessun campo. Scrivi un nome qui sopra.",
+      "select": "Seleziona un campo per modificarlo."
+    },
+    "templates": {
+      "title": "Parti da",
+      "person": {
+        "name": "Persona",
+        "last_name": "Cognome",
+        "first_name": "Nome",
+        "email": "Email",
+        "phone": "Telefono",
+        "birth_date": "Data di nascita",
+        "tax_id": "Codice fiscale",
+        "address": "Indirizzo",
+        "city": "Città",
+        "country": "Paese",
+        "photo": "Foto",
+        "relationship": "Relazione",
+        "marketing_consent": "Consenso marketing",
+        "notes": "Note"
+      },
+      "event": {
+        "name": "Evento",
+        "title": "Titolo",
+        "description": "Descrizione",
+        "start_at": "Inizio",
+        "end_at": "Fine",
+        "all_day": "Tutto il giorno",
+        "location": "Luogo",
+        "event_status": "Stato",
+      "capacity": "Capienza",
+        "contact_name": "Nome referente",
+        "contact_email": "Email referente",
+        "contact_phone": "Telefono referente"
+      },
+      "article": {
+        "name": "Articolo",
+        "title": "Titolo",
+        "excerpt": "Estratto",
+        "cover": "Immagine di copertina",
+        "body": "Testo",
+        "author": "Autore",
+        "published_at": "Pubblicato il",
+        "categories": "Categorie"
+      },
+      "contact": {
+        "name": "Richiesta di contatto",
+        "subject": "Oggetto",
+        "sender": "Nome",
+        "email": "Email",
+        "message": "Messaggio",
+        "reason": "Motivo",
+        "state": "Stato"
+      }
     },
     "fieldTypes": {
       "text": "Testo",
@@ -1627,62 +1727,91 @@
     },
     "dangerZone": {
       "title": "Zona pericolosa",
-      "subtitle": "Queste operazioni sono irreversibili e possono causare perdita permanente di dati.",
-      "hardDelete": {
-        "title": "Elimina definitivamente questo tipo di contenuto",
-        "description": "Nasconde subito questo tipo di contenuto, poi elimina tabelle e media in background. L'operazione è irreversibile.",
-        "confirmPlaceholder": "Scrivi lo slug per confermare",
-        "confirmLabel": "Scrivi \"{{slug}}\" per confermare",
-        "button": "Elimina definitivamente",
-        "successToast": "Eliminazione di \"{{slug}}\" avviata. La pulizia dei media è in corso."
+      "manifest": {
+        "title": "Gestito da beech.schema.ts.",
+        "body": "Modifica il manifest e riapplicalo per cambiare i campi o eliminare questo tipo. Qui si può solo ricostruire l'indice di ricerca."
       },
-      "dropColumn": {
-        "title": "Rimuovi campo",
-        "description": "Rimuove permanentemente la colonna e tutti i suoi dati dal database.",
-        "confirmPlaceholder": "Scrivi slug.alias per confermare",
-        "button": "Rimuovi campo",
-        "successToast": "Campo \"{{alias}}\" rimosso."
+      "maintenance": {
+        "title": "Manutenzione",
+        "badge": "sicura",
+        "subtitle": "Nessun dato va perso. Usala quando qualcosa sembra fuori sincronia."
       },
-      "renameAlias": {
-        "title": "Rinomina alias campo",
-        "description": "Rinomina la colonna nel database. L'FTS viene ricostruito. Le automazioni che referenziano il vecchio alias potrebbero smettere di funzionare.",
-        "newAliasLabel": "Nuovo alias",
-        "newAliasPlaceholder": "nuovo_alias",
-        "confirmPlaceholder": "Scrivi slug.alias per confermare",
-        "button": "Rinomina",
-        "successToast": "Campo rinominato in \"{{newAlias}}\".",
-        "automationWarning": "Attenzione: {{count}} automazione/i referenzia il vecchio alias e potrebbe non funzionare: {{ids}}"
-      },
-      "retypeField": {
-        "title": "Cambia tipo campo",
-        "description": "Ricostruisce il tipo di colonna via add/copy/drop/rename. I dati esistenti vengono convertiti — i valori incompatibili con il nuovo tipo andranno persi.",
-        "newTypeLabel": "Nuovo tipo",
-        "confirmPlaceholder": "Scrivi slug.alias per confermare",
-        "button": "Cambia tipo",
-        "successToast": "Campo \"{{alias}}\" convertito in {{newType}}."
+      "ftsRebuild": {
+        "title": "Indice di ricerca",
+        "description": "Ricostruisce l'indice full-text e i suoi trigger a partire dai campi testuali attuali.",
+        "button": "Ricostruisci",
+        "successToast": "Indice di ricerca ricostruito."
       },
       "orphans": {
         "title": "Colonne orfane",
-        "description": "Colonne presenti nel database ma assenti dalla definizione corrente.",
+        "description": "Colonne ancora presenti nel database ma non più nella definizione.",
         "empty": "Nessuna colonna orfana.",
+        "review": "Mostra",
+        "hide": "Nascondi",
         "dropButton": "Rimuovi",
-        "refreshButton": "Aggiorna"
+        "refreshButton": "Aggiorna",
+        "successToast": "Colonna \"{{column}}\" rimossa."
       },
-      "ftsRebuild": {
-        "title": "Ricostruisci indice ricerca full-text",
-        "description": "Elimina e ricrea la tabella virtuale FTS e i suoi trigger, poi ripopola dalla tabella contenuto.",
-        "button": "Ricostruisci FTS",
-        "successToast": "Indice FTS ricostruito."
+      "fieldOps": {
+        "title": "Operazioni sui campi",
+        "badge": "modifica il database",
+        "subtitle": "Scegli un campo, poi cosa farne. Le opzioni non disponibili ne spiegano il motivo.",
+        "empty": "Questo tipo di contenuto non ha ancora campi salvati.",
+        "rename": "Rinomina",
+        "retype": "Cambia tipo",
+        "drop": "Rimuovi"
       },
-      "branchDangerToggle": "Avanzato (distruttivo)",
-      "confirmMismatch": "La conferma non corrisponde — scrivi l'identificatore esatto mostrato.",
+      "blocked": {
+        "displayName": "questo campo è il nome visualizzato del tipo di contenuto.",
+        "displayNameLink": "Scegli un altro campo →",
+        "repeater": "i campi ripetibili non si possono cambiare di tipo.",
+        "multiRelation": "una relazione multipla vive in una tabella di giunzione, quindi non ha una colonna da cambiare.",
+        "localized": "il campo è localizzato. Disattiva prima la localizzazione, poi cambia il tipo."
+      },
+      "rename": {
+        "newAliasLabel": "Nuovo alias",
+        "impactTitle": "Rinomina la colonna del database e ricostruisce la ricerca.",
+        "impactBody": "Le automazioni che usano il vecchio alias andranno aggiornate; ti diremo quali.",
+        "button": "Rinomina campo",
+        "successToast": "\"{{alias}}\" rinominato in \"{{newAlias}}\".",
+        "automationWarning": "{{count}} automazione/i usano il vecchio alias e potrebbero non funzionare: {{ids}}"
+      },
+      "retype": {
+        "newTypeLabel": "Nuovo tipo",
+        "impactTitle": "Converte ogni valore salvato.",
+        "impactBody": "Se un valore non è convertibile senza perdite, la modifica viene rifiutata e nulla viene toccato.",
+        "button": "Cambia tipo",
+        "successToast": "\"{{alias}}\" ora è {{newType}}."
+      },
+      "dropField": {
+        "impactTitle": "Rimuove la colonna e tutti i suoi dati.",
+        "impactBody": "I valori di questo campo vanno persi per ogni voce e non si possono ripristinare.",
+        "confirmPlaceholder": "Scrivi {{expected}} qui",
+        "button": "Rimuovi campo",
+        "successToast": "Campo \"{{alias}}\" rimosso."
+      },
+      "hardDelete": {
+        "fillSlug": "Compila con {{slug}}",
+        "footerButton": "Elimina tipo di contenuto",
+        "footerHint": "Eliminare il tipo di contenuto ne rimuove voci, tabelle e media.",
+        "manifestHint": "Gestito da beech.schema.ts: toglilo dal manifest per eliminarlo.",
+        "title": "Elimina definitivamente {{label}}",
+        "description": "Nasconde subito questo tipo di contenuto, poi rimuove tabelle e media in background. L'operazione è irreversibile.",
+        "impactEntries": "Tutte le sue voci",
+        "impactFields": "{{count}} campi e le relative tabelle, bozze incluse",
+        "impactMedia": "I file media associati",
+        "confirmLabel": "Scrivi \"{{slug}}\" per confermare",
+        "confirmPlaceholder": "Scrivi lo slug per confermare",
+        "button": "Elimina definitivamente",
+        "successToast": "Eliminazione di \"{{slug}}\" avviata. La pulizia dei media è in corso."
+      },
       "errors": {
-        "hardDeleteFailed": "Eliminazione definitiva fallita",
-        "dropColumnFailed": "Rimozione colonna fallita",
-        "renameFailed": "Rinomina fallita",
-        "retypeFailed": "Conversione tipo fallita",
-        "orphansFailed": "Caricamento colonne orfane fallito",
-        "ftsRebuildFailed": "Ricostruzione FTS fallita"
+        "hardDeleteFailed": "Eliminazione definitiva non riuscita",
+        "dropColumnFailed": "Rimozione non riuscita",
+        "renameFailed": "Rinomina non riuscita",
+        "retypeFailed": "Cambio tipo non riuscito",
+        "orphansFailed": "Impossibile caricare le colonne orfane",
+        "ftsRebuildFailed": "Ricostruzione dell'indice non riuscita"
       }
     }
   },

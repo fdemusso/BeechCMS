@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type { IContentScanRepository, Seed } from '@beechcms/core'
 import { FixedClock } from '@beechcms/testing'
 import { CachedContentScanRepository, CONTENT_SCAN_TTL_MS } from './cached-content-scan.repository'
@@ -21,12 +21,12 @@ function makeSeed(alias: string): Seed {
 
 describe('CachedContentScanRepository', () => {
   let inner: IContentScanRepository
-  let scan: ReturnType<typeof vi.fn>
+  let scan: Mock<IContentScanRepository['getReferencedMediaKeys']>
   let clock: FixedClock
   let cached: CachedContentScanRepository
 
   beforeEach(() => {
-    scan = vi.fn().mockImplementation(async () => new Set(['a.png']))
+    scan = vi.fn<IContentScanRepository['getReferencedMediaKeys']>().mockImplementation(async () => new Set(['a.png']))
     inner = { getReferencedMediaKeys: scan }
     clock = new FixedClock(1_000_000)
     cached = new CachedContentScanRepository(inner, clock)

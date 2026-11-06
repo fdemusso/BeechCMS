@@ -2,15 +2,20 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useState } from "react"
-import { useTranslation } from "react-i18next"
+import { useId, useState, type ComponentType, type ReactNode } from "react"
+import { Trans, useTranslation } from "react-i18next"
 import { LOCALIZABLE_BRANCH_TYPES, isImageMediaBranch, isSingleChoiceTags, resolvePolicies, tagOptionsIssues, TAG_OPTIONS_MAX_COUNT, type Branch, type DataClassification, type Seed } from "@beechcms/core"
-import { ChevronDown, ChevronUp, Trash2 } from "@/components/icons"
+import { ChevronDown, ChevronUp, Filter, Globe, HelpCircle, Key, Lock, Search, Shield, SortAsc, Trash2 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ButtonGroup } from "@/components/ui/button-group"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 import { FieldEditRepeater } from "./repeater"
 import { localizationBlocker, type LocalizationBlocker } from "./repeater-localization"
 
@@ -38,6 +43,7 @@ export function RelationOptionsForm({
   onChange,
 }: RelationOptionsFormProps) {
   const { t } = useTranslation()
+  const uid = useId()
 
   function set<K extends keyof Branch>(key: K, value: Branch[K]) {
     onChange({ ...branch, [key]: value })
@@ -47,13 +53,13 @@ export function RelationOptionsForm({
   const avatarCandidates = (activeSeedsForRelation.find(s => s.slug === branch.targetSeed)?.branches ?? []).filter(isImageMediaBranch)
 
   return (
-    <div className="space-y-2 rounded-lg border p-2">
-      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.relationOptions")}</p>
+    <div className="space-y-2 rounded-[calc(var(--radius-control)+9px)] border p-2">
+      <p className="px-1 text-xs font-medium">{t("seedBuilder.branchEditor.relationOptions")}</p>
       <div className="space-y-1">
-        <Label className="text-xs">{t("seedBuilder.branchEditor.targetSeed")}</Label>
+        <Label htmlFor={`${uid}-targetSeed`} className="px-1 text-xs">{t("seedBuilder.branchEditor.targetSeed")}</Label>
         {/* A new target invalidates the avatar source: it names a field of the previous target. */}
         <Select value={branch.targetSeed ?? ""} onValueChange={v => onChange({ ...branch, targetSeed: v, avatarSource: undefined })}>
-          <SelectTrigger>
+          <SelectTrigger id={`${uid}-targetSeed`}>
             <SelectValue placeholder={t("seedBuilder.branchEditor.targetSeedPlaceholder")} />
           </SelectTrigger>
           <SelectContent>
@@ -63,7 +69,7 @@ export function RelationOptionsForm({
           </SelectContent>
         </Select>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 px-1">
         <Checkbox
           id={`multiple-${branch.id}`}
           checked={!!branch.multiple}
@@ -72,12 +78,12 @@ export function RelationOptionsForm({
         <Label htmlFor={`multiple-${branch.id}`} className="text-xs">{t("seedBuilder.branchEditor.multiple")}</Label>
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">{t("seedBuilder.branchEditor.onDelete")}</Label>
+        <Label htmlFor={`${uid}-onDelete`} className="px-1 text-xs">{t("seedBuilder.branchEditor.onDelete")}</Label>
         <Select
           value={branch.onDelete ?? "SET NULL"}
           onValueChange={v => set("onDelete", v as Branch["onDelete"])}
         >
-          <SelectTrigger>
+          <SelectTrigger id={`${uid}-onDelete`}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -88,13 +94,13 @@ export function RelationOptionsForm({
         </Select>
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">{t("seedBuilder.branchEditor.avatarSource")}</Label>
+        <Label htmlFor={`${uid}-avatarSource`} className="px-1 text-xs">{t("seedBuilder.branchEditor.avatarSource")}</Label>
         <Select
           value={branch.avatarSource ?? NO_AVATAR}
           onValueChange={v => set("avatarSource", v === NO_AVATAR ? undefined : v)}
           disabled={avatarCandidates.length === 0}
         >
-          <SelectTrigger>
+          <SelectTrigger id={`${uid}-avatarSource`} aria-describedby={`${uid}-avatarHint`}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -105,7 +111,7 @@ export function RelationOptionsForm({
           </SelectContent>
         </Select>
         {/* Always rendered: a control that appears only when the target qualifies cannot be discovered. */}
-        <p className="text-xs text-muted-foreground">
+        <p id={`${uid}-avatarHint`} className="px-1 text-xs text-muted-foreground">
           {t(branch.targetSeed && avatarCandidates.length === 0
             ? "seedBuilder.branchEditor.avatarSourceUnavailable"
             : "seedBuilder.branchEditor.avatarSourceHint")}
@@ -130,30 +136,31 @@ export interface NumberOptionsFormProps {
  */
 export function NumberOptionsForm({ branch, onChange }: NumberOptionsFormProps) {
   const { t } = useTranslation()
+  const uid = useId()
 
   return (
-    <div className="space-y-2 rounded-lg border p-2">
-      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.numberOptions")}</p>
+    <div className="space-y-2 rounded-[calc(var(--radius-control)+9px)] border p-2">
+      <p className="px-1 text-xs font-medium">{t("seedBuilder.branchEditor.numberOptions")}</p>
       <div className="grid grid-cols-3 gap-2">
         <div className="space-y-1">
-          <Label className="text-xs">{t("seedBuilder.branchEditor.min")}</Label>
-          <Input
+          <Label htmlFor={`${uid}-min`} className="px-1 text-xs">{t("seedBuilder.branchEditor.min")}</Label>
+          <Input id={`${uid}-min`}
             type="number"
             value={branch.numberOptions?.min ?? ""}
             onChange={e => onChange({ ...branch, numberOptions: { ...branch.numberOptions, min: e.target.value ? +e.target.value : undefined } })}
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">{t("seedBuilder.branchEditor.max")}</Label>
-          <Input
+          <Label htmlFor={`${uid}-max`} className="px-1 text-xs">{t("seedBuilder.branchEditor.max")}</Label>
+          <Input id={`${uid}-max`}
             type="number"
             value={branch.numberOptions?.max ?? ""}
             onChange={e => onChange({ ...branch, numberOptions: { ...branch.numberOptions, max: e.target.value ? +e.target.value : undefined } })}
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">{t("seedBuilder.branchEditor.step")}</Label>
-          <Input
+          <Label htmlFor={`${uid}-step`} className="px-1 text-xs">{t("seedBuilder.branchEditor.step")}</Label>
+          <Input id={`${uid}-step`}
             type="number"
             value={branch.numberOptions?.step ?? ""}
             onChange={e => onChange({ ...branch, numberOptions: { ...branch.numberOptions, step: e.target.value ? +e.target.value : undefined } })}
@@ -161,12 +168,12 @@ export function NumberOptionsForm({ branch, onChange }: NumberOptionsFormProps) 
         </div>
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">{t("seedBuilder.branchEditor.control")}</Label>
+        <Label htmlFor={`${uid}-control`} className="px-1 text-xs">{t("seedBuilder.branchEditor.control")}</Label>
         <Select
           value={branch.numberOptions?.control ?? "input"}
           onValueChange={v => onChange({ ...branch, numberOptions: { ...branch.numberOptions, control: v as "input" | "slider" | "rating" | "stepper" } })}
         >
-          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectTrigger id={`${uid}-control`}><SelectValue /></SelectTrigger>
           <SelectContent>
             {["input", "slider", "rating", "stepper"].map(c => (
               <SelectItem key={c} value={c}>{t(`seedBuilder.branchEditor.control_${c}`)}</SelectItem>
@@ -193,15 +200,16 @@ export interface FileOptionsFormProps {
  */
 export function FileOptionsForm({ branch, onChange }: FileOptionsFormProps) {
   const { t } = useTranslation()
+  const uid = useId()
 
   function set<K extends keyof Branch>(key: K, value: Branch[K]) {
     onChange({ ...branch, [key]: value })
   }
 
   return (
-    <div className="space-y-2 rounded-lg border p-2">
-      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.fileOptions")}</p>
-      <div className="flex items-center gap-2">
+    <div className="space-y-2 rounded-[calc(var(--radius-control)+9px)] border p-2">
+      <p className="px-1 text-xs font-medium">{t("seedBuilder.branchEditor.fileOptions")}</p>
+      <div className="flex items-center gap-2 px-1">
         <Checkbox
           id={`file-multiple-${branch.id}`}
           checked={!!branch.multiple}
@@ -210,12 +218,12 @@ export function FileOptionsForm({ branch, onChange }: FileOptionsFormProps) {
         <Label htmlFor={`file-multiple-${branch.id}`} className="text-xs">{t("seedBuilder.branchEditor.multiple")}</Label>
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">{t("seedBuilder.branchEditor.fileAccept")}</Label>
+        <Label htmlFor={`${uid}-fileAccept`} className="px-1 text-xs">{t("seedBuilder.branchEditor.fileAccept")}</Label>
         <Select
           value={branch.fileOptions?.accept ?? "any"}
           onValueChange={v => onChange({ ...branch, fileOptions: { ...branch.fileOptions, accept: v as "image" | "document" | "any" } })}
         >
-          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectTrigger id={`${uid}-fileAccept`}><SelectValue /></SelectTrigger>
           <SelectContent>
             {["any", "image", "document"].map(a => (
               <SelectItem key={a} value={a}>{t(`seedBuilder.branchEditor.fileAccept_${a}`)}</SelectItem>
@@ -275,9 +283,9 @@ export function TagOptionsForm({ branch, onChange }: TagOptionsFormProps) {
   }
 
   return (
-    <div className="space-y-2 rounded-lg border p-2">
-      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.options")}</p>
-      <div className="flex items-center gap-2">
+    <div className="space-y-2 rounded-[calc(var(--radius-control)+9px)] border p-2">
+      <p className="px-1 text-xs font-medium">{t("seedBuilder.branchEditor.options")}</p>
+      <div className="flex items-center gap-2 px-1">
         <Checkbox
           id={`tags-multiple-${branch.id}`}
           checked={!isSingleChoiceTags(branch)}
@@ -287,7 +295,7 @@ export function TagOptionsForm({ branch, onChange }: TagOptionsFormProps) {
       </div>
 
       {options.length === 0 && (
-        <p className="text-xs text-muted-foreground">{t("seedBuilder.branchEditor.freeTagsHint")}</p>
+        <p className="px-1 text-xs text-muted-foreground">{t("seedBuilder.branchEditor.freeTagsHint")}</p>
       )}
 
       {options.map((option, index) => (
@@ -375,6 +383,7 @@ export interface RepeaterOptionsFormProps {
  */
 export function RepeaterOptionsForm({ branch, onChange, subField }: RepeaterOptionsFormProps) {
   const { t } = useTranslation()
+  const uid = useId()
 
   function set<K extends keyof Branch>(key: K, value: Branch[K]) {
     onChange({ ...branch, [key]: value })
@@ -383,12 +392,12 @@ export function RepeaterOptionsForm({ branch, onChange, subField }: RepeaterOpti
   if (subField) return null
 
   return (
-    <div className="space-y-2 rounded-lg border p-2">
-      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.repeaterFields")}</p>
+    <div className="space-y-2 rounded-[calc(var(--radius-control)+9px)] border p-2">
+      <p className="px-1 text-xs font-medium">{t("seedBuilder.branchEditor.repeaterFields")}</p>
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <Label className="text-xs">{t("seedBuilder.branchEditor.minItems")}</Label>
-          <Input
+          <Label htmlFor={`${uid}-minItems`} className="px-1 text-xs">{t("seedBuilder.branchEditor.minItems")}</Label>
+          <Input id={`${uid}-minItems`}
             type="number"
             min={0}
             value={branch.minItems ?? ""}
@@ -396,8 +405,8 @@ export function RepeaterOptionsForm({ branch, onChange, subField }: RepeaterOpti
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">{t("seedBuilder.branchEditor.maxItems")}</Label>
-          <Input
+          <Label htmlFor={`${uid}-maxItems`} className="px-1 text-xs">{t("seedBuilder.branchEditor.maxItems")}</Label>
+          <Input id={`${uid}-maxItems`}
             type="number"
             min={0}
             value={branch.maxItems ?? ""}
@@ -442,6 +451,12 @@ export interface PoliciesOptionsFormProps {
 }
 
 const CLASSIFICATIONS: DataClassification[] = ["public", "internal", "confidential", "restricted"]
+
+/** One icon per tier, from open (globe) to sealed (key). */
+const CLASSIFICATION_ICONS = { public: Globe, internal: Shield, confidential: Lock, restricted: Key } as const
+
+const POLICY_FLAGS = ["search", "filter", "sort", "public"] as const
+const POLICY_FLAG_ICONS = { search: Search, filter: Filter, sort: SortAsc, public: Globe } as const
 
 /**
  * Form fragment for configuring CRUD, privacy, and search index policies on top-level branch fields.
@@ -534,83 +549,133 @@ export function PoliciesOptionsForm({
     })
   }
 
+  const lockedNotice = !tableEmpty
+    ? initialClassification === "confidential"
+      ? t("seedBuilder.policies.classification_locked_encrypted")
+      : initialClassification === "restricted"
+        ? t("seedBuilder.policies.classification_locked_restricted")
+        : t("seedBuilder.policies.classification_locked_entries")
+    : null
+
   return (
-    <div className="space-y-3 rounded-lg border p-2.5">
-      <p className="text-xs font-medium">{t("seedBuilder.branchEditor.policies")}</p>
+    // Same box as the other option groups: the corner is the controls' (10px) plus the 8px padding and 1px border around them.
+    <div className="space-y-2 rounded-[calc(var(--radius-control)+9px)] border p-2">
+      <div className="flex items-center justify-between">
+        <p className="px-1 text-xs font-medium">{t("seedBuilder.branchEditor.policies")}</p>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("seedBuilder.policies.help")}
+              className="-my-1 text-muted-foreground"
+            >
+              <HelpCircle className="size-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 space-y-3 p-3 text-xs">
+            <section className="space-y-1.5">
+              <p className="font-medium">{t("seedBuilder.policies.classification")}</p>
+              {CLASSIFICATIONS.map((c) => {
+                const Icon = CLASSIFICATION_ICONS[c]
+                return (
+                  <div key={c} className="flex gap-2">
+                    <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <p>
+                      <span className="font-medium">{t(`seedBuilder.policies.classification_${c}`)}</span>
+                      <span className="text-muted-foreground"> — {t(`seedBuilder.policies.classification_${c}_desc`)}</span>
+                    </p>
+                  </div>
+                )
+              })}
+            </section>
+            <section className="space-y-1.5 border-t pt-3">
+              <p className="font-medium">{t("seedBuilder.policies.flagsTitle")}</p>
+              {POLICY_FLAGS.map((pol) => {
+                const Icon = POLICY_FLAG_ICONS[pol]
+                return (
+                  <div key={pol} className="flex items-center gap-2">
+                    <Icon className="size-4 shrink-0 text-muted-foreground" />
+                    {t(`seedBuilder.policies.${pol}`)}
+                  </div>
+                )
+              })}
+            </section>
+            {lockedNotice && (
+              <p className="border-t pt-3 text-amber-600 dark:text-amber-400">{lockedNotice}</p>
+            )}
+          </PopoverContent>
+        </Popover>
+      </div>
 
-      {/* Primary Selector: Data Classification */}
-      <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <Label className="text-xs">{t("seedBuilder.policies.classification")}</Label>
-          {effective.privacy === "encrypt" && (
-            <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-              {t("seedBuilder.policies.storage_encrypted")}
-            </span>
-          )}
-        </div>
-        <Select
-          value={effective.classification}
-          onValueChange={(v) => handleClassificationChange(v as DataClassification)}
-        >
-          <SelectTrigger className="h-7 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
+      <TooltipProvider delayDuration={150}>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {/* Privacy tier: single choice, like the keys of a tape recorder */}
+          <ButtonGroup role="radiogroup" aria-label={t("seedBuilder.policies.classification")}>
             {CLASSIFICATIONS.map((c) => (
-              <SelectItem
+              <PolicyKey
                 key={c}
-                value={c}
+                icon={CLASSIFICATION_ICONS[c]}
+                label={t(`seedBuilder.policies.classification_${c}`)}
+                role="radio"
+                active={effective.classification === c}
                 disabled={isClassificationOptionDisabled(c)}
-                className="text-xs"
-              >
-                {t(`seedBuilder.policies.classification_${c}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-[11px] text-muted-foreground">
-          {t(`seedBuilder.policies.classification_${effective.classification}_desc`)}
-        </p>
-        {!tableEmpty && isInitiallyPlain && (
-          <p className="text-[11px] text-amber-600 dark:text-amber-400">
-            {t("seedBuilder.policies.classification_locked_entries")}
-          </p>
-        )}
-        {!tableEmpty && initialClassification === "confidential" && (
-          <p className="text-[11px] text-amber-600 dark:text-amber-400">
-            {t("seedBuilder.policies.classification_locked_encrypted")}
-          </p>
-        )}
-        {!tableEmpty && initialClassification === "restricted" && (
-          <p className="text-[11px] text-amber-600 dark:text-amber-400">
-            {t("seedBuilder.policies.classification_locked_restricted")}
-          </p>
-        )}
-      </div>
-
-      {/* Advanced Flags */}
-      <div className="grid grid-cols-2 gap-2 pt-1 border-t">
-        {(["search", "filter", "sort", "public"] as const).map((pol) => {
-          const disabled = isPolicyDisabled(pol)
-          return (
-            <div key={pol} className="flex items-center gap-2">
-              <Checkbox
-                id={`policy-${branch.id}-${pol}`}
-                checked={effective[pol]}
-                disabled={disabled}
-                onCheckedChange={(v) => setPolicy(pol, !!v)}
+                onClick={() => handleClassificationChange(c)}
               />
-              <Label
-                htmlFor={`policy-${branch.id}-${pol}`}
-                className={`text-xs ${disabled ? "text-muted-foreground cursor-not-allowed opacity-70" : ""}`}
-              >
-                {t(`seedBuilder.policies.${pol}`)}
-              </Label>
-            </div>
-          )
-        })}
-      </div>
+            ))}
+          </ButtonGroup>
+
+          {/* Switches: each one stays pressed while on */}
+          <ButtonGroup aria-label={t("seedBuilder.policies.flagsTitle")}>
+            {POLICY_FLAGS.map((pol) => (
+              <PolicyKey
+                key={pol}
+                icon={POLICY_FLAG_ICONS[pol]}
+                label={t(`seedBuilder.policies.${pol}`)}
+                role="checkbox"
+                active={effective[pol]}
+                disabled={isPolicyDisabled(pol)}
+                onClick={() => setPolicy(pol, !effective[pol])}
+              />
+            ))}
+          </ButtonGroup>
+        </div>
+      </TooltipProvider>
     </div>
+  )
+}
+
+interface PolicyKeyProps {
+  icon: ComponentType<{ className?: string }>
+  label: string
+  role: "radio" | "checkbox"
+  active: boolean
+  disabled: boolean
+  onClick: () => void
+}
+
+/** An icon-only key: filled while on, faded while off, with its name as tooltip. */
+function PolicyKey({ icon: Icon, label, role, active, disabled, onClick }: PolicyKeyProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          role={role}
+          aria-checked={active}
+          aria-label={label}
+          variant={active ? "default" : "outline"}
+          size="icon"
+          disabled={disabled}
+          onClick={onClick}
+          className={cn(!active && "text-muted-foreground hover:text-foreground")}
+        >
+          <Icon className="size-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top">{label}</TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -629,6 +694,8 @@ export interface LocalizedOptionsFormProps {
   isExisting: boolean
   /** False when the seed's table already has entries. */
   tableEmpty?: boolean
+  /** Opens the content-language settings; without it the hint names them as plain text. */
+  onOpenLanguages?: () => void
 }
 
 /**
@@ -642,6 +709,7 @@ export function LocalizedOptionsForm({
   subField = false,
   isExisting,
   tableEmpty = true,
+  onOpenLanguages,
 }: LocalizedOptionsFormProps) {
   const { t } = useTranslation()
   const [showDisableWarning, setShowDisableWarning] = useState(false)
@@ -659,20 +727,31 @@ export function LocalizedOptionsForm({
     onChange(next)
   }
 
-  let hint = t("seedBuilder.branchEditor.localizedHint")
+  let hint: ReactNode = (
+    <Trans
+      i18nKey="seedBuilder.branchEditor.localizedHint"
+      components={{
+        languages: onOpenLanguages ? (
+          <button type="button" onClick={onOpenLanguages} className="underline underline-offset-2 hover:text-foreground" />
+        ) : (
+          <span />
+        ),
+      }}
+    />
+  )
   if (blocker === "sub-field") hint = t("seedBuilder.branchEditor.localizedBlockedSubField")
   if (blocker === "classification") hint = t("seedBuilder.branchEditor.localizedBlockedClassification")
 
   return (
-    <div className="space-y-1 rounded-lg border p-2">
-      <div className="flex items-center gap-2">
-        <Checkbox
+    <div className="space-y-1 border-t pt-3">
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <Label htmlFor={checkboxId} className="text-xs">{t("seedBuilder.branchEditor.localized")}</Label>
+        <Switch
           id={checkboxId}
           checked={branch.localized === true}
           disabled={blocker !== null}
-          onCheckedChange={(value) => handleToggle(value === true)}
+          onCheckedChange={handleToggle}
         />
-        <Label htmlFor={checkboxId} className="text-xs">{t("seedBuilder.branchEditor.localized")}</Label>
       </div>
       <p className="text-[11px] text-muted-foreground">{hint}</p>
       {showDisableWarning && (

@@ -26,7 +26,7 @@ const user = {
 
 describe('authApp', () => {
   const clock: IClock = { now: () => INJECTED_NOW_SECONDS * 1000, nowSeconds: () => INJECTED_NOW_SECONDS }
-  const idGenerator: IIdGenerator = { uuid: vi.fn(() => INJECTED_ID) }
+  const idGenerator: IIdGenerator = { uuid: vi.fn(() => INJECTED_ID), isValid: (value: unknown): value is string => typeof value === 'string' }
   const sessionRepository = {
     saveRefreshToken: vi.fn(async () => {}),
     findActiveByHash: vi.fn(async () => ({ id: 's', userId: user.id, tokenHash: 'h', expiresAt: 0, createdAt: 0, revokedAt: null })),

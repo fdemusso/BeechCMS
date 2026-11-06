@@ -4,6 +4,7 @@
 
 import {
   DEFAULT_IMPORT_CHUNK_ROWS,
+  IMPORT_JOBS_SEED_SLUG,
   MAX_JOB_ERROR_SAMPLES,
   type ContentRepository,
   type Seed,
@@ -11,8 +12,12 @@ import {
 } from '@beechcms/core'
 import { DEFAULT_IMPORT_MAX_BYTES } from './constants'
 
-/** Slug of the system seed bootstrapped by migrations/0031_import_jobs_seed.sql. */
-export const IMPORT_JOBS_SLUG = 'import_jobs'
+/**
+ * Slug of the system seed bootstrapped by migrations/0031_import_jobs_seed.sql. Re-exported from
+ * core, where it is registered in SYSTEM_SEED_SLUGS so the dashboard keeps it out of the
+ * Content Types list (see engine/seeds/system-seeds.ts).
+ */
+export const IMPORT_JOBS_SLUG = IMPORT_JOBS_SEED_SLUG
 
 /** Queue job name. Must match the key registered in `contentImportJobs`. */
 export const CONTENT_IMPORT_CHUNK_JOB = 'content_import_chunk'

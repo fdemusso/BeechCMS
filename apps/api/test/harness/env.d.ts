@@ -10,6 +10,10 @@ declare global {
     interface Env {
       DB: D1Database
       TEST_MIGRATIONS: D1Migration[]
+      // Bound only by the vitest pools (r2Buckets in vitest.workers.config.ts and
+      // vitest.scale.config.ts); not in wrangler.jsonc, so they must be declared here.
+      MEDIA_BUCKET: R2Bucket
+      SEARCH_R2: R2Bucket
     }
   }
 }

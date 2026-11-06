@@ -10,7 +10,7 @@ import type { FieldEditProps } from "../types"
  * boolean. Accepts both a boolean `true` and the legacy stringified
  * `"true"` as truthy stored values; `onChange` always emits a boolean.
  */
-export function BooleanEdit({ branch, value, onChange }: FieldEditProps) {
+export function BooleanEdit({ branch, value, onChange, disabled, readOnly }: FieldEditProps) {
   const checked =
     value === true || value === "true"
   return (
@@ -18,6 +18,7 @@ export function BooleanEdit({ branch, value, onChange }: FieldEditProps) {
       <Checkbox
         id={branch.alias}
         checked={checked}
+        disabled={disabled || readOnly}
         onCheckedChange={(checked) => onChange(checked === true)}
       />
       <label

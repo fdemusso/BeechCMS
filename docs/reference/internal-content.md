@@ -190,9 +190,9 @@ Every rejection above happens **before** a job row is created.
 ## Import Job Status — `GET /api/content/import-jobs/:id`
 
 Reads back the state of an import started by the endpoint above. Jobs are stored as ordinary
-content entries of the system seed `import_jobs` (hidden from the dashboard sidebar), so this
-route exists only because the read authorization rule is narrower than a plain `content:read`
-grant.
+content entries of the system seed `import_jobs` (hidden from the dashboard sidebar and from the
+Content Types page — see [System seeds](#system-seeds)), so this route exists only because the
+read authorization rule is narrower than a plain `content:read` grant.
 
 **Response `200 OK`**
 
@@ -232,6 +232,57 @@ creator-or-scope decision. The `import_jobs` seed itself is also reachable throu
 **Operator task.** Configure an R2 lifecycle rule expiring objects older than 24h on the media
 bucket. The consumer deletes the import file on every terminal state; the rule exists only for
 jobs abandoned after the queue exhausts its `max_retries`.
+
+---
+
+## System seeds
+
+A **system seed** is a content type the platform itself depends on. Today there is one:
+`import_jobs` (job records of the bulk import above). It is a real seed — a row in `seeds`, a
+`content_import_jobs` table, read and written through the Botanical Engine — but its slug and
+branch aliases are a contract with the import code, so it is not something an editor designs.
+
+**Identification.** By slug, via `SYSTEM_SEED_SLUGS` / `isSystemSeedSlug()` in
+`packages/core/src/engine/seeds/system-seeds.ts`. There is no `system` flag on the seed
+definition and no column on `seeds`, on purpose: that would need a migration (rewriting the
+shipped definition and bumping `seed_meta.registry_version`) to solve a presentation problem.
+Other attributes cannot stand in for it:
+
+| Attribute | Why it is not the discriminator |
+|---|---|
+| `source = 'code'` | User-authored seeds defined in code have it too and must stay manageable. |
+| `dashboard.hidden` | Only hides a seed from the sidebar. Users may set it on their own seeds and still need to edit them in the builder. |
+
+**What it affects.**
+
+| Surface | Behaviour |
+|---|---|
+| `GET /api/seeds` | Omits system seeds. This is the endpoint behind the Content Types page. |
+| Dashboard Content Types page | Filters again (defence in depth) and also removes them from the relation-target candidates of the create/edit dialog. |
+| Dashboard sidebar | Skips them through their `dashboard: { hidden: true }`. |
+| New type creation | Their slugs stay reserved: `POST /api/seeds` still sees the existing row (409 `slug-conflict`), and the page's `takenSlugs` check includes them. |
+
+**What it does not do.**
+
+- `GET /api/seeds/:slug` still returns a system seed by slug, and `GET /api/schema` (the runtime
+  registry the engine and the import code read) still contains it. Both are needed for the feature
+  to work.
+- Editing is not blocked by this list. It is blocked because a bootstrapped system seed has
+  `source = 'code'`: `PUT`, `DELETE`, branch and destructive routes answer 409
+  `seed-manifest-owned`. A system seed bootstrapped any other way would lose that protection.
+- Other `useSchema()` consumers (relation pickers, dashboard builder, automation forms, command
+  palette) read `/api/schema` and are not filtered. If one becomes a real problem, reuse
+  `isSystemSeedSlug()` there rather than adding a second list.
+
+**Adding a system seed.**
+
+1. Add its slug constant and append it to `SYSTEM_SEED_SLUGS` in `system-seeds.ts`; import the
+   constant in feature code instead of repeating the string (`IMPORT_JOBS_SLUG` in
+   `features/content/import-job.ts` re-exports it).
+2. Keep `dashboard: { hidden: true }` in the definition.
+3. Bootstrap it from a migration with `INSERT OR IGNORE INTO seeds … 'code'` and bump
+   `registry_version`, following `0031_import_jobs_seed.sql`. Keep `source = 'code'`: it is what
+   makes the seeds API refuse edits.
 
 ---
 
