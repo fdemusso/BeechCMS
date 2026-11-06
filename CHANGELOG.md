@@ -1,5 +1,28 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Content type editor**: guided creation wizard (General → Fields → Dashboard) with starter templates, drafts that survive a reload and a live sidebar preview; fields are added by typing a name and picking a type, with the alias derived from the name.
+- **Danger zone tab** redesigned for stored content types: Maintenance (search index rebuild, orphan columns) and Field operations (rename, change type, drop) with the impact of each stated up front and the server's refusals mirrored as disabled options with a reason. Deleting the whole content type is the footer's red button and asks for the slug.
+- Field badges: required, localized (translation icon) and the privacy tier, with the globe as the public tier.
+- Platform-aware shortcut hint (⌘ on macOS, Ctrl elsewhere) and squared `Kbd` keys.
+
+### Changed
+
+- Content type dialog: sliding tab underline, directional tab content animation, 220 ms fade in / 176 ms out; outside click asks before discarding unsaved edits while the close button closes deliberately.
+- System seeds (`import_jobs`) are hidden from `GET /api/seeds` and the Content Types page.
+- CI: blocking type-check of every package, including test files.
+
+### Fixed
+
+- Orphan columns: the `<alias>_bidx` blind-index column of a confidential field was reported as an orphan and could be dropped from the Danger zone.
+
+### Accessibility
+
+- Content type dialog: tabs, lists and footers use native elements and Radix primitives; labels and hints are bound to their controls; manifest-owned seeds are inert instead of only click-proof; the field type picker is a `ToggleGroup` with arrow-key navigation.
+
 ## [0.9.0] — changes since v0.8.1
 
 Covers `v0.8.1..HEAD` (2026-09-30 → 2026-10-20, ~270 commits).
