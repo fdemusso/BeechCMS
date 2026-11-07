@@ -11,6 +11,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
+import { IMPORT_JOBS_SEED_SLUG } from '@beechcms/core'
 import { createTestHarness, type TestClient, type TestHarness } from '@beechcms/testing'
 import { createBeechApp } from '../../../../factory'
 import { __resetSeedRegistryCache } from '../../../../shared/services/cache/seed-registry-cache'
@@ -113,6 +114,22 @@ describe('seeds slice — manifest ownership (real D1)', () => {
           : await admin.patch(testCase.path, testCase.body)
         expect(response.status).toBe(409)
       }
+    })
+  })
+
+  describe('a system seed', () => {
+    it('is refused by slug even when its source is runtime, and its definition stays unchanged', async () => {
+      // Without this the guard would rest on source='code' alone; the slug list is the contract.
+      await harness.db.prepare(`UPDATE seeds SET source = 'runtime' WHERE slug = ?`).bind(IMPORT_JOBS_SEED_SLUG).run()
+      const before = await (await admin.get(`/api/seeds/${IMPORT_JOBS_SEED_SLUG}`)).json<SeedRecordBody>()
+
+      const response = await admin.put(`/api/seeds/${IMPORT_JOBS_SEED_SLUG}`, { branches: [{ alias: 'title', type: 'text' }] })
+
+      expect(response.status).toBe(409)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toContain('seed-system')
+      const after = await (await admin.get(`/api/seeds/${IMPORT_JOBS_SEED_SLUG}`)).json<SeedRecordBody>()
+      expect(after.definition).toEqual(before.definition)
     })
   })
 

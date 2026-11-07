@@ -267,9 +267,9 @@ Other attributes cannot stand in for it:
 - `GET /api/seeds/:slug` still returns a system seed by slug, and `GET /api/schema` (the runtime
   registry the engine and the import code read) still contains it. Both are needed for the feature
   to work.
-- Editing is not blocked by this list. It is blocked because a bootstrapped system seed has
-  `source = 'code'`: `PUT`, `DELETE`, branch and destructive routes answer 409
-  `seed-manifest-owned`. A system seed bootstrapped any other way would lose that protection.
+- `GET` routes are not guarded. Mutations are: `PUT`, `DELETE`, branch and destructive routes answer
+  409 `seed-system` for every slug in `SYSTEM_SEED_SLUGS`, whatever the seed's `source` (a system seed
+  with `source = 'code'` is refused by the same guard, so a copy bootstrapped as `runtime` is protected too).
 - Other `useSchema()` consumers (relation pickers, dashboard builder, automation forms, command
   palette) read `/api/schema` and are not filtered. If one becomes a real problem, reuse
   `isSystemSeedSlug()` there rather than adding a second list.
