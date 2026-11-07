@@ -36,12 +36,11 @@
  *  - the dashboard's Content Types page filters again (defence in depth, and it also keeps them out
  *    of the relation-target candidates).
  *
- * It is NOT the access-control boundary. Edits are refused for another reason: a bootstrapped
- * system seed has `source = 'code'`, and the seeds router answers 409 `seed-manifest-owned` to
- * PUT/DELETE/destructive operations on those (`rejectManifestOwned`). `GET /api/seeds/:slug` still
- * resolves a system seed by slug, and `GET /api/schema` (the runtime registry, which the engine
- * and the import code rely on) still contains it. If more is ever needed, enforce it in the seeds
- * router with this same list rather than introducing a second one.
+ * Mutations are refused by the same list: the seeds router answers 409 `seed-system` to PUT/DELETE/
+ * branch and destructive operations on a system seed whatever its `source` (`rejectManifestOwned`).
+ * `GET /api/seeds/:slug` still resolves a system seed by slug, and `GET /api/schema` (the runtime registry,
+ * which the engine and the import code rely on) still contains it. Per-consumer filters of `useSchema()`
+ * reuse `isSystemSeedSlug()`, never a second list.
  */
 
 /** Slug of the seed that records bulk-import jobs (`migrations/0031_import_jobs_seed.sql`). */

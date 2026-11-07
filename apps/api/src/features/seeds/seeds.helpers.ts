@@ -5,7 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { z } from 'zod'
 import type { Branch, Seed, SeedRecord } from '@beechcms/core'
-import { nextBranchId, validateSeedDefinitions, hasBlindIndex, SLUG_RE, SYSTEM_COLUMNS } from '@beechcms/core'
+import { nextBranchId, validateSeedDefinitions, hasBlindIndex, isSystemSeedSlug, SLUG_RE, SYSTEM_COLUMNS } from '@beechcms/core'
 import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
 import { BODY_NOT_JSON_DETAIL, BODY_NOT_OBJECT_DETAIL } from './seeds.schema'
 import type { ZodJsonRefusal } from '../../shared/utils/zod-json'
@@ -165,7 +165,21 @@ export function definedColumns(definition: Seed): Set<string> {
   return columns
 }
 
+/**
+ * Refuses interactive mutation of a seed the platform or the manifest owns.
+ *
+ * A system seed (`isSystemSeedSlug`) is refused by slug, whatever its `source`: a feature depends on its exact
+ * shape, so a copy bootstrapped with `source = 'runtime'` must not become editable through this router.
+ */
 export function rejectManifestOwned(context: AppContext, record: SeedRecord) {
+  if (isSystemSeedSlug(record.slug)) {
+    return publicProblem(context, {
+      type: 'seed-system',
+      title: 'Seed is platform-owned',
+      status: 409,
+      detail: `Seed '${record.slug}' is a system seed used by a BeechCMS feature and cannot be edited or deleted.`,
+    })
+  }
   if (record.source !== 'code') return null
   return publicProblem(context, {
     type: 'seed-manifest-owned',
