@@ -1,10 +1,17 @@
 name: Generate & Verify Documentation
 
-# Runs only on pushes to master (and manually). It is no longer part of the local pre-push hook
-# or of pull requests: docs/api is regenerated and committed here, once, when code reaches master.
+# On pushes to master (and manually) it regenerates docs/api and commits the result. On pull requests it
+# only generates and builds, so a broken docs build is seen before the merge; nothing is committed.
 on:
   push:
     branches: [master]
+    paths:
+      - 'packages/**'
+      - 'typedoc.json'
+      - 'docs/**'
+      - '.github/workflows/generate-docs.yml'
+  pull_request:
+    branches: [master, devs]
     paths:
       - 'packages/**'
       - 'typedoc.json'
