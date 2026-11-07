@@ -1,10 +1,11 @@
 #!/bin/sh
 #
-# Non-blocking type check of apps/api, tests included (~10 s). It only WARNS: this hook always
-# exits 0, so a push is never stopped by it.
+# Non-blocking type check of the whole workspace, tests included (`pnpm type-check`, ~16 s with a
+# cold turbo cache). It only WARNS: this hook always exits 0, so a push is never stopped by it.
 #
-# Why it exists: the API build (tsconfig.build.json) and CI exclude test files, so a type error
-# in a test is otherwise invisible; vitest transpiles without type-checking.
+# Why it exists: package builds exclude test files and vitest transpiles without type-checking, so
+# a type error in a test is otherwise invisible. CI (.github/workflows/typecheck.yml) runs the same
+# command and fails.
 # Skip with:   SKIP_TSC=1 git push
 #
 # docs/api is NOT regenerated here any more. .github/workflows/generate-docs.yml does it on every
@@ -15,15 +16,20 @@ if [ -n "$SKIP_TSC" ]; then
   exit 0
 fi
 
-output=$(pnpm --dir apps/api exec tsc --noEmit 2>&1)
-status=$?
+# Husky runs this file with `sh -e`: a bare `output=$(failing command)` would abort the script with
+# the command's exit code and the push would be blocked. The `if` keeps the failure inside a condition.
+if output=$(pnpm type-check 2>&1); then
+  status=0
+else
+  status=$?
+fi
 
 if [ "$status" -ne 0 ]; then
   count=$(printf '%s\n' "$output" | grep -c "error TS")
   echo ""
-  echo "pre-push: WARNING - apps/api has $count TypeScript error(s). The push continues."
+  echo "pre-push: WARNING - type-check failed ($count TypeScript error(s)). The push continues."
   printf '%s\n' "$output" | grep "error TS" | head -20
-  [ "$count" -gt 20 ] && echo "  ... and $((count - 20)) more. Run: pnpm --dir apps/api exec tsc --noEmit"
+  [ "$count" -gt 20 ] && echo "  ... and $((count - 20)) more. Run: pnpm type-check"
   echo ""
 fi
 

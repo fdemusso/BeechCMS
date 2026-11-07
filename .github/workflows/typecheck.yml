@@ -1,19 +1,19 @@
 name: Type Check
 
-# Blocking type check of every workspace package, only for code headed to master (pushes to master
-# and pull requests targeting it). Runs `pnpm type-check` (turbo: each package's own `type-check`
+# Blocking type check of every workspace package, for code headed to devs or master (pushes to master
+# and pull requests targeting either). Runs `pnpm type-check` (turbo: each package's own `type-check`
 # script).
 #
 # Test files are type-checked too. Packages whose build tsconfig.json excludes tests (client, core,
 # search-client, testing, widget-sdk, forms-react) have a tsconfig.typecheck.json that extends it
 # and includes them; their `type-check` script uses it. Keep that file when adding a package that
 # excludes tests from its build. The local pre-push hook only warns; this job fails.
-# For it to actually gate merges, mark "Type Check / tsc" as a required status check on master.
+# It gates merges through the required status check `tsc` in the repository rulesets.
 on:
   push:
     branches: [master]
   pull_request:
-    branches: [master]
+    branches: [master, devs]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
