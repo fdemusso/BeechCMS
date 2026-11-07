@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { resolveCandidateIds } from './candidate-ids.js'
-import type { Branch, Seed } from '../types.js'
+import type { Seed } from '../types.js'
 
 const stored: Seed = {
   slug: 'clienti',
@@ -17,11 +17,6 @@ const stored: Seed = {
   ],
 } as Seed
 
-// resolveCandidateIds is typed T -> T, but it fills the id of every branch: read the result as a Branch list.
-function resolveBranches(candidate: { branches?: unknown }, from: Seed | null): Branch[] {
-  return (resolveCandidateIds(candidate, from) as { branches: Branch[] }).branches
-}
-
 describe('resolveCandidateIds', () => {
   it('reuses the stored id by alias and mints past the highest id for new aliases', () => {
     const candidate = { slug: 'clienti', branches: [
@@ -29,7 +24,7 @@ describe('resolveCandidateIds', () => {
       { alias: 'name', label: 'Name', type: 'text' },
     ] }
 
-    const resolved = resolveBranches(candidate, stored)
+    const resolved = resolveCandidateIds(candidate, stored).branches
 
     expect(resolved.map(b => [b.alias, b.id])).toEqual([['tier', 'br_01'], ['name', 'br_c1']])
   })
@@ -42,7 +37,7 @@ describe('resolveCandidateIds', () => {
       ] },
     ] }
 
-    const [contacts] = resolveBranches(candidate, stored)
+    const [contacts] = resolveCandidateIds(candidate, stored).branches
 
     expect(contacts.id).toBe('br_c4')
     expect(contacts.fields?.map(f => [f.alias, f.id])).toEqual([['phone', 'br_01'], ['email', 'br_s7']])
@@ -60,14 +55,14 @@ describe('resolveCandidateIds', () => {
       { id: 'br_01', alias: 'b', label: 'B', type: 'text' },
     ] }
 
-    expect(resolveBranches(candidate, null).map(b => b.id)).toEqual(['br_02', 'br_01'])
+    expect(resolveCandidateIds(candidate, null).branches.map(b => b.id)).toEqual(['br_02', 'br_01'])
   })
 
   it('never recycles the id of a stored branch the candidate omits', () => {
     const storedWithTop: Seed = { ...stored, branches: [...stored.branches, { id: 'br_05', alias: 'old', label: 'Old', type: 'text' }] }
     const candidate = { slug: 'clienti', branches: [{ alias: 'fresh', label: 'Fresh', type: 'text' }] }
 
-    expect(resolveBranches(candidate, storedWithTop)[0].id).toBe('br_06')
+    expect(resolveCandidateIds(candidate, storedWithTop).branches[0].id).toBe('br_06')
   })
 
   it('mints sequential ids when there is no stored definition', () => {
@@ -76,6 +71,6 @@ describe('resolveCandidateIds', () => {
       { alias: 'b', label: 'B', type: 'text' },
     ] }
 
-    expect(resolveBranches(candidate, null).map(b => b.id)).toEqual(['br_01', 'br_02'])
+    expect(resolveCandidateIds(candidate, null).branches.map(b => b.id)).toEqual(['br_01', 'br_02'])
   })
 })
