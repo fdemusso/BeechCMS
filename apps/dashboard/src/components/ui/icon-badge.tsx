@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useHoverPopover } from "@/hooks/use-hover-popover"
 import { cn } from "@/lib/utils"
 
-type BadgeIcon = ComponentType<{ size?: number; className?: string }>
+type BadgeIcon = ComponentType<{ size?: number | string; className?: string }>
 
 export interface IconBadgeProps {
   readonly icon: BadgeIcon

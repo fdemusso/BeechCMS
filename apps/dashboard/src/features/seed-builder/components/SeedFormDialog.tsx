@@ -168,15 +168,15 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
                   <TabsContent value="fields" className={cn("mt-0 space-y-4", enter)}>
                     <FieldsStep
                       branches={form.branches}
-                      onChange={(branches) => setField("branches", branches)}
+                      onChange={(branches) => form.setField("branches", branches)}
                       activeSeedsForRelation={activeSeedsForRelation}
                       tableEmpty={form.tableEmpty}
                       canUseTemplates={isCreate}
                       onOpenDangerZone={editRecord ? () => form.setStep("danger") : undefined}
                       onApplyTemplate={(template) => {
-                        setField("branches", template.branches)
-                        setField("display_name_alias", template.displayNameAlias)
-                        setField("allow_drafts", template.allowDrafts)
+                        form.setField("branches", template.branches)
+                        form.setField("display_name_alias", template.displayNameAlias)
+                        form.setField("allow_drafts", template.allowDrafts)
                       }}
                     />
                   </TabsContent>
