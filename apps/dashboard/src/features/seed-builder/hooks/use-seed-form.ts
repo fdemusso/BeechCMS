@@ -39,7 +39,7 @@ function reconcileBranches(formBranches: Branch[], serverBranches: Branch[]): Br
  * The branch used as the entry name: the stored choice while it still names a branch, otherwise the
  * first text branch (then the first branch). The server requires one (Fatal 9), so the form never asks.
  */
-export function resolveDisplayNameAlias(branches: Branch[], chosen: string): string {
+export function resolveDisplayNameAlias(branches: readonly Branch[], chosen: string): string {
   const named = branches.filter((b) => b.alias)
   if (named.some((b) => b.alias === chosen)) return chosen
   return named.find((b) => b.type === "text")?.alias ?? named[0]?.alias ?? ""
@@ -54,7 +54,7 @@ function isStep(value: string): value is SeedFormStep | "danger" {
 }
 
 /** A field is complete with a valid, unreserved, unique alias (and a target when it is a relation). */
-export function areBranchesComplete(branches: Branch[]): boolean {
+export function areBranchesComplete(branches: readonly Branch[]): boolean {
   return branches.length > 0 && branches.every((b) => branchIssue(b, branches) === null)
 }
 
@@ -324,14 +324,14 @@ export function useSeedForm({ editRecord, takenSlugs, onClose, open }: UseSeedFo
 
   const slugTaken = isCreate && taken.has(slug)
   const stepComplete = stepCompletion({ label: String(formData.label ?? ""), slug, slugTaken, branches, displayNameAlias })
-  const stepIndex = SEED_FORM_STEPS.indexOf(step)
+  const stepIndex = (SEED_FORM_STEPS as readonly string[]).indexOf(step)
   const isLastStep = stepIndex === SEED_FORM_STEPS.length - 1
   // Create is a guided process: a step opens only when every step before it is complete. A stored seed is
   // already valid, so editing is free to jump between steps.
   const isStepReachable = (target: SeedFormStep) =>
     !isCreate || SEED_FORM_STEPS.slice(0, SEED_FORM_STEPS.indexOf(target)).every((s) => stepComplete[s])
   const allComplete = SEED_FORM_STEPS.every((s) => stepComplete[s])
-  const canAdvance = stepComplete[step] && !isBusy
+  const canAdvance = step !== "danger" && stepComplete[step] && !isBusy
   const canSubmit = allComplete && !isBusy
 
   const blocker = useBlocker(() => open && isDirty)

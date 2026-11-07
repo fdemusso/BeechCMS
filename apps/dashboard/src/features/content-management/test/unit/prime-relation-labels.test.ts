@@ -22,7 +22,7 @@ describe("primeRelationLabels", () => {
   })
 
   it("stores a label stub in the target's detail cache for every related id", () => {
-    primeRelationLabels(client, seeds, "abbonamenti", { relations: { cliente: { c1: "Acme", c2: "Globex" } } })
+    primeRelationLabels(client, seeds, "abbonamenti", { relations: { cliente: { c1: "Acme", c2: "Globex" } }, relationAvatars: {} })
 
     expect(client.getQueryData(CONTENT_QUERY_KEYS.detail("clienti", "c1"))).toMatchObject({
       id: "c1",
@@ -36,19 +36,19 @@ describe("primeRelationLabels", () => {
     const real = { id: "c1", data: { ragione_sociale: "Acme S.p.A." }, updated_at: "2026-01-01" }
     client.setQueryData(CONTENT_QUERY_KEYS.detail("clienti", "c1"), real)
 
-    primeRelationLabels(client, seeds, "abbonamenti", { relations: { cliente: { c1: "Acme" } } })
+    primeRelationLabels(client, seeds, "abbonamenti", { relations: { cliente: { c1: "Acme" } }, relationAvatars: {} })
 
     expect(client.getQueryData(CONTENT_QUERY_KEYS.detail("clienti", "c1"))).toBe(real)
   })
 
   it("does nothing for a response without relations", () => {
-    primeRelationLabels(client, seeds, "abbonamenti", {})
+    primeRelationLabels(client, seeds, "abbonamenti", { relations: {}, relationAvatars: {} })
 
     expect(client.getQueryCache().getAll()).toEqual([])
   })
 
   it("skips a relation alias the seed does not declare", () => {
-    primeRelationLabels(client, seeds, "abbonamenti", { relations: { unknown: { x1: "Nope" } } })
+    primeRelationLabels(client, seeds, "abbonamenti", { relations: { unknown: { x1: "Nope" } }, relationAvatars: {} })
 
     expect(client.getQueryCache().getAll()).toEqual([])
   })
