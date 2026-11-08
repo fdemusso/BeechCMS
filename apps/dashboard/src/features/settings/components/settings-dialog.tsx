@@ -173,14 +173,15 @@ export function SettingsDialog({
                       {group.items.map((item) => {
                         const Icon = item.icon
                         const isActive = safeTab === item.id
-                        const sections = expanded.has(item.id) ? getVisibleSections(item, gates) : []
+                        const sections = getVisibleSections(item, gates)
+                        const isUnfolded = expanded.has(item.id)
                         return (
                           <div key={item.id}>
                             <button
                               type="button"
                               onClick={() => handleEntryClick(item)}
                               aria-current={isActive ? "page" : undefined}
-                              aria-expanded={item.sections.length > 0 ? expanded.has(item.id) : undefined}
+                              aria-expanded={item.sections.length > 0 ? isUnfolded : undefined}
                               className={cn(
                                 "w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors text-left",
                                 isActive
@@ -192,7 +193,18 @@ export function SettingsDialog({
                               <span className="truncate">{t(item.labelKey, item.defaultLabel)}</span>
                             </button>
                             {sections.length > 0 && (
-                              <ul className="ml-[1.15rem] mt-0.5 mb-1 space-y-0.5 border-l border-border/60 pl-2">
+                              // Kept mounted so it can fold: the row height eases between 0fr and 1fr, 220ms to unfold
+                              // and 20% quicker (176ms) to fold. `inert` takes the folded links out of the tab order.
+                              <div
+                                inert={!isUnfolded}
+                                aria-hidden={!isUnfolded}
+                                className={cn(
+                                  "grid transition-[grid-template-rows,opacity] ease-out motion-reduce:transition-none",
+                                  isUnfolded ? "grid-rows-[1fr] opacity-100 duration-[220ms]" : "grid-rows-[0fr] opacity-0 duration-[176ms]"
+                                )}
+                              >
+                              <div className="ml-[1.15rem] min-h-0 overflow-hidden">
+                              <ul className="space-y-0.5 border-l border-border/60 py-1 pl-2">
                                 {sections.map((sectionItem) => {
                                   const isCurrent = activeSection === sectionItem.id
                                   return (
@@ -214,6 +226,8 @@ export function SettingsDialog({
                                   )
                                 })}
                               </ul>
+                              </div>
+                              </div>
                             )}
                           </div>
                         )
