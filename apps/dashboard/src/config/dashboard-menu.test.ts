@@ -17,7 +17,7 @@ vi.mock("sonner", () => ({ toast: { info: vi.fn() } }))
 const t = (key: string) => key
 
 function gates(overrides: Partial<MenuGates> = {}): MenuGates {
-  return { viewAnalytics: false, readContent: false, createContent: false, ...overrides }
+  return { viewAnalytics: false, readContent: false, createContent: false, manageSeeds: false, ...overrides }
 }
 
 describe("getContentCategoryMenu (HIDE/DISABLE split)", () => {

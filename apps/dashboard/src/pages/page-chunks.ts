@@ -13,6 +13,7 @@ export const importers = {
   analytics: () => import("@/pages/analytics").then((m) => ({ default: m.AnalyticsPage })),
   createNew: () => import("@/pages/create-new").then((m) => ({ default: m.CreateNewPage })),
   scheduled: () => import("@/pages/scheduled").then((m) => ({ default: m.ScheduledPage })),
+  schema: () => import("@/pages/schema").then((m) => ({ default: m.SchemaPage })),
   drafts: () => import("@/pages/drafts-list").then((m) => ({ default: m.DraftsListPage })),
 }
 
@@ -25,6 +26,7 @@ export function preloadPageChunk(pathname: string): void {
 
 function chunkFor(pathname: string): (() => Promise<unknown>) | undefined {
   if (pathname === "/analytics") return importers.analytics
+  if (pathname === "/schema") return importers.schema
   if (pathname === "/drafts") return importers.drafts
   if (pathname === "/scheduled") return importers.scheduled
   if (pathname === "/content/create-new") return importers.createNew

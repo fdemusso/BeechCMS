@@ -58,8 +58,8 @@ export function FieldsStep({
   onOpenDangerZone,
 }: FieldsStepProps) {
   const { t } = useTranslation()
-  // The content languages live in the Site tab of the settings dialog that hosts this wizard.
-  const { setTab } = useSettingsDialog()
+  // The content languages live in the Site tab of the settings dialog, opened over the builder page.
+  const { openSettings } = useSettingsDialog()
   const [name, setName] = React.useState("")
   const [type, setType] = React.useState<BranchType>("text")
   const [selectedId, setSelectedId] = React.useState<string | null>(branches[0]?.id ?? null)
@@ -236,7 +236,7 @@ export function FieldsStep({
                     activeSeedsForRelation={activeSeedsForRelation}
                     onChange={updateBranch}
                     tableEmpty={tableEmpty}
-                    onOpenLanguages={() => setTab("general")}
+                    onOpenLanguages={() => openSettings("general")}
                     onOpenDangerZone={onOpenDangerZone}
                   />
                 ) : (

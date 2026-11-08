@@ -10,7 +10,6 @@ import {
   HardDrive,
   Bell,
   Settings,
-  Layers,
   Key,
   Users,
   ShieldCheck,
@@ -24,7 +23,7 @@ export interface SettingsGates {
   canAnywhere: (permission: Permission) => boolean
 }
 
-export type SettingsGroupId = "account" | "system" | "access" | "models"
+export type SettingsGroupId = "account" | "system" | "access"
 
 export interface SettingsEntry {
   readonly id: SettingsTab
@@ -38,13 +37,12 @@ export interface SettingsEntry {
   readonly isVisible: (gates: SettingsGates) => boolean
 }
 
-export const SETTINGS_GROUP_ORDER: readonly SettingsGroupId[] = ["account", "system", "access", "models"]
+export const SETTINGS_GROUP_ORDER: readonly SettingsGroupId[] = ["account", "system", "access"]
 
 export const SETTINGS_GROUP_LABELS: Record<SettingsGroupId, { key: string; defaultLabel: string }> = {
   account: { key: "settings.groups.account", defaultLabel: "Account" },
   system: { key: "settings.groups.system", defaultLabel: "System & UI" },
   access: { key: "settings.groups.access", defaultLabel: "Access" },
-  models: { key: "settings.groups.models", defaultLabel: "Data Models" },
 }
 
 /**
@@ -101,11 +99,6 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     id: "invitations", groupId: "access", labelKey: "settings.tabs.invitations", defaultLabel: "Invitations", icon: Mail,
     keywords: ["inviti", "invita", "invite", "nuovo utente"],
     isVisible: (g) => g.canAnywhere("manage_users"),
-  },
-  {
-    id: "content-types", groupId: "models", labelKey: "seedBuilder.page.navTitle", defaultLabel: "Content Types", icon: Layers,
-    keywords: ["seed", "schema", "modello", "model", "tipi di contenuto", "builder", "campi", "fields"],
-    isVisible: (g) => g.canGlobally("manage_seeds"),
   },
 ]
 

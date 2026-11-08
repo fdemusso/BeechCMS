@@ -14,6 +14,7 @@ import {
   DraftsListPage,
   ImportJobDetailPage,
   ScheduledPage,
+  SchemaPage,
   TestFieldsPage,
   WidgetLabPage,
 } from "@/pages/lazy-pages"
@@ -186,6 +187,15 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <DashboardPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/schema",
+        loader: prefetchLoader,
+        element: (
+          <ProtectedRoute>
+            <SchemaPage />
           </ProtectedRoute>
         ),
       },

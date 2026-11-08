@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next"
 import { isSystemSeedSlug, type Seed } from "@beechcms/core"
 import { Layers, Plus } from "@/components/icons"
 import { CommandGroup, CommandItem } from "@/components/ui/command"
-import { useSettingsDialog } from "@/features/settings"
+import { useNavigate } from "react-router-dom"
 import { SEED_INTENT_NEW, SEED_INTENT_PARAM } from "@/features/seed-builder"
 import { resolveIcon } from "@/lib/icon-registry"
 import type { CommandPage } from "../types"
@@ -16,11 +16,11 @@ interface SchemaProps {
   setOpen: (open: boolean) => void
 }
 
-/** Opens the content type builder (Settings › Content Types) with the create or edit dialog already up. */
+/** Opens the content type builder page (/schema) with the create or edit dialog already up. */
 function useOpenBuilder(setOpen: (open: boolean) => void) {
-  const { openSettings } = useSettingsDialog()
+  const navigate = useNavigate()
   return (intent: string) => {
-    openSettings("content-types", { [SEED_INTENT_PARAM]: intent })
+    navigate(`/schema?${SEED_INTENT_PARAM}=${encodeURIComponent(intent)}`)
     setOpen(false)
   }
 }

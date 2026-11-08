@@ -15,6 +15,7 @@ const mockBlocker = { state: "unblocked" as const, reset: vi.fn(), proceed: vi.f
 vi.mock("react-router-dom", () => ({
   useNavigate: () => vi.fn(),
   useBlocker: () => mockBlocker,
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
 const manageSeeds = { current: true }
