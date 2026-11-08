@@ -19,9 +19,8 @@ describe("settings registry", () => {
     expect(ids(none)).toEqual(["profile", "security", "connected-apps", "notifications", "interface"])
   })
 
-  it("Content Types needs a global manage_seeds, not an anywhere one", () => {
-    expect(ids({ canGlobally: () => false, canAnywhere: () => true })).not.toContain("content-types")
-    expect(ids({ canGlobally: (p) => p === "manage_seeds", canAnywhere: () => false })).toContain("content-types")
+  it("manage_seeds opens nothing here: the content type builder is its own page", () => {
+    expect(ids({ canGlobally: (p) => p === "manage_seeds", canAnywhere: () => true })).not.toContain("content-types")
   })
 
   it("manage_roles alone opens Roles but not Users or Invitations", () => {

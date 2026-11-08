@@ -1021,6 +1021,7 @@
     "createNew": "Create New",
     "scheduled": "Scheduled",
     "analytics": "Analytics",
+    "studio": "Studio",
     "disabled": {
       "createContent": "You cannot create content here"
     }

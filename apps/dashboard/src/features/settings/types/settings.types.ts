@@ -18,5 +18,5 @@ export type UpdateGeneralSettingsPayload = InferRequestType<Settings['$put']>['j
 
 export type SettingsTab =
   | 'profile' | 'interface' | 'security' | 'storage' | 'notifications'
-  | 'general' | 'content-types' | 'connected-apps'
+  | 'general' | 'connected-apps'
   | 'users' | 'roles' | 'invitations'

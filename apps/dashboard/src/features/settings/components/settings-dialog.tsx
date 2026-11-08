@@ -21,7 +21,6 @@ import { SecurityTab } from "./security-tab"
 import { StorageTab } from "./storage-tab"
 import { NotificationsTab } from "./notifications-tab"
 import { GeneralTab } from "./general-tab"
-import { SeedBuilderPage } from "@/features/seed-builder"
 import { ConnectedAppsTab } from "@/features/oauth-consent"
 import { usePermissions } from "@/features/shared"
 import { UsersTab, RolesTab, InvitationsTab } from "@/features/rbac"
@@ -63,8 +62,6 @@ function TabContent({ tab }: { readonly tab: SettingsTab }) {
       return <NotificationsTab />
     case "general":
       return <GeneralTab />
-    case "content-types":
-      return <SeedBuilderPage />
     case "connected-apps":
       return <ConnectedAppsTab />
     case "users":

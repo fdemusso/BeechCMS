@@ -3,7 +3,7 @@ import type { IconComponent } from '@/lib/icon-registry'
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { Category as LayoutDashboard, Settings, PenLine, Plus, Calendar, ChartBar as BarChart2 } from '@/components/icons'
+import { Category as LayoutDashboard, Layers, Settings, PenLine, Plus, Calendar, ChartBar as BarChart2 } from '@/components/icons'
 import type { Seed } from "@beechcms/core"
 import { resolveIcon } from "@/lib/icon-registry"
 
@@ -35,11 +35,13 @@ export interface NavItem {
  *  - `readContent`    → content:read on at least one seed (`GET /api/content/drafts`,
  *                       whose in-handler projection returns [] for a caller with none)
  *  - `createContent`  → content:create on at least one seed (`POST /api/content/:slug`)
+ *  - `manageSeeds`    → perm('manage_seeds','global') (`/api/seeds/*`)
  */
 export interface MenuGates {
   viewAnalytics: boolean
   readContent: boolean
   createContent: boolean
+  manageSeeds: boolean
 }
 
 /** Grouped block of nav items — maps to one NavSection in the sidebar */
@@ -80,6 +82,12 @@ export function getContentCategoryMenu(t: (key: string) => string, gates: MenuGa
     // Placeholder page only: notify instead of navigating until the feature exists.
     { title: t("sidebar.scheduled"), url: "/scheduled", icon: Calendar, notImplemented: true },
   ]
+}
+
+/** The developer's workspace: absent (axis one) for anyone without `manage_seeds`. */
+export function getStudioMenu(t: (key: string) => string, gates: MenuGates): NavItem[] {
+  if (!gates.manageSeeds) return []
+  return [{ title: t("seedBuilder.page.navTitle"), url: "/schema", icon: Layers }]
 }
 
 export function getSettingsMenu(t: (key: string) => string): NavItem[] {

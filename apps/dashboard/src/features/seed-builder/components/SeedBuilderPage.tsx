@@ -28,7 +28,7 @@ import { isSystemSeedSlug, type Seed } from "@beechcms/core"
 export const SEED_INTENT_PARAM = "seed"
 export const SEED_INTENT_NEW = "new"
 
-export function SeedBuilderPage() {
+export function SeedBuilderPage({ showSubtitle = true }: { readonly showSubtitle?: boolean } = {}) {
   const { t } = useTranslation()
   const { canGlobally } = usePermissions()
   const canManageSeeds = canGlobally("manage_seeds")
@@ -71,7 +71,7 @@ export function SeedBuilderPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{t("seedBuilder.page.subtitle")}</p>
+        {showSubtitle ? <p className="text-sm text-muted-foreground">{t("seedBuilder.page.subtitle")}</p> : <span />}
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon-sm" onClick={() => refetch()} title={t("common.retry")}>
             <RefreshCw className="size-4" />

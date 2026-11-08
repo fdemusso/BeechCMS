@@ -228,7 +228,7 @@ Other surfaces follow the same evaluator:
 
 | Surface | Visible when |
 |---|---|
-| **Data Models** (Seed Builder) | `manage_seeds` at `*` |
+| **Content Types** (Seed Builder, `/schema` Studio page) | `manage_seeds` at `*` |
 | **Edit dashboard** button | `manage_layout` or `manage_roles` at `*` (core `isDashboardLayoutEditor`) |
 | **Entry-editor form layout** button | `manage_seeds` at `*` |
 

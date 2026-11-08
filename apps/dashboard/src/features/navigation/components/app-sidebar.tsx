@@ -12,7 +12,7 @@ import { NavSection } from "./nav-section"
 import { NavNotifications } from "./nav-notifications"
 import { NavUser } from "./nav-user"
 import { SidebarSearch } from "./sidebar-search"
-import { getStaticMenu, getContentCategoryMenu, getSettingsMenu, buildContentMenu } from "@/config/dashboard-menu"
+import { getStaticMenu, getContentCategoryMenu, getSettingsMenu, getStudioMenu, buildContentMenu } from "@/config/dashboard-menu"
 import { logout } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 import { useProfile, useSettingsDialog } from "@/features/settings"
@@ -62,6 +62,7 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
     viewAnalytics: canGlobally('view_analytics'),
     readContent: canAnywhere('content:read'),
     createContent: canAnywhere('content:create'),
+    manageSeeds: canGlobally('manage_seeds'),
   }), [canGlobally, canAnywhere])
 
   const fullName = profile
@@ -78,6 +79,7 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
 
   const contentGroups = buildContentMenu(seeds, t("sidebar.contents"))
   const contentCategoryItems = getContentCategoryMenu(t, gates)
+  const studioItems = getStudioMenu(t, gates)
 
   return (
     <Sidebar variant="inset" collapsible="icon" {...railLens} {...props}>
@@ -110,9 +112,15 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
             />
           </React.Fragment>
         ))}
+        {studioItems.length > 0 && (
+          <div data-rail-static className="mt-auto">
+            <RailDivider spaced />
+            <NavSection items={studioItems} groupLabel={t("sidebar.studio")} />
+          </div>
+        )}
         {/* Settings entry with the sidebar close button beside it. */}
         {/* Collapsed (icon rail): the row stacks, settings icon above the toggle. */}
-        <div data-rail-static className="mt-auto flex items-center pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:pr-0">
+        <div data-rail-static className={cn(studioItems.length === 0 && "mt-auto", "flex items-center pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:pr-0")}>
           <NavSection items={getSettingsMenu(t).map((item) => ({ ...item, onSelect: () => openSettings() }))} className="min-w-0 flex-1 pt-0" />
           {/* Same box, radius, icon size, colour and hover as the Settings SidebarMenuButton beside it (size-8, rounded-md,
               16px icon), on the same centre line: self-start because the Settings group has pt-0, so centring in the row would

@@ -15,7 +15,6 @@ vi.mock("./interface-tab", () => ({ InterfaceTab: () => <div>INTERFACE_TAB_CONTE
 vi.mock("./security-tab", () => ({ SecurityTab: () => <div>SECURITY_TAB_CONTENT</div> }))
 vi.mock("./storage-tab", () => ({ StorageTab: () => <div>STORAGE_TAB_CONTENT</div> }))
 vi.mock("./notifications-tab", () => ({ NotificationsTab: () => <div>NOTIFICATIONS_TAB_CONTENT</div> }))
-vi.mock("@/features/seed-builder", () => ({ SeedBuilderPage: () => <div>SEED_BUILDER_CONTENT</div> }))
 vi.mock("@/features/oauth-consent", () => ({ ConnectedAppsTab: () => <div>CONNECTED_APPS_CONTENT</div> }))
 vi.mock("@/features/rbac", () => ({
   UsersTab: () => <div>USERS_TAB_CONTENT</div>,
@@ -111,17 +110,8 @@ describe("SettingsDialog", () => {
     expect(onTabChange).toHaveBeenCalledWith("general")
   })
 
-  it("a global manage_seeds holder sees the Data Models group with Content Types", () => {
-    setPermissions({ canGlobally: (permission: string) => permission === "manage_seeds" })
-    renderDialog("profile")
-    expect(screen.getByText(/Content Types/)).toBeInTheDocument()
-  })
-
-  it("every RBAC permission except a global manage_seeds hides Content Types", () => {
-    setPermissions({
-      canGlobally: (permission: string) => permission !== "manage_seeds",
-      canAnywhere: () => true,
-    })
+  it("manage_seeds does not put Content Types in the dialog: the builder is a page", () => {
+    setPermissions({ canGlobally: () => true, canAnywhere: () => true })
     renderDialog("profile")
     expect(screen.queryByText(/Content Types/)).not.toBeInTheDocument()
   })
