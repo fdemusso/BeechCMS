@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Search, Settings, Logout as LogOut, X as XIcon } from "@/components/icons"
 
@@ -16,10 +16,10 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { logout } from "@/lib/api"
+import { sectionDomId } from "./settings-section"
 
-import { ProfileTab } from "./profile-tab"
+import { AccountTab } from "./account-tab"
 import { InterfaceTab } from "./interface-tab"
-import { SecurityTab } from "./security-tab"
 import { StorageTab } from "./storage-tab"
 import { NotificationsTab } from "./notifications-tab"
 import { GeneralTab } from "./general-tab"
@@ -72,12 +72,7 @@ function TabContent({ tab }: { readonly tab: SettingsTab }) {
     case "storage":
       return <StorageTab />
     default:
-      return (
-        <div className="space-y-6">
-          <ProfileTab />
-          <SecurityTab />
-        </div>
-      )
+      return <AccountTab />
   }
 }
 
@@ -121,6 +116,15 @@ export function SettingsDialog({
     setSeenTab(safeTab)
     setExpanded((prev) => new Set(prev).add(safeTab))
   }
+
+  // A bookmark scrolls its section into view (the page body is the scroll container): from a sidebar click, a link
+  // or the command palette alike.
+  useEffect(() => {
+    if (!activeSection) return
+    const target = document.getElementById(sectionDomId(activeSection))
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    target?.scrollIntoView?.({ behavior: reduce ? "auto" : "smooth", block: "start" })
+  }, [safeTab, activeSection])
 
   /** Folded: unfold and go there. Unfolded but elsewhere: go there, stay unfolded. Unfolded and shown: fold. */
   function handleEntryClick(entry: SettingsEntry) {

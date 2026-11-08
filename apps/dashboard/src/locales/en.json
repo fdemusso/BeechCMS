@@ -523,6 +523,7 @@
       "infoTitle": "Profile information",
       "infoDesc": "Update your name, email and profile photo.",
       "noName": "No name",
+      "photoLabel": "Photo",
       "changePhoto": "Change photo",
       "nameLabel": "Name",
       "namePlaceholder": "Your name",

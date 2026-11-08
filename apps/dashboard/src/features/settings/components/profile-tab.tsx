@@ -5,15 +5,13 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Camera, Loader as Loader2 } from '@/components/icons'
+import { Loader as Loader2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 import { isApiError } from '@/lib/http/api-error'
 import { useProfile, useUpdateProfile, useChangePassword, useUpdateAvatar } from '../hooks/use-settings'
+import { SettingsActions, SettingsRow, SettingsSection } from './settings-section'
 
 function getInitials(name: string | null, surname: string | null, email: string): string {
   if (name || surname) {
@@ -25,20 +23,17 @@ function getInitials(name: string | null, surname: string | null, email: string)
   return email.slice(0, 2).toUpperCase()
 }
 
-export function ProfileTab() {
+/** Photo, name, last name and email: one row each. */
+export function ProfileSection() {
   const { t } = useTranslation()
   const { data: profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
-  const changePassword = useChangePassword()
   const updateAvatar = useUpdateAvatar()
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const [name, setName] = React.useState('')
   const [surname, setSurname] = React.useState('')
   const [email, setEmail] = React.useState('')
-  const [currentPassword, setCurrentPassword] = React.useState('')
-  const [newPassword, setNewPassword] = React.useState('')
-  const [confirmPassword, setConfirmPassword] = React.useState('')
 
   React.useEffect(() => {
     if (profile) {
@@ -63,6 +58,102 @@ export function ProfileTab() {
     }
   }
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      await updateAvatar.mutateAsync(file)
+      toast.success(t('settings.profile.avatarSuccess'))
+    } catch {
+      toast.error(t('settings.profile.avatarError'))
+    }
+    e.target.value = ''
+  }
+
+  return (
+    <SettingsSection id="profile" title={t('settings.profile.infoTitle')} description={t('settings.profile.infoDesc')}>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <form onSubmit={handleSaveProfile}>
+          <SettingsRow label={t('settings.profile.photoLabel')} controlClassName="sm:w-auto">
+            <div className="flex items-center gap-3 sm:justify-end">
+              <Avatar className="size-12">
+                <AvatarImage src={profile?.avatarUrl ?? undefined} />
+                <AvatarFallback>
+                  {getInitials(profile?.name ?? null, profile?.surname ?? null, profile?.email ?? '')}
+                </AvatarFallback>
+              </Avatar>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={updateAvatar.isPending}
+              >
+                {updateAvatar.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {t('settings.profile.changePhoto')}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarChange}
+              />
+            </div>
+          </SettingsRow>
+
+          <SettingsRow label={t('settings.profile.nameLabel')} htmlFor="name">
+            <Input
+              id="name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder={t('settings.profile.namePlaceholder')}
+            />
+          </SettingsRow>
+
+          <SettingsRow label={t('settings.profile.surnameLabel')} htmlFor="surname">
+            <Input
+              id="surname"
+              value={surname}
+              onChange={e => setSurname(e.target.value)}
+              placeholder={t('settings.profile.surnamePlaceholder')}
+            />
+          </SettingsRow>
+
+          <SettingsRow label={t('settings.profile.emailLabel')} htmlFor="email">
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder={t('settings.profile.emailPlaceholder')}
+            />
+          </SettingsRow>
+
+          <SettingsActions>
+            <Button type="submit" disabled={updateProfile.isPending}>
+              {updateProfile.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {t('settings.profile.saveChanges')}
+            </Button>
+          </SettingsActions>
+        </form>
+      )}
+    </SettingsSection>
+  )
+}
+
+/** Current password, new password and its confirmation: one row each. */
+export function PasswordSection() {
+  const { t } = useTranslation()
+  const changePassword = useChangePassword()
+  const [currentPassword, setCurrentPassword] = React.useState('')
+  const [newPassword, setNewPassword] = React.useState('')
+  const [confirmPassword, setConfirmPassword] = React.useState('')
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     if (newPassword !== confirmPassword) {
@@ -81,171 +172,56 @@ export function ProfileTab() {
     }
   }
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    try {
-      await updateAvatar.mutateAsync(file)
-      toast.success(t('settings.profile.avatarSuccess'))
-    } catch {
-      toast.error(t('settings.profile.avatarError'))
-    }
-    e.target.value = ''
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('settings.profile.infoTitle')}</CardTitle>
-          <CardDescription>{t('settings.profile.infoDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSaveProfile} className="space-y-6">
-            {/* Avatar */}
-            <div className="flex items-center gap-4">
-              <div className="relative group">
-                <Avatar className="size-20">
-                  <AvatarImage src={profile?.avatarUrl ?? undefined} />
-                  <AvatarFallback className="text-lg">
-                    {getInitials(profile?.name ?? null, profile?.surname ?? null, profile?.email ?? '')}
-                  </AvatarFallback>
-                </Avatar>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={updateAvatar.isPending}
-                  className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                >
-                  {updateAvatar.isPending
-                    ? <Loader2 className="size-5 text-white animate-spin" />
-                    : <Camera className="size-5 text-white" />
-                  }
-                </button>
-              </div>
-              <div>
-                <p className="text-sm font-medium">
-                  {profile?.name
-                    ? `${profile.name}${profile.surname ? ' ' + profile.surname : ''}`
-                    : t('settings.profile.noName')}
-                </p>
-                <p className="text-sm text-muted-foreground">{profile?.email}</p>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs text-foreground mt-1 hover:opacity-80 transition-opacity"
-                >
-                  {t('settings.profile.changePhoto')}
-                </button>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleAvatarChange}
-              />
-            </div>
+    <SettingsSection id="password" title={t('settings.profile.passwordTitle')} description={t('settings.profile.passwordDesc')}>
+      <form onSubmit={handleChangePassword}>
+        <SettingsRow label={t('settings.profile.currentPassword')} htmlFor="current-password">
+          <Input
+            id="current-password"
+            type="password"
+            value={currentPassword}
+            onChange={e => setCurrentPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+        </SettingsRow>
 
-            <Separator />
+        <SettingsRow label={t('settings.profile.newPassword')} htmlFor="new-password">
+          <Input
+            id="new-password"
+            type="password"
+            value={newPassword}
+            onChange={e => setNewPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+        </SettingsRow>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="name">{t('settings.profile.nameLabel')}</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder={t('settings.profile.namePlaceholder')}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="surname">{t('settings.profile.surnameLabel')}</Label>
-                <Input
-                  id="surname"
-                  value={surname}
-                  onChange={e => setSurname(e.target.value)}
-                  placeholder={t('settings.profile.surnamePlaceholder')}
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="email">{t('settings.profile.emailLabel')}</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder={t('settings.profile.emailPlaceholder')}
-                />
-              </div>
-            </div>
+        <SettingsRow label={t('settings.profile.confirmPassword')} htmlFor="confirm-password">
+          <Input
+            id="confirm-password"
+            type="password"
+            value={confirmPassword}
+            onChange={e => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+        </SettingsRow>
 
-            <div className="flex justify-end">
-              <Button type="submit" disabled={updateProfile.isPending}>
-                {updateProfile.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                {t('settings.profile.saveChanges')}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+        <SettingsActions>
+          <Button type="submit" variant="outline" disabled={changePassword.isPending}>
+            {changePassword.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+            {t('settings.profile.updatePassword')}
+          </Button>
+        </SettingsActions>
+      </form>
+    </SettingsSection>
+  )
+}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('settings.profile.passwordTitle')}</CardTitle>
-          <CardDescription>{t('settings.profile.passwordDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="current-password">{t('settings.profile.currentPassword')}</Label>
-              <Input
-                id="current-password"
-                type="password"
-                value={currentPassword}
-                onChange={e => setCurrentPassword(e.target.value)}
-                autoComplete="current-password"
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="new-password">{t('settings.profile.newPassword')}</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  autoComplete="new-password"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">{t('settings.profile.confirmPassword')}</Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)}
-                  autoComplete="new-password"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button type="submit" variant="outline" disabled={changePassword.isPending}>
-                {changePassword.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                {t('settings.profile.updatePassword')}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+/** Profile and password, in page order. */
+export function ProfileTab() {
+  return (
+    <>
+      <ProfileSection />
+      <PasswordSection />
+    </>
   )
 }
