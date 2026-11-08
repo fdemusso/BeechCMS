@@ -25,13 +25,7 @@ import {
 import { useSessions, useRevokeSession, useSettingsActivity } from '../hooks/use-settings'
 import type { ActivityEntry, Session } from '../types/settings.types'
 import { SettingsSection } from './settings-section'
-
-const ACTION_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  create: 'default',
-  update: 'secondary',
-  delete: 'destructive',
-  upload: 'outline',
-}
+import { describeActivity } from '../lib/activity-presentation'
 
 // Rows share one fixed height, so "N rows visible" is exact: the lists below cap at N × this and scroll past it.
 // Tailwind only sees whole class names: keep `h-[4.5rem]` below in step with ROW_REM.
@@ -40,15 +34,16 @@ const ROW = 'group/row flex h-[4.5rem] items-center justify-between gap-4 border
 const SESSIONS_VISIBLE = 3
 const ACTIVITY_VISIBLE = 5
 
-function formatDate(ts: number): string {
-  return new Date(ts * 1000).toLocaleString('it-IT', {
+/** Dates follow the language of the dashboard, not a fixed locale. */
+function formatDate(ts: number, locale: string): string {
+  return new Date(ts * 1000).toLocaleString(locale, {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   })
 }
 
 function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: string) => void }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [pending, setPending] = React.useState(false)
 
   const handleRevoke = async () => {
@@ -71,8 +66,8 @@ function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: st
           <p className="text-sm font-medium text-foreground">{t('settings.security.sessionActive')}</p>
           <p className="truncate text-sm text-muted-foreground">
             {t('settings.security.sessionInfo', {
-              created: formatDate(session.created_at),
-              expires: formatDate(session.expires_at),
+              created: formatDate(session.created_at, i18n.language),
+              expires: formatDate(session.expires_at, i18n.language),
             })}
           </p>
         </div>
@@ -108,23 +103,19 @@ function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: st
 }
 
 function ActivityRow({ entry }: { entry: ActivityEntry }) {
-  const { t } = useTranslation()
-  let details: Record<string, unknown> = {}
-  try { details = JSON.parse(entry.details ?? '{}') } catch { /* noop */ }
-  const title = typeof details.title === 'string' ? details.title : entry.entity_slug ?? entry.entity_type
+  const { t, i18n } = useTranslation()
+  const view = describeActivity(entry, (key, options) => t(key, options) as string)
 
   return (
     <div className={ROW}>
       <div className="flex min-w-0 items-center gap-3">
-        <Badge variant={ACTION_VARIANT[entry.action] ?? 'secondary'} className="shrink-0 capitalize">
-          {t(`settings.security.actions.${entry.action}`, { defaultValue: entry.action })}
-        </Badge>
+        <Badge variant={view.tone} className="shrink-0">{view.label}</Badge>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-foreground">{title}</p>
-          <p className="truncate text-sm text-muted-foreground">{entry.entity_slug ?? entry.entity_type}</p>
+          <p className="truncate text-sm font-medium text-foreground">{view.title}</p>
+          {view.detail && <p className="truncate text-sm text-muted-foreground">{view.detail}</p>}
         </div>
       </div>
-      <span className="shrink-0 text-sm text-muted-foreground">{formatDate(entry.created_at)}</span>
+      <span className="shrink-0 text-sm text-muted-foreground">{formatDate(entry.created_at, i18n.language)}</span>
     </div>
   )
 }
