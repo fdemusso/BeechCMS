@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Settings, Logout as LogOut, X as XIcon } from "@/components/icons"
 
@@ -82,7 +83,7 @@ function TabContent({ tab }: { readonly tab: SettingsTab }) {
 
 /**
  * Modal dialog for overall application settings.
- * A sidebar of families on the left (a tab with bookmarks unfolds them while it is open, "Log out" closes the list),
+ * A sidebar of families on the left (a tab with bookmarks unfolds them until its own entry is clicked again, "Log out" closes the list),
  * the page of the active tab on the right.
  */
 export function SettingsDialog({
@@ -108,6 +109,34 @@ export function SettingsDialog({
 
   const activeEntry: SettingsEntry | undefined = visibleEntries.find((entry) => entry.id === safeTab)
   const ActiveIcon = activeEntry?.icon ?? Settings
+
+  // Bookmarks stay unfolded while other tabs are visited; only the parent entry folds them again. The tab being
+  // shown always unfolds when it changes (a link, the command palette), but never refolds on its own.
+  const [expanded, setExpanded] = useState<ReadonlySet<SettingsTab>>(() => new Set([safeTab]))
+  const [seenTab, setSeenTab] = useState(safeTab)
+  if (seenTab !== safeTab) {
+    setSeenTab(safeTab)
+    setExpanded((prev) => new Set(prev).add(safeTab))
+  }
+
+  /** Folded: unfold and go there. Unfolded but elsewhere: go there, stay unfolded. Unfolded and shown: fold. */
+  function handleEntryClick(entry: SettingsEntry) {
+    if (getVisibleSections(entry, gates).length === 0) {
+      onTabChange(entry.id)
+      return
+    }
+    const isUnfolded = expanded.has(entry.id)
+    if (isUnfolded && safeTab === entry.id) {
+      setExpanded((prev) => {
+        const next = new Set(prev)
+        next.delete(entry.id)
+        return next
+      })
+      return
+    }
+    setExpanded((prev) => new Set(prev).add(entry.id))
+    if (safeTab !== entry.id) onTabChange(entry.id)
+  }
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose() }}>
@@ -144,14 +173,14 @@ export function SettingsDialog({
                       {group.items.map((item) => {
                         const Icon = item.icon
                         const isActive = safeTab === item.id
-                        const sections = isActive ? getVisibleSections(item, gates) : []
+                        const sections = expanded.has(item.id) ? getVisibleSections(item, gates) : []
                         return (
                           <div key={item.id}>
                             <button
                               type="button"
-                              onClick={() => onTabChange(item.id)}
+                              onClick={() => handleEntryClick(item)}
                               aria-current={isActive ? "page" : undefined}
-                              aria-expanded={item.sections.length > 0 ? isActive : undefined}
+                              aria-expanded={item.sections.length > 0 ? expanded.has(item.id) : undefined}
                               className={cn(
                                 "w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors text-left",
                                 isActive

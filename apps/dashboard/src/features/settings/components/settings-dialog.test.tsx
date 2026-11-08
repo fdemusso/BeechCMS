@@ -91,9 +91,35 @@ describe("SettingsDialog", () => {
     expect(onTabChange).toHaveBeenCalledWith("account", "password")
   })
 
-  it("a tab that is not open keeps its bookmarks folded", () => {
+  it("a tab that was never opened keeps its bookmarks folded", () => {
     renderDialog("notifications")
     expect(screen.queryByRole("button", { name: "Password" })).not.toBeInTheDocument()
+  })
+
+  it("bookmarks stay unfolded when another tab is opened", () => {
+    const { rerender } = renderDialog("account")
+    expect(screen.getByRole("button", { name: "Password" })).toBeInTheDocument()
+
+    rerender(
+      <MemoryRouter>
+        <SettingsDialog open onClose={vi.fn()} activeTab="notifications" onTabChange={vi.fn()} />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole("button", { name: "Password" })).toBeInTheDocument()
+  })
+
+  it("clicking the shown parent folds its bookmarks, clicking it again unfolds them", () => {
+    const onTabChange = vi.fn()
+    renderDialog("account", onTabChange)
+    const parent = screen.getAllByRole("button").filter((btn) => btn.textContent === "My account")[0]
+
+    fireEvent.click(parent)
+    expect(screen.queryByRole("button", { name: "Password" })).not.toBeInTheDocument()
+    expect(onTabChange).not.toHaveBeenCalled()
+
+    fireEvent.click(parent)
+    expect(screen.getByRole("button", { name: "Password" })).toBeInTheDocument()
   })
 
   it("a global manage_users holder gets the Workspace family with Users & roles stacked in one page", () => {
