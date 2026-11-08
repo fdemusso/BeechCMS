@@ -8,6 +8,8 @@ import { toast } from 'sonner'
 import { Camera, Loader as Loader2, Trash2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
+import { PasswordStrengthIndicator } from '@/components/ui/password-strength-indicator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { isApiError } from '@/lib/http/api-error'
 import { useProfile, useUpdateProfile, useChangePassword, useUpdateAvatar, useRemoveAvatar } from '../hooks/use-settings'
@@ -182,6 +184,8 @@ export function ProfileSection() {
 export function PasswordSection() {
   const { t } = useTranslation()
   const changePassword = useChangePassword()
+  // The strength bar also weighs the password against who the user is (a name or email in it scores lower).
+  const { data: profile } = useProfile()
   const [currentPassword, setCurrentPassword] = React.useState('')
   const [newPassword, setNewPassword] = React.useState('')
   const [confirmPassword, setConfirmPassword] = React.useState('')
@@ -208,9 +212,8 @@ export function PasswordSection() {
     <SettingsSection id="password" title={t('settings.profile.passwordTitle')} description={t('settings.profile.passwordDesc')}>
       <form onSubmit={handleChangePassword}>
         <SettingsRow label={t('settings.profile.currentPassword')} htmlFor="current-password">
-          <Input
+          <PasswordInput
             id="current-password"
-            type="password"
             value={currentPassword}
             onChange={e => setCurrentPassword(e.target.value)}
             autoComplete="current-password"
@@ -218,19 +221,27 @@ export function PasswordSection() {
         </SettingsRow>
 
         <SettingsRow label={t('settings.profile.newPassword')} htmlFor="new-password">
-          <Input
+          <PasswordInput
             id="new-password"
-            type="password"
             value={newPassword}
             onChange={e => setNewPassword(e.target.value)}
             autoComplete="new-password"
           />
+          {newPassword && (
+            <PasswordStrengthIndicator
+              className="mt-2"
+              password={newPassword}
+              name={profile?.name ?? undefined}
+              surname={profile?.surname ?? undefined}
+              email={profile?.email}
+              translationPrefix="setup"
+            />
+          )}
         </SettingsRow>
 
         <SettingsRow label={t('settings.profile.confirmPassword')} htmlFor="confirm-password">
-          <Input
+          <PasswordInput
             id="confirm-password"
-            type="password"
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
             autoComplete="new-password"

@@ -74,4 +74,14 @@ describe("ProfileTab", () => {
     render(<ProfileTab />)
     expect(screen.getByRole("button", { name: "Change photo" })).toBeInTheDocument()
   })
+
+  it("every password field has an eye, and the new password shows its strength once typed", () => {
+    render(<ProfileTab />)
+    expect(screen.getAllByRole("button", { name: "Show password" })).toHaveLength(3)
+    expect(screen.queryByTestId("password-strength-indicator")).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText("New password"), { target: { value: "Tr0ub4dor&3-horse" } })
+
+    expect(screen.getByTestId("password-strength-indicator")).toBeInTheDocument()
+  })
 })
