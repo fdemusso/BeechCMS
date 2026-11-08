@@ -184,6 +184,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
     }
 
     await context.get('siteSettingsRepository').setMany(fieldsToUpdate)
+    logActivity(context, { action: 'update', entityType: 'settings', entityId: 'site', details: { op: 'site', fields: Object.keys(fieldsToUpdate) } })
     return context.json({ success: true }, 200)
   })
 
@@ -268,6 +269,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
     if (emailInput !== null) fieldsToUpdate.email = emailInput
 
     await context.get('userRepository').updateProfile(userId, fieldsToUpdate)
+    logActivity(context, { action: 'update', entityType: 'user', entityId: userId, details: { op: 'profile', fields: Object.keys(fieldsToUpdate) } })
     return context.json({ success: true }, 200)
   })
 
@@ -293,6 +295,8 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
     const hashedNewPassword = await hashProvider.hash(newPassword)
     await context.get('userRepository').changePasswordAndRevokeSessions(userId, hashedNewPassword, context.get('clock').nowSeconds())
+    // Never the password itself: only that it changed, and that the other sessions were signed out.
+    logActivity(context, { action: 'update', entityType: 'user', entityId: userId, details: { op: 'password', sessionsRevoked: true } })
     return context.json({ success: true }, 200)
   })
 
@@ -305,6 +309,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
     const { avatarUrl } = context.req.valid('json')
     await context.get('userRepository').updateAvatarUrl(userId, avatarUrl)
+    logActivity(context, { action: 'update', entityType: 'user', entityId: userId, details: { op: avatarUrl ? 'avatar-set' : 'avatar-removed' } })
     return context.json({ success: true }, 200)
   })
 
@@ -339,6 +344,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       return context.json({ error: 'Session not found or already revoked' }, 404)
     }
 
+    logActivity(context, { action: 'revoke', entityType: 'session', entityId: sessionId })
     return context.json({ success: true }, 200)
   })
 
@@ -493,6 +499,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
     const newPreferences = context.req.valid('json')
 
     await context.get('userRepository').updateNotificationPreferences(userId, JSON.stringify(newPreferences))
+    logActivity(context, { action: 'update', entityType: 'user', entityId: userId, details: { op: 'notifications' } })
     return context.json({ success: true }, 200)
   })
 

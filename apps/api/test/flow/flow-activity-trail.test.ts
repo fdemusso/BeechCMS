@@ -129,4 +129,86 @@ describe('Flow: Activity trail', () => {
       await eventually((rows) => rows.find((r) => r.action === 'discard_draft' && r.entity_id === 'd1'))
     })
   })
+
+  describe('signing in and out', () => {
+    const origin = { 'cf-connecting-ip': '203.0.113.7', 'cf-ipcountry': 'IT', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0) Chrome/130.0' }
+
+    const signIn = (password: string, email = TEST_USERS[0].email) =>
+      application.request('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...origin },
+        body: JSON.stringify({ email, password }),
+      }, { ...TEST_ENV, DB: database })
+
+    it('a successful sign-in records where it came from', async () => {
+      expect((await signIn('password123')).status).toBe(200)
+
+      const row = await eventually((rows) => rows.find((r) => r.action === 'login' && r.details?.ip === '203.0.113.7'))
+      expect(row).toMatchObject({ entity_type: 'auth', user_email: TEST_USERS[0].email })
+      expect(row.details).toMatchObject({ ip: '203.0.113.7', country: 'IT', userAgent: expect.stringContaining('Chrome') })
+    })
+
+    it('a wrong password is recorded against the real account, with the reason', async () => {
+      expect((await signIn('not-the-password')).status).toBe(401)
+
+      const row = await eventually((rows) => rows.find((r) => r.action === 'login_failed'))
+      expect(row).toMatchObject({ entity_type: 'auth', user_email: TEST_USERS[0].email })
+      expect(row.details).toMatchObject({ reason: 'wrong-password', ip: '203.0.113.7' })
+    })
+
+    it('an address nobody owns leaves nothing behind', async () => {
+      expect((await signIn('whatever', 'nobody@example.com')).status).toBe(401)
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      expect((await trail()).some((r) => r.action === 'login_failed')).toBe(false)
+    })
+
+    it('signing out is recorded for the person who signed out', async () => {
+      const res = await signIn('password123')
+      const refresh = res.headers.get('set-cookie')?.match(/refresh_token=([^;]+)/)?.[1] ?? ''
+
+      const out = await application.request('/auth/logout', { method: 'POST', headers: { Cookie: `refresh_token=${refresh}`, ...origin } }, { ...TEST_ENV, DB: database })
+      expect(out.status).toBe(200)
+
+      const row = await eventually((rows) => rows.find((r) => r.action === 'logout'))
+      expect(row).toMatchObject({ entity_type: 'auth', user_email: TEST_USERS[0].email })
+    })
+  })
+
+  describe('account and site settings', () => {
+    it('profile, password, avatar and notification changes say what changed, never the values', async () => {
+      expect((await call('PUT', '/api/settings/profile', { name: 'Ada' })).status).toBe(200)
+      const profile = await eventually((rows) => rows.find((r) => r.details?.op === 'profile'))
+      expect(profile).toMatchObject({ action: 'update', entity_type: 'user' })
+      expect(profile.details).toMatchObject({ fields: ['name'] })
+
+      expect((await call('PUT', '/api/settings/password', { currentPassword: 'password123', newPassword: 'a-brand-new-Passw0rd!' })).status).toBe(200)
+      const password = await eventually((rows) => rows.find((r) => r.details?.op === 'password'))
+      expect(JSON.stringify(password.details)).not.toContain('Passw0rd')
+      expect(password.details).toMatchObject({ sessionsRevoked: true })
+
+      expect((await call('PUT', '/api/settings/avatar', { avatarUrl: null })).status).toBe(200)
+      await eventually((rows) => rows.find((r) => r.details?.op === 'avatar-removed'))
+
+      expect((await call('PUT', '/api/settings/notifications', { contentCreate: true, contentUpdate: false, contentDelete: false, mediaUpload: false })).status).toBe(200)
+      await eventually((rows) => rows.find((r) => r.details?.op === 'notifications'))
+    })
+
+    it('a site settings change lists the fields it touched', async () => {
+      expect((await call('PUT', '/api/settings', { timezone: 'Europe/Rome' })).status).toBe(200)
+
+      const row = await eventually((rows) => rows.find((r) => r.entity_type === 'settings'))
+      expect(row).toMatchObject({ action: 'update', entity_id: 'site' })
+      expect(row.details).toMatchObject({ op: 'site', fields: ['timezone'] })
+    })
+
+    it('revoking a session is logged as a revoke on that session', async () => {
+      const sessions = await (await call('GET', '/api/settings/sessions')).json<Array<{ id: string }>>()
+      expect(sessions.length).toBeGreaterThan(0)
+
+      expect((await call('DELETE', `/api/settings/sessions/${sessions[0].id}`)).status).toBe(200)
+
+      const row = await eventually((rows) => rows.find((r) => r.action === 'revoke'))
+      expect(row).toMatchObject({ entity_type: 'session', entity_id: sessions[0].id })
+    })
+  })
 })
