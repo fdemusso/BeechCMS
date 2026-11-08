@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-export { SeedBuilderPage } from "./components/SeedBuilderPage"
+export { SeedBuilderPage, SEED_INTENT_PARAM, SEED_INTENT_NEW } from "./components/SeedBuilderPage"
 export {
   useSeeds,
   useCreateSeed,

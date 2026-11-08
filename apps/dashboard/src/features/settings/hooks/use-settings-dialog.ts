@@ -21,10 +21,12 @@ export function useSettingsDialog() {
   const tab = (param || DEFAULT_TAB) as SettingsTab
 
   const openSettings = useCallback(
-    (nextTab: SettingsTab = DEFAULT_TAB) => {
+    (nextTab: SettingsTab = DEFAULT_TAB, extraParams?: Readonly<Record<string, string>>) => {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev)
         next.set(SETTINGS_PARAM, nextTab)
+        // Hand-offs the opened tab consumes (e.g. `seed=new` for the content type builder).
+        for (const [key, value] of Object.entries(extraParams ?? {})) next.set(key, value)
         return next
       })
     },
