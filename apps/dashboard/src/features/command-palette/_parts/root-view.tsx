@@ -15,6 +15,8 @@ import type { Seed } from "@beechcms/core"
 import { resolveIcon } from "@/lib/icon-registry"
 import type { CommandPage } from "../types"
 import { SettingsItems } from "./settings-view"
+import { SchemaActions } from "./schema-view"
+import { usePermissions } from "@/features/shared"
 
 interface RootViewProps {
   seeds: Seed[]
@@ -35,6 +37,7 @@ export function RootView({
 }: RootViewProps) {
   const { t } = useTranslation()
   // Typing surfaces every settings tab straight from the root page; idle, they sit behind one "Settings…" row.
+  const { canGlobally } = usePermissions()
   const searching = useCommandState((s) => s.search).length > 0
   const nav = (path: string) => { navigate(path); setOpen(false) }
 
@@ -93,6 +96,13 @@ export function RootView({
           </CommandShortcut>
         </CommandItem>
       </CommandGroup>
+
+      {canGlobally("manage_seeds") && (
+        <>
+          <CommandSeparator />
+          <SchemaActions seeds={seeds} setOpen={setOpen} pushPage={pushPage} searching={searching} />
+        </>
+      )}
 
       <CommandSeparator />
 

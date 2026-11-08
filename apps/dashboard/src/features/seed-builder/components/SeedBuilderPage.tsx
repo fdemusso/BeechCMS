@@ -2,7 +2,8 @@
 // Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { Plus, Edit as Pencil, Trash2, Refresh as RefreshCw } from '@/components/icons'
 import { cn } from "@/lib/utils"
@@ -22,6 +23,10 @@ import { DeleteSeedDialog } from "./DeleteSeedDialog"
 import { PurgeSeedDialog } from "./PurgeSeedDialog"
 import type { SeedRecordDTO } from "../api/seeds.api"
 import { isSystemSeedSlug, type Seed } from "@beechcms/core"
+
+/** `?seed=new` opens the create dialog, `?seed=<slug>` the edit dialog of that content type; consumed on arrival. */
+export const SEED_INTENT_PARAM = "seed"
+export const SEED_INTENT_NEW = "new"
 
 export function SeedBuilderPage() {
   const { t } = useTranslation()
@@ -44,6 +49,20 @@ export function SeedBuilderPage() {
   // Platform-owned seeds (e.g. import_jobs) are not content types a user designs: leave them out of
   // the list and out of the relation-target candidates. They stay in takenSlugs, so a new type
   // cannot reuse their slug. See engine/seeds/system-seeds.ts in @beechcms/core.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const intent = searchParams.get(SEED_INTENT_PARAM)
+  useEffect(() => {
+    if (!intent || !canManageSeeds) return
+    if (intent === SEED_INTENT_NEW) setCreateOpen(true)
+    else if (records.some(r => r.slug === intent && r.status !== "deleted")) setEditSlug(intent)
+    else if (isLoading) return // wait for the list before deciding the slug is unknown
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.delete(SEED_INTENT_PARAM)
+      return next
+    }, { replace: true })
+  }, [intent, canManageSeeds, records, isLoading, setSearchParams])
+
   const userRecords = records.filter(r => !isSystemSeedSlug(r.slug))
   const takenSlugs = records.map(r => r.slug)
   const existingSeeds = userRecords.filter(r => r.status !== "deleted").map(r => r.definition)

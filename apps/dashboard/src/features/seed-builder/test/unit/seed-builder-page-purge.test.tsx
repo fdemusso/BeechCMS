@@ -5,6 +5,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router-dom"
 import type { Seed } from "@beechcms/core"
 import type { SeedRecordDTO } from "@/features/seed-builder"
 
@@ -38,7 +39,7 @@ import { SeedBuilderPage } from "@/features/seed-builder/components/SeedBuilderP
 
 describe("SeedBuilderPage — soft-deleted seeds", () => {
   it("lets an admin permanently purge a soft-deleted seed", async () => {
-    render(<SeedBuilderPage />)
+    render(<MemoryRouter><SeedBuilderPage /></MemoryRouter>)
     fireEvent.click(screen.getByRole("switch"))
 
     await userEvent.click(screen.getByTestId("purge-seed-btn"))

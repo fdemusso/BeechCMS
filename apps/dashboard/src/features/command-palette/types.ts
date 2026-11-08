@@ -10,6 +10,7 @@ export type CommandPage =
   | "seeds"
   | "create"
   | "settings"
+  | "edit-schema"
   | "search-results"
 
 // Azione singola renderizzata come CommandItem
