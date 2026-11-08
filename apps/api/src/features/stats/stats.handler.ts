@@ -82,6 +82,8 @@ function activityVisibility(
     }
 }
 
+const DASHBOARD_FEED_ENTITY_TYPES = ['content', 'media', 'seed'] as const
+
 const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
   /**
@@ -292,9 +294,12 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
         const nothingVisible = Array.isArray(visibility.seeds) && visibility.seeds.length === 0 && !visibility.includeUnscoped
         if (slugOutsidePerimeter || nothingVisible) return context.json([], 200)
 
+        // Shown to people other than the actor, so only the work on content, media and schema: a sign-in, a
+        // password change or a role edit is in the history of whoever did it, and nobody else's feed.
         const entries = await context.get('activityLogRepository').list({
             entitySlug: slug ?? undefined,
             visibility,
+            entityTypes: DASHBOARD_FEED_ENTITY_TYPES,
             limit: 15,
         })
 

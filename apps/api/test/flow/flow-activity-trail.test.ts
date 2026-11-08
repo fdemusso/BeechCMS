@@ -280,4 +280,37 @@ describe('Flow: Activity trail', () => {
       await eventually((rows) => rows.find((r) => r.entity_type === 'automation' && r.action === 'delete'))
     })
   })
+
+  describe('who sees what', () => {
+    it('the dashboard feed shows work on content, never sign-ins or account changes', async () => {
+      repository.load('posts', [{ id: 'v1', slug: 'visible', status: 'published', title: 'Visible' }])
+      await call('DELETE', '/api/content/posts/v1')
+      await call('PUT', '/api/settings/profile', { name: 'Ada' })
+      await eventually((rows) => rows.find((r) => r.details?.op === 'profile'))
+      await eventually((rows) => rows.find((r) => r.action === 'trash'))
+
+      const feedResponse = await call('GET', '/api/content/stats/recent-activity')
+      expect(feedResponse.status, await feedResponse.clone().text()).toBe(200)
+      const feed = await feedResponse.json<Array<{ action: string; entity_type: string }>>()
+
+      expect(feed.some((row) => row.action === 'trash')).toBe(true)
+      expect(feed.some((row) => ['auth', 'user', 'session', 'settings'].includes(row.entity_type))).toBe(false)
+    })
+
+    it('your own history never contains somebody else, whoever else signs in', async () => {
+      const other = TEST_USERS[1]
+      const otherLogin = await application.request('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '198.51.100.9' },
+        body: JSON.stringify({ email: other.email, password: 'password123' }),
+      }, { ...TEST_ENV, DB: database })
+      expect(otherLogin.status).toBe(200)
+      await eventually((rows) => rows.find((r) => r.user_email === other.email && r.action === 'login'))
+
+      const mine = await (await call('GET', '/api/settings/activity')).json<Array<{ details: string | null }>>()
+
+      expect(mine.length).toBeGreaterThan(0)
+      expect(JSON.stringify(mine)).not.toContain('198.51.100.9')
+    })
+  })
 })
