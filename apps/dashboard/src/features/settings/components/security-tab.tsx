@@ -9,6 +9,8 @@ import { Loader as Loader2, Monitor as MonitorSmartphone, Trash2 } from '@/compo
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { cn } from '@/lib/utils'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +33,12 @@ const ACTION_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | '
   upload: 'outline',
 }
 
-const ROW = 'flex items-center justify-between gap-4 border-b border-border py-4'
+// Rows share one fixed height, so "N rows visible" is exact: the lists below cap at N × this and scroll past it.
+// Tailwind only sees whole class names: keep `h-[4.5rem]` below in step with ROW_REM.
+const ROW_REM = 4.5
+const ROW = 'group/row flex h-[4.5rem] items-center justify-between gap-4 border-b border-border'
+const SESSIONS_VISIBLE = 3
+const ACTIVITY_VISIBLE = 5
 
 function formatDate(ts: number): string {
   return new Date(ts * 1000).toLocaleString('it-IT', {
@@ -62,7 +69,7 @@ function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: st
         <MonitorSmartphone className="size-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{t('settings.security.sessionActive')}</p>
-          <p className="text-sm text-muted-foreground">
+          <p className="truncate text-sm text-muted-foreground">
             {t('settings.security.sessionInfo', {
               created: formatDate(session.created_at),
               expires: formatDate(session.expires_at),
@@ -72,7 +79,16 @@ function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: st
       </div>
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-8 shrink-0 text-muted-foreground hover:text-destructive">
+          {/* Shown on row hover or keyboard focus; always on touch screens, which cannot hover. */}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('settings.security.revokeTitle')}
+            className={cn(
+              'size-8 shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover/row:opacity-100 pointer-coarse:opacity-100',
+              pending && 'opacity-100'
+            )}
+          >
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
           </Button>
         </AlertDialogTrigger>
@@ -128,13 +144,15 @@ export function SessionsSection() {
       ) : !sessions?.length ? (
         <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('settings.security.noSessions')}</p>
       ) : (
-        sessions.map(session => (
-          <SessionRow
-            key={session.id}
-            session={session}
-            onRevoke={(id) => revokeSession.mutateAsync(id)}
-          />
-        ))
+        <ScrollArea style={{ maxHeight: `${SESSIONS_VISIBLE * ROW_REM}rem` }}>
+          {sessions.map(session => (
+            <SessionRow
+              key={session.id}
+              session={session}
+              onRevoke={(id) => revokeSession.mutateAsync(id)}
+            />
+          ))}
+        </ScrollArea>
       )}
     </SettingsSection>
   )
@@ -154,7 +172,9 @@ export function ActivitySection() {
       ) : !activity?.length ? (
         <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('settings.security.noActivity')}</p>
       ) : (
-        activity.map(entry => <ActivityRow key={entry.id} entry={entry} />)
+        <ScrollArea style={{ maxHeight: `${ACTIVITY_VISIBLE * ROW_REM}rem` }}>
+          {activity.map(entry => <ActivityRow key={entry.id} entry={entry} />)}
+        </ScrollArea>
       )}
     </SettingsSection>
   )
