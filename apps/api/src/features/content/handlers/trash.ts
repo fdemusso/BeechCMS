@@ -12,6 +12,7 @@ import { parsePositiveInt } from '../../../shared/utils/query-utils'
 import type { ZodJsonInput, ZodJsonRefusal } from '../../../shared/utils/zod-json'
 import type { ZodQueryInput } from '../../../shared/utils/zod-query'
 import { publicProblem } from '../../../public/errors/problem-details'
+import { logActivity } from '../../../shared/services/activity-log/log-activity'
 import { logContentActivity, dispatchContentAutomation, handleContentDatabaseError } from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
@@ -102,7 +103,7 @@ export async function restoreHandler(context: Context<AppEnv, '/:slug/:id/restor
     const repository = context.get('repository')
     const { row } = await repository.restore(seed, entryId, { actor: actorFrom(context) })
 
-    logContentActivity(context, 'update', entryId, schemaSlug, String(row.title || row.name || entryId))
+    logContentActivity(context, 'restore', entryId, schemaSlug, String(row.title || row.name || entryId))
     dispatchContentAutomation(context, schemaSlug, 'update', { ...row, id: entryId })
 
     return context.json({ success: true, slug: row.slug }, 200)
@@ -118,6 +119,9 @@ export async function bulkRestoreHandler(context: BulkIdsContext<'/:slug/trash/b
 
   const repository = context.get('repository')
   const { succeeded, failed } = await repository.bulkRestore(seed, ids, { actor: actorFrom(context) })
+  if (succeeded.length > 0) {
+    logActivity(context, { action: 'restore', entityType: 'content', entityId: seed.slug, entitySlug: seed.slug, details: { op: 'bulk', count: succeeded.length } })
+  }
 
   const failedProblems = failed.map(({ id, reason }) => ({
     id,
@@ -134,6 +138,9 @@ export async function bulkPurgeHandler(context: BulkIdsContext<'/:slug/trash/bul
 
   const repository = context.get('repository')
   const { succeeded, failed, rows } = await repository.bulkPurge(seed, ids, { actor: actorFrom(context) })
+  if (succeeded.length > 0) {
+    logActivity(context, { action: 'purge', entityType: 'content', entityId: seed.slug, entitySlug: seed.slug, details: { op: 'bulk', count: succeeded.length } })
+  }
 
   const cdnUrl = context.env.MEDIA_CDN_URL
   const allKeys = rows.flatMap((row) => extractMediaKeysFromData(seed, row, cdnUrl))

@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { logActivity } from '../../shared/services/activity-log/log-activity'
 import { Hono, type Context } from 'hono'
 import type { z } from 'zod'
 import { GLOBAL_SCOPE, hasPermission, MAX_RETENTION_DAYS, resolveLocaleConfig, sha256hex, type SiteSettings } from '@beechcms/core'
@@ -446,6 +447,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
     // Decrements the storage counter by each deleted file's tracked size.
     await deleteR2Objects(context, selectedKeys)
+    logActivity(context, { action: 'purge', entityType: 'media', entityId: 'orphans', details: { op: 'orphans', count: selectedKeys.length } })
 
     return context.json({
       deleted: selectedKeys,

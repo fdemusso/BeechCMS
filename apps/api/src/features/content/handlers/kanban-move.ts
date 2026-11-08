@@ -11,6 +11,7 @@ import {
   validateAndSanitizeSeedPayload,
 } from '@beechcms/core'
 import { publicProblem } from '../../../public/errors/problem-details'
+import { logActivity } from '../../../shared/services/activity-log/log-activity'
 import { handleContentDatabaseError } from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import type { AppEnv } from '../../../types'
@@ -87,6 +88,14 @@ export async function kanbanMoveHandler(context: Context<AppEnv, '/:slug/:id/kan
     })
   } catch (error) {
     return handleContentDatabaseError(context, error)
+  }
+
+  // Only a move to another column edits the entry; reordering inside a column is not worth a line.
+  if (body.axis) {
+    logActivity(context, {
+      action: 'update', entityType: 'content', entityId: id, entitySlug: slug,
+      details: { title: String(current.title || current.name || id), op: 'kanban-move', field: axisBranch.alias },
+    })
   }
 
   return context.json({ success: true }, 200)

@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { EntryNotFoundError, SlugConflictError, HookValidationError, EntryConflictError } from '@beechcms/core'
+import { EntryNotFoundError, SlugConflictError, HookValidationError, EntryConflictError, type ActivityAction } from '@beechcms/core'
 import { publicProblem, fkProblemOrNull } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { resolveIfMatch } from '../../../shared/utils/occ'
@@ -30,10 +30,11 @@ export function contentValidationProblem(
 
 export function logContentActivity(
   context: Context<AppEnv>,
-  action: 'create' | 'update' | 'delete',
+  action: ActivityAction,
   id: string,
   slug: string,
-  title: string
+  title: string,
+  extraDetails?: Record<string, unknown>
 ) {
   const jwtPayload = context.get('jwtPayload')
   context.get('activityLogger').log({
@@ -41,7 +42,7 @@ export function logContentActivity(
     entityType: 'content',
     entityId: id,
     entitySlug: slug,
-    details: { title },
+    details: { title, ...extraDetails },
     actor: {
       id: jwtPayload.sub,
       email: jwtPayload.email ?? 'unknown',
