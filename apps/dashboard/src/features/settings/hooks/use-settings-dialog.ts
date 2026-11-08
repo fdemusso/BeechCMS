@@ -5,6 +5,7 @@
 import { useCallback } from "react"
 import { useSearchParams } from "react-router-dom"
 import type { SettingsTab } from "../types/settings.types"
+import { resolveSettingsTab } from "../lib/settings-registry"
 
 /** Query param that opens the settings dialog over whatever page is current (`?settings=<tab>`). */
 export const SETTINGS_PARAM = "settings"
@@ -18,7 +19,7 @@ export function useSettingsDialog() {
   const [searchParams, setSearchParams] = useSearchParams()
   const param = searchParams.get(SETTINGS_PARAM)
   const open = param !== null
-  const tab = (param || DEFAULT_TAB) as SettingsTab
+  const tab = resolveSettingsTab(param || DEFAULT_TAB)
 
   const openSettings = useCallback(
     (nextTab: SettingsTab = DEFAULT_TAB, extraParams?: Readonly<Record<string, string>>) => {

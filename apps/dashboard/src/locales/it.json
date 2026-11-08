@@ -436,7 +436,7 @@
     "title": "Impostazioni",
     "groups": {
       "account": "Account",
-      "system": "Sistema & UI",
+      "system": "Area di lavoro",
       "models": "Modelli Dati",
       "access": "Accesso"
     },
@@ -446,6 +446,8 @@
       "security": "Sicurezza",
       "storage": "Storage",
       "notifications": "Notifiche",
+      "preferences": "Preferenze",
+      "team": "Team",
       "general": "Sito",
       "connectedApps": "App connesse",
       "users": "Utenti",
