@@ -475,6 +475,9 @@
       "usage": "Utilizzo",
       "orphans": "File orfani"
     },
+    "search": "Cerca nelle impostazioni…",
+    "clearSearch": "Cancella ricerca",
+    "noResults": "Nessuna impostazione trovata",
     "navLabel": "Categorie delle impostazioni",
     "logout": "Esci",
     "notifications": {
