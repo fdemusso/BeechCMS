@@ -5,12 +5,12 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Loader as Loader2 } from '@/components/icons'
+import { Camera, Loader as Loader2, Trash2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { isApiError } from '@/lib/http/api-error'
-import { useProfile, useUpdateProfile, useChangePassword, useUpdateAvatar } from '../hooks/use-settings'
+import { useProfile, useUpdateProfile, useChangePassword, useUpdateAvatar, useRemoveAvatar } from '../hooks/use-settings'
 import { SettingsActions, SettingsRow, SettingsSection } from './settings-section'
 
 function getInitials(name: string | null, surname: string | null, email: string): string {
@@ -29,6 +29,7 @@ export function ProfileSection() {
   const { data: profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const updateAvatar = useUpdateAvatar()
+  const removeAvatar = useRemoveAvatar()
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const [name, setName] = React.useState('')
@@ -70,6 +71,17 @@ export function ProfileSection() {
     e.target.value = ''
   }
 
+  const handleRemoveAvatar = async () => {
+    try {
+      await removeAvatar.mutateAsync()
+      toast.success(t('settings.profile.avatarRemoved'))
+    } catch {
+      toast.error(t('settings.profile.avatarRemoveError'))
+    }
+  }
+
+  const photoBusy = updateAvatar.isPending || removeAvatar.isPending
+
   return (
     <SettingsSection id="profile" title={t('settings.profile.infoTitle')} description={t('settings.profile.infoDesc')}>
       {isLoading ? (
@@ -79,23 +91,43 @@ export function ProfileSection() {
       ) : (
         <form onSubmit={handleSaveProfile}>
           <SettingsRow label={t('settings.profile.photoLabel')} controlClassName="sm:w-auto">
-            <div className="flex items-center gap-3 sm:justify-end">
-              <Avatar className="size-12">
-                <AvatarImage src={profile?.avatarUrl ?? undefined} />
-                <AvatarFallback>
-                  {getInitials(profile?.name ?? null, profile?.surname ?? null, profile?.email ?? '')}
-                </AvatarFallback>
-              </Avatar>
-              <Button
+            <div className="relative w-fit sm:ml-auto">
+              {/* The circle is the button: hovering it (or focusing it) reveals the camera over the photo. */}
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={updateAvatar.isPending}
+                disabled={photoBusy}
+                aria-label={t('settings.profile.changePhoto')}
+                title={t('settings.profile.changePhoto')}
+                className="group relative block rounded-full outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
               >
-                {updateAvatar.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                {t('settings.profile.changePhoto')}
-              </Button>
+                <Avatar className="size-16">
+                  <AvatarImage src={profile?.avatarUrl ?? undefined} />
+                  <AvatarFallback className="text-lg">
+                    {getInitials(profile?.name ?? null, profile?.surname ?? null, profile?.email ?? '')}
+                  </AvatarFallback>
+                </Avatar>
+                <span
+                  className={
+                    'absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white transition-opacity ' +
+                    (updateAvatar.isPending ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100')
+                  }
+                >
+                  {updateAvatar.isPending ? <Loader2 className="size-5 animate-spin" /> : <Camera className="size-5" />}
+                </span>
+              </button>
+              {profile?.hasCustomAvatar && (
+                <button
+                  type="button"
+                  onClick={handleRemoveAvatar}
+                  disabled={photoBusy}
+                  aria-label={t('settings.profile.removePhoto')}
+                  title={t('settings.profile.removePhoto')}
+                  className="absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-xs outline-hidden transition-colors hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {removeAvatar.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                </button>
+              )}
               <input
                 ref={fileInputRef}
                 type="file"

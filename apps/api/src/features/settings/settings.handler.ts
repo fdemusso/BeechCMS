@@ -205,10 +205,12 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       notificationPreferences = {}
     }
 
+    const hasCustomAvatar = Boolean(currentUser.avatarUrl)
     let avatarUrl = currentUser.avatarUrl
     if (!avatarUrl && currentUser.email) {
       const emailHash = await sha256hex(currentUser.email.trim().toLowerCase())
-      avatarUrl = `https://gravatar.com/avatar/${emailHash}?d=mp`
+      // d=404: an address without a Gravatar answers 404, so the dashboard falls back to the user's initials.
+      avatarUrl = `https://gravatar.com/avatar/${emailHash}?d=404`
     }
 
     const effective = await resolveEffectivePermissions(context)
@@ -220,6 +222,8 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       name: currentUser.name,
       surname: currentUser.surname,
       avatarUrl,
+      /** True when `avatarUrl` is a photo the user set, not the Gravatar fallback: only then can it be removed. */
+      hasCustomAvatar,
       notificationPrefs: {
         contentCreate: notificationPreferences.contentCreate ?? true,
         contentUpdate: notificationPreferences.contentUpdate ?? true,

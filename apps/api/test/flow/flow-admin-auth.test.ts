@@ -149,7 +149,7 @@ describe('Flow: Admin Authentication', () => {
       expect(res.status).toBe(200)
       const profile = await res.json<{ avatarUrl: string | null }>()
       const expectedHash = await sha256hex(VALID_EMAIL.trim().toLowerCase())
-      expect(profile.avatarUrl).toBe(`https://gravatar.com/avatar/${expectedHash}?d=mp`)
+      expect(profile.avatarUrl).toBe(`https://gravatar.com/avatar/${expectedHash}?d=404`)
     })
 
     it('/api/settings/me returns custom avatar URL when user has one set', async () => {

@@ -66,6 +66,15 @@ export function useUpdateAvatar() {
   })
 }
 
+/** Clears the user's own photo: the profile then falls back to Gravatar, or to the initials when there is none. */
+export function useRemoveAvatar() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => settingsApi.updateAvatar(null),
+    onSuccess: () => qc.invalidateQueries({ queryKey: SETTINGS_QUERY_KEYS.profile() }),
+  })
+}
+
 export function useSessions() {
   return useQuery({
     queryKey: SETTINGS_QUERY_KEYS.sessions(),

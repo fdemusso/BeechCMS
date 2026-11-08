@@ -10,17 +10,21 @@ vi.mock("../hooks/use-settings", () => ({
   useUpdateProfile: vi.fn(),
   useChangePassword: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
   useUpdateAvatar: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+  useRemoveAvatar: vi.fn(),
 }))
 
-import { useProfile, useUpdateProfile } from "../hooks/use-settings"
+import { useProfile, useUpdateProfile, useRemoveAvatar } from "../hooks/use-settings"
 import { ProfileTab } from "./profile-tab"
 
 describe("ProfileTab", () => {
   const updateProfile = vi.fn()
+  const removeAvatar = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
     updateProfile.mockResolvedValue({ success: true })
+    removeAvatar.mockResolvedValue(undefined)
+    vi.mocked(useRemoveAvatar).mockReturnValue({ mutateAsync: removeAvatar, isPending: false } as unknown as ReturnType<typeof useRemoveAvatar>)
     vi.mocked(useUpdateProfile).mockReturnValue({ mutateAsync: updateProfile, isPending: false } as unknown as ReturnType<typeof useUpdateProfile>)
     vi.mocked(useProfile).mockReturnValue({
       data: { name: "Ada", surname: "Lovelace", email: "ada@example.com", avatarUrl: null },
@@ -36,5 +40,38 @@ describe("ProfileTab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }))
 
     expect(updateProfile).toHaveBeenCalledWith({ name: "", surname: "", email: "ada@example.com" })
+  })
+
+  function withAvatar(hasCustomAvatar: boolean) {
+    vi.mocked(useProfile).mockReturnValue({
+      data: { name: "Ada", surname: "Lovelace", email: "ada@example.com", avatarUrl: "https://cdn.example.com/ada.png", hasCustomAvatar },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useProfile>)
+  }
+
+  it("offers to remove the photo only when it is the user's own", () => {
+    withAvatar(false)
+    const { unmount } = render(<ProfileTab />)
+    expect(screen.queryByRole("button", { name: "Remove photo" })).not.toBeInTheDocument()
+    unmount()
+
+    withAvatar(true)
+    render(<ProfileTab />)
+    expect(screen.getByRole("button", { name: "Remove photo" })).toBeInTheDocument()
+  })
+
+  it("removing the photo clears it on the server", () => {
+    withAvatar(true)
+    render(<ProfileTab />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove photo" }))
+
+    expect(removeAvatar).toHaveBeenCalled()
+  })
+
+  it("the photo circle itself is the change-photo button", () => {
+    withAvatar(false)
+    render(<ProfileTab />)
+    expect(screen.getByRole("button", { name: "Change photo" })).toBeInTheDocument()
   })
 })
