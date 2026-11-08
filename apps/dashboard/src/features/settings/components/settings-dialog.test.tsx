@@ -10,7 +10,7 @@ import type { SettingsTab } from "../types/settings.types"
 
 // Mock sub-tab components to keep rendering lightweight in UI unit test
 vi.mock("./profile-tab", () => ({ ProfileTab: () => <div>PROFILE_TAB_CONTENT</div> }))
-vi.mock("./general-tab", () => ({ GeneralTab: () => <div>GENERAL_TAB_CONTENT</div> }))
+vi.mock("./site-tab", () => ({ SiteTab: () => <div>SITE_TAB_CONTENT</div> }))
 vi.mock("./interface-tab", () => ({ InterfaceTab: () => <div>INTERFACE_TAB_CONTENT</div> }))
 vi.mock("./security-tab", () => ({ SecurityTab: () => <div>SECURITY_TAB_CONTENT</div> }))
 vi.mock("./storage-tab", () => ({ StorageTab: () => <div>STORAGE_TAB_CONTENT</div> }))

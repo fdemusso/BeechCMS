@@ -591,6 +591,11 @@
     "contentLanguages": {
       "title": "Lingue dei contenuti",
       "description": "Lingue in cui i contenuti possono essere tradotti. La lingua predefinita viene mostrata dove manca una traduzione.",
+      "makeDefaultAria": "Imposta {{language}} come lingua predefinita",
+      "removeAria": "Rimuovi {{language}} dalle lingue dei contenuti",
+      "listLabel": "Lingue dei contenuti in uso",
+      "count_one": "{{count}} lingua",
+      "count_other": "{{count}} lingue",
       "defaultBadge": "Predefinita",
       "makeDefault": "Rendi predefinita",
       "remove": "Rimuovi {{code}}",

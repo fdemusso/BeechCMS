@@ -9,6 +9,9 @@ import { cn } from "@/lib/utils"
 /** Id the sidebar bookmarks scroll to: `?settings=<tab>&section=<id>` lands on `settings-section-<id>`. */
 export const sectionDomId = (id: string) => `settings-section-${id}`
 
+/** Id of a row's description, for its control to point at with `aria-describedby`. */
+export const rowDescriptionDomId = (controlId: string) => `${controlId}-description`
+
 /** Id of a section's description, for a form inside it to point at with `aria-describedby`. */
 export const sectionDescriptionDomId = (id: string) => `${sectionDomId(id)}-description`
 
@@ -75,7 +78,9 @@ export function SettingsRow({ label, htmlFor, description, children, controlClas
         {htmlFor
           ? <Label htmlFor={htmlFor} className={labelClassName}>{label}</Label>
           : <p id={labelId} className={labelClassName}>{label}</p>}
-        {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
+        {description && (
+          <p id={htmlFor ? rowDescriptionDomId(htmlFor) : undefined} className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+        )}
       </div>
       <div className={cn("w-full shrink-0 sm:w-72", controlClassName)}>{children}</div>
     </div>

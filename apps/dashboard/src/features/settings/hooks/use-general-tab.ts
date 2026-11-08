@@ -5,6 +5,9 @@ import { DEFAULT_TRASH_RETENTION_DAYS, MAX_RETENTION_DAYS, isValidRetentionDays 
 import { useGeneralSettings, useUpdateGeneralSettings } from './use-settings'
 import { isApiError } from '@/lib/http/api-error'
 
+/** The fields the form can refuse, by name. */
+export type GeneralTabField = 'companyWebsite' | 'trashRetentionDays'
+
 export function useGeneralTabLogic() {
   const { t } = useTranslation()
   const { data: settings, isLoading } = useGeneralSettings()
@@ -22,6 +25,12 @@ export function useGeneralTabLogic() {
   // A string, so the input can be empty while the user types.
   const [trashRetentionDays, setTrashRetentionDays] = useState(String(DEFAULT_TRASH_RETENTION_DAYS))
 
+  // What was refused and why, per field; and how many times a save has been refused, so the page can move the
+  // focus to the first bad field every time, not only the first.
+  const [errors, setErrors] = useState<Partial<Record<GeneralTabField, string>>>({})
+  const [refusals, setRefusals] = useState(0)
+  const clearError = (field: GeneralTabField) => setErrors((current) => ({ ...current, [field]: undefined }))
+
   useEffect(() => {
     if (settings) {
       setSiteTitle(settings.siteTitle ?? '')
@@ -38,19 +47,25 @@ export function useGeneralTabLogic() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    const refused: Partial<Record<GeneralTabField, string>> = {}
+
     if (companyWebsite.trim()) {
       try {
         new URL(companyWebsite.trim())
       } catch {
-        toast.error(t('setup.companyWebsiteRequired'))
-        return
+        refused.companyWebsite = t('setup.companyWebsiteRequired')
       }
     }
 
     const trimmedRetention = trashRetentionDays.trim()
     const retention = Number(trimmedRetention)
     if (!trimmedRetention || !isValidRetentionDays(retention)) {
-      toast.error(t('settings.general.trashRetentionInvalid', { max: MAX_RETENTION_DAYS }))
+      refused.trashRetentionDays = t('settings.general.trashRetentionInvalid', { max: MAX_RETENTION_DAYS })
+    }
+
+    setErrors(refused)
+    if (Object.keys(refused).length > 0) {
+      setRefusals((count) => count + 1)
       return
     }
 
@@ -77,6 +92,8 @@ export function useGeneralTabLogic() {
   return {
     isLoading,
     isPending: updateSettings.isPending,
+    errors,
+    refusals,
     state: {
       siteTitle,
       defaultLanguage,
@@ -93,9 +110,9 @@ export function useGeneralTabLogic() {
       setTimezone,
       setCurrency,
       setCompanyName,
-      setCompanyWebsite,
+      setCompanyWebsite: (value: string) => { setCompanyWebsite(value); clearError('companyWebsite') },
       setCompanyAbbreviation,
-      setTrashRetentionDays,
+      setTrashRetentionDays: (value: string) => { setTrashRetentionDays(value); clearError('trashRetentionDays') },
       handleSave,
     },
   }

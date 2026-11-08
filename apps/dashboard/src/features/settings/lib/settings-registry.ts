@@ -115,8 +115,8 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     sections: [
       section("identity", "settings.sections.identity", "Site identity"),
       section("regional", "settings.sections.regional", "Regional defaults"),
-      section("content-languages", "settings.sections.contentLanguages", "Content languages"),
       section("trash", "settings.sections.trash", "Trash"),
+      section("content-languages", "settings.sections.contentLanguages", "Content languages"),
     ],
     isVisible: (g) => g.canGlobally("manage_users"),
   },

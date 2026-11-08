@@ -22,7 +22,7 @@ import { AccountTab } from "./account-tab"
 import { InterfaceTab } from "./interface-tab"
 import { StorageTab } from "./storage-tab"
 import { NotificationsTab } from "./notifications-tab"
-import { GeneralTab } from "./general-tab"
+import { SiteTab } from "./site-tab"
 import { PeopleTab } from "./people-tab"
 import { ConnectedAppsTab } from "@/features/oauth-consent"
 import { usePermissions } from "@/features/shared"
@@ -66,7 +66,7 @@ function TabContent({ tab }: { readonly tab: SettingsTab }) {
     case "language":
       return <InterfaceTab />
     case "site":
-      return <GeneralTab />
+      return <SiteTab />
     case "people":
       return <PeopleTab />
     case "storage":
