@@ -9,6 +9,7 @@ export type CommandPage =
   | "root"
   | "seeds"
   | "create"
+  | "settings"
   | "search-results"
 
 // Azione singola renderizzata come CommandItem

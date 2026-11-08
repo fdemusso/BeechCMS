@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { useSettingsDialog } from "@/features/settings"
+import { useCommandState } from "cmdk"
 import { Category as LayoutDashboard, Image as ImageIcon, Settings, Layers, Plus, Sun, Moon, Search } from '@/components/icons'
 import {
   CommandGroup,
@@ -14,6 +14,7 @@ import {
 import type { Seed } from "@beechcms/core"
 import { resolveIcon } from "@/lib/icon-registry"
 import type { CommandPage } from "../types"
+import { SettingsItems } from "./settings-view"
 
 interface RootViewProps {
   seeds: Seed[]
@@ -33,7 +34,8 @@ export function RootView({
   toggleTheme,
 }: RootViewProps) {
   const { t } = useTranslation()
-  const { openSettings } = useSettingsDialog()
+  // Typing surfaces every settings tab straight from the root page; idle, they sit behind one "Settings…" row.
+  const searching = useCommandState((s) => s.search).length > 0
   const nav = (path: string) => { navigate(path); setOpen(false) }
 
   return (
@@ -47,10 +49,12 @@ export function RootView({
           <ImageIcon className="size-4 shrink-0 text-muted-foreground" />
           <span>{t("commandPalette.mediaLibrary")}</span>
         </CommandItem>
-        <CommandItem onSelect={() => { openSettings(); setOpen(false) }}>
-          <Settings className="size-4 shrink-0 text-muted-foreground" />
-          <span>{t("commandPalette.settings")}</span>
-        </CommandItem>
+        {!searching && (
+          <CommandItem onSelect={() => pushPage("settings")}>
+            <Settings className="size-4 shrink-0 text-muted-foreground" />
+            <span>{t("commandPalette.settingsAll")}</span>
+          </CommandItem>
+        )}
       </CommandGroup>
 
       <CommandSeparator />
@@ -109,6 +113,8 @@ export function RootView({
           <span>{t("commandPalette.changeTheme")}</span>
         </CommandItem>
       </CommandGroup>
+
+      {searching && <SettingsItems setOpen={setOpen} />}
     </>
   )
 }
