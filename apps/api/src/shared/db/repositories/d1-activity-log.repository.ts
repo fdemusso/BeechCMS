@@ -49,6 +49,11 @@ export class D1ActivityLogRepository implements IActivityLogRepository {
       bindings.push(options.entitySlug)
     }
 
+    if (options.entityTypes) {
+      whereClauses.push('entity_type IN (SELECT value FROM json_each(?))')
+      bindings.push(JSON.stringify(options.entityTypes))
+    }
+
     const visibilityFilter = buildVisibilityFilter(options.visibility)
     if (visibilityFilter) {
       whereClauses.push(visibilityFilter.clause)

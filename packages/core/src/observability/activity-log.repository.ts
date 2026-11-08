@@ -48,6 +48,11 @@ export interface ActivityLogListOptions {
   entitySlug?: string
   /** Authorization filter applied in the query, before `limit`. */
   visibility?: ActivityLogVisibility
+  /**
+   * Restrict the result to these entity types. A feed shown to people other than the actor (the dashboard
+   * widget) must name the types it may show: sign-ins, password changes and the like are the actor's own.
+   */
+  entityTypes?: readonly EntityType[]
   /** Hard upper bound on the number of rows returned. */
   limit: number
 }
