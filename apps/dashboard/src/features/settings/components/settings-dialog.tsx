@@ -158,7 +158,8 @@ export function SettingsDialog({
           {/* Categorised Left Navigation Sidebar */}
           <aside className="w-56 sm:w-64 border-r border-border/60 bg-sidebar flex flex-col shrink-0 select-none">
             {/* Sidebar Header */}
-            <div className="p-4 sm:p-5 flex items-center gap-2.5 border-b border-border/40">
+            {/* Same fixed height as the page header beside it, so the divider runs straight across. */}
+            <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-border/50 px-4 sm:px-5">
               <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Settings className="size-4" />
               </div>
@@ -284,7 +285,7 @@ export function SettingsDialog({
           {/* Right Panel Main Active Tab Container */}
           <main className="flex-1 flex flex-col min-w-0 bg-background overflow-hidden">
             {/* Active Tab Header */}
-            <header className="px-6 py-4 border-b border-border/50 flex items-center justify-between shrink-0 bg-background/50">
+            <header className="px-6 h-16 border-b border-border/50 flex items-center justify-between shrink-0 bg-background/50">
               <div className="flex items-center gap-2.5">
                 <ActiveIcon className="size-4 text-muted-foreground shrink-0" />
                 <h2 className="font-heading text-base font-semibold tracking-tight text-foreground">
