@@ -435,11 +435,15 @@
     "title": "Settings",
     "groups": {
       "account": "Account",
-      "system": "Workspace",
-      "models": "Data Models",
-      "access": "Access"
+      "experience": "Experience",
+      "workspace": "Workspace"
     },
     "tabs": {
+      "account": "My account",
+      "appearance": "Appearance",
+      "language": "Language",
+      "site": "Site",
+      "people": "Users & roles",
       "profile": "Profile",
       "interface": "Interface",
       "security": "Security",
@@ -453,6 +457,25 @@
       "roles": "Roles",
       "invitations": "Invitations"
     },
+    "sections": {
+      "profile": "Profile",
+      "password": "Password",
+      "sessions": "Active sessions",
+      "activity": "Recent activity",
+      "theme": "Theme",
+      "lists": "Lists",
+      "identity": "Site identity",
+      "regional": "Regional defaults",
+      "contentLanguages": "Content languages",
+      "trash": "Trash",
+      "users": "Users",
+      "invitations": "Invitations",
+      "roles": "Roles",
+      "usage": "Usage",
+      "orphans": "Orphan files"
+    },
+    "navLabel": "Settings categories",
+    "logout": "Log out",
     "notifications": {
       "title": "In-app notifications",
       "description": "Choose which events to receive notifications for.",

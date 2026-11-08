@@ -9,10 +9,10 @@ import { SettingsDialog } from "./settings-dialog"
 /** Mounted once at the app root: shows the settings dialog whenever the URL carries `?settings=<tab>`. */
 export function SettingsDialogHost() {
   const { user } = useAuth()
-  const { open, tab, setTab, closeSettings } = useSettingsDialog()
+  const { open, tab, section, setTab, closeSettings } = useSettingsDialog()
 
   // The dialog reads authenticated endpoints; never show it on login/setup pages.
   if (!open || !user) return null
 
-  return <SettingsDialog open onClose={closeSettings} activeTab={tab} onTabChange={setTab} />
+  return <SettingsDialog open onClose={closeSettings} activeTab={tab} activeSection={section} onTabChange={setTab} />
 }

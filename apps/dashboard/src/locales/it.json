@@ -436,11 +436,15 @@
     "title": "Impostazioni",
     "groups": {
       "account": "Account",
-      "system": "Area di lavoro",
-      "models": "Modelli Dati",
-      "access": "Accesso"
+      "experience": "Esperienza",
+      "workspace": "Area di lavoro"
     },
     "tabs": {
+      "account": "Il mio account",
+      "appearance": "Aspetto",
+      "language": "Lingua",
+      "site": "Sito",
+      "people": "Utenti e ruoli",
       "profile": "Profilo",
       "interface": "Interfaccia",
       "security": "Sicurezza",
@@ -454,6 +458,25 @@
       "roles": "Ruoli",
       "invitations": "Inviti"
     },
+    "sections": {
+      "profile": "Profilo",
+      "password": "Password",
+      "sessions": "Sessioni attive",
+      "activity": "Attività recente",
+      "theme": "Tema",
+      "lists": "Liste",
+      "identity": "Identità del sito",
+      "regional": "Impostazioni regionali",
+      "contentLanguages": "Lingue dei contenuti",
+      "trash": "Cestino",
+      "users": "Utenti",
+      "invitations": "Inviti",
+      "roles": "Ruoli",
+      "usage": "Utilizzo",
+      "orphans": "File orfani"
+    },
+    "navLabel": "Categorie delle impostazioni",
+    "logout": "Esci",
     "notifications": {
       "title": "Notifiche in-app",
       "description": "Scegli per quali eventi ricevere notifiche nell'interfaccia.",
