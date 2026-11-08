@@ -7,6 +7,7 @@ import {
   SETTINGS_ENTRIES,
   getVisibleSections,
   getVisibleSettingsEntries,
+  matchSettings,
   resolveSettingsTab,
   type SettingsGates,
 } from "./settings-registry"
@@ -61,5 +62,38 @@ describe("settings registry", () => {
     expect(resolveSettingsTab("general")).toBe("site")
     expect(resolveSettingsTab("roles")).toBe("people")
     expect(resolveSettingsTab("storage")).toBe("storage")
+  })
+
+  describe("matchSettings", () => {
+    const everything: SettingsGates = { canGlobally: () => true, canAnywhere: () => true }
+    const label = (_key: string, defaultLabel: string) => defaultLabel
+    const find = (query: string, gates = everything) =>
+      matchSettings(gates, query, label).map((m) => [m.entry.id, m.sections.map((s) => s.id)] as const)
+
+    it("an empty query lists every visible entry with all its bookmarks", () => {
+      expect(matchSettings(everything, "", label).map((m) => m.entry.id)).toEqual(getVisibleSettingsEntries(everything).map((e) => e.id))
+    })
+
+    it("an entry whose label matches keeps all its bookmarks", () => {
+      expect(find("users & roles")).toEqual([["people", ["users", "invitations", "roles"]]])
+    })
+
+    it("a bookmark that matches shows alone under its entry", () => {
+      expect(find("invitations")).toEqual([["people", ["invitations"]]])
+      expect(find("password")).toEqual([["account", ["password"]]])
+    })
+
+    it("ignores case and accents", () => {
+      const italian = (key: string, defaultLabel: string) => (key === "settings.sections.activity" ? "Attività recente" : defaultLabel)
+      expect(matchSettings(everything, "ATTIVITA", italian).map((m) => [m.entry.id, m.sections.map((s) => s.id)])).toEqual([["account", ["activity"]]])
+    })
+
+    it("a keyword alone still finds the entry, with every bookmark", () => {
+      expect(find("inviti")).toEqual([["people", ["users", "invitations", "roles"]]])
+    })
+
+    it("never surfaces what the caller may not open", () => {
+      expect(find("inviti", none)).toEqual([])
+    })
   })
 })

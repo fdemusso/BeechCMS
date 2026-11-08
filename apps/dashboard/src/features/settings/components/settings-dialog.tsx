@@ -4,7 +4,7 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Settings, Logout as LogOut, X as XIcon } from "@/components/icons"
+import { Search, Settings, Logout as LogOut, X as XIcon } from "@/components/icons"
 
 import {
   Dialog,
@@ -30,8 +30,8 @@ import type { SettingsTab } from "../types/settings.types"
 import {
   SETTINGS_GROUP_LABELS,
   SETTINGS_GROUP_ORDER,
-  getVisibleSections,
   getVisibleSettingsEntries,
+  matchSettings,
   type SettingsEntry,
 } from "../lib/settings-registry"
 
@@ -98,10 +98,13 @@ export function SettingsDialog({
   const gates = { canGlobally, canAnywhere }
 
   const visibleEntries = getVisibleSettingsEntries(gates)
+  const [query, setQuery] = useState("")
+  const searching = query.trim() !== ""
+  const matches = matchSettings(gates, query, (key, defaultLabel) => t(key, defaultLabel))
   const groups = SETTINGS_GROUP_ORDER.map((id) => ({
     id,
     title: t(SETTINGS_GROUP_LABELS[id].key, SETTINGS_GROUP_LABELS[id].defaultLabel),
-    items: visibleEntries.filter((entry) => entry.groupId === id),
+    items: matches.filter((match) => match.entry.groupId === id),
   })).filter((group) => group.items.length > 0)
 
   const visibleTabs = new Set(visibleEntries.map((entry) => entry.id))
@@ -121,7 +124,8 @@ export function SettingsDialog({
 
   /** Folded: unfold and go there. Unfolded but elsewhere: go there, stay unfolded. Unfolded and shown: fold. */
   function handleEntryClick(entry: SettingsEntry) {
-    if (getVisibleSections(entry, gates).length === 0) {
+    // While searching every hit is already unfolded: a click only goes there.
+    if (searching || entry.sections.length === 0) {
       onTabChange(entry.id)
       return
     }
@@ -144,13 +148,15 @@ export function SettingsDialog({
         showCloseButton={false}
         className="flex flex-col sm:max-w-3xl md:max-w-5xl lg:max-w-6xl h-[85vh] max-h-[calc(100vh-3rem)] p-0 gap-0 overflow-hidden border-border/80 bg-background shadow-2xl"
         onOpenAutoFocus={(e) => e.preventDefault()}
+        // Escape clears a search first and only then closes the dialog.
+        onEscapeKeyDown={(e) => { if (query) { e.preventDefault(); setQuery("") } }}
       >
         <DialogTitle className="sr-only">{t("settings.title", "Settings")}</DialogTitle>
         <DialogDescription className="sr-only">{t("settings.title", "Settings")}</DialogDescription>
 
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Categorised Left Navigation Sidebar */}
-          <aside className="w-56 sm:w-64 border-r border-border/60 bg-muted/30 dark:bg-muted/15 flex flex-col shrink-0 select-none">
+          <aside className="w-56 sm:w-64 border-r border-border/60 bg-sidebar flex flex-col shrink-0 select-none">
             {/* Sidebar Header */}
             <div className="p-4 sm:p-5 flex items-center gap-2.5 border-b border-border/40">
               <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -161,35 +167,61 @@ export function SettingsDialog({
               </span>
             </div>
 
+            {/* Search: narrows the families below to what matches, bookmarks included */}
+            <div className="px-3 pt-3">
+              <div className="relative">
+                <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  role="searchbox"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t("settings.search", "Search settings…")}
+                  aria-label={t("settings.search", "Search settings…")}
+                  className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-8 text-sm text-foreground outline-hidden placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    aria-label={t("settings.clearSearch", "Clear search")}
+                    className="absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  >
+                    <XIcon className="size-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Families, their tabs and the bookmarks of the open tab */}
             <ScrollArea className="flex-1 min-h-0">
-              <nav className="space-y-5 px-3 py-3" aria-label={t("settings.navLabel", "Settings categories")}>
+              <nav className="space-y-3 px-3 py-3" aria-label={t("settings.navLabel", "Settings categories")}>
+                {groups.length === 0 && (
+                  <p className="px-2.5 py-4 text-sm text-sidebar-foreground/70">{t("settings.noResults", "No settings found")}</p>
+                )}
                 {groups.map((group) => (
-                  <div key={group.id} className="space-y-1">
-                    <h3 className="px-2 text-xs font-medium tracking-wider uppercase text-muted-foreground/80">
+                  <div key={group.id}>
+                    <h3 className="flex h-8 items-center px-2.5 text-xs font-medium text-sidebar-foreground/70">
                       {group.title}
                     </h3>
-                    <div className="space-y-0.5 mt-1">
-                      {group.items.map((item) => {
+                    <div className="space-y-0.5">
+                      {group.items.map(({ entry: item, sections }) => {
                         const Icon = item.icon
                         const isActive = safeTab === item.id
-                        const sections = getVisibleSections(item, gates)
-                        const isUnfolded = expanded.has(item.id)
+                        const isUnfolded = searching || expanded.has(item.id)
                         return (
                           <div key={item.id}>
                             <button
                               type="button"
                               onClick={() => handleEntryClick(item)}
                               aria-current={isActive ? "page" : undefined}
-                              aria-expanded={item.sections.length > 0 ? isUnfolded : undefined}
+                              aria-expanded={sections.length > 0 ? isUnfolded : undefined}
                               className={cn(
-                                "w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors text-left",
-                                isActive
-                                  ? "bg-accent text-accent-foreground shadow-xs font-semibold"
-                                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                                "flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                                isActive && "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
                               )}
                             >
-                              <Icon className={cn("size-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground/70")} />
+                              <Icon className="size-4 shrink-0" />
                               <span className="truncate">{t(item.labelKey, item.defaultLabel)}</span>
                             </button>
                             {sections.length > 0 && (
@@ -203,30 +235,28 @@ export function SettingsDialog({
                                   isUnfolded ? "grid-rows-[1fr] opacity-100 duration-[220ms]" : "grid-rows-[0fr] opacity-0 duration-[176ms]"
                                 )}
                               >
-                              <div className="ml-[1.15rem] min-h-0 overflow-hidden">
-                              <ul className="space-y-0.5 border-l border-border/60 py-1 pl-2">
-                                {sections.map((sectionItem) => {
-                                  const isCurrent = activeSection === sectionItem.id
-                                  return (
-                                    <li key={sectionItem.id}>
-                                      <button
-                                        type="button"
-                                        onClick={() => onTabChange(item.id, sectionItem.id)}
-                                        aria-current={isCurrent ? "location" : undefined}
-                                        className={cn(
-                                          "w-full truncate rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors",
-                                          isCurrent
-                                            ? "bg-accent/70 font-medium text-foreground"
-                                            : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
-                                        )}
-                                      >
-                                        {t(sectionItem.labelKey, sectionItem.defaultLabel)}
-                                      </button>
-                                    </li>
-                                  )
-                                })}
-                              </ul>
-                              </div>
+                                <div className="ml-[1.15rem] min-h-0 overflow-hidden">
+                                  <ul className="space-y-0.5 border-l border-sidebar-border py-1 pl-2">
+                                    {sections.map((sectionItem) => {
+                                      const isCurrent = isActive && activeSection === sectionItem.id
+                                      return (
+                                        <li key={sectionItem.id}>
+                                          <button
+                                            type="button"
+                                            onClick={() => onTabChange(item.id, sectionItem.id)}
+                                            aria-current={isCurrent ? "location" : undefined}
+                                            className={cn(
+                                              "flex h-7 w-full items-center rounded-md px-2.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                                              isCurrent && "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                                            )}
+                                          >
+                                            <span className="truncate">{t(sectionItem.labelKey, sectionItem.defaultLabel)}</span>
+                                          </button>
+                                        </li>
+                                      )
+                                    })}
+                                  </ul>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -239,11 +269,11 @@ export function SettingsDialog({
             </ScrollArea>
 
             {/* Last entry of the list, apart from the families */}
-            <div className="border-t border-border/40 p-3">
+            <div className="border-t border-sidebar-border p-3">
               <button
                 type="button"
                 onClick={() => { void logout() }}
-                className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-destructive transition-colors text-left hover:bg-destructive/10"
+                className="flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm text-destructive transition-colors hover:bg-destructive/10"
               >
                 <LogOut className="size-4 shrink-0" />
                 <span className="truncate">{t("settings.logout", "Log out")}</span>

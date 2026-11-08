@@ -147,6 +147,46 @@ export function getVisibleSections(entry: SettingsEntry, gates: SettingsGates): 
   return entry.sections.filter((s) => (s.isVisible ?? (() => true))(gates))
 }
 
+export interface SettingsMatch {
+  readonly entry: SettingsEntry
+  /** The bookmarks worth showing under the entry for this query. */
+  readonly sections: SettingsSection[]
+}
+
+/** Case- and accent-insensitive: "attivita" finds "Attività recente". */
+const fold = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim()
+
+/**
+ * What the sidebar search shows for `query`: an entry whose own label matches keeps all its bookmarks; otherwise the
+ * bookmarks that match; otherwise, if only a keyword matched ("password" for My account), all of them.
+ * An empty query returns every entry the caller may see.
+ */
+export function matchSettings(
+  gates: SettingsGates,
+  query: string,
+  translate: (key: string, defaultLabel: string) => string,
+): SettingsMatch[] {
+  const needle = fold(query)
+  const matches: SettingsMatch[] = []
+  for (const entry of getVisibleSettingsEntries(gates)) {
+    const sections = getVisibleSections(entry, gates)
+    if (!needle) {
+      matches.push({ entry, sections })
+      continue
+    }
+    if (fold(translate(entry.labelKey, entry.defaultLabel)).includes(needle)) {
+      matches.push({ entry, sections })
+      continue
+    }
+    const hits = sections.filter(
+      (s) => fold(translate(s.labelKey, s.defaultLabel)).includes(needle) || s.id.includes(needle),
+    )
+    if (hits.length > 0) matches.push({ entry, sections: hits })
+    else if (entry.keywords.some((keyword) => fold(keyword).includes(needle))) matches.push({ entry, sections })
+  }
+  return matches
+}
+
 /** Tabs that were merged or renamed: old links (`?settings=roles`, `/settings?tab=interface`) keep working. */
 const LEGACY_TABS: Readonly<Record<string, SettingsTab>> = {
   profile: "account",

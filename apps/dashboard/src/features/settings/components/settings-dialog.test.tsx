@@ -142,6 +142,30 @@ describe("SettingsDialog", () => {
     expect(onTabChange).toHaveBeenCalledWith("site")
   })
 
+  it("the search narrows the list to matching tabs and bookmarks, and says so when nothing matches", () => {
+    setPermissions({ canGlobally: (p: string) => p === "manage_users", canAnywhere: (p: string) => p === "manage_users" })
+    renderDialog("account")
+    const search = screen.getByRole("searchbox")
+
+    fireEvent.change(search, { target: { value: "invitations" } })
+    expect(screen.getAllByRole("button", { name: "Invitations" })).toHaveLength(1)
+    expect(screen.queryByRole("button", { name: "Notifications" })).not.toBeInTheDocument()
+
+    fireEvent.change(search, { target: { value: "zzzz" } })
+    expect(screen.getByText("No settings found")).toBeInTheDocument()
+  })
+
+  it("picking a search hit reports the tab and the bookmark", () => {
+    setPermissions({ canGlobally: () => false, canAnywhere: (p: string) => p === "manage_users" })
+    const onTabChange = vi.fn()
+    renderDialog("account", onTabChange)
+
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "invitations" } })
+    fireEvent.click(screen.getByRole("button", { name: "Invitations" }))
+
+    expect(onTabChange).toHaveBeenCalledWith("people", "invitations")
+  })
+
   it("ends the list with Log out", () => {
     renderDialog("account")
     expect(screen.getByRole("button", { name: /log out|esci/i })).toBeInTheDocument()

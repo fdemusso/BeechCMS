@@ -474,6 +474,9 @@
       "usage": "Usage",
       "orphans": "Orphan files"
     },
+    "search": "Search settings…",
+    "clearSearch": "Clear search",
+    "noResults": "No settings found",
     "navLabel": "Settings categories",
     "logout": "Log out",
     "notifications": {
