@@ -166,7 +166,7 @@ export function SettingsDialog({
               <nav className="space-y-5 px-3 py-3" aria-label={t("settings.navLabel", "Settings categories")}>
                 {groups.map((group) => (
                   <div key={group.id} className="space-y-1">
-                    <h3 className="px-2 text-[11px] font-medium tracking-wider uppercase text-muted-foreground/80">
+                    <h3 className="px-2 text-xs font-medium tracking-wider uppercase text-muted-foreground/80">
                       {group.title}
                     </h3>
                     <div className="space-y-0.5 mt-1">
@@ -182,7 +182,7 @@ export function SettingsDialog({
                               aria-current={isActive ? "page" : undefined}
                               aria-expanded={item.sections.length > 0 ? expanded.has(item.id) : undefined}
                               className={cn(
-                                "w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors text-left",
+                                "w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors text-left",
                                 isActive
                                   ? "bg-accent text-accent-foreground shadow-xs font-semibold"
                                   : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -202,7 +202,7 @@ export function SettingsDialog({
                                         onClick={() => onTabChange(item.id, sectionItem.id)}
                                         aria-current={isCurrent ? "location" : undefined}
                                         className={cn(
-                                          "w-full truncate rounded-md px-2.5 py-1.5 text-left text-xs transition-colors",
+                                          "w-full truncate rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors",
                                           isCurrent
                                             ? "bg-accent/70 font-medium text-foreground"
                                             : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
@@ -229,7 +229,7 @@ export function SettingsDialog({
               <button
                 type="button"
                 onClick={() => { void logout() }}
-                className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-destructive transition-colors text-left hover:bg-destructive/10"
+                className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-destructive transition-colors text-left hover:bg-destructive/10"
               >
                 <LogOut className="size-4 shrink-0" />
                 <span className="truncate">{t("settings.logout", "Log out")}</span>
