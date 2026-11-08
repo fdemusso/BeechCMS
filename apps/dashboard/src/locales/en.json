@@ -484,6 +484,9 @@
     "search": "Search settings…",
     "clearSearch": "Clear search",
     "noResults": "No settings found",
+    "description": "Manage your account, your preferences and the workspace.",
+    "resultsCount_one": "{{count}} setting found",
+    "resultsCount_other": "{{count}} settings found",
     "navLabel": "Settings categories",
     "logout": "Log out",
     "notifications": {
@@ -684,6 +687,7 @@
       "sessionsDesc": "Login sessions currently open for your account.",
       "sessionActive": "Active session",
       "sessionInfo": "Created on {{created}} · Expires on {{expires}}",
+      "revokeSessionAria": "Revoke the session created on {{created}}",
       "revokeTitle": "Revoke session?",
       "revokeDesc": "This session will be disconnected immediately.",
       "revokeConfirm": "Revoke",

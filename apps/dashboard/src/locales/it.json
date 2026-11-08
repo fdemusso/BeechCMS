@@ -485,6 +485,9 @@
     "search": "Cerca nelle impostazioni…",
     "clearSearch": "Cancella ricerca",
     "noResults": "Nessuna impostazione trovata",
+    "description": "Gestisci il tuo account, le preferenze e l'area di lavoro.",
+    "resultsCount_one": "{{count}} impostazione trovata",
+    "resultsCount_other": "{{count}} impostazioni trovate",
     "navLabel": "Categorie delle impostazioni",
     "logout": "Esci",
     "notifications": {
@@ -685,6 +688,7 @@
       "sessionsDesc": "Sessioni di accesso correntemente aperte per il tuo account.",
       "sessionActive": "Sessione attiva",
       "sessionInfo": "Creata il {{created}} · Scade il {{expires}}",
+      "revokeSessionAria": "Revoca la sessione creata il {{created}}",
       "revokeTitle": "Revocare la sessione?",
       "revokeDesc": "Questa sessione verrà disconnessa immediatamente.",
       "revokeConfirm": "Revoca",

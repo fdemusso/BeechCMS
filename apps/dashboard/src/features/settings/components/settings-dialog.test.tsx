@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { render, screen, fireEvent, within, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { SettingsDialog } from "./settings-dialog"
 import type { SettingsTab } from "../types/settings.types"
@@ -91,14 +91,17 @@ describe("SettingsDialog", () => {
     expect(onTabChange).toHaveBeenCalledWith("account", "password")
   })
 
+  /** A folded submenu stays mounted for its animation; `inert` is what takes it out of reach. */
+  const isFolded = (name: string) => screen.getByRole("button", { name, hidden: true }).closest("[inert]") !== null
+
   it("a tab that was never opened keeps its bookmarks folded", () => {
     renderDialog("notifications")
-    expect(screen.queryByRole("button", { name: "Password" })).not.toBeInTheDocument()
+    expect(isFolded("Password")).toBe(true)
   })
 
   it("bookmarks stay unfolded when another tab is opened", () => {
     const { rerender } = renderDialog("account")
-    expect(screen.getByRole("button", { name: "Password" })).toBeInTheDocument()
+    expect(isFolded("Password")).toBe(false)
 
     rerender(
       <MemoryRouter>
@@ -106,7 +109,7 @@ describe("SettingsDialog", () => {
       </MemoryRouter>
     )
 
-    expect(screen.getByRole("button", { name: "Password" })).toBeInTheDocument()
+    expect(isFolded("Password")).toBe(false)
   })
 
   it("clicking the shown parent folds its bookmarks, clicking it again unfolds them", () => {
@@ -115,11 +118,13 @@ describe("SettingsDialog", () => {
     const parent = screen.getAllByRole("button").filter((btn) => btn.textContent === "My account")[0]
 
     fireEvent.click(parent)
-    expect(screen.queryByRole("button", { name: "Password" })).not.toBeInTheDocument()
+    expect(isFolded("Password")).toBe(true)
+    expect(parent).toHaveAttribute("aria-expanded", "false")
     expect(onTabChange).not.toHaveBeenCalled()
 
     fireEvent.click(parent)
-    expect(screen.getByRole("button", { name: "Password" })).toBeInTheDocument()
+    expect(isFolded("Password")).toBe(false)
+    expect(parent).toHaveAttribute("aria-expanded", "true")
   })
 
   it("a global manage_users holder gets the Workspace family with Users & roles stacked in one page", () => {
@@ -175,5 +180,57 @@ describe("SettingsDialog", () => {
     setPermissions({ canGlobally: () => true, canAnywhere: () => true })
     renderDialog("account")
     expect(screen.queryByText(/Content Types/)).not.toBeInTheDocument()
+  })
+
+  describe("markup", () => {
+    it("uses no landmark the app behind it already has: no <main>, no <header>", () => {
+      renderDialog("account")
+      expect(document.querySelector("main, header")).toBeNull()
+    })
+
+    it("is a named navigation of named lists, and a named page beside it", () => {
+      renderDialog("account")
+      const nav = screen.getByRole("navigation", { name: "Settings categories" })
+      expect(within(nav).getByRole("list", { name: "Account" })).toBeInTheDocument()
+      expect(within(nav).getByRole("list", { name: "Experience" })).toBeInTheDocument()
+      expect(screen.getByRole("region", { name: "My account" })).toBeInTheDocument()
+    })
+
+    it("has one page heading, and the groups of the sidebar are labels, not headings", () => {
+      renderDialog("account")
+      const nav = screen.getByRole("navigation", { name: "Settings categories" })
+      expect(within(nav).queryAllByRole("heading")).toHaveLength(0)
+      expect(screen.getByRole("heading", { name: "My account", level: 2 })).toHaveAttribute("id", "settings-page-title")
+    })
+
+    it("searches with a real search field in a search landmark", () => {
+      renderDialog("account")
+      const field = screen.getByRole("searchbox")
+      expect(field).toHaveAttribute("type", "search")
+      expect(field).toHaveAttribute("autocomplete", "off")
+      expect(screen.getByRole("search")).toContainElement(field)
+    })
+
+    it("says how many tabs a search found, and names the page it changes to", () => {
+      renderDialog("account")
+      expect(screen.getAllByRole("status").some((status) => status.textContent === "My account")).toBe(true)
+
+      fireEvent.change(screen.getByRole("searchbox"), { target: { value: "password" } })
+      expect(screen.getAllByRole("status").some((status) => status.textContent === "1 setting found")).toBe(true)
+    })
+
+    it("ties each expandable entry to the submenu it opens", () => {
+      renderDialog("account")
+      const parent = screen.getAllByRole("button").filter((btn) => btn.textContent === "My account")[0]
+      const submenu = document.getElementById(parent.getAttribute("aria-controls")!)
+      expect(submenu).toContainElement(screen.getByRole("button", { name: "Password" }))
+      expect(parent).toHaveAttribute("aria-current", "page")
+    })
+
+    it("starts the keyboard on the entry of the page that is open", async () => {
+      renderDialog("account")
+      const current = screen.getAllByRole("button").find((btn) => btn.getAttribute("aria-current") === "page")!
+      await waitFor(() => expect(current).toHaveFocus())
+    })
   })
 })
