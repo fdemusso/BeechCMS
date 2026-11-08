@@ -95,6 +95,12 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
         <NavSection items={getStaticMenu(t, gates)} groupLabel={t("sidebar.navigation")}>
           <NavNotifications />
         </NavSection>
+        {studioItems.length > 0 && (
+          <>
+            <RailDivider spaced />
+            <NavSection items={studioItems} groupLabel={t("sidebar.studio")} />
+          </>
+        )}
         {contentCategoryItems.length > 0 && (
           <>
             <RailDivider spaced />
@@ -112,15 +118,9 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
             />
           </React.Fragment>
         ))}
-        {studioItems.length > 0 && (
-          <div data-rail-static className="mt-auto">
-            <RailDivider spaced />
-            <NavSection items={studioItems} groupLabel={t("sidebar.studio")} />
-          </div>
-        )}
         {/* Settings entry with the sidebar close button beside it. */}
         {/* Collapsed (icon rail): the row stacks, settings icon above the toggle. */}
-        <div data-rail-static className={cn(studioItems.length === 0 && "mt-auto", "flex items-center pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:pr-0")}>
+        <div data-rail-static className="mt-auto flex items-center pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:pr-0">
           <NavSection items={getSettingsMenu(t).map((item) => ({ ...item, onSelect: () => openSettings() }))} className="min-w-0 flex-1 pt-0" />
           {/* Same box, radius, icon size, colour and hover as the Settings SidebarMenuButton beside it (size-8, rounded-md,
               16px icon), on the same centre line: self-start because the Settings group has pt-0, so centring in the row would
