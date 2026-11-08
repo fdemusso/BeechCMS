@@ -20,15 +20,24 @@ export function PasswordInput({ className, ...props }: Readonly<PasswordInputPro
 
   return (
     <div className="relative">
-      <Input {...props} type={visible ? "text" : "password"} className={cn("pr-10", className)} />
+      {/* No spellcheck, autocorrect or auto-capitalisation: a password is typed exactly as it is. */}
+      <Input
+        spellCheck={false}
+        autoCapitalize="off"
+        autoCorrect="off"
+        {...props}
+        type={visible ? "text" : "password"}
+        className={cn("pr-10", className)}
+      />
       {/* A bare button on purpose: no hover state, and the icon swaps instantly so the eye reads as opening and closing. */}
       <button
         type="button"
         className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         onClick={() => setVisible((prev) => !prev)}
         aria-label={visible ? t("login.hidePassword") : t("login.showPassword")}
+        aria-controls={props.id}
       >
-        {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+        {visible ? <EyeOff aria-hidden className="size-4" /> : <Eye aria-hidden className="size-4" />}
       </button>
     </div>
   )

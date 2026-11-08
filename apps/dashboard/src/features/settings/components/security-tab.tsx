@@ -42,9 +42,20 @@ function formatDate(ts: number, locale: string): string {
   })
 }
 
+/** A skeleton stands for content on its way: say so, since the grey blocks say nothing. */
+function Loading({ rows, children }: { rows: number; children: string }) {
+  return (
+    <div role="status" className="space-y-3 py-4">
+      {Array.from({ length: rows }, (_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+      <span className="sr-only">{children}</span>
+    </div>
+  )
+}
+
 function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: string) => void }) {
   const { t, i18n } = useTranslation()
   const [pending, setPending] = React.useState(false)
+  const created = formatDate(session.created_at, i18n.language)
 
   const handleRevoke = async () => {
     setPending(true)
@@ -59,14 +70,14 @@ function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: st
   }
 
   return (
-    <div className={ROW}>
+    <li className={ROW}>
       <div className="flex min-w-0 items-center gap-3">
-        <MonitorSmartphone className="size-4 shrink-0 text-muted-foreground" />
+        <MonitorSmartphone aria-hidden className="size-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{t('settings.security.sessionActive')}</p>
           <p className="truncate text-sm text-muted-foreground">
             {t('settings.security.sessionInfo', {
-              created: formatDate(session.created_at, i18n.language),
+              created,
               expires: formatDate(session.expires_at, i18n.language),
             })}
           </p>
@@ -78,13 +89,13 @@ function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: st
           <Button
             variant="ghost"
             size="icon"
-            aria-label={t('settings.security.revokeTitle')}
+            aria-label={t('settings.security.revokeSessionAria', { created })}
             className={cn(
               'size-8 shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover/row:opacity-100 pointer-coarse:opacity-100',
               pending && 'opacity-100'
             )}
           >
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+            {pending ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <Trash2 aria-hidden className="size-4" />}
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
@@ -98,7 +109,7 @@ function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: st
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </li>
   )
 }
 
@@ -107,7 +118,7 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
   const view = describeActivity(entry, (key, options) => t(key, options) as string)
 
   return (
-    <div className={ROW}>
+    <li className={ROW}>
       <div className="flex min-w-0 items-center gap-3">
         <Badge variant={view.tone} className="shrink-0">{view.label}</Badge>
         <div className="min-w-0">
@@ -115,8 +126,26 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
           {view.detail && <p className="truncate text-sm text-muted-foreground">{view.detail}</p>}
         </div>
       </div>
-      <span className="shrink-0 text-sm text-muted-foreground">{formatDate(entry.created_at, i18n.language)}</span>
-    </div>
+      <time dateTime={new Date(entry.created_at * 1000).toISOString()} className="shrink-0 text-sm text-muted-foreground">
+        {formatDate(entry.created_at, i18n.language)}
+      </time>
+    </li>
+  )
+}
+
+/**
+ * A list that scrolls past `visible` rows. The scrolling box is a named group in the tab order: a keyboard user
+ * has no other way to scroll it when no row inside holds anything focusable. A group, not a region: the section
+ * around it already is the region, and two landmarks must not share a name.
+ */
+function ScrollingList({ label, visible, children }: { label: string; visible: number; children: React.ReactNode }) {
+  return (
+    <ScrollArea
+      style={{ maxHeight: `${visible * ROW_REM}rem` }}
+      viewportProps={{ tabIndex: 0, role: 'group', 'aria-label': label }}
+    >
+      <ul>{children}</ul>
+    </ScrollArea>
   )
 }
 
@@ -129,13 +158,11 @@ export function SessionsSection() {
   return (
     <SettingsSection id="sessions" title={t('settings.security.sessionsTitle')} description={t('settings.security.sessionsDesc')}>
       {isLoading ? (
-        <div className="space-y-3 py-4">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
-        </div>
+        <Loading rows={3}>{t('common.loading')}</Loading>
       ) : !sessions?.length ? (
         <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('settings.security.noSessions')}</p>
       ) : (
-        <ScrollArea style={{ maxHeight: `${SESSIONS_VISIBLE * ROW_REM}rem` }}>
+        <ScrollingList label={t('settings.security.sessionsTitle')} visible={SESSIONS_VISIBLE}>
           {sessions.map(session => (
             <SessionRow
               key={session.id}
@@ -143,7 +170,7 @@ export function SessionsSection() {
               onRevoke={(id) => revokeSession.mutateAsync(id)}
             />
           ))}
-        </ScrollArea>
+        </ScrollingList>
       )}
     </SettingsSection>
   )
@@ -157,15 +184,13 @@ export function ActivitySection() {
   return (
     <SettingsSection id="activity" title={t('settings.security.activityTitle')} description={t('settings.security.activityDesc')}>
       {isLoading ? (
-        <div className="space-y-3 py-4">
-          {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
-        </div>
+        <Loading rows={5}>{t('common.loading')}</Loading>
       ) : !activity?.length ? (
         <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('settings.security.noActivity')}</p>
       ) : (
-        <ScrollArea style={{ maxHeight: `${ACTIVITY_VISIBLE * ROW_REM}rem` }}>
+        <ScrollingList label={t('settings.security.activityTitle')} visible={ACTIVITY_VISIBLE}>
           {activity.map(entry => <ActivityRow key={entry.id} entry={entry} />)}
-        </ScrollArea>
+        </ScrollingList>
       )}
     </SettingsSection>
   )

@@ -11,6 +11,8 @@ import {
 } from "@/lib/password-strength"
 
 export interface PasswordStrengthIndicatorProps {
+  /** Lets a field point at the verdict with `aria-describedby`. */
+  id?: string
   password: string
   name?: string
   surname?: string
@@ -20,6 +22,7 @@ export interface PasswordStrengthIndicatorProps {
 }
 
 export function PasswordStrengthIndicator({
+  id,
   password,
   name,
   surname,
@@ -37,11 +40,12 @@ export function PasswordStrengthIndicator({
 
   return (
     <div
+      id={id}
       className={cn("space-y-1", !password && "invisible", className)}
       data-testid="password-strength-indicator"
       aria-live="polite"
     >
-      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+      <div aria-hidden className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
         <div
           className={cn("h-full rounded-full transition-all duration-300", strengthColor)}
           style={{ width: `${strength}%` }}

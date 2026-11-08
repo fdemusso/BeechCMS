@@ -27,7 +27,7 @@ describe("SessionsSection", () => {
 
   it("keeps the revoke button out of sight until the row is hovered or focused", () => {
     render(<SessionsSection />)
-    const revoke = screen.getAllByRole("button", { name: "Revoke session?" })
+    const revoke = screen.getAllByRole("button", { name: /Revoke the session created on/ })
     expect(revoke).toHaveLength(5)
     for (const button of revoke) {
       expect(button).toHaveClass("opacity-0", "group-hover/row:opacity-100", "focus-visible:opacity-100")
