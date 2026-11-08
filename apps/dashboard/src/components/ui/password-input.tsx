@@ -5,15 +5,14 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { Eye, EyeOff } from "@/components/icons"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
 type PasswordInputProps = Omit<React.ComponentProps<typeof Input>, "type">
 
 /**
- * A password field with the eye of the login page: the toggle reveals what was typed and swaps its icon with
- * the same short animation. Everything else is a plain Input (it never takes `type`).
+ * A password field with an eye toggle that reveals what was typed. Everything else is a plain Input (it never
+ * takes `type`).
  */
 export function PasswordInput({ className, ...props }: Readonly<PasswordInputProps>) {
   const { t } = useTranslation()
@@ -22,21 +21,15 @@ export function PasswordInput({ className, ...props }: Readonly<PasswordInputPro
   return (
     <div className="relative">
       <Input {...props} type={visible ? "text" : "password"} className={cn("pr-10", className)} />
-      <Button
+      {/* A bare button on purpose: no hover state, and the icon swaps instantly so the eye reads as opening and closing. */}
+      <button
         type="button"
-        variant="ghost"
-        size="icon-sm"
-        className="absolute right-1 top-1/2 -translate-y-1/2 hover:bg-transparent"
+        className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         onClick={() => setVisible((prev) => !prev)}
         aria-label={visible ? t("login.hidePassword") : t("login.showPassword")}
       >
-        <span
-          key={visible ? "visible" : "hidden"}
-          className="inline-flex origin-center animate-[icon-swap_0.15s_ease-out]"
-        >
-          {visible ? <EyeOff className="size-4 text-muted-foreground" /> : <Eye className="size-4 text-muted-foreground" />}
-        </span>
-      </Button>
+        {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </button>
     </div>
   )
 }
