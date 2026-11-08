@@ -23,6 +23,7 @@ import { useCommandPalette } from "./use-command-palette"
 import type { CommandPage } from "./types"
 import { RootView } from "./_parts/root-view"
 import { SeedsView } from "./_parts/seeds-view"
+import { SettingsView } from "./_parts/settings-view"
 import { SearchResultsView } from "./_parts/search-results-view"
 
 function EmptyMessage() {
@@ -83,6 +84,7 @@ export function CommandPalette() {
     root: t("commandPalette.placeholderRoot"),
     seeds: t("commandPalette.placeholderSeeds"),
     create: t("commandPalette.placeholderCreate"),
+    settings: t("commandPalette.placeholderSettings"),
     "search-results": t("commandPalette.placeholderSearch"),
   }
 
@@ -139,6 +141,7 @@ export function CommandPalette() {
             {currentPage === "create" && (
               <SeedsView seeds={seeds} navigate={navigate} setOpen={setOpen} mode="create" />
             )}
+            {currentPage === "settings" && <SettingsView setOpen={setOpen} />}
             {currentPage === "search-results" && (
               <SearchResultsView search={search} seeds={seeds} navigate={navigate} setOpen={setOpen} />
             )}

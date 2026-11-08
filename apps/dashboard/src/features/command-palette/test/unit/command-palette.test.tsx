@@ -12,6 +12,10 @@ vi.mock("react-router-dom", () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
+vi.mock("@/features/shared", () => ({
+  usePermissions: () => ({ canGlobally: () => false, canAnywhere: () => false }),
+}))
+
 vi.mock("@/lib/theme", () => ({
   useTheme: () => ({
     resolvedTheme: "dark",

@@ -3,20 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import {
-  User,
-  Palette,
-  Shield,
-  HardDrive,
-  Bell,
-  Settings,
-  Layers,
-  Key,
-  X as XIcon,
-  Users,
-  ShieldCheck,
-  Mailbox as Mail,
-} from "@/components/icons"
+import { Settings, X as XIcon } from "@/components/icons"
 
 import {
   Dialog,
@@ -39,6 +26,12 @@ import { ConnectedAppsTab } from "@/features/oauth-consent"
 import { usePermissions } from "@/features/shared"
 import { UsersTab, RolesTab, InvitationsTab } from "@/features/rbac"
 import type { SettingsTab } from "../types/settings.types"
+import {
+  SETTINGS_GROUP_LABELS,
+  SETTINGS_GROUP_ORDER,
+  getVisibleSettingsEntries,
+  type SettingsEntry,
+} from "../lib/settings-registry"
 
 /** Props for the modal settings dialog component */
 export interface SettingsDialogProps {
@@ -50,17 +43,6 @@ export interface SettingsDialogProps {
   readonly activeTab: SettingsTab
   /** Callback fired when a tab selection changes */
   readonly onTabChange: (tab: SettingsTab) => void
-}
-
-/** Group of related settings navigation items */
-interface SettingsGroup {
-  readonly id: string
-  readonly title: string
-  readonly items: ReadonlyArray<{
-    readonly id: SettingsTab
-    readonly label: string
-    readonly icon: typeof User
-  }>
 }
 
 /**
@@ -109,54 +91,18 @@ export function SettingsDialog({
   const { t } = useTranslation()
   const { canGlobally, canAnywhere } = usePermissions()
 
-  const groups: ReadonlyArray<SettingsGroup> = [
-    {
-      id: "account",
-      title: t("settings.groups.account", "Account"),
-      items: [
-        { id: "profile" as const, label: t("settings.tabs.profile", "Profile"), icon: User },
-        { id: "security" as const, label: t("settings.tabs.security", "Security"), icon: Shield },
-        { id: "connected-apps" as const, label: t("settings.tabs.connectedApps", "Connected apps"), icon: Key },
-        { id: "notifications" as const, label: t("settings.tabs.notifications", "Notifications"), icon: Bell },
-      ],
-    },
-    {
-      id: "system",
-      title: t("settings.groups.system", "System & UI"),
-      items: [
-        ...(canGlobally('manage_users')
-          ? [{ id: "general" as const, label: t("settings.tabs.general", "Site"), icon: Settings }] : []),
-        { id: "interface" as const, label: t("settings.tabs.interface", "Interface"), icon: Palette },
-        ...(canGlobally('view_analytics')
-          ? [{ id: "storage" as const, label: t("settings.tabs.storage", "Storage"), icon: HardDrive }] : []),
-      ],
-    },
-    {
-      id: "access",
-      title: t("settings.groups.access", "Access"),
-      items: [
-        ...(canAnywhere('manage_users')
-          ? [{ id: "users" as const, label: t("settings.tabs.users", "Users"), icon: Users }] : []),
-        ...(canAnywhere('manage_users') || canAnywhere('manage_roles')
-          ? [{ id: "roles" as const, label: t("settings.tabs.roles", "Roles"), icon: ShieldCheck }] : []),
-        ...(canAnywhere('manage_users')
-          ? [{ id: "invitations" as const, label: t("settings.tabs.invitations", "Invitations"), icon: Mail }] : []),
-      ],
-    },
-    {
-      id: "models",
-      title: t("settings.groups.models", "Data Models"),
-      items: canGlobally('manage_seeds')
-        ? [{ id: "content-types" as const, label: t("seedBuilder.page.navTitle", "Content Types"), icon: Layers }]
-        : [],
-    },
-  ].filter((group) => group.items.length > 0)
+  const visibleEntries = getVisibleSettingsEntries({ canGlobally, canAnywhere })
+  const groups = SETTINGS_GROUP_ORDER.map((id) => ({
+    id,
+    title: t(SETTINGS_GROUP_LABELS[id].key, SETTINGS_GROUP_LABELS[id].defaultLabel),
+    items: visibleEntries.filter((entry) => entry.groupId === id),
+  })).filter((group) => group.items.length > 0)
 
-  const visibleTabs = new Set(groups.flatMap((g) => g.items.map((i) => i.id)))
+  const visibleTabs = new Set(visibleEntries.map((entry) => entry.id))
   const safeTab: SettingsTab = visibleTabs.has(activeTab) ? activeTab : "profile"
 
-  const activeItem = groups.flatMap((g) => g.items).find((item) => item.id === safeTab)
-  const ActiveIcon = activeItem?.icon ?? Settings
+  const activeEntry: SettingsEntry | undefined = visibleEntries.find((entry) => entry.id === safeTab)
+  const ActiveIcon = activeEntry?.icon ?? Settings
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose() }}>
@@ -206,7 +152,7 @@ export function SettingsDialog({
                             )}
                           >
                             <Icon className={cn("size-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground/70")} />
-                            <span className="truncate">{item.label}</span>
+                            <span className="truncate">{t(item.labelKey, item.defaultLabel)}</span>
                           </button>
                         )
                       })}
@@ -224,7 +170,7 @@ export function SettingsDialog({
               <div className="flex items-center gap-2.5">
                 <ActiveIcon className="size-4 text-muted-foreground shrink-0" />
                 <h2 className="font-heading text-base font-semibold tracking-tight text-foreground">
-                  {activeItem?.label}
+                  {activeEntry && t(activeEntry.labelKey, activeEntry.defaultLabel)}
                 </h2>
               </div>
 

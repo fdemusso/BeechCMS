@@ -935,6 +935,8 @@
     "searchContent": "Cerca nei contenuti…",
     "searchResults": "Risultati della ricerca",
     "settings": "Impostazioni",
+    "settingsAll": "Impostazioni…",
+    "placeholderSettings": "Apri quali impostazioni?",
     "mediaLibrary": "Media Library",
     "dashboard": "Dashboard",
     "placeholderRoot": "Cerca azioni, contenuti, seed…",
