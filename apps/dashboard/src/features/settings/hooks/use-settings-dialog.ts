@@ -9,7 +9,9 @@ import { resolveSettingsTab } from "../lib/settings-registry"
 
 /** Query param that opens the settings dialog over whatever page is current (`?settings=<tab>`). */
 export const SETTINGS_PARAM = "settings"
-const DEFAULT_TAB: SettingsTab = "profile"
+/** Query param naming the bookmark inside the open tab (`?settings=account&section=password`). */
+export const SETTINGS_SECTION_PARAM = "section"
+const DEFAULT_TAB: SettingsTab = "account"
 
 /**
  * Settings open as an overlay driven by the URL, not as a route: the current page stays mounted (and is blurred by
@@ -20,6 +22,7 @@ export function useSettingsDialog() {
   const param = searchParams.get(SETTINGS_PARAM)
   const open = param !== null
   const tab = resolveSettingsTab(param || DEFAULT_TAB)
+  const section = searchParams.get(SETTINGS_SECTION_PARAM)
 
   const openSettings = useCallback(
     (nextTab: SettingsTab = DEFAULT_TAB, extraParams?: Readonly<Record<string, string>>) => {
@@ -36,11 +39,13 @@ export function useSettingsDialog() {
 
   // Tab changes and closing replace the entry, so Back doesn't walk through every tab the user clicked.
   const setTab = useCallback(
-    (nextTab: SettingsTab) => {
+    (nextTab: SettingsTab, nextSection?: string) => {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev)
           next.set(SETTINGS_PARAM, nextTab)
+          if (nextSection) next.set(SETTINGS_SECTION_PARAM, nextSection)
+          else next.delete(SETTINGS_SECTION_PARAM)
           return next
         },
         { replace: true },
@@ -54,11 +59,12 @@ export function useSettingsDialog() {
       (prev) => {
         const next = new URLSearchParams(prev)
         next.delete(SETTINGS_PARAM)
+        next.delete(SETTINGS_SECTION_PARAM)
         return next
       },
       { replace: true },
     )
   }, [setSearchParams])
 
-  return { open, tab, openSettings, setTab, closeSettings }
+  return { open, tab, section, openSettings, setTab, closeSettings }
 }

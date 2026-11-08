@@ -14,6 +14,7 @@ vi.mock("./general-tab", () => ({ GeneralTab: () => <div>GENERAL_TAB_CONTENT</di
 vi.mock("./interface-tab", () => ({ InterfaceTab: () => <div>INTERFACE_TAB_CONTENT</div> }))
 vi.mock("./security-tab", () => ({ SecurityTab: () => <div>SECURITY_TAB_CONTENT</div> }))
 vi.mock("./storage-tab", () => ({ StorageTab: () => <div>STORAGE_TAB_CONTENT</div> }))
+vi.mock("@/lib/api", () => ({ logout: vi.fn() }))
 vi.mock("./notifications-tab", () => ({ NotificationsTab: () => <div>NOTIFICATIONS_TAB_CONTENT</div> }))
 vi.mock("@/features/oauth-consent", () => ({ ConnectedAppsTab: () => <div>CONNECTED_APPS_CONTENT</div> }))
 vi.mock("@/features/rbac", () => ({
@@ -43,7 +44,7 @@ function basePermissions() {
 }
 
 const renderDialog = (
-  activeTab: SettingsTab = "profile",
+  activeTab: SettingsTab = "account",
   onTabChange = vi.fn(),
   onClose = vi.fn()
 ) => {
@@ -59,60 +60,70 @@ describe("SettingsDialog", () => {
     setPermissions()
   })
 
-  it("renders modal container and active tab content", () => {
-    renderDialog("profile")
+  it("renders the account page by default", () => {
+    renderDialog("account")
     expect(screen.getByText("PROFILE_TAB_CONTENT")).toBeInTheDocument()
+    expect(screen.getByText("SECURITY_TAB_CONTENT")).toBeInTheDocument()
   })
 
   it("calls onClose when close button is clicked", () => {
     const onClose = vi.fn()
-    renderDialog("profile", vi.fn(), onClose)
+    renderDialog("account", vi.fn(), onClose)
 
-    const closeBtn = screen.getByLabelText(/close|chiudi/i)
-    fireEvent.click(closeBtn)
+    fireEvent.click(screen.getByLabelText(/close|chiudi/i))
 
     expect(onClose).toHaveBeenCalled()
   })
 
-  it("zero-trust: only the account group renders, and ?tab=users falls back to Profile", () => {
-    setPermissions()
-    renderDialog("users")
+  it("zero-trust: only personal families render, and a workspace tab falls back to My account", () => {
+    renderDialog("people")
     expect(screen.getByText("PROFILE_TAB_CONTENT")).toBeInTheDocument()
     expect(screen.queryByText("USERS_TAB_CONTENT")).not.toBeInTheDocument()
-    expect(screen.queryByText(/Sito|Site/)).not.toBeInTheDocument()
+    expect(screen.queryByText("Workspace")).not.toBeInTheDocument()
   })
 
-  it("a global manage_users holder sees the Team and Site tabs", () => {
+  it("the open tab unfolds its bookmarks and picking one reports tab and section", () => {
+    const onTabChange = vi.fn()
+    renderDialog("account", onTabChange)
+
+    fireEvent.click(screen.getByRole("button", { name: "Password" }))
+
+    expect(onTabChange).toHaveBeenCalledWith("account", "password")
+  })
+
+  it("a tab that is not open keeps its bookmarks folded", () => {
+    renderDialog("notifications")
+    expect(screen.queryByRole("button", { name: "Password" })).not.toBeInTheDocument()
+  })
+
+  it("a global manage_users holder gets the Workspace family with Users & roles stacked in one page", () => {
     setPermissions({ canGlobally: (p: string) => p === "manage_users", canAnywhere: (p: string) => p === "manage_users" })
-    renderDialog("general", vi.fn())
+    renderDialog("people")
 
-    const generalButtons = screen.getAllByRole("button").filter(
-      (btn) => btn.textContent?.includes("Sito") || btn.textContent?.includes("Site")
-    )
-    expect(generalButtons.length).toBeGreaterThan(0)
-
-    const usersButtons = screen.getAllByRole("button").filter((btn) => btn.textContent?.includes("Team"))
-    expect(usersButtons.length).toBeGreaterThan(0)
-    fireEvent.click(usersButtons[0])
+    expect(screen.getByText("Workspace")).toBeInTheDocument()
+    expect(screen.getByText("USERS_TAB_CONTENT")).toBeInTheDocument()
+    expect(screen.getByText("INVITATIONS_TAB_CONTENT")).toBeInTheDocument()
+    expect(screen.getByText("ROLES_TAB_CONTENT")).toBeInTheDocument()
   })
 
   it("switches tabs when clicking sidebar navigation items", () => {
     setPermissions({ canGlobally: (p: string) => p === "manage_users" })
     const onTabChange = vi.fn()
-    renderDialog("profile", onTabChange)
+    renderDialog("account", onTabChange)
 
-    const generalButtons = screen.getAllByRole("button").filter(
-      (btn) => btn.textContent?.includes("Sito") || btn.textContent?.includes("Site")
-    )
-    expect(generalButtons.length).toBeGreaterThan(0)
-    fireEvent.click(generalButtons[0])
+    fireEvent.click(screen.getAllByRole("button").filter((btn) => btn.textContent === "Site")[0])
 
-    expect(onTabChange).toHaveBeenCalledWith("general")
+    expect(onTabChange).toHaveBeenCalledWith("site")
   })
 
-  it("manage_seeds does not put Content Types in the dialog: the builder is a page", () => {
+  it("ends the list with Log out", () => {
+    renderDialog("account")
+    expect(screen.getByRole("button", { name: /log out|esci/i })).toBeInTheDocument()
+  })
+
+  it("never lists Content Types: the builder is its own page", () => {
     setPermissions({ canGlobally: () => true, canAnywhere: () => true })
-    renderDialog("profile")
+    renderDialog("account")
     expect(screen.queryByText(/Content Types/)).not.toBeInTheDocument()
   })
 })

@@ -124,7 +124,7 @@ export function RootView({
         </CommandItem>
       </CommandGroup>
 
-      {searching && <SettingsItems setOpen={setOpen} />}
+      {searching && <SettingsItems setOpen={setOpen} searching />}
     </>
   )
 }
