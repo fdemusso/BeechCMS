@@ -590,6 +590,11 @@
     "contentLanguages": {
       "title": "Content languages",
       "description": "Languages your content can be translated into. The default language is shown wherever a translation is missing.",
+      "makeDefaultAria": "Make {{language}} the default language",
+      "removeAria": "Remove {{language}} from the content languages",
+      "listLabel": "Content languages in use",
+      "count_one": "{{count}} language",
+      "count_other": "{{count}} languages",
       "defaultBadge": "Default",
       "makeDefault": "Make default",
       "remove": "Remove {{code}}",

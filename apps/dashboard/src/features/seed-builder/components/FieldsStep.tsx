@@ -236,7 +236,7 @@ export function FieldsStep({
                     activeSeedsForRelation={activeSeedsForRelation}
                     onChange={updateBranch}
                     tableEmpty={tableEmpty}
-                    onOpenLanguages={() => openSettings("general")}
+                    onOpenLanguages={() => openSettings("site", { section: "content-languages" })}
                     onOpenDangerZone={onOpenDangerZone}
                   />
                 ) : (
