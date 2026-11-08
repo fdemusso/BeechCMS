@@ -61,8 +61,9 @@ function logDraftActivity(
   note: 'draft saved' | 'draft published' | 'draft discarded'
 ) {
   const actor = context.get('jwtPayload')
+  const action = note === 'draft published' ? 'publish' : note === 'draft discarded' ? 'discard_draft' : 'update'
   context.get('activityLogger').log({
-    action: 'update',
+    action,
     entityType: 'content',
     entityId: id,
     entitySlug: slug,

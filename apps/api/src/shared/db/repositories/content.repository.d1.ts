@@ -1843,7 +1843,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
             SELECT id FROM activity_logs
             WHERE entity_id = ad.id
               AND entity_slug = ad.seed_slug
-              AND action IN ('create', 'update')
+              AND action IN ('create', 'update', 'publish')
             ORDER BY created_at DESC
             LIMIT 1
           )
