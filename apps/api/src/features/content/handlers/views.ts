@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { logActivity } from '../../../shared/services/activity-log/log-activity'
 import type { Context, MiddlewareHandler } from 'hono'
 import type { z } from 'zod'
 import {
@@ -112,6 +113,7 @@ export async function createViewHandler(context: ViewsJsonContext<typeof createC
   )
   const view = projectContentView(record, seed)
   if (!view) return viewNotFound(context)
+  logActivity(context, { action: 'create', entityType: 'view', entityId: record.id, entitySlug: slug, details: { title: input.title ?? type, type } })
   return context.json(view, 201)
 }
 
@@ -142,6 +144,7 @@ export async function updateViewHandler(context: ViewsJsonContext<typeof updateC
   )
   const view = updated ? projectContentView(updated, seed) : null
   if (!view) return viewNotFound(context)
+  logActivity(context, { action: 'update', entityType: 'view', entityId: viewId, entitySlug: slug, details: { title: input.title ?? existingType, type: existingType } })
   return context.json(view, 200)
 }
 
@@ -160,6 +163,7 @@ export async function deleteViewHandler(context: Context<AppEnv, '/:slug/views/:
   if (result === 'last-table') {
     return publicProblem(context, { type: 'content-view-last-table', title: 'Conflict', status: 409, detail: CONTENT_ERRORS.VIEW_LAST_TABLE })
   }
+  logActivity(context, { action: 'delete', entityType: 'view', entityId: viewId, entitySlug: slug, details: { title: existing.title ?? existing.type, type: existing.type } })
   return context.body(null, 204)
 }
 

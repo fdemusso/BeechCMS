@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { logActivity } from '../../shared/services/activity-log/log-activity'
 import { Hono } from 'hono'
 import {
   dashboardLayoutSchema,
@@ -157,6 +158,7 @@ async function putLayout(context: Context<AppEnv, '/', LayoutBodyInput>) {
     .get('dashboardLayoutRepository')
     .save(DEFAULT_DASHBOARD_SCOPE, reconciled.layout, userId, precondition)
   if (!written.ok) return layoutConflictProblem(context)
+  logActivity(context, { action: 'update', entityType: 'layout', entityId: DEFAULT_DASHBOARD_SCOPE })
 
   // Projected, never the raw layout: it holds the re-injected locked widgets.
   const { layout } = filterDashboardLayoutForViewer(reconciled.layout, viewer)
@@ -213,6 +215,7 @@ const dashboardLayoutApp = new Hono<{ Bindings: Env; Variables: Variables }>()
     const removed = await context.get('dashboardLayoutRepository').remove(DEFAULT_DASHBOARD_SCOPE, precondition)
     if (!removed.ok) return layoutConflictProblem(context)
 
+    logActivity(context, { action: 'delete', entityType: 'layout', entityId: DEFAULT_DASHBOARD_SCOPE, details: { op: 'reset' } })
     return context.json({ ok: true }, 200)
   })
 

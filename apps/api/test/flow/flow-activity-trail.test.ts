@@ -211,4 +211,73 @@ describe('Flow: Activity trail', () => {
       expect(row).toMatchObject({ entity_type: 'session', entity_id: sessions[0].id })
     })
   })
+
+  describe('people, roles and access', () => {
+    it('creating and deactivating an account name the account, never the password', async () => {
+      const created = await call('POST', '/api/rbac/users', { email: 'new.hire@example.com', password: 'a-long-enough-pass' })
+      expect(created.status).toBe(201)
+      const { id } = await created.json<{ id: string }>()
+
+      const row = await eventually((rows) => rows.find((r) => r.entity_type === 'user' && r.details?.op === 'create'))
+      expect(row).toMatchObject({ action: 'create', entity_id: id })
+      expect(row.details).toMatchObject({ email: 'new.hire@example.com' })
+      expect(JSON.stringify(row.details)).not.toContain('a-long-enough-pass')
+
+      expect((await call('PATCH', `/api/rbac/users/${id}/active`, { isActive: false })).status).toBe(200)
+      const off = await eventually((rows) => rows.find((r) => r.details?.op === 'deactivate'))
+      expect(off).toMatchObject({ action: 'update', entity_type: 'user', entity_id: id })
+    })
+
+    it('roles, assignments and invitations each leave a line naming what they touched', async () => {
+      const role = await call('POST', '/api/rbac/roles', { name: 'Reviewer', permissions: ['content:read'] })
+      expect(role.status).toBe(201)
+      const { id: roleId } = await role.json<{ id: string }>()
+      await eventually((rows) => rows.find((r) => r.entity_type === 'role' && r.action === 'create' && r.details?.name === 'Reviewer'))
+
+      expect((await call('PUT', `/api/rbac/roles/${roleId}`, { name: 'Reviewer+', permissions: ['content:read', 'content:update'] })).status).toBe(200)
+      await eventually((rows) => rows.find((r) => r.entity_type === 'role' && r.action === 'update' && r.details?.name === 'Reviewer+'))
+
+      const account = await (await call('POST', '/api/rbac/users', { email: 'reviewer@example.com', password: 'a-long-enough-pass' })).json<{ id: string }>()
+      const assignment = await call('POST', '/api/rbac/assignments', { userId: account.id, roleId, scope: '*' })
+      expect(assignment.status).toBe(201)
+      const { id: assignmentId } = await assignment.json<{ id: string }>()
+      const assigned = await eventually((rows) => rows.find((r) => r.entity_type === 'assignment' && r.action === 'create'))
+      expect(assigned.details).toMatchObject({ email: 'reviewer@example.com', role: 'Reviewer+', scope: '*' })
+
+      expect((await call('DELETE', `/api/rbac/assignments/${assignmentId}`)).status).toBe(204)
+      const unassigned = await eventually((rows) => rows.find((r) => r.entity_type === 'assignment' && r.action === 'delete'))
+      expect(unassigned.details).toMatchObject({ email: 'reviewer@example.com', role: 'Reviewer+' })
+
+      const invite = await call('POST', '/api/rbac/invitations', { email: 'invitee@example.com', roleId, scope: '*' })
+      expect(invite.status).toBe(201)
+      const { id: invitationId } = await invite.json<{ id: string }>()
+      await eventually((rows) => rows.find((r) => r.entity_type === 'invitation' && r.action === 'create' && r.details?.email === 'invitee@example.com'))
+
+      expect((await call('DELETE', `/api/rbac/invitations/${invitationId}`)).status).toBe(204)
+      await eventually((rows) => rows.find((r) => r.entity_type === 'invitation' && r.action === 'revoke'))
+
+      expect((await call('DELETE', `/api/rbac/roles/${roleId}`)).status).toBe(204)
+      await eventually((rows) => rows.find((r) => r.entity_type === 'role' && r.action === 'delete' && r.details?.name === 'Reviewer+'))
+    })
+  })
+
+  describe('automations', () => {
+    it('creating, disabling and deleting an automation are logged by name', async () => {
+      const created = await call('POST', '/api/automations', {
+        seed_slug: 'posts', name: 'notify-on-create', triggers: [{ event: 'create' }],
+        actions: [{ type: 'webhook', url: 'https://example.com/hook', body_template: '{}' }],
+      })
+      expect(created.status).toBe(201)
+      const { id } = await created.json<{ id: string }>()
+      await eventually((rows) => rows.find((r) => r.entity_type === 'automation' && r.action === 'create'))
+
+      expect((await call('PATCH', `/api/automations/${id}/toggle`, { enabled: false })).status).toBe(204)
+      const off = await eventually((rows) => rows.find((r) => r.entity_type === 'automation' && r.details?.op === 'disable'))
+      expect(off).toMatchObject({ entity_id: id, entity_slug: 'posts' })
+      expect(off.details).toMatchObject({ name: 'notify-on-create' })
+
+      expect((await call('DELETE', `/api/automations/${id}`)).status).toBe(204)
+      await eventually((rows) => rows.find((r) => r.entity_type === 'automation' && r.action === 'delete'))
+    })
+  })
 })

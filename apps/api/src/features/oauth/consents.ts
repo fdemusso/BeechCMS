@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { logActivity } from '../../shared/services/activity-log/log-activity'
 import type { Context } from 'hono'
 import type { OAuthScope } from '@beechcms/core'
 import type { AppEnv, Env, Variables } from '../../types'
@@ -119,5 +120,7 @@ export async function revokeConsentHandler(context: Context<AppEnv, '/oauth/cons
   if (!consentRevoked && tokensRevoked === 0) {
     return context.json({ error: 'not_found', error_description: 'no active authorization for this client' }, 404)
   }
+  const client = await context.get('oauthClientRepository').findActiveById(clientId)
+  logActivity(context, { action: 'revoke', entityType: 'app', entityId: clientId, details: { client: client?.name ?? clientId, tokensRevoked } })
   return context.json({ revoked: true, tokensRevoked }, 200)
 }

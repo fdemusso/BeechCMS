@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { logActivity } from '../../shared/services/activity-log/log-activity'
 import type { AccountSummary, PermissionAssignment } from '@beechcms/core'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { RBAC_ERRORS } from './constants'
@@ -86,6 +87,7 @@ export const createUserHandler = async (context: JsonContext<typeof createUserSc
   const created = await userRepository.findAccountById(id)
   if (!created) throw new Error(`Account ${id} vanished right after it was created.`)
 
+  logActivity(context, { action: 'create', entityType: 'user', entityId: id, details: { op: 'create', email } })
   return context.json({ ...created, assignments: [] }, 201)
 }
 
@@ -148,6 +150,7 @@ export const setUserActiveHandler = async (context: JsonContext<typeof setActive
     await context.get('sessionRepository').revokeAllForUser(userId, context.get('clock').nowSeconds())
   }
 
+  logActivity(context, { action: 'update', entityType: 'user', entityId: userId, details: { op: isActive ? 'activate' : 'deactivate', email: target.email } })
   return context.json({ id: userId, isActive }, 200)
 }
 

@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { logActivity } from '../../shared/services/activity-log/log-activity'
 import { GLOBAL_SCOPE, canGrant, hasPermission } from '@beechcms/core'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { sendInvitationEmail, resolveEmailLocale, type EmailLocale } from '../../shared/email'
@@ -149,6 +150,7 @@ export const createInvitationHandler = async (context: JsonContext<typeof create
     locale: resolveEmailLocale(input.locale),
   })
 
+  logActivity(context, { action: 'create', entityType: 'invitation', entityId: id, details: { email, role: role.name, scope } })
   return context.json({ id, email, roleId, scope, expiresAt, inviteUrl }, 201)
 }
 
@@ -266,6 +268,7 @@ export const regenerateInvitationHandler = async (context: AppContext) => {
     locale: resolveEmailLocale(undefined),
   })
 
+  logActivity(context, { action: 'update', entityType: 'invitation', entityId: invitationId, details: { op: 'regenerate', email: row.email, role: role.name, scope: row.scope } })
   return context.json({ id: invitationId, expiresAt, inviteUrl }, 200)
 }
 
@@ -288,5 +291,6 @@ export const revokeInvitationHandler = async (context: AppContext) => {
 
   const deleted = await invitationRepository.delete(invitationId)
   if (!deleted) return notFound()
+  logActivity(context, { action: 'revoke', entityType: 'invitation', entityId: invitationId, details: { email: row.email, scope: row.scope } })
   return context.body(null, 204)
 }

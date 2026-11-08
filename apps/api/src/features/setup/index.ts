@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { logActivity, requestOrigin } from '../../shared/services/activity-log/log-activity'
 import { Hono } from 'hono'
 import type { Context, MiddlewareHandler } from 'hono'
 import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME, isValidAccountEmail } from '@beechcms/core'
@@ -285,6 +286,12 @@ const setupApp = new Hono<AppEnv>()
         detail: 'An administrator account already exists. Initial setup can only be performed once.',
       })
     }
+
+    logActivity(context, {
+      action: 'create', entityType: 'user', entityId: adminUserId,
+      details: { op: 'setup', email: normalizedEmail, ...requestOrigin(context) },
+      actor: { id: adminUserId, email: normalizedEmail, name: [normalizedName, normalizedSurname].filter(Boolean).join(' ') || null },
+    })
 
     if (track === 'developer' && loadDemoData === true) {
       try {

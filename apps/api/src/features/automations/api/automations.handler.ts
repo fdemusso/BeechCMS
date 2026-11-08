@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { logActivity } from '../../../shared/services/activity-log/log-activity'
 import { Hono } from 'hono'
 import type { Context, MiddlewareHandler } from 'hono'
 import type { z } from 'zod'
@@ -90,6 +91,7 @@ const automationsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       trigger_conditions: body.trigger_conditions ?? null,
       actions: body.actions,
     })
+    logActivity(context, { action: 'create', entityType: 'automation', entityId: id, entitySlug: body.seed_slug, details: { name: body.name } })
     return context.json({ id }, 201)
   })
   /**
@@ -107,7 +109,11 @@ const automationsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
    * is enforced by the triggers array schema.
    */
   .put('/:id', requireAutomation, zodJson(updateAutomationSchema, rejectInvalidAutomationBody), async (context) => {
-    await context.get('automationRepository').update(context.req.param('id'), context.req.valid('json'))
+    const id = context.req.param('id')
+    const body = context.req.valid('json')
+    const before = await context.get('automationRepository').findById(id)
+    await context.get('automationRepository').update(id, body)
+    logActivity(context, { action: 'update', entityType: 'automation', entityId: id, entitySlug: before?.seed_slug, details: { name: body.name ?? before?.name ?? id } })
     return context.body(null, 204)
   })
   /**
@@ -115,14 +121,21 @@ const automationsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
    * Atomic single-field flip — does not require sending the full body.
    */
   .patch('/:id/toggle', requireAutomation, zodJson(toggleAutomationSchema, rejectInvalidAutomationBody), async (context) => {
-    await context.get('automationRepository').toggle(context.req.param('id'), context.req.valid('json').enabled)
+    const id = context.req.param('id')
+    const { enabled } = context.req.valid('json')
+    const target = await context.get('automationRepository').findById(id)
+    await context.get('automationRepository').toggle(id, enabled)
+    logActivity(context, { action: 'update', entityType: 'automation', entityId: id, entitySlug: target?.seed_slug, details: { name: target?.name ?? id, op: enabled ? 'enable' : 'disable' } })
     return context.body(null, 204)
   })
   /**
    * DELETE /automations/:id
    */
   .delete('/:id', requireAutomation, async (context) => {
-    await context.get('automationRepository').delete(context.req.param('id'))
+    const id = context.req.param('id')
+    const doomed = await context.get('automationRepository').findById(id)
+    await context.get('automationRepository').delete(id)
+    logActivity(context, { action: 'delete', entityType: 'automation', entityId: id, entitySlug: doomed?.seed_slug, details: { name: doomed?.name ?? id } })
     return context.body(null, 204)
   })
 

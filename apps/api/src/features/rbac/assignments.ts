@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { logActivity } from '../../shared/services/activity-log/log-activity'
 import { GLOBAL_SCOPE, canGrant, hasPermission } from '@beechcms/core'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { RBAC_ERRORS } from './constants'
@@ -90,6 +91,7 @@ export const createAssignmentHandler = async (context: JsonContext<typeof create
   }
 
   const id = await context.get('roleAssignmentRepository').create({ userId, roleId, scope })
+  logActivity(context, { action: 'create', entityType: 'assignment', entityId: id, details: { email: target.email, role: role.name, scope } })
   return context.json({ id, userId, roleId, scope }, 201)
 }
 
@@ -116,6 +118,12 @@ export const deleteAssignmentHandler = async (context: AppContext) => {
   const result = await assignmentRepository.delete(assignmentId)
   if (result === 'not-found') return notFound()
   if (result === 'last-global-admin') return lastAdminProblem(context)
+
+  const [holder, removedRole] = await Promise.all([
+    context.get('userRepository').findById(assignment.userId),
+    context.get('roleRepository').findById(assignment.roleId),
+  ])
+  logActivity(context, { action: 'delete', entityType: 'assignment', entityId: assignmentId, details: { email: holder?.email ?? assignment.userId, role: removedRole?.name ?? assignment.roleId, scope: assignment.scope } })
   return context.body(null, 204)
 }
 
