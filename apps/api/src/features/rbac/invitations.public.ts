@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { logActivity, requestOrigin } from '../../shared/services/activity-log/log-activity'
 import type { MiddlewareHandler } from 'hono'
 import { GLOBAL_SCOPE, buildEffectivePermissions, canGrant, hasPermission, isValidAccountEmail, sha256hex, type EffectivePermissions } from '@beechcms/core'
 import { getClientIp } from '../../shared/utils/request-utils'
@@ -131,5 +132,11 @@ export const acceptInvitationHandler = async (context: JsonContext<typeof accept
     throw error
   }
 
+  // The new account's own history starts here: who it joined as, and from where.
+  logActivity(context, {
+    action: 'accept', entityType: 'invitation', entityId: invitation.id,
+    details: { role: role.name, scope: invitation.scope, ...requestOrigin(context) },
+    actor: { id: userId, email: invitation.email, name: [input.name, input.surname].filter(Boolean).join(' ') || null },
+  })
   return context.json({ id: userId, email: invitation.email }, 201)
 }

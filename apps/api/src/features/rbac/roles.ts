@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { logActivity } from '../../shared/services/activity-log/log-activity'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { RBAC_ERRORS } from './constants'
 import { canMutateRole, holdsAll, rbacProblem, type AppContext, type JsonContext } from './guards'
@@ -44,6 +45,7 @@ export const createRoleHandler = async (context: JsonContext<typeof roleBodySche
       icon: input.icon ?? null,
       permissions: input.permissions,
     })
+    logActivity(context, { action: 'create', entityType: 'role', entityId: id, details: { name: input.name } })
     return context.json({ id }, 201)
   } catch (error) {
     // `roles.name` is UNIQUE: the constraint, not a read of the whole catalogue, is the arbiter.
@@ -109,6 +111,7 @@ export const updateRoleHandler = async (context: JsonContext<typeof roleBodySche
     throw error
   }
 
+  logActivity(context, { action: 'update', entityType: 'role', entityId: roleId, details: { name: input.name } })
   return context.json({ id: roleId }, 200)
 }
 
@@ -149,6 +152,7 @@ export const deleteRoleHandler = async (context: AppContext) => {
   if (result === 'not-found') return notFound()
   if (result === 'last-global-admin') return lastAdminRoleProblem(context)
 
+  logActivity(context, { action: 'delete', entityType: 'role', entityId: roleId, details: { name: role.name } })
   return context.body(null, 204)
 }
 
