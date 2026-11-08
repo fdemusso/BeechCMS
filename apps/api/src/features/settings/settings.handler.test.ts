@@ -291,6 +291,9 @@ describe('Settings Handler', () => {
       expect(body.email).toBe('test@beechcms.com')
       expect(body.surname).toBe('User')
       expect(body.avatarUrl).toContain('gravatar.com')
+      // d=404: no Gravatar on file means initials, not the generic silhouette.
+      expect(body.avatarUrl).toContain('d=404')
+      expect(body.hasCustomAvatar).toBe(false)
       expect(body.notificationPrefs.contentUpdate).toBe(false)
       expect(body.manageableScopes).toEqual([])
     })
