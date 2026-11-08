@@ -8,9 +8,7 @@ import { toast } from 'sonner'
 import { Loader as Loader2, Monitor as MonitorSmartphone, Trash2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +22,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useSessions, useRevokeSession, useSettingsActivity } from '../hooks/use-settings'
 import type { ActivityEntry, Session } from '../types/settings.types'
+import { SettingsSection } from './settings-section'
 
 const ACTION_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   create: 'default',
@@ -31,6 +30,8 @@ const ACTION_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | '
   delete: 'destructive',
   upload: 'outline',
 }
+
+const ROW = 'flex items-center justify-between gap-4 border-b border-border py-4'
 
 function formatDate(ts: number): string {
   return new Date(ts * 1000).toLocaleString('it-IT', {
@@ -56,12 +57,12 @@ function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: st
   }
 
   return (
-    <div className="flex items-center justify-between py-3 border-b last:border-0">
-      <div className="flex items-center gap-3">
-        <MonitorSmartphone className="size-4 text-muted-foreground shrink-0" />
-        <div>
-          <p className="text-sm font-medium">{t('settings.security.sessionActive')}</p>
-          <p className="text-xs text-muted-foreground">
+    <div className={ROW}>
+      <div className="flex min-w-0 items-center gap-3">
+        <MonitorSmartphone className="size-4 shrink-0 text-muted-foreground" />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">{t('settings.security.sessionActive')}</p>
+          <p className="text-sm text-muted-foreground">
             {t('settings.security.sessionInfo', {
               created: formatDate(session.created_at),
               expires: formatDate(session.expires_at),
@@ -71,7 +72,7 @@ function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: st
       </div>
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive">
+          <Button variant="ghost" size="icon" className="size-8 shrink-0 text-muted-foreground hover:text-destructive">
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
           </Button>
         </AlertDialogTrigger>
@@ -97,76 +98,74 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
   const title = typeof details.title === 'string' ? details.title : entry.entity_slug ?? entry.entity_type
 
   return (
-    <div className="flex items-center justify-between py-3 border-b last:border-0">
-      <div className="flex items-center gap-3">
+    <div className={ROW}>
+      <div className="flex min-w-0 items-center gap-3">
         <Badge variant={ACTION_VARIANT[entry.action] ?? 'secondary'} className="shrink-0 capitalize">
           {t(`settings.security.actions.${entry.action}`, { defaultValue: entry.action })}
         </Badge>
-        <div>
-          <p className="text-sm font-medium truncate max-w-xs">{title}</p>
-          <p className="text-xs text-muted-foreground">{entry.entity_slug ?? entry.entity_type}</p>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-foreground">{title}</p>
+          <p className="truncate text-sm text-muted-foreground">{entry.entity_slug ?? entry.entity_type}</p>
         </div>
       </div>
-      <span className="text-xs text-muted-foreground shrink-0 ml-4">{formatDate(entry.created_at)}</span>
+      <span className="shrink-0 text-sm text-muted-foreground">{formatDate(entry.created_at)}</span>
     </div>
   )
 }
 
-export function SecurityTab() {
+/** Open login sessions, one row each. */
+export function SessionsSection() {
   const { t } = useTranslation()
-  const { data: sessions, isLoading: sessionsLoading } = useSessions()
-  const { data: activity, isLoading: activityLoading } = useSettingsActivity()
+  const { data: sessions, isLoading } = useSessions()
   const revokeSession = useRevokeSession()
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('settings.security.sessionsTitle')}</CardTitle>
-          <CardDescription>{t('settings.security.sessionsDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {sessionsLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
-          ) : !sessions?.length ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">{t('settings.security.noSessions')}</p>
-          ) : (
-            <div>
-              {sessions.map(session => (
-                <SessionRow
-                  key={session.id}
-                  session={session}
-                  onRevoke={(id) => revokeSession.mutateAsync(id)}
-                />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <SettingsSection id="sessions" title={t('settings.security.sessionsTitle')} description={t('settings.security.sessionsDesc')}>
+      {isLoading ? (
+        <div className="space-y-3 py-4">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+        </div>
+      ) : !sessions?.length ? (
+        <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('settings.security.noSessions')}</p>
+      ) : (
+        sessions.map(session => (
+          <SessionRow
+            key={session.id}
+            session={session}
+            onRevoke={(id) => revokeSession.mutateAsync(id)}
+          />
+        ))
+      )}
+    </SettingsSection>
+  )
+}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('settings.security.activityTitle')}</CardTitle>
-          <CardDescription>{t('settings.security.activityDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {activityLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
-          ) : !activity?.length ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">{t('settings.security.noActivity')}</p>
-          ) : (
-            <ScrollArea className="h-72">
-              {activity.map(entry => (
-                <ActivityRow key={entry.id} entry={entry} />
-              ))}
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+/** The latest actions made with this account, one row each. */
+export function ActivitySection() {
+  const { t } = useTranslation()
+  const { data: activity, isLoading } = useSettingsActivity()
+
+  return (
+    <SettingsSection id="activity" title={t('settings.security.activityTitle')} description={t('settings.security.activityDesc')}>
+      {isLoading ? (
+        <div className="space-y-3 py-4">
+          {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+        </div>
+      ) : !activity?.length ? (
+        <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('settings.security.noActivity')}</p>
+      ) : (
+        activity.map(entry => <ActivityRow key={entry.id} entry={entry} />)
+      )}
+    </SettingsSection>
+  )
+}
+
+/** Sessions and activity, in page order. */
+export function SecurityTab() {
+  return (
+    <>
+      <SessionsSection />
+      <ActivitySection />
+    </>
   )
 }

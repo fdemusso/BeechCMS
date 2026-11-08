@@ -524,6 +524,7 @@
       "infoTitle": "Informazioni profilo",
       "infoDesc": "Aggiorna il tuo nome, email e foto profilo.",
       "noName": "Nessun nome",
+      "photoLabel": "Foto",
       "changePhoto": "Cambia foto",
       "nameLabel": "Nome",
       "namePlaceholder": "Il tuo nome",
