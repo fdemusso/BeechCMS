@@ -283,9 +283,10 @@ export function SettingsDialog({
           </aside>
 
           {/* Right Panel Main Active Tab Container */}
-          <main className="flex-1 flex flex-col min-w-0 bg-background overflow-hidden">
+          {/* Light: --background already sits above --sidebar. Dark: it sits below, so the page is the sidebar colour plus a touch of white. */}
+          <main className="flex-1 flex flex-col min-w-0 bg-background dark:bg-[color-mix(in_oklch,var(--sidebar),white_6%)] overflow-hidden">
             {/* Active Tab Header */}
-            <header className="px-6 h-16 border-b border-border/50 flex items-center justify-between shrink-0 bg-background/50">
+            <header className="px-6 h-16 border-b border-border/50 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
                 <ActiveIcon className="size-4 text-muted-foreground shrink-0" />
                 <h2 className="font-heading text-base font-semibold tracking-tight text-foreground">
