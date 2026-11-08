@@ -16,14 +16,13 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
 import { ProfileTab } from "./profile-tab"
-import { InterfaceTab } from "./interface-tab"
+import { PreferencesTab } from "./preferences-tab"
 import { SecurityTab } from "./security-tab"
 import { StorageTab } from "./storage-tab"
-import { NotificationsTab } from "./notifications-tab"
 import { GeneralTab } from "./general-tab"
 import { ConnectedAppsTab } from "@/features/oauth-consent"
 import { usePermissions } from "@/features/shared"
-import { UsersTab, RolesTab, InvitationsTab } from "@/features/rbac"
+import { TeamTab } from "./team-tab"
 import type { SettingsTab } from "../types/settings.types"
 import {
   SETTINGS_GROUP_LABELS,
@@ -52,24 +51,18 @@ function TabContent({ tab }: { readonly tab: SettingsTab }) {
   switch (tab) {
     case "profile":
       return <ProfileTab />
-    case "interface":
-      return <InterfaceTab />
+    case "preferences":
+      return <PreferencesTab />
     case "security":
       return <SecurityTab />
     case "storage":
       return <StorageTab />
-    case "notifications":
-      return <NotificationsTab />
     case "general":
       return <GeneralTab />
     case "connected-apps":
       return <ConnectedAppsTab />
-    case "users":
-      return <UsersTab />
-    case "roles":
-      return <RolesTab />
-    case "invitations":
-      return <InvitationsTab />
+    case "team":
+      return <TeamTab />
     default:
       return <ProfileTab />
   }

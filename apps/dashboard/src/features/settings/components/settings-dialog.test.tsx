@@ -82,7 +82,7 @@ describe("SettingsDialog", () => {
     expect(screen.queryByText(/Sito|Site/)).not.toBeInTheDocument()
   })
 
-  it("a global manage_users holder sees the Access group and the Site tab", () => {
+  it("a global manage_users holder sees the Team and Site tabs", () => {
     setPermissions({ canGlobally: (p: string) => p === "manage_users", canAnywhere: (p: string) => p === "manage_users" })
     renderDialog("general", vi.fn())
 
@@ -91,7 +91,7 @@ describe("SettingsDialog", () => {
     )
     expect(generalButtons.length).toBeGreaterThan(0)
 
-    const usersButtons = screen.getAllByRole("button").filter((btn) => btn.textContent?.includes("Users"))
+    const usersButtons = screen.getAllByRole("button").filter((btn) => btn.textContent?.includes("Team"))
     expect(usersButtons.length).toBeGreaterThan(0)
     fireEvent.click(usersButtons[0])
   })

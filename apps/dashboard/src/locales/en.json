@@ -435,7 +435,7 @@
     "title": "Settings",
     "groups": {
       "account": "Account",
-      "system": "System & UI",
+      "system": "Workspace",
       "models": "Data Models",
       "access": "Access"
     },
@@ -445,6 +445,8 @@
       "security": "Security",
       "storage": "Storage",
       "notifications": "Notifications",
+      "preferences": "Preferences",
+      "team": "Team",
       "general": "Site",
       "connectedApps": "Connected apps",
       "users": "Users",

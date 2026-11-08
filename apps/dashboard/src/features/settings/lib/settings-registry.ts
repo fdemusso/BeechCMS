@@ -8,12 +8,9 @@ import {
   Palette,
   Shield,
   HardDrive,
-  Bell,
   Settings,
   Key,
   Users,
-  ShieldCheck,
-  Mailbox as Mail,
 } from "@/components/icons"
 import type { SettingsTab } from "../types/settings.types"
 
@@ -23,7 +20,7 @@ export interface SettingsGates {
   canAnywhere: (permission: Permission) => boolean
 }
 
-export type SettingsGroupId = "account" | "system" | "access"
+export type SettingsGroupId = "account" | "system"
 
 export interface SettingsEntry {
   readonly id: SettingsTab
@@ -37,13 +34,21 @@ export interface SettingsEntry {
   readonly isVisible: (gates: SettingsGates) => boolean
 }
 
-export const SETTINGS_GROUP_ORDER: readonly SettingsGroupId[] = ["account", "system", "access"]
+export const SETTINGS_GROUP_ORDER: readonly SettingsGroupId[] = ["account", "system"]
 
 export const SETTINGS_GROUP_LABELS: Record<SettingsGroupId, { key: string; defaultLabel: string }> = {
   account: { key: "settings.groups.account", defaultLabel: "Account" },
-  system: { key: "settings.groups.system", defaultLabel: "System & UI" },
-  access: { key: "settings.groups.access", defaultLabel: "Access" },
+  system: { key: "settings.groups.system", defaultLabel: "Workspace" },
 }
+
+/** The sections of the Team tab, each with the gate of the API it calls. */
+export const TEAM_SECTIONS = [
+  { id: "users", labelKey: "settings.tabs.users", defaultLabel: "Users", isVisible: (g: SettingsGates) => g.canAnywhere("manage_users") },
+  { id: "roles", labelKey: "settings.tabs.roles", defaultLabel: "Roles", isVisible: (g: SettingsGates) => g.canAnywhere("manage_users") || g.canAnywhere("manage_roles") },
+  { id: "invitations", labelKey: "settings.tabs.invitations", defaultLabel: "Invitations", isVisible: (g: SettingsGates) => g.canAnywhere("manage_users") },
+] as const
+
+export type TeamSectionId = (typeof TEAM_SECTIONS)[number]["id"]
 
 /**
  * Single source of truth for every settings tab: the dialog sidebar and the command palette both read it,
@@ -61,13 +66,13 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     isVisible: () => true,
   },
   {
-    id: "connected-apps", groupId: "account", labelKey: "settings.tabs.connectedApps", defaultLabel: "Connected apps", icon: Key,
-    keywords: ["app collegate", "oauth", "mcp", "token", "authorized"],
+    id: "preferences", groupId: "account", labelKey: "settings.tabs.preferences", defaultLabel: "Preferences", icon: Palette,
+    keywords: ["preferenze", "interfaccia", "interface", "tema", "theme", "lingua", "language", "notifiche", "notifications", "alerts"],
     isVisible: () => true,
   },
   {
-    id: "notifications", groupId: "account", labelKey: "settings.tabs.notifications", defaultLabel: "Notifications", icon: Bell,
-    keywords: ["notifiche", "alerts", "email"],
+    id: "connected-apps", groupId: "account", labelKey: "settings.tabs.connectedApps", defaultLabel: "Connected apps", icon: Key,
+    keywords: ["app collegate", "oauth", "mcp", "token", "authorized"],
     isVisible: () => true,
   },
   {
@@ -76,31 +81,30 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     isVisible: (g) => g.canGlobally("manage_users"),
   },
   {
-    id: "interface", groupId: "system", labelKey: "settings.tabs.interface", defaultLabel: "Interface", icon: Palette,
-    keywords: ["interfaccia", "tema", "theme", "lingua dashboard", "language"],
-    isVisible: () => true,
+    id: "team", groupId: "system", labelKey: "settings.tabs.team", defaultLabel: "Team", icon: Users,
+    keywords: ["utenti", "users", "ruoli", "roles", "permessi", "permissions", "rbac", "inviti", "invitations", "invita", "invite", "membri", "members"],
+    isVisible: (g) => TEAM_SECTIONS.some((section) => section.isVisible(g)),
   },
   {
     id: "storage", groupId: "system", labelKey: "settings.tabs.storage", defaultLabel: "Storage", icon: HardDrive,
     keywords: ["spazio", "r2", "media", "quota", "usage"],
     isVisible: (g) => g.canGlobally("view_analytics"),
   },
-  {
-    id: "users", groupId: "access", labelKey: "settings.tabs.users", defaultLabel: "Users", icon: Users,
-    keywords: ["utenti", "team", "membri", "members"],
-    isVisible: (g) => g.canAnywhere("manage_users"),
-  },
-  {
-    id: "roles", groupId: "access", labelKey: "settings.tabs.roles", defaultLabel: "Roles", icon: ShieldCheck,
-    keywords: ["ruoli", "permessi", "permissions", "rbac"],
-    isVisible: (g) => g.canAnywhere("manage_users") || g.canAnywhere("manage_roles"),
-  },
-  {
-    id: "invitations", groupId: "access", labelKey: "settings.tabs.invitations", defaultLabel: "Invitations", icon: Mail,
-    keywords: ["inviti", "invita", "invite", "nuovo utente"],
-    isVisible: (g) => g.canAnywhere("manage_users"),
-  },
 ]
+
+/** Tabs that were merged into another: old links (`?settings=roles`, `/settings?tab=interface`) keep working. */
+const LEGACY_TABS: Readonly<Record<string, SettingsTab>> = {
+  interface: "preferences",
+  notifications: "preferences",
+  users: "team",
+  roles: "team",
+  invitations: "team",
+}
+
+/** Maps a raw `?settings=` value to a tab id, following the merges above; unknown values pass through. */
+export function resolveSettingsTab(raw: string): SettingsTab {
+  return (LEGACY_TABS[raw] ?? raw) as SettingsTab
+}
 
 /** Entries the caller may see, in sidebar order. */
 export function getVisibleSettingsEntries(gates: SettingsGates): SettingsEntry[] {
