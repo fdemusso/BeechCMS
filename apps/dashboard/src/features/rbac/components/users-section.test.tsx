@@ -68,8 +68,9 @@ describe("UsersSection", () => {
     })
     renderTab()
 
-    const rows = screen.getAllByRole("listitem")
-    expect(rows[0]).toHaveTextContent("me@beech.local")
+    const rows = screen.getAllByRole("row")
+    // rows[0] is the header row, rows[1] is the first user row
+    expect(rows[1]).toHaveTextContent("me@beech.local")
   })
 
   it("every active account other than the caller has an enabled status switch", () => {
