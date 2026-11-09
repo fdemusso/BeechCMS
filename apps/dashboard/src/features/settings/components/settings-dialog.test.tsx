@@ -234,4 +234,16 @@ describe("SettingsDialog", () => {
       await waitFor(() => expect(current).toHaveFocus())
     })
   })
+
+  describe("opening and closing", () => {
+    it("fades the dialog and its backdrop in over 220ms and out 20% quicker, with no zoom", () => {
+      renderDialog("account")
+      const content = document.querySelector('[data-slot="dialog-content"]')!
+      const overlay = document.querySelector('[data-slot="dialog-overlay"]')!
+      for (const element of [content, overlay]) {
+        expect(element).toHaveClass("data-open:duration-[220ms]", "data-closed:duration-[176ms]")
+      }
+      expect(content).toHaveClass("data-open:zoom-in-100", "data-closed:zoom-out-100")
+    })
+  })
 })

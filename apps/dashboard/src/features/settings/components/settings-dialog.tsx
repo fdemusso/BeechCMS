@@ -163,7 +163,10 @@ export function SettingsDialog({
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose() }}>
       <DialogContent
         showCloseButton={false}
-        className="flex flex-col sm:max-w-3xl md:max-w-5xl lg:max-w-6xl h-[85vh] max-h-[calc(100vh-3rem)] p-0 gap-0 overflow-hidden border-border/80 bg-background shadow-2xl"
+        // A plain fade, 220ms in and 20% quicker (176ms) out, for the dialog and for the backdrop behind it: the zoom the
+        // dialog normally carries is cancelled, so only the opacity moves.
+        className="flex flex-col sm:max-w-3xl md:max-w-5xl lg:max-w-6xl h-[85vh] max-h-[calc(100vh-3rem)] p-0 gap-0 overflow-hidden border-border/80 bg-background shadow-2xl data-open:zoom-in-100 data-open:duration-[220ms] data-closed:zoom-out-100 data-closed:duration-[176ms]"
+        overlayClassName="data-open:duration-[220ms] data-closed:duration-[176ms]"
         // The focus starts on the entry of the page that is open: the keyboard begins where the sidebar says you are.
         onOpenAutoFocus={(e) => {
           e.preventDefault()
