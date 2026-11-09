@@ -10,6 +10,7 @@ import { Clock, Image as FileImage } from '@/components/icons'
 import { rpc } from "@/lib/rpc"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { StatusBadge, isStatus } from "@/components/ui/status-badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardWidgetShell } from "../dashboard-widget-shell"
 import type { ContentEntry } from "@/lib/dynamic-columns"
@@ -27,10 +28,10 @@ export interface RecentContentWidgetProps {
   title?: string
 }
 
-function statusVariant(status: string): string {
-  if (status === "published") return "bg-status-live-soft text-status-live-foreground border-status-live/30"
-  if (status === "draft") return "bg-status-warning-soft text-status-warning-foreground border-status-warning/30"
-  return "bg-muted text-muted-foreground border-border"
+/** A known status as a StatusBadge; a status this widget does not know stays a neutral outline badge. */
+function EntryStatus({ status }: { readonly status: string }) {
+  if (isStatus(status)) return <StatusBadge status={status} />
+  return <Badge variant="outline" className="shrink-0 text-xs">{status}</Badge>
 }
 
 function entryTitle(entry: ContentEntry): string {
@@ -134,7 +135,7 @@ export function RecentContentWidget({ seedSlug, variant = "list", title }: Recen
                   <div className="flex flex-col flex-1 p-2">
                     <p className="text-xs font-medium line-clamp-2 flex-1">{entryTitle(entry)}</p>
                     <div className="flex items-center justify-between gap-1 mt-auto pt-2">
-                      <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium border", statusVariant(entry.status))}>{entry.status}</span>
+                      <EntryStatus status={entry.status} />
                       <span className="text-xs text-muted-foreground">{relativeTime(entry.updated_at)}</span>
                     </div>
                   </div>
@@ -170,9 +171,7 @@ export function RecentContentWidget({ seedSlug, variant = "list", title }: Recen
               >
                 {entryTitle(entry)}
               </Link>
-              <Badge className={cn("shrink-0 text-xs border", statusVariant(entry.status))} variant="outline">
-                {entry.status}
-              </Badge>
+              <EntryStatus status={entry.status} />
               <span className="text-xs text-muted-foreground shrink-0 tabular-nums ml-auto sm:ml-0">{relativeTime(entry.updated_at)}</span>
             </div>
           </li>
