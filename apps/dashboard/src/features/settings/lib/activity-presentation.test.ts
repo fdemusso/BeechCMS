@@ -18,9 +18,13 @@ void instance.init({
 const t = (key: string, options?: Record<string, unknown>) => instance.t(key, options) as string
 const tIt = (key: string, options?: Record<string, unknown>) => instance.getFixedT("it")(key, options) as string
 
-function entry(partial: Partial<ActivityEntry> & { action: string; entity_type: string }, details: unknown = null): ActivityEntry {
+/** A row as the API sends it. Actions and entity types are plain strings here so a test can also send one the dashboard has never heard of. */
+function entry(
+  partial: { action: string; entity_type: string; entity_id?: string; entity_slug?: string | null },
+  details: unknown = null,
+): ActivityEntry {
   return {
-    id: "x", entity_slug: null, created_at: 1_700_000_000,
+    id: "x", entity_id: "e1", entity_slug: null, created_at: 1_700_000_000,
     details: details === null ? null : JSON.stringify(details),
     ...partial,
   } as unknown as ActivityEntry
