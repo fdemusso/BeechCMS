@@ -4,29 +4,15 @@
 
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
-
-export type Status = "published" | "draft" | "scheduled" | "failed" | "archived"
+import { STATUS_TONE, type Status, type StatusTone } from "./status"
 
 // Full class strings, so Tailwind sees every utility. Neutral has no colour of its own: it is muted.
-const TONE = {
+const TONE: Record<StatusTone, { readonly dot: string; readonly badge: string }> = {
   live: { dot: "bg-status-live", badge: "bg-status-live-soft text-status-live-foreground" },
   warning: { dot: "bg-status-warning", badge: "bg-status-warning-soft text-status-warning-foreground" },
   info: { dot: "bg-status-info", badge: "bg-status-info-soft text-status-info-foreground" },
   danger: { dot: "bg-status-danger", badge: "bg-status-danger-soft text-status-danger-foreground" },
   neutral: { dot: "bg-muted-foreground", badge: "bg-muted text-muted-foreground" },
-} as const
-
-const STATUS: Record<Status, keyof typeof TONE> = {
-  published: "live",
-  draft: "warning",
-  scheduled: "info",
-  failed: "danger",
-  archived: "neutral",
-}
-
-/** Whether a free-form status string is one of the statuses the badge knows. */
-export function isStatus(value: string): value is Status {
-  return Object.hasOwn(STATUS, value)
 }
 
 interface StatusBadgeProps {
@@ -37,7 +23,7 @@ interface StatusBadgeProps {
 /** The only way to show a content or job status (_config/design_system.html#components). */
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const { t } = useTranslation()
-  const tone = TONE[STATUS[status]]
+  const tone = TONE[STATUS_TONE[status]]
 
   return (
     <span
