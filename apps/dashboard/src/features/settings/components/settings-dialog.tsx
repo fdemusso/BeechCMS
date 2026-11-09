@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { logout } from "@/lib/api"
-import { sectionDomId } from "@/components/ui/settings-section"
+import { sectionDomId } from "@/components/ui/settings-section-ids"
 
 import { AccountTab } from "./account-tab"
 import { AppearanceTab } from "./appearance-tab"
@@ -165,8 +165,8 @@ export function SettingsDialog({
         showCloseButton={false}
         // A plain fade, 220ms in and 20% quicker (176ms) out, for the dialog and for the backdrop behind it: the zoom the
         // dialog normally carries is cancelled, so only the opacity moves.
-        className="flex flex-col sm:max-w-3xl md:max-w-5xl lg:max-w-6xl h-[85vh] max-h-[calc(100vh-3rem)] p-0 gap-0 overflow-hidden border-border/80 bg-background shadow-2xl data-open:zoom-in-100 data-open:duration-[220ms] data-closed:zoom-out-100 data-closed:duration-[176ms]"
-        overlayClassName="data-open:duration-[220ms] data-closed:duration-[176ms]"
+        className="flex flex-col sm:max-w-3xl md:max-w-5xl lg:max-w-6xl h-[85vh] max-h-[calc(100vh-3rem)] p-0 gap-0 overflow-hidden border-border/80 bg-background shadow-2xl transition-opacity data-open:zoom-in-100 data-open:duration-[220ms] data-closed:zoom-out-100 data-closed:duration-[176ms]"
+        overlayClassName="transition-opacity data-open:duration-[220ms] data-closed:duration-[176ms]"
         // The focus starts on the entry of the page that is open: the keyboard begins where the sidebar says you are.
         onOpenAutoFocus={(e) => {
           e.preventDefault()
@@ -195,7 +195,7 @@ export function SettingsDialog({
             </div>
 
             {/* Search: narrows the list below to what matches, bookmarks included */}
-            <div role="search" className="px-3 pt-3">
+            <search className="block px-3 pt-3">
               <div className="relative">
                 <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <input
@@ -226,7 +226,7 @@ export function SettingsDialog({
               <p role="status" className="sr-only">
                 {searching ? t("settings.resultsCount", { count: matches.length, defaultValue: "{{count}} settings found" }) : ""}
               </p>
-            </div>
+            </search>
 
             {/* Families, their tabs and the bookmarks of the open tab */}
             <ScrollArea className="flex-1 min-h-0">

@@ -13,13 +13,8 @@ import { PasswordStrengthIndicator } from '@/components/ui/password-strength-ind
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { isApiError } from '@/lib/http/api-error'
 import { useProfile, useUpdateProfile, useChangePassword, useUpdateAvatar, useRemoveAvatar } from '../hooks/use-settings'
-import {
-  SettingsActions,
-  SettingsFieldError,
-  SettingsRow,
-  SettingsSection,
-  sectionDescriptionDomId,
-} from '@/components/ui/settings-section'
+import { SettingsActions, SettingsFieldError, SettingsRow, SettingsSection } from '@/components/ui/settings-section'
+import { sectionDescriptionDomId } from '@/components/ui/settings-section-ids'
 
 function getInitials(name: string | null, surname: string | null, email: string): string {
   if (name || surname) {

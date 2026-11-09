@@ -4,7 +4,8 @@
 
 import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
-import { SettingsRow, SettingsSection, sectionDomId } from "./settings-section"
+import { SettingsRow, SettingsSection } from "./settings-section"
+import { sectionDomId } from "./settings-section-ids"
 
 describe("SettingsSection", () => {
   it("is a titled landmark a sidebar bookmark can scroll to", () => {
