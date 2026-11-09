@@ -41,7 +41,7 @@ function GhostInput({
   readonly trailing?: React.ReactNode
 }) {
   return (
-    <div className="flex h-8 w-full min-w-0 items-center gap-2 rounded-lg border border-input px-2.5">
+    <div className="flex h-8 w-full min-w-0 items-center gap-2 rounded-control border border-input px-2.5">
       <Skeleton
         className={cn('h-3', widthPercent === undefined && width)}
         style={widthPercent === undefined ? undefined : { width: `${widthPercent}%` }}
@@ -66,7 +66,7 @@ function TextGhost() {
 function RichtextGhost() {
   const groups = [2, 3, 2, 2]
   return (
-    <div className="flex min-h-[400px] w-full flex-col rounded-lg border">
+    <div className="flex min-h-[400px] w-full flex-col rounded-control border border-input">
       <div className="flex h-12 shrink-0 items-center gap-px overflow-hidden border-b p-2">
         {groups.map((count, group) => (
           <React.Fragment key={group}>
@@ -91,7 +91,7 @@ function RichtextGhost() {
 /** JSON: the code editor's footprint — a gutter of line numbers and code lines of uneven length. */
 function JsonGhost() {
   return (
-    <div className="flex h-40 w-full flex-col gap-2 rounded-control border bg-muted/30 p-3">
+    <div className="flex h-40 w-full flex-col gap-2 rounded-control border border-input bg-muted/30 p-3">
       {LINE_WIDTHS.slice(0, 5).map((width, index) => (
         <div key={index} className="flex items-center gap-3">
           <Skeleton className="h-2.5 w-3 shrink-0" />
@@ -157,7 +157,7 @@ function RepeaterGhost({ branch }: { readonly branch: Branch }) {
   const subFields = (branch.fields ?? []).slice(0, 3)
   return (
     <div className="space-y-2">
-      <div className="space-y-3 rounded-control border bg-background p-3">
+      <div className="space-y-3 rounded-lg border bg-background p-3">
         <div className="flex items-center gap-2">
           <GripDots className="size-4 text-muted-foreground" />
           <span className="flex-1 text-xs font-medium text-muted-foreground">{t('fields.repeater.item')}</span>
