@@ -7,6 +7,7 @@
 - Layer 3 (reference): ../../_config/tooling_graphify.md
 - Layer 3 (reference): ../../_config/sprint_template.md 
 - Layer 3 (reference): ../../_config/testing_conventions.md (Read when the sprint produces or reorganizes tests: plans must specify tier, placement and fixture source, and must never spec a test that violates it)
+- Layer 3 (reference): ../../_config/design_system.html (Read when the sprint touches UI in apps/dashboard: plans must name the tokens, components and variants from it, and must never spec a raw colour, an off-scale type size or a second filled primary button in one view)
 
 ## Process
 You are a Senior Systems Architect planning a new feature for the BeechCMS monorepo. Your output is a comprehensive Sprint Plan.

@@ -10,6 +10,7 @@ Le istruzioni dettagliate, le regole architetturali, i comandi e le guide NON so
 - `_config/architecture.md`: Regole del Botanical Engine, Vertical Slice Architecture e invariant policies.
 - `_config/database_workflow.md`: Regole di migrazione D1 e struttura delle tabelle (`content_{slug}`).
 - `_config/testing_conventions.md`: Regole vincolanti per scrivere test (tier, posizione, anatomia a quattro zone, setup ambiente, assertion, commenti).
+- `_config/design_system.html`: Contratto UI del dashboard (ruoli del colore, token, tipografia, forma, uso dei componenti, pattern, lint di design). Obbligatorio per ogni modifica di UI in `apps/dashboard`; leggi `#rules` e `#lookup`, i valori dei token sono nel blocco JSON `#design-tokens`.
 - `_config/tooling_graphify.md`: Regole per interrogare e aggiornare il knowledge graph AST.
 - `_config/tooling_react_doctor.md`: Workflow di triage per React Doctor.
 - `docs/SYSTEM_MAP.md`: Mappa dettagliata del sistema e dei vincoli architetturali.
