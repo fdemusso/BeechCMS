@@ -49,6 +49,11 @@
     {"name":"--status-info-soft","utility":"bg-status-info-soft","role":"status background","light":"color-mix(in oklab, var(--status-info) 14%, var(--card))","dark":"color-mix(in oklab, var(--status-info) 14%, var(--card))"},
     {"name":"--status-info-foreground","utility":"text-status-info-foreground","role":"status text","light":"oklch(0.52 0.13 245)","dark":"oklch(0.644 0.16 245)"},
     {"name":"--scrim","utility":"bg-scrim","role":"modal backdrop","light":"oklch(0 0 0 / 30%)","dark":"oklch(0 0 0 / 50%)","note":"values to be tuned on a real dialog"},
+    {"name":"--chart-1","utility":"fill-chart-1 / bg-chart-1","role":"chart series, ink hue, series 1","light":"oklch(0.66 0.045 288)","dark":"oklch(0.72 0.045 288)"},
+    {"name":"--chart-2","utility":"fill-chart-2 / bg-chart-2","role":"chart series, sand hue, series 2","light":"oklch(0.58 0.075 58)","dark":"oklch(0.64 0.075 58)"},
+    {"name":"--chart-3","utility":"fill-chart-3 / bg-chart-3","role":"chart series, teal, series 3","light":"oklch(0.56 0.07 205)","dark":"oklch(0.62 0.07 205)"},
+    {"name":"--chart-4","utility":"fill-chart-4 / bg-chart-4","role":"chart series, olive, series 4","light":"oklch(0.44 0.07 125)","dark":"oklch(0.5 0.07 125)"},
+    {"name":"--chart-5","utility":"fill-chart-5 / bg-chart-5","role":"chart series, plum, series 5","light":"oklch(0.46 0.07 335)","dark":"oklch(0.52 0.07 335)"},
     {"name":"--radius-control","utility":"rounded-control","role":"buttons, inputs, selects","light":"10px","dark":"10px"},
     {"name":"--radius-lg","utility":"rounded-lg","role":"surfaces: card, dialog, popover, section","light":"16px","dark":"16px"},
     {"name":"--duration-enter","utility":"duration-(--duration-enter)","role":"a layer or element appearing (fade in)","light":"220ms","dark":"220ms"},
@@ -138,7 +143,7 @@ th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);ver
 <ol class="must">
  <li><b>Colour comes from tokens.</b> NEVER write a Tailwind palette class (<code>bg-emerald-50</code>, <code>text-amber-800</code>), a hex or <code>rgb()</code> value, or an arbitrary colour (<code>bg-[#fff]</code>). Use the classes in #lookup.</li>
  <li><b>One filled primary Button per view.</b> It is the action the page exists for (create, save, publish). Every other action is <code>outline</code> or <code>ghost</code>. Two <code>default</code> buttons in one view is a defect.</li>
- <li><b>Status has its own colours.</b> Show a content or job status only with <code>&lt;StatusBadge&gt;</code> or the <code>status-*</code> tokens. NEVER use primary, signal or category to mean a status.</li>
+ <li><b>Status has its own colours.</b> Show a content or job status only with <code>&lt;StatusBadge&gt;</code> or the <code>status-*</code> tokens. NEVER use primary, signal or category to mean a status. A status panel background is <code>bg-status-*-soft</code>, NEVER <code>bg-status-*/5</code> or any opacity of the solid: only <code>-soft</code> is computed for text contrast. A solid status fill (<code>bg-status-*</code>) is for dots, bars and icons, never behind text.</li>
  <li><b>Signal is a micro detail.</b> Use it only for an unread count, a "new" marker, or a progress fill. NEVER on a button, a link, a heading, a chart or a status.</li>
  <li><b>Category organises.</b> Use it for category and tag chips, the active navigation item, avatar fallbacks and illustrations. NEVER for selection, hover or status.</li>
  <li><b>Selection and hover are neutral.</b> Selected row: <code>bg-muted</code>. Row hover: <code>hover:bg-muted/50</code>. Pressed or hovered on a quiet surface: <code>bg-muted-strong</code>. NEVER tint a selection with a brand colour.</li>
@@ -289,7 +294,14 @@ th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);ver
 <thead><tr><th>Token</th><th>Utility</th><th>Value</th><th>Role</th></tr></thead>
 <tbody>
 <tr><td><code>--scrim</code></td><td><code>bg-scrim</code></td><td>black 30% light · 50% dark</td><td>modal backdrop. Tune on a real dialog. Overlays on images (<code>from-black/80</code> gradients) are a separate case and take <code>// design-ok</code></td></tr>
+<tr><td><code>--chart-1</code></td><td><code>bg-chart-1</code></td><td>oklch(0.66 0.045 288) · oklch(0.72 0.045 288)</td><td>ink hue, series 1</td></tr>
+<tr><td><code>--chart-2</code></td><td><code>bg-chart-2</code></td><td>oklch(0.58 0.075 58) · oklch(0.64 0.075 58)</td><td>sand hue, series 2</td></tr>
+<tr><td><code>--chart-3</code></td><td><code>bg-chart-3</code></td><td>oklch(0.56 0.07 205) · oklch(0.62 0.07 205)</td><td>teal, series 3</td></tr>
+<tr><td><code>--chart-4</code></td><td><code>bg-chart-4</code></td><td>oklch(0.44 0.07 125) · oklch(0.5 0.07 125)</td><td>olive, series 4</td></tr>
+<tr><td><code>--chart-5</code></td><td><code>bg-chart-5</code></td><td>oklch(0.46 0.07 335) · oklch(0.52 0.07 335)</td><td>plum, series 5</td></tr>
 </tbody></table>
+<h3 id="charts">Charts</h3>
+<p>Multi-series charts use <code>chart-1</code> to <code>chart-5</code>, in order. They are categorical: ink, sand, teal, olive, plum at low chroma, so none of them can be mistaken for a status or for the coral signal. Each holds 3:1 on the card in both themes and every pair is at least 0.12 apart in OKLab. MUST pick series colours only from these five. NEVER colour a series with <code>status-*</code> unless the series is that status (published vs failed). More than five series: group the tail into "Other" in grey (<code>text-muted-foreground</code>). The palette is for data, never for chrome.</p>
 </section>
 
 <!-- ============================================================ CONTRAST -->
@@ -578,6 +590,7 @@ node scripts/check-design-tokens.mjs --json                   # machine-readable
 <tr><td><b>D6</b></td><td>raw <code>white</code> / <code>black</code> (warning)</td><td><code>bg-background</code>, <code>text-foreground</code>, <code>bg-scrim</code></td></tr>
 <tr><td><b>D7</b></td><td>colour literal in code: <code>style={{ color: "#fff" }}</code></td><td>a CSS variable</td></tr>
 <tr><td><b>D8</b></td><td>literal animation duration: <code>duration-100</code>, <code>duration-[300ms]</code></td><td><code>duration-(--duration-enter)</code> / <code>duration-(--duration-exit)</code>, or no class for hover and focus</td></tr>
+<tr><td><b>D9</b></td><td>status tint built from an opacity: <code>bg-status-danger/5</code></td><td><code>bg-status-danger-soft</code></td></tr>
 </tbody></table>
 <h3>Working loop</h3>
 <ol>
@@ -594,7 +607,6 @@ node scripts/check-design-tokens.mjs --json                   # machine-readable
 <h2>Undecided</h2>
 <p class="lead">Not defined yet. Do not invent a value for these: reuse the nearest existing component's classes, or ask.</p>
 <ul>
- <li><b>Chart palette.</b> No categorical colour set exists for multi-series charts.</li>
  <li><b>Shadows.</b> No shadow tokens. Floating layers (popover, dialog) use their component's existing shadow.</li>
  <li><b>Easing.</b> No easing token. Durations are defined (see <a href="#motion">Motion</a>); curves use the library default.</li>
  <li><b>Stacking.</b> No z-index scale.</li>

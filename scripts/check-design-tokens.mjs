@@ -24,6 +24,7 @@
 //   D6  raw white / black (bg-white, text-black)               -> a semantic token  (warning)
 //   D7  colour literal in code (style={{ color: "#fff" }})     -> a CSS variable
 //   D8  literal animation duration (duration-100)              -> duration-(--duration-enter / --duration-exit)
+//   D9  status tint by opacity (bg-status-danger/5)            -> bg-status-danger-soft
 
 import { readFileSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
@@ -53,6 +54,7 @@ const RULES = {
   D6: { severity: 'warning', title: 'raw white / black' },
   D7: { severity: 'error', title: 'colour literal in code' },
   D8: { severity: 'error', title: 'literal animation duration' },
+  D9: { severity: 'error', title: 'status tint built from an opacity' },
 }
 
 const PALETTE = 'red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone'
@@ -279,6 +281,13 @@ function lint(file) {
     const duration = utility.match(/^duration-(\d+|\[.+\])$/)
     if (duration) {
       report('D8', at, token, { fix: 'Use duration-(--duration-enter) on data-open and duration-(--duration-exit) on data-closed for layers; for hover/focus colour changes drop the class. See _config/design_system.html#motion.', bucket: `duration-${duration[1]}` })
+      continue
+    }
+
+    // a status background made by thinning the solid: only the -soft token is computed for text contrast
+    const statusTint = token.match(/^((?:[a-z-]+:)*)bg-status-(live|warning|danger|info)\/(\d+)$/)
+    if (statusTint && Number(statusTint[3]) <= 20 && !/(hover|focus|active|group-hover):/.test(statusTint[1])) {
+      report('D9', at, token, { fix: `Use bg-status-${statusTint[2]}-soft. Opacity tints of the solid are not contrast-checked. See _config/design_system.html#rules.`, bucket: `bg-status-${statusTint[2]}/N` })
       continue
     }
 
