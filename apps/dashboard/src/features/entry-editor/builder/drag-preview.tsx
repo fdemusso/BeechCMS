@@ -27,7 +27,7 @@ function SectionPreview({ info }: { readonly info: DragPreviewInfo }) {
   const columns = info.columns ?? []
   const fieldCount = columns.reduce((sum, fields) => sum + fields.length, 0)
   return (
-    <div className="rounded-lg border bg-background">
+    <div className="rounded-lg border bg-card">
       <div className="flex items-center gap-2 px-3 py-2">
         <GripDots className="size-4 text-muted-foreground/60" />
         <span className={`flex-1 text-sm font-medium ${info.label ? '' : 'italic text-muted-foreground'}`}>
@@ -75,7 +75,7 @@ export function DragPreview({ info }: { readonly info: DragPreviewInfo }) {
 
   if (info.kind === 'field' && info.branch) {
     return (
-      <div style={{ width }} className="cursor-grabbing rounded-lg bg-background shadow-xl ring-1 ring-border">
+      <div style={{ width }} className="cursor-grabbing rounded-lg bg-card shadow-xl ring-1 ring-border">
         <FieldPreview branch={info.branch} />
       </div>
     )
@@ -83,7 +83,7 @@ export function DragPreview({ info }: { readonly info: DragPreviewInfo }) {
 
   if (info.kind === 'column') {
     return (
-      <div style={{ width }} className="cursor-grabbing rounded-lg bg-background shadow-xl ring-1 ring-border">
+      <div style={{ width }} className="cursor-grabbing rounded-lg bg-card shadow-xl ring-1 ring-border">
         {(info.fields ?? []).map((branch) => (
           <FieldPreview key={branch.id} branch={branch} />
         ))}
@@ -92,7 +92,7 @@ export function DragPreview({ info }: { readonly info: DragPreviewInfo }) {
   }
 
   return (
-    <div className="flex cursor-grabbing items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-medium shadow-xl">
+    <div className="flex cursor-grabbing items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm font-medium shadow-xl">
       <GripDots className="size-4 text-muted-foreground" />
       {info.label}
     </div>
