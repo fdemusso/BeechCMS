@@ -63,7 +63,13 @@ describe("Users & roles markup", () => {
     const bookmarks = SETTINGS_ENTRIES.find((entry) => entry.id === "people")!.sections.map((section) => section.id)
     const sectionIds = Array.from(document.querySelectorAll("section")).map((section) => section.id.replace("settings-section-", ""))
     expect(sectionIds).toEqual(bookmarks)
-    expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual(["Users", "Invitations", "Roles"])
+    expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual(["Users", "Roles", "Invitations"])
+  })
+
+  it("says in a sentence what each section is for, not just its name", () => {
+    expect(screen.getByRole("region", { name: "Roles" })).toHaveTextContent("What each role allows")
+    expect(screen.getByRole("region", { name: "Users" })).toHaveTextContent("Everyone who can sign in")
+    expect(screen.getByRole("region", { name: "Invitations" })).toHaveTextContent("Invitations sent so far")
   })
 
   it("never repeats an id", () => {
@@ -76,6 +82,21 @@ describe("Users & roles markup", () => {
     expect(bodyRows("Users")).toHaveLength(users.length)
     expect(bodyRows("Invitations")).toHaveLength(invitations.length)
     expect(bodyRows("Roles")).toHaveLength(roles.length)
+  })
+
+  it("shows five rows of each table, then scrolls them in a shadcn ScrollArea under a header that stays put", () => {
+    for (const name of ["Users", "Invitations", "Roles"]) {
+      const table = screen.getByRole("table", { name })
+      const scroller = table.closest('[data-slot="scroll-area"]') as HTMLElement
+      expect(scroller, name).not.toBeNull()
+      // 2.5rem of header + 5 rows of 3.5rem
+      expect(scroller.style.maxHeight, name).toBe("20rem")
+      expect(within(scroller).getByRole("group", { name })).toHaveAttribute("tabindex", "0")
+      // The table gives up its own scrolling, or the header could not stay above the rows.
+      expect(table.closest('[data-slot="table-container"]')).toHaveClass("overflow-visible")
+      expect(table.querySelector("thead")).toHaveClass("sticky", "top-0")
+      for (const row of Array.from(table.querySelectorAll("tbody tr"))) expect(row).toHaveClass("h-14")
+    }
   })
 
   it("names every column at the top of its table", () => {

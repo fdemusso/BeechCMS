@@ -326,7 +326,7 @@ export function SettingsDialog({
               Light: --background already sits above --sidebar. Dark: it sits below, so the page is the sidebar colour plus a touch of white. */}
           <section
             aria-labelledby="settings-page-title"
-            className="flex-1 flex flex-col min-w-0 bg-background dark:bg-[color-mix(in_oklch,var(--sidebar),white_6%)] overflow-hidden"
+            className="flex-1 flex flex-col min-w-0 [--settings-page-bg:var(--background)] dark:[--settings-page-bg:color-mix(in_oklch,var(--sidebar),white_6%)] bg-[var(--settings-page-bg)] overflow-hidden"
           >
             <div className="px-6 h-16 border-b border-border/50 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">

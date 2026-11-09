@@ -2016,7 +2016,7 @@
       "createSuccess": "Account created"
     },
     "roles": {
-      "description": "What each role allows. Give a role to a person to give them access.",
+      "sectionDescription": "What each role allows. Give a role to a person to give them access.",
       "editFor": "Edit role {{name}}",
       "deleteFor": "Delete role {{name}}",
       "systemHint": "A system role is built in and cannot be changed or deleted.",

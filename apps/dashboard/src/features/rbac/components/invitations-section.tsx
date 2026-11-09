@@ -10,7 +10,13 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { SettingsSection } from "@/components/ui/settings-section"
+import {
+  SETTINGS_TABLE_HEAD_REM,
+  SETTINGS_TABLE_ROW_CLASS,
+  SETTINGS_TABLE_ROW_REM,
+  SettingsScroll,
+  SettingsSection,
+} from "@/components/ui/settings-section"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { RelativeTime } from "@/components/ui/relative-time"
 import {
@@ -87,8 +93,10 @@ export function InvitationsSection() {
         <p className="border-b border-border py-4 text-sm text-muted-foreground">{t("rbac.invitations.empty")}</p>
       ) : (
         <TooltipProvider delayDuration={100} disableHoverableContent>
-          <Table aria-label={t("rbac.invitations.title", "Invitations")}>
-            <TableHeader>
+          <SettingsScroll label={t("rbac.invitations.title", "Invitations")} rowRem={SETTINGS_TABLE_ROW_REM} headerRem={SETTINGS_TABLE_HEAD_REM}>
+          {/* The table must not scroll on its own, or the header could not stay above the rows. */}
+          <Table containerClassName="overflow-visible" aria-label={t("rbac.invitations.title", "Invitations")}>
+            <TableHeader className="sticky top-0 z-10 bg-[var(--settings-page-bg)]">
               <TableRow>
                 <TableHead>{t("rbac.users.email", "Email")}</TableHead>
                 <TableHead>{t("rbac.assignments.role", "Role")}</TableHead>
@@ -100,7 +108,7 @@ export function InvitationsSection() {
             </TableHeader>
             <TableBody>
               {invitations.map((invitation) => (
-                <TableRow key={invitation.id}>
+                <TableRow key={invitation.id} className={SETTINGS_TABLE_ROW_CLASS}>
                   <TableCell className="font-medium">{invitation.email}</TableCell>
                   <TableCell>
                     <RoleBadge
@@ -181,6 +189,7 @@ export function InvitationsSection() {
               ))}
             </TableBody>
           </Table>
+          </SettingsScroll>
         </TooltipProvider>
       )}
 

@@ -11,7 +11,13 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { SettingsSection } from "@/components/ui/settings-section"
+import {
+  SETTINGS_TABLE_HEAD_REM,
+  SETTINGS_TABLE_ROW_CLASS,
+  SETTINGS_TABLE_ROW_REM,
+  SettingsScroll,
+  SettingsSection,
+} from "@/components/ui/settings-section"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useMe } from "@/features/shared"
 import { useRbacUsers, useRbacRoles, useSetUserActive } from "../hooks/use-rbac"
@@ -81,8 +87,10 @@ export function UsersSection() {
         </div>
       ) : (
         <TooltipProvider delayDuration={100} disableHoverableContent>
-          <Table containerClassName="overflow-x-hidden" aria-label={t("rbac.users.title", "Users")}>
-            <TableHeader>
+          <SettingsScroll label={t("rbac.users.title", "Users")} rowRem={SETTINGS_TABLE_ROW_REM} headerRem={SETTINGS_TABLE_HEAD_REM}>
+          {/* The table must not scroll on its own, or the header could not stay above the rows. */}
+          <Table containerClassName="overflow-visible" aria-label={t("rbac.users.title", "Users")}>
+            <TableHeader className="sticky top-0 z-10 bg-[var(--settings-page-bg)]">
               <TableRow>
                 <TableHead>{t("rbac.users.email", "Email")}</TableHead>
                 <TableHead>{t("rbac.users.name", "Name")}</TableHead>
@@ -101,7 +109,7 @@ export function UsersSection() {
                 )
                 const selfHintId = `user-${accountUser.id}-self-hint`
                 return (
-                  <TableRow key={accountUser.id}>
+                  <TableRow key={accountUser.id} className={SETTINGS_TABLE_ROW_CLASS}>
                     <TableCell className="font-medium max-w-[240px]">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="truncate" title={accountUser.email}>{accountUser.email}</span>
@@ -160,6 +168,7 @@ export function UsersSection() {
               })}
             </TableBody>
           </Table>
+          </SettingsScroll>
         </TooltipProvider>
       )}
 

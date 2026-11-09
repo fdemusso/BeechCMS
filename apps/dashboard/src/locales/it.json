@@ -326,7 +326,6 @@
         "searchPlaceholder": "Cerca widget…",
         "noResults": "Nessun widget trovato.",
         "locked": "Widget non disponibile",
-        "locked": "Widget non disponibile",
         "lockedHint": "Non puoi vedere i dati di questo widget. Resta al suo posto."
       },
       "picker": {
@@ -2017,7 +2016,7 @@
       "createSuccess": "Account creato"
     },
     "roles": {
-      "description": "Cosa consente ogni ruolo. Assegna un ruolo a una persona per darle accesso.",
+      "sectionDescription": "Cosa consente ogni ruolo. Assegna un ruolo a una persona per darle accesso.",
       "editFor": "Modifica il ruolo {{name}}",
       "deleteFor": "Elimina il ruolo {{name}}",
       "systemHint": "Un ruolo di sistema è integrato e non può essere modificato né eliminato.",

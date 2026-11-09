@@ -50,9 +50,9 @@ describe("settings registry", () => {
     expect(sectionIds("people", gates)).toEqual(["roles"])
   })
 
-  it("manage_users lists Users, Invitations and Roles in page order", () => {
+  it("manage_users lists Users, Roles and Invitations in page order", () => {
     const gates: SettingsGates = { canGlobally: () => false, canAnywhere: (p) => p === "manage_users" }
-    expect(sectionIds("people", gates)).toEqual(["users", "invitations", "roles"])
+    expect(sectionIds("people", gates)).toEqual(["users", "roles", "invitations"])
   })
 
   it("old links to merged or renamed tabs resolve to the tab that took them over", () => {
@@ -75,7 +75,7 @@ describe("settings registry", () => {
     })
 
     it("an entry whose label matches keeps all its bookmarks", () => {
-      expect(find("users & roles")).toEqual([["people", ["users", "invitations", "roles"]]])
+      expect(find("users & roles")).toEqual([["people", ["users", "roles", "invitations"]]])
     })
 
     it("a bookmark that matches shows alone under its entry", () => {
@@ -89,7 +89,7 @@ describe("settings registry", () => {
     })
 
     it("a keyword alone still finds the entry, with every bookmark", () => {
-      expect(find("inviti")).toEqual([["people", ["users", "invitations", "roles"]]])
+      expect(find("inviti")).toEqual([["people", ["users", "roles", "invitations"]]])
     })
 
     it("never surfaces what the caller may not open", () => {

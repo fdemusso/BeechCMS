@@ -11,7 +11,13 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { SettingsSection } from "@/components/ui/settings-section"
+import {
+  SETTINGS_TABLE_HEAD_REM,
+  SETTINGS_TABLE_ROW_CLASS,
+  SETTINGS_TABLE_ROW_REM,
+  SettingsScroll,
+  SettingsSection,
+} from "@/components/ui/settings-section"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,7 +71,7 @@ export function RolesSection() {
     <SettingsSection
       id="roles"
       title={t("rbac.roles.title", "Roles")}
-      description={t("rbac.roles.description")}
+      description={t("rbac.roles.sectionDescription")}
       action={canManageRoles && (
         <Button size="sm" onClick={() => { setEditingRole(null); setFormOpen(true) }}>
           <Plus aria-hidden className="size-4" />
@@ -81,8 +87,10 @@ export function RolesSection() {
       ) : (
         <TooltipProvider delayDuration={100} disableHoverableContent>
           <p id={SYSTEM_HINT_ID} className="sr-only">{t("rbac.roles.systemHint")}</p>
-          <Table aria-label={t("rbac.roles.title", "Roles")}>
-            <TableHeader>
+          <SettingsScroll label={t("rbac.roles.title", "Roles")} rowRem={SETTINGS_TABLE_ROW_REM} headerRem={SETTINGS_TABLE_HEAD_REM}>
+          {/* The table must not scroll on its own, or the header could not stay above the rows. */}
+          <Table containerClassName="overflow-visible" aria-label={t("rbac.roles.title", "Roles")}>
+            <TableHeader className="sticky top-0 z-10 bg-[var(--settings-page-bg)]">
               <TableRow>
                 <TableHead className="w-[200px]">{t("rbac.roles.name", "Name")}</TableHead>
                 <TableHead className="max-w-[320px]">{t("rbac.roles.description", "Description")}</TableHead>
@@ -94,7 +102,7 @@ export function RolesSection() {
               {roles.map((role) => {
                 const RoleIcon = resolveIcon(role.icon ?? (role.isSystem ? "Shield" : "Users"))
                 return (
-                  <TableRow key={role.id}>
+                  <TableRow key={role.id} className={SETTINGS_TABLE_ROW_CLASS}>
                     <TableCell className="font-medium whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <RoleIcon aria-hidden className="size-4 text-muted-foreground shrink-0" />
@@ -165,6 +173,7 @@ export function RolesSection() {
               })}
             </TableBody>
           </Table>
+          </SettingsScroll>
         </TooltipProvider>
       )}
 
