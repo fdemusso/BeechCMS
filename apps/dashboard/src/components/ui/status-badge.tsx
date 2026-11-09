@@ -24,6 +24,11 @@ const STATUS: Record<Status, keyof typeof TONE> = {
   archived: "neutral",
 }
 
+/** Whether a free-form status string is one of the statuses the badge knows. */
+export function isStatus(value: string): value is Status {
+  return Object.hasOwn(STATUS, value)
+}
+
 interface StatusBadgeProps {
   readonly status: Status
   readonly className?: string
