@@ -149,7 +149,7 @@ export function SectionShell({
           {isRenaming ? (
             <Input
               autoFocus
-              className="h-7 flex-1 rounded-md text-sm focus-visible:ring-1 focus-visible:ring-ring/30"
+              className="h-7 flex-1 rounded-control text-sm focus-visible:ring-1 focus-visible:ring-ring/30"
               value={renameValue}
               maxLength={labelMax}
               onChange={(e) => setRenameValue(e.target.value)}

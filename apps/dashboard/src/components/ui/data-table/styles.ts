@@ -27,4 +27,5 @@ export const COLUMN_SEPARATOR_CLASS = "border-r border-border/60 last:border-r-0
  * the frame) the element is 0px tall and draws nothing, so the frame's edge is never doubled.
  */
 export const TAIL_SEPARATOR_CLASS =
+  // design-ok: 1px inset hairline, the contract has no shadow tokens (#undecided)
   "shadow-[inset_0_1px_0_0_color-mix(in_oklab,var(--color-border)_60%,transparent)]"

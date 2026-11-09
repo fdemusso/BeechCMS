@@ -153,7 +153,7 @@ export function passwordStrength(pw: string, name?: string, surname?: string, em
 }
 
 export function getStrengthColor(strength: number): string {
-  return strength < 40 ? 'bg-destructive' : strength < 70 ? 'bg-amber-500' : 'bg-green-500'
+  return strength < 40 ? 'bg-destructive' : strength < 70 ? 'bg-status-warning' : 'bg-status-live'
 }
 
 export function getStrengthLabelKey(strength: number): 'strengthWeak' | 'strengthFair' | 'strengthStrong' {

@@ -85,7 +85,7 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
     setStepMove({ step: form.step, forward: (steps as readonly string[]).indexOf(form.step) >= (steps as readonly string[]).indexOf(stepMove.step) })
   }
   const enter = cn(
-    "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200",
+    "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-(--duration-enter)",
     stepMove.forward ? "motion-safe:slide-in-from-right-2" : "motion-safe:slide-in-from-left-2"
   )
 
@@ -95,9 +95,9 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
         <DialogContent
           // Fixed height, sized to the Fields step with a full list (the tallest): the steps differ in length and the
           // centred dialog would otherwise jump on every tab.
-          className="flex h-[min(46.5rem,calc(100vh-2rem))] flex-col gap-0 p-0 sm:max-w-3xl md:max-w-5xl data-open:zoom-in-100 data-open:duration-[220ms] data-closed:zoom-out-100 data-closed:duration-[176ms]"
+          className="flex h-[min(46.5rem,calc(100vh-2rem))] flex-col gap-0 p-0 sm:max-w-3xl md:max-w-5xl data-open:zoom-in-100 data-open:duration-(--duration-enter) data-closed:zoom-out-100 data-closed:duration-(--duration-exit)"
           // A plain fade, 220ms in and 20% quicker out, for the backdrop as well as the dialog.
-          overlayClassName="data-open:duration-[220ms] data-closed:duration-[176ms]"
+          overlayClassName="data-open:duration-(--duration-enter) data-closed:duration-(--duration-exit)"
           // Outside click and Escape ask before dropping unsaved edits; the X below is deliberate and does not.
           showCloseButton={false}
           // Radix focuses the first tab; a new content type starts with the name instead.

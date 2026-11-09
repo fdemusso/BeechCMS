@@ -105,7 +105,7 @@ export function AssignmentsDialog({
                         {assignment.scope}
                       </span>
                       {!assignment.active && (
-                        <Badge variant="outline" className="text-[10px] text-destructive border-destructive/40">
+                        <Badge variant="outline" className="text-xs text-status-danger-foreground border-destructive/40">
                           {t("rbac.assignments.inactiveScope", "Inactive scope")}
                         </Badge>
                       )}
@@ -113,7 +113,7 @@ export function AssignmentsDialog({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      className="size-8 shrink-0 text-muted-foreground hover:text-status-danger-foreground"
                       onClick={() => handleRemove(assignment.id)}
                       aria-label={t("rbac.assignments.removeFor", { role: assignment.roleName ?? assignment.roleId, scope: assignment.scope })}
                     >
@@ -153,7 +153,7 @@ export function AssignmentsDialog({
         </div>
         {/* Why Add is off, where everyone can read it: a tooltip on a disabled button reaches nobody. */}
         {escalationBlocked && (
-          <p id="assign-escalation" role="status" className="text-sm text-destructive">{t("rbac.errors.escalation-refused")}</p>
+          <p id="assign-escalation" role="status" className="text-sm text-status-danger-foreground">{t("rbac.errors.escalation-refused")}</p>
         )}
       </DialogContent>
     </Dialog>

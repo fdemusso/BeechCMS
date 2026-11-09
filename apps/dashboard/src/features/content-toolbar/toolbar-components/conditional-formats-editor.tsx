@@ -75,7 +75,7 @@ function ConditionalRulesEmptyState({
 }: ConditionalRulesEmptyStateProps) {
   const { t } = useTranslation()
   return (
-    <div className="flex min-h-52 flex-col items-center justify-center gap-3 rounded-md border border-dashed">
+    <div className="flex min-h-52 flex-col items-center justify-center gap-3 rounded-control border border-dashed">
       <div className="text-sm text-muted-foreground">{t("toolbar.conditionalFormats.noRules")}</div>
       <ColumnPicker columns={formattableColumns} onSelect={addConditionalFormatRule} compact />
     </div>
@@ -99,7 +99,7 @@ function ConditionalRulesList({
         <button
           key={rule.id}
           type="button"
-          className="flex h-14 w-full overflow-hidden rounded-md border text-left transition-colors hover:bg-muted/40"
+          className="flex h-14 w-full overflow-hidden rounded-control border text-left transition-colors hover:bg-muted/40"
           onClick={() => {
             setActiveConditionalRuleId(rule.id)
             setIsConditionalEditorOpen(true)
@@ -108,7 +108,7 @@ function ConditionalRulesList({
           <div className={`w-1/3 ${getConditionalToneStripClass(rule.tone)}`} />
           <div className="flex flex-1 items-center justify-between px-3">
             <span className="truncate text-sm">{rule.label || rule.group.label}</span>
-            <span className="text-[10px] text-muted-foreground">#{idx + 1}</span>
+            <span className="text-xs text-muted-foreground">#{idx + 1}</span>
           </div>
         </button>
       ))}
@@ -160,7 +160,7 @@ function ConditionalRuleEditor({
         >
           {t("toolbar.conditionalFormats.rulesList")}
         </Button>
-        <span className="text-[11px] text-muted-foreground">{t("toolbar.conditionalFormats.editRule")}</span>
+        <span className="text-xs text-muted-foreground">{t("toolbar.conditionalFormats.editRule")}</span>
       </div>
       <div className="flex items-center gap-2">
         <Toggle
@@ -217,7 +217,7 @@ function ConditionalRuleEditor({
             type="button"
             variant="ghost"
             size="icon-xs"
-            className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            className="h-7 w-7 text-status-danger-foreground hover:bg-destructive/10 hover:text-status-danger-foreground"
             onClick={() => removeConditionalRule(activeConditionalRule.id)}
             aria-label={t("toolbar.conditionalFormats.deleteRule")}
           >
@@ -228,14 +228,14 @@ function ConditionalRuleEditor({
 
       <div className="space-y-1">
         <div className="text-xs font-medium">{t("toolbar.conditionalFormats.applyTo")}</div>
-        <div className="inline-flex rounded-md border p-0.5">
+        <div className="inline-flex rounded-control border p-0.5">
           <Button
             type="button"
             size="sm"
             variant="ghost"
             className={
               activeConditionalRule.target === "field"
-                ? "h-7 px-3 text-xs bg-black text-white hover:bg-black/90 hover:text-white"
+                ? "h-7 px-3 text-xs bg-muted text-foreground hover:bg-muted hover:text-foreground"
                 : "h-7 px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
             }
             onClick={() => updateConditionalRule(activeConditionalRule.id, { target: "field" })}
@@ -248,7 +248,7 @@ function ConditionalRuleEditor({
             variant="ghost"
             className={
               activeConditionalRule.target === "element"
-                ? "h-7 px-3 text-xs bg-black text-white hover:bg-black/90 hover:text-white"
+                ? "h-7 px-3 text-xs bg-muted text-foreground hover:bg-muted hover:text-foreground"
                 : "h-7 px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
             }
             onClick={() => updateConditionalRule(activeConditionalRule.id, { target: "element" })}
@@ -260,7 +260,7 @@ function ConditionalRuleEditor({
 
       <div className="space-y-1">
         <div className="text-xs font-medium">{t("toolbar.conditionalFormats.useColorIf")}</div>
-        <div className="h-8 rounded-md border bg-muted/20 px-2 text-xs flex items-center">
+        <div className="h-8 rounded-control border bg-muted/20 px-2 text-xs flex items-center">
           <span className="truncate">{activeConditionalRule.group.label}</span>
         </div>
       </div>
@@ -338,9 +338,9 @@ function ConditionalRuleEditor({
 
       <div className="space-y-1 pt-1">
         <div className="text-xs font-medium">{t("toolbar.conditionalFormats.formatStyle")}</div>
-        <div className="rounded-md border border-dashed p-2">
+        <div className="rounded-control border border-dashed p-2">
           <div
-            className={`flex min-h-12 items-center rounded-md border px-3 ${
+            className={`flex min-h-12 items-center rounded-control border px-3 ${
               activeConditionalRule.target === "element"
                 ? getConditionalFormatRowClass(
                     activeConditionalRule.tone,
@@ -474,13 +474,13 @@ export function ConditionalFormatsEditor({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <DropdownMenuLabel className="px-0 py-0 text-sm font-semibold text-foreground">
+        <DropdownMenuLabel className="px-0 py-0 text-sm font-medium text-foreground">
           Regole dei colori condizionali
         </DropdownMenuLabel>
         <ColumnPicker columns={formattableColumns} onSelect={addConditionalFormatRule} />
       </div>
 
-      <div className="text-[11px] text-muted-foreground">
+      <div className="text-xs text-muted-foreground">
         Le regole si applicano dall’alto verso il basso.
       </div>
 
@@ -530,7 +530,7 @@ function ColumnPicker({ columns, onSelect, compact = false }: ColumnPickerProps)
                   onSelect={() => onSelect(col.columnId)}
                 >
                   <span className="truncate">{col.label}</span>
-                  <span className="text-[10px] text-muted-foreground uppercase">{col.type}</span>
+                  <span className="text-xs text-muted-foreground uppercase">{col.type}</span>
                 </DropdownMenuItem>
               ))}
             </div>

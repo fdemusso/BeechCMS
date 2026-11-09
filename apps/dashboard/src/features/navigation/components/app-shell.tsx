@@ -29,7 +29,7 @@ export function AppShell({ children }: AppShellProps) {
       <SidebarProvider className="h-svh overflow-hidden" style={{ "--sidebar-width": "18rem" } as CSSProperties}>
         <AppSidebar />
         <SidebarReopenTrigger />
-        {/* md:m-2 on the inset variant eats 1rem of height. The card edge is the inset variant's own rounded-xl + shadow-sm. */}
+        {/* md:m-2 on the inset variant eats 1rem of height. The card edge is the inset variant's own rounded-lg + shadow-sm. */}
         <SidebarInset className="h-svh min-w-0 overflow-hidden md:h-[calc(100svh-1rem)] md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-0">
           <ScrollArea className="h-full">{children}</ScrollArea>
         </SidebarInset>

@@ -14,7 +14,7 @@ export function CreateNewPage() {
 
         <div className="flex items-center justify-center h-[400px] border border-dashed rounded-lg border-muted-foreground/30 bg-card p-6 text-center">
           <div className="max-w-md space-y-2">
-            <h3 className="font-heading text-lg font-semibold tracking-tight">Create New Content</h3>
+            <h3 className="font-heading text-xl font-bold tracking-tight">Create New Content</h3>
             <p className="text-sm text-muted-foreground">
               This page will allow quick entry creation for various schemas and seeds in your workspace.
             </p>

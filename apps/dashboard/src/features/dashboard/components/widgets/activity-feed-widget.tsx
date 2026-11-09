@@ -33,10 +33,10 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
 }
 
 const ACTION_COLORS: Record<string, string> = {
-  create: "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400",
-  update: "bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400",
-  delete: "bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400",
-  upload: "bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400",
+  create: "bg-status-live-soft text-status-live-foreground",
+  update: "bg-status-info-soft text-status-info-foreground",
+  delete: "bg-status-danger-soft text-status-danger-foreground",
+  upload: "bg-category-soft text-foreground",
 }
 
 function displayName(name?: string | null, email?: string, fallback = "User"): string {
@@ -101,7 +101,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: Activi
                     {activityTarget(log)}
                   </span>
                 </span>
-                <span className="text-[10px] text-muted-foreground/60 shrink-0">{relativeTime(log.created_at)}</span>
+                <span className="text-xs text-muted-foreground/60 shrink-0">{relativeTime(log.created_at)}</span>
               </li>
             ))}
           </ul>
@@ -121,7 +121,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: Activi
               <li key={log.id} className="flex items-start gap-3 group">
                 <div className="relative shrink-0">
                   <Avatar className="size-8 border border-border/60">
-                    <AvatarFallback className="text-[10px] bg-muted text-foreground font-semibold">
+                    <AvatarFallback className="text-xs bg-muted text-foreground font-medium">
                       {initials(log.user_name, log.user_email)}
                     </AvatarFallback>
                   </Avatar>
@@ -134,7 +134,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: Activi
                 </div>
                 <div className="flex-1 min-w-0 space-y-0.5">
                   <p className="text-sm leading-snug">
-                    <span className="font-semibold">{displayName(log.user_name, log.user_email)}</span>{" "}
+                    <span className="font-medium">{displayName(log.user_name, log.user_email)}</span>{" "}
                     <span className="text-muted-foreground">
                       {t(`dashboard.recentActivity.actions.${log.action}`, { defaultValue: log.action })}
                     </span>{" "}

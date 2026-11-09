@@ -53,7 +53,7 @@ export function TestFieldsPage() {
         <section className="space-y-3">
           <h2 className="font-heading text-base font-medium">Preview — <span className="text-muted-foreground font-normal">HTML compilato con stili applicati</span></h2>
           <div
-            className="richtext-content rounded-md border border-input bg-background px-4 py-3 max-w-2xl"
+            className="richtext-content rounded-control border border-input bg-background px-4 py-3 max-w-2xl"
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
           />
         </section>
@@ -61,7 +61,7 @@ export function TestFieldsPage() {
         {/* HTML raw output */}
         <section className="space-y-3">
           <h2 className="font-heading text-base font-medium">Output HTML grezzo</h2>
-          <pre className="rounded-md border border-input bg-muted/30 px-4 py-3 text-xs font-mono whitespace-pre-wrap break-all max-w-2xl max-h-48 overflow-auto">
+          <pre className="rounded-control border border-input bg-muted/30 px-4 py-3 text-xs font-mono whitespace-pre-wrap break-all max-w-2xl max-h-48 overflow-auto">
             {html}
           </pre>
         </section>

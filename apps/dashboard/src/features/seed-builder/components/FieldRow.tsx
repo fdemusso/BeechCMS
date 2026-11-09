@@ -69,7 +69,7 @@ export function FieldRow({ branch, selected, issue, removable, onSelect, onRemov
       </button>
 
       {issue && (
-        <span className="shrink-0 text-xs text-destructive">{t(`seedBuilder.branchEditor.issues.${issue}`)}</span>
+        <span className="shrink-0 text-xs text-status-danger-foreground">{t(`seedBuilder.branchEditor.issues.${issue}`)}</span>
       )}
 
       {/* The bin takes room only on hover: the badges make way for it. */}
@@ -80,7 +80,7 @@ export function FieldRow({ branch, selected, issue, removable, onSelect, onRemov
           size="icon-sm"
           onClick={onRemove}
           aria-label={t("fields.repeater.removeItem")}
-          className="w-0 shrink-0 overflow-hidden text-muted-foreground opacity-0 transition-[width,opacity] duration-200 hover:text-destructive focus-visible:w-8 focus-visible:opacity-100 group-hover:w-8 group-hover:opacity-100"
+          className="w-0 shrink-0 overflow-hidden text-muted-foreground opacity-0 transition-[width,opacity] duration-(--duration-enter) hover:text-status-danger-foreground focus-visible:w-8 focus-visible:opacity-100 group-hover:w-8 group-hover:opacity-100"
         >
           <Trash2 className="size-4" />
         </Button>

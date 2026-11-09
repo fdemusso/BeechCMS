@@ -421,7 +421,7 @@ export function generateColumns(
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => onBulkDelete?.(currentSelectedIds)}
-                    className="text-destructive focus:text-destructive"
+                    className="text-status-danger-foreground focus:text-status-danger-foreground"
                     disabled={!canDelete}
                   >
                     {translate("common.delete")}
@@ -452,7 +452,7 @@ export function generateColumns(
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => onDelete(entry.id)}
-                    className="text-destructive focus:text-destructive"
+                    className="text-status-danger-foreground focus:text-status-danger-foreground"
                     disabled={!canDelete}
                   >
                     {translate("common.delete")}

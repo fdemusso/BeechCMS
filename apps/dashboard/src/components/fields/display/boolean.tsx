@@ -17,8 +17,8 @@ export function BooleanDisplay({ value }: FieldDisplayProps) {
       <span
         className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
           isTrue
-            ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
-            : "bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+            ? "bg-status-live-soft text-status-live-foreground"
+            : "bg-muted text-muted-foreground"
         }`}
       >
         {isTrue ? t("common.yes") : t("common.no")}

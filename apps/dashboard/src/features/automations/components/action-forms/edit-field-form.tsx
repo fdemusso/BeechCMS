@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useFormContext } from 'react-hook-form'
 import {
@@ -22,6 +23,8 @@ interface EditFieldFormProps {
 
 export function EditFieldForm({ index, seedBranches }: EditFieldFormProps) {
   const { t } = useTranslation()
+  const fieldId = useId()
+  const valueId = useId()
   const { watch, setValue, formState: { errors } } = useFormContext<AutomationFormValues>()
   const field = watch(`actions.${index}.field` as any) as string
   const value = watch(`actions.${index}.value` as any) as string
@@ -37,14 +40,14 @@ export function EditFieldForm({ index, seedBranches }: EditFieldFormProps) {
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <label className="text-xs font-medium text-muted-foreground mb-1 block">
+        <label htmlFor={fieldId} className="text-xs font-medium text-muted-foreground mb-1 block">
           {t('automations.actions.editField')} *
         </label>
         <Select
           value={field ?? ''}
           onValueChange={handleFieldChange}
         >
-          <SelectTrigger size="sm" className="h-8 text-sm">
+          <SelectTrigger id={fieldId} size="sm" className="h-8 text-sm">
             <SelectValue placeholder={t('automations.actions.editFieldPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
@@ -56,15 +59,16 @@ export function EditFieldForm({ index, seedBranches }: EditFieldFormProps) {
           </SelectContent>
         </Select>
         {actionErrors?.field && (
-          <p className="mt-1 text-xs text-destructive">{t(actionErrors.field.message)}</p>
+          <p className="mt-1 text-xs text-status-danger-foreground">{t(actionErrors.field.message)}</p>
         )}
       </div>
 
       <div>
-        <label className="text-xs font-medium text-muted-foreground mb-1 block">
+        <label htmlFor={valueId} className="text-xs font-medium text-muted-foreground mb-1 block">
           {t('automations.actions.editValue')}
         </label>
         <AutomationValueInput
+          id={valueId}
           branch={selectedBranch}
           value={value ?? ''}
           onChange={(v) => setValue(`actions.${index}.value` as any, v)}

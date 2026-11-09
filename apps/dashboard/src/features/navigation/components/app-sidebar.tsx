@@ -36,7 +36,7 @@ function RailDivider({ spaced = false }: { readonly spaced?: boolean }) {
     <div
       aria-hidden
       className={cn(
-        "mx-auto h-0 w-5 shrink-0 bg-sidebar-border opacity-0 transition-[opacity,height,margin] duration-300 group-data-[collapsible=icon]:h-px group-data-[collapsible=icon]:opacity-100",
+        "mx-auto h-0 w-5 shrink-0 bg-sidebar-border opacity-0 transition-[opacity,height,margin] duration-(--duration-enter) group-data-[collapsible=icon]:h-px group-data-[collapsible=icon]:opacity-100",
         spaced && "group-data-[collapsible=icon]:my-2",
       )}
     />
@@ -122,10 +122,10 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
         {/* Collapsed (icon rail): the row stacks, settings icon above the toggle. */}
         <div data-rail-static className="mt-auto flex items-center pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:pr-0">
           <NavSection items={getSettingsMenu(t).map((item) => ({ ...item, onSelect: () => openSettings() }))} className="min-w-0 flex-1 pt-0" />
-          {/* Same box, radius, icon size, colour and hover as the Settings SidebarMenuButton beside it (size-8, rounded-md,
+          {/* Same box, radius, icon size, colour and hover as the Settings SidebarMenuButton beside it (size-8, rounded-control,
               16px icon), on the same centre line: self-start because the Settings group has pt-0, so centring in the row would
               sit 4px below the button. In the rail it stacks under it, left-aligned to the button (group p-2). */}
-          <SidebarTrigger className="size-8 shrink-0 self-start rounded-md [&_svg]:size-4 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:ml-2 group-data-[collapsible=icon]:mb-2" />
+          <SidebarTrigger className="size-8 shrink-0 self-start rounded-control [&_svg]:size-4 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:ml-2 group-data-[collapsible=icon]:mb-2" />
         </div>
       </SidebarContent>
     </Sidebar>

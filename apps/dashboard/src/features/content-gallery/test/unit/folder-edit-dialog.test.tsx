@@ -56,6 +56,6 @@ describe("FolderEditDialog", () => {
   it("styles the reset button as destructive", () => {
     renderDialog()
 
-    expect(screen.getByText("Reset").className).toContain("text-destructive")
+    expect(screen.getByText("Reset").className).toContain("text-status-danger-foreground")
   })
 })

@@ -36,11 +36,11 @@ export function PermissionBadge({
       <TooltipTrigger asChild>
         <Badge
           variant="secondary"
-          className={cn("transition-colors leading-none h-5 px-1.5 inline-flex items-center gap-1 text-[10px]", className)}
+          className={cn("transition-colors leading-none h-5 px-1.5 inline-flex items-center gap-1 text-xs", className)}
           aria-label={label}
         >
           {Icon ? <Icon size={14} className="!size-3.5 shrink-0 block" /> : null}
-          <span className="text-[10px]">{label}</span>
+          <span className="text-xs">{label}</span>
         </Badge>
       </TooltipTrigger>
       <TooltipContent side="top">

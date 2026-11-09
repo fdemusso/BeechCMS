@@ -87,7 +87,7 @@ export function ExpandableCell({
         {content}
       </span>
       {isExpanded && (
-        <span className="absolute left-0 top-0 z-10 whitespace-nowrap rounded-sm bg-popover shadow-md">
+        <span className="absolute left-0 top-0 z-10 whitespace-nowrap rounded-control bg-popover shadow-md">
           {content}
         </span>
       )}

@@ -55,7 +55,7 @@ export default function DashboardPage() {
             with the sidebar profile card (the measures are in index.css, used by AppSidebar's header). */}
         <PageBody innerRef={contentRef} innerClassName="flex flex-col gap-6">
           <PageHeader
-            title={<>{greeting}, <span className="font-semibold">{userName}</span></>}
+            title={<>{greeting}, <span className="font-medium">{userName}</span></>}
             description={t("dashboard.greeting.subtitle")}
             actions={
               canEdit && (

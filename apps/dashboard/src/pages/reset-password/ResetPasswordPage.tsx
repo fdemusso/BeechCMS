@@ -38,7 +38,7 @@ export function ResetPasswordPage() {
           <Card className="overflow-hidden shadow-md">
             <CardContent className="p-6 md:p-8">
               <div className="flex flex-col items-center gap-4 text-center">
-                <h1 className="font-heading text-2xl font-semibold">{t("resetPassword.invalidLinkTitle")}</h1>
+                <h1 className="font-heading text-2xl font-bold">{t("resetPassword.invalidLinkTitle")}</h1>
                 <p className="text-muted-foreground text-sm">{t("resetPassword.invalidLink")}</p>
                 <Link to="/forgot-password" className="text-sm hover:opacity-80 transition-opacity">
                   {t("resetPassword.requestNew")}
@@ -94,7 +94,7 @@ export function ResetPasswordPage() {
             <form onSubmit={handleSubmit} noValidate>
               <FieldGroup>
                 <div className="flex flex-col items-center gap-2 text-center">
-                  <h1 className="font-heading text-2xl font-semibold">{t("resetPassword.title")}</h1>
+                  <h1 className="font-heading text-2xl font-bold">{t("resetPassword.title")}</h1>
                   <p className="text-muted-foreground text-balance text-sm">
                     {t("resetPassword.desc")}
                   </p>

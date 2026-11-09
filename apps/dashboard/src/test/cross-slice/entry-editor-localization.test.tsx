@@ -195,15 +195,15 @@ describe("EntryEditorDialog — content localization", () => {
 
     // IT is fully translated (2/2) -> normal styling
     expect(itOption).toHaveAttribute("data-status", "translated")
-    expect(itOption.className).not.toMatch(/text-destructive|text-amber/)
+    expect(itOption.className).not.toMatch(/text-status-danger-foreground|text-status-warning-foreground/)
 
     // EN is partially translated (1/2) -> amber styling
     expect(enOption).toHaveAttribute("data-status", "partial")
-    expect(enOption.className).toMatch(/text-amber/)
+    expect(enOption.className).toMatch(/text-status-warning-foreground/)
 
     // ES is untranslated (0/2) -> red / destructive styling
     expect(esOption).toHaveAttribute("data-status", "untranslated")
-    expect(esOption.className).toMatch(/text-destructive/)
+    expect(esOption.className).toMatch(/text-status-danger-foreground/)
   })
 
   it("with one content language the editor shows no locale switcher", async () => {

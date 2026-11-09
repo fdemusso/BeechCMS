@@ -23,7 +23,7 @@ export function RecentActivity() {
   return (
     <Card className="col-span-2 border-none bg-background/50 backdrop-blur-sm">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">
+        <CardTitle className="text-xl font-bold">
           {t("dashboard.recentActivity.title")}
         </CardTitle>
       </CardHeader>
@@ -51,7 +51,7 @@ export function RecentActivity() {
                     {t(`dashboard.recentActivity.actions.${activity.action}`, {
                       defaultValue: activity.action,
                     })}{" "}
-                    <span className="font-semibold text-foreground">
+                    <span className="font-medium text-foreground">
                       {activityTarget(activity)}
                     </span>
                   </p>

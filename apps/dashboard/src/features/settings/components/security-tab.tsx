@@ -90,7 +90,7 @@ function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: st
             size="icon"
             aria-label={t('settings.security.revokeSessionAria', { created })}
             className={cn(
-              'size-8 shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover/row:opacity-100 pointer-coarse:opacity-100',
+              'size-8 shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-status-danger-foreground focus-visible:opacity-100 group-hover/row:opacity-100 pointer-coarse:opacity-100',
               pending && 'opacity-100'
             )}
           >

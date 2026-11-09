@@ -95,7 +95,7 @@ export function InviteDialog({ open, onOpenChange, onInvited }: InviteDialogProp
               <ScopeSelect id="inv-scope" value={scope} onValueChange={setScope} />
             </Field>
             {/* Why the button is off, where everyone can read it: a tooltip on a disabled button reaches nobody. */}
-            {escalationBlocked && <p id="inv-escalation" role="status" className="text-sm text-destructive">{t("rbac.errors.escalation-refused")}</p>}
+            {escalationBlocked && <p id="inv-escalation" role="status" className="text-sm text-status-danger-foreground">{t("rbac.errors.escalation-refused")}</p>}
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
           <DialogFooter className="mt-4">

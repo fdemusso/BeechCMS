@@ -56,8 +56,8 @@ function BuilderSkeleton() {
         <div key={i} className="space-y-3 rounded-lg border p-3">
           <Skeleton className="h-5 w-40" />
           <div className="grid grid-cols-12 gap-3">
-            <Skeleton className="col-span-8 h-32 rounded-2xl" />
-            <Skeleton className="col-span-4 h-32 rounded-2xl" />
+            <Skeleton className="col-span-8 h-32 rounded-lg" />
+            <Skeleton className="col-span-4 h-32 rounded-lg" />
           </div>
         </div>
       ))}
@@ -133,8 +133,7 @@ export function DashboardBuilderDialog({
       <DialogContent
         // The overlay fades as long as the content (its default is 100ms against the content's 200ms), so the
         // blurred backdrop does not snap away while the dialog is still half visible.
-        overlayClassName="duration-200"
-        className="flex h-[90vh] max-h-[90vh] flex-col gap-0 p-0 duration-200 data-open:zoom-in-100 data-closed:zoom-out-100"
+                className="flex h-[90vh] max-h-[90vh] flex-col gap-0 p-0 data-open:zoom-in-100 data-closed:zoom-out-100"
         // Inline, and with the max-width lifted: the width is measured, and the default `sm:max-w-*` would cap it.
         style={{ width: builderDialogWidth(referenceWidth), maxWidth: "96vw" }}
         // Esc belongs to a drag in flight (it cancels it); it must not also close the builder.
@@ -142,12 +141,12 @@ export function DashboardBuilderDialog({
         onInteractOutside={(event) => { if (isDragging) event.preventDefault() }}
       >
         <DialogHeader className="px-6 pb-2 pt-6">
-          <DialogTitle className="text-xl font-semibold leading-tight">{t('dashboard.builder.title')}</DialogTitle>
+          <DialogTitle className="text-xl font-bold leading-tight">{t('dashboard.builder.title')}</DialogTitle>
         </DialogHeader>
         {isLoadingDraft ? (
           <BuilderSkeleton />
         ) : (
-          <div className="flex min-h-0 flex-1 animate-in flex-col duration-200 fade-in-0">
+          <div className="flex min-h-0 flex-1 animate-in flex-col duration-(--duration-enter) fade-in-0">
             <BuilderPaneController
               serverLayout={data?.layout ?? null}
               initialLayout={draftSource}

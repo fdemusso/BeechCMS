@@ -109,7 +109,7 @@ export function FolderEditDialog({ open, onClose, defaultLabel, style, onSave }:
                     aria-pressed={icon === name}
                     onClick={() => setIcon(icon === name ? undefined : name)}
                     className={cn(
-                      "flex size-8 cursor-pointer items-center justify-center rounded-md border transition-colors",
+                      "flex size-8 cursor-pointer items-center justify-center rounded-control border transition-colors",
                       icon === name ? "border-primary bg-primary text-primary-foreground" : "border-transparent bg-muted text-muted-foreground hover:border-muted-foreground",
                     )}
                   >

@@ -90,7 +90,7 @@ export function PageAudiencePicker({ roleIds, onChange }: PageAudiencePickerProp
                       key={id}
                       value={`${deletedRoleName} ${id}`}
                       onSelect={() => toggleRole(id)}
-                      className="flex items-center gap-2 text-destructive"
+                      className="flex items-center gap-2 text-status-danger-foreground"
                     >
                       <Check className="size-4 shrink-0" />
                       <span className="flex-1 truncate">{deletedRoleName}</span>

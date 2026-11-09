@@ -47,7 +47,7 @@ export function PasswordStrengthIndicator({
     >
       <div aria-hidden className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
         <div
-          className={cn("h-full rounded-full transition-all duration-300", strengthColor)}
+          className={cn("h-full rounded-full transition-all duration-(--duration-enter)", strengthColor)}
           style={{ width: `${strength}%` }}
         />
       </div>

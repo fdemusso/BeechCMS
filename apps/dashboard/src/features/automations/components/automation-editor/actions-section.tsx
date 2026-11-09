@@ -28,8 +28,8 @@ export function ActionsSection({ seedBranches, seedSlug }: ActionsSectionProps) 
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
-        <div className="flex size-6 items-center justify-center rounded-full bg-primary/10">
-          <Play className="size-3.5 text-primary" />
+        <div className="flex size-6 items-center justify-center rounded-full bg-muted">
+          <Play className="size-3.5 text-foreground" />
         </div>
         <span className="text-sm font-medium">{t('automations.editor.actionsLabel')}</span>
       </div>
@@ -54,10 +54,10 @@ export function ActionsSection({ seedBranches, seedSlug }: ActionsSectionProps) 
       ))}
 
       {(errors.actions as any)?.root?.message && (
-        <p className="mt-1 text-xs text-destructive">{t((errors.actions as any).root.message)}</p>
+        <p className="mt-1 text-xs text-status-danger-foreground">{t((errors.actions as any).root.message)}</p>
       )}
       {typeof errors.actions?.message === 'string' && (
-        <p className="mt-1 text-xs text-destructive">{t(errors.actions.message)}</p>
+        <p className="mt-1 text-xs text-status-danger-foreground">{t(errors.actions.message)}</p>
       )}
 
       <div className="mt-3">

@@ -68,23 +68,23 @@ export function NavUser({
                 "h-(--sb-profile-h) data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
                 // Concentric corners: the image sits 4px from the outer edge on top/left/bottom (1px border + 3px; h-12 minus
                 // border leaves 3px above/below the 40px image), so outer radius = inner radius + 4: rounded-lg (16)
-                // around rounded-sm (12). The left padding puts the picture's centre on the sidebar's icon axis
+                // around rounded-control (12). The left padding puts the picture's centre on the sidebar's icon axis
                 // (row edge + --sb-pad-start + 8px): 1px border + pl + 20px = pad + 8px, so pl = pad - 13px (3px at 16px).
-                "rounded-lg border border-border pl-[calc(var(--sb-pad-start)-13px)] transition-[width,height,padding,border-color,background-color] duration-300",
+                "rounded-lg border border-border pl-[calc(var(--sb-pad-start)-13px)] transition-[width,height,padding,border-color,background-color] duration-(--duration-enter)",
                 // Rail: only the picture, 30px inside the 1px (now transparent) border of the 32px button.
                 "group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:pl-0!",
               )}
             >
               {/* Avatar defaults to a circle (root, image, fallback and the after: ring all use rounded-full). */}
-              <Avatar className="size-10 shrink-0 rounded-sm transition-[width,height] duration-300 after:hidden group-data-[collapsible=icon]:size-[30px]">
-                <AvatarImage className="rounded-sm" src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-sm">{initials}</AvatarFallback>
+              <Avatar className="size-10 shrink-0 rounded-control transition-[width,height] duration-(--duration-enter) after:hidden group-data-[collapsible=icon]:size-[30px]">
+                <AvatarImage className="rounded-control" src={user.avatar} alt={user.name} />
+                <AvatarFallback className="rounded-control">{initials}</AvatarFallback>
               </Avatar>
-              <div className="grid min-w-0 flex-1 text-left text-[13px] leading-tight transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0">
+              <div className="grid min-w-0 flex-1 text-left text-sm leading-tight transition-opacity duration-(--duration-enter) group-data-[collapsible=icon]:opacity-0">
                 <span className="truncate font-medium">{user.name}</span>
-                <span className="truncate text-[11px] opacity-60">{user.email}</span>
+                <span className="truncate text-xs opacity-60">{user.email}</span>
               </div>
-              <More className="ml-auto size-4 shrink-0 rotate-90 text-muted-foreground transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0" />
+              <More className="ml-auto size-4 shrink-0 rotate-90 text-muted-foreground transition-opacity duration-(--duration-enter) group-data-[collapsible=icon]:opacity-0" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

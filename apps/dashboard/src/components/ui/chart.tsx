@@ -229,6 +229,7 @@ function ChartTooltipContent({
                       !hideIndicator && (
                         <div
                           className={cn(
+                            // design-ok: micro element (≤20px), the contract has no radius level below rounded-control
                             "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
                             {
                               "h-2.5 w-2.5": indicator === "dot",
@@ -320,6 +321,7 @@ function ChartLegendContent({
                 <itemConfig.icon />
               ) : (
                 <div
+                  // design-ok: micro element (≤20px), the contract has no radius level below rounded-control
                   className="h-2 w-2 shrink-0 rounded-[2px]"
                   style={{
                     backgroundColor: item.color,

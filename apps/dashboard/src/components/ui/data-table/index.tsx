@@ -36,7 +36,7 @@ function DataTableInner<TData, TValue>(
     <div className="flex h-full w-full flex-col">
       {/* Frame: sole owner of the outer border; overflow-hidden clips the header background to the rounded corners. */}
       <div
-        className="group/dt flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border outline-none"
+        className="group/dt flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border outline-none"
         data-datatable-root=""
         role="group"
         tabIndex={selectionEnabled ? 0 : undefined}

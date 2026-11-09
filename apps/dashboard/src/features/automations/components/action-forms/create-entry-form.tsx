@@ -2,6 +2,7 @@
 // Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { Plus, Trash2 } from '@/components/icons'
@@ -22,6 +23,8 @@ interface CreateEntryFormProps {
 
 export function CreateEntryForm({ index }: CreateEntryFormProps) {
   const { t } = useTranslation()
+  const seedTriggerId = useId()
+  const fieldMapLabelId = useId()
   const { control, watch, setValue, formState: { errors } } = useFormContext<AutomationFormValues>()
   const { data: seeds = [] } = useSchema()
   const { fields, append, remove } = useFieldArray({ control, name: `actions.${index}.field_map` as any })
@@ -33,14 +36,14 @@ export function CreateEntryForm({ index }: CreateEntryFormProps) {
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <label className="text-xs font-medium text-muted-foreground mb-1 block">
+        <label htmlFor={seedTriggerId} className="text-xs font-medium text-muted-foreground mb-1 block">
           {t('automations.actions.targetSeed')} *
         </label>
         <Select
           value={seedSlug ?? ''}
           onValueChange={(v) => setValue(`actions.${index}.seed_slug` as any, v)}
         >
-          <SelectTrigger size="sm" className="h-8 text-sm">
+          <SelectTrigger id={seedTriggerId} size="sm" className="h-8 text-sm">
             <SelectValue placeholder={t('automations.actions.targetSeedPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
@@ -52,15 +55,15 @@ export function CreateEntryForm({ index }: CreateEntryFormProps) {
           </SelectContent>
         </Select>
         {actionErrors?.seed_slug && (
-          <p className="mt-1 text-xs text-destructive">{t(actionErrors.seed_slug.message)}</p>
+          <p className="mt-1 text-xs text-status-danger-foreground">{t(actionErrors.seed_slug.message)}</p>
         )}
       </div>
 
-      <div>
+      <div role="group" aria-labelledby={fieldMapLabelId}>
         <div className="flex items-center justify-between mb-1">
-          <label className="text-xs font-medium text-muted-foreground">
+          <span id={fieldMapLabelId} className="text-xs font-medium text-muted-foreground">
             {t('automations.actions.fieldMap')}
-          </label>
+          </span>
           <Button
             type="button"
             variant="ghost"

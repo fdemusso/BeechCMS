@@ -145,7 +145,7 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
                 <div className="grid grid-cols-2 gap-4">
                   {PERMISSION_GROUPS.map((group) => (
                     <fieldset key={group.id}>
-                      <legend className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                      <legend className="block text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
                         {t(group.titleKey, group.defaultTitle)}
                       </legend>
                       <div className="space-y-2">

@@ -55,10 +55,10 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
           </DialogDescription>
         </DialogHeader>
         {resolvedMode === "purge" && (
-          <p className="text-sm text-destructive">{t("content.deleteDialog.purgeWarning")}</p>
+          <p className="text-sm text-status-danger-foreground">{t("content.deleteDialog.purgeWarning")}</p>
         )}
         {error && (
-          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          <div className="rounded-control bg-destructive/10 p-3 text-sm text-status-danger-foreground">
             {error}
           </div>
         )}

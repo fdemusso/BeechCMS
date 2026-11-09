@@ -95,7 +95,7 @@ export function FilterColumnMenu({
                 >
                   <span className="truncate">{col.label}</span>
                   {activeFiltersCountByColumn[col.columnId] ? (
-                    <span className="text-muted-foreground text-[10px] uppercase">
+                    <span className="text-muted-foreground text-xs uppercase">
                       {activeFiltersCountByColumn[col.columnId]}
                     </span>
                   ) : null}

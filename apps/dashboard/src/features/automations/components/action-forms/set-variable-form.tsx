@@ -27,6 +27,25 @@ interface SetVariableFormProps {
   triggerSeedSlug?: string
 }
 
+function SourceLabel({
+  fixedId,
+  seedSlug,
+  seeds,
+}: {
+  fixedId?: string
+  seedSlug?: string
+  seeds: { slug: string; label: string }[]
+}) {
+  const { t } = useTranslation()
+  if (fixedId) {
+    return <span className="text-muted-foreground">{t('automations.actions.fixedIdBadge', { id: fixedId })}</span>
+  }
+  if (seedSlug) {
+    return <>{seeds.find((s) => s.slug === seedSlug)?.label ?? seedSlug}</>
+  }
+  return <span className="text-muted-foreground">{t('automations.actions.sourcePlaceholder')}</span>
+}
+
 export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps) {
   const { t } = useTranslation()
   const { register, control, watch, setValue, formState: { errors } } = useFormContext<AutomationFormValues>()
@@ -37,6 +56,10 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
   const [sourceInput, setSourceInput] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const sourcePopoverId = useId()
+  const nameId = useId()
+  const sourceTriggerId = useId()
+  const columnId = useId()
+  const filtersLabelId = useId()
 
   const seedSlug = watch(`actions.${index}.seed_slug` as any) as string
   const fixedId = watch(`actions.${index}.fixed_id` as any) as string
@@ -88,28 +111,30 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
     <div className="flex flex-col gap-3">
       {/* Variable name */}
       <div>
-        <label className="text-xs font-medium text-muted-foreground mb-1 block">
+        <label htmlFor={nameId} className="text-xs font-medium text-muted-foreground mb-1 block">
           {t('automations.actions.variableName')} *
         </label>
         <Input
+          id={nameId}
           {...register(`actions.${index}.name` as any)}
           placeholder="cliente"
           className="h-8 text-sm font-mono"
         />
         {actionErrors?.name && (
-          <p className="mt-1 text-xs text-destructive">{t(actionErrors.name.message)}</p>
+          <p className="mt-1 text-xs text-status-danger-foreground">{t(actionErrors.name.message)}</p>
         )}
-        <p className="mt-1 text-[10px] text-muted-foreground">{t('automations.actions.variableNameHint')}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t('automations.actions.variableNameHint')}</p>
       </div>
 
       {/* Source combobox */}
       <div>
-        <label className="text-xs font-medium text-muted-foreground mb-1 block">
+        <label htmlFor={sourceTriggerId} className="text-xs font-medium text-muted-foreground mb-1 block">
           {t('automations.actions.source')} *
         </label>
         <Popover open={sourceOpen} onOpenChange={setSourceOpen}>
           <PopoverTrigger asChild>
             <Button
+              id={sourceTriggerId}
               type="button"
               variant="outline"
               role="combobox"
@@ -118,12 +143,7 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
               className="h-8 w-full justify-between text-sm font-normal"
             >
               <span className="truncate">
-                {fixedId
-                  ? <span className="text-muted-foreground">{t('automations.actions.fixedIdBadge', { id: fixedId })}</span>
-                  : seedSlug
-                    ? (seeds.find((s) => s.slug === seedSlug)?.label ?? seedSlug)
-                    : <span className="text-muted-foreground">{t('automations.actions.sourcePlaceholder')}</span>
-                }
+                <SourceLabel fixedId={fixedId} seedSlug={seedSlug} seeds={seeds} />
               </span>
               <ChevronDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
             </Button>
@@ -155,7 +175,7 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
                     className="text-xs"
                   >
                     {triggerSeed.label}
-                    <Badge variant="secondary" className="ml-2 text-[10px] py-0">
+                    <Badge variant="secondary" className="ml-2 text-xs py-0">
                       {t('automations.actions.thisSeed')}
                     </Badge>
                   </CommandItem>
@@ -188,12 +208,12 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
         </Popover>
         {fixedId && (
           <div className="mt-1 flex items-center gap-1">
-            <Badge variant="outline" className="text-[10px] font-mono">
+            <Badge variant="outline" className="text-xs font-mono">
               ID: {fixedId}
             </Badge>
             <button
               type="button"
-              className="text-[10px] text-muted-foreground hover:text-foreground"
+              className="text-xs text-muted-foreground hover:text-foreground"
               onClick={() => {
                 setValue(`actions.${index}.fixed_id` as any, '')
                 setSourceInput('')
@@ -208,14 +228,14 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
       {/* Column select â€” collection mode only */}
       {isCollectionMode && targetSeed && targetSeed.branches.length > 0 && (
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">
+          <label htmlFor={columnId} className="text-xs font-medium text-muted-foreground mb-1 block">
             {t('automations.actions.column')}
           </label>
           <Select
             value={column ?? ''}
             onValueChange={(v) => setValue(`actions.${index}.column` as any, v === '__all__' ? '' : v)}
           >
-            <SelectTrigger size="sm" className="h-8 text-sm">
+            <SelectTrigger id={columnId} size="sm" className="h-8 text-sm">
               <SelectValue placeholder={t('automations.actions.columnAll')} />
             </SelectTrigger>
             <SelectContent>
@@ -230,11 +250,11 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
 
       {/* Filters â€” collection mode only */}
       {isCollectionMode && (
-        <div>
+        <div role="group" aria-labelledby={filtersLabelId}>
           <div className="flex items-center justify-between mb-1">
-            <label className="text-xs font-medium text-muted-foreground">
+            <span id={filtersLabelId} className="text-xs font-medium text-muted-foreground">
               {t('automations.actions.filters')}
-            </label>
+            </span>
             <Button
               type="button"
               variant="ghost"
@@ -302,23 +322,23 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
             )
           })}
           {fields.length === 0 && (
-            <p className="text-[10px] text-muted-foreground">{t('automations.actions.noFilters')}</p>
+            <p className="text-xs text-muted-foreground">{t('automations.actions.noFilters')}</p>
           )}
-          <p className="mt-1 text-[10px] text-muted-foreground">{t('automations.actions.filterTemplateHint')}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('automations.actions.filterTemplateHint')}</p>
         </div>
       )}
 
       {/* Template hint */}
       <div className="rounded border border-border/50 bg-muted/30 p-2">
-        <p className="text-[10px] font-medium text-muted-foreground mb-1">
+        <p className="text-xs font-medium text-muted-foreground mb-1">
           {t('automations.actions.templateHintTitle')}
         </p>
         {fixedId ? (
-          <pre className="text-[10px] text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
+          <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
             {t('automations.actions.hintFixed')}
           </pre>
         ) : (
-          <pre className="text-[10px] text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
+          <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
             {t('automations.actions.hintCollection')}
           </pre>
         )}

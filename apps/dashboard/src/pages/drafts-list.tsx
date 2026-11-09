@@ -176,7 +176,7 @@ function ActionsCell({ row }: Readonly<{ row: { original: DraftSummary } }>) {
           )}
           {canDelete ? (
             <DropdownMenuItem
-              className="text-destructive"
+              className="text-status-danger-foreground"
               onClick={() => setShowDiscard(true)}
             >
               {t("drafts.actions.discard")}
@@ -185,7 +185,7 @@ function ActionsCell({ row }: Readonly<{ row: { original: DraftSummary } }>) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <span>
-                  <DropdownMenuItem disabled className="text-destructive">
+                  <DropdownMenuItem disabled className="text-status-danger-foreground">
                     {t("drafts.actions.discard")}
                   </DropdownMenuItem>
                 </span>

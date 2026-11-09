@@ -70,7 +70,7 @@ export const KanbanCard = React.memo(function KanbanCard({
       aria-disabled={model.isPending || undefined}
       disabled={model.isPending}
       className={cn(
-        'flex h-full w-full flex-col gap-1.5 rounded-md border bg-card p-3 shadow-sm transition-all select-none text-left hover:shadow-md',
+        'flex h-full w-full flex-col gap-1.5 rounded-control border bg-card p-3 shadow-sm transition-all select-none text-left hover:shadow-md',
         model.isPending && 'opacity-60',
         model.elementStyle && getConditionalFormatCardClass(model.elementStyle.tone, model.elementStyle.textStyles)
       )}
@@ -104,7 +104,7 @@ export const KanbanCard = React.memo(function KanbanCard({
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-1">
               {slots.metadata.map((slot) => (
                 <div key={slot.branch.id} className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-[10px] text-muted-foreground truncate">{slot.branch.label}</span>
+                  <span className="text-xs text-muted-foreground truncate">{slot.branch.label}</span>
                   <div className={cn(
                     "text-xs truncate",
                     slot.style && getConditionalFormatCellClass(slot.style.tone, slot.style.textStyles)
@@ -117,7 +117,7 @@ export const KanbanCard = React.memo(function KanbanCard({
           )}
           {model.statusBadge && (
             <span className={cn(
-              "inline-block w-fit rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground mt-auto",
+              "inline-block w-fit rounded-control bg-muted px-1.5 py-0.5 text-xs text-muted-foreground mt-auto",
               model.statusStyle && getConditionalFormatCellClass(model.statusStyle.tone, model.statusStyle.textStyles)
             )}>
               {model.statusBadge}
@@ -145,7 +145,7 @@ export const KanbanCard = React.memo(function KanbanCard({
             )}>{model.title || model.entryId}</p>
             {model.statusBadge && (
               <span className={cn(
-                "inline-block w-fit rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground",
+                "inline-block w-fit rounded-control bg-muted px-1.5 py-0.5 text-xs text-muted-foreground",
                 model.statusStyle && getConditionalFormatCellClass(model.statusStyle.tone, model.statusStyle.textStyles)
               )}>
                 {model.statusBadge}

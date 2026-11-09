@@ -44,7 +44,7 @@ function SortableCardItem({ card, colValue, canEdit, sortActive, onEdit, baseSty
         }}
       >
         <div
-          className="rounded-md border-2 border-dashed border-primary/20 bg-primary/5"
+          className="rounded-control border-2 border-dashed border-primary/20 bg-muted"
           style={{ boxSizing: 'border-box', height: KANBAN_CARD_HEIGHT_PX }}
         />
       </div>

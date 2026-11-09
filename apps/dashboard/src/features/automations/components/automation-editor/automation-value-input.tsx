@@ -26,6 +26,7 @@ interface AutomationValueInputProps {
   value: string
   onChange: (v: string) => void
   className?: string
+  id?: string
 }
 
 export function AutomationValueInput({
@@ -33,6 +34,7 @@ export function AutomationValueInput({
   value,
   onChange,
   className = 'h-7 flex-1 min-w-[60px]',
+  id,
 }: AutomationValueInputProps) {
   const { t } = useTranslation()
   const placeholder = t('automations.when.valuePlaceholder')
@@ -40,6 +42,7 @@ export function AutomationValueInput({
   if (!branch) {
     return (
       <Input
+        id={id}
         className={`${className} text-xs`}
         value={value}
         placeholder={placeholder}
@@ -52,7 +55,7 @@ export function AutomationValueInput({
     const selectValue = value === 'true' ? 'true' : value === 'false' ? 'false' : ''
     return (
       <Select value={selectValue} onValueChange={onChange}>
-        <SelectTrigger size="sm" className={`${className} text-xs`}>
+        <SelectTrigger id={id} size="sm" className={`${className} text-xs`}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
@@ -66,7 +69,7 @@ export function AutomationValueInput({
   if (branch.type === 'date') {
     return (
       <DatePickerInput
-        id="automation-value-date"
+        id={id ?? 'automation-value-date'}
         value={value || null}
         onChange={(v) => onChange(v ?? '')}
         placeholder={t('automations.when.chooseDate')}
@@ -77,6 +80,7 @@ export function AutomationValueInput({
   if (branch.type === 'number') {
     return (
       <Input
+        id={id}
         type="number"
         className={`${className} text-xs`}
         value={value}
@@ -93,6 +97,7 @@ export function AutomationValueInput({
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
+            id={id}
             type="button"
             variant="outline"
             size="sm"
@@ -122,6 +127,7 @@ export function AutomationValueInput({
 
   return (
     <Input
+      id={id}
       className={`${className} text-xs`}
       value={value}
       placeholder={placeholder}

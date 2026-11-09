@@ -116,8 +116,8 @@ export function ContentTrashPage() {
         <div className="flex flex-1 flex-col gap-4 p-4">
           <div className="content-area-inner">
             <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-              <h2 className="font-heading text-lg font-semibold text-destructive">Error</h2>
-              <p className="text-sm text-destructive/90">Seed "{slug}" not found</p>
+              <h2 className="font-heading text-xl font-bold text-status-danger-foreground">Error</h2>
+              <p className="text-sm text-status-danger-foreground/90">Seed "{slug}" not found</p>
             </div>
           </div>
         </div>

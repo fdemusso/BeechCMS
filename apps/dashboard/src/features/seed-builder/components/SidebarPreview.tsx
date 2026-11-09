@@ -23,7 +23,7 @@ export function SidebarPreview({ groupLabel, items, before, after, hidden }: Sid
     <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
       <p className="text-xs font-medium text-muted-foreground">{t("seedBuilder.editor.dashPreview")}</p>
       <div className="space-y-1">
-        <p className="px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{groupLabel}</p>
+        <p className="px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{groupLabel}</p>
         <ul className="space-y-0.5">
           {before > 0 && <More count={before} />}
           {items.map((item) => {

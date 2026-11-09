@@ -67,7 +67,7 @@ export function ConsentScreen({ metadata, params }: ConsentScreenProps) {
           </div>
 
           <div className="space-y-1">
-            <CardTitle className="text-lg font-semibold tracking-tight">
+            <CardTitle className="text-xl font-bold tracking-tight">
               {t('oauth.consent.title', { client: metadata.client.name })}
             </CardTitle>
             <CardDescription className="text-xs">
@@ -79,11 +79,11 @@ export function ConsentScreen({ metadata, params }: ConsentScreenProps) {
           {user?.email && (
             <div className="mx-auto inline-flex items-center gap-2 rounded-full border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
               <Avatar size="sm" className="size-4 border border-border">
-                <AvatarFallback className="bg-primary/10 text-primary text-[9px] font-medium">
+                <AvatarFallback className="bg-muted text-foreground text-xs font-medium">
                   {(user.name?.[0] ?? user.email[0] ?? 'U').toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <span className="font-medium text-foreground text-[11px] truncate max-w-[220px]">
+              <span className="font-medium text-foreground text-xs truncate max-w-[220px]">
                 {user.email}
               </span>
             </div>
@@ -111,20 +111,20 @@ export function ConsentScreen({ metadata, params }: ConsentScreenProps) {
 
                   <div className="flex-1 min-w-0 space-y-0.5">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <Badge variant="secondary" className="font-mono text-[11px] px-1.5 py-0">
+                      <Badge variant="secondary" className="font-mono text-xs px-1.5 py-0">
                         {scope}
                       </Badge>
                       {alreadyGranted ? (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 text-muted-foreground">
                           {t('oauth.consent.alreadyGranted')}
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/30 text-primary font-normal">
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 border-primary/30 text-foreground font-normal">
                           {t('oauth.consent.required')}
                         </Badge>
                       )}
                     </div>
-                    <p className="text-[11px] text-muted-foreground leading-snug">
+                    <p className="text-xs text-muted-foreground leading-snug">
                       {t(`oauth.consent.scopes.${scope}`)}
                     </p>
                   </div>
@@ -135,10 +135,10 @@ export function ConsentScreen({ metadata, params }: ConsentScreenProps) {
 
           {/* Disclaimer & redirect notice */}
           <div className="space-y-2 pt-0.5">
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               {t('oauth.consent.disclaimer')}
             </p>
-            <div className="rounded-md border bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground leading-snug break-all">
+            <div className="rounded-control border bg-muted/30 px-2.5 py-1.5 text-xs text-muted-foreground leading-snug break-all">
               {t('oauth.consent.redirectNotice', { uri: metadata.redirectUri })}
             </div>
           </div>

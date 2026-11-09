@@ -54,10 +54,10 @@ describe("content-toolbar/shared", () => {
   })
 
   it("ritorna classi tone-strip corrette", () => {
-    expect(getConditionalToneStripClass("success")).toContain("emerald")
-    expect(getConditionalToneStripClass("warning")).toContain("amber")
+    expect(getConditionalToneStripClass("success")).toContain("status-live")
+    expect(getConditionalToneStripClass("warning")).toContain("status-warning")
     expect(getConditionalToneStripClass("danger")).toContain("destructive")
-    expect(getConditionalToneStripClass("info")).toContain("sky")
+    expect(getConditionalToneStripClass("info")).toContain("status-info")
     expect(getConditionalToneStripClass("neutral")).toContain("muted")
   })
 

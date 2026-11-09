@@ -42,7 +42,7 @@ export function SlidingTabIndicator({ activeValue, className }: { activeValue: s
       aria-hidden
       className={cn(
         "pointer-events-none absolute bottom-[-1.5px] left-0 h-0.5 bg-foreground",
-        animated && "transition-[transform,width] duration-200 ease-out motion-reduce:transition-none",
+        animated && "transition-[transform,width] duration-(--duration-enter) ease-out motion-reduce:transition-none",
         !box && "opacity-0",
         className
       )}

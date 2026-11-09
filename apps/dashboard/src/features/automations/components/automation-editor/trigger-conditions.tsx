@@ -147,7 +147,7 @@ function WhenPredicateEditor({ pred, onChange, onRemove, onWrap, seedBranches }:
           type="button"
           variant="ghost"
           size="icon"
-          className="size-7 text-destructive/60 hover:text-destructive"
+          className="size-7 text-status-danger-foreground/60 hover:text-status-danger-foreground"
           onClick={onRemove}
         >
           <Trash2 className="size-3" />
@@ -233,7 +233,7 @@ function WhenGroupEditor({ group, onChange, onRemove, onWrap, seedBranches, dept
             type="button"
             variant="ghost"
             size="sm"
-            className={`h-6 px-2 text-xs ${group.negate ? 'text-destructive' : 'text-muted-foreground'}`}
+            className={`h-6 px-2 text-xs ${group.negate ? 'text-status-danger-foreground' : 'text-muted-foreground'}`}
             onClick={toggleNegate}
           >
             {t('automations.when.not')}
@@ -264,7 +264,7 @@ function WhenGroupEditor({ group, onChange, onRemove, onWrap, seedBranches, dept
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-6 shrink-0 text-destructive/60 hover:text-destructive"
+                  className="size-6 shrink-0 text-status-danger-foreground/60 hover:text-status-danger-foreground"
                   onClick={onRemove}
                   title={t('automations.when.removeGroup')}
                 >

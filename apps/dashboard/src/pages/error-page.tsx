@@ -24,11 +24,11 @@ export function ErrorPage() {
     <div className="flex min-h-svh w-full flex-col items-center justify-center bg-background p-6">
       <div className="flex max-w-md flex-col items-center gap-4 text-center">
         {status && (
-          <span className="text-6xl font-bold text-muted-foreground">
+          <span className="text-5xl font-bold text-muted-foreground">
             {status}
           </span>
         )}
-        <h1 className="font-heading text-xl font-semibold">{t("errorPage.title")}</h1>
+        <h1 className="font-heading text-xl font-bold">{t("errorPage.title")}</h1>
         <p className="text-sm text-muted-foreground">{message}</p>
         {/* Neutral CTA: --foreground/--background invert between themes (black on white ↔ white on black).
             Not the default variant, whose --primary is the blue brand colour.

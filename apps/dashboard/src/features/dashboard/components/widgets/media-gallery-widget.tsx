@@ -35,7 +35,7 @@ function MediaGalleryLoading() {
   return (
     <div className="grid grid-cols-4 gap-2">
       {SKELETON_ITEMS.map((key) => (
-        <Skeleton key={key} className="aspect-square rounded-md animate-pulse" />
+        <Skeleton key={key} className="aspect-square rounded-control animate-pulse" />
       ))}
     </div>
   )
@@ -88,15 +88,15 @@ function MediaGrid({
               <img
                 src={item.url}
                 alt={item.filename}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                className="h-full w-full object-cover transition-transform group-hover:scale-110"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
                 <Images className="size-6 text-muted-foreground/30" />
               </div>
             )}
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-6 opacity-0 group-hover:opacity-100 transition-opacity">
-              <p className="text-[10px] text-white font-medium truncate">{item.filename}</p>
+            <div /* design-ok: legibility gradient over a user image */ className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-6 opacity-0 group-hover:opacity-100 transition-opacity">
+              <p /* design-ok: text on the image gradient above */ className="text-xs text-white font-medium truncate">{item.filename}</p>
             </div>
           </button>
         )
@@ -150,19 +150,19 @@ function UnusedGrid({
               <img
                 src={item.url}
                 alt={item.filename}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                className="h-full w-full object-cover transition-transform group-hover:scale-110"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
                 <Images className="size-6 text-muted-foreground/30" />
               </div>
             )}
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-6 opacity-0 group-hover:opacity-100 transition-opacity">
-              <p className="text-[10px] text-white font-medium truncate mb-1.5">{item.filename}</p>
+            <div /* design-ok: legibility gradient over a user image */ className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-6 opacity-0 group-hover:opacity-100 transition-opacity">
+              <p /* design-ok: text on the image gradient above */ className="text-xs text-white font-medium truncate mb-1.5">{item.filename}</p>
               <Button
                 variant="destructive"
                 size="sm"
-                className="h-6 w-full text-[10px] gap-1 px-1.5 bg-red-600 hover:bg-red-500 border-none"
+                className="h-6 w-full text-xs gap-1 px-1.5 bg-status-danger hover:bg-status-danger/90 border-none"
                 onClick={(e) => {
                   e.stopPropagation()
                   onDelete(item.key, item.filename)
@@ -265,17 +265,17 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
   }
 
   return (
-    <div className="h-full w-full flex flex-col rounded-xl border border-border bg-background/50 backdrop-blur-sm shadow-sm dark:bg-card/40 overflow-hidden">
+    <div className="h-full w-full flex flex-col rounded-lg border border-border bg-background/50 backdrop-blur-sm shadow-sm dark:bg-card/40 overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 shrink-0">
-        <h3 className="font-heading text-sm font-semibold text-foreground flex items-center gap-2">
+        <h3 className="font-heading text-sm font-bold text-foreground flex items-center gap-2">
           <Images className="size-4 text-muted-foreground" />
           {t("dashboard.widgets.mediaGallery.title")}
         </h3>
-        <div className="flex items-center gap-0.5 bg-muted/50 p-0.5 rounded-md border border-border/50">
+        <div className="flex items-center gap-0.5 bg-muted/50 p-0.5 rounded-control border border-border/50">
           <Button
             variant={variant === "grid" ? "secondary" : "ghost"}
             size="sm"
-            className="h-6 px-2 text-[10px]"
+            className="h-6 px-2 text-xs"
             onClick={() => setVariant("grid")}
           >
             {t("dashboard.widgets.mediaGallery.all")}
@@ -283,7 +283,7 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
           <Button
             variant={variant === "unused" ? "secondary" : "ghost"}
             size="sm"
-            className="h-6 px-2 text-[10px]"
+            className="h-6 px-2 text-xs"
             onClick={() => setVariant("unused")}
           >
             {t("dashboard.widgets.mediaGallery.unused")}

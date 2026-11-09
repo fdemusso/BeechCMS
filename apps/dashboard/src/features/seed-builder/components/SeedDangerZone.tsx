@@ -76,7 +76,7 @@ function MaintenanceSection({ record, manifestOwned, open, onOpenChange }: { rec
     <section className="space-y-2">
       <header className="space-y-1">
         <div className="flex items-center gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
             {t("seedBuilder.dangerZone.maintenance.title")}
           </h3>
           <Badge variant="outline">{t("seedBuilder.dangerZone.maintenance.badge")}</Badge>
@@ -131,14 +131,14 @@ function MaintenanceSection({ record, manifestOwned, open, onOpenChange }: { rec
             id={listId}
             className={cn(
               "col-span-full grid transition-[grid-template-rows] ease-out motion-reduce:transition-none",
-              open ? "grid-rows-[1fr] duration-[220ms]" : "grid-rows-[0fr] duration-[176ms]"
+              open ? "grid-rows-[1fr] duration-(--duration-enter)" : "grid-rows-[0fr] duration-(--duration-exit)"
             )}
             inert={!open}
           >
             <div
               className={cn(
                 "min-h-0 overflow-hidden transition-[opacity,transform] ease-out motion-reduce:transition-none",
-                open ? "translate-y-0 opacity-100 duration-[220ms]" : "-translate-y-2 opacity-0 duration-[176ms]"
+                open ? "translate-y-0 opacity-100 duration-(--duration-enter)" : "-translate-y-2 opacity-0 duration-(--duration-exit)"
               )}
             >
               <div className="border-t bg-muted/30 p-3">
@@ -198,10 +198,10 @@ function FieldOperations({ record, disabled, state, onStateChange, onChooseDispl
     <section className={cn("space-y-2", disabled && "opacity-50")} inert={disabled}>
       <header className="space-y-1">
         <div className="flex items-center gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
             {t("seedBuilder.dangerZone.fieldOps.title")}
           </h3>
-          <Badge variant="outline" className="border-amber-500/50 text-amber-500">
+          <Badge variant="outline" className="border-status-warning/50 text-status-warning-foreground">
             {t("seedBuilder.dangerZone.fieldOps.badge")}
           </Badge>
         </div>
@@ -213,7 +213,7 @@ function FieldOperations({ record, disabled, state, onStateChange, onChooseDispl
           {t("seedBuilder.dangerZone.fieldOps.empty")}
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 md:grid-cols-[minmax(0,4fr)_minmax(0,7fr)]">
+        <div className="grid grid-cols-1 gap-4 rounded-lg border border-status-warning/30 bg-status-warning/5 p-3 md:grid-cols-[minmax(0,4fr)_minmax(0,7fr)]">
           {/* Four rows are visible (3.375rem each, 0.375rem apart, plus the 0.5rem of padding): that is what lets the whole tab fit the
               dialog without scrolling the page. The rest of the list scrolls. */}
           <ScrollArea className="-m-1 max-h-[15.125rem] self-start">
@@ -235,7 +235,7 @@ function FieldOperations({ record, disabled, state, onStateChange, onChooseDispl
                     <Icon className="size-5 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">{branch.label}</span>
-                      <span className="block truncate font-mono text-[11px] text-muted-foreground">{branch.alias}</span>
+                      <span className="block truncate font-mono text-xs text-muted-foreground">{branch.alias}</span>
                     </span>
                     <IconBadgeGroup items={fieldBadges(branch, t)} moreLabel={(count) => t("rbac.roles.moreRoles", "+{{count}} more", { count })} />
                   </button>
@@ -293,8 +293,8 @@ function FieldOperationPanel({ branch, mode, onModeChange, slug, displayNameAlia
       value={op}
       disabled={blocked[op] !== undefined}
       className={cn(
-        "relative z-10 flex-1 rounded-[calc(var(--radius-control)-3px)] px-3 py-1 text-sm text-muted-foreground outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-40",
-        mode === op && (op === "drop" ? "text-destructive" : "text-foreground")
+        "relative z-10 flex-1 rounded-[calc(var(--radius-control)-3px)] px-3 py-1 text-sm text-muted-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-40",
+        mode === op && (op === "drop" ? "text-status-danger-foreground" : "text-foreground")
       )}
     >
       {label}
@@ -338,7 +338,7 @@ function FieldOperationPanel({ branch, mode, onModeChange, slug, displayNameAlia
             <span
               aria-hidden
               className={cn(
-                "absolute inset-y-0.5 left-0.5 w-[calc((100%-0.5rem)/3)] rounded-[calc(var(--radius-control)-3px)] transition-[transform,background-color] duration-200 ease-out motion-reduce:transition-none",
+                "absolute inset-y-0.5 left-0.5 w-[calc((100%-0.5rem)/3)] rounded-[calc(var(--radius-control)-3px)] transition-[transform,background-color] duration-(--duration-enter) ease-out motion-reduce:transition-none",
                 mode === "drop" ? "bg-destructive/15" : "bg-accent"
               )}
               style={{ transform: `translateX(calc(${OPERATIONS.indexOf(mode)} * (100% + 0.125rem)))` }}
@@ -349,7 +349,7 @@ function FieldOperationPanel({ branch, mode, onModeChange, slug, displayNameAlia
           </TabsPrimitive.List>
 
           {(blocked.retype || blocked.drop) && (
-            <ul className="space-y-0.5 px-1.5 text-xs text-amber-500">
+            <ul className="space-y-0.5 px-1.5 text-xs text-status-warning-foreground">
               {blocked.retype && <li>{t("seedBuilder.dangerZone.fieldOps.retype")}: {blocked.retype}</li>}
               {blocked.drop && (
                 <li>
@@ -427,7 +427,7 @@ function FieldOperationPanel({ branch, mode, onModeChange, slug, displayNameAlia
 
 function Impact({ tone, title, body }: { tone: "warn" | "danger"; title: string; body: string }) {
   return (
-    <div role="note" className={cn("mx-1.5 space-y-0.5 border-l-2 py-1 pl-3 text-sm", tone === "danger" ? "border-destructive" : "border-amber-500")}>
+    <div role="note" className={cn("mx-1.5 space-y-0.5 border-l-2 py-1 pl-3 text-sm", tone === "danger" ? "border-destructive" : "border-status-warning")}>
       <p className="font-medium">{title}</p>
       <p className="text-xs text-muted-foreground">{body}</p>
     </div>
@@ -456,7 +456,7 @@ export function SeedDangerZone({ record, state, onStateChange, onChooseDisplayNa
   return (
     <div className="space-y-7" data-testid="seed-danger-zone">
       {manifestOwned && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-500" role="note">
+        <div className="flex items-start gap-2 rounded-lg border border-status-warning/40 bg-status-warning/10 p-3 text-sm text-status-warning-foreground" role="note">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <p>
             <strong>{t("seedBuilder.dangerZone.manifest.title")}</strong> {t("seedBuilder.dangerZone.manifest.body")}

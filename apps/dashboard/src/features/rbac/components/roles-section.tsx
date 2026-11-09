@@ -107,7 +107,7 @@ export function RolesSection() {
                       <div className="flex items-center gap-2">
                         <RoleIcon aria-hidden className="size-4 text-muted-foreground shrink-0" />
                         <span className="truncate">{role.name}</span>
-                        {role.isSystem && <Badge variant="outline" className="text-[10px] shrink-0">{t("rbac.roles.system", "System")}</Badge>}
+                        {role.isSystem && <Badge variant="outline" className="text-xs shrink-0">{t("rbac.roles.system", "System")}</Badge>}
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground max-w-[320px] truncate" title={role.description ?? undefined}>
@@ -134,7 +134,7 @@ export function RolesSection() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8 text-destructive"
+                              className="size-8 text-status-danger-foreground"
                               disabled
                               aria-label={t("rbac.roles.deleteFor", { name: role.name })}
                               aria-describedby={SYSTEM_HINT_ID}
@@ -147,7 +147,7 @@ export function RolesSection() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="size-8 text-destructive"
+                                  className="size-8 text-status-danger-foreground"
                                   aria-label={t("rbac.roles.deleteFor", { name: role.name })}
                                 >
                                   <Trash2 aria-hidden className="size-4" />

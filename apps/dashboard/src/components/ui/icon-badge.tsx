@@ -27,7 +27,7 @@ export function IconBadge({ icon: Icon, label, className }: IconBadgeProps) {
           variant="secondary"
           className={cn(
             // Badge forces its icons to 12px (`[&>svg]:size-3!`); 16px is where Reicon's 1.5/24 line is exactly 1px wide.
-            "transition-colors leading-none size-6 p-0 inline-flex items-center justify-center rounded-md [&>svg]:size-4!",
+            "transition-colors leading-none size-6 p-0 inline-flex items-center justify-center rounded-control [&>svg]:size-4!",
             className
           )}
           role="img"
@@ -74,7 +74,7 @@ export function IconBadgeGroup({ items, max = 3, moreLabel, className }: IconBad
   return (
     <div className={cn("flex items-center -space-x-1.5", isSingle && "justify-center", className)}>
       {visible.map(({ id, ...badge }) => (
-        <div key={id} className="relative flex ring-1 ring-border rounded-md transition-transform hover:z-10 hover:scale-105">
+        <div key={id} className="relative flex ring-1 ring-border rounded-control transition-transform hover:z-10 hover:scale-105">
           <IconBadge {...badge} />
         </div>
       ))}
@@ -85,7 +85,7 @@ export function IconBadgeGroup({ items, max = 3, moreLabel, className }: IconBad
             <button
               type="button"
               {...triggerProps}
-              className="relative z-0 ring-1 ring-border size-6 rounded-md bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground text-[10px] font-semibold inline-flex items-center justify-center transition-transform hover:z-10 hover:scale-105 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="relative z-0 ring-1 ring-border size-6 rounded-control bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground text-xs font-medium inline-flex items-center justify-center transition-transform hover:z-10 hover:scale-105 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={moreLabel(remaining.length)}
             >
               +{remaining.length}

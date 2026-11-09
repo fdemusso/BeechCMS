@@ -14,15 +14,15 @@ type FolderIconName = NonNullable<FolderStyle["icon"]>
 
 // Full class names, never built by concatenation: Tailwind only emits classes it can read statically.
 export const FOLDER_COLOR_CLASSES: Record<FolderColor, { swatch: string; banner: string; icon: string }> = {
-  slate: { swatch: "bg-slate-500", banner: "from-slate-500/10 to-slate-500/25", icon: "text-slate-600 dark:text-slate-300" },
-  red: { swatch: "bg-red-500", banner: "from-red-500/10 to-red-500/25", icon: "text-red-600 dark:text-red-400" },
-  orange: { swatch: "bg-orange-500", banner: "from-orange-500/10 to-orange-500/25", icon: "text-orange-600 dark:text-orange-400" },
-  amber: { swatch: "bg-amber-500", banner: "from-amber-500/10 to-amber-500/25", icon: "text-amber-600 dark:text-amber-400" },
-  green: { swatch: "bg-green-500", banner: "from-green-500/10 to-green-500/25", icon: "text-green-600 dark:text-green-400" },
-  teal: { swatch: "bg-teal-500", banner: "from-teal-500/10 to-teal-500/25", icon: "text-teal-600 dark:text-teal-400" },
-  blue: { swatch: "bg-blue-500", banner: "from-blue-500/10 to-blue-500/25", icon: "text-blue-600 dark:text-blue-400" },
-  violet: { swatch: "bg-violet-500", banner: "from-violet-500/10 to-violet-500/25", icon: "text-violet-600 dark:text-violet-400" },
-  pink: { swatch: "bg-pink-500", banner: "from-pink-500/10 to-pink-500/25", icon: "text-pink-600 dark:text-pink-400" },
+  slate: { swatch: "bg-slate-500", banner: "from-slate-500/10 to-slate-500/25", icon: "text-slate-600 dark:text-slate-300" }, // design-ok: user-chosen folder colour, the palette name is stored as data
+  red: { swatch: "bg-red-500", banner: "from-red-500/10 to-red-500/25", icon: "text-red-600 dark:text-red-400" }, // design-ok: user-chosen folder colour, the palette name is stored as data
+  orange: { swatch: "bg-orange-500", banner: "from-orange-500/10 to-orange-500/25", icon: "text-orange-600 dark:text-orange-400" }, // design-ok: user-chosen folder colour, the palette name is stored as data
+  amber: { swatch: "bg-amber-500", banner: "from-amber-500/10 to-amber-500/25", icon: "text-amber-600 dark:text-amber-400" }, // design-ok: user-chosen folder colour, the palette name is stored as data
+  green: { swatch: "bg-green-500", banner: "from-green-500/10 to-green-500/25", icon: "text-green-600 dark:text-green-400" }, // design-ok: user-chosen folder colour, the palette name is stored as data
+  teal: { swatch: "bg-teal-500", banner: "from-teal-500/10 to-teal-500/25", icon: "text-teal-600 dark:text-teal-400" }, // design-ok: user-chosen folder colour, the palette name is stored as data
+  blue: { swatch: "bg-blue-500", banner: "from-blue-500/10 to-blue-500/25", icon: "text-blue-600 dark:text-blue-400" }, // design-ok: user-chosen folder colour, the palette name is stored as data
+  violet: { swatch: "bg-violet-500", banner: "from-violet-500/10 to-violet-500/25", icon: "text-violet-600 dark:text-violet-400" }, // design-ok: user-chosen folder colour, the palette name is stored as data
+  pink: { swatch: "bg-pink-500", banner: "from-pink-500/10 to-pink-500/25", icon: "text-pink-600 dark:text-pink-400" }, // design-ok: user-chosen folder colour, the palette name is stored as data
 }
 
 export const FOLDER_ICON_COMPONENTS: Record<FolderIconName, ComponentType<{ className?: string }>> = {

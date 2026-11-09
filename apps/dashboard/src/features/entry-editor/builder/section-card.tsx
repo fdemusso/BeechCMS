@@ -93,7 +93,7 @@ const SectionMenu = React.memo(function SectionMenu({
         </DropdownMenuSub>
       )}
       <DropdownMenuSeparator />
-      <DropdownMenuItem className="text-destructive" onSelect={() => api.requestRemove(fieldCount > 0)}>
+      <DropdownMenuItem className="text-status-danger-foreground" onSelect={() => api.requestRemove(fieldCount > 0)}>
         {t('layoutBuilder.sectionMenu.remove')}
       </DropdownMenuItem>
     </>

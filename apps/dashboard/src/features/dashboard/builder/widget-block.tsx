@@ -196,7 +196,7 @@ const WidgetControls = React.memo(function WidgetControls({
         variant="ghost"
         size="icon-sm"
         aria-label={t('dashboard.builder.widget.remove')}
-        className="text-muted-foreground hover:text-destructive"
+        className="text-muted-foreground hover:text-status-danger-foreground"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); onRemove() }}
       >
@@ -282,7 +282,7 @@ export const WidgetBlock = React.memo(function WidgetBlock({
         ref={setNodeRef}
         style={style}
         title={t('dashboard.builder.widget.lockedHint')}
-        className="flex items-center gap-2 rounded-2xl border border-dashed bg-muted px-3 py-3 text-sm text-muted-foreground"
+        className="flex items-center gap-2 rounded-lg border border-dashed bg-muted px-3 py-3 text-sm text-muted-foreground"
       >
         <Lock className="size-4 shrink-0" />
         <span className="min-w-0 flex-1 truncate">{t('dashboard.builder.widget.locked')}</span>
@@ -297,7 +297,7 @@ export const WidgetBlock = React.memo(function WidgetBlock({
           ref={setNodeRef}
           style={style}
           aria-label={label}
-          className="group/widget relative min-w-0 max-w-full cursor-grab touch-none rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="group/widget relative min-w-0 max-w-full cursor-grab touch-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onDoubleClick={startRename}
           onKeyDown={(e) => {
             if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
@@ -318,7 +318,7 @@ export const WidgetBlock = React.memo(function WidgetBlock({
           {tooNarrow && (
             <span
               title={t('dashboard.builder.widget.tooNarrow')}
-              className="absolute bottom-2 right-2 rounded-full bg-popover/80 p-1 text-amber-500"
+              className="absolute bottom-2 right-2 rounded-full bg-popover/80 p-1 text-status-warning-foreground"
             >
               <AlertTriangle className="size-3.5" />
             </span>
@@ -332,7 +332,7 @@ export const WidgetBlock = React.memo(function WidgetBlock({
               maxLength={DASHBOARD_WIDGET_TITLE_MAX}
               value={renameValue}
               placeholder={def ? t(def.labelKey) : widget.type}
-              className="absolute left-4 right-4 top-3.5 h-7 rounded-md bg-background px-2 text-sm focus-visible:ring-1 focus-visible:ring-ring/30"
+              className="absolute left-4 right-4 top-3.5 h-7 rounded-control bg-background px-2 text-sm focus-visible:ring-1 focus-visible:ring-ring/30"
               onChange={(e) => setRenameValue(e.target.value)}
               onBlur={commitRename}
               onPointerDown={(e) => e.stopPropagation()}
