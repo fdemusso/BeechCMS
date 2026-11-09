@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
-import { UsersTab } from "./users-tab"
+import { UsersSection } from "./users-section"
 
 const mockUsers = vi.fn()
 vi.mock("../hooks/use-rbac", () => ({
@@ -24,12 +24,12 @@ vi.mock("./assignments-dialog", () => ({ AssignmentsDialog: () => null }))
 function renderTab() {
   return render(
     <MemoryRouter>
-      <UsersTab />
+      <UsersSection />
     </MemoryRouter>
   )
 }
 
-describe("UsersTab", () => {
+describe("UsersSection", () => {
   it("renders rows from the mocked hook, disables the switch on caller's own row, and renders manage roles icon button", () => {
     mockUsers.mockReturnValue({
       data: [
@@ -53,7 +53,7 @@ describe("UsersTab", () => {
     expect(switches[1]).not.toBeDisabled()
 
     // Manage roles icon buttons with accessible label
-    const manageRolesButtons = screen.getAllByRole("button", { name: "Manage roles" })
+    const manageRolesButtons = screen.getAllByRole("button", { name: /^Manage roles of / })
     expect(manageRolesButtons).toHaveLength(2)
   })
 
@@ -68,9 +68,8 @@ describe("UsersTab", () => {
     })
     renderTab()
 
-    const rows = screen.getAllByRole("row")
-    // rows[0] is table header, rows[1] is the first user row
-    expect(rows[1]).toHaveTextContent("me@beech.local")
+    const rows = screen.getAllByRole("listitem")
+    expect(rows[0]).toHaveTextContent("me@beech.local")
   })
 
   it("every active account other than the caller has an enabled status switch", () => {

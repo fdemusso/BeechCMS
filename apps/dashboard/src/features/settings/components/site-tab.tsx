@@ -19,7 +19,7 @@ import {
   SettingsRow,
   SettingsSection,
   rowDescriptionDomId,
-} from './settings-section'
+} from '@/components/ui/settings-section'
 
 /**
  * Site: who owns it, its regional defaults, how long the Trash keeps things, and the languages its content comes in.

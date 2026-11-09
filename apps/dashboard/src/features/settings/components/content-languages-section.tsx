@@ -14,7 +14,7 @@ import {
   SettingsFieldError,
   SettingsRow,
   SettingsSection,
-} from "./settings-section"
+} from "@/components/ui/settings-section"
 
 /**
  * The languages the content can be translated into: a list with one language per row, a small form to add one, and

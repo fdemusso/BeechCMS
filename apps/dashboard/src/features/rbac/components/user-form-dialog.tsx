@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { useCreateUser } from "../hooks/use-rbac"
 import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
@@ -67,19 +68,20 @@ export function UserFormDialog({ open, onOpenChange }: UserFormDialogProps) {
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="uf-email">{t("rbac.users.email", "Email")}</FieldLabel>
-              <Input id="uf-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              {/* The new person's address, not the one in the browser's autofill. */}
+              <Input id="uf-email" name="new-account-email" type="email" autoComplete="off" required value={email} onChange={(e) => setEmail(e.target.value)} />
             </Field>
             <Field>
               <FieldLabel htmlFor="uf-password">{t("rbac.users.password", "Password")}</FieldLabel>
-              <Input id="uf-password" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <PasswordInput id="uf-password" name="new-account-password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
             </Field>
             <Field>
               <FieldLabel htmlFor="uf-name">{t("rbac.users.name", "Name")}</FieldLabel>
-              <Input id="uf-name" value={name} onChange={(e) => setName(e.target.value)} />
+              <Input id="uf-name" name="new-account-name" autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
             <Field>
               <FieldLabel htmlFor="uf-surname">{t("rbac.users.surname", "Surname")}</FieldLabel>
-              <Input id="uf-surname" value={surname} onChange={(e) => setSurname(e.target.value)} />
+              <Input id="uf-surname" name="new-account-surname" autoComplete="off" value={surname} onChange={(e) => setSurname(e.target.value)} />
             </Field>
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>

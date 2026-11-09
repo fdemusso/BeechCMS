@@ -19,7 +19,7 @@ import {
   SettingsRow,
   SettingsSection,
   sectionDescriptionDomId,
-} from './settings-section'
+} from '@/components/ui/settings-section'
 
 function getInitials(name: string | null, surname: string | null, email: string): string {
   if (name || surname) {

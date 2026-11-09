@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent, act } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { RolesTab } from "./roles-tab"
+import { RolesSection } from "./roles-section"
 
 const mockRoles = vi.fn()
 vi.mock("../hooks/use-rbac", () => ({
@@ -17,7 +17,7 @@ vi.mock("@/features/shared", () => ({
 }))
 vi.mock("./role-form-dialog", () => ({ RoleFormDialog: () => null }))
 
-describe("RolesTab", () => {
+describe("RolesSection", () => {
   it("a system role renders Edit/Delete actions as disabled", () => {
     mockRoles.mockReturnValue({
       data: [
@@ -26,10 +26,10 @@ describe("RolesTab", () => {
       ],
       isLoading: false,
     })
-    render(<RolesTab />)
+    render(<RolesSection />)
 
     expect(screen.getByText("SuperAdmin")).toBeInTheDocument()
-    const row = screen.getByText("SuperAdmin").closest("tr")!
+    const row = screen.getByText("SuperAdmin").closest("li")!
     const buttons = row.querySelectorAll("button")
     expect(buttons.length).toBe(2)
     expect(buttons[0]).toBeDisabled()
@@ -51,7 +51,7 @@ describe("RolesTab", () => {
       ],
       isLoading: false,
     })
-    render(<RolesTab />)
+    render(<RolesSection />)
 
     expect(screen.getByLabelText("Read content")).toBeInTheDocument()
     expect(screen.getByLabelText("Create content")).toBeInTheDocument()
@@ -73,7 +73,7 @@ describe("RolesTab", () => {
       ],
       isLoading: false,
     })
-    render(<RolesTab />)
+    render(<RolesSection />)
 
     // First 2 are rendered directly
     expect(screen.getByLabelText("Read content")).toBeInTheDocument()
@@ -107,7 +107,7 @@ describe("RolesTab", () => {
       ],
       isLoading: false,
     })
-    render(<RolesTab />)
+    render(<RolesSection />)
 
     const moreButton = screen.getByRole("button", { name: "+2 more" })
 
@@ -152,12 +152,12 @@ describe("RolesTab", () => {
       ],
       isLoading: false,
     })
-    render(<RolesTab />)
+    render(<RolesSection />)
 
-    const superAdminCell = screen.getByText("SuperAdmin").closest("td")!
+    const superAdminCell = screen.getByText("SuperAdmin").closest("li")!
     expect(superAdminCell.querySelector("svg")).toBeInTheDocument()
 
-    const customRoleCell = screen.getByText("CustomRole").closest("td")!
+    const customRoleCell = screen.getByText("CustomRole").closest("li")!
     expect(customRoleCell.querySelector("svg")).toBeInTheDocument()
   })
 })

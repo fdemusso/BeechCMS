@@ -20,9 +20,11 @@ export interface ScopeSelectProps {
   value: Scope | undefined
   onValueChange: (value: Scope) => void
   id?: string
+  /** For a picker with no visible label beside it. */
+  ariaLabel?: string
 }
 
-export function ScopeSelect({ value, onValueChange, id }: ScopeSelectProps) {
+export function ScopeSelect({ value, onValueChange, id, ariaLabel }: ScopeSelectProps) {
   const { t } = useTranslation()
   const { manageableScopes } = usePermissions()
   const { data: seeds = [] } = useSchema()
@@ -31,7 +33,7 @@ export function ScopeSelect({ value, onValueChange, id }: ScopeSelectProps) {
     return (
       <div>
         <Select disabled>
-          <SelectTrigger id={id} className="w-full">
+          <SelectTrigger id={id} aria-label={ariaLabel} className="w-full">
             <SelectValue placeholder={t("rbac.scope.none", "No scopes available")} />
           </SelectTrigger>
           <SelectContent />
@@ -43,7 +45,7 @@ export function ScopeSelect({ value, onValueChange, id }: ScopeSelectProps) {
 
   return (
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger id={id} className="w-full">
+      <SelectTrigger id={id} aria-label={ariaLabel} className="w-full">
         <SelectValue placeholder={t("rbac.scope.select", "Select a scope")} />
       </SelectTrigger>
       <SelectContent position="popper">

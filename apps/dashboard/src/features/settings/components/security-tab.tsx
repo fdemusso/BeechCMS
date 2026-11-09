@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useSessions, useRevokeSession, useSettingsActivity } from '../hooks/use-settings'
 import type { ActivityEntry, Session } from '../types/settings.types'
-import { SettingsSection } from './settings-section'
+import { SettingsSection } from '@/components/ui/settings-section'
 import { describeActivity } from '../lib/activity-presentation'
 
 // Rows share one fixed height, so "N rows visible" is exact: the lists below cap at N × this and scroll past it.
