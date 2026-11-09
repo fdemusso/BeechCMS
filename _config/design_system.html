@@ -16,38 +16,39 @@
   "source": "apps/dashboard/src/index.css must declare every token below with exactly these values",
   "colorSpace": "values are OKLCH or hex; tints use color-mix(in oklab, ...)",
   "tokens": [
-    {"name":"--background","utility":"bg-background","role":"page background","light":"#f5f5f7","dark":"#09090b"},
+    {"name":"--background","utility":"bg-background","role":"page background","light":"oklch(0.935 0.003 286)","dark":"#09090b"},
     {"name":"--foreground","utility":"text-foreground","role":"body text","light":"#09090b","dark":"#f5f5f7"},
-    {"name":"--card","utility":"bg-card","role":"raised surface: card, popover, dialog","light":"oklch(0.99 0.001 286)","dark":"oklch(0.21 0.006 286)","aliases":["--card-foreground=--foreground","--popover=--card","--popover-foreground=--foreground"]},
-    {"name":"--muted","utility":"bg-muted","role":"quiet surface: table header, selected row, hover, light sidebar","light":"oklch(0.94 0.003 286)","dark":"oklch(0.274 0.006 286)","aliases":["--secondary=--muted","--accent=--muted","--secondary-foreground=--foreground","--accent-foreground=--foreground"]},
-    {"name":"--muted-strong","utility":"bg-muted-strong","role":"stronger neutral: pressed, hover on a quiet surface, progress track","light":"oklch(0.915 0.004 286)","dark":"oklch(0.338 0.006 286)"},
-    {"name":"--muted-foreground","utility":"text-muted-foreground","role":"secondary text","light":"oklch(0.5 0.016 286)","dark":"oklch(0.705 0.015 286)"},
-    {"name":"--border","utility":"border-border","role":"lines and dividers","light":"oklch(0.89 0.005 286)","dark":"oklch(1 0 0 / 10%)"},
-    {"name":"--input","utility":"border-input","role":"edge of a form control","light":"oklch(0.89 0.005 286)","dark":"oklch(1 0 0 / 15%)"},
+    {"name":"--card","utility":"bg-card","role":"raised surface: card, popover, dialog","light":"#f5f5f7","dark":"oklch(0.21 0.006 286)","aliases":["--card-foreground=--foreground","--popover=--card","--popover-foreground=--foreground"]},
+    {"name":"--muted","utility":"bg-muted","role":"quiet surface: table header, selected row, hover, light sidebar","light":"oklch(0.91 0.003 286)","dark":"oklch(0.274 0.006 286)","aliases":["--secondary=--muted","--accent=--muted","--secondary-foreground=--foreground","--accent-foreground=--foreground"]},
+    {"name":"--muted-strong","utility":"bg-muted-strong","role":"stronger neutral: pressed, hover on a quiet surface, progress track","light":"oklch(0.885 0.004 286)","dark":"oklch(0.338 0.006 286)"},
+    {"name":"--muted-foreground","utility":"text-muted-foreground","role":"secondary text","light":"oklch(0.48 0.016 286)","dark":"oklch(0.705 0.015 286)"},
+    {"name":"--border","utility":"border-border","role":"lines and dividers","light":"oklch(0.84 0.005 286)","dark":"oklch(1 0 0 / 10%)"},
+    {"name":"--input","utility":"border-input","role":"edge of a form control (3:1 on the card)","light":"oklch(0.64 0.008 286)","dark":"oklch(1 0 0 / 15%)"},
     {"name":"--ring","utility":"ring-ring","role":"focus ring, equal to --primary","light":"#3F3D56","dark":"oklch(0.772 0.043 288)"},
     {"name":"--primary","utility":"bg-primary","role":"ink: the one primary action","light":"#3F3D56","dark":"oklch(0.772 0.043 288)"},
     {"name":"--primary-foreground","utility":"text-primary-foreground","role":"text on --primary","light":"#f5f5f7","dark":"#09090b"},
     {"name":"--signal","utility":"bg-signal","role":"attention: unread count, new marker (solid)","light":"#FF6584","dark":"#FF6584"},
     {"name":"--signal-on","utility":"text-signal-on","role":"text on solid --signal","light":"#09090b","dark":"#09090b"},
     {"name":"--signal-soft","utility":"bg-signal-soft","role":"soft attention background","light":"color-mix(in oklab, var(--signal) 14%, var(--card))","dark":"color-mix(in oklab, var(--signal) 14%, var(--card))"},
-    {"name":"--signal-foreground","utility":"text-signal-foreground","role":"text on --signal-soft","light":"oklch(0.55 0.188 11)","dark":"#FF6584"},
-    {"name":"--signal-strong","utility":"bg-signal-strong","role":"progress fill","light":"oklch(0.621 0.188 11)","dark":"#FF6584"},
+    {"name":"--signal-foreground","utility":"text-signal-foreground","role":"text on --signal-soft","light":"oklch(0.538 0.188 11)","dark":"#FF6584"},
+    {"name":"--signal-strong","utility":"bg-signal-strong","role":"progress fill","light":"oklch(0.605 0.188 11)","dark":"#FF6584"},
     {"name":"--category","utility":"bg-category","role":"organisation (solid): avatar fallback, illustrations","light":"#DEA684","dark":"#DEA684"},
     {"name":"--category-foreground","utility":"text-category-foreground","role":"text on solid --category","light":"#3a2412","dark":"#3a2412"},
     {"name":"--category-soft","utility":"bg-category-soft","role":"category chip background","light":"color-mix(in oklab, var(--category) 28%, var(--card))","dark":"color-mix(in oklab, var(--category) 28%, var(--card))"},
-    {"name":"--sidebar-active","utility":"bg-sidebar-active","role":"active navigation item","light":"color-mix(in oklab, var(--category) 30%, var(--muted))","dark":"color-mix(in oklab, var(--category) 30%, var(--muted))"},
+    {"name":"--sidebar-active","utility":"bg-sidebar-active","role":"active navigation item: one grey step past the hover (--sidebar-accent)","light":"var(--border)","dark":"var(--muted-strong)"},
+    {"name":"--sidebar-active-foreground","utility":"text-sidebar-active-foreground","role":"text and icon of the active navigation item","light":"var(--foreground)","dark":"var(--foreground)"},
     {"name":"--status-live","utility":"bg-status-live","role":"published, succeeded, online (dot, icon)","light":"oklch(0.622 0.152 155)","dark":"oklch(0.622 0.152 155)"},
     {"name":"--status-live-soft","utility":"bg-status-live-soft","role":"status background","light":"color-mix(in oklab, var(--status-live) 14%, var(--card))","dark":"color-mix(in oklab, var(--status-live) 14%, var(--card))"},
-    {"name":"--status-live-foreground","utility":"text-status-live-foreground","role":"status text","light":"oklch(0.508 0.124 155)","dark":"oklch(0.629 0.154 155)"},
+    {"name":"--status-live-foreground","utility":"text-status-live-foreground","role":"status text","light":"oklch(0.496 0.124 155)","dark":"oklch(0.629 0.154 155)"},
     {"name":"--status-warning","utility":"bg-status-warning","role":"draft, pending, needs attention (dot, icon)","light":"oklch(0.643 0.132 80)","dark":"oklch(0.643 0.132 80)"},
     {"name":"--status-warning-soft","utility":"bg-status-warning-soft","role":"status background","light":"color-mix(in oklab, var(--status-warning) 14%, var(--card))","dark":"color-mix(in oklab, var(--status-warning) 14%, var(--card))"},
-    {"name":"--status-warning-foreground","utility":"text-status-warning-foreground","role":"status text","light":"oklch(0.525 0.108 80)","dark":"oklch(0.651 0.134 80)"},
+    {"name":"--status-warning-foreground","utility":"text-status-warning-foreground","role":"status text","light":"oklch(0.513 0.108 80)","dark":"oklch(0.651 0.134 80)"},
     {"name":"--status-danger","utility":"bg-status-danger","role":"error, failed, destructive (dot, icon); equals --destructive","light":"oklch(0.6 0.2 31)","dark":"oklch(0.6 0.2 31)"},
     {"name":"--status-danger-soft","utility":"bg-status-danger-soft","role":"status background","light":"color-mix(in oklab, var(--status-danger) 14%, var(--card))","dark":"color-mix(in oklab, var(--status-danger) 14%, var(--card))"},
-    {"name":"--status-danger-foreground","utility":"text-status-danger-foreground","role":"status text, error message text","light":"oklch(0.539 0.2 31)","dark":"oklch(0.663 0.2 31)"},
+    {"name":"--status-danger-foreground","utility":"text-status-danger-foreground","role":"status text, error message text","light":"oklch(0.527 0.2 31)","dark":"oklch(0.663 0.2 31)"},
     {"name":"--status-info","utility":"bg-status-info","role":"scheduled, in progress, information (dot, icon)","light":"oklch(0.637 0.16 245)","dark":"oklch(0.637 0.16 245)"},
     {"name":"--status-info-soft","utility":"bg-status-info-soft","role":"status background","light":"color-mix(in oklab, var(--status-info) 14%, var(--card))","dark":"color-mix(in oklab, var(--status-info) 14%, var(--card))"},
-    {"name":"--status-info-foreground","utility":"text-status-info-foreground","role":"status text","light":"oklch(0.52 0.13 245)","dark":"oklch(0.644 0.16 245)"},
+    {"name":"--status-info-foreground","utility":"text-status-info-foreground","role":"status text","light":"oklch(0.508 0.13 245)","dark":"oklch(0.644 0.16 245)"},
     {"name":"--scrim","utility":"bg-scrim","role":"modal backdrop","light":"oklch(0 0 0 / 30%)","dark":"oklch(0 0 0 / 50%)","note":"values to be tuned on a real dialog"},
     {"name":"--chart-1","utility":"fill-chart-1 / bg-chart-1","role":"chart series, ink hue, series 1","light":"oklch(0.66 0.045 288)","dark":"oklch(0.72 0.045 288)"},
     {"name":"--chart-2","utility":"fill-chart-2 / bg-chart-2","role":"chart series, sand hue, series 2","light":"oklch(0.58 0.075 58)","dark":"oklch(0.64 0.075 58)"},
@@ -70,18 +71,18 @@
 </script>
 <style>
 :root{
-  --background:#f5f5f7;--foreground:#09090b;--card:oklch(.99 .001 286);--muted:oklch(.94 .003 286);--muted-strong:oklch(.915 .004 286);--muted-foreground:oklch(.5 .016 286);--border:oklch(.89 .005 286);--input:var(--border);
+  --background:oklch(.935 .003 286);--foreground:#09090b;--card:#f5f5f7;--muted:oklch(.91 .003 286);--muted-strong:oklch(.885 .004 286);--muted-foreground:oklch(.48 .016 286);--border:oklch(.84 .005 286);--sidebar-active:var(--border);--input:oklch(.64 .008 286);
   --primary:#3F3D56;--primary-foreground:#f5f5f7;--ring:var(--primary);
-  --signal:#FF6584;--signal-on:#09090b;--signal-foreground:oklch(.55 .188 11);--signal-strong:oklch(.621 .188 11);--signal-soft:color-mix(in oklab,var(--signal) 14%,var(--card));
-  --category:#DEA684;--category-foreground:#3a2412;--category-soft:color-mix(in oklab,var(--category) 28%,var(--card));--sidebar-active:color-mix(in oklab,var(--category) 30%,var(--muted));
-  --status-live:oklch(.622 .152 155);--status-live-foreground:oklch(.508 .124 155);--status-live-soft:color-mix(in oklab,var(--status-live) 14%,var(--card));
-  --status-warning:oklch(.643 .132 80);--status-warning-foreground:oklch(.525 .108 80);--status-warning-soft:color-mix(in oklab,var(--status-warning) 14%,var(--card));
-  --status-danger:oklch(.6 .2 31);--status-danger-foreground:oklch(.539 .2 31);--status-danger-soft:color-mix(in oklab,var(--status-danger) 14%,var(--card));
-  --status-info:oklch(.637 .16 245);--status-info-foreground:oklch(.52 .13 245);--status-info-soft:color-mix(in oklab,var(--status-info) 14%,var(--card));
+  --signal:#FF6584;--signal-on:#09090b;--signal-foreground:oklch(.538 .188 11);--signal-strong:oklch(.605 .188 11);--signal-soft:color-mix(in oklab,var(--signal) 14%,var(--card));
+  --category:#DEA684;--category-foreground:#3a2412;--category-soft:color-mix(in oklab,var(--category) 28%,var(--card))
+  --status-live:oklch(.622 .152 155);--status-live-foreground:oklch(.496 .124 155);--status-live-soft:color-mix(in oklab,var(--status-live) 14%,var(--card));
+  --status-warning:oklch(.643 .132 80);--status-warning-foreground:oklch(.513 .108 80);--status-warning-soft:color-mix(in oklab,var(--status-warning) 14%,var(--card));
+  --status-danger:oklch(.6 .2 31);--status-danger-foreground:oklch(.527 .2 31);--status-danger-soft:color-mix(in oklab,var(--status-danger) 14%,var(--card));
+  --status-info:oklch(.637 .16 245);--status-info-foreground:oklch(.508 .13 245);--status-info-soft:color-mix(in oklab,var(--status-info) 14%,var(--card));
   --scrim:oklch(0 0 0 / 30%);--radius-control:10px;--radius-lg:16px;
 }
 :root.dark{
-  --background:#09090b;--foreground:#f5f5f7;--card:oklch(.21 .006 286);--muted:oklch(.274 .006 286);--muted-strong:oklch(.338 .006 286);--muted-foreground:oklch(.705 .015 286);--border:oklch(1 0 0/10%);--input:oklch(1 0 0/15%);
+  --background:#09090b;--foreground:#f5f5f7;--card:oklch(.21 .006 286);--muted:oklch(.274 .006 286);--muted-strong:oklch(.338 .006 286);--muted-foreground:oklch(.705 .015 286);--border:oklch(1 0 0/10%);--input:oklch(1 0 0/15%);--sidebar-active:var(--muted-strong);
   --primary:oklch(.772 .043 288);--primary-foreground:#09090b;
   --signal-foreground:#FF6584;--signal-strong:#FF6584;
   --status-live-foreground:oklch(.629 .154 155);--status-warning-foreground:oklch(.651 .134 80);--status-danger-foreground:oklch(.663 .2 31);--status-info-foreground:oklch(.644 .16 245);
@@ -252,12 +253,12 @@ th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);ver
 <table>
 <thead><tr><th></th><th>Token</th><th>Utility</th><th>Light</th><th>Dark</th><th>Role</th></tr></thead>
 <tbody>
-<tr><td><span class="sw" style="background:var(--background)"></span></td><td><code>--background</code></td><td><code>bg-background</code></td><td>#f5f5f7</td><td>#09090b</td><td>page</td></tr>
-<tr><td><span class="sw" style="background:var(--card)"></span></td><td><code>--card</code></td><td><code>bg-card</code></td><td>oklch(.99 .001 286)</td><td>oklch(.21 .006 286)</td><td>raised surface (also popover)</td></tr>
-<tr><td><span class="sw" style="background:var(--muted)"></span></td><td><code>--muted</code></td><td><code>bg-muted</code></td><td>oklch(.94 .003 286)</td><td>oklch(.274 .006 286)</td><td>quiet surface, selection, header (also secondary, accent)</td></tr>
-<tr><td><span class="sw" style="background:var(--muted-strong)"></span></td><td><code>--muted-strong</code></td><td><code>bg-muted-strong</code></td><td>oklch(.915 .004 286)</td><td>oklch(.338 .006 286)</td><td>pressed, tracks</td></tr>
-<tr><td><span class="sw" style="background:var(--border)"></span></td><td><code>--border</code></td><td><code>border-border</code></td><td>oklch(.89 .005 286)</td><td>oklch(1 0 0 / 10%)</td><td>lines; <code>--input</code> is the same in light, 15% in dark</td></tr>
-<tr><td><span class="sw" style="background:var(--muted-foreground)"></span></td><td><code>--muted-foreground</code></td><td><code>text-muted-foreground</code></td><td>oklch(.5 .016 286)</td><td>oklch(.705 .015 286)</td><td>secondary text</td></tr>
+<tr><td><span class="sw" style="background:var(--background)"></span></td><td><code>--background</code></td><td><code>bg-background</code></td><td>oklch(.935 .003 286)</td><td>#09090b</td><td>page</td></tr>
+<tr><td><span class="sw" style="background:var(--card)"></span></td><td><code>--card</code></td><td><code>bg-card</code></td><td>#f5f5f7</td><td>oklch(.21 .006 286)</td><td>raised surface (also popover)</td></tr>
+<tr><td><span class="sw" style="background:var(--muted)"></span></td><td><code>--muted</code></td><td><code>bg-muted</code></td><td>oklch(.91 .003 286)</td><td>oklch(.274 .006 286)</td><td>quiet surface, selection, header (also secondary, accent)</td></tr>
+<tr><td><span class="sw" style="background:var(--muted-strong)"></span></td><td><code>--muted-strong</code></td><td><code>bg-muted-strong</code></td><td>oklch(.885 .004 286)</td><td>oklch(.338 .006 286)</td><td>pressed, tracks</td></tr>
+<tr><td><span class="sw" style="background:var(--border)"></span></td><td><code>--border</code></td><td><code>border-border</code></td><td>oklch(.84 .005 286)</td><td>oklch(1 0 0 / 10%)</td><td>lines; <code>--input</code> is a darker grey in light (3:1 on the card), 15% in dark</td></tr>
+<tr><td><span class="sw" style="background:var(--muted-foreground)"></span></td><td><code>--muted-foreground</code></td><td><code>text-muted-foreground</code></td><td>oklch(.48 .016 286)</td><td>oklch(.705 .015 286)</td><td>secondary text</td></tr>
 <tr><td><span class="sw" style="background:var(--foreground)"></span></td><td><code>--foreground</code></td><td><code>text-foreground</code></td><td>#09090b</td><td>#f5f5f7</td><td>text (also every <code>*-foreground</code> that sits on a neutral)</td></tr>
 </tbody></table>
 
@@ -275,7 +276,7 @@ th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);ver
 <tr><td><span class="sw" style="background:var(--category)"></span></td><td><code>--category</code></td><td><code>bg-category</code></td><td>#DEA684</td><td>#DEA684</td><td>solid organisation</td></tr>
 <tr><td></td><td><code>--category-foreground</code></td><td><code>text-category-foreground</code></td><td>#3a2412</td><td>#3a2412</td><td>text on solid category</td></tr>
 <tr><td><span class="sw" style="background:var(--category-soft)"></span></td><td><code>--category-soft</code></td><td><code>bg-category-soft</code></td><td colspan="2">category 28% over <code>--card</code> (oklab)</td><td>chip</td></tr>
-<tr><td><span class="sw" style="background:var(--sidebar-active)"></span></td><td><code>--sidebar-active</code></td><td><code>bg-sidebar-active</code></td><td colspan="2">category 30% over <code>--muted</code> (oklab)</td><td>active navigation item</td></tr>
+<tr><td><span class="sw" style="background:var(--sidebar-active)"></span></td><td><code>--sidebar-active</code></td><td><code>bg-sidebar-active</code></td><td>var(--border)</td><td>var(--muted-strong)</td><td>active navigation item: one grey step past the hover (<code>--sidebar-accent</code>), text <code>text-sidebar-active-foreground</code>. Never a brand colour</td></tr>
 </tbody></table>
 
 <h3>Status</h3>
@@ -311,22 +312,23 @@ th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);ver
 <table>
 <thead><tr><th>Pair</th><th>Light</th><th>Dark</th><th>Minimum</th></tr></thead>
 <tbody>
-<tr><td><code>foreground</code> on <code>background</code></td><td>18.27</td><td>18.28</td><td>4.5</td></tr>
-<tr><td><code>muted-foreground</code> on <code>background</code> / <code>card</code></td><td>5.55 / 5.85</td><td>7.56 / 6.74</td><td>4.5</td></tr>
-<tr><td><code>muted-foreground</code> on <code>muted</code></td><td>5.05</td><td>5.66</td><td>4.5</td></tr>
-<tr><td><code>muted-foreground</code> on <code>muted-strong</code></td><td>4.68</td><td>4.51</td><td>4.5</td></tr>
-<tr><td><code>primary</code> on <code>background</code> (focus ring, edges)</td><td>9.58</td><td>9.57</td><td>3</td></tr>
+<tr><td><code>foreground</code> on <code>background</code> (card: 18.27 light)</td><td>16.43</td><td>18.28</td><td>4.5</td></tr>
+<tr><td><code>muted-foreground</code> on <code>background</code> / <code>card</code></td><td>5.42 / 6.03</td><td>7.56 / 6.74</td><td>4.5</td></tr>
+<tr><td><code>muted-foreground</code> on <code>muted</code></td><td>5.02</td><td>5.66</td><td>4.5</td></tr>
+<tr><td><code>muted-foreground</code> on <code>muted-strong</code></td><td>4.64</td><td>4.51</td><td>4.5</td></tr>
+<tr><td><code>input</code> on <code>card</code> (form control edge)</td><td>3.09</td><td>not measured</td><td>3</td></tr>
+<tr><td><code>primary</code> on <code>background</code> (focus ring, edges)</td><td>8.61</td><td>9.57</td><td>3</td></tr>
 <tr><td><code>primary-foreground</code> on <code>primary</code></td><td>9.58</td><td>9.58</td><td>4.5</td></tr>
 <tr><td><code>signal-on</code> on <code>signal</code></td><td>7.05</td><td>7.05</td><td>4.5</td></tr>
-<tr><td><code>signal-foreground</code> on <code>signal-soft</code></td><td>4.60</td><td>5.23</td><td>4.5</td></tr>
-<tr><td><code>signal-strong</code> on <code>muted-strong</code> (progress)</td><td>3.10</td><td>4.21</td><td>3</td></tr>
+<tr><td><code>signal-foreground</code> on <code>signal-soft</code></td><td>4.61</td><td>5.23</td><td>4.5</td></tr>
+<tr><td><code>signal-strong</code> on <code>muted-strong</code> (progress)</td><td>3.02</td><td>4.21</td><td>3</td></tr>
 <tr><td><code>category-foreground</code> on <code>category</code></td><td>6.87</td><td>6.87</td><td>4.5</td></tr>
-<tr><td><code>foreground</code> on <code>category-soft</code> / <code>sidebar-active</code></td><td>16.02 / 14.17</td><td>9.78 / 7.75</td><td>4.5</td></tr>
-<tr><td><code>status-live|warning|info</code> solid on <code>background</code></td><td>3.10</td><td>5.89</td><td>3</td></tr>
-<tr><td><code>status-danger</code> solid on <code>background</code></td><td>3.99</td><td>4.58</td><td>3</td></tr>
+<tr><td><code>foreground</code> on <code>category-soft</code> / <code>sidebar-active</code></td><td>15.35 / 12.17</td><td>9.78 / 10.89</td><td>4.5</td></tr>
+<tr><td><code>status-live|warning|info</code> solid on <code>card</code></td><td>3.10</td><td>5.26</td><td>3</td></tr>
+<tr><td><code>status-danger</code> solid on <code>card</code></td><td>3.99</td><td>4.08</td><td>3</td></tr>
 <tr><td><code>status-*-foreground</code> on <code>status-*-soft</code></td><td>4.60</td><td>4.60</td><td>4.5</td></tr>
 </tbody></table>
-<p class="cap">Never put <code>muted-foreground</code> on <code>signal-soft</code>, <code>category-soft</code> or a status soft background: only the pairs in the table are guaranteed.</p>
+<p class="cap">A solid status colour is for dots, icons and bars that sit on a card or a soft background, never directly on the page (2.8:1 there in light). Never put <code>muted-foreground</code> on <code>signal-soft</code>, <code>category-soft</code> or a status soft background: only the pairs in the table are guaranteed.</p>
 </section>
 
 <!-- ============================================================ TYPOGRAPHY -->

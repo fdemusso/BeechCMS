@@ -260,7 +260,7 @@ export function SettingsDialog({
                                   aria-controls={sections.length > 0 ? subnavId : undefined}
                                   className={cn(
                                     "flex h-8 w-full items-center gap-2 rounded-control px-2.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                                    isActive && "bg-sidebar-active font-medium text-sidebar-accent-foreground"
+                                    isActive && "bg-sidebar-active font-medium text-sidebar-active-foreground"
                                   )}
                                 >
                                   <Icon aria-hidden className="size-4 shrink-0" />
