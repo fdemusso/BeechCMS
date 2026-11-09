@@ -129,6 +129,15 @@ describe("Content languages markup", () => {
     expect(list).toHaveAccessibleDescription(/Removing a language never deletes its translations/)
   })
 
+  it("shows five languages, then scrolls them in a shadcn ScrollArea", () => {
+    const list = screen.getByRole("list", { name: "Content languages in use" })
+    const scroller = list.closest('[data-slot="scroll-area"]') as HTMLElement
+    expect(scroller).not.toBeNull()
+    expect(scroller.style.maxHeight).toBe("17.5rem") // 5 rows of 3.5rem
+    expect(within(scroller).getByRole("group", { name: "Content languages in use" })).toHaveAttribute("tabindex", "0")
+    for (const row of within(list).getAllByRole("listitem")) expect(row).toHaveClass("h-14")
+  })
+
   it("names every button after the language it acts on, and leaves the default in place", () => {
     expect(screen.getByRole("button", { name: "Make Italian the default language" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Remove Italian from the content languages" })).toBeEnabled()

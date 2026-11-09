@@ -9,7 +9,6 @@ import { Loader as Loader2, Monitor as MonitorSmartphone, Trash2 } from '@/compo
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import {
   AlertDialog,
@@ -24,15 +23,15 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useSessions, useRevokeSession, useSettingsActivity } from '../hooks/use-settings'
 import type { ActivityEntry, Session } from '../types/settings.types'
-import { SettingsSection } from '@/components/ui/settings-section'
+import { SETTINGS_VISIBLE_ROWS, SettingsScroll, SettingsSection } from '@/components/ui/settings-section'
 import { describeActivity } from '../lib/activity-presentation'
 
 // Rows share one fixed height, so "N rows visible" is exact: the lists below cap at N × this and scroll past it.
 // Tailwind only sees whole class names: keep `h-[4.5rem]` below in step with ROW_REM.
 const ROW_REM = 4.5
 const ROW = 'group/row flex h-[4.5rem] items-center justify-between gap-4 border-b border-border'
+// Sessions are few and tall: three show before the list scrolls. The activity shows the usual number of rows.
 const SESSIONS_VISIBLE = 3
-const ACTIVITY_VISIBLE = 5
 
 /** Dates follow the language of the dashboard, not a fixed locale. */
 function formatDate(ts: number, locale: string): string {
@@ -133,22 +132,6 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
   )
 }
 
-/**
- * A list that scrolls past `visible` rows. The scrolling box is a named group in the tab order: a keyboard user
- * has no other way to scroll it when no row inside holds anything focusable. A group, not a region: the section
- * around it already is the region, and two landmarks must not share a name.
- */
-function ScrollingList({ label, visible, children }: { label: string; visible: number; children: React.ReactNode }) {
-  return (
-    <ScrollArea
-      style={{ maxHeight: `${visible * ROW_REM}rem` }}
-      viewportProps={{ tabIndex: 0, role: 'group', 'aria-label': label }}
-    >
-      <ul>{children}</ul>
-    </ScrollArea>
-  )
-}
-
 /** Open login sessions, one row each. */
 export function SessionsSection() {
   const { t } = useTranslation()
@@ -162,7 +145,8 @@ export function SessionsSection() {
       ) : !sessions?.length ? (
         <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('settings.security.noSessions')}</p>
       ) : (
-        <ScrollingList label={t('settings.security.sessionsTitle')} visible={SESSIONS_VISIBLE}>
+        <SettingsScroll label={t('settings.security.sessionsTitle')} rows={SESSIONS_VISIBLE} rowRem={ROW_REM}>
+          <ul>
           {sessions.map(session => (
             <SessionRow
               key={session.id}
@@ -170,7 +154,8 @@ export function SessionsSection() {
               onRevoke={(id) => revokeSession.mutateAsync(id)}
             />
           ))}
-        </ScrollingList>
+          </ul>
+        </SettingsScroll>
       )}
     </SettingsSection>
   )
@@ -188,9 +173,9 @@ export function ActivitySection() {
       ) : !activity?.length ? (
         <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('settings.security.noActivity')}</p>
       ) : (
-        <ScrollingList label={t('settings.security.activityTitle')} visible={ACTIVITY_VISIBLE}>
-          {activity.map(entry => <ActivityRow key={entry.id} entry={entry} />)}
-        </ScrollingList>
+        <SettingsScroll label={t('settings.security.activityTitle')} rows={SETTINGS_VISIBLE_ROWS} rowRem={ROW_REM}>
+          <ul>{activity.map(entry => <ActivityRow key={entry.id} entry={entry} />)}</ul>
+        </SettingsScroll>
       )}
     </SettingsSection>
   )

@@ -4,6 +4,7 @@
 
 import { useId, type ReactNode } from "react"
 import { Label } from "@/components/ui/label"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
 /** Id the sidebar bookmarks scroll to: `?settings=<tab>&section=<id>` lands on `settings-section-<id>`. */
@@ -97,6 +98,44 @@ export function SettingsRow({ label, htmlFor, description, children, controlClas
 /** The reason a field was refused, tied to it with `aria-describedby` and announced as it appears. */
 export function SettingsFieldError({ id, children }: { readonly id: string; readonly children: ReactNode }) {
   return <p id={id} role="alert" className="mt-1.5 text-sm text-destructive">{children}</p>
+}
+
+/** How many rows a list in a settings section shows before it scrolls. One number for every list. */
+export const SETTINGS_VISIBLE_ROWS = 5
+
+/** Height of a table row and of its header row, in rem. Keep `h-14` / `h-10` below in step: Tailwind reads whole class names only. */
+export const SETTINGS_TABLE_ROW_REM = 3.5
+export const SETTINGS_TABLE_HEAD_REM = 2.5
+export const SETTINGS_TABLE_ROW_CLASS = "h-14"
+
+/**
+ * The rows of a section, in the shadcn ScrollArea, capped at `rows` of them: past that the list scrolls and the
+ * page does not grow. The cap is exact because the rows have one fixed height (`rowRem`; a table's header adds
+ * `headerRem`, and stays at the top while the rows move). The scrolling box is a named group in the tab order, so a
+ * keyboard user can scroll it even when no row holds anything focusable. A group, not a region: the section around
+ * it already is the region, and two landmarks must not share a name.
+ */
+export function SettingsScroll({
+  label,
+  rows = SETTINGS_VISIBLE_ROWS,
+  rowRem,
+  headerRem = 0,
+  children,
+}: {
+  readonly label: string
+  readonly rows?: number
+  readonly rowRem: number
+  readonly headerRem?: number
+  readonly children: ReactNode
+}) {
+  return (
+    <ScrollArea
+      style={{ maxHeight: `${headerRem + rows * rowRem}rem` }}
+      viewportProps={{ tabIndex: 0, role: "group", "aria-label": label }}
+    >
+      {children}
+    </ScrollArea>
+  )
 }
 
 /** The submit button of a group of rows, under the last divider. */

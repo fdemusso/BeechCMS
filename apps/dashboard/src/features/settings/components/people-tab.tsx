@@ -12,7 +12,7 @@ const SECTION_CONTENT: Record<(typeof PEOPLE_SECTIONS)[number]["id"], () => Reac
   roles: () => <RolesSection />,
 }
 
-/** Users, their pending invitations and the roles they hold, stacked in one page: nothing hides behind a tab. */
+/** The people, the roles they can hold and the invitations that bring more of them, stacked in one page: nothing hides behind a tab. */
 export function PeopleTab() {
   const { canGlobally, canAnywhere } = usePermissions()
   const sections = PEOPLE_SECTIONS.filter((section) => section.isVisible({ canGlobally, canAnywhere }))

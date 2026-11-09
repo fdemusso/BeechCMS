@@ -10,9 +10,12 @@ import { Badge } from "@/components/ui/badge"
 import { useContentLanguages } from "../hooks/use-content-languages"
 import { contentLanguageName } from "../lib/content-languages"
 import {
+  SETTINGS_TABLE_ROW_CLASS,
+  SETTINGS_TABLE_ROW_REM,
   SettingsActions,
   SettingsFieldError,
   SettingsRow,
+  SettingsScroll,
   SettingsSection,
 } from "@/components/ui/settings-section"
 
@@ -37,12 +40,13 @@ export function ContentLanguagesSection() {
         </div>
       ) : (
         <>
+          <SettingsScroll label={t("settings.contentLanguages.listLabel")} rowRem={SETTINGS_TABLE_ROW_REM}>
           <ul aria-label={t("settings.contentLanguages.listLabel")} aria-describedby="content-languages-kept-hint">
             {state.locales.map((code) => {
               const language = contentLanguageName(code, i18n.language)
               const isDefault = code === state.defaultLocale
               return (
-                <li key={code} className="flex items-center justify-between gap-4 border-b border-border py-3">
+                <li key={code} className={`flex items-center justify-between gap-4 border-b border-border ${SETTINGS_TABLE_ROW_CLASS}`}>
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="truncate text-sm font-medium text-foreground">{language}</span>
                     {/* The code, read as letters, adds nothing to the name beside it. */}
@@ -77,6 +81,7 @@ export function ContentLanguagesSection() {
               )
             })}
           </ul>
+          </SettingsScroll>
 
           {/* How many languages there are, said as they are added or removed: the list changes silently otherwise. */}
           <p role="status" className="sr-only">{t("settings.contentLanguages.count", { count: state.locales.length })}</p>

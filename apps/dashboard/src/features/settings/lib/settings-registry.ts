@@ -59,8 +59,8 @@ const section = (id: string, labelKey: string, defaultLabel: string, isVisible?:
 /** The sections of the Users & roles tab, each with the gate of the API it calls. */
 export const PEOPLE_SECTIONS = [
   section("users", "settings.sections.users", "Users", (g) => g.canAnywhere("manage_users")),
-  section("invitations", "settings.sections.invitations", "Invitations", (g) => g.canAnywhere("manage_users")),
   section("roles", "settings.sections.roles", "Roles", (g) => g.canAnywhere("manage_users") || g.canAnywhere("manage_roles")),
+  section("invitations", "settings.sections.invitations", "Invitations", (g) => g.canAnywhere("manage_users")),
 ] as const
 
 /**
