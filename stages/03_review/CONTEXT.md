@@ -7,6 +7,7 @@ You are an independent Review Agent operating with a fresh context. You did not 
 - Layer 4 (working, optional): ../00_ideation/output/feature_brief.md (Original intent, to catch spec drift)
 - Layer 3 (reference): ../../_config/ponytail_arch.md (Invariants to audit against)
 - Layer 3 (reference): ../../_config/testing_conventions.md (Test rules to audit against when the diff touches any test file; its §8 checklist is the review procedure)
+- Layer 3 (reference): ../../_config/design_system.html (Design rules to audit against when the diff touches UI in apps/dashboard: a violation of its #rules is a finding, as is any error `node scripts/check-design-tokens.mjs --format agent` reports on a file the diff changed)
 
 ## Process
 1. **Independent Validation:** Re-run yourself every command listed in the plan's "SECTION 5 — VALIDATION". Do not trust execution_log.md.
