@@ -20,8 +20,9 @@ export function LanguageSelect({ value, onValueChange, id }: LanguageSelectProps
         <SelectValue placeholder={t('settings.general.languagePlaceholder')} />
       </SelectTrigger>
       <SelectContent position="popper">
-        <SelectItem value="it">Italiano</SelectItem>
-        <SelectItem value="en">English</SelectItem>
+        {/* Each name in its own language, so a screen reader pronounces it as such. */}
+        <SelectItem value="it" lang="it">Italiano</SelectItem>
+        <SelectItem value="en" lang="en">English</SelectItem>
       </SelectContent>
     </Select>
   )
