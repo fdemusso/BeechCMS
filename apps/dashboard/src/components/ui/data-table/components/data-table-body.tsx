@@ -156,7 +156,8 @@ export function DataTableBody<TData, TValue>({
       className="min-h-0 w-full"
       style={isGroupingActive ? { maxHeight: VIRTUAL_CONTAINER_HEIGHT } : undefined}
     >
-      <Table>
+      {/* The ScrollArea scrolls, not the table's own wrapper: a native overflow there would hide the themed bar. */}
+      <Table containerClassName="overflow-visible">
         <TableHeader>
           <DataTableHeader table={table} enableColumnResizing={enableColumnResizing} enableColumnReorder={enableColumnReorder} />
         </TableHeader>
