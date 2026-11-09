@@ -2,16 +2,25 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { FileRemove as FileX } from '@/components/icons'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  SETTINGS_TABLE_HEAD_REM,
+  SETTINGS_TABLE_ROW_CLASS,
+  SETTINGS_TABLE_ROW_REM,
+  SettingsReadout,
+  SettingsReadouts,
+  SettingsRow,
+  SettingsScroll,
+  SettingsSection,
+} from '@/components/ui/settings-section'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,10 +32,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { toast } from 'sonner'
 import { useDeleteOrphans, useStorageStats } from '../hooks/use-settings'
 
-const REFERENCE_BYTES = 1 * 1024 * 1024 * 1024
+/** The allowance as a whole number of GB: it is a round figure of the plan, not a measurement. */
+function formatAllowance(bytes: number): string {
+  return `${Math.round(bytes / (1024 * 1024 * 1024))} GB`
+}
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -49,6 +60,10 @@ function mimeLabel(mime: string): string {
   return MIME_LABELS[mime] ?? mime.split('/')[1]?.toUpperCase() ?? 'File'
 }
 
+/**
+ * Storage: how much space the uploaded files take (read-only facts), and the files nobody uses any more (orphans),
+ * which can be reviewed and removed a page at a time. The orphans are a table, five rows visible, the rest scrolls.
+ */
 export function StorageTab() {
   const { t } = useTranslation()
   const [offset, setOffset] = useState(0)
@@ -89,118 +104,126 @@ export function StorageTab() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div role="status" className="space-y-6">
         <Skeleton className="h-36 w-full" />
         <Skeleton className="h-64 w-full" />
+        <span className="sr-only">{t('common.loading')}</span>
       </div>
     )
   }
-
-  const usagePercent = Math.min(100, ((stats?.totalBytes ?? 0) / REFERENCE_BYTES) * 100)
 
   if (isError) {
     return <p role="alert">{t('settings.storage.loadFailed')}</p>
   }
 
+  // R2 has no capacity to ask for: the meter is read against the free allowance the API reports.
+  const limitBytes = stats?.limitBytes ?? 0
+  const allowance = formatAllowance(limitBytes)
+  const usagePercent = limitBytes > 0 ? Math.min(100, ((stats?.totalBytes ?? 0) / limitBytes) * 100) : 0
+
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('settings.storage.usageTitle')}</CardTitle>
-          <CardDescription>{t('settings.storage.usageDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-3xl font-bold tabular-nums">{formatBytes(stats?.totalBytes ?? 0)}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {t('settings.storage.fileCount', { count: stats?.fileCount ?? 0 })}
-              </p>
-            </div>
-            {stats?.orphanTotal ? (
-              <Badge variant="secondary" className="mb-1">
+    <div className="space-y-10">
+      <SettingsSection id="usage" title={t('settings.storage.usageTitle')} description={t('settings.storage.usageDesc')}>
+        <SettingsReadouts>
+          <SettingsReadout label={t('settings.storage.usedLabel')}>
+            <span className="text-2xl font-semibold tabular-nums">{formatBytes(stats?.totalBytes ?? 0)}</span>
+          </SettingsReadout>
+          <SettingsReadout label={t('settings.storage.filesLabel')}>
+            {t('settings.storage.fileCount', { count: stats?.fileCount ?? 0 })}
+          </SettingsReadout>
+          {stats?.orphanTotal ? (
+            <SettingsReadout label={t('settings.storage.orphansLabel')}>
+              <Badge variant="secondary">
                 {t('settings.storage.orphanCount', { count: stats.orphanTotal })} · {formatBytes(stats.orphanBytes)}
               </Badge>
-            ) : null}
+            </SettingsReadout>
+          ) : null}
+        </SettingsReadouts>
+        <SettingsRow
+          label={t('settings.storage.progressLabel', { limit: allowance })}
+          description={t('settings.storage.referenceVisual', { limit: allowance })}
+        >
+          <div className="flex items-center gap-3">
+            <Progress value={usagePercent} className="h-2" aria-label={t('settings.storage.progressLabel', { limit: allowance })} />
+            <span className="w-12 shrink-0 text-right text-sm tabular-nums text-muted-foreground">{usagePercent.toFixed(1)}%</span>
           </div>
-          <Progress value={usagePercent} className="h-2" />
-          <p className="text-xs text-muted-foreground">{t('settings.storage.referenceVisual')}</p>
-        </CardContent>
-      </Card>
+        </SettingsRow>
+      </SettingsSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileX className="size-4" />
-            {t('settings.storage.orphansTitle')}
-          </CardTitle>
-          <CardDescription>{t('settings.storage.orphansDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!stats?.orphanTotal ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              {t('settings.storage.noOrphans')}
-            </p>
-          ) : (
-            <ScrollArea className="h-72">
-              <div className="space-y-0">
+      <SettingsSection id="orphans" title={t('settings.storage.orphansTitle')} description={t('settings.storage.orphansDesc')}>
+        {!stats?.orphanTotal ? (
+          <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('settings.storage.noOrphans')}</p>
+        ) : (
+          <SettingsScroll label={t('settings.storage.orphansListLabel')} rowRem={SETTINGS_TABLE_ROW_REM} headerRem={SETTINGS_TABLE_HEAD_REM}>
+            {/* The table must not scroll on its own, or the header could not stay above the rows. */}
+            <Table containerClassName="overflow-visible" aria-label={t('settings.storage.orphansListLabel')}>
+              <TableHeader className="sticky top-0 z-10 bg-[var(--settings-page-bg)]">
+                <TableRow>
+                  <TableHead className="w-10"><span className="sr-only">{t('settings.storage.selectColumn')}</span></TableHead>
+                  <TableHead>{t('settings.storage.fileColumn')}</TableHead>
+                  <TableHead>{t('settings.storage.typeColumn')}</TableHead>
+                  <TableHead className="text-right">{t('settings.storage.sizeColumn')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {stats.orphans.map(file => (
-                  <div key={file.key} className="flex items-center justify-between py-3 border-b last:border-0">
-                    <Checkbox
-                      className="mr-3"
-                      checked={selectedKeys.has(file.key)}
-                      onCheckedChange={() => toggleKey(file.key)}
-                      aria-label={t('settings.storage.selectOrphan', { filename: file.filename })}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{file.filename}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{file.key}</p>
-                    </div>
-                    <div className="flex items-center gap-3 ml-4 shrink-0">
-                      <Badge variant="outline">{mimeLabel(file.mime_type)}</Badge>
-                      <span className="text-xs text-muted-foreground tabular-nums">{formatBytes(file.size_bytes)}</span>
-                    </div>
-                  </div>
+                  <TableRow key={file.key} className={SETTINGS_TABLE_ROW_CLASS}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedKeys.has(file.key)}
+                        onCheckedChange={() => toggleKey(file.key)}
+                        aria-label={t('settings.storage.selectOrphan', { filename: file.filename })}
+                      />
+                    </TableCell>
+                    <TableCell className="max-w-[320px]">
+                      <p className="truncate text-sm font-medium">{file.filename}</p>
+                      <p className="truncate font-mono text-xs text-muted-foreground">{file.key}</p>
+                    </TableCell>
+                    <TableCell><Badge variant="outline">{mimeLabel(file.mime_type)}</Badge></TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">{formatBytes(file.size_bytes)}</TableCell>
+                  </TableRow>
                 ))}
-              </div>
-            </ScrollArea>
-          )}
-          {selectedKeys.size > 0 && (
-            <div className="flex justify-end pt-4">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button type="button" variant="destructive" disabled={deleteOrphans.isPending}>
-                    {t('settings.storage.deleteSelected', { count: selectedKeys.size })}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{t('settings.storage.deleteTitle', { count: selectedKeys.size })}</AlertDialogTitle>
-                    <AlertDialogDescription>{t('settings.storage.deleteDesc')}</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} disabled={deleteOrphans.isPending}>{t('common.delete')}</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          )}
-          {stats && (stats.orphanTotal > stats.orphanLimit || offset > 0) && (
-            <div className="flex items-center justify-between gap-3 pt-4">
-              <Button type="button" variant="outline" disabled={offset === 0} onClick={() => goToOffset(Math.max(0, offset - stats.orphanLimit))}>
-                {t('common.previous')}
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                {t('settings.storage.pageRange', { start: offset + 1, end: Math.min(offset + stats.orphans.length, stats.orphanTotal), total: stats.orphanTotal })}
-              </span>
-              <Button type="button" variant="outline" disabled={offset + stats.orphanLimit >= stats.orphanTotal} onClick={() => goToOffset(offset + stats.orphanLimit)}>
-                {t('common.next')}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </TableBody>
+            </Table>
+          </SettingsScroll>
+        )}
+
+        {selectedKeys.size > 0 && (
+          <div className="flex justify-end pt-4">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="destructive" disabled={deleteOrphans.isPending}>
+                  {t('settings.storage.deleteSelected', { count: selectedKeys.size })}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('settings.storage.deleteTitle', { count: selectedKeys.size })}</AlertDialogTitle>
+                  <AlertDialogDescription>{t('settings.storage.deleteDesc')}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete} disabled={deleteOrphans.isPending}>{t('common.delete')}</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+
+        {stats && (stats.orphanTotal > stats.orphanLimit || offset > 0) && (
+          <nav aria-label={t('settings.storage.pagesLabel')} className="flex items-center justify-between gap-3 pt-4">
+            <Button type="button" variant="outline" disabled={offset === 0} onClick={() => goToOffset(Math.max(0, offset - stats.orphanLimit))}>
+              {t('common.previous')}
+            </Button>
+            <span role="status" className="text-sm text-muted-foreground">
+              {t('settings.storage.pageRange', { start: offset + 1, end: Math.min(offset + stats.orphans.length, stats.orphanTotal), total: stats.orphanTotal })}
+            </span>
+            <Button type="button" variant="outline" disabled={offset + stats.orphanLimit >= stats.orphanTotal} onClick={() => goToOffset(offset + stats.orphanLimit)}>
+              {t('common.next')}
+            </Button>
+          </nav>
+        )}
+      </SettingsSection>
     </div>
   )
 }

@@ -13,6 +13,7 @@ import type { StorageStats } from "../types/settings.types"
 
 const firstPage: StorageStats = {
   totalBytes: 510,
+  limitBytes: 10 * 1024 * 1024 * 1024,
   fileCount: 51,
   orphanTotal: 51,
   orphanBytes: 510,
@@ -94,7 +95,7 @@ describe("StorageTab", () => {
   describe("with six orphans over pages of two", () => {
     const orphan = (n: number) => ({ key: `media/o-${n}.png`, filename: `o-${n}.png`, mime_type: "image/png", size_bytes: 10, uploaded_by: "user-1", created_at: n })
     const pageAt = (offset: number): StorageStats => ({
-      totalBytes: 60, fileCount: 6, orphanTotal: 6, orphanBytes: 60, orphanOffset: offset, orphanLimit: 2,
+      totalBytes: 60, limitBytes: 10 * 1024 * 1024 * 1024, fileCount: 6, orphanTotal: 6, orphanBytes: 60, orphanOffset: offset, orphanLimit: 2,
       orphans: [orphan(offset), orphan(offset + 1)],
     })
 

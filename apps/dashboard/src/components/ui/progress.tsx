@@ -14,6 +14,8 @@ function Progress({
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
+      // The value belongs to the root too: that is what makes it a progressbar with a value (aria-valuenow).
+      value={value}
       className={cn(
         "relative flex h-1 w-full items-center overflow-x-hidden rounded-full bg-muted",
         className

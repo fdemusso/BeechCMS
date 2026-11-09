@@ -644,6 +644,7 @@ describe('Settings Handler', () => {
       expect(res.status).toBe(200)
       const body = await res.json() as any
       expect(body.totalBytes).toBe(3072)
+      expect(body.limitBytes).toBe(10 * 1024 * 1024 * 1024)
       expect(body.fileCount).toBe(5)
       expect(body.orphans).toHaveLength(1)
       expect(body.orphans[0].key).toBe('media/img2.png')

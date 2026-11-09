@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { R2_FREE_ALLOWANCE_BYTES } from '../../shared/storage/limits'
 import { Hono, type Context } from 'hono'
 import {
     GLOBAL_SCOPE,
@@ -34,7 +35,7 @@ const DAYS_30_IN_SECONDS = 30 * SECONDS_PER_DAY
 const MEDIA_SCAN_BATCH = 200
 const DEFAULT_LIMIT = 12
 const MAX_LIMIT = 100
-const R2_STORAGE_LIMIT = 10 * 1024 * 1024 * 1024 // 10GB
+const R2_STORAGE_LIMIT = R2_FREE_ALLOWANCE_BYTES
 const D1_MONTHLY_REQUESTS_LIMIT = 1000000 // 1M requests/month
 
 /** Origin the media is served from: the configured media base URL, else the request's own origin. */
@@ -403,7 +404,7 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
         }
 
         const storageUsedMB = Math.round((storageUsedBytes / (1024 * 1024)) * 10) / 10
-        const storageLimitMB = 10 * 1024 // 10 GB Free Tier
+        const storageLimitMB = R2_FREE_ALLOWANCE_BYTES / (1024 * 1024)
 
         return context.json({
             visitors: {
