@@ -57,14 +57,14 @@ export function TagsEdit(props: FieldEditProps) {
             type="button"
             disabled={isReadOnly}
             onClick={() => removeValue(chip.label)}
-            className="group relative min-w-0 max-w-full disabled:cursor-not-allowed"
+            className="group relative inline-flex min-w-0 max-w-full items-center rounded-full disabled:cursor-not-allowed"
             aria-label={t("fields.tags.remove", { value: chip.label })}
             title={chip.label}
           >
             <TagChip chip={chip} className="cursor-pointer select-none transition" />
             {!isReadOnly && (
-              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-status-danger-soft text-status-danger-foreground opacity-0 transition-opacity group-hover:opacity-100">
-                <X className="size-3.5" />
+              <span className="absolute -inset-px flex items-center justify-center rounded-full bg-status-danger-soft text-status-danger-foreground opacity-0 transition-opacity group-hover:opacity-100">
+                <X className="size-3" />
               </span>
             )}
           </button>
