@@ -19,7 +19,9 @@ The **Command Palette** is a global, keyboard-driven navigation spotlight built 
 - **Fuzzy Collection Filtering**: Start typing any Seed name to immediately filter the navigation list.
 - **Deep Record Search**: Drill down into specific Seeds to search records by title or primary identifier.
 - **Hierarchical Breadcrumbs**: Navigate into sub-views (e.g. `Root > Articles > Search`) with breadcrumb chips and press `Backspace` or `Escape` to pop back up.
-- **Quick Administration**: Jump to Settings, View System Analytics, Manage Automations, or Toggle Interface Themes.
+- **Settings**: A *Settings…* page lists every settings tab you may open, grouped as in the settings sidebar. Typing a name ("roles", "storage", "password", "invites") finds the tab, or the exact section inside it, straight from the root page.
+- **Content types** (for people who may manage them): *New content type…* and *Edit content type…* open the Studio builder on the right dialog, also while typing a content type's name.
+- **Quick Administration**: View System Analytics, Manage Automations, or Toggle Interface Themes.
 
 ---
 

@@ -48,17 +48,25 @@ The activity logging subsystem tracks changes made across the CMS, creating an i
 
 ### Tracked Events
 
-| Event Type | Trigger | Recorded Details |
+Every action says **what happened** and every entry says **what it happened to** (`entityType`); the specifics are in `details`, conventionally under `op`. Nothing secret is ever stored: a password change records that it changed, never the password.
+
+| Entity | Actions | Recorded details |
 | :--- | :--- | :--- |
-| `create` | Content entry created | Seed slug, entry ID, author, initial fields |
-| `update` | Content entry modified | Seed slug, entry ID, updated fields, author |
-| `delete` | Content entry removed | Seed slug, deleted entry ID, author |
-| `publish` | Draft promoted to live | Seed slug, entry ID, version metadata |
-| `login` | User session initiated | User ID, IP address, user agent |
+| `content` | `create`, `update`, `trash`, `restore`, `purge`, `publish`, `discard_draft`, `bulk_update`, `import` | Entry title, seed slug; a bulk operation records one entry with `count` (and `fields`); a saved draft is an `update` with `note: "draft saved"` |
+| `media` | `upload`, `delete`, `purge` | File name, size, type; orphan cleanup records `count` |
+| `seed` | `create`, `update`, `delete` | `op` (drop-branch, rename-branch, retype-branch, drop-orphan, mcp-apply, fts-rebuild, …) |
+| `auth` | `login`, `login_failed`, `logout` | IP, country, city and browser as Cloudflare reports them; a failed attempt adds `reason` and is recorded only when the account exists |
+| `user` | `create`, `update` | `op`: `profile`, `password`, `avatar-set`, `avatar-removed`, `notifications`, `activate`, `deactivate`, `password-reset-requested`, `password-reset`, `setup`; changed field names, never values |
+| `settings`, `session` | `update`, `revoke` | Site settings: the field names changed. Session: the one revoked |
+| `role`, `assignment`, `invitation` | `create`, `update`, `delete`, `revoke`, `accept` | Role name, the person's email, the scope; an accepted invitation is recorded for the new account |
+| `app` | `authorize`, `revoke` | Client name and granted scopes |
+| `automation`, `view`, `layout` | `create`, `update`, `delete` | Name or title; `op: enable`/`disable`/`reset` |
+
+Trashing and purging are separate actions on purpose: the first can be undone, the second cannot. The recorded IP address and approximate location are personal data; retention is currently unlimited and will be configurable (#953).
 
 ### Programmatic Logging
 
-Within any API route or custom handler, record audit events using `c.get('activityLogger')`:
+Inside an API handler, use `logActivity(c, entry)` from `apps/api/src/shared/services/activity-log/log-activity.ts`: it takes the actor from the session, never throws, and does nothing when there is no logger or session. `requestOrigin(c)` returns the IP, country, city and browser for the sign-in trail. Where a handler needs full control, the logger itself is on the context:
 
 ```typescript
 import type { Context } from 'hono'
@@ -95,9 +103,8 @@ export async function customActionHandler(c: Context<{ Bindings: Env; Variables:
 
 ### Dashboard History
 
-Administrators can inspect activity logs in two places:
-1. **Dashboard Cockpit**: The *Recent Activity* widget displays the latest content modifications with relative timestamps.
-2. **Settings → Activity**: A searchable, paginated history of all administrative actions, filtered by user, date range, or Seed.
+1. **Dashboard Cockpit**: the *Recent Activity* widget shows the latest work on **content, media and content types**, with relative timestamps, to everyone who may see that content. Sign-ins, account and access changes are never shown there: they belong to the person who made them.
+2. **Settings → My account → Recent activity**: each person's own history, newest first. Every row reads as a sentence: a badge for what happened (red for irreversible or security-relevant), what it happened to, and one line of context (the place and browser of a sign-in, how many entries a bulk operation touched, the file name of an upload). Five rows are visible before the list scrolls. Dates follow the dashboard language.
 
 ## In-App Notifications
 
