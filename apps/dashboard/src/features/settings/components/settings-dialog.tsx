@@ -19,7 +19,8 @@ import { logout } from "@/lib/api"
 import { sectionDomId } from "@/components/ui/settings-section"
 
 import { AccountTab } from "./account-tab"
-import { InterfaceTab } from "./interface-tab"
+import { AppearanceTab } from "./appearance-tab"
+import { LanguageTab } from "./language-tab"
 import { StorageTab } from "./storage-tab"
 import { NotificationsTab } from "./notifications-tab"
 import { SiteTab } from "./site-tab"
@@ -53,8 +54,7 @@ export interface SettingsDialogProps {
  * Renders the active settings tab content.
  * Delegates to specialized feature components per settings category.
  *
- * The pages are still the earlier tab bodies; they get split along the bookmarks the sidebar lists
- * (see `SETTINGS_ENTRIES`) as each tab is redesigned. Until then Appearance and Language share one body.
+ * Each page is a stack of sections, one per bookmark the sidebar lists for it (see `SETTINGS_ENTRIES`).
  */
 function TabContent({ tab }: { readonly tab: SettingsTab }) {
   switch (tab) {
@@ -63,8 +63,9 @@ function TabContent({ tab }: { readonly tab: SettingsTab }) {
     case "connected-apps":
       return <ConnectedAppsTab />
     case "appearance":
+      return <AppearanceTab />
     case "language":
-      return <InterfaceTab />
+      return <LanguageTab />
     case "site":
       return <SiteTab />
     case "people":

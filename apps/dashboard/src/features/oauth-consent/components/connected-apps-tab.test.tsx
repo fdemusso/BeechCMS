@@ -78,7 +78,7 @@ describe("ConnectedAppsTab", () => {
     renderTab()
     await screen.findByText("Beech MCP CLI")
 
-    fireEvent.click(screen.getByRole("button", { name: "" }))
+    fireEvent.click(screen.getByRole("button", { name: "Revoke access of Beech MCP CLI" }))
     fireEvent.click(await screen.findByRole("button", { name: "Confirm" }))
 
     await waitFor(() => expect(revokeConnectedAppMock).toHaveBeenCalled())

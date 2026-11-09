@@ -512,12 +512,22 @@
       }
     },
     "storage": {
+      "usedLabel": "Space used",
+      "filesLabel": "Files stored",
+      "orphansLabel": "Orphan files",
+      "progressLabel": "Share of the free allowance ({{limit}})",
+      "fileColumn": "File",
+      "typeColumn": "Type",
+      "sizeColumn": "Size",
+      "selectColumn": "Select",
+      "pagesLabel": "Pages of orphan files",
+      "orphansListLabel": "Orphan files",
       "usageTitle": "Storage usage",
       "usageDesc": "Space used by files uploaded to R2.",
       "orphansTitle": "Orphan files",
       "orphansDesc": "Files uploaded but not referenced by any content file field, live or draft. Review before deleting: a file may still be used elsewhere.",
       "fileCount": "{{count}} total files",
-      "referenceVisual": "Visual reference: 1 GB",
+      "referenceVisual": "Cloudflare R2 has no size cap of its own: {{limit}} is the monthly free allowance of the plan, used here as the reference. Beyond it the storage is billed.",
       "noOrphans": "No orphan files found",
       "orphanCount": "{{count}} orphan files",
       "pageRange": "{{start}}–{{end}} of {{total}}",
@@ -710,6 +720,8 @@
       }
     },
     "interface": {
+      "themeRowLabel": "Colour scheme",
+      "langRowLabel": "Interface language",
       "themeTitle": "Theme",
       "themeDesc": "Choose the visual appearance of the interface.",
       "themeLight": "Light",
@@ -1978,6 +1990,13 @@
       "disclaimer": "Permissions are required for the MCP integration. You can revoke access at any time in Settings > Connected apps."
     },
     "apps": {
+      "application": "Application",
+      "permissions": "Permissions",
+      "granted": "Authorized",
+      "status": "Status",
+      "active": "Active",
+      "revokeFor": "Revoke access of {{client}}",
+      "listLabel": "Connected apps",
       "title": "Connected apps",
       "description": "Applications you have authorized to access BeechCMS on your behalf.",
       "empty": "No connected apps",

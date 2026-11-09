@@ -65,6 +65,11 @@ interface SettingsRowProps {
   readonly label: string
   /** Id of the control: turns the label into a real <label>. Without it the row is a named group. */
   readonly htmlFor?: string
+  /**
+   * For a control that names itself from the label with `aria-labelledby` (a radio group): the label gets this id and
+   * the row is no group of its own, so the name is not said twice.
+   */
+  readonly labelId?: string
   readonly description?: string
   readonly children: ReactNode
   /** Width and alignment of the control column; inputs fill it, buttons and avatars sit at its end. */
@@ -72,14 +77,16 @@ interface SettingsRowProps {
 }
 
 /** One function per row: what it is on the left, the control that changes it on the right. */
-export function SettingsRow({ label, htmlFor, description, children, controlClassName }: SettingsRowProps) {
-  const labelId = useId()
+export function SettingsRow({ label, htmlFor, labelId: namedLabelId, description, children, controlClassName }: SettingsRowProps) {
+  const ownLabelId = useId()
+  const labelId = namedLabelId ?? ownLabelId
+  const namesItsControl = htmlFor !== undefined || namedLabelId !== undefined
   const labelClassName = "text-sm font-medium text-foreground"
   return (
     <div
       // A row of buttons has no single control to label: the row itself is the named group.
-      role={htmlFor ? undefined : "group"}
-      aria-labelledby={htmlFor ? undefined : labelId}
+      role={namesItsControl ? undefined : "group"}
+      aria-labelledby={namesItsControl ? undefined : labelId}
       className="flex flex-col gap-3 border-b border-border py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-8"
     >
       <div className="min-w-0 sm:max-w-xs">
@@ -98,6 +105,20 @@ export function SettingsRow({ label, htmlFor, description, children, controlClas
 /** The reason a field was refused, tied to it with `aria-describedby` and announced as it appears. */
 export function SettingsFieldError({ id, children }: { readonly id: string; readonly children: ReactNode }) {
   return <p id={id} role="alert" className="mt-1.5 text-sm text-destructive">{children}</p>
+}
+
+/** Read-only facts about the section, as a description list: each `SettingsReadout` is a term and what it is. */
+export function SettingsReadouts({ children }: { readonly children: ReactNode }) {
+  return <dl>{children}</dl>
+}
+
+export function SettingsReadout({ label, children }: { readonly label: string; readonly children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1 border-b border-border py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
+      <dt className="text-sm font-medium text-foreground sm:max-w-xs">{label}</dt>
+      <dd className="text-sm text-foreground sm:text-right">{children}</dd>
+    </div>
+  )
 }
 
 /** How many rows a list in a settings section shows before it scrolls. One number for every list. */

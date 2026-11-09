@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { R2_FREE_ALLOWANCE_BYTES } from '../../shared/storage/limits'
 import { logActivity } from '../../shared/services/activity-log/log-activity'
 import { Hono, type Context } from 'hono'
 import type { z } from 'zod'
@@ -414,6 +415,8 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
     return context.json({
       totalBytes: totalStorageUsedBytes,
+      /** The allowance the meter is read against: R2 itself has no size cap. */
+      limitBytes: R2_FREE_ALLOWANCE_BYTES,
       fileCount: totalFileCount,
       orphans,
       orphanTotal,

@@ -512,12 +512,22 @@
       }
     },
     "storage": {
+      "usedLabel": "Spazio usato",
+      "filesLabel": "File archiviati",
+      "orphansLabel": "File orfani",
+      "progressLabel": "Quota della soglia gratuita ({{limit}})",
+      "fileColumn": "File",
+      "typeColumn": "Tipo",
+      "sizeColumn": "Dimensione",
+      "selectColumn": "Seleziona",
+      "pagesLabel": "Pagine dei file orfani",
+      "orphansListLabel": "File orfani",
       "usageTitle": "Utilizzo storage",
       "usageDesc": "Spazio occupato dai file caricati su R2.",
       "orphansTitle": "File orfani",
       "orphansDesc": "File caricati ma non referenziati da nessun campo file, pubblicato o in bozza. Verifica prima di eliminare: un file potrebbe essere usato altrove.",
       "fileCount": "{{count}} file totali",
-      "referenceVisual": "Riferimento visivo: 1 GB",
+      "referenceVisual": "Cloudflare R2 non ha un limite di dimensione: {{limit}} è la soglia gratuita mensile del piano, usata qui come riferimento. Oltre quella soglia l'archiviazione è a pagamento.",
       "noOrphans": "Nessun file orfano trovato",
       "orphanCount": "{{count}} file orfani",
       "pageRange": "{{start}}–{{end}} di {{total}}",
@@ -710,6 +720,8 @@
       }
     },
     "interface": {
+      "themeRowLabel": "Schema colori",
+      "langRowLabel": "Lingua dell'interfaccia",
       "themeTitle": "Tema",
       "themeDesc": "Scegli l'aspetto visivo dell'interfaccia.",
       "themeLight": "Chiaro",
@@ -1978,6 +1990,13 @@
       "disclaimer": "I permessi sono obbligatori per l'integrazione MCP. Puoi revocare l'accesso in qualsiasi momento da Impostazioni > App connesse."
     },
     "apps": {
+      "application": "Applicazione",
+      "permissions": "Permessi",
+      "granted": "Autorizzata",
+      "status": "Stato",
+      "active": "Attiva",
+      "revokeFor": "Revoca l'accesso di {{client}}",
+      "listLabel": "App collegate",
       "title": "App connesse",
       "description": "Applicazioni che hai autorizzato ad accedere a BeechCMS per tuo conto.",
       "empty": "Nessuna app connessa",
