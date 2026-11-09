@@ -33,21 +33,22 @@
   --radius: 0.875rem;
 
   /* ── Neutral: seven levels per theme (hue 286°, chroma ≤ 0.016) ── */
-  --background: #f5f5f7;
+  --background: oklch(0.935 0.003 286);
   --foreground: #09090b;
-  --card: oklch(0.99 0.001 286);
+  --card: #f5f5f7;
   --card-foreground: var(--foreground);
   --popover: var(--card);
   --popover-foreground: var(--foreground);
-  --muted: oklch(0.94 0.003 286);
-  --muted-strong: oklch(0.915 0.004 286);
-  --muted-foreground: oklch(0.5 0.016 286);
+  --muted: oklch(0.91 0.003 286);
+  --muted-strong: oklch(0.885 0.004 286);
+  --muted-foreground: oklch(0.48 0.016 286);
   --secondary: var(--muted);
   --secondary-foreground: var(--foreground);
   --accent: var(--muted);
   --accent-foreground: var(--foreground);
-  --border: oklch(0.89 0.005 286);
-  --input: var(--border);
+  --border: oklch(0.84 0.005 286);
+  /* The edge of a form control is its only boundary, so it holds 3:1 on the card (the border does not). */
+  --input: oklch(0.64 0.008 286);
 
   /* ── Ink: the one primary action. The focus ring is the same colour. ── */
   --primary: #3f3d56;
@@ -58,28 +59,27 @@
   --signal: #ff6584;
   --signal-on: #09090b;
   --signal-soft: color-mix(in oklab, var(--signal) 14%, var(--card));
-  --signal-foreground: oklch(0.55 0.188 11);
-  --signal-strong: oklch(0.621 0.188 11);
+  --signal-foreground: oklch(0.538 0.188 11);
+  --signal-strong: oklch(0.605 0.188 11);
 
-  /* ── Category: organisation (chips, active navigation item, avatar fallback) ── */
+  /* ── Category: organisation (chips, avatar fallback, section counts) ── */
   --category: #dea684;
   --category-foreground: #3a2412;
   --category-soft: color-mix(in oklab, var(--category) 28%, var(--card));
-  --sidebar-active: color-mix(in oklab, var(--category) 30%, var(--muted));
 
   /* ── Status: solid (dot, icon), soft background, foreground text ── */
   --status-live: oklch(0.622 0.152 155);
   --status-live-soft: color-mix(in oklab, var(--status-live) 14%, var(--card));
-  --status-live-foreground: oklch(0.508 0.124 155);
+  --status-live-foreground: oklch(0.496 0.124 155);
   --status-warning: oklch(0.643 0.132 80);
   --status-warning-soft: color-mix(in oklab, var(--status-warning) 14%, var(--card));
-  --status-warning-foreground: oklch(0.525 0.108 80);
+  --status-warning-foreground: oklch(0.513 0.108 80);
   --status-danger: oklch(0.6 0.2 31);
   --status-danger-soft: color-mix(in oklab, var(--status-danger) 14%, var(--card));
-  --status-danger-foreground: oklch(0.539 0.2 31);
+  --status-danger-foreground: oklch(0.527 0.2 31);
   --status-info: oklch(0.637 0.16 245);
   --status-info-soft: color-mix(in oklab, var(--status-info) 14%, var(--card));
-  --status-info-foreground: oklch(0.52 0.13 245);
+  --status-info-foreground: oklch(0.508 0.13 245);
   --destructive: var(--status-danger);
 
   /* ── Modal backdrop (values to be tuned on a real dialog) ── */
@@ -96,6 +96,9 @@
   --sidebar-primary-foreground: var(--primary-foreground);
   --sidebar-accent: var(--muted-strong);
   --sidebar-accent-foreground: var(--foreground);
+  /* The active item is one grey step darker than the hover (--sidebar-accent): the border level on the light sidebar. */
+  --sidebar-active: var(--border);
+  --sidebar-active-foreground: var(--foreground);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 
@@ -141,6 +144,7 @@
 
   --sidebar: var(--card);
   --sidebar-accent: var(--muted);
+  --sidebar-active: var(--muted-strong);
 }
 
 /* Shape: the two radius levels the contract names. A plain @theme (not inline) so the variables exist
@@ -214,7 +218,6 @@
   --color-category: var(--category);
   --color-category-foreground: var(--category-foreground);
   --color-category-soft: var(--category-soft);
-  --color-sidebar-active: var(--sidebar-active);
 
   /* Status */
   --color-status-live: var(--status-live);
@@ -237,6 +240,8 @@
   /* Sidebar and charts */
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
