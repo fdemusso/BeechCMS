@@ -56,11 +56,19 @@ export const SETTINGS_GROUP_LABELS: Record<SettingsGroupId, { key: string; defau
 const section = (id: string, labelKey: string, defaultLabel: string, isVisible?: SettingsSection["isVisible"]): SettingsSection =>
   ({ id, labelKey, defaultLabel, isVisible })
 
+/** A section that always has a gate, with its id kept as the literal it was written as. */
+const gatedSection = <const Id extends string>(
+  id: Id,
+  labelKey: string,
+  defaultLabel: string,
+  isVisible: (gates: SettingsGates) => boolean,
+) => ({ id, labelKey, defaultLabel, isVisible }) as const
+
 /** The sections of the Users & roles tab, each with the gate of the API it calls. */
 export const PEOPLE_SECTIONS = [
-  section("users", "settings.sections.users", "Users", (g) => g.canAnywhere("manage_users")),
-  section("roles", "settings.sections.roles", "Roles", (g) => g.canAnywhere("manage_users") || g.canAnywhere("manage_roles")),
-  section("invitations", "settings.sections.invitations", "Invitations", (g) => g.canAnywhere("manage_users")),
+  gatedSection("users", "settings.sections.users", "Users", (g) => g.canAnywhere("manage_users")),
+  gatedSection("roles", "settings.sections.roles", "Roles", (g) => g.canAnywhere("manage_users") || g.canAnywhere("manage_roles")),
+  gatedSection("invitations", "settings.sections.invitations", "Invitations", (g) => g.canAnywhere("manage_users")),
 ] as const
 
 /**

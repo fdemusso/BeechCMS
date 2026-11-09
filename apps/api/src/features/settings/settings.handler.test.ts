@@ -61,6 +61,7 @@ function buildApp(mocks: any = {}) {
           id: 'log-1',
           action: 'create',
           entityType: 'post',
+          entityId: 'post-1',
           entitySlug: 'first-post',
           details: { ip: '127.0.0.1' },
           createdAt: 1700000000,
@@ -631,6 +632,7 @@ describe('Settings Handler', () => {
       expect(body[0].id).toBe('log-1')
       expect(body[0].entity_type).toBe('post')
       expect(body[0].entity_slug).toBe('first-post')
+      expect(body[0].entity_id).toBe('post-1')
       expect(body[0].details).toBe('{"ip":"127.0.0.1"}')
     })
   })

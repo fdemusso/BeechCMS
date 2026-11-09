@@ -2,15 +2,15 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
 import { describe, it, expect } from "vitest"
-import { readFileSync } from "node:fs"
 import en from "./en.json"
 import itJson from "./it.json"
+import enSource from "./en.json?raw"
+import itSource from "./it.json?raw"
 
 /** Every key that appears twice in the same object: JSON.parse keeps the last one and drops the other without a word. */
-function duplicateKeys(file: string): string[] {
+function duplicateKeys(text: string): string[] {
   const stack: Array<Set<string>> = []
   const duplicates: string[] = []
-  const text = readFileSync(new URL(file, import.meta.url), "utf-8")
   // A string (a key if a colon follows it) or a brace; strings are taken whole, so braces inside them are never seen.
   for (const match of text.matchAll(/"((?:[^"\\]|\\.)*)"(\s*:)?|([{}])/g)) {
     if (match[3] === "{") stack.push(new Set())
@@ -26,8 +26,8 @@ function duplicateKeys(file: string): string[] {
 
 describe("dashboard locales parity and coverage", () => {
   it("no object repeats a key, so no translation silently overwrites another", () => {
-    expect(duplicateKeys("./en.json")).toEqual([])
-    expect(duplicateKeys("./it.json")).toEqual([])
+    expect(duplicateKeys(enSource)).toEqual([])
+    expect(duplicateKeys(itSource)).toEqual([])
   })
 
   it("en.json contains required rbac invitation and role keys", () => {

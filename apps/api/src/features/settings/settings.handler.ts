@@ -365,6 +365,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       id: entry.id,
       action: entry.action,
       entity_type: entry.entityType,
+      entity_id: entry.entityId,
       entity_slug: entry.entitySlug,
       details: entry.details ? JSON.stringify(entry.details) : null,
       created_at: entry.createdAt,
