@@ -48,23 +48,34 @@ function join(parts: ReadonlyArray<string | null | undefined>): string | null {
   return kept.length > 0 ? kept.join(" · ") : null
 }
 
-/** "Chrome on Windows" from a user agent; the raw string is never shown. */
+/** The first pattern a user agent matches names it: the order matters, since Chrome also says "Safari" and Edge says "Chrome". */
+const BROWSERS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/Edg\//, "Edge"],
+  [/OPR\/|Opera/, "Opera"],
+  [/Firefox\//, "Firefox"],
+  [/Chrome\//, "Chrome"],
+  [/Safari\//, "Safari"],
+]
+const SYSTEMS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/Windows/, "Windows"],
+  [/iPhone|iPad|iPod/, "iOS"],
+  [/Android/, "Android"],
+  [/Mac OS X|Macintosh/, "macOS"],
+  [/Linux|X11/, "Linux"],
+]
+
+function firstMatch(candidates: ReadonlyArray<readonly [RegExp, string]>, text: string): string | null {
+  for (const [pattern, name] of candidates) {
+    if (pattern.test(text)) return name
+  }
+  return null
+}
+
+/** "Chrome · Windows" from a user agent; the raw string is never shown. */
 export function describeUserAgent(userAgent: string | null): string | null {
   if (!userAgent) return null
-  const browser =
-    /Edg\//.test(userAgent) ? "Edge"
-    : /OPR\/|Opera/.test(userAgent) ? "Opera"
-    : /Firefox\//.test(userAgent) ? "Firefox"
-    : /Chrome\//.test(userAgent) ? "Chrome"
-    : /Safari\//.test(userAgent) ? "Safari"
-    : null
-  const system =
-    /Windows/.test(userAgent) ? "Windows"
-    : /iPhone|iPad|iPod/.test(userAgent) ? "iOS"
-    : /Android/.test(userAgent) ? "Android"
-    : /Mac OS X|Macintosh/.test(userAgent) ? "macOS"
-    : /Linux|X11/.test(userAgent) ? "Linux"
-    : null
+  const browser = firstMatch(BROWSERS, userAgent)
+  const system = firstMatch(SYSTEMS, userAgent)
   if (browser && system) return `${browser} · ${system}`
   return browser ?? system
 }
