@@ -18,9 +18,9 @@ vi.mock("@/lib/api", () => ({ logout: vi.fn() }))
 vi.mock("./notifications-tab", () => ({ NotificationsTab: () => <div>NOTIFICATIONS_TAB_CONTENT</div> }))
 vi.mock("@/features/oauth-consent", () => ({ ConnectedAppsTab: () => <div>CONNECTED_APPS_CONTENT</div> }))
 vi.mock("@/features/rbac", () => ({
-  UsersTab: () => <div>USERS_TAB_CONTENT</div>,
-  RolesTab: () => <div>ROLES_TAB_CONTENT</div>,
-  InvitationsTab: () => <div>INVITATIONS_TAB_CONTENT</div>,
+  UsersSection: () => <div>USERS_TAB_CONTENT</div>,
+  RolesSection: () => <div>ROLES_TAB_CONTENT</div>,
+  InvitationsSection: () => <div>INVITATIONS_TAB_CONTENT</div>,
 }))
 
 const mockUsePermissions = vi.fn()

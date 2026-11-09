@@ -1992,6 +1992,11 @@
   },
   "rbac": {
     "users": {
+      "description": "Tutte le persone che possono accedere, e i ruoli che hanno.",
+      "noAccess": "Nessun accesso",
+      "inactive": "Disattivato",
+      "statusFor": "Account attivo: {{email}}",
+      "manageRolesOf": "Gestisci i ruoli di {{email}}",
       "title": "Utenti",
       "create": "Crea account",
       "email": "Email",
@@ -2012,6 +2017,11 @@
       "createSuccess": "Account creato"
     },
     "roles": {
+      "description": "Cosa consente ogni ruolo. Assegna un ruolo a una persona per darle accesso.",
+      "editFor": "Modifica il ruolo {{name}}",
+      "deleteFor": "Elimina il ruolo {{name}}",
+      "systemHint": "Un ruolo di sistema è integrato e non può essere modificato né eliminato.",
+      "permissionsHint": "I permessi in grigio sono quelli che non possiedi tu stesso, quindi non puoi concederli.",
       "title": "Ruoli",
       "create": "Crea ruolo",
       "edit": "Modifica ruolo",
@@ -2032,6 +2042,11 @@
       "groupSystem": "Sistema"
     },
     "invitations": {
+      "description": "Gli inviti inviati finora e se sono stati accettati.",
+      "empty": "Nessun invito per ora.",
+      "copyLinkFor": "Copia il link di invito per {{email}}",
+      "regenerateFor": "Rigenera l'invito per {{email}}",
+      "revokeFor": "Revoca l'invito per {{email}}",
       "title": "Inviti",
       "invite": "Invita",
       "status": "Stato",
@@ -2049,6 +2064,10 @@
       }
     },
     "assignments": {
+      "removeFor": "Rimuovi {{role}} su {{scope}}",
+      "roleLabel": "Ruolo da assegnare",
+      "scopeLabel": "Dove si applica",
+      "list": "Ruoli assegnati",
       "title": "Ruoli per {{email}}",
       "add": "Aggiungi",
       "remove": "Rimuovi",

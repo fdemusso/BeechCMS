@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { usePermissions } from "@/features/shared"
 import { useCreateInvitation, useRbacRoles } from "../hooks/use-rbac"
 import { ScopeSelect } from "./scope-select"
@@ -76,7 +75,7 @@ export function InviteDialog({ open, onOpenChange, onInvited }: InviteDialogProp
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="inv-email">{t("rbac.users.email", "Email")}</FieldLabel>
-              <Input id="inv-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input id="inv-email" name="invitee-email" type="email" autoComplete="off" required value={email} onChange={(e) => setEmail(e.target.value)} />
             </Field>
             <Field>
               <FieldLabel htmlFor="inv-role">{t("rbac.assignments.role", "Role")}</FieldLabel>
@@ -95,21 +94,18 @@ export function InviteDialog({ open, onOpenChange, onInvited }: InviteDialogProp
               <FieldLabel htmlFor="inv-scope">{t("rbac.assignments.scope", "Scope")}</FieldLabel>
               <ScopeSelect id="inv-scope" value={scope} onValueChange={setScope} />
             </Field>
+            {/* Why the button is off, where everyone can read it: a tooltip on a disabled button reaches nobody. */}
+            {escalationBlocked && <p id="inv-escalation" role="status" className="text-sm text-destructive">{t("rbac.errors.escalation-refused")}</p>}
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
           <DialogFooter className="mt-4">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <Button type="submit" disabled={!email || !roleId || !scope || escalationBlocked || createInvitation.isPending}>
-                      {t("rbac.invitations.invite", "Invite")}
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                {escalationBlocked && <TooltipContent>{t("rbac.errors.escalation-refused")}</TooltipContent>}
-              </Tooltip>
-            </TooltipProvider>
+            <Button
+              type="submit"
+              disabled={!email || !roleId || !scope || escalationBlocked || createInvitation.isPending}
+              aria-describedby={escalationBlocked ? "inv-escalation" : undefined}
+            >
+              {t("rbac.invitations.invite", "Invite")}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

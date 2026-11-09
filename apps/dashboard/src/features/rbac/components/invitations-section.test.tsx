@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
-import { InvitationsTab } from "./invitations-tab"
+import { InvitationsSection } from "./invitations-section"
 
 const mockInvitations = vi.fn()
 vi.mock("../hooks/use-rbac", () => ({
@@ -18,7 +18,7 @@ vi.mock("@/features/shared", () => ({
   useSchema: () => ({ data: [{ slug: "articles", label: "Article", labelPlural: "Articles" }] }),
 }))
 
-describe("InvitationsTab", () => {
+describe("InvitationsSection", () => {
   it("an accepted invitation exposes no Regenerate action", () => {
     mockInvitations.mockReturnValue({
       data: [
@@ -27,7 +27,7 @@ describe("InvitationsTab", () => {
       ],
       isLoading: false,
     })
-    render(<InvitationsTab />)
+    render(<InvitationsSection />)
 
     expect(screen.getByText("pending@beech.local")).toBeInTheDocument()
     expect(screen.getByText("accepted@beech.local")).toBeInTheDocument()

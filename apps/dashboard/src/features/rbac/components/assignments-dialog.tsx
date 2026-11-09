@@ -16,7 +16,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { Trash2 } from "@/components/icons"
 import { usePermissions } from "@/features/shared"
 import { useUserAssignments, useCreateAssignment, useDeleteAssignment, useRbacRoles } from "../hooks/use-rbac"
@@ -85,47 +86,50 @@ export function AssignmentsDialog({
 
         {/* PermissionBadgeGroup renders tooltips that need a provider. */}
         <TooltipProvider delayDuration={100} disableHoverableContent>
-          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-            {assignments.map((assignment) => (
-              <div
-                key={assignment.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-muted/20 p-2.5 transition-colors"
-              >
-                <div className="min-w-0 flex-1 flex items-center gap-2.5 flex-wrap">
-                  <span className="text-sm font-medium text-foreground">
-                    {assignment.roleName ?? assignment.roleId}
-                  </span>
-                  <PermissionBadgeGroup permissions={assignment.permissions} max={3} />
-                  <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded border border-border/50">
-                    {assignment.scope}
-                  </span>
-                  {!assignment.active && (
-                    <Badge variant="outline" className="text-[10px] text-destructive border-destructive/40">
-                      {t("rbac.assignments.inactiveScope", "Inactive scope")}
-                    </Badge>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-                  onClick={() => handleRemove(assignment.id)}
-                  aria-label={t("common.delete", "Delete")}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-            ))}
-            {assignments.length === 0 && (
-              <p className="text-sm text-muted-foreground py-3 text-center">{t("rbac.assignments.empty", "No assignments yet")}</p>
-            )}
-          </div>
+          {assignments.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-3 text-center">{t("rbac.assignments.empty", "No assignments yet")}</p>
+          ) : (
+            <ScrollArea className="max-h-64">
+              <ul aria-label={t("rbac.assignments.list")} className="space-y-2 pr-1">
+                {assignments.map((assignment) => (
+                  <li
+                    key={assignment.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-muted/20 p-2.5 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1 flex items-center gap-2.5 flex-wrap">
+                      <span className="text-sm font-medium text-foreground">
+                        {assignment.roleName ?? assignment.roleId}
+                      </span>
+                      <PermissionBadgeGroup permissions={assignment.permissions} max={3} />
+                      <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded border border-border/50">
+                        {assignment.scope}
+                      </span>
+                      {!assignment.active && (
+                        <Badge variant="outline" className="text-[10px] text-destructive border-destructive/40">
+                          {t("rbac.assignments.inactiveScope", "Inactive scope")}
+                        </Badge>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleRemove(assignment.id)}
+                      aria-label={t("rbac.assignments.removeFor", { role: assignment.roleName ?? assignment.roleId, scope: assignment.scope })}
+                    >
+                      <Trash2 aria-hidden className="size-4" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </ScrollArea>
+          )}
         </TooltipProvider>
 
         <div className="flex items-end gap-2 pt-2 border-t">
           <div className="flex-1 space-y-1">
             <Select value={roleId} onValueChange={setRoleId}>
-              <SelectTrigger>
+              <SelectTrigger aria-label={t("rbac.assignments.roleLabel")}>
                 <SelectValue placeholder={t("rbac.assignments.role", "Role")} />
               </SelectTrigger>
               <SelectContent>
@@ -136,27 +140,21 @@ export function AssignmentsDialog({
             </Select>
           </div>
           <div className="flex-1 space-y-1">
-            <ScopeSelect value={scope} onValueChange={setScope} />
+            <ScopeSelect value={scope} onValueChange={setScope} ariaLabel={t("rbac.assignments.scopeLabel")} />
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button
-                    type="button"
-                    disabled={!roleId || !scope || escalationBlocked || createAssignment.isPending}
-                    onClick={handleAdd}
-                  >
-                    {t("rbac.assignments.add", "Add")}
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              {escalationBlocked && (
-                <TooltipContent>{t("rbac.errors.escalation-refused")}</TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            type="button"
+            disabled={!roleId || !scope || escalationBlocked || createAssignment.isPending}
+            aria-describedby={escalationBlocked ? "assign-escalation" : undefined}
+            onClick={handleAdd}
+          >
+            {t("rbac.assignments.add", "Add")}
+          </Button>
         </div>
+        {/* Why Add is off, where everyone can read it: a tooltip on a disabled button reaches nobody. */}
+        {escalationBlocked && (
+          <p id="assign-escalation" role="status" className="text-sm text-destructive">{t("rbac.errors.escalation-refused")}</p>
+        )}
       </DialogContent>
     </Dialog>
   )

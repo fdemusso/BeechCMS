@@ -108,7 +108,7 @@ describe("AssignmentsDialog", () => {
       />
     )
 
-    const deleteButtons = screen.getAllByRole("button", { name: "Delete" })
+    const deleteButtons = screen.getAllByRole("button", { name: /^Remove .* on / })
     expect(deleteButtons).toHaveLength(2)
     // Regression guard: no role-based exception may disable removing a SuperAdmin assignment;
     // the server's last-global-admin guard is the only protection.

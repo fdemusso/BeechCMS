@@ -61,6 +61,7 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
 
   const heldAnywhere = React.useMemo(() => permissionsHeldAnywhere(effective), [effective])
   const permissionSet = React.useMemo(() => new Set(permissions), [permissions])
+  const hasUnheldPermission = PERMISSION_GROUPS.some((group) => group.permissions.some((permission) => !heldAnywhere.has(permission)))
 
   const togglePermission = (permission: Permission) => {
     setPermissions((current) =>
@@ -120,27 +121,33 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
                   emptyLabel={t("rbac.roles.noIconsFound", "No icons found")}
                 />
 
-                <Input id="rf-name" required maxLength={32} value={name} onChange={(e) => setName(e.target.value)} className="flex-1" />
+                <Input id="rf-name" name="role-name" autoComplete="off" required maxLength={32} value={name} onChange={(e) => setName(e.target.value)} className="flex-1" />
               </div>
             </Field>
             <Field>
               <FieldLabel htmlFor="rf-description">{t("rbac.roles.description", "Description")}</FieldLabel>
               <Input
                 id="rf-description"
+                name="role-description"
+                autoComplete="off"
                 maxLength={50}
                 value={description ?? ""}
                 onChange={(e) => setDescription(e.target.value)}
               />
             </Field>
-            <Field>
-              <FieldLabel>{t("rbac.roles.permissions", "Permissions")}</FieldLabel>
+            {/* A fieldset, so a screen reader says which group a checkbox is in: "Permissions, Content, read". */}
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium">{t("rbac.roles.permissions", "Permissions")}</legend>
+              {hasUnheldPermission && (
+                <p id="rf-permissions-hint" className="text-sm text-muted-foreground">{t("rbac.roles.permissionsHint")}</p>
+              )}
               <TooltipProvider delayDuration={100} disableHoverableContent>
                 <div className="grid grid-cols-2 gap-4">
                   {PERMISSION_GROUPS.map((group) => (
-                    <div key={group.id}>
-                      <span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                    <fieldset key={group.id}>
+                      <legend className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
                         {t(group.titleKey, group.defaultTitle)}
-                      </span>
+                      </legend>
                       <div className="space-y-2">
                         {group.permissions.map((permission) => {
                           const disabled = !heldAnywhere.has(permission)
@@ -155,6 +162,7 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
                               <Checkbox
                                 checked={permissionSet.has(permission)}
                                 disabled={disabled}
+                                aria-describedby={disabled ? "rf-permissions-hint" : undefined}
                                 onCheckedChange={() => togglePermission(permission)}
                               />
                               {permission.replace(/^content:/, "").replace(/_/g, " ")}
@@ -169,11 +177,11 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
                           )
                         })}
                       </div>
-                    </div>
+                    </fieldset>
                   ))}
                 </div>
               </TooltipProvider>
-            </Field>
+            </fieldset>
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
           <DialogFooter className="mt-4">

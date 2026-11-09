@@ -1991,6 +1991,11 @@
   },
   "rbac": {
     "users": {
+      "description": "Everyone who can sign in, and the roles they hold.",
+      "noAccess": "No access",
+      "inactive": "Inactive",
+      "statusFor": "Account active: {{email}}",
+      "manageRolesOf": "Manage roles of {{email}}",
       "title": "Users",
       "create": "Create account",
       "email": "Email",
@@ -2011,6 +2016,11 @@
       "createSuccess": "Account created"
     },
     "roles": {
+      "description": "What each role allows. Give a role to a person to give them access.",
+      "editFor": "Edit role {{name}}",
+      "deleteFor": "Delete role {{name}}",
+      "systemHint": "A system role is built in and cannot be changed or deleted.",
+      "permissionsHint": "Greyed-out permissions are ones you do not hold yourself, so you cannot grant them.",
       "title": "Roles",
       "create": "Create role",
       "edit": "Edit role",
@@ -2031,6 +2041,11 @@
       "groupSystem": "System"
     },
     "invitations": {
+      "description": "Invitations sent so far, and whether they were taken up.",
+      "empty": "No invitations yet.",
+      "copyLinkFor": "Copy the invite link for {{email}}",
+      "regenerateFor": "Regenerate the invitation for {{email}}",
+      "revokeFor": "Revoke the invitation for {{email}}",
       "title": "Invitations",
       "invite": "Invite",
       "status": "Status",
@@ -2048,6 +2063,10 @@
       }
     },
     "assignments": {
+      "removeFor": "Remove {{role}} on {{scope}}",
+      "roleLabel": "Role to assign",
+      "scopeLabel": "Where it applies",
+      "list": "Roles held",
       "title": "Roles for {{email}}",
       "add": "Add",
       "remove": "Remove",

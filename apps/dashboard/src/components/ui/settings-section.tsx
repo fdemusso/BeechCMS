@@ -20,6 +20,8 @@ interface SettingsSectionProps {
   readonly id: string
   readonly title: string
   readonly description?: string
+  /** The one thing to do in this section (create, invite, …), set at the end of the title row. */
+  readonly action?: ReactNode
   readonly children: ReactNode
 }
 
@@ -28,26 +30,31 @@ interface SettingsSectionProps {
  *
  *     <section>  titled by its <h3>
  *       <h3>     the name, also where a sidebar bookmark puts the focus
- *       <p>      what it is for
+ *       <p>      what it is for        (and, beside them, the section's one action)
  *       <div>    the rows: a <form>, a <ul>, or plain rows
  *
  * No card around it, so a page is a stack of sections separated by space alone.
  */
-export function SettingsSection({ id, title, description, children }: SettingsSectionProps) {
+export function SettingsSection({ id, title, description, action, children }: SettingsSectionProps) {
   const headingId = `${sectionDomId(id)}-title`
   return (
     <section id={sectionDomId(id)} aria-labelledby={headingId} className="scroll-mt-4">
-      <h3
-        id={headingId}
-        // Not in the tab order, but a bookmark can send the focus here so a screen reader starts reading the section.
-        tabIndex={-1}
-        className="font-heading text-base font-semibold tracking-tight text-foreground outline-none focus-visible:underline"
-      >
-        {title}
-      </h3>
-      {description && (
-        <p id={sectionDescriptionDomId(id)} className="mt-1 text-sm text-muted-foreground">{description}</p>
-      )}
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0">
+          <h3
+            id={headingId}
+            // Not in the tab order, but a bookmark can send the focus here so a screen reader starts reading the section.
+            tabIndex={-1}
+            className="font-heading text-base font-semibold tracking-tight text-foreground outline-none focus-visible:underline"
+          >
+            {title}
+          </h3>
+          {description && (
+            <p id={sectionDescriptionDomId(id)} className="mt-1 text-sm text-muted-foreground">{description}</p>
+          )}
+        </div>
+        {action}
+      </div>
       <div className="mt-4 border-t border-border">{children}</div>
     </section>
   )
@@ -90,6 +97,16 @@ export function SettingsRow({ label, htmlFor, description, children, controlClas
 /** The reason a field was refused, tied to it with `aria-describedby` and announced as it appears. */
 export function SettingsFieldError({ id, children }: { readonly id: string; readonly children: ReactNode }) {
   return <p id={id} role="alert" className="mt-1.5 text-sm text-destructive">{children}</p>
+}
+
+/** A named list of rows, for sections that are a list of things (people, invitations, roles) rather than of fields. */
+export function SettingsList({ label, children }: { readonly label: string; readonly children: ReactNode }) {
+  return <ul aria-label={label}>{children}</ul>
+}
+
+/** One thing in a list: what it is on the left, what can be done to it on the right. */
+export function SettingsListItem({ children, className }: { readonly children: ReactNode; readonly className?: string }) {
+  return <li className={cn("flex items-center justify-between gap-4 border-b border-border py-4", className)}>{children}</li>
 }
 
 /** The submit button of a group of rows, under the last divider. */

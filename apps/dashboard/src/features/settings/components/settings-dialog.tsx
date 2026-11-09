@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { logout } from "@/lib/api"
-import { sectionDomId } from "./settings-section"
+import { sectionDomId } from "@/components/ui/settings-section"
 
 import { AccountTab } from "./account-tab"
 import { InterfaceTab } from "./interface-tab"
