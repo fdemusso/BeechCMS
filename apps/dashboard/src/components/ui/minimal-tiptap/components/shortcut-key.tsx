@@ -3,47 +3,27 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
-import { cn } from "@/lib/utils"
+import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { getShortcutKey } from "../utils"
 
-export interface ShortcutKeyProps extends React.ComponentProps<"span"> {
+export interface ShortcutKeyProps extends Omit<React.ComponentProps<typeof KbdGroup>, "children"> {
+  /** Key names; `mod`, `alt` and `shift` become the symbols of the platform (⌘ ⌥ ⇧ on a Mac, Ctrl Alt ⇧ elsewhere). */
   keys: string[]
 }
 
-export const ShortcutKey = ({
-  ref,
-  className,
-  keys,
-  ...props
-}: ShortcutKeyProps) => {
+/** A shortcut as one keycap per key, read aloud as its spoken names ("Control + B"). */
+export const ShortcutKey = ({ keys, ...props }: ShortcutKeyProps) => {
   const modifiedKeys = keys.map((key) => getShortcutKey(key))
-  const ariaLabel = modifiedKeys
-    .map((shortcut) => shortcut.readable)
-    .join(" + ")
+  const ariaLabel = modifiedKeys.map((shortcut) => shortcut.readable).join(" + ")
 
   return (
-    <span
-      aria-label={ariaLabel}
-      className={cn("inline-flex items-center gap-0.5", className)}
-      {...props}
-      ref={ref}
-    >
+    <KbdGroup aria-label={ariaLabel} {...props}>
       {modifiedKeys.map((shortcut) => (
-        <kbd
-          key={shortcut.symbol}
-          className={cn(
-            // design-ok: vendored minimal-tiptap, the hint colour is part of the component
-            "inline-block min-w-2.5 text-center align-baseline font-sans text-xs font-medium text-[rgb(156,157,160)] capitalize",
-
-            className
-          )}
-          {...props}
-          ref={ref}
-        >
+        <Kbd key={shortcut.symbol} aria-hidden>
           {shortcut.symbol}
-        </kbd>
+        </Kbd>
       ))}
-    </span>
+    </KbdGroup>
   )
 }
 
