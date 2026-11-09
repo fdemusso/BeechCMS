@@ -43,7 +43,7 @@ function PresetDiagram({ spans }: { readonly spans: readonly number[] }) {
   return (
     <span aria-hidden data-spans={spans.join(',')} className="ml-auto flex h-3 w-16 gap-0.5">
       {spans.map((span, index) => (
-        <span key={index} /* design-ok: micro element (≤20px), the contract has no radius level below rounded-control */ className="rounded-[2px] bg-foreground/25" style={{ flex: span }} />
+        <span key={index} /* design-ok: micro element (≤20px), the contract has no radius level below rounded-control */ className="rounded-[2px] bg-category" style={{ flex: span }} />
       ))}
     </span>
   )

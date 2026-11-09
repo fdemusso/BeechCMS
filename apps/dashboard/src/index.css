@@ -99,13 +99,13 @@
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 
-  /* Chart palette: not decided by the contract (#undecided), so provisional: a ramp of the secondary brand colour
-     (category sand), from a darker sand that holds 3:1 on the card to a pale one, mixed in oklab. It follows the theme. */
-  --chart-1: color-mix(in oklab, var(--category) 65%, var(--foreground));
-  --chart-2: var(--category);
-  --chart-3: color-mix(in oklab, var(--category) 70%, var(--card));
-  --chart-4: color-mix(in oklab, var(--category) 48%, var(--card));
-  --chart-5: color-mix(in oklab, var(--category) 32%, var(--card));
+  /* Chart palette: five categorical series. Ink and sand come from the brand; teal, olive and plum fill the gaps at
+     low chroma so they never read as a status. Each holds 3:1 on the card and every pair is at least 0.12 apart in OKLab. */
+  --chart-1: oklch(0.66 0.045 288);
+  --chart-2: oklch(0.58 0.075 58);
+  --chart-3: oklch(0.56 0.07 205);
+  --chart-4: oklch(0.44 0.07 125);
+  --chart-5: oklch(0.46 0.07 335);
 }
 
 .dark, html.dark {
@@ -130,6 +130,12 @@
   --status-warning-foreground: oklch(0.651 0.134 80);
   --status-danger-foreground: oklch(0.663 0.2 31);
   --status-info-foreground: oklch(0.644 0.16 245);
+
+  --chart-1: oklch(0.72 0.045 288);
+  --chart-2: oklch(0.64 0.075 58);
+  --chart-3: oklch(0.62 0.07 205);
+  --chart-4: oklch(0.5 0.07 125);
+  --chart-5: oklch(0.52 0.07 335);
 
   --scrim: oklch(0 0 0 / 50%);
 

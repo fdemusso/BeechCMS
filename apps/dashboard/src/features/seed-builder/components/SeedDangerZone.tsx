@@ -213,7 +213,7 @@ function FieldOperations({ record, disabled, state, onStateChange, onChooseDispl
           {t("seedBuilder.dangerZone.fieldOps.empty")}
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 rounded-lg border border-status-warning/30 bg-status-warning/5 p-3 md:grid-cols-[minmax(0,4fr)_minmax(0,7fr)]">
+        <div className="grid grid-cols-1 gap-4 rounded-lg border border-status-warning/30 bg-status-warning-soft p-3 md:grid-cols-[minmax(0,4fr)_minmax(0,7fr)]">
           {/* Four rows are visible (3.375rem each, 0.375rem apart, plus the 0.5rem of padding): that is what lets the whole tab fit the
               dialog without scrolling the page. The rest of the list scrolls. */}
           <ScrollArea className="-m-1 max-h-[15.125rem] self-start">
@@ -456,7 +456,7 @@ export function SeedDangerZone({ record, state, onStateChange, onChooseDisplayNa
   return (
     <div className="space-y-7" data-testid="seed-danger-zone">
       {manifestOwned && (
-        <div className="flex items-start gap-2 rounded-lg border border-status-warning/40 bg-status-warning/10 p-3 text-sm text-status-warning-foreground" role="note">
+        <div className="flex items-start gap-2 rounded-lg border border-status-warning/40 bg-status-warning-soft p-3 text-sm text-status-warning-foreground" role="note">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <p>
             <strong>{t("seedBuilder.dangerZone.manifest.title")}</strong> {t("seedBuilder.dangerZone.manifest.body")}

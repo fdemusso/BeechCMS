@@ -139,13 +139,13 @@ export function getConditionalFormatRowClass(
   const styleClass = getTextStylesClass(textStyles)
   switch (tone) {
     case "success":
-      return `bg-status-live/12 hover:bg-status-live/16 ${styleClass}`.trim()
+      return `bg-status-live-soft hover:bg-status-live/20 ${styleClass}`.trim()
     case "warning":
-      return `bg-status-warning/12 hover:bg-status-warning/16 ${styleClass}`.trim()
+      return `bg-status-warning-soft hover:bg-status-warning/20 ${styleClass}`.trim()
     case "danger":
-      return `bg-destructive/12 hover:bg-destructive/16 ${styleClass}`.trim()
+      return `bg-status-danger-soft hover:bg-status-danger/20 ${styleClass}`.trim()
     case "info":
-      return `bg-status-info/12 hover:bg-status-info/16 ${styleClass}`.trim()
+      return `bg-status-info-soft hover:bg-status-info/20 ${styleClass}`.trim()
     case "neutral":
     default:
       return `bg-muted/35 hover:bg-muted/45 ${styleClass}`.trim()

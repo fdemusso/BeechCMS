@@ -38,7 +38,7 @@ export class WidgetErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex h-full min-h-[80px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-status-danger/40 bg-status-danger/5 p-4 text-center">
+        <div className="flex h-full min-h-[80px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-status-danger/40 bg-status-danger-soft p-4 text-center">
           <AlertTriangle className="h-5 w-5 text-status-danger" />
           <p className="text-xs font-medium text-status-danger-foreground">
             Widget non disponibile

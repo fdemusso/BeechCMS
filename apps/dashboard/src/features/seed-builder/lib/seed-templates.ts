@@ -56,7 +56,7 @@ const TEMPLATES: Record<SeedTemplateId, TemplateDefinition> = {
         type: "tags",
         multiple: false,
         classification: "internal",
-        options: tags(["customer", "#3b82f6"], ["supplier", "#f59e0b"], ["employee", "#10b981"], ["contact", "#64748b"]), // design-ok: option colours are data stored in the seed
+        options: tags(["customer", "#3f3d56"], ["supplier", "#745949"], ["employee", "#62626c"], ["contact", "#656479"]), // design-ok: option colours are data stored in the seed (hex of the palette: ink, sand, neutral, status foregrounds)
       },
       { alias: "marketing_consent", type: "boolean", classification: "internal" },
       { alias: "notes", type: "richtext", classification: "internal" },
@@ -77,7 +77,7 @@ const TEMPLATES: Record<SeedTemplateId, TemplateDefinition> = {
         type: "tags",
         multiple: false,
         classification: "internal",
-        options: tags(["pending", "#f59e0b"], ["confirmed", "#10b981"], ["cancelled", "#ef4444"]), // design-ok: option colours are data stored in the seed
+        options: tags(["pending", "#8b6202"], ["confirmed", "#057944"], ["cancelled", "#c82510"]), // design-ok: option colours are data stored in the seed (hex of the palette: ink, sand, neutral, status foregrounds)
       },
       { alias: "capacity", type: "number", classification: "internal" },
       { alias: "contact_name", type: "text", classification: "internal" },
@@ -111,14 +111,14 @@ const TEMPLATES: Record<SeedTemplateId, TemplateDefinition> = {
         type: "tags",
         multiple: false,
         classification: "internal",
-        options: tags(["info", "#3b82f6"], ["support", "#f59e0b"], ["partnership", "#8b5cf6"], ["other", "#64748b"]), // design-ok: option colours are data stored in the seed
+        options: tags(["info", "#3f3d56"], ["support", "#745949"], ["partnership", "#656479"], ["other", "#62626c"]), // design-ok: option colours are data stored in the seed (hex of the palette: ink, sand, neutral, status foregrounds)
       },
       {
         alias: "state",
         type: "tags",
         multiple: false,
         classification: "internal",
-        options: tags(["new", "#3b82f6"], ["working", "#f59e0b"], ["done", "#10b981"]), // design-ok: option colours are data stored in the seed
+        options: tags(["new", "#036eae"], ["working", "#8b6202"], ["done", "#057944"]), // design-ok: option colours are data stored in the seed (hex of the palette: ink, sand, neutral, status foregrounds)
       },
     ],
   },

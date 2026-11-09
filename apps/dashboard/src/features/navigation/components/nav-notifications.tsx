@@ -24,7 +24,7 @@ export function NavNotifications() {
                 in the row instead of being absolutely positioned. */}
             {/* The rail has no room for the count (the badge is hidden there): show a dot on the icon instead. */}
             {hasUnread && (
-              <span aria-hidden className="absolute right-1.5 top-1.5 hidden size-2 rounded-full bg-destructive group-data-[collapsible=icon]:block" />
+              <span aria-hidden className="absolute right-1.5 top-1.5 hidden size-2 rounded-full bg-signal group-data-[collapsible=icon]:block" />
             )}
             {hasUnread && (
               <SidebarMenuBadge className="static ml-auto h-5 rounded-full bg-signal px-1.5 text-signal-on peer-hover/menu-button:text-signal-on">

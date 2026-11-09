@@ -69,7 +69,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, tit
   })
 
   const countBadge = data?.length ? (
-    <Badge className="bg-status-warning-soft text-status-warning-foreground border-status-warning/30 text-xs tabular-nums" variant="outline">
+    <Badge className="text-xs tabular-nums" variant="signal">
       {data.length}
     </Badge>
   ) : null

@@ -119,7 +119,7 @@ function NotificationCard({
         >
           {notification.isNew && (
             <span
-              className="absolute right-2 top-2 inline-block size-2 shrink-0 rounded-full bg-destructive aspect-square"
+              className="absolute right-2 top-2 inline-block size-2 shrink-0 rounded-full bg-signal aspect-square"
               aria-hidden
             />
           )}
@@ -215,7 +215,7 @@ export function NotificationsPopover({ renderTrigger, side = "bottom", align = "
           <Bell className="size-4" />
           {hasUnreadNotifications && (
             <span
-              className="absolute bottom-0.5 right-0.5 size-2 rounded-full bg-destructive"
+              className="absolute bottom-0.5 right-0.5 size-2 rounded-full bg-signal"
               aria-hidden
             />
           )}
