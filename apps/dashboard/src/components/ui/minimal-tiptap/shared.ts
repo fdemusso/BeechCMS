@@ -9,6 +9,7 @@
  * layer (utils.ts, hooks, extensions) without introducing import cycles.
  */
 import type { Content, Editor } from "@tiptap/react"
+import { IS_MAC } from "@/lib/platform"
 
 /** Output format produced by the editor. Matches the `output` option in UseMinimalTiptapEditorProps. */
 export type OutputFormat = "html" | "json" | "text" | "markdown"
@@ -33,8 +34,7 @@ type FileInput = File | { src: string | File; alt?: string; title?: string }
 
 export const isClient = (): boolean => typeof window !== "undefined"
 export const isServer = (): boolean => !isClient()
-const isMacOS = (): boolean =>
-  isClient() && window.navigator.platform === "MacIntel"
+const isMacOS = (): boolean => IS_MAC
 
 const shortcutKeyMap: Record<string, ShortcutKeyResult> = Object.assign(
   Object.create(null),

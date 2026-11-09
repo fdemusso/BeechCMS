@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next"
 import type { Editor } from "@tiptap/react"
 import type { toggleVariants } from "@/components/ui/toggle"
 import type { VariantProps } from "class-variance-authority"
-import { ArrowDown as CaretDownIcon, Check as CheckIcon } from '@/components/icons'
+import { ArrowDown as CaretDownIcon, Check as CheckIcon, TextSquare as TextColorIcon } from '@/components/icons'
 import { ToolbarButton } from "../toolbar-button"
 import {
   Popover,
@@ -191,23 +191,7 @@ export const SectionThree: React.FC<SectionThreeProps> = ({
           size={size}
           variant={variant}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="size-5"
-            style={{ color: selectedColor }}
-          >
-            <path d="M4 20h16" />
-            <path d="m6 16 6-12 6 12" />
-            <path d="M8 12h8" />
-          </svg>
+          <TextColorIcon className="size-5" style={{ color: selectedColor }} />
           <CaretDownIcon className="size-5" />
         </ToolbarButton>
       </PopoverTrigger>

@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils"
 
 interface ToolbarButtonProps extends React.ComponentProps<typeof Toggle> {
   isActive?: boolean
-  tooltip?: string
+  tooltip?: React.ReactNode
   tooltipOptions?: React.ComponentProps<typeof TooltipContent>
 }
 
@@ -26,8 +26,10 @@ export const ToolbarButton = ({
   ...props
 }: ToolbarButtonProps) => {
   const toggleButton = (
+    // Controlled on purpose: an uncontrolled Toggle flips itself on every click, so a button that only opens a
+    // popover (colour, link, image) would stay lit after the first press.
     <Toggle
-      pressed={isActive}
+      pressed={isActive ?? false}
       className={cn({ "bg-muted": isActive }, className)}
       {...props}
     >
