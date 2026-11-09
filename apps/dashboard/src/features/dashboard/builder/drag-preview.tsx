@@ -17,7 +17,7 @@ function SectionPreview({ info }: { readonly info: DragPreviewInfo }) {
   const spans = section ? resolveColumnSpans(section) : []
   const widgetCount = columns.reduce((sum, column) => sum + column.widgets.length, 0)
   return (
-    <div className="rounded-lg border bg-background">
+    <div className="rounded-lg border bg-card">
       <div className="flex items-center gap-2 px-3 py-2">
         <GripDots className="size-4 text-muted-foreground/60" />
         <span className={`flex-1 text-sm font-medium ${info.label ? '' : 'italic text-muted-foreground'}`}>
@@ -61,7 +61,7 @@ export function DragPreview({ info }: { readonly info: DragPreviewInfo }) {
 
   if (info.kind === 'widget' && info.widget) {
     return (
-      <div style={{ width }} className="cursor-grabbing rounded-lg bg-background shadow-xl ring-1 ring-border">
+      <div style={{ width }} className="cursor-grabbing rounded-lg bg-card shadow-xl ring-1 ring-border">
         <WidgetGhost widget={info.widget} />
       </div>
     )
@@ -69,14 +69,14 @@ export function DragPreview({ info }: { readonly info: DragPreviewInfo }) {
 
   if (info.kind === 'column') {
     return (
-      <div style={{ width }} className="flex cursor-grabbing flex-col gap-3 rounded-lg bg-background p-1.5 shadow-xl ring-1 ring-border">
+      <div style={{ width }} className="flex cursor-grabbing flex-col gap-3 rounded-lg bg-card p-1.5 shadow-xl ring-1 ring-border">
         {(info.widgets ?? []).map((widget) => <WidgetGhost key={widget.id} widget={widget} />)}
       </div>
     )
   }
 
   return (
-    <div className="flex cursor-grabbing items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-medium shadow-xl">
+    <div className="flex cursor-grabbing items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm font-medium shadow-xl">
       <GripDots className="size-4 text-muted-foreground" />
       {info.label}
     </div>

@@ -177,7 +177,7 @@ export function SectionShell({
             </button>
           )}
 
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="category" className="text-xs">
             {countText}
           </Badge>
 

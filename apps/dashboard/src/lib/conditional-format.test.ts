@@ -36,10 +36,10 @@ describe("conditional-format - getConditionalFormatRowClass", () => {
   it("tutti i tone: includono le rispettive classi di sfondo", () => {
     const expected: Record<ConditionalFormatTone, string> = {
       neutral: "bg-muted/35",
-      info: "bg-status-info/12",
-      success: "bg-status-live/12",
-      warning: "bg-status-warning/12",
-      danger: "bg-destructive/12",
+      info: "bg-status-info-soft",
+      success: "bg-status-live-soft",
+      warning: "bg-status-warning-soft",
+      danger: "bg-status-danger-soft",
     }
 
     for (const tone of tones) {
@@ -52,7 +52,7 @@ describe("conditional-format - getConditionalFormatRowClass", () => {
 
   it("textStyles vuoto: non aggiunge classi di stile", () => {
     const className = getConditionalFormatRowClass("success", [])
-    expect(className).toContain("bg-status-live/12")
+    expect(className).toContain("bg-status-live-soft")
     expect(className).not.toContain("font-bold")
     expect(className).not.toContain("italic")
     expect(className).not.toContain("underline")

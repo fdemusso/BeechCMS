@@ -162,7 +162,7 @@ function UnusedGrid({
               <Button
                 variant="destructive"
                 size="sm"
-                className="h-6 w-full text-xs gap-1 px-1.5 bg-status-danger hover:bg-status-danger/90 border-none"
+                className="h-6 w-full text-xs gap-1 px-1.5"
                 onClick={(e) => {
                   e.stopPropagation()
                   onDelete(item.key, item.filename)
