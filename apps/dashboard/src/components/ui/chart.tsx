@@ -45,6 +45,12 @@ function useChart() {
   return context
 }
 
+/**
+ * A chart redraws once its container has stopped changing size. Without it the chart redraws on every frame while
+ * the sidebar opens or closes (the page reflows for the whole transition) and the animation stutters.
+ */
+const RESIZE_DEBOUNCE_MS = 100
+
 function ChartContainer({
   id,
   className,
@@ -80,6 +86,7 @@ function ChartContainer({
         <ChartStyle id={chartId} config={config} />
         <RechartsPrimitive.ResponsiveContainer
           initialDimension={initialDimension}
+          debounce={RESIZE_DEBOUNCE_MS}
         >
           {children}
         </RechartsPrimitive.ResponsiveContainer>
