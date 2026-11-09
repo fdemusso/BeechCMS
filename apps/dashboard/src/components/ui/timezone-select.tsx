@@ -4,6 +4,7 @@ import { Check, SortV as ChevronsUpDown } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { TIMEZONES, getTimezoneLabel } from '@/components/ui/timezone-utils'
 
@@ -16,7 +17,8 @@ interface TimezoneSelectProps {
 export function TimezoneSelect({ value, onValueChange, id }: TimezoneSelectProps) {
   const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
-  const listRef = React.useRef<HTMLDivElement>(null)
+  // The element that scrolls, to bring a new search back to the top of the list.
+  const viewportRef = React.useRef<HTMLDivElement>(null)
   const popoverId = React.useId()
 
   return (
@@ -26,8 +28,10 @@ export function TimezoneSelect({ value, onValueChange, id }: TimezoneSelectProps
           id={id}
           variant="outline"
           role="combobox"
+          aria-haspopup="listbox"
           aria-expanded={open}
-          aria-controls={popoverId}
+          // Only while it exists: the popover is not in the page when closed, and a reference to nothing is an error.
+          aria-controls={open ? popoverId : undefined}
           className="w-full justify-between font-normal h-8 border-input bg-transparent text-sm dark:bg-input/30"
         >
           <span className="truncate">
@@ -41,14 +45,19 @@ export function TimezoneSelect({ value, onValueChange, id }: TimezoneSelectProps
           <CommandInput
             placeholder={t('setup.searchTimezonePlaceholder')}
             onValueChange={() => {
-              if (listRef.current) {
-                listRef.current.scrollTop = 0
+              if (viewportRef.current) {
+                viewportRef.current.scrollTop = 0
               }
             }}
           />
-          <CommandList ref={listRef}>
+          {/* The scrolling is the ScrollArea's, not the list's: the list gives up its own cap and overflow. */}
+          <CommandList className="max-h-none overflow-visible">
             <CommandEmpty>{t('setup.noTimezoneFound')}</CommandEmpty>
-            <CommandGroup className="max-h-60 overflow-y-auto">
+            <ScrollArea
+              className="max-h-60 [&_[data-slot=scroll-area-viewport]>div]:!block"
+              viewportProps={{ ref: viewportRef }}
+            >
+            <CommandGroup>
               {TIMEZONES.map((tz) => {
                 const label = getTimezoneLabel(tz)
                 const city = tz.split('/').pop()?.replace('_', ' ') || ''
@@ -77,6 +86,7 @@ export function TimezoneSelect({ value, onValueChange, id }: TimezoneSelectProps
                 )
               })}
             </CommandGroup>
+            </ScrollArea>
           </CommandList>
         </Command>
       </PopoverContent>
