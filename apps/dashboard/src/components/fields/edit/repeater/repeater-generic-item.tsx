@@ -75,7 +75,7 @@ export function GenericItemRow({ id, subBranches, value, onChange, onRemove, dis
         </button>
         <span className="flex-1 text-xs font-medium text-muted-foreground">{t("fields.repeater.item")}</span>
         <Button variant="ghost" size="sm" onClick={onRemove} disabled={disableRemove} title={t("fields.repeater.removeItem")} aria-label={t("fields.repeater.removeItem")}>
-          <Trash2 className="h-4 w-4 text-destructive" />
+          <Trash2 className="h-4 w-4 text-status-danger-foreground" />
         </Button>
       </div>
       <div className="space-y-2">

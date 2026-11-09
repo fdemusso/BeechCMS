@@ -263,7 +263,7 @@ export function SettingsMenu({
                         >
                           <span className="truncate">{col.label}</span>
                           {filters[col.columnId]?.conditions?.length ? (
-                            <span className="text-muted-foreground text-[10px] uppercase">
+                            <span className="text-muted-foreground text-xs uppercase">
                               {filters[col.columnId].conditions.length}
                             </span>
                           ) : null}
@@ -326,7 +326,7 @@ export function SettingsMenu({
                             >
                               <span className="truncate">{branch.label}</span>
                               {isSelected && (
-                                <span className="text-muted-foreground text-[10px] uppercase">
+                                <span className="text-muted-foreground text-xs uppercase">
                                   {sortState?.desc ? "DESC" : "ASC"}
                                 </span>
                               )}
@@ -363,7 +363,7 @@ export function SettingsMenu({
                   <Rows3 className="size-4" />
                   {t("toolbar.settings.group")}{groupBy ? "..." : ""}
                   {groupBy && (
-                    <span className="ml-auto text-[10px] text-muted-foreground uppercase">
+                    <span className="ml-auto text-xs text-muted-foreground uppercase">
                       {t("toolbar.settings.active")}
                     </span>
                   )}
@@ -390,7 +390,7 @@ export function SettingsMenu({
                     {recommendedGroupColumns.length > 0 && (
                       <>
                         <DropdownMenuSeparator className="my-2" />
-                        <DropdownMenuLabel className="px-0 pb-1 pt-0 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                        <DropdownMenuLabel className="px-0 pb-1 pt-0 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                           {t("toolbar.settings.recommended")}
                         </DropdownMenuLabel>
                         <div className="flex flex-col gap-1">
@@ -398,7 +398,7 @@ export function SettingsMenu({
                             col.branchType === "date" ? (
                               <DropdownMenuSub key={col.columnId}>
                                 <DropdownMenuSubTrigger
-                                  className="h-8 w-full rounded-sm px-2 text-xs data-[state=open]:bg-accent"
+                                  className="h-8 w-full rounded-control px-2 text-xs data-[state=open]:bg-accent"
                                 >
                                   <span className="flex-1 truncate text-left">{col.label}</span>
                                   {groupBy === col.columnId && <Check className="mr-2 size-3.5 shrink-0 text-muted-foreground" />}
@@ -455,10 +455,10 @@ export function SettingsMenu({
                     {otherGroupColumns.length > 0 && (
                       <>
                         <DropdownMenuSeparator className="my-2" />
-                        <DropdownMenuLabel className="px-0 pb-1 pt-0 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                        <DropdownMenuLabel className="px-0 pb-1 pt-0 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                           {t("toolbar.settings.otherFields")}
                         </DropdownMenuLabel>
-                        <div className="px-0 pb-1 text-[10px] text-muted-foreground/70">
+                        <div className="px-0 pb-1 text-xs text-muted-foreground/70">
                           {t("toolbar.settings.manyGroups")}
                         </div>
                         <div className="flex flex-col gap-1">
@@ -672,7 +672,7 @@ export function SettingsMenu({
             {!deleteSeparatorAlreadyEmitted && <DropdownMenuSeparator />}
             <DropdownMenuItem
               variant="destructive"
-              className="text-destructive focus:bg-destructive/10 focus:text-destructive [&_svg]:text-destructive"
+              className="text-status-danger-foreground focus:bg-destructive/10 focus:text-status-danger-foreground [&_svg]:text-status-danger-foreground"
               disabled={!canDeleteView}
               onSelect={() => {
                 closeSettingsMenu()

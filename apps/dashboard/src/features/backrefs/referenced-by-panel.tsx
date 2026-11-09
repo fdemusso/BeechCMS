@@ -183,7 +183,7 @@ function GroupSection({ group, targetSlug, targetId, locale }: GroupSectionProps
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         {group.sourceLabel} · {group.branchLabel}
       </p>
       {/* -mx-3: the rows' own padding bleeds into the panel's, so the name lines up with the title above and
@@ -253,7 +253,7 @@ export function ReferencedByPanel({ targetSlug, targetId, onRestrictsChange }: R
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border bg-card overflow-hidden">
-      <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold hover:bg-muted/50 transition-colors">
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors">
         <div className="flex items-center gap-2">
           <span>{t('backrefs.title')}</span>
           {isLoading ? (
@@ -262,7 +262,7 @@ export function ReferencedByPanel({ targetSlug, targetId, onRestrictsChange }: R
             <Badge variant="secondary" className="text-xs">{summary}</Badge>
           ) : null}
         </div>
-        <ChevronDown className={`size-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`size-4 transition-transform duration-(--duration-enter) ${open ? 'rotate-180' : ''}`} />
       </CollapsibleTrigger>
 
       <CollapsibleContent>

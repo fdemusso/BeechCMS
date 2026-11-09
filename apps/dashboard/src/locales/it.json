@@ -32,6 +32,13 @@
     "selectedOfTotal_other": "{{selected}} di {{total}} selezionate",
     "next": "Successivo"
   },
+  "status": {
+    "published": "Pubblicato",
+    "draft": "Bozza",
+    "scheduled": "Programmato",
+    "failed": "Fallito",
+    "archived": "Archiviato"
+  },
   "dashboard": {
     "greeting": {
       "morning": "Buongiorno",

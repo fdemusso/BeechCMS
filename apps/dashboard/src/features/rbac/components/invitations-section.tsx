@@ -163,7 +163,7 @@ export function InvitationsSection() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="size-8 text-destructive"
+                                className="size-8 text-status-danger-foreground"
                                 aria-label={t("rbac.invitations.revokeFor", { email: invitation.email })}
                               >
                                 <Trash2 aria-hidden className="size-4" />

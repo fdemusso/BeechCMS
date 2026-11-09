@@ -98,7 +98,7 @@ describe("GalleryCard", () => {
 
     const heading = screen.getByRole("heading", { name: "Published entry" })
     const excerpt = screen.getByText("Some excerpt")
-    expect(heading.className).toContain("text-destructive")
-    expect(excerpt.className).not.toContain("text-destructive")
+    expect(heading.className).toContain("text-status-danger-foreground")
+    expect(excerpt.className).not.toContain("text-status-danger-foreground")
   })
 })

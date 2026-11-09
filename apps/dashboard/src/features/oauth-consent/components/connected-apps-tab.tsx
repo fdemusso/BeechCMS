@@ -83,7 +83,7 @@ function AppRow({ app, onRevoke }: { app: ConnectedApp; onRevoke: (clientId: str
             <Button
               variant="ghost"
               size="icon"
-              className="size-8 text-muted-foreground hover:text-destructive"
+              className="size-8 text-muted-foreground hover:text-status-danger-foreground"
               aria-label={t('oauth.apps.revokeFor', { client: app.name })}
             >
               {pending ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <Trash2 aria-hidden className="size-4" />}

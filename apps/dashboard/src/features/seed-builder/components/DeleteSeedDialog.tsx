@@ -73,7 +73,7 @@ export function DeleteSeedDialog({ seed, open, onOpenChange }: DeleteSeedDialogP
           <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            variant="destructive"
             disabled={deleteMutation.isPending}
           >
             {deleteMutation.isPending ? t("common.deleting") : t("seedBuilder.delete.confirm")}

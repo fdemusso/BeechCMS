@@ -85,8 +85,11 @@ const handleError = (
 
 const handleDataUrl = (src: string): { blob: Blob; extension: string } => {
   const [header, base64Data] = src.split(",")
-  const mimeType = header.split(":")[1].split(";")[0]
-  const extension = mimeType.split("/")[1]
+  const mimeType = header?.split(":")[1]?.split(";")[0]
+  const extension = mimeType?.split("/")[1]
+  if (!mimeType || !extension || base64Data === undefined) {
+    throw new Error("Invalid data URL")
+  }
   const byteCharacters = atob(base64Data)
   const byteArray = new Uint8Array(byteCharacters.length)
   for (let i = 0; i < byteCharacters.length; i++) {
@@ -150,6 +153,7 @@ const copyImage = async (
   const { src } = props
   try {
     const res = await fetch(src)
+    if (!res.ok) throw new Error("Failed to fetch image")
     const blob = await res.blob()
     await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
     options.onActionSuccess?.({ ...props, action: "copyImage" })

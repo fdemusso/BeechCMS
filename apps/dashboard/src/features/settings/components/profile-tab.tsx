@@ -116,13 +116,14 @@ export function ProfileSection() {
                 <Avatar className="size-16">
                   {/* Decorative: the button around it already says what it does. */}
                   <AvatarImage src={profile?.avatarUrl ?? undefined} alt="" />
-                  <AvatarFallback className="text-lg">
+                  <AvatarFallback className="text-xl">
                     {getInitials(profile?.name ?? null, profile?.surname ?? null, profile?.email ?? '')}
                   </AvatarFallback>
                 </Avatar>
                 <span
                   aria-hidden
                   className={
+                    // design-ok: dark overlay on a user image, not a modal backdrop (avatar hover)
                     'absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white transition-opacity ' +
                     (updateAvatar.isPending ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100')
                   }
@@ -136,7 +137,7 @@ export function ProfileSection() {
                   onClick={handleRemoveAvatar}
                   disabled={photoBusy}
                   aria-label={t('settings.profile.removePhoto')}
-                  className="absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-xs outline-hidden transition-colors hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                  className="absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-xs outline-hidden transition-colors hover:text-status-danger-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                 >
                   {removeAvatar.isPending ? <Loader2 aria-hidden className="size-3.5 animate-spin" /> : <Trash2 aria-hidden className="size-3.5" />}
                 </button>

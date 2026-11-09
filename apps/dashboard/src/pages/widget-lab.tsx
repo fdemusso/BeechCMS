@@ -34,7 +34,7 @@ function LabSection({ title, description, children }: {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="font-heading text-base font-semibold text-foreground">{title}</h2>
+        <h2 className="font-heading text-base font-bold text-foreground">{title}</h2>
         {description && (
           <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
         )}

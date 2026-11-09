@@ -39,7 +39,7 @@ export function ContentPulse() {
     <Card className="overflow-hidden border-none bg-card/50 backdrop-blur-sm shadow-sm transition-all hover:shadow-md">
       <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Activity className="size-4 text-emerald-500" />
+          <Activity className="size-4 text-status-live" />
           {t("dashboard.widgetRegistry.widgets.contentPulse.label")}
         </CardTitle>
         <LayoutGrid className="size-4 text-muted-foreground" />
@@ -67,9 +67,9 @@ export function ContentPulse() {
                       <Progress 
                         value={percentage} 
                         className="h-1.5 flex-1" 
-                        indicatorClassName="bg-emerald-500/80 dark:bg-emerald-400/80"
+                        indicatorClassName="bg-status-live/80"
                       />
-                      <span className="text-[10px] text-muted-foreground w-8 text-right font-mono">
+                      <span className="text-xs text-muted-foreground w-8 text-right font-mono">
                         {Math.round(percentage)}%
                       </span>
                     </div>
@@ -81,8 +81,8 @@ export function ContentPulse() {
         </ScrollArea>
         
         <div className="mt-6 pt-4 border-t border-border flex justify-between items-center">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-tighter font-bold">{t("dashboard.contentPulse.totalDistribution")}</span>
-          <span className="text-[10px] font-mono font-bold text-muted-foreground">{t("dashboard.contentPulse.items", { count: totalCount })}</span>
+          <span className="text-xs text-muted-foreground uppercase tracking-tighter font-bold">{t("dashboard.contentPulse.totalDistribution")}</span>
+          <span className="text-xs font-mono font-bold text-muted-foreground">{t("dashboard.contentPulse.items", { count: totalCount })}</span>
         </div>
       </CardContent>
     </Card>

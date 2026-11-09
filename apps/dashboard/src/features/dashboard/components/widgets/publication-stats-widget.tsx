@@ -41,23 +41,23 @@ export function PublicationStatsWidget({ variant = "single" }: PublicationStatsW
       {
         label: t("dashboard.widgets.publicationStats.today"),
         value: today,
-        color: "text-blue-600 dark:text-blue-400",
-        border: "border-l-blue-400/60",
-        bg: "bg-blue-50/60 dark:bg-blue-500/10",
+        color: "text-status-info-foreground",
+        border: "border-l-status-info/60",
+        bg: "bg-status-info-soft",
       },
       {
         label: t("dashboard.widgets.publicationStats.week"),
         value: week,
-        color: "text-violet-600 dark:text-violet-400",
-        border: "border-l-violet-400/60",
-        bg: "bg-violet-50/60 dark:bg-violet-500/10",
+        color: "text-foreground",
+        border: "border-l-category",
+        bg: "bg-category-soft",
       },
       {
         label: t("dashboard.widgets.publicationStats.month"),
         value: month,
-        color: "text-emerald-600 dark:text-emerald-400",
-        border: "border-l-emerald-400/60",
-        bg: "bg-emerald-50/60 dark:bg-emerald-500/10",
+        color: "text-status-live-foreground",
+        border: "border-l-status-live/60",
+        bg: "bg-status-live-soft",
       },
     ]
     return (
@@ -76,7 +76,7 @@ export function PublicationStatsWidget({ variant = "single" }: PublicationStatsW
               )}
             >
               <span className={cn("text-xl font-bold tabular-nums leading-none sm:text-2xl", color)}>{value}</span>
-              <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">{label}</span>
+              <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{label}</span>
             </div>
           ))}
         </div>
@@ -91,8 +91,8 @@ export function PublicationStatsWidget({ variant = "single" }: PublicationStatsW
         <div className="flex items-end gap-2">
           <span className="text-4xl font-bold tabular-nums">{total.toLocaleString()}</span>
           <span className={cn(
-            "mb-1 flex items-center gap-0.5 text-sm font-semibold",
-            isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
+            "mb-1 flex items-center gap-0.5 text-sm font-medium",
+            isPositive ? "text-status-live-foreground" : "text-muted-foreground"
           )}>
             <TrendingUp className={cn("size-4", !isPositive && "opacity-20")} />
             {today}

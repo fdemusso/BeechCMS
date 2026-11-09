@@ -59,7 +59,7 @@ export function IconPicker({
           type="button"
           variant="outline"
           size="icon"
-          className="size-8 shrink-0 rounded-md border-border/80 hover:bg-accent flex items-center justify-center cursor-pointer"
+          className="size-8 shrink-0 rounded-control border-border/80 hover:bg-accent flex items-center justify-center cursor-pointer"
           aria-label={ariaLabel}
           title={ariaLabel}
         >
@@ -93,7 +93,7 @@ export function IconPicker({
                     }}
                     title={iconName}
                     className={cn(
-                      "size-8 rounded-md flex items-center justify-center transition-colors cursor-pointer",
+                      "size-8 rounded-control flex items-center justify-center transition-colors cursor-pointer",
                       current === iconName
                         ? "bg-primary text-primary-foreground shadow-xs"
                         : "hover:bg-accent text-muted-foreground hover:text-foreground"

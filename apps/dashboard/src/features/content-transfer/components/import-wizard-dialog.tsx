@@ -154,7 +154,7 @@ export function ImportWizardDialog({ open, onOpenChange, seed, onImportCompleted
             </div>
 
             {!canUpload && (
-              <p className="text-xs text-destructive">{t("transfer.import.presignPermissionWarning")}</p>
+              <p className="text-xs text-status-danger-foreground">{t("transfer.import.presignPermissionWarning")}</p>
             )}
 
             <DialogFooter>
@@ -186,7 +186,7 @@ export function ImportWizardDialog({ open, onOpenChange, seed, onImportCompleted
               href={`/content/import-jobs/${jobId}`}
               target="_blank"
               rel="noreferrer"
-              className="text-sm text-primary underline"
+              className="text-sm text-foreground underline"
             >
               {t("transfer.import.openJobPage")}
             </a>

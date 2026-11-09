@@ -24,18 +24,86 @@ interface GalleryCardProps {
 
 function statusBadgeClass(status: string): string {
   const s = status.toLowerCase().trim()
-  if (s === "published") return "bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-700/50"
-  if (s === "draft") return "bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-700/50"
-  if (["error", "failed", "rejected", "archived"].includes(s)) return "bg-red-50 text-red-700 border-red-200/80 dark:bg-red-500/15 dark:text-red-400 dark:border-red-700/50"
+  if (s === "published") return "bg-status-live-soft text-status-live-foreground border-status-live/30"
+  if (s === "draft") return "bg-status-warning-soft text-status-warning-foreground border-status-warning/30"
+  if (["error", "failed", "rejected", "archived"].includes(s)) return "bg-status-danger-soft text-status-danger-foreground border-status-danger/30"
   return "bg-muted text-muted-foreground border-border/80 dark:border-border/50"
 }
 
-export function GalleryCard({ model, onOpen }: GalleryCardProps) {
+type SlotStyle = NonNullable<GalleryCardDisplayModel["slotStyles"]>[keyof NonNullable<GalleryCardDisplayModel["slotStyles"]>]
+
+function slotClass(style: SlotStyle | undefined): string | undefined {
+  return style ? getConditionalFormatCellClass(style.tone, style.textStyles) : undefined
+}
+
+function GalleryCardImage({ model }: { readonly model: GalleryCardDisplayModel }) {
   const { t } = useTranslation()
   // Remember which URL failed, so a new URL gets a fresh attempt without an effect reset.
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
   const imgError = failedUrl !== null && failedUrl === model.imageUrl
   const showImage = !!model.imageUrl && !imgError
+
+  return (
+    <div className="relative h-44 w-full shrink-0 overflow-hidden bg-gradient-to-br from-muted/40 to-muted/80">
+      {showImage ? (
+        <img
+          src={model.imageUrl!}
+          alt={model.title || t("gallery.preview")}
+          className="h-full w-full object-cover transition-transform ease-out group-hover:scale-[1.04]"
+          loading="lazy"
+          onError={() => setFailedUrl(model.imageUrl)}
+        />
+      ) : (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2">
+          {imgError ? (
+            <>
+              <ImageOff className="size-7 text-muted-foreground/30" />
+              <span className="text-xs text-muted-foreground/50">
+                {t("gallery.imageUnavailable")}
+              </span>
+            </>
+          ) : (
+            <ImageIcon className="size-8 text-muted-foreground/30" />
+          )}
+        </div>
+      )}
+
+      {/* Status badges (draft-enabled seeds only) overlaid top-left */}
+      {model.showStatus && (
+        <div
+          className={cn(
+            "absolute left-3 top-3 flex flex-col items-start gap-1.5",
+            slotClass(model.slotStyles?.status)
+          )}
+        >
+          <Badge
+            variant={model.statusVariant}
+            className={cn(
+              "text-xs font-medium tracking-wide backdrop-blur-sm",
+              statusBadgeClass(model.status),
+            )}
+          >
+            {model.status}
+          </Badge>
+          {model.hasPendingDraft && (
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-xs font-medium tracking-wide backdrop-blur-sm",
+                pendingDraftBadgeClass,
+              )}
+            >
+              {t("content.table.pendingDraft")}
+            </Badge>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function GalleryCard({ model, onOpen }: GalleryCardProps) {
+  const { t } = useTranslation()
 
   return (
     <button
@@ -48,71 +116,15 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
       )}
     >
       {/* ── Image area ── */}
-      <div className="relative h-44 w-full shrink-0 overflow-hidden bg-gradient-to-br from-muted/40 to-muted/80">
-        {showImage ? (
-          <img
-            src={model.imageUrl!}
-            alt={model.title || t("gallery.preview")}
-            className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]"
-            loading="lazy"
-            onError={() => setFailedUrl(model.imageUrl)}
-          />
-        ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2">
-            {imgError ? (
-              <>
-                <ImageOff className="size-7 text-muted-foreground/30" />
-                <span className="text-[10px] text-muted-foreground/50">
-                  {t("gallery.imageUnavailable")}
-                </span>
-              </>
-            ) : (
-              <ImageIcon className="size-8 text-muted-foreground/30" />
-            )}
-          </div>
-        )}
-
-        {/* Status badges (draft-enabled seeds only) overlaid top-left */}
-        {model.showStatus && (
-          <div
-            className={cn(
-              "absolute left-3 top-3 flex flex-col items-start gap-1.5",
-              model.slotStyles?.status &&
-                getConditionalFormatCellClass(model.slotStyles.status.tone, model.slotStyles.status.textStyles)
-            )}
-          >
-            <Badge
-              variant={model.statusVariant}
-              className={cn(
-                "text-[10px] font-semibold tracking-wide backdrop-blur-sm",
-                statusBadgeClass(model.status),
-              )}
-            >
-              {model.status}
-            </Badge>
-            {model.hasPendingDraft && (
-              <Badge
-                variant="outline"
-                className={cn(
-                  "text-[10px] font-semibold tracking-wide backdrop-blur-sm",
-                  pendingDraftBadgeClass,
-                )}
-              >
-                {t("content.table.pendingDraft")}
-              </Badge>
-            )}
-          </div>
-        )}
-      </div>
+      <GalleryCardImage model={model} />
 
       {/* ── Content area ── */}
       <div className="flex flex-1 flex-col gap-2 px-4 py-3">
         {/* Title */}
         <h3 className={cn(
-          "font-heading line-clamp-2 text-sm font-semibold leading-snug text-foreground",
+          "font-heading line-clamp-2 text-sm font-bold leading-snug text-foreground",
           !model.title && "text-muted-foreground italic",
-          model.slotStyles?.title &&
-            getConditionalFormatCellClass(model.slotStyles.title.tone, model.slotStyles.title.textStyles)
+          slotClass(model.slotStyles?.title)
         )}>
           {model.title || t("gallery.untitled")}
         </h3>
@@ -121,8 +133,7 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
         {model.excerpt && (
           <p className={cn(
             "line-clamp-2 text-xs leading-relaxed text-muted-foreground",
-            model.slotStyles?.excerpt &&
-              getConditionalFormatCellClass(model.slotStyles.excerpt.tone, model.slotStyles.excerpt.textStyles)
+            slotClass(model.slotStyles?.excerpt)
           )}>
             {model.excerpt}
           </p>
@@ -133,7 +144,7 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
           <div className="grid grid-cols-2 gap-x-3 gap-y-1">
             {model.metadata.map((item) => (
               <div key={item.branch.id} className="flex min-w-0 flex-col gap-0.5">
-                <span className="truncate text-[10px] text-muted-foreground">{item.branch.label}</span>
+                <span className="truncate text-xs text-muted-foreground">{item.branch.label}</span>
                 <span className={cn(
                   "truncate text-xs",
                   item.style && getConditionalFormatCellClass(item.style.tone, item.style.textStyles)
@@ -152,9 +163,8 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
           <div className="flex items-center justify-between gap-2">
             {model.dateText ? (
               <div className={cn(
-                "flex items-center gap-1 text-[11px] text-muted-foreground",
-                model.slotStyles?.date &&
-                  getConditionalFormatCellClass(model.slotStyles.date.tone, model.slotStyles.date.textStyles)
+                "flex items-center gap-1 text-xs text-muted-foreground",
+                slotClass(model.slotStyles?.date)
               )}>
                 <Calendar className="size-3 shrink-0 opacity-60" />
                 {model.dateText}
@@ -170,11 +180,10 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
                 chipVariant="outline"
                 className={cn(
                   "min-w-0 justify-end",
-                  model.slotStyles?.tags &&
-                    getConditionalFormatCellClass(model.slotStyles.tags.tone, model.slotStyles.tags.textStyles)
+                  slotClass(model.slotStyles?.tags)
                 )}
-                chipClassName="min-w-0 max-w-20 text-[10px]"
-                countBadgeClassName="shrink-0 text-[10px]"
+                chipClassName="min-w-0 max-w-20 text-xs"
+                countBadgeClassName="shrink-0 text-xs"
               />
             )}
           </div>

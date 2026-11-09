@@ -69,7 +69,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, tit
   })
 
   const countBadge = data?.length ? (
-    <Badge className="bg-amber-100 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-800/60 text-xs tabular-nums" variant="outline">
+    <Badge className="bg-status-warning-soft text-status-warning-foreground border-status-warning/30 text-xs tabular-nums" variant="outline">
       {data.length}
     </Badge>
   ) : null
@@ -137,7 +137,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, tit
                 >
                   {entryTitle(entry)}
                 </Link>
-                <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums hidden sm:inline">
+                <span className="text-xs text-muted-foreground shrink-0 tabular-nums hidden sm:inline">
                   {entry.updated_at
                     ? formatDistanceToNow(new Date(entry.updated_at * 1000), { addSuffix: true, locale: dateFnsLocale })
                     : "—"
@@ -159,7 +159,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, tit
               </div>
               {/* Mobile-only: timestamp + button on second line */}
               <div className="flex items-center justify-between gap-2 mt-1 sm:hidden">
-                <span className="text-[10px] text-muted-foreground tabular-nums">
+                <span className="text-xs text-muted-foreground tabular-nums">
                   {entry.updated_at
                     ? formatDistanceToNow(new Date(entry.updated_at * 1000), { addSuffix: true, locale: dateFnsLocale })
                     : "—"

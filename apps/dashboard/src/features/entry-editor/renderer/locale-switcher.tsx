@@ -63,13 +63,13 @@ export function LocaleSwitcher({ locales, defaultLocale, activeLocale, completio
               data-status={status}
               className={cn(
                 "text-xs cursor-pointer",
-                isUntranslated && "text-destructive focus:text-destructive",
-                isPartiallyTranslated && "text-amber-600 dark:text-amber-400 focus:text-amber-600 dark:focus:text-amber-400"
+                isUntranslated && "text-status-danger-foreground focus:text-status-danger-foreground",
+                isPartiallyTranslated && "text-status-warning-foreground focus:text-status-warning-foreground"
               )}
             >
-              <span className="font-semibold">{locale.toUpperCase()}</span>
+              <span className="font-medium">{locale.toUpperCase()}</span>
               {locale === defaultLocale && (
-                <span className="text-[10px] opacity-70 font-normal">
+                <span className="text-xs opacity-70 font-normal">
                   ({t("content.editor.localization.defaultBadge")})
                 </span>
               )}

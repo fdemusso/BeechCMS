@@ -92,7 +92,7 @@ export function AutomationRow({ automation, onEdit, onDelete, onToggle, isToggli
         <Button
           variant="ghost"
           size="icon"
-          className="size-7 text-destructive hover:text-destructive"
+          className="size-7 text-status-danger-foreground hover:text-status-danger-foreground"
           onClick={onDelete}
           aria-label={t('common.delete')}
         >
@@ -105,7 +105,7 @@ export function AutomationRow({ automation, onEdit, onDelete, onToggle, isToggli
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-7 text-destructive hover:text-destructive"
+                className="size-7 text-status-danger-foreground hover:text-status-danger-foreground"
                 disabled
                 aria-label={t('common.delete')}
               >

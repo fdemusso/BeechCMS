@@ -38,7 +38,7 @@ export function SettingsSection({ id, title, description, action, children }: Se
             id={headingId}
             // Not in the tab order, but a bookmark can send the focus here so a screen reader starts reading the section.
             tabIndex={-1}
-            className="font-heading text-base font-semibold tracking-tight text-foreground outline-none focus-visible:underline"
+            className="font-heading text-base font-bold tracking-tight text-foreground outline-none focus-visible:underline"
           >
             {title}
           </h3>
@@ -96,7 +96,7 @@ export function SettingsRow({ label, htmlFor, labelId: namedLabelId, description
 
 /** The reason a field was refused, tied to it with `aria-describedby` and announced as it appears. */
 export function SettingsFieldError({ id, children }: { readonly id: string; readonly children: ReactNode }) {
-  return <p id={id} role="alert" className="mt-1.5 text-sm text-destructive">{children}</p>
+  return <p id={id} role="alert" className="mt-1.5 text-sm text-status-danger-foreground">{children}</p>
 }
 
 /** Read-only facts about the section, as a description list: each `SettingsReadout` is a term and what it is. */

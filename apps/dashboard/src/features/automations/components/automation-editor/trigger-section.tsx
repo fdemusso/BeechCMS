@@ -47,8 +47,8 @@ export function TriggerSection({ seedBranches }: TriggerSectionProps) {
   return (
     <div className="rounded-lg border bg-card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <div className="flex size-6 items-center justify-center rounded-full bg-primary/10">
-          <Zap className="size-3.5 text-primary" />
+        <div className="flex size-6 items-center justify-center rounded-full bg-muted">
+          <Zap className="size-3.5 text-foreground" />
         </div>
         <span className="text-sm font-medium">{t('automations.editor.triggerLabel')}</span>
       </div>
@@ -75,7 +75,7 @@ export function TriggerSection({ seedBranches }: TriggerSectionProps) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-8 shrink-0 text-destructive/60 hover:text-destructive"
+                    className="size-8 shrink-0 text-status-danger-foreground/60 hover:text-status-danger-foreground"
                     onClick={() => remove(index)}
                   >
                     <X className="size-3.5" />
@@ -86,7 +86,7 @@ export function TriggerSection({ seedBranches }: TriggerSectionProps) {
               {isCron && <CronSchedulerUi triggerIndex={index} />}
 
               {(errors.triggers as any)?.[index]?.event && (
-                <p className="text-xs text-destructive">
+                <p className="text-xs text-status-danger-foreground">
                   {t((errors.triggers as any)[index].event.message ?? '')}
                 </p>
               )}
@@ -109,7 +109,7 @@ export function TriggerSection({ seedBranches }: TriggerSectionProps) {
       )}
 
       {(errors.triggers as any)?.message && (
-        <p className="mt-1 text-xs text-destructive">{t((errors.triggers as any).message)}</p>
+        <p className="mt-1 text-xs text-status-danger-foreground">{t((errors.triggers as any).message)}</p>
       )}
 
       {hasAnySelected && (hasNonCron || hasCron) && (

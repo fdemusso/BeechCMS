@@ -58,12 +58,12 @@ export function AutomationEditor({
               <DialogTitle asChild>
                 <Input
                   {...register('name')}
-                  className="text-lg font-semibold border-0 bg-secondary dark:bg-secondary px-3 py-1.5 h-auto transition-colors focus-visible:ring-1 focus-visible:ring-ring shadow-none"
+                  className="text-xl font-medium border-0 bg-secondary dark:bg-secondary px-3 py-1.5 h-auto transition-colors focus-visible:ring-1 focus-visible:ring-ring shadow-none"
                   placeholder={t('automations.editor.namePlaceholder')}
                 />
               </DialogTitle>
               {errors.name && (
-                <p className="text-xs text-destructive mt-1">{t(errors.name.message ?? '')}</p>
+                <p className="text-xs text-status-danger-foreground mt-1">{t(errors.name.message ?? '')}</p>
               )}
               <p className="text-sm text-muted-foreground">
                 {t('automations.editor.subtitle', { seed: seedDisplayName })}

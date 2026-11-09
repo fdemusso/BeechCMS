@@ -4,7 +4,16 @@
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/lora";
 
+/* The widget SDK ships its card chrome as class strings in a package Tailwind does not crawl on its own. */
+@source "../../../packages/widget-sdk/src";
+
 @custom-variant dark (&:is(.dark *));
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+   1. DESIGN TOKENS
+   Contract: _config/design_system.html. Every token of its #design-tokens manifest is declared here with
+   exactly those values; a component never inlines one. If you change a value, change the manifest too.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 :root {
   font-family: "Geist Variable", "Inter", system-ui, sans-serif;
@@ -19,78 +28,225 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /*
-    REGOLA INVARIANTE — non invertire mai queste coppie:
-    --popover           → sfondo del Command palette
-    --popover-foreground → testo dentro il Command palette
-    --accent            → sfondo item evidenziato nella lista
-    --accent-foreground → testo dell'item evidenziato
-    --muted-foreground  → placeholder, descrizioni, hint → SEMPRE leggibile su --muted
-  */
+  /* Base of the radius ladder (sm, md, xl…). The two levels the contract names, --radius-control and
+     --radius-lg, are fixed values declared in the @theme block below. */
+  --radius: 0.875rem;
 
-  /* Type scale: Tailwind standard (16px base) */
-  --font-size-xs: 0.75rem;       /* 12px */
-  --font-size-sm: 0.875rem;      /* 14px */
-  --font-size-base: 1rem;        /* 16px */
-  --font-size-lg: 1.125rem;      /* 18px */
-  --font-size-xl: 1.25rem;       /* 20px */
-  --font-size-2xl: 1.5rem;       /* 24px */
-  --font-size-3xl: 1.875rem;     /* 30px */
-  --font-size-4xl: 2.25rem;      /* 36px */
-
-  --radius: 0.875rem;       /* base 14px — sm 12 · md 14 · lg 16 · xl 18 · 2xl 22 */
-
-  /* Two levels of corner. Controls (buttons, inputs, textareas, selects) use --radius-control, 10px: the
-     radius of the layout builder's footer buttons. Surfaces (dialog, card, section, boxes) use `lg`, 16px.
-     Change a level here, not in the components. */
-  --radius-control: min(var(--radius-md), 10px);
-
-  /* ── Light mode tokens — palette neutro/nero, nessuna tinta di colore ──
-     Niente bianco puro su background/card (affaticava la vista a luminosità alta): tre livelli
-     pavimento (--sidebar 0.94) < body (--background 0.972) < widget (--card 0.99), bordi 0.89. ── */
-  --background: oklch(0.972 0.002 286);
-  --foreground: oklch(0.141 0.005 285.823);
-
+  /* ── Neutral: seven levels per theme (hue 286°, chroma ≤ 0.016) ── */
+  --background: #f5f5f7;
+  --foreground: #09090b;
   --card: oklch(0.99 0.001 286);
-  --card-foreground: oklch(0.141 0.005 285.823);
-
-  --popover: oklch(1 0 0);       /* sfondo palette cmdk */
-  --popover-foreground: oklch(0.141 0.005 285.823);       /* testo dentro la palette — nero su bianco */
-
-  --primary: oklch(0.488 0.243 264.376);       /* bottoni CTA: nero */
-  --primary-foreground: oklch(0.97 0.014 254.604);       /* testo sul nero: bianco */
-
-  --secondary: oklch(0.945 0.003 286);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-
-  --muted: oklch(0.945 0.003 286);
-  --muted-foreground: oklch(0.552 0.016 285.938);       /* grigio medio — ≥ 4.5:1 su --muted */
-
-  --accent: oklch(0.945 0.003 286);       /* hover item: grigio chiarissimo su bianco */
-  --accent-foreground: oklch(0.21 0.006 285.885);       /* testo sull'hover: nero – sempre leggibile */
-
-  --destructive: oklch(0.577 0.245 27.325);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --muted: oklch(0.94 0.003 286);
+  --muted-strong: oklch(0.915 0.004 286);
+  --muted-foreground: oklch(0.5 0.016 286);
+  --secondary: var(--muted);
+  --secondary-foreground: var(--foreground);
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
   --border: oklch(0.89 0.005 286);
-  --input: oklch(0.89 0.005 286);
-  --ring: oklch(0.705 0.015 286.067);
+  --input: var(--border);
 
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
+  /* ── Ink: the one primary action. The focus ring is the same colour. ── */
+  --primary: #3f3d56;
+  --primary-foreground: #f5f5f7;
+  --ring: var(--primary);
 
-  --sidebar: oklch(0.94 0.003 286);       /* sfondo sidebar light */
-  --sidebar-foreground: oklch(0.141 0.005 285.823);       /* testo sidebar: quasi nero */
-  --sidebar-primary: oklch(0.546 0.245 262.881);       /* icona logo: nero */
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);       /* testo su icona logo: bianco */
-  --sidebar-accent: oklch(0.915 0.004 286);        /* hover: grigio visibile (ΔL 0.075 vs sfondo) */
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);       /* testo hover: stesso del testo normale */
-  --sidebar-border: oklch(0.88 0.005 286);
-  --sidebar-ring: oklch(0.705 0.015 286.067);
+  /* ── Signal: attention, always small (unread count, "new" marker, progress fill) ── */
+  --signal: #ff6584;
+  --signal-on: #09090b;
+  --signal-soft: color-mix(in oklab, var(--signal) 14%, var(--card));
+  --signal-foreground: oklch(0.55 0.188 11);
+  --signal-strong: oklch(0.621 0.188 11);
 
-  --table-header:               oklch(0.93 0.003 286);
+  /* ── Category: organisation (chips, active navigation item, avatar fallback) ── */
+  --category: #dea684;
+  --category-foreground: #3a2412;
+  --category-soft: color-mix(in oklab, var(--category) 28%, var(--card));
+  --sidebar-active: color-mix(in oklab, var(--category) 30%, var(--muted));
+
+  /* ── Status: solid (dot, icon), soft background, foreground text ── */
+  --status-live: oklch(0.622 0.152 155);
+  --status-live-soft: color-mix(in oklab, var(--status-live) 14%, var(--card));
+  --status-live-foreground: oklch(0.508 0.124 155);
+  --status-warning: oklch(0.643 0.132 80);
+  --status-warning-soft: color-mix(in oklab, var(--status-warning) 14%, var(--card));
+  --status-warning-foreground: oklch(0.525 0.108 80);
+  --status-danger: oklch(0.6 0.2 31);
+  --status-danger-soft: color-mix(in oklab, var(--status-danger) 14%, var(--card));
+  --status-danger-foreground: oklch(0.539 0.2 31);
+  --status-info: oklch(0.637 0.16 245);
+  --status-info-soft: color-mix(in oklab, var(--status-info) 14%, var(--card));
+  --status-info-foreground: oklch(0.52 0.13 245);
+  --destructive: var(--status-danger);
+
+  /* ── Modal backdrop (values to be tuned on a real dialog) ── */
+  --scrim: oklch(0 0 0 / 30%);
+
+  /* ── Motion: entering takes 220ms, leaving 20% less ── */
+  --duration-enter: 220ms;
+  --duration-exit: calc(var(--duration-enter) * 0.8);
+
+  /* ── Sidebar: aliases of the neutral levels ── */
+  --sidebar: var(--muted);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--muted-strong);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+
+  /* Chart palette: not decided by the contract (#undecided), so provisional: a ramp of the secondary brand colour
+     (category sand), from a darker sand that holds 3:1 on the card to a pale one, mixed in oklab. It follows the theme. */
+  --chart-1: color-mix(in oklab, var(--category) 65%, var(--foreground));
+  --chart-2: var(--category);
+  --chart-3: color-mix(in oklab, var(--category) 70%, var(--card));
+  --chart-4: color-mix(in oklab, var(--category) 48%, var(--card));
+  --chart-5: color-mix(in oklab, var(--category) 32%, var(--card));
 }
+
+.dark, html.dark {
+  color-scheme: dark;
+
+  --background: #09090b;
+  --foreground: #f5f5f7;
+  --card: oklch(0.21 0.006 286);
+  --muted: oklch(0.274 0.006 286);
+  --muted-strong: oklch(0.338 0.006 286);
+  --muted-foreground: oklch(0.705 0.015 286);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+
+  --primary: oklch(0.772 0.043 288);
+  --primary-foreground: #09090b;
+
+  --signal-foreground: #ff6584;
+  --signal-strong: #ff6584;
+
+  --status-live-foreground: oklch(0.629 0.154 155);
+  --status-warning-foreground: oklch(0.651 0.134 80);
+  --status-danger-foreground: oklch(0.663 0.2 31);
+  --status-info-foreground: oklch(0.644 0.16 245);
+
+  --scrim: oklch(0 0 0 / 50%);
+
+  --sidebar: var(--card);
+  --sidebar-accent: var(--muted);
+}
+
+/* Shape: the two radius levels the contract names. A plain @theme (not inline) so the variables exist
+   at :root and `rounded-control` / `rounded-lg` read them. */
+@theme {
+  --radius-control: 10px;
+  --radius-lg: 16px;
+}
+
+@theme inline {
+  /* Families */
+  --font-sans: 'Geist Variable', sans-serif;
+  --font-heading: 'Lora Variable', serif;
+
+  /* Type scale: seven sizes, three weights. Everything else (text-lg, text-3xl, font-semibold…) resolves to
+     nothing on purpose. NB: text-xl is 18px here, not the stock 20px. */
+  --text-*: initial;
+  --text-xs: 0.75rem;
+  --text-sm: 0.889rem;
+  --text-base: 1rem;
+  --text-xl: 1.125rem;
+  --text-2xl: 1.266rem;
+  --text-4xl: 1.602rem;
+  --text-5xl: 1.802rem;
+  --font-weight-*: initial;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+
+  /* Radius ladder below the two named levels (--radius-control and --radius-lg are in @theme above) */
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 14px);
+  --radius-4xl: calc(var(--radius) + 20px);
+
+  --animate-collapsible-down: collapsible-down 180ms ease-out;
+  --animate-collapsible-up: collapsible-up 160ms ease-out;
+
+  /* Neutral */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-strong: var(--muted-strong);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+
+  /* Ink */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+
+  /* Signal */
+  --color-signal: var(--signal);
+  --color-signal-on: var(--signal-on);
+  --color-signal-soft: var(--signal-soft);
+  --color-signal-foreground: var(--signal-foreground);
+  --color-signal-strong: var(--signal-strong);
+
+  /* Category */
+  --color-category: var(--category);
+  --color-category-foreground: var(--category-foreground);
+  --color-category-soft: var(--category-soft);
+  --color-sidebar-active: var(--sidebar-active);
+
+  /* Status */
+  --color-status-live: var(--status-live);
+  --color-status-live-soft: var(--status-live-soft);
+  --color-status-live-foreground: var(--status-live-foreground);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-soft: var(--status-warning-soft);
+  --color-status-warning-foreground: var(--status-warning-foreground);
+  --color-status-danger: var(--status-danger);
+  --color-status-danger-soft: var(--status-danger-soft);
+  --color-status-danger-foreground: var(--status-danger-foreground);
+  --color-status-info: var(--status-info);
+  --color-status-info-soft: var(--status-info-soft);
+  --color-status-info-foreground: var(--status-info-foreground);
+  --color-destructive: var(--destructive);
+
+  /* Modal backdrop */
+  --color-scrim: var(--scrim);
+
+  /* Sidebar and charts */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+   2. BASE AND LAYOUT
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 a {
   font-weight: 500;
@@ -150,168 +306,10 @@ body {
 /* Base layer: a utility on an h1 (size, weight, line height) overrides this default, as on any other element. */
 @layer base {
   h1 {
-    font-size: var(--font-size-2xl);
-    font-weight: 600;
+    font-size: var(--text-4xl);
+    font-weight: 700;
     line-height: 1.2;
   }
-}
-
-@theme inline {
-  --font-sans: 'Geist Variable', sans-serif;
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
-  --font-size-base: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.5rem;
-  --font-size-3xl: 1.875rem;
-  --font-size-4xl: 2.25rem;
-  --radius-sm: calc(var(--radius) - 2px);   /* 12px */
-  --radius-md: var(--radius);                /* 14px */
-  --radius-lg: calc(var(--radius) + 2px);   /* 16px — surfaces: card, section, dialog, popover */
-  --radius-xl: calc(var(--radius) + 4px);   /* 18px */
-  --radius-2xl: calc(var(--radius) + 8px);  /* 22px */
-  --radius-3xl: calc(var(--radius) + 14px); /* 28px */
-  --radius-4xl: calc(var(--radius) + 20px); /* 34px */
-  --animate-collapsible-down: collapsible-down 180ms ease-out;
-  --animate-collapsible-up: collapsible-up 160ms ease-out;
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-table-header: var(--table-header);
-  --font-heading: 'Lora Variable', serif;
-}
-
-.dark, html.dark {
-  color-scheme: dark;
-  /* ── Dark mode tokens — palette cool grey/blue ── */
-
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-
-  --primary: oklch(0.424 0.199 265.638);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.552 0.016 285.938);
-
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.623 0.214 259.815);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.552 0.016 285.938);
-
-  --table-header: oklch(0.17 0.006 285.885);
-}
-
-/* Collapsible open/close: height from/to the content's measured height. `overflow` is clipped only while
-   the animation runs, so focus rings of the content are not cut off once it has settled. */
-@keyframes collapsible-down {
-  from { height: 0; overflow: hidden; }
-  to { height: var(--radix-collapsible-content-height); overflow: hidden; }
-}
-@keyframes collapsible-up {
-  from { height: var(--radix-collapsible-content-height); overflow: hidden; }
-  to { height: 0; overflow: hidden; }
-}
-
-@keyframes icon-swap {
-  from {
-    opacity: 0;
-    transform: scale(0.85);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* Undo toast (use-delete-with-undo): countdown bar + action button styled like <Button variant="outline" size="sm">.
-   The bar lasts as long as the toast (--undo-duration = sonner `duration`) and freezes on toaster hover,
-   which is when sonner pauses its own timer. */
-@keyframes undo-countdown {
-  from {
-    clip-path: inset(calc(100% - 3px) 0 0 0);
-  }
-  to {
-    clip-path: inset(calc(100% - 3px) 100% 0 0);
-  }
-}
-
-/* The pseudo covers the whole toast border box (same radius) and is clipped to its bottom 3px:
-   the bar follows the rounded corners and never overflows. The animation eats it from the right. */
-.undo-toast [data-content]::after {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: var(--border-radius);
-  background: var(--foreground);
-  pointer-events: none;
-  clip-path: inset(calc(100% - 3px) 0 0 0);
-  animation: undo-countdown var(--undo-duration, 5000ms) linear forwards;
-}
-
-[data-sonner-toaster]:hover .undo-toast [data-content]::after {
-  animation-play-state: paused;
-}
-
-/* Selector mirrors sonner's own `[data-sonner-toast][data-styled=true] [data-button]` plus one class, so it wins. */
-[data-sonner-toast].undo-toast[data-styled=true] [data-button] {
-  @apply h-7 rounded-lg border border-border bg-background px-2.5 text-[0.8rem] font-medium text-foreground transition-all hover:bg-muted dark:border-input dark:bg-input/30 dark:hover:bg-input/50;
 }
 
 @layer base {
@@ -323,7 +321,7 @@ body {
   }
   body {
     @apply font-sans bg-background text-foreground;
-    font-size: var(--font-size-base);
+    font-size: var(--text-base);
     font-weight: 400;
   }
   #root {
@@ -369,7 +367,146 @@ body {
   color: inherit;
 }
 
-/* ── Stili condivisi richtext: editor (ProseMirror) e preview ────────────── */
+/*
+  Bento grid — responsive span system.
+
+  Widget cells carry CSS custom properties set via inline style:
+    --col-span-md  (half of the 8-col lg span, min 1)
+    --col-span-lg  (full 8-col design span)
+    --row-span     (vertical size in grid rows)
+
+  Mobile (<768px):  single column, every cell fills the row.
+  md (768–1023px):  4-col grid, spans from --col-span-md.
+  lg (1024px+):     8-col grid, spans from --col-span-lg.
+
+  Row spans are suppressed below md so stacked single-column
+  cards don't reserve empty vertical space.
+*/
+.bento-cell {
+  /* mobile: always full width — grid-cols-1 handles it */
+  grid-column: span 1;
+  grid-row: span 1;
+}
+
+@media (min-width: 768px) {
+  .bento-cell {
+    grid-column: span var(--col-span-md, 1);
+    grid-row: span var(--row-span, 1);
+  }
+}
+
+@media (min-width: 1024px) {
+  .bento-cell {
+    grid-column: span var(--col-span-lg, 1);
+    grid-row: span var(--row-span, 1);
+  }
+}
+
+/* Remove browser-native clear/cancel button from search inputs */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
+@keyframes icon-swap {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Collapsible open/close: height from/to the content's measured height. `overflow` is clipped only while
+   the animation runs, so focus rings of the content are not cut off once it has settled. */
+@keyframes collapsible-down {
+  from { height: 0; overflow: hidden; }
+  to { height: var(--radix-collapsible-content-height); overflow: hidden; }
+}
+@keyframes collapsible-up {
+  from { height: var(--radix-collapsible-content-height); overflow: hidden; }
+  to { height: 0; overflow: hidden; }
+}
+
+/* Icon rail "lens": scale comes from --lens-scale, set per item by useRailLens (distance from the pointer: the icon
+   under it grows, the others shrink less the further they are). Items are the menu buttons, the sidebar toggle and
+   anything marked data-rail-item (the search button); profile, Settings and the toggle are excluded
+   (data-rail-static, on the element or an ancestor).
+   The transition list repeats the properties the buttons already animate (width/height/padding for the collapse)
+   because this unlayered rule replaces their `transition`. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  [data-slot="sidebar"][data-collapsible="icon"] :is([data-sidebar="menu-button"], [data-slot="sidebar-trigger"], [data-rail-item]):not([data-rail-static], [data-rail-static] *) {
+    transform: scale(var(--lens-scale, 1));
+    transition:
+      width var(--duration-enter),
+      height var(--duration-enter),
+      padding var(--duration-enter),
+      background-color 0.15s,
+      color 0.15s,
+      border-color var(--duration-enter),
+      transform 0.18s ease-out;
+  }
+
+  /* Pointer is on the lens icon (set by useRailLens): the forgiving area around it is clickable, so show it. */
+  [data-slot="sidebar"][data-collapsible="icon"] [data-lens-active],
+  [data-slot="sidebar"][data-collapsible="icon"] [data-lens-active] *:not([data-rail-static], [data-rail-static] *) {
+    cursor: pointer;
+  }
+
+  /* Keyboard focus gets a lens of its own (no pointer involved). */
+  [data-slot="sidebar"][data-collapsible="icon"] :is([data-sidebar="menu-button"], [data-slot="sidebar-trigger"], [data-rail-item]):not([data-rail-static], [data-rail-static] *):focus-visible {
+    transform: scale(1.2);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+   3. LIBRARY STYLES
+   Overrides for code we do not own: sonner, TipTap / ProseMirror, KaTeX, CodeMirror.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Sonner: undo toast (use-delete-with-undo) ────────────────────────────────────────────────────────── */
+
+/* Countdown bar + action button styled like <Button variant="outline" size="sm">.
+   The bar lasts as long as the toast (--undo-duration = sonner `duration`) and freezes on toaster hover,
+   which is when sonner pauses its own timer. */
+@keyframes undo-countdown {
+  from {
+    clip-path: inset(calc(100% - 3px) 0 0 0);
+  }
+  to {
+    clip-path: inset(calc(100% - 3px) 100% 0 0);
+  }
+}
+
+/* The pseudo covers the whole toast border box (same radius) and is clipped to its bottom 3px:
+   the bar follows the rounded corners and never overflows. The animation eats it from the right. */
+.undo-toast [data-content]::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--border-radius);
+  background: var(--foreground);
+  pointer-events: none;
+  clip-path: inset(calc(100% - 3px) 0 0 0);
+  animation: undo-countdown var(--undo-duration, 5000ms) linear forwards;
+}
+
+[data-sonner-toaster]:hover .undo-toast [data-content]::after {
+  animation-play-state: paused;
+}
+
+/* Selector mirrors sonner's own `[data-sonner-toast][data-styled=true] [data-button]` plus one class, so it wins. */
+[data-sonner-toast].undo-toast[data-styled=true] [data-button] {
+  @apply h-7 rounded-control border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-all hover:bg-muted dark:border-input dark:bg-input/30 dark:hover:bg-input/50;
+}
+
+/* ── TipTap / ProseMirror: stili condivisi richtext, editor e preview ─────────────────────────────────── */
 
 /*
  * .richtext-content: applicato al div di preview (dangerouslySetInnerHTML).
@@ -395,8 +532,8 @@ body {
 
 .ProseMirror h2,
 .richtext-content h2 {
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-size: var(--text-2xl);
+  font-weight: 700;
   line-height: 1.3;
   margin: 0.75rem 0 0.5rem;
 }
@@ -464,7 +601,7 @@ body {
   background: var(--muted);
   padding: 0.75rem 1rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   overflow-x: auto;
 }
@@ -478,7 +615,7 @@ body {
 
 .richtext-editor-root .ProseMirror :not(pre) > code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  background: color-mix(in srgb, var(--muted) 85%, transparent);
+  background: color-mix(in oklab, var(--muted) 85%, transparent);
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
   font-size: 0.875em;
@@ -493,7 +630,7 @@ body {
   background: var(--muted);
   padding: 0.5rem 0.75rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   overflow-x: auto;
 }
@@ -522,58 +659,15 @@ body {
 /* Errore LaTeX renderizzato nel nodo formula (TipTap) */
 .richtext-editor-root .ProseMirror .tiptap-math-katex-error,
 .richtext-content .tiptap-math-katex-error {
-  color: var(--destructive);
-  font-size: 0.75rem;
+  color: var(--status-danger-foreground);
+  font-size: var(--text-xs);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   line-height: 1.35;
 }
 
-/*
-  Bento grid — responsive span system.
+/* ── CodeMirror ───────────────────────────────────────────────────────────────────────────────────────── */
 
-  Widget cells carry CSS custom properties set via inline style:
-    --col-span-md  (half of the 8-col lg span, min 1)
-    --col-span-lg  (full 8-col design span)
-    --row-span     (vertical size in grid rows)
-
-  Mobile (<768px):  single column, every cell fills the row.
-  md (768–1023px):  4-col grid, spans from --col-span-md.
-  lg (1024px+):     8-col grid, spans from --col-span-lg.
-
-  Row spans are suppressed below md so stacked single-column
-  cards don't reserve empty vertical space.
-*/
-.bento-cell {
-  /* mobile: always full width — grid-cols-1 handles it */
-  grid-column: span 1;
-  grid-row: span 1;
-}
-
-@media (min-width: 768px) {
-  .bento-cell {
-    grid-column: span var(--col-span-md, 1);
-    grid-row: span var(--row-span, 1);
-  }
-}
-
-@media (min-width: 1024px) {
-  .bento-cell {
-    grid-column: span var(--col-span-lg, 1);
-    grid-row: span var(--row-span, 1);
-  }
-}
-
-/* Remove browser-native clear/cancel button from search inputs */
-input[type="search"]::-webkit-search-cancel-button,
-input[type="search"]::-webkit-search-decoration,
-input[type="search"]::-webkit-search-results-button,
-input[type="search"]::-webkit-search-results-decoration {
-  -webkit-appearance: none;
-  appearance: none;
-  display: none;
-}
-
-/* CodeMirror transparent background to inherit BeechCMS theme background */
+/* Transparent background to inherit BeechCMS theme background */
 .cm-editor,
 .cm-editor .cm-scroller,
 .cm-editor .cm-content,
@@ -582,7 +676,7 @@ input[type="search"]::-webkit-search-results-decoration {
   background-color: transparent !important;
 }
 
-/* CodeMirror scrollbar: sincronizzata con la ScrollBar di shadcn UI (ScrollArea) */
+/* Scrollbar: sincronizzata con la ScrollBar di shadcn UI (ScrollArea) */
 .cm-editor .cm-scroller {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
@@ -605,40 +699,15 @@ input[type="search"]::-webkit-search-results-decoration {
 }
 
 .cm-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in srgb, var(--muted-foreground) 40%, transparent);
+  background-color: color-mix(in oklab, var(--muted-foreground) 40%, transparent);
 }
 
-@utility rounded-control {
-  border-radius: var(--radius-control);
+/* Sonner has no class hook for its mount/unmount timing: a toast fades in over --duration-enter and out over --duration-exit.
+   The extra attribute in the selector makes it win over the stylesheet sonner injects at runtime. */
+[data-sonner-toaster] [data-sonner-toast] {
+  transition-duration: var(--duration-enter);
 }
 
-/* Icon rail "lens": scale comes from --lens-scale, set per item by useRailLens (distance from the pointer: the icon
-   under it grows, the others shrink less the further they are). Items are the menu buttons, the sidebar toggle and
-   anything marked data-rail-item (the search button); profile, Settings and the toggle are excluded
-   (data-rail-static, on the element or an ancestor).
-   The transition list repeats the properties the buttons already animate (width/height/padding for the collapse)
-   because this unlayered rule replaces their `transition`. */
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  [data-slot="sidebar"][data-collapsible="icon"] :is([data-sidebar="menu-button"], [data-slot="sidebar-trigger"], [data-rail-item]):not([data-rail-static], [data-rail-static] *) {
-    transform: scale(var(--lens-scale, 1));
-    transition:
-      width 0.3s,
-      height 0.3s,
-      padding 0.3s,
-      background-color 0.15s,
-      color 0.15s,
-      border-color 0.3s,
-      transform 0.18s ease-out;
-  }
-
-  /* Pointer is on the lens icon (set by useRailLens): the forgiving area around it is clickable, so show it. */
-  [data-slot="sidebar"][data-collapsible="icon"] [data-lens-active],
-  [data-slot="sidebar"][data-collapsible="icon"] [data-lens-active] *:not([data-rail-static], [data-rail-static] *) {
-    cursor: pointer;
-  }
-
-  /* Keyboard focus gets a lens of its own (no pointer involved). */
-  [data-slot="sidebar"][data-collapsible="icon"] :is([data-sidebar="menu-button"], [data-slot="sidebar-trigger"], [data-rail-item]):not([data-rail-static], [data-rail-static] *):focus-visible {
-    transform: scale(1.2);
-  }
+[data-sonner-toaster] [data-sonner-toast][data-removed="true"] {
+  transition-duration: var(--duration-exit);
 }

@@ -36,9 +36,9 @@ describe("conditional-format - getConditionalFormatRowClass", () => {
   it("tutti i tone: includono le rispettive classi di sfondo", () => {
     const expected: Record<ConditionalFormatTone, string> = {
       neutral: "bg-muted/35",
-      info: "bg-sky-500/12",
-      success: "bg-emerald-500/12",
-      warning: "bg-amber-500/12",
+      info: "bg-status-info/12",
+      success: "bg-status-live/12",
+      warning: "bg-status-warning/12",
       danger: "bg-destructive/12",
     }
 
@@ -52,7 +52,7 @@ describe("conditional-format - getConditionalFormatRowClass", () => {
 
   it("textStyles vuoto: non aggiunge classi di stile", () => {
     const className = getConditionalFormatRowClass("success", [])
-    expect(className).toContain("bg-emerald-500/12")
+    expect(className).toContain("bg-status-live/12")
     expect(className).not.toContain("font-bold")
     expect(className).not.toContain("italic")
     expect(className).not.toContain("underline")
@@ -63,10 +63,10 @@ describe("conditional-format - getConditionalFormatCellClass", () => {
   it("success/info/warning/danger/neutral: includono i frammenti attesi", () => {
     const cases: Record<ConditionalFormatTone, string[]> = {
       neutral: ["font-medium", "[&_[data-slot=badge]]:!text-inherit"],
-      info: ["font-medium", "text-sky-800", "dark:text-sky-200"],
-      success: ["font-medium", "text-emerald-700", "dark:text-emerald-300"],
-      warning: ["font-medium", "text-amber-800", "dark:text-amber-200"],
-      danger: ["font-medium", "text-destructive"],
+      info: ["font-medium", "text-status-info-foreground"],
+      success: ["font-medium", "text-status-live-foreground"],
+      warning: ["font-medium", "text-status-warning-foreground"],
+      danger: ["font-medium", "text-status-danger-foreground"],
     }
 
     for (const tone of tones) {
@@ -219,10 +219,10 @@ describe("compileElementFormatter", () => {
 describe("getConditionalFormatCardClass", () => {
   it("carries the border and tint of each tone, plus the text-style classes", () => {
     const expected: Record<ConditionalFormatTone, { border: string; tint: string }> = {
-      success: { border: "border-emerald-500/50", tint: "from-emerald-500/12" },
-      warning: { border: "border-amber-500/50", tint: "from-amber-500/12" },
+      success: { border: "border-status-live/50", tint: "from-status-live/12" },
+      warning: { border: "border-status-warning/50", tint: "from-status-warning/12" },
       danger: { border: "border-destructive/50", tint: "from-destructive/12" },
-      info: { border: "border-sky-500/50", tint: "from-sky-500/12" },
+      info: { border: "border-status-info/50", tint: "from-status-info/12" },
       neutral: { border: "border-muted-foreground/30", tint: "from-muted/50" },
     }
 

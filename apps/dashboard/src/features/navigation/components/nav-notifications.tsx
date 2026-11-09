@@ -27,7 +27,7 @@ export function NavNotifications() {
               <span aria-hidden className="absolute right-1.5 top-1.5 hidden size-2 rounded-full bg-destructive group-data-[collapsible=icon]:block" />
             )}
             {hasUnread && (
-              <SidebarMenuBadge className="static ml-auto h-5 rounded-full bg-destructive px-1.5 text-white peer-hover/menu-button:text-white">
+              <SidebarMenuBadge className="static ml-auto h-5 rounded-full bg-signal px-1.5 text-signal-on peer-hover/menu-button:text-signal-on">
                 {unreadCount > 99 ? "99+" : unreadCount}
               </SidebarMenuBadge>
             )}

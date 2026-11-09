@@ -21,7 +21,7 @@ export function DashboardWidgetHost({ instance }: DashboardWidgetHostProps) {
 
   if (isWidgetDisabled(instance.type)) {
     return (
-      <div className="flex h-full min-h-[80px] items-center justify-center rounded-xl border-2 border-dashed border-muted p-4">
+      <div className="flex h-full min-h-[80px] items-center justify-center rounded-lg border-2 border-dashed border-muted p-4">
         <p className="text-sm text-muted-foreground">
           {t("dashboard.widgetRegistry.disabled")}
         </p>
@@ -31,10 +31,10 @@ export function DashboardWidgetHost({ instance }: DashboardWidgetHostProps) {
 
   if (!definition) {
     return (
-      <div className="flex h-full min-h-[80px] items-center justify-center rounded-xl border-2 border-dashed border-muted p-4">
+      <div className="flex h-full min-h-[80px] items-center justify-center rounded-lg border-2 border-dashed border-muted p-4">
         <p className="text-sm text-muted-foreground">
           {t("dashboard.widgetRegistry.unknown")}{" "}
-          <span className="font-mono font-semibold">{instance.type}</span>
+          <span className="font-mono font-medium">{instance.type}</span>
         </p>
       </div>
     )

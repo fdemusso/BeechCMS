@@ -61,7 +61,7 @@ export function DragPreview({ info }: { readonly info: DragPreviewInfo }) {
 
   if (info.kind === 'widget' && info.widget) {
     return (
-      <div style={{ width }} className="cursor-grabbing rounded-2xl bg-background shadow-xl ring-1 ring-border">
+      <div style={{ width }} className="cursor-grabbing rounded-lg bg-background shadow-xl ring-1 ring-border">
         <WidgetGhost widget={info.widget} />
       </div>
     )

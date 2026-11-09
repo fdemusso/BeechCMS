@@ -88,7 +88,7 @@ export function EditSchemaView({ seeds, setOpen }: SchemaProps) {
             <SeedIcon className="size-4 shrink-0 text-muted-foreground" />
             <div className="flex flex-col">
               <span>{seed.label}</span>
-              <span className="text-[10px] text-muted-foreground">{seed.slug}</span>
+              <span className="text-xs text-muted-foreground">{seed.slug}</span>
             </div>
           </CommandItem>
         )

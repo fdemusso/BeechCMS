@@ -12,16 +12,16 @@ interface QuickActionsProps {
 
 export function QuickActions({ onAction }: QuickActionsProps) {
   const actions = [
-    { id: 'new-entry', label: 'Nuovo Contenuto', icon: PlusCircle, color: 'text-emerald-500' },
-    { id: 'media', label: 'Carica Media', icon: ImageIcon, color: 'text-blue-500' },
-    { id: 'collections', label: 'Gestisci Collezioni', icon: LayoutGrid, color: 'text-amber-500' },
-    { id: 'settings', label: 'Configurazione', icon: Settings, color: 'text-slate-500' },
+    { id: 'new-entry', label: 'Nuovo Contenuto', icon: PlusCircle, color: 'text-muted-foreground' },
+    { id: 'media', label: 'Carica Media', icon: ImageIcon, color: 'text-muted-foreground' },
+    { id: 'collections', label: 'Gestisci Collezioni', icon: LayoutGrid, color: 'text-muted-foreground' },
+    { id: 'settings', label: 'Configurazione', icon: Settings, color: 'text-muted-foreground' },
   ]
 
   return (
     <Card className="border-none bg-background/50 backdrop-blur-sm">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Azioni Rapide</CardTitle>
+        <CardTitle className="text-xl font-bold">Azioni Rapide</CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-4">
         {actions.map((action) => (

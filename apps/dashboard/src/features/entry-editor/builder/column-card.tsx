@@ -84,7 +84,7 @@ const FieldItem = React.memo(function FieldItem({ tabId, sectionId, columnId, br
       <button
         type="button"
         aria-label={t('layoutBuilder.dragHandle')}
-        className="flex w-6 shrink-0 cursor-grab touch-none items-center justify-center self-stretch rounded-md text-muted-foreground/60 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex w-6 shrink-0 cursor-grab touch-none items-center justify-center self-stretch rounded-control text-muted-foreground/60 outline-none focus-visible:ring-2 focus-visible:ring-ring"
         {...attributes}
         {...listeners}
       >
@@ -98,7 +98,7 @@ const FieldItem = React.memo(function FieldItem({ tabId, sectionId, columnId, br
         variant="ghost"
         size="icon-sm"
         aria-label={t('layoutBuilder.removeField')}
-        className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover/field:opacity-100"
+        className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-status-danger-foreground focus-visible:opacity-100 group-hover/field:opacity-100"
         onClick={() => ops.clearField(tabId, sectionId, columnId, branch.id)}
       >
         <X />
@@ -249,7 +249,7 @@ export const ColumnCard = React.memo(function ColumnCard({
       reorderable={reorderable}
       dragLabel={translate('layoutBuilder.dragColumn')}
       // As small and quiet as the strip beside a field, and unrelated to the dashboard builder's handle.
-      handleClassName="-top-2 rounded-md px-2 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground"
+      handleClassName="-top-2 rounded-control px-2 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground"
       handleIconClassName="size-4 rotate-90"
       gap={0.5}
       footer={

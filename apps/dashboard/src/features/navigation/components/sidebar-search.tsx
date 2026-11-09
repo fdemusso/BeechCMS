@@ -27,14 +27,14 @@ export function SidebarSearch() {
           onClick={openCommandPalette}
           data-rail-item
           aria-label={t("commandPalette.ariaLabel")}
-          className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-lg border border-border bg-background pl-[calc(var(--sb-pad-start)-1px)] pr-[7px] text-left text-sm text-muted-foreground outline-hidden transition-[width,height,padding,background-color,border-color] duration-300 hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:pr-0"
+          className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-lg border border-border bg-background pl-[calc(var(--sb-pad-start)-1px)] pr-[7px] text-left text-sm text-muted-foreground outline-hidden transition-[width,height,padding,background-color,border-color] duration-(--duration-enter) hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:pr-0"
         >
           <Search className="size-4 shrink-0" />
-          <span className="flex-1 truncate transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0">{t("sidebar.search")}</span>
+          <span className="flex-1 truncate transition-opacity duration-(--duration-enter) group-data-[collapsible=icon]:opacity-0">{t("sidebar.search")}</span>
           {/* Concentric with the bar (rounded-lg = 16px, same border as the profile card): the h-5 chips sit 8px from
               the outer edge (1px border + 7px: (36 - 2 - 20) / 2 vertically, pr-[7px] on the right), so their radius is 16 - 8.
               Soft global tokens (bg-sidebar-accent): visible against the bar on both themes without the heavy contrast of bg-foreground / bg-primary. */}
-          <KbdGroup className="transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0">
+          <KbdGroup className="transition-opacity duration-(--duration-enter) group-data-[collapsible=icon]:opacity-0">
             <Kbd className="bg-sidebar-accent text-sidebar-accent-foreground">{MOD_KEY_LABEL}</Kbd>
             <Kbd className="bg-sidebar-accent text-sidebar-accent-foreground">K</Kbd>
           </KbdGroup>

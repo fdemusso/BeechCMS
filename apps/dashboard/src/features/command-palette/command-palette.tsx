@@ -151,7 +151,7 @@ export function CommandPalette() {
           </CommandList>
 
           {currentPage !== "root" && (
-            <div className="p-3 border-t text-[10px] text-muted-foreground bg-muted/20">
+            <div className="p-3 border-t text-xs text-muted-foreground bg-muted/20">
               {t("commandPalette.backHint")}
             </div>
           )}

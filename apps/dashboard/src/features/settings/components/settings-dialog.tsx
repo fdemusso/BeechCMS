@@ -165,8 +165,8 @@ export function SettingsDialog({
         showCloseButton={false}
         // A plain fade, 220ms in and 20% quicker (176ms) out, for the dialog and for the backdrop behind it: the zoom the
         // dialog normally carries is cancelled, so only the opacity moves.
-        className="flex flex-col sm:max-w-3xl md:max-w-5xl lg:max-w-6xl h-[85vh] max-h-[calc(100vh-3rem)] p-0 gap-0 overflow-hidden border-border/80 bg-background shadow-2xl transition-opacity data-open:zoom-in-100 data-open:duration-[220ms] data-closed:zoom-out-100 data-closed:duration-[176ms]"
-        overlayClassName="transition-opacity data-open:duration-[220ms] data-closed:duration-[176ms]"
+        className="flex flex-col sm:max-w-3xl md:max-w-5xl lg:max-w-6xl h-[85vh] max-h-[calc(100vh-3rem)] p-0 gap-0 overflow-hidden border-border/80 bg-background shadow-2xl transition-opacity data-open:zoom-in-100 data-open:duration-(--duration-enter) data-closed:zoom-out-100 data-closed:duration-(--duration-exit)"
+        overlayClassName="transition-opacity data-open:duration-(--duration-enter) data-closed:duration-(--duration-exit)"
         // The focus starts on the entry of the page that is open: the keyboard begins where the sidebar says you are.
         onOpenAutoFocus={(e) => {
           e.preventDefault()
@@ -186,10 +186,10 @@ export function SettingsDialog({
             {/* Same fixed height as the page header beside it, so the divider runs straight across. The dialog title
                 above already names the dialog: this one is for the eyes only. */}
             <div aria-hidden className="flex h-16 shrink-0 items-center gap-2.5 border-b border-border/50 px-4 sm:px-5">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-muted text-foreground">
                 <Settings className="size-4" />
               </div>
-              <span className="font-heading text-sm font-semibold tracking-tight text-foreground">
+              <span className="font-heading text-sm font-bold tracking-tight text-foreground">
                 {t("settings.title", "Settings")}
               </span>
             </div>
@@ -216,7 +216,7 @@ export function SettingsDialog({
                     type="button"
                     onClick={() => setQuery("")}
                     aria-label={t("settings.clearSearch", "Clear search")}
-                    className="absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    className="absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   >
                     <XIcon aria-hidden className="size-3.5" />
                   </button>
@@ -259,8 +259,8 @@ export function SettingsDialog({
                                   aria-expanded={sections.length > 0 ? isUnfolded : undefined}
                                   aria-controls={sections.length > 0 ? subnavId : undefined}
                                   className={cn(
-                                    "flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                                    isActive && "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                                    "flex h-8 w-full items-center gap-2 rounded-control px-2.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                                    isActive && "bg-sidebar-active font-medium text-sidebar-accent-foreground"
                                   )}
                                 >
                                   <Icon aria-hidden className="size-4 shrink-0" />
@@ -275,7 +275,7 @@ export function SettingsDialog({
                                     inert={!isUnfolded}
                                     className={cn(
                                       "grid transition-[grid-template-rows,opacity] ease-out motion-reduce:transition-none",
-                                      isUnfolded ? "grid-rows-[1fr] opacity-100 duration-[220ms]" : "grid-rows-[0fr] opacity-0 duration-[176ms]"
+                                      isUnfolded ? "grid-rows-[1fr] opacity-100 duration-(--duration-enter)" : "grid-rows-[0fr] opacity-0 duration-(--duration-exit)"
                                     )}
                                   >
                                     <div className="ml-[1.15rem] min-h-0 overflow-hidden">
@@ -289,7 +289,7 @@ export function SettingsDialog({
                                                 onClick={() => onTabChange(item.id, sectionItem.id)}
                                                 aria-current={isCurrent ? "location" : undefined}
                                                 className={cn(
-                                                  "flex h-7 w-full items-center rounded-md px-2.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                                                  "flex h-7 w-full items-center rounded-control px-2.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                                                   isCurrent && "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
                                                 )}
                                               >
@@ -318,7 +318,7 @@ export function SettingsDialog({
               <button
                 type="button"
                 onClick={() => { void logout() }}
-                className="flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm text-destructive transition-colors hover:bg-destructive/10"
+                className="flex h-8 w-full items-center gap-2 rounded-control px-2.5 text-left text-sm text-status-danger-foreground transition-colors hover:bg-destructive/10"
               >
                 <LogOut aria-hidden className="size-4 shrink-0" />
                 <span className="truncate">{t("settings.logout", "Log out")}</span>
@@ -335,7 +335,7 @@ export function SettingsDialog({
             <div className="px-6 h-16 border-b border-border/50 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
                 <ActiveIcon aria-hidden className="size-4 text-muted-foreground shrink-0" />
-                <h2 id="settings-page-title" className="font-heading text-base font-semibold tracking-tight text-foreground">
+                <h2 id="settings-page-title" className="font-heading text-base font-bold tracking-tight text-foreground">
                   {pageTitle}
                 </h2>
               </div>

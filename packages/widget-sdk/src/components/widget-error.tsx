@@ -38,7 +38,7 @@ export function WidgetError({ message = 'Something went wrong.', onRetry, retryL
           type="button"
           onClick={onRetry}
           className={cn(
-            'inline-flex h-6 shrink-0 items-center justify-center gap-1.5 rounded-md border bg-background px-2',
+            'inline-flex h-6 shrink-0 items-center justify-center gap-1.5 rounded-control border bg-background px-2',
             'text-xs font-medium shadow-xs transition-all outline-none',
             'hover:bg-accent hover:text-accent-foreground',
             'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',

@@ -91,7 +91,7 @@ function RichtextGhost() {
 /** JSON: the code editor's footprint — a gutter of line numbers and code lines of uneven length. */
 function JsonGhost() {
   return (
-    <div className="flex h-40 w-full flex-col gap-2 rounded-md border bg-muted/30 p-3">
+    <div className="flex h-40 w-full flex-col gap-2 rounded-control border bg-muted/30 p-3">
       {LINE_WIDTHS.slice(0, 5).map((width, index) => (
         <div key={index} className="flex items-center gap-3">
           <Skeleton className="h-2.5 w-3 shrink-0" />
@@ -157,12 +157,12 @@ function RepeaterGhost({ branch }: { readonly branch: Branch }) {
   const subFields = (branch.fields ?? []).slice(0, 3)
   return (
     <div className="space-y-2">
-      <div className="space-y-3 rounded-md border bg-background p-3">
+      <div className="space-y-3 rounded-control border bg-background p-3">
         <div className="flex items-center gap-2">
           <GripDots className="size-4 text-muted-foreground" />
           <span className="flex-1 text-xs font-medium text-muted-foreground">{t('fields.repeater.item')}</span>
           <Button type="button" variant="ghost" size="sm" disabled>
-            <Trash2 className="h-4 w-4 text-destructive" />
+            <Trash2 className="h-4 w-4 text-status-danger-foreground" />
           </Button>
         </div>
         <div className="space-y-2">

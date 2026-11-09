@@ -32,6 +32,13 @@
     "selectedOfTotal_other": "{{selected}} of {{total}} selected",
     "next": "Next"
   },
+  "status": {
+    "published": "Published",
+    "draft": "Draft",
+    "scheduled": "Scheduled",
+    "failed": "Failed",
+    "archived": "Archived"
+  },
   "dashboard": {
     "greeting": {
       "morning": "Good morning",

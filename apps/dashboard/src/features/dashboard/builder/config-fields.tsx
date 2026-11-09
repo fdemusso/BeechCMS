@@ -67,7 +67,7 @@ export function TextAreaField({ label, value, onChange, placeholder, rows = 4 }:
         placeholder={placeholder}
         rows={rows}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-2 text-xs shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
+        className="w-full min-w-0 rounded-control border border-input bg-transparent px-3 py-2 text-xs shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
       />
     </FieldRow>
   )

@@ -17,8 +17,8 @@ export function getStatusTone(status: string): StatusTone {
 
 export const STATUS_TONE_DOT_CLASS: Record<StatusTone, string> = {
   neutral: "bg-muted-foreground/50",
-  success: "bg-emerald-500",
-  warning: "bg-amber-500",
-  danger:  "bg-red-500",
-  info:    "bg-sky-500",
+  success: "bg-status-live",
+  warning: "bg-status-warning",
+  danger:  "bg-status-danger",
+  info:    "bg-status-info",
 }

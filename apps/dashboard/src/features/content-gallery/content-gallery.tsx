@@ -179,6 +179,90 @@ function GalleryPagination({
   )
 }
 
+function FlatGallery({
+  isEmpty,
+  models,
+  onOpen,
+  pageIndex,
+  pageCount,
+  onPageIndexChange,
+}: {
+  readonly isEmpty: boolean
+  readonly models: GalleryCardDisplayModel[]
+  readonly onOpen: (entryId: string) => void
+  readonly pageIndex: number
+  readonly pageCount: number
+  readonly onPageIndexChange?: (index: number) => void
+}) {
+  const { t } = useTranslation()
+  if (isEmpty) {
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ImageIcon className="size-5" />
+          </EmptyMedia>
+          <EmptyTitle>{t("gallery.noItems")}</EmptyTitle>
+          <EmptyDescription>
+            {t("gallery.noItemsDesc")}
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
+  }
+  return (
+    <>
+      <GalleryGrid models={models} onOpen={onOpen} />
+      <GalleryPagination pageIndex={pageIndex} pageCount={pageCount} onPageIndexChange={onPageIndexChange} />
+    </>
+  )
+}
+
+function GalleryFolderList({
+  seed,
+  groups,
+  folders,
+  onOpen,
+  onEdit,
+}: {
+  readonly seed: ContentGalleryProps["seed"]
+  readonly groups: ReturnType<typeof useContentGallery>["categoryGroups"]
+  readonly folders: ContentGalleryProps["folders"]
+  readonly onOpen: (key: string | null) => void
+  readonly onEdit?: (key: string) => void
+}) {
+  const { t } = useTranslation()
+  if (groups.length === 0) {
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <FolderAdd className="size-5" />
+          </EmptyMedia>
+          <EmptyTitle>{t("gallery.folders.emptyTitle")}</EmptyTitle>
+          <EmptyDescription>
+            {t("gallery.folders.emptyDescription")}
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
+  }
+  return (
+    <GalleryGridContainer>
+      {groups.map((group) => (
+        <GalleryFolderCard
+          seed={seed}
+          key={group.key ?? UNCATEGORIZED_PARAM}
+          group={group}
+          onOpen={onOpen}
+          style={folders?.[group.key ?? UNCATEGORIZED_PARAM]}
+          {...(onEdit ? { onEdit: () => onEdit(group.key ?? UNCATEGORIZED_PARAM) } : {})}
+        />
+      ))}
+    </GalleryGridContainer>
+  )
+}
+
 export function ContentGallery({
   seed,
   data,
@@ -241,26 +325,15 @@ export function ContentGallery({
 
   // Seed senza campo categoria: galleria piatta, come prima.
   if (!categoryAlias) {
-    if (data.length === 0) {
-      return (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <ImageIcon className="size-5" />
-            </EmptyMedia>
-            <EmptyTitle>{t("gallery.noItems")}</EmptyTitle>
-            <EmptyDescription>
-              {t("gallery.noItemsDesc")}
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      )
-    }
     return (
-      <>
-        <GalleryGrid models={cardModels} onOpen={onEdit} />
-        <GalleryPagination pageIndex={pageIndex} pageCount={pageCount} onPageIndexChange={onPageIndexChange} />
-      </>
+      <FlatGallery
+        isEmpty={data.length === 0}
+        models={cardModels}
+        onOpen={onEdit}
+        pageIndex={pageIndex}
+        pageCount={pageCount}
+        onPageIndexChange={onPageIndexChange}
+      />
     )
   }
 
@@ -283,32 +356,13 @@ export function ContentGallery({
             countText={formatItemCount(t, data.length, seed)}
             onBack={closeFolder}
           />
-          {categoryGroups.length === 0 ? (
-            <Empty className="border">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <FolderAdd className="size-5" />
-                </EmptyMedia>
-                <EmptyTitle>{t("gallery.folders.emptyTitle")}</EmptyTitle>
-                <EmptyDescription>
-                  {t("gallery.folders.emptyDescription")}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <GalleryGridContainer>
-              {categoryGroups.map((group) => (
-                <GalleryFolderCard
-                  seed={seed}
-                  key={group.key ?? UNCATEGORIZED_PARAM}
-                  group={group}
-                  onOpen={openFolder}
-                  style={folders?.[group.key ?? UNCATEGORIZED_PARAM]}
-                  {...(onFoldersChange ? { onEdit: () => setEditingKey(group.key ?? UNCATEGORIZED_PARAM) } : {})}
-                />
-              ))}
-            </GalleryGridContainer>
-          )}
+          <GalleryFolderList
+            seed={seed}
+            groups={categoryGroups}
+            folders={folders}
+            onOpen={openFolder}
+            onEdit={onFoldersChange ? setEditingKey : undefined}
+          />
         </section>
       )}
       <GalleryPagination pageIndex={pageIndex} pageCount={pageCount} onPageIndexChange={onPageIndexChange} />

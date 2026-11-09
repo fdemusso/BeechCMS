@@ -53,14 +53,14 @@ export function SiteStatusWidget({ variant = "badge" }: SiteStatusWidgetProps) {
               className={cn(
                 "text-xs gap-1.5 px-2.5 py-1",
                 ok
-                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-800/60"
-                  : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border-red-200/80 dark:border-red-800/60"
+                  ? "bg-status-live-soft text-status-live-foreground border-status-live/30"
+                  : "bg-status-danger-soft text-status-danger-foreground border-status-danger/30"
               )}
               variant="outline"
             >
               <span className={cn(
                 "size-1.5 rounded-full",
-                ok ? "bg-emerald-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]" : "bg-red-500"
+                ok ? "bg-status-live ring-2 ring-status-live/30" : "bg-status-danger"
               )} />
               {label}
             </Badge>
@@ -76,19 +76,19 @@ export function SiteStatusWidget({ variant = "badge" }: SiteStatusWidgetProps) {
         <div className="relative shrink-0">
           <span className={cn(
             "block size-3 rounded-full",
-            online ? "bg-emerald-500" : "bg-red-500"
+            online ? "bg-status-live" : "bg-status-danger"
           )} />
           {online && (
-            <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-60" />
+            <span className="absolute inset-0 rounded-full bg-status-live animate-ping opacity-60" />
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">{online ? "Site online" : "Error"}</p>
+          <p className="text-sm font-medium">{online ? "Site online" : "Error"}</p>
           <p className="text-xs text-muted-foreground">Verified at {lastChecked}</p>
         </div>
         {online
-          ? <Wifi className="size-4 text-emerald-500 shrink-0" />
-          : <WifiOff className="size-4 text-red-500 shrink-0" />
+          ? <Wifi className="size-4 text-status-live shrink-0" />
+          : <WifiOff className="size-4 text-status-danger shrink-0" />
         }
       </div>
     </DashboardWidgetShell>

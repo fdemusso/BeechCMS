@@ -386,7 +386,7 @@ export function BranchItemRow({
           title={t("fields.repeater.removeItem")}
           aria-label={t("fields.repeater.removeItem")}
         >
-          <Trash2 className="h-4 w-4 text-destructive" />
+          <Trash2 className="h-4 w-4 text-status-danger-foreground" />
         </Button>
       </div>
 

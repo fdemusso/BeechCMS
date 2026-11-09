@@ -236,7 +236,7 @@ export function FileOptionsForm({ branch, onChange }: FileOptionsFormProps) {
 }
 
 /** Color preset for a newly added option row; the author changes it with the color picker. */
-export const DEFAULT_TAG_OPTION_COLOR = "#64748b"
+export const DEFAULT_TAG_OPTION_COLOR = "#3F3D56" // design-ok: user-chosen option colour, stored as data
 
 /**
  * Properties for the {@link TagOptionsForm} component.
@@ -358,7 +358,7 @@ export function TagOptionsForm({ branch, onChange }: TagOptionsFormProps) {
       </Button>
 
       {issues.length > 0 && (
-        <ul className="space-y-0.5 text-xs text-destructive">
+        <ul className="space-y-0.5 text-xs text-status-danger-foreground">
           {issues.map(issue => <li key={issue}>{issue}</li>)}
         </ul>
       )}
@@ -603,7 +603,7 @@ export function PoliciesOptionsForm({
               })}
             </section>
             {lockedNotice && (
-              <p className="border-t pt-3 text-amber-600 dark:text-amber-400">{lockedNotice}</p>
+              <p className="border-t pt-3 text-status-warning-foreground">{lockedNotice}</p>
             )}
           </PopoverContent>
         </Popover>
@@ -753,9 +753,9 @@ export function LocalizedOptionsForm({
           onCheckedChange={handleToggle}
         />
       </div>
-      <p className="text-[11px] text-muted-foreground">{hint}</p>
+      <p className="text-xs text-muted-foreground">{hint}</p>
       {showDisableWarning && (
-        <p role="status" className="text-[11px] text-amber-600 dark:text-amber-400">
+        <p role="status" className="text-xs text-status-warning-foreground">
           {t("seedBuilder.branchEditor.localizedDisableWarning")}
         </p>
       )}

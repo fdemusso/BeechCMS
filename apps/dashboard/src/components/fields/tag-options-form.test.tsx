@@ -45,7 +45,7 @@ describe("TagOptionsForm", () => {
     expect(onChange).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ options: [{ value: "", color: DEFAULT_TAG_OPTION_COLOR }] }),
     )
-    expect(DEFAULT_TAG_OPTION_COLOR).toBe("#64748b")
+    expect(DEFAULT_TAG_OPTION_COLOR).toBe("#3F3D56")
   })
 
   it("\"Move down\" sulla prima riga di priority emette le opzioni in ordine high, low; \"Move up\" della prima riga è disabilitato", () => {

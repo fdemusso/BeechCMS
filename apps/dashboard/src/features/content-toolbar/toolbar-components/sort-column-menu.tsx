@@ -106,7 +106,7 @@ export function SortColumnMenu({
                   >
                     <span className="truncate">{branch.label}</span>
                     {isSelected && (
-                      <span className="text-muted-foreground text-[10px] uppercase">
+                      <span className="text-muted-foreground text-xs uppercase">
                         {sortState?.desc ? "DESC" : "ASC"}
                       </span>
                     )}

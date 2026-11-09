@@ -113,13 +113,13 @@ export function normalizeTextStyles(value: unknown): ConditionalFormatTextStyle[
 export function getConditionalToneStripClass(tone: ConditionalFormatTone): string {
   switch (tone) {
     case "success":
-      return "bg-emerald-500/70"
+      return "bg-status-live/70"
     case "warning":
-      return "bg-amber-500/70"
+      return "bg-status-warning/70"
     case "danger":
       return "bg-destructive/70"
     case "info":
-      return "bg-sky-500/70"
+      return "bg-status-info/70"
     case "neutral":
     default:
       return "bg-muted-foreground/40"

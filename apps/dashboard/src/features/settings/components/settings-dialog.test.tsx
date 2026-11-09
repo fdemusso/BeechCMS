@@ -244,7 +244,7 @@ describe("SettingsDialog", () => {
       const content = document.querySelector('[data-slot="dialog-content"]')!
       const overlay = document.querySelector('[data-slot="dialog-overlay"]')!
       for (const element of [content, overlay]) {
-        expect(element).toHaveClass("data-open:duration-[220ms]", "data-closed:duration-[176ms]")
+        expect(element).toHaveClass("data-open:duration-(--duration-enter)", "data-closed:duration-(--duration-exit)")
       }
       expect(content).toHaveClass("data-open:zoom-in-100", "data-closed:zoom-out-100")
     })

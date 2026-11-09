@@ -200,7 +200,7 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
       >
         {query.error ? (
           <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-            <p className="text-sm text-destructive">{query.error}</p>
+            <p className="text-sm text-status-danger-foreground">{query.error}</p>
           </div>
         ) : definition ? (
           <definition.Renderer
@@ -215,7 +215,7 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
           />
         ) : (
           <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-            <p className="text-sm text-destructive">{t("content.views.errors.loadFailed")}</p>
+            <p className="text-sm text-status-danger-foreground">{t("content.views.errors.loadFailed")}</p>
           </div>
         )}
       </ContentToolbar>

@@ -23,7 +23,7 @@ export function SetupChecklistWidget({ variant = "full" }: SetupChecklistWidgetP
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border bg-card px-4 py-3">
+      <div className="rounded-lg border bg-card px-4 py-3">
         <Skeleton className="h-5 w-48 animate-pulse" />
       </div>
     )
@@ -36,14 +36,14 @@ export function SetupChecklistWidget({ variant = "full" }: SetupChecklistWidgetP
   if (allDone) {
     if (dismissed) return null
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-emerald-200/80 bg-emerald-50 px-4 py-2.5 dark:border-emerald-800/40 dark:bg-emerald-500/10">
-        <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-        <p className="flex-1 text-sm font-medium text-emerald-800 dark:text-emerald-300">
+      <div className="flex items-center gap-3 rounded-lg border border-status-live/30 bg-status-live-soft px-4 py-2.5">
+        <CheckCircle2 className="size-4 shrink-0 text-status-live-foreground" />
+        <p className="flex-1 text-sm font-medium text-status-live-foreground">
           {t("dashboard.setupChecklist.allDone")}
         </p>
         <button
           onClick={() => { localStorage.setItem(DISMISS_KEY, "1"); setDismissed(true) }}
-          className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-200"
+          className="text-status-live-foreground hover:text-status-live-foreground"
           aria-label="Dismiss"
         >
           <X className="size-4" />
@@ -98,10 +98,10 @@ export function SetupChecklistWidget({ variant = "full" }: SetupChecklistWidgetP
   const doneCount = items.filter(i => i.done).length
 
   return (
-    <div className="rounded-xl border bg-card px-4 py-3">
+    <div className="rounded-lg border bg-card px-4 py-3">
       <div className="mb-3 flex items-center gap-2">
-        <AlertCircle className="size-4 text-amber-500" />
-        <h3 className="font-heading text-sm font-semibold text-foreground">{t("dashboard.setupChecklist.title")}</h3>
+        <AlertCircle className="size-4 text-status-warning" />
+        <h3 className="font-heading text-sm font-bold text-foreground">{t("dashboard.setupChecklist.title")}</h3>
         <span className="ml-auto text-xs text-muted-foreground">{doneCount}/{items.length}</span>
       </div>
 
@@ -126,8 +126,8 @@ function ChecklistItemCompact({ done, label }: { done: boolean; label: string })
   return (
     <span className={cn("flex items-center gap-1.5 text-xs", done ? "text-muted-foreground line-through" : "text-foreground")}>
       {done
-        ? <CheckCircle2 className="size-3 shrink-0 text-emerald-500" />
-        : <Circle className="size-3 shrink-0 text-amber-400" />
+        ? <CheckCircle2 className="size-3 shrink-0 text-status-live" />
+        : <Circle className="size-3 shrink-0 text-status-warning" />
       }
       {label}
     </span>
@@ -143,7 +143,7 @@ function ChecklistItemFull({ done, label, hint, action }: {
   return (
     <li className="flex items-start gap-2.5">
       {done
-        ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+        ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-status-live" />
         : <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" />
       }
       <div className="min-w-0 flex-1">

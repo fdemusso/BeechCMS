@@ -19,8 +19,8 @@ export function FieldEdit(props: FieldEditProps) {
 
   if (privacy === 'hash') {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
-        <span className="font-mono text-[10px] uppercase tracking-wider">
+      <div className="inline-flex items-center gap-1.5 rounded-control border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-status-danger-foreground">
+        <span className="font-mono text-xs uppercase tracking-wider">
           {t("fields.restricted", "Restricted")}
         </span>
       </div>

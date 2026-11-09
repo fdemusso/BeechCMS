@@ -113,9 +113,9 @@ function ColumnRenderer({
                 ) : (
                   branch.label
                 )}
-                {branch.requiredOnCreate && <Asterisk className="inline size-3 text-destructive" />}
+                {branch.requiredOnCreate && <Asterisk className="inline size-3 text-status-danger-foreground" />}
                 {localizedState && localization && (
-                  <span className="ml-1 rounded border px-1 text-[10px] font-medium uppercase text-muted-foreground">
+                  <span className="ml-1 rounded border px-1 text-xs font-medium uppercase text-muted-foreground">
                     {localization.activeLocale}
                   </span>
                 )}
@@ -153,7 +153,7 @@ function ColumnRenderer({
               </div>
             )}
             {fieldErrors[branch.alias] && (
-              <p className="text-xs text-destructive">{fieldErrors[branch.alias]}</p>
+              <p className="text-xs text-status-danger-foreground">{fieldErrors[branch.alias]}</p>
             )}
           </FieldLabelRow>
         )
@@ -214,7 +214,7 @@ function SectionRenderer({
               aria-expanded={!isCollapsed}
             >
               <ChevronDown
-                className={`size-4 transition-transform duration-200 ${
+                className={`size-4 transition-transform duration-(--duration-enter) ${
                   isCollapsed ? "-rotate-90" : ""
                 }`}
               />

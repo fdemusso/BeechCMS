@@ -108,7 +108,7 @@ export function LayoutRenderer({
           {dangerZoneSlot && (
             <TabsTrigger
               value={DANGER_ZONE_TAB_ID}
-              className="px-0 py-3 font-medium text-destructive data-[state=active]:text-destructive"
+              className="px-0 py-3 font-medium text-status-danger-foreground data-[state=active]:text-status-danger-foreground"
             >
               {dangerZoneLabel ?? "Danger Zone"}
             </TabsTrigger>

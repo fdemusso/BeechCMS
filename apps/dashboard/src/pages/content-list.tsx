@@ -139,10 +139,10 @@ export function ContentListPage() {
         <div className="flex flex-1 flex-col gap-4 p-4">
           <div className="content-area-inner">
             <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-              <h2 className="font-heading text-lg font-semibold text-destructive">
+              <h2 className="font-heading text-xl font-bold text-status-danger-foreground">
                 Error
               </h2>
-              <p className="text-sm text-destructive/90">
+              <p className="text-sm text-status-danger-foreground/90">
                 {`Seed "${slug}" not found`}
               </p>
             </div>
@@ -178,7 +178,7 @@ export function ContentListPage() {
             <div className="flex items-center justify-center py-12 text-muted-foreground">Loading configuration...</div>
           ) : viewsQuery.isError || (!activeView && !emptyStateType) ? (
             <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-              <p className="text-sm text-destructive">{t("content.views.errors.loadFailed")}</p>
+              <p className="text-sm text-status-danger-foreground">{t("content.views.errors.loadFailed")}</p>
             </div>
           ) : emptyStateType ? (
             <>

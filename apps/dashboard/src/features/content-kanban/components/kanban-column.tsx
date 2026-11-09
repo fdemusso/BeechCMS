@@ -28,7 +28,7 @@ interface KanbanColumnProps {
 function SkeletonCard() {
   return (
     <div
-      className="rounded-md border bg-muted/40 animate-pulse shrink-0"
+      className="rounded-control border bg-muted/40 animate-pulse shrink-0"
       style={{ height: KANBAN_CARD_HEIGHT_PX }}
     />
   )
@@ -113,7 +113,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
         <div
           ref={setNodeRef}
-          className={`flex-1 transition-colors ${isOver ? 'bg-primary/5 ring-1 ring-primary/30 ring-inset rounded-b-lg' : ''}`}
+          className={`flex-1 transition-colors ${isOver ? 'bg-muted ring-1 ring-primary/30 ring-inset rounded-b-lg' : ''}`}
         >
           {!collapsed && (
             <div className="flex flex-1 flex-col overflow-hidden" style={{ height: 'calc(100vh - 14rem)', minHeight: 0 }}>
@@ -126,7 +126,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({
                   <p className="text-xs text-muted-foreground">Nessuna voce</p>
                   {onCreateEntry && (
                     canCreate ? (
-                      <button type="button" onClick={onCreateEntry} className="text-xs text-primary hover:opacity-80 transition-opacity">
+                      <button type="button" onClick={onCreateEntry} className="text-xs text-foreground hover:opacity-80 transition-opacity">
                         + Nuova entry
                       </button>
                     ) : (

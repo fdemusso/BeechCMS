@@ -37,7 +37,7 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 
         let base = ''
         if (active) {
-          base = 'bg-primary text-primary-foreground font-semibold ring-2 ring-primary ring-offset-2'
+          base = 'bg-primary text-primary-foreground font-medium ring-2 ring-primary ring-offset-2'
         } else if (done) {
           base = 'bg-primary/80 text-primary-foreground'
         } else {
@@ -47,12 +47,12 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
         return (
           <div key={step} className="flex items-center gap-3">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${base}`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-(--duration-enter) ${base}`}
             >
               {step}
             </div>
             {step < total && (
-              <div className={`h-px w-8 transition-all duration-300 ${done ? 'bg-primary/80' : 'bg-muted'}`} />
+              <div className={`h-px w-8 transition-all duration-(--duration-enter) ${done ? 'bg-primary/80' : 'bg-muted'}`} />
             )}
           </div>
         )
@@ -253,11 +253,11 @@ export function SetupPage() {
 
           {step === 1 && (
             <div className="space-y-4">
-              <p className="text-sm font-semibold text-foreground">{t('setup.step1Title')}</p>
+              <p className="text-sm font-medium text-foreground">{t('setup.step1Title')}</p>
 
               {environment?.isDeveloper && (
-                <div className="rounded-md border border-border bg-muted p-3 space-y-1">
-                  <p className="text-sm font-semibold text-foreground">
+                <div className="rounded-control border border-border bg-muted p-3 space-y-1">
+                  <p className="text-sm font-medium text-foreground">
                     {t('setup.devAlertTitle')}
                   </p>
                   <p className="text-xs text-muted-foreground">{t('setup.devAlertDesc')}</p>
@@ -298,7 +298,7 @@ export function SetupPage() {
 
           {step === 2 && (
             <div className="space-y-4" onKeyDown={handleCredentialsKeyDown}>
-              <p className="text-sm font-semibold text-foreground">{t('setup.step2Title')}</p>
+              <p className="text-sm font-medium text-foreground">{t('setup.step2Title')}</p>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -390,7 +390,7 @@ export function SetupPage() {
                 </div>
               </div>
 
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && <p className="text-sm text-status-danger-foreground">{error}</p>}
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => { setError(null); setStep(1) }}>
@@ -405,12 +405,12 @@ export function SetupPage() {
 
           {step === 3 && (
             <div className="space-y-4">
-              <p className="text-sm font-semibold text-foreground">{t('setup.step3Title')}</p>
+              <p className="text-sm font-medium text-foreground">{t('setup.step3Title')}</p>
 
               {track === 'developer' ? (
                 <>
-                  <div className="rounded-md border p-3 space-y-2">
-                    <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
+                  <div className="rounded-control border p-3 space-y-2">
+                    <p className="text-xs font-medium uppercase text-muted-foreground tracking-wide">
                       {t('setup.servicesTitle')}
                     </p>
                     {environment && (
@@ -475,7 +475,7 @@ export function SetupPage() {
                 </>
               )}
 
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && <p className="text-sm text-status-danger-foreground">{error}</p>}
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => { setError(null); setStep(2) }}>
@@ -511,7 +511,7 @@ function ServiceRow({
     <div className="flex items-center justify-between text-sm">
       <span>{label}</span>
       <span
-        className={`text-xs font-medium px-2 py-0.5 rounded-full ${active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}
+        className={`text-xs font-medium px-2 py-0.5 rounded-full ${active ? 'bg-status-live-soft text-status-live-foreground' : 'bg-muted text-muted-foreground'}`}
       >
         {active ? activeLabel : inactiveLabel}
       </span>

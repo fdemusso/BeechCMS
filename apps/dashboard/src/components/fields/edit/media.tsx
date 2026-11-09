@@ -368,8 +368,8 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
               placeholder={t("media.imageLink")}
               disabled={isBusy}
               className={cn(
-                "pr-8 transition-all duration-200",
-                isDragging && "border-primary ring-2 ring-primary/20 bg-primary/5"
+                "pr-8 transition-all",
+                isDragging && "border-primary ring-2 ring-primary/20 bg-muted"
               )}
             />
             {isBusy && (
@@ -389,7 +389,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
             <Upload className="size-4" />
           </Button>
         </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-sm text-status-danger-foreground">{error}</p>}
       </div>
 
       {/* Multiple images gallery */}
@@ -398,7 +398,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
           {assets.map((assetUrl, index) => (
             <div key={assetUrl} className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
               <img src={assetUrl} alt="Preview" className="size-full object-cover" />
-              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+              <div /* design-ok: dark overlay on a user image, not a modal backdrop */ className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
                 <Button
                   type="button"
                   variant="secondary"

@@ -102,7 +102,7 @@ export function BuilderTabPill({
         <Home className="mr-1.5 size-3.5 shrink-0" aria-label={labels.defaultBadge} />
       )}
       {isRenaming ? (
-        <Input autoFocus maxLength={maxLength} className="h-6 w-24 rounded-md px-1 text-sm focus-visible:ring-1 focus-visible:ring-ring/30" value={renameValue}
+        <Input autoFocus maxLength={maxLength} className="h-6 w-24 rounded-control px-1 text-sm focus-visible:ring-1 focus-visible:ring-ring/30" value={renameValue}
           onChange={(e) => onRenameChange(e.target.value)}
           onBlur={onRenameCommit}
           onClick={(e) => e.stopPropagation()}
@@ -123,12 +123,12 @@ export function BuilderTabPill({
       {canDelete && !readOnly && !isRenaming && (
         // The slot is 0 wide until the pill is hovered, then opens to the button's width, so the label
         // does not sit off-centre while the X is hidden.
-        <span className="grid grid-cols-[0fr] transition-[grid-template-columns,margin] duration-150 group-hover/tab:ml-1.5 group-hover/tab:grid-cols-[1fr] group-focus-within/tab:ml-1.5 group-focus-within/tab:grid-cols-[1fr]">
+        <span className="grid grid-cols-[0fr] transition-[grid-template-columns,margin] duration-(--duration-enter) group-hover/tab:ml-1.5 group-hover/tab:grid-cols-[1fr] group-focus-within/tab:ml-1.5 group-focus-within/tab:grid-cols-[1fr]">
           <span className="overflow-hidden">
             <button
               type="button"
               aria-label={labels.delete}
-              className="flex size-4 items-center justify-center rounded-full text-destructive opacity-0 transition-opacity hover:bg-destructive/15 group-hover/tab:opacity-100 focus-visible:opacity-100 group-focus-within/tab:opacity-100"
+              className="flex size-4 items-center justify-center rounded-full text-status-danger-foreground opacity-0 transition-opacity hover:bg-destructive/15 group-hover/tab:opacity-100 focus-visible:opacity-100 group-focus-within/tab:opacity-100"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); onDelete() }}
             >

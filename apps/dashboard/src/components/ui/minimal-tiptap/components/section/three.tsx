@@ -65,7 +65,7 @@ const COLORS: ColorPalette[] = [
     label: "Palette 3",
     inverse: "var(--foreground)",
     colors: [
-      { cssVar: "#f5f5f5", label: "Light Gray" },
+      { cssVar: "#f5f5f5", label: "Light Gray" }, // design-ok: text colour offered to the user, stored as data
       { cssVar: "var(--mt-accent-blue-subtler)", label: "Blue subtle" },
       { cssVar: "var(--mt-accent-teal-subtler)", label: "Teal subtle" },
       { cssVar: "var(--mt-accent-green-subtler)", label: "Green subtle" },

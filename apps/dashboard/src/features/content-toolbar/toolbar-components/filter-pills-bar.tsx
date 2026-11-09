@@ -196,7 +196,7 @@ function FilterPill({
               type="button"
               variant="outline"
               size="sm"
-              className="h-8 w-36 justify-center border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="h-8 w-36 justify-center border-destructive/40 text-status-danger-foreground hover:bg-destructive/10 hover:text-status-danger-foreground"
               onClick={() => removeColumnFilters(group.columnId)}
             >
               <Trash2 className="size-4" />

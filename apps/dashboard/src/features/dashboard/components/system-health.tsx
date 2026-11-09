@@ -31,15 +31,15 @@ export function SystemHealth() {
       <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           {isWarning ? (
-            <ShieldAlert className="size-4 text-amber-500" />
+            <ShieldAlert className="size-4 text-status-warning" />
           ) : (
-            <ShieldCheck className="size-4 text-emerald-500" />
+            <ShieldCheck className="size-4 text-status-live" />
           )}
           System Health
         </CardTitle>
         <div className={cn(
-          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
-          isWarning ? "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+          "px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider",
+          isWarning ? "bg-status-warning-soft text-status-warning-foreground" : "bg-status-live-soft text-status-live-foreground"
         )}>
           {health.status}
         </div>
@@ -60,7 +60,7 @@ export function SystemHealth() {
             value={health.database.percentage} 
             className="h-1.5" 
             indicatorClassName={cn(
-              health.database.percentage > 80 ? "bg-amber-500" : "bg-emerald-500"
+              health.database.percentage > 80 ? "bg-status-warning" : "bg-status-live"
             )}
           />
         </div>
@@ -80,12 +80,12 @@ export function SystemHealth() {
             value={health.storage.percentage} 
             className="h-1.5" 
             indicatorClassName={cn(
-              health.storage.percentage > 80 ? "bg-amber-500" : "bg-emerald-500"
+              health.storage.percentage > 80 ? "bg-status-warning" : "bg-status-live"
             )}
           />
         </div>
 
-        <p className="text-[10px] text-muted-foreground pt-2 border-t border-border">
+        <p className="text-xs text-muted-foreground pt-2 border-t border-border">
           Last check: {new Date(health.lastUpdate * 1000).toLocaleTimeString()}
         </p>
       </CardContent>

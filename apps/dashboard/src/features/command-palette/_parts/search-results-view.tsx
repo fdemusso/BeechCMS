@@ -79,7 +79,7 @@ export function SearchResultsView({
                 {renderExcerpt(entry.excerpt)}
               </span>
             )}
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
+            <span className="text-xs uppercase tracking-wider text-muted-foreground/70">
               {entry.schema_slug} · {entry.status}
             </span>
           </div>

@@ -126,7 +126,7 @@ export function StorageTab() {
       <SettingsSection id="usage" title={t('settings.storage.usageTitle')} description={t('settings.storage.usageDesc')}>
         <SettingsReadouts>
           <SettingsReadout label={t('settings.storage.usedLabel')}>
-            <span className="text-2xl font-semibold tabular-nums">{formatBytes(stats?.totalBytes ?? 0)}</span>
+            <span className="text-2xl font-medium tabular-nums">{formatBytes(stats?.totalBytes ?? 0)}</span>
           </SettingsReadout>
           <SettingsReadout label={t('settings.storage.filesLabel')}>
             {t('settings.storage.fileCount', { count: stats?.fileCount ?? 0 })}

@@ -139,13 +139,13 @@ export function getConditionalFormatRowClass(
   const styleClass = getTextStylesClass(textStyles)
   switch (tone) {
     case "success":
-      return `bg-emerald-500/12 hover:bg-emerald-500/16 ${styleClass}`.trim()
+      return `bg-status-live/12 hover:bg-status-live/16 ${styleClass}`.trim()
     case "warning":
-      return `bg-amber-500/12 hover:bg-amber-500/16 ${styleClass}`.trim()
+      return `bg-status-warning/12 hover:bg-status-warning/16 ${styleClass}`.trim()
     case "danger":
       return `bg-destructive/12 hover:bg-destructive/16 ${styleClass}`.trim()
     case "info":
-      return `bg-sky-500/12 hover:bg-sky-500/16 ${styleClass}`.trim()
+      return `bg-status-info/12 hover:bg-status-info/16 ${styleClass}`.trim()
     case "neutral":
     default:
       return `bg-muted/35 hover:bg-muted/45 ${styleClass}`.trim()
@@ -162,13 +162,13 @@ export function getConditionalFormatCellClass(
     "[&_[data-slot=badge]]:!text-inherit [&_[data-slot=badge]]:!bg-transparent [&_[data-slot=badge]]:!border-current"
   switch (tone) {
     case "success":
-      return `font-medium text-emerald-700 dark:text-emerald-300 ${styleClass} ${forceBadgeInheritClass}`.trim()
+      return `font-medium text-status-live-foreground ${styleClass} ${forceBadgeInheritClass}`.trim()
     case "warning":
-      return `font-medium text-amber-800 dark:text-amber-200 ${styleClass} ${forceBadgeInheritClass}`.trim()
+      return `font-medium text-status-warning-foreground ${styleClass} ${forceBadgeInheritClass}`.trim()
     case "danger":
-      return `font-medium text-destructive ${styleClass} ${forceBadgeInheritClass}`.trim()
+      return `font-medium text-status-danger-foreground ${styleClass} ${forceBadgeInheritClass}`.trim()
     case "info":
-      return `font-medium text-sky-800 dark:text-sky-200 ${styleClass} ${forceBadgeInheritClass}`.trim()
+      return `font-medium text-status-info-foreground ${styleClass} ${forceBadgeInheritClass}`.trim()
     case "neutral":
     default:
       return `font-medium ${styleClass} ${forceBadgeInheritClass}`.trim()
@@ -186,13 +186,13 @@ export function getConditionalFormatCardClass(
   const styleClass = getTextStylesClass(textStyles)
   switch (tone) {
     case "success":
-      return `border-emerald-500/50 bg-linear-to-b from-emerald-500/12 to-emerald-500/12 ${styleClass}`.trim()
+      return `border-status-live/50 bg-linear-to-b from-status-live/12 to-status-live/12 ${styleClass}`.trim()
     case "warning":
-      return `border-amber-500/50 bg-linear-to-b from-amber-500/12 to-amber-500/12 ${styleClass}`.trim()
+      return `border-status-warning/50 bg-linear-to-b from-status-warning/12 to-status-warning/12 ${styleClass}`.trim()
     case "danger":
       return `border-destructive/50 bg-linear-to-b from-destructive/12 to-destructive/12 ${styleClass}`.trim()
     case "info":
-      return `border-sky-500/50 bg-linear-to-b from-sky-500/12 to-sky-500/12 ${styleClass}`.trim()
+      return `border-status-info/50 bg-linear-to-b from-status-info/12 to-status-info/12 ${styleClass}`.trim()
     case "neutral":
     default:
       return `border-muted-foreground/30 bg-linear-to-b from-muted/50 to-muted/50 ${styleClass}`.trim()

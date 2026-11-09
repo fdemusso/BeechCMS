@@ -32,6 +32,7 @@ export const ShortcutKey = ({
         <kbd
           key={shortcut.symbol}
           className={cn(
+            // design-ok: vendored minimal-tiptap, the hint colour is part of the component
             "inline-block min-w-2.5 text-center align-baseline font-sans text-xs font-medium text-[rgb(156,157,160)] capitalize",
 
             className

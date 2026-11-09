@@ -97,7 +97,7 @@ export function SeedBuilderPage({ showSubtitle = true }: { readonly showSubtitle
       </div>
 
       <div className="w-full">
-        <div className="rounded-md border">
+        <div className="rounded-control border">
           <ScrollArea className="w-full">
             <Table>
               <TableHeader>
@@ -177,7 +177,7 @@ export function SeedBuilderPage({ showSubtitle = true }: { readonly showSubtitle
                                 onClick={() => setPurgeRecord(record)}
                                 aria-label={t("seedBuilder.purge.button")}
                                 data-testid="purge-seed-btn"
-                                className="text-destructive hover:text-destructive"
+                                className="text-status-danger-foreground hover:text-status-danger-foreground"
                               >
                                 <Trash2 className="size-4" />
                               </Button>
@@ -188,7 +188,7 @@ export function SeedBuilderPage({ showSubtitle = true }: { readonly showSubtitle
                                 onClick={() => setDeleteRecord(record)}
                                 aria-label={t("common.delete")}
                                 data-testid="delete-seed-btn"
-                                className="text-destructive hover:text-destructive"
+                                className="text-status-danger-foreground hover:text-status-danger-foreground"
                               >
                                 <Trash2 className="size-4" />
                               </Button>

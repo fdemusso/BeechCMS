@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 export const pendingDraftBadgeClass =
-  "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-300"
+  "border-status-warning/30 bg-status-warning-soft text-status-warning-foreground"
 
 const HIDDEN_STATUSES: Record<string, boolean> = Object.assign(Object.create(null), {
   archived: true,

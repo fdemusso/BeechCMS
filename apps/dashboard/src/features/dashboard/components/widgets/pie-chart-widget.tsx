@@ -86,6 +86,7 @@ export function PieChartWidget({ config, title }: { config: PieChartConfig; titl
           {visible.map((slice, index) => (
             <li key={slice.label} className="flex items-center gap-1.5">
               <span
+                /* design-ok: micro element (≤20px), the contract has no radius level below rounded-control */
                 className="size-2 shrink-0 rounded-[2px]"
                 style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
               />

@@ -38,7 +38,7 @@ function DataTableGroupRowInner<TData>({ row, rowHeight, table }: DataTableGroup
           <span className="text-sm font-medium">
             {groupValue == null || groupValue === "" ? "—" : String(groupValue)}
           </span>
-          <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground tabular-nums">
+          <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground tabular-nums">
             {subRowCount}
           </span>
         </div>

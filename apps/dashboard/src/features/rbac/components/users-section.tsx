@@ -113,8 +113,8 @@ export function UsersSection() {
                     <TableCell className="font-medium max-w-[240px]">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="truncate" title={accountUser.email}>{accountUser.email}</span>
-                        {isSelf && <Badge variant="secondary" className="text-[10px] shrink-0">{t("rbac.users.you", "You")}</Badge>}
-                        {!accountUser.isActive && <Badge variant="outline" className="text-[10px] shrink-0">{t("rbac.users.inactive")}</Badge>}
+                        {isSelf && <Badge variant="secondary" className="text-xs shrink-0">{t("rbac.users.you", "You")}</Badge>}
+                        {!accountUser.isActive && <Badge variant="outline" className="text-xs shrink-0">{t("rbac.users.inactive")}</Badge>}
                       </div>
                     </TableCell>
                     <TableCell className="truncate max-w-[180px]">{[accountUser.name, accountUser.surname].filter(Boolean).join(" ") || "—"}</TableCell>

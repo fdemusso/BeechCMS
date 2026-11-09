@@ -246,7 +246,7 @@ export function BuilderPane({
                   container they took part in the spacing and the box grew by 16px a moment after mounting. */}
               <div className="space-y-4">
                 {showPreview && previewLayout ? (
-                  <div className="animate-in fade-in-0 duration-200">
+                  <div className="animate-in fade-in-0 duration-(--duration-enter)">
                     <DashboardLayoutRenderer layout={previewLayout} />
                   </div>
                 ) : (

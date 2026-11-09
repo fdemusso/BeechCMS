@@ -28,8 +28,8 @@ export interface RecentContentWidgetProps {
 }
 
 function statusVariant(status: string): string {
-  if (status === "published") return "bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-800/60"
-  if (status === "draft") return "bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-800/60"
+  if (status === "published") return "bg-status-live-soft text-status-live-foreground border-status-live/30"
+  if (status === "draft") return "bg-status-warning-soft text-status-warning-foreground border-status-warning/30"
   return "bg-muted text-muted-foreground border-border"
 }
 
@@ -122,7 +122,7 @@ export function RecentContentWidget({ seedSlug, variant = "list", title }: Recen
                 <Link
                   key={entry.id}
                   to={`/content/${seedSlug}/${entry.id}`}
-                  className="flex flex-col rounded-xl border border-border/60 bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                  className="flex flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow"
                 >
                   {imageUrl ? (
                     <img src={imageUrl} alt="" className="h-28 w-full object-cover shrink-0" />
@@ -134,8 +134,8 @@ export function RecentContentWidget({ seedSlug, variant = "list", title }: Recen
                   <div className="flex flex-col flex-1 p-2">
                     <p className="text-xs font-medium line-clamp-2 flex-1">{entryTitle(entry)}</p>
                     <div className="flex items-center justify-between gap-1 mt-auto pt-2">
-                      <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-semibold border", statusVariant(entry.status))}>{entry.status}</span>
-                      <span className="text-[10px] text-muted-foreground">{relativeTime(entry.updated_at)}</span>
+                      <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium border", statusVariant(entry.status))}>{entry.status}</span>
+                      <span className="text-xs text-muted-foreground">{relativeTime(entry.updated_at)}</span>
                     </div>
                   </div>
                 </Link>
@@ -170,7 +170,7 @@ export function RecentContentWidget({ seedSlug, variant = "list", title }: Recen
               >
                 {entryTitle(entry)}
               </Link>
-              <Badge className={cn("shrink-0 text-[10px] border", statusVariant(entry.status))} variant="outline">
+              <Badge className={cn("shrink-0 text-xs border", statusVariant(entry.status))} variant="outline">
                 {entry.status}
               </Badge>
               <span className="text-xs text-muted-foreground shrink-0 tabular-nums ml-auto sm:ml-0">{relativeTime(entry.updated_at)}</span>

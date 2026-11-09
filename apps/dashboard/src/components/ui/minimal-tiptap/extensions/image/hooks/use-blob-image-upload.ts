@@ -62,6 +62,7 @@ export const useBlobImageUpload = ({
           if (cancelled) return
           setImageState((prev) => ({ ...prev, src: base64 }))
           updateAttributes({ src: base64 })
+          URL.revokeObjectURL(initSrc)
         } catch {
           if (cancelled) return
           setImageState((prev) => ({ ...prev, error: true }))
@@ -84,6 +85,7 @@ export const useBlobImageUpload = ({
         }))
 
         updateAttributes(normalizedData)
+        URL.revokeObjectURL(initSrc)
       } catch {
         if (cancelled) return
         setImageState((prev) => ({

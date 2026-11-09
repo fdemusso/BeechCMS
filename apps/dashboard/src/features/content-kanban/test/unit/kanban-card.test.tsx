@@ -118,7 +118,7 @@ describe('KanbanCard — legacy render (no slots)', () => {
     render(<KanbanCard model={model} canEdit sortActive={false} onEdit={vi.fn()} />)
 
     const header = screen.getByText('Header value')
-    expect(header.closest('[class*="text-sky-800"]')).not.toBeNull()
+    expect(header.closest('[class*="text-status-info-foreground"]')).not.toBeNull()
   })
 
   // Regression guard: FieldDisplay renders a <div>, which is not valid inside <p>;

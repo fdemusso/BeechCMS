@@ -48,7 +48,7 @@ const pillVariants = cva(
         secondary: "bg-secondary text-secondary-foreground",
         outline: "border border-border bg-transparent text-foreground",
         primary: "bg-primary text-primary-foreground",
-        destructive: "bg-destructive/10 text-destructive",
+        destructive: "bg-destructive/10 text-status-danger-foreground",
       },
       /** Highlights the pill, e.g. while its menu is open. */
       selected: {
@@ -72,7 +72,7 @@ const pillVariants = cva(
 /** Hover colours of the secondary-action button, keyed by `PillAction.tone`. */
 const actionToneClasses = {
   default: "hover:bg-foreground/10",
-  destructive: "text-destructive hover:bg-destructive/10",
+  destructive: "text-status-danger-foreground hover:bg-destructive/10",
 } as const
 
 /** Secondary action: an icon-only button attached to the pill. */
@@ -118,6 +118,68 @@ interface PillProps
   readonly mainClassName?: string
 }
 
+interface PillContentProps {
+  readonly icon: React.ReactNode
+  readonly label: React.ReactNode
+  readonly trailing: React.ReactNode
+  readonly loading: boolean
+  readonly revealOnHover: boolean
+}
+
+/** Inner content of the main area: icon (or spinner), label and trailing slot. */
+function PillContent({ icon, label, trailing, loading, revealOnHover }: PillContentProps) {
+  return (
+    <>
+      {loading ? <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden /> : icon}
+      <span className="truncate">{label}</span>
+      {trailing !== undefined && (
+        <span
+          className={cn(
+            "opacity-70 transition-opacity",
+            // Make room for the action icon, which takes the trailing slot's place.
+            revealOnHover && "group-hover:opacity-0 group-focus-within:opacity-0"
+          )}
+        >
+          {trailing}
+        </span>
+      )}
+    </>
+  )
+}
+
+interface PillActionButtonProps {
+  readonly action: PillAction
+  readonly animated: boolean
+  readonly disabled: boolean
+}
+
+/** Secondary-action button; a sibling of the main button (nesting buttons is invalid HTML). */
+function PillActionButton({ action, animated, disabled }: PillActionButtonProps) {
+  return (
+    <button
+      type="button"
+      data-slot="pill-action"
+      aria-label={action.label}
+      disabled={disabled || action.disabled}
+      className={cn(
+        "flex size-6 shrink-0 items-center justify-center rounded-full",
+        actionToneClasses[action.tone ?? "default"],
+        animated
+          ? // Delay on hover so the padding animation opens the space before the icon fades in.
+            "absolute right-1 opacity-0 transition-opacity group-hover:opacity-100 group-hover:delay-100 focus-visible:opacity-100 group-focus-within:opacity-100"
+          : "mr-1"
+      )}
+      onClick={(event) => {
+        // The action must not trigger the primary action or a parent trigger.
+        event.stopPropagation()
+        action.onClick(event)
+      }}
+    >
+      {action.icon}
+    </button>
+  )
+}
+
 /**
  * Reusable pill with a primary action (the pill) and an optional secondary action (an icon).
  *
@@ -152,21 +214,7 @@ function Pill({
   const isInteractive = onClick !== undefined || Object.keys(buttonProps).length > 0
 
   const content = (
-    <>
-      {loading ? <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden /> : icon}
-      <span className="truncate">{label}</span>
-      {trailing !== undefined && (
-        <span
-          className={cn(
-            "opacity-70 transition-opacity duration-150",
-            // Make room for the action icon, which takes the trailing slot's place.
-            revealOnHover && "group-hover:opacity-0 group-focus-within:opacity-0"
-          )}
-        >
-          {trailing}
-        </span>
-      )}
-    </>
+    <PillContent icon={icon} label={label} trailing={trailing} loading={loading} revealOnHover={revealOnHover} />
   )
 
   const mainClasses = cn(
@@ -174,7 +222,7 @@ function Pill({
     // Static action sits inline (tight padding); animated action is absolutely positioned
     // and gets its room by growing the right padding on hover (`pr-7` ≈ size-6 icon + gap).
     hasAction && !animated ? "pr-1" : "pr-3",
-    revealOnHover && "transition-[padding] duration-200 ease-in-out group-hover:pr-7 group-focus-within:pr-7",
+    revealOnHover && "transition-[padding] duration-(--duration-enter) ease-in-out group-hover:pr-7 group-focus-within:pr-7",
     isInteractive && "cursor-pointer",
     mainClassName
   )
@@ -202,30 +250,7 @@ function Pill({
         </span>
       )}
 
-      {action && (
-        // Sibling of the main button (not a child): nesting buttons is invalid HTML.
-        <button
-          type="button"
-          data-slot="pill-action"
-          aria-label={action.label}
-          disabled={isDisabled || action.disabled}
-          className={cn(
-            "flex size-6 shrink-0 items-center justify-center rounded-full",
-            actionToneClasses[action.tone ?? "default"],
-            animated
-              ? // Delay on hover so the padding animation opens the space before the icon fades in.
-                "absolute right-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-hover:delay-100 focus-visible:opacity-100 group-focus-within:opacity-100"
-              : "mr-1"
-          )}
-          onClick={(event) => {
-            // The action must not trigger the primary action or a parent trigger.
-            event.stopPropagation()
-            action.onClick(event)
-          }}
-        >
-          {action.icon}
-        </button>
-      )}
+      {action && <PillActionButton action={action} animated={animated} disabled={isDisabled} />}
     </div>
   )
 }
