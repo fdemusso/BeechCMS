@@ -4,3 +4,5 @@ node scripts/update-license.mjs
 git add LICENSE
 
 node scripts/check-test-placement.mjs
+
+node scripts/check-design-tokens.mjs
