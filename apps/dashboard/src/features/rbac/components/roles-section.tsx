@@ -10,7 +10,8 @@ import type { RoleRecord } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { SettingsList, SettingsListItem, SettingsSection } from "@/components/ui/settings-section"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { SettingsSection } from "@/components/ui/settings-section"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,9 +34,9 @@ import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
 const SYSTEM_HINT_ID = "roles-system-hint"
 
 /**
- * The roles, one per row: its icon, name and description on the left; what it allows and the buttons to edit or
- * delete it on the right. A system role is built in: it is marked as such and its buttons stay off, and a line
- * (read aloud, not shown) says why.
+ * The roles, as a table with its columns named: the role, what it is for, what it allows, and the buttons to edit
+ * or delete it. A system role is built in: it is marked as such and its buttons stay off, and a line (read aloud,
+ * not shown) says why.
  */
 export function RolesSection() {
   const { t } = useTranslation()
@@ -80,79 +81,90 @@ export function RolesSection() {
       ) : (
         <TooltipProvider delayDuration={100} disableHoverableContent>
           <p id={SYSTEM_HINT_ID} className="sr-only">{t("rbac.roles.systemHint")}</p>
-          <SettingsList label={t("rbac.roles.title", "Roles")}>
-            {roles.map((role) => {
-              const RoleIcon = resolveIcon(role.icon ?? (role.isSystem ? "Shield" : "Users"))
-              return (
-                <SettingsListItem key={role.id}>
-                  <div className="flex min-w-0 items-center gap-3">
-                    <RoleIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <Table aria-label={t("rbac.roles.title", "Roles")}>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[200px]">{t("rbac.roles.name", "Name")}</TableHead>
+                <TableHead className="max-w-[320px]">{t("rbac.roles.description", "Description")}</TableHead>
+                <TableHead className="w-[130px]">{t("rbac.roles.permissions", "Permissions")}</TableHead>
+                {canManageRoles && <TableHead className="w-[100px] text-right">{t("common.actions", "Actions")}</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {roles.map((role) => {
+                const RoleIcon = resolveIcon(role.icon ?? (role.isSystem ? "Shield" : "Users"))
+                return (
+                  <TableRow key={role.id}>
+                    <TableCell className="font-medium whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <RoleIcon aria-hidden className="size-4 text-muted-foreground shrink-0" />
                         <span className="truncate">{role.name}</span>
-                        {role.isSystem && <Badge variant="outline" className="shrink-0">{t("rbac.roles.system", "System")}</Badge>}
-                      </p>
-                      {role.description && <p className="truncate text-sm text-muted-foreground">{role.description}</p>}
-                    </div>
-                  </div>
-
-                  <div className="flex shrink-0 items-center gap-4">
-                    <PermissionBadgeGroup permissions={role.permissions} max={3} />
+                        {role.isSystem && <Badge variant="outline" className="text-[10px] shrink-0">{t("rbac.roles.system", "System")}</Badge>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground max-w-[320px] truncate" title={role.description ?? undefined}>
+                      {role.description ?? "—"}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <PermissionBadgeGroup permissions={role.permissions} max={3} />
+                    </TableCell>
                     {canManageRoles && (
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          disabled={role.isSystem}
-                          aria-label={t("rbac.roles.editFor", { name: role.name })}
-                          aria-describedby={role.isSystem ? SYSTEM_HINT_ID : undefined}
-                          onClick={() => { setEditingRole(role); setFormOpen(true) }}
-                        >
-                          <Pencil aria-hidden className="size-4" />
-                        </Button>
-                        {role.isSystem ? (
+                      <TableCell className="w-[100px] text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-8 text-destructive"
-                            disabled
-                            aria-label={t("rbac.roles.deleteFor", { name: role.name })}
-                            aria-describedby={SYSTEM_HINT_ID}
+                            className="size-8"
+                            disabled={role.isSystem}
+                            aria-label={t("rbac.roles.editFor", { name: role.name })}
+                            aria-describedby={role.isSystem ? SYSTEM_HINT_ID : undefined}
+                            onClick={() => { setEditingRole(role); setFormOpen(true) }}
                           >
-                            <Trash2 aria-hidden className="size-4" />
+                            <Pencil aria-hidden className="size-4" />
                           </Button>
-                        ) : (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-8 text-destructive"
-                                aria-label={t("rbac.roles.deleteFor", { name: role.name })}
-                              >
-                                <Trash2 aria-hidden className="size-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>{t("rbac.roles.delete", "Delete role")}</AlertDialogTitle>
-                                <AlertDialogDescription>{t("rbac.roles.deleteWarning", "Every assignment through this role is removed by cascade.")}</AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(role.id)}>{t("common.confirm")}</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
+                          {role.isSystem ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-destructive"
+                              disabled
+                              aria-label={t("rbac.roles.deleteFor", { name: role.name })}
+                              aria-describedby={SYSTEM_HINT_ID}
+                            >
+                              <Trash2 aria-hidden className="size-4" />
+                            </Button>
+                          ) : (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8 text-destructive"
+                                  aria-label={t("rbac.roles.deleteFor", { name: role.name })}
+                                >
+                                  <Trash2 aria-hidden className="size-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>{t("rbac.roles.delete", "Delete role")}</AlertDialogTitle>
+                                  <AlertDialogDescription>{t("rbac.roles.deleteWarning", "Every assignment through this role is removed by cascade.")}</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(role.id)}>{t("common.confirm")}</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </TableCell>
                     )}
-                  </div>
-                </SettingsListItem>
-              )
-            })}
-          </SettingsList>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
         </TooltipProvider>
       )}
 

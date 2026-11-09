@@ -29,7 +29,7 @@ describe("RolesSection", () => {
     render(<RolesSection />)
 
     expect(screen.getByText("SuperAdmin")).toBeInTheDocument()
-    const row = screen.getByText("SuperAdmin").closest("li")!
+    const row = screen.getByText("SuperAdmin").closest("tr")!
     const buttons = row.querySelectorAll("button")
     expect(buttons.length).toBe(2)
     expect(buttons[0]).toBeDisabled()
@@ -154,10 +154,10 @@ describe("RolesSection", () => {
     })
     render(<RolesSection />)
 
-    const superAdminCell = screen.getByText("SuperAdmin").closest("li")!
+    const superAdminCell = screen.getByText("SuperAdmin").closest("td")!
     expect(superAdminCell.querySelector("svg")).toBeInTheDocument()
 
-    const customRoleCell = screen.getByText("CustomRole").closest("li")!
+    const customRoleCell = screen.getByText("CustomRole").closest("td")!
     expect(customRoleCell.querySelector("svg")).toBeInTheDocument()
   })
 })

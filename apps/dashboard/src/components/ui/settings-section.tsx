@@ -99,16 +99,6 @@ export function SettingsFieldError({ id, children }: { readonly id: string; read
   return <p id={id} role="alert" className="mt-1.5 text-sm text-destructive">{children}</p>
 }
 
-/** A named list of rows, for sections that are a list of things (people, invitations, roles) rather than of fields. */
-export function SettingsList({ label, children }: { readonly label: string; readonly children: ReactNode }) {
-  return <ul aria-label={label}>{children}</ul>
-}
-
-/** One thing in a list: what it is on the left, what can be done to it on the right. */
-export function SettingsListItem({ children, className }: { readonly children: ReactNode; readonly className?: string }) {
-  return <li className={cn("flex items-center justify-between gap-4 border-b border-border py-4", className)}>{children}</li>
-}
-
 /** The submit button of a group of rows, under the last divider. */
 export function SettingsActions({ children }: { readonly children: ReactNode }) {
   return <div className="flex justify-end pt-4">{children}</div>

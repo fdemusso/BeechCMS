@@ -51,8 +51,8 @@ import { PeopleTab } from "./people-tab"
 
 /**
  * The shape of Users & roles, written down as tests: three sections in the order of the sidebar bookmarks, each a
- * named list of rows (never a table), a single action beside each title, and every button named after the thing
- * it acts on, so a screen reader never meets "button, button, button".
+ * table whose columns are named at the top, a single action beside each title, and every button named after the
+ * thing it acts on, so a screen reader never meets "button, button, button".
  */
 describe("Users & roles markup", () => {
   beforeEach(() => {
@@ -66,16 +66,23 @@ describe("Users & roles markup", () => {
     expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual(["Users", "Invitations", "Roles"])
   })
 
-  it("never repeats an id, and uses no table", () => {
+  it("never repeats an id", () => {
     const ids = Array.from(document.querySelectorAll("[id]")).map((el) => el.id)
     expect(new Set(ids).size).toBe(ids.length)
-    expect(document.querySelector("table")).toBeNull()
   })
 
-  it("is three named lists, one row per person, invitation and role", () => {
-    expect(within(screen.getByRole("list", { name: "Users" })).getAllByRole("listitem")).toHaveLength(users.length)
-    expect(within(screen.getByRole("list", { name: "Invitations" })).getAllByRole("listitem")).toHaveLength(invitations.length)
-    expect(within(screen.getByRole("list", { name: "Roles" })).getAllByRole("listitem")).toHaveLength(roles.length)
+  it("is three named tables, one body row per person, invitation and role", () => {
+    const bodyRows = (name: string) => within(screen.getByRole("table", { name })).getAllByRole("row").slice(1)
+    expect(bodyRows("Users")).toHaveLength(users.length)
+    expect(bodyRows("Invitations")).toHaveLength(invitations.length)
+    expect(bodyRows("Roles")).toHaveLength(roles.length)
+  })
+
+  it("names every column at the top of its table", () => {
+    const columns = (name: string) => within(screen.getByRole("table", { name })).getAllByRole("columnheader").map((h) => h.textContent)
+    expect(columns("Users")).toEqual(["Email", "Name", "Roles", "Actions"])
+    expect(columns("Invitations")).toEqual(["Email", "Role", "Scope", "Status", "Expires", "Actions"])
+    expect(columns("Roles")).toEqual(["Name", "Description", "Permissions", "Actions"])
   })
 
   it("puts the one action of each section in its title row", () => {
@@ -86,7 +93,7 @@ describe("Users & roles markup", () => {
   })
 
   it("puts the caller first, and says why their switch is off", () => {
-    const rows = within(screen.getByRole("list", { name: "Users" })).getAllByRole("listitem")
+    const rows = within(screen.getByRole("table", { name: "Users" })).getAllByRole("row").slice(1)
     expect(rows[0]).toHaveTextContent("me@beech.local")
     const own = within(rows[0]).getByRole("switch", { name: "Account active: me@beech.local" })
     expect(own).toBeDisabled()
@@ -116,12 +123,12 @@ describe("Users & roles markup", () => {
   })
 
   it("shows when an invitation expires as a real date", () => {
-    const list = screen.getByRole("list", { name: "Invitations" })
-    expect(list.querySelectorAll("time[datetime]")).toHaveLength(invitations.length)
+    const table = screen.getByRole("table", { name: "Invitations" })
+    expect(table.querySelectorAll("time[datetime]")).toHaveLength(invitations.length)
   })
 
   it("marks a system role, keeps its buttons off and says why", () => {
-    const row = screen.getByText("SuperAdmin").closest("li")!
+    const row = screen.getByText("SuperAdmin").closest("tr")!
     expect(within(row).getByText("System")).toBeInTheDocument()
     const edit = within(row).getByRole("button", { name: "Edit role SuperAdmin" })
     expect(edit).toBeDisabled()

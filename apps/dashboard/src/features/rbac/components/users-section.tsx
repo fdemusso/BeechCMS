@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
-import { SettingsList, SettingsListItem, SettingsSection } from "@/components/ui/settings-section"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { SettingsSection } from "@/components/ui/settings-section"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useMe } from "@/features/shared"
 import { useRbacUsers, useRbacRoles, useSetUserActive } from "../hooks/use-rbac"
@@ -21,8 +22,8 @@ import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
 import type { AccountView } from "../types/rbac.types"
 
 /**
- * Everyone who can sign in, one person per row: who they are on the left; the roles they hold, a button to change
- * them and the on/off switch of the account on the right. The caller comes first and cannot switch themself off.
+ * Everyone who can sign in, as a table: one person per row, with the columns named at the top. The caller comes
+ * first and cannot switch themself off.
  */
 export function UsersSection() {
   const { t } = useTranslation()
@@ -80,74 +81,85 @@ export function UsersSection() {
         </div>
       ) : (
         <TooltipProvider delayDuration={100} disableHoverableContent>
-          <SettingsList label={t("rbac.users.title", "Users")}>
-            {sortedUsers.map((accountUser) => {
-              const isSelf = currentUser?.id === accountUser.id
-              const fullName = [accountUser.name, accountUser.surname].filter(Boolean).join(" ")
-              const uniqueRoles = new Map(
-                accountUser.assignments
-                  .map((assignment) => roleById.get(assignment.roleId))
-                  .filter((role): role is NonNullable<typeof role> => !!role)
-                  .map((role) => [role.id, role])
-              )
-              const selfHintId = `user-${accountUser.id}-self-hint`
-              return (
-                <SettingsListItem key={accountUser.id}>
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <span className="truncate">{accountUser.email}</span>
-                      {isSelf && <Badge variant="secondary" className="shrink-0">{t("rbac.users.you", "You")}</Badge>}
-                      {!accountUser.isActive && <Badge variant="outline" className="shrink-0">{t("rbac.users.inactive")}</Badge>}
-                    </p>
-                    <p className="truncate text-sm text-muted-foreground">{fullName || "—"}</p>
-                  </div>
+          <Table containerClassName="overflow-x-hidden" aria-label={t("rbac.users.title", "Users")}>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("rbac.users.email", "Email")}</TableHead>
+                <TableHead>{t("rbac.users.name", "Name")}</TableHead>
+                <TableHead>{t("rbac.users.roles", "Roles")}</TableHead>
+                <TableHead className="w-[120px] text-right">{t("common.actions", "Actions")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedUsers.map((accountUser) => {
+                const isSelf = currentUser?.id === accountUser.id
+                const uniqueRoles = new Map(
+                  accountUser.assignments
+                    .map((assignment) => roleById.get(assignment.roleId))
+                    .filter((role): role is NonNullable<typeof role> => !!role)
+                    .map((role) => [role.id, role])
+                )
+                const selfHintId = `user-${accountUser.id}-self-hint`
+                return (
+                  <TableRow key={accountUser.id}>
+                    <TableCell className="font-medium max-w-[240px]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="truncate" title={accountUser.email}>{accountUser.email}</span>
+                        {isSelf && <Badge variant="secondary" className="text-[10px] shrink-0">{t("rbac.users.you", "You")}</Badge>}
+                        {!accountUser.isActive && <Badge variant="outline" className="text-[10px] shrink-0">{t("rbac.users.inactive")}</Badge>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="truncate max-w-[180px]">{[accountUser.name, accountUser.surname].filter(Boolean).join(" ") || "—"}</TableCell>
+                    <TableCell>
+                      {uniqueRoles.size === 0 ? (
+                        <span className="text-xs text-muted-foreground">{t("rbac.users.noAccess")}</span>
+                      ) : (
+                        <RoleBadgeGroup roles={[...uniqueRoles.values()]} max={3} />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => setAssignmentsUser(accountUser)}
+                              aria-label={t("rbac.users.manageRolesOf", { email: accountUser.email })}
+                            >
+                              <ShieldCheck aria-hidden className="size-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">{t("rbac.users.manageRoles", "Manage roles")}</TooltipContent>
+                        </Tooltip>
 
-                  <div className="flex shrink-0 items-center gap-4">
-                    {uniqueRoles.size === 0 ? (
-                      <span className="text-sm text-muted-foreground">{t("rbac.users.noAccess")}</span>
-                    ) : (
-                      <RoleBadgeGroup roles={[...uniqueRoles.values()]} max={3} />
-                    )}
-
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => setAssignmentsUser(accountUser)}
-                          aria-label={t("rbac.users.manageRolesOf", { email: accountUser.email })}
-                        >
-                          <ShieldCheck aria-hidden className="size-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">{t("rbac.users.manageRoles", "Manage roles")}</TooltipContent>
-                    </Tooltip>
-
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex">
-                          <Switch
-                            checked={accountUser.isActive}
-                            disabled={isSelf || setUserActive.isPending}
-                            onCheckedChange={() => handleToggleActive(accountUser)}
-                            aria-label={t("rbac.users.statusFor", { email: accountUser.email })}
-                            aria-describedby={isSelf ? selfHintId : undefined}
-                          />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">
-                        {isSelf
-                          ? t("rbac.users.cannotDeactivateSelf", "You cannot deactivate your own account")
-                          : t("rbac.users.status", "Status")}
-                      </TooltipContent>
-                    </Tooltip>
-                    {/* The tooltip is for the mouse; this is why the switch is disabled, for everyone else. */}
-                    {isSelf && <span id={selfHintId} className="sr-only">{t("rbac.users.cannotDeactivateSelf")}</span>}
-                  </div>
-                </SettingsListItem>
-              )
-            })}
-          </SettingsList>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Switch
+                                checked={accountUser.isActive}
+                                disabled={isSelf || setUserActive.isPending}
+                                onCheckedChange={() => handleToggleActive(accountUser)}
+                                aria-label={t("rbac.users.statusFor", { email: accountUser.email })}
+                                aria-describedby={isSelf ? selfHintId : undefined}
+                              />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            {isSelf
+                              ? t("rbac.users.cannotDeactivateSelf", "You cannot deactivate your own account")
+                              : t("rbac.users.status", "Status")}
+                          </TooltipContent>
+                        </Tooltip>
+                        {/* The tooltip is for the mouse; this is why the switch is disabled, for everyone else. */}
+                        {isSelf && <span id={selfHintId} className="sr-only">{t("rbac.users.cannotDeactivateSelf")}</span>}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
         </TooltipProvider>
       )}
 
