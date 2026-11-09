@@ -8,7 +8,6 @@ import { formatDistanceToNow } from "date-fns"
 import { it as itLocale, enUS, type Locale } from "date-fns/locale"
 import { Clock, Image as FileImage } from '@/components/icons'
 import { rpc } from "@/lib/rpc"
-import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { isStatus } from "@/components/ui/status"
