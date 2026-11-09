@@ -13,13 +13,8 @@ import { TimezoneSelect } from '@/components/ui/timezone-select'
 import { CurrencySelect } from '@/components/ui/currency-select'
 import { useGeneralTabLogic } from '../hooks/use-general-tab'
 import { ContentLanguagesSection } from './content-languages-section'
-import {
-  SettingsActions,
-  SettingsFieldError,
-  SettingsRow,
-  SettingsSection,
-  rowDescriptionDomId,
-} from '@/components/ui/settings-section'
+import { SettingsActions, SettingsFieldError, SettingsRow, SettingsSection } from '@/components/ui/settings-section'
+import { rowDescriptionDomId } from '@/components/ui/settings-section-ids'
 
 /**
  * Site: who owns it, its regional defaults, how long the Trash keeps things, and the languages its content comes in.

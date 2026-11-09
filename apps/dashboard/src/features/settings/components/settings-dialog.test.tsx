@@ -204,12 +204,15 @@ describe("SettingsDialog", () => {
       expect(screen.getByRole("heading", { name: "My account", level: 2 })).toHaveAttribute("id", "settings-page-title")
     })
 
-    it("searches with a real search field in a search landmark", () => {
+    it("searches with a real search field inside a <search> landmark", () => {
       renderDialog("account")
       const field = screen.getByRole("searchbox")
       expect(field).toHaveAttribute("type", "search")
       expect(field).toHaveAttribute("autocomplete", "off")
-      expect(screen.getByRole("search")).toContainElement(field)
+      // The <search> element is the landmark (browsers give it the role "search"); the test library does not map it, so ask for it by tag.
+      const landmark = document.querySelector("search")
+      expect(landmark).not.toBeNull()
+      expect(landmark).toContainElement(field)
     })
 
     it("says how many tabs a search found, and names the page it changes to", () => {

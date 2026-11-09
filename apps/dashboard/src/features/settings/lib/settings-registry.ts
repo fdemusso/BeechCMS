@@ -164,6 +164,17 @@ export interface SettingsMatch {
 /** Case- and accent-insensitive: "attivita" finds "Attività recente". */
 const fold = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim()
 
+/** Whether `needle` is inside `haystack`: plain text, so the matching below reads as one question, not a scan. */
+const contains = (haystack: string, needle: string) => haystack.includes(needle)
+
+/**
+ * The keywords of every entry folded into one text, once. A newline joins them, so a search can never match across two
+ * keywords.
+ */
+const KEYWORD_TEXT: ReadonlyMap<SettingsTab, string> = new Map(
+  SETTINGS_ENTRIES.map((entry) => [entry.id, fold(entry.keywords.join("\n"))]),
+)
+
 /**
  * What the sidebar search shows for `query`: an entry whose own label matches keeps all its bookmarks; otherwise the
  * bookmarks that match; otherwise, if only a keyword matched ("password" for My account), all of them.
@@ -182,15 +193,15 @@ export function matchSettings(
       matches.push({ entry, sections })
       continue
     }
-    if (fold(translate(entry.labelKey, entry.defaultLabel)).includes(needle)) {
+    if (contains(fold(translate(entry.labelKey, entry.defaultLabel)), needle)) {
       matches.push({ entry, sections })
       continue
     }
     const hits = sections.filter(
-      (s) => fold(translate(s.labelKey, s.defaultLabel)).includes(needle) || s.id.includes(needle),
+      (s) => contains(fold(translate(s.labelKey, s.defaultLabel)), needle) || contains(s.id, needle),
     )
     if (hits.length > 0) matches.push({ entry, sections: hits })
-    else if (entry.keywords.some((keyword) => fold(keyword).includes(needle))) matches.push({ entry, sections })
+    else if (contains(KEYWORD_TEXT.get(entry.id) ?? "", needle)) matches.push({ entry, sections })
   }
   return matches
 }

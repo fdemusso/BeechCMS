@@ -5,16 +5,8 @@
 import { useId, type ReactNode } from "react"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { rowDescriptionDomId, sectionDescriptionDomId, sectionDomId } from "@/components/ui/settings-section-ids"
 import { cn } from "@/lib/utils"
-
-/** Id the sidebar bookmarks scroll to: `?settings=<tab>&section=<id>` lands on `settings-section-<id>`. */
-export const sectionDomId = (id: string) => `settings-section-${id}`
-
-/** Id of a row's description, for its control to point at with `aria-describedby`. */
-export const rowDescriptionDomId = (controlId: string) => `${controlId}-description`
-
-/** Id of a section's description, for a form inside it to point at with `aria-describedby`. */
-export const sectionDescriptionDomId = (id: string) => `${sectionDomId(id)}-description`
 
 interface SettingsSectionProps {
   /** Matches the bookmark id in the settings registry. */
