@@ -27,7 +27,7 @@ import { AcceptInvitePage } from "@/pages/accept-invite/AcceptInvitePage"
 import { SetupPage } from "@/pages/setup/SetupPage"
 import { DashboardPage } from "@/features/dashboard"
 import { SettingsDialogHost, SettingsRedirect } from "@/features/settings"
-import { CommandPalette } from "@/features/command-palette"
+import { AppCommandPalette } from "./pages/app-command-palette"
 import { FieldsProvider } from "@/components/fields/context"
 import { useLocaleConfig, useSchema } from "@/features/shared"
 import { contentApi } from "@/features/content-management/api/content.api"
@@ -133,7 +133,7 @@ function RootLayout() {
   if (needsSetup && pathname !== '/setup') return <SplashScreen />
   return (
     <RoutePrefetchProvider prefetch={prefetchRoute}>
-      <CommandPalette />
+      <AppCommandPalette />
       <SettingsDialogHost />
       <Suspense fallback={<SplashScreen />}>
         <Outlet />

@@ -17,15 +17,34 @@ import {
   CommandEmpty,
 } from "@/components/ui/command"
 import { Badge } from "@/components/ui/badge"
-import { SEED_REGISTRY } from "@beechcms/core"
+import type { Seed } from "@beechcms/core"
+import { usePermissions, useSchema } from "@/features/shared"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 import { useCommandPalette } from "./use-command-palette"
-import type { CommandPage } from "./types"
-import { RootView } from "./_parts/root-view"
-import { SeedsView } from "./_parts/seeds-view"
-import { EditSchemaView } from "./_parts/schema-view"
-import { SettingsView } from "./_parts/settings-view"
+import type {
+  CommandPage,
+  PaletteProvider,
+  PaletteRequirement,
+  ResolvedPaletteItem,
+} from "./types"
+import { collectPaletteItems } from "./lib/collect-palette-items"
+import { rankPaletteItems } from "./lib/rank-palette-items"
+import { parsePaletteQuery } from "./lib/parse-palette-query"
+import { createCalculatorProvider } from "./providers/calculator-provider"
+import { createConversionsProvider } from "./providers/conversions-provider"
+import { createNavigationProvider } from "./providers/navigation-provider"
+import { createContentProvider } from "./providers/content-provider"
+import { createToolsProvider } from "./providers/tools-provider"
+import { PaletteList } from "./_parts/palette-list"
 import { SearchResultsView } from "./_parts/search-results-view"
+
+const NO_SEEDS: Seed[] = []
+
+export interface CommandPaletteProps {
+  /** Providers assembled outside the slice (composition root); rendered after the built-ins. */
+  readonly hostProviders: readonly PaletteProvider[]
+}
 
 function EmptyMessage() {
   const { t } = useTranslation()
@@ -72,14 +91,16 @@ function BreadcrumbChips({ pages, popPage }: BreadcrumbChipsProps) {
   )
 }
 
-export function CommandPalette() {
+/** Global command palette: aggregates every provider's rows, ranks them and renders the result. */
+export function CommandPalette({ hostProviders }: CommandPaletteProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { resolvedTheme, setTheme } = useTheme()
   const { open, setOpen, pages, currentPage, pushPage, popPage, search, setSearch } =
     useCommandPalette()
-
-  const seeds = Object.values(SEED_REGISTRY)
+  const { data: seedsData } = useSchema()
+  const seeds = seedsData ?? NO_SEEDS
+  const { can, canAnywhere, canGlobally } = usePermissions()
 
   const PLACEHOLDER: Record<CommandPage, string> = {
     root: t("commandPalette.placeholderRoot"),
@@ -92,8 +113,64 @@ export function CommandPalette() {
 
   const toggleTheme = React.useCallback(() => {
     setTheme(resolvedTheme === "dark" ? "light" : "dark")
-    setOpen(false)
-  }, [resolvedTheme, setTheme, setOpen])
+  }, [resolvedTheme, setTheme])
+
+  // Computed providers come first so equal scores go to the computed row; idle order: navigation, content, host, tools.
+  const providers = React.useMemo<readonly PaletteProvider[]>(
+    () => [
+      createCalculatorProvider({ t }),
+      createConversionsProvider({ t }),
+      createNavigationProvider({ t }),
+      createContentProvider({ t, seeds }),
+      ...hostProviders,
+      createToolsProvider({ t, theme: resolvedTheme, toggleTheme }),
+    ],
+    [t, seeds, hostProviders, resolvedTheme, toggleTheme],
+  )
+
+  const parsed = React.useMemo(() => parsePaletteQuery(search, currentPage), [search, currentPage])
+  const items = React.useMemo(() => {
+    const describeMissing = ({ permission }: PaletteRequirement) =>
+      t("commandPalette.requiresPermission", { permission })
+    const collected = collectPaletteItems(
+      providers,
+      { page: currentPage, query: parsed.text, prefix: parsed.prefix, permissions: { can, canAnywhere, canGlobally } },
+      describeMissing,
+    )
+    return rankPaletteItems(collected, parsed.text)
+  }, [providers, currentPage, parsed, can, canAnywhere, canGlobally, t])
+
+  const copyToClipboard = (value: string) => {
+    if (!navigator.clipboard) {
+      toast.error(t("common.copyFailed"))
+      return
+    }
+    navigator.clipboard.writeText(value).then(
+      () => toast.success(t("commandPalette.copied", { value })),
+      () => toast.error(t("common.copyFailed")),
+    )
+  }
+
+  const perform = (item: ResolvedPaletteItem) => {
+    const { perform: action } = item
+    switch (action.kind) {
+      case "navigate":
+        navigate(action.to)
+        setOpen(false)
+        break
+      case "page":
+        pushPage(action.page)
+        break
+      case "run":
+        action.run()
+        setOpen(false)
+        break
+      case "copy":
+        copyToClipboard(action.value)
+        setOpen(false)
+        break
+    }
+  }
 
   return (
     <>
@@ -114,7 +191,7 @@ export function CommandPalette() {
           }
         }}
       >
-        <Command loop className="border-none bg-transparent shadow-none">
+        <Command loop shouldFilter={false} className="border-none bg-transparent shadow-none">
           <div className="flex flex-col">
             <BreadcrumbChips pages={pages} popPage={popPage} />
             <CommandInput
@@ -127,26 +204,10 @@ export function CommandPalette() {
           <CommandList className="max-h-[min(550px,calc(100dvh-12rem))]">
             <EmptyMessage />
 
-            {currentPage === "root" && (
-              <RootView
-                seeds={seeds}
-                pushPage={pushPage}
-                navigate={navigate}
-                setOpen={setOpen}
-                theme={resolvedTheme}
-                toggleTheme={toggleTheme}
-              />
-            )}
-            {currentPage === "seeds" && (
-              <SeedsView seeds={seeds} navigate={navigate} setOpen={setOpen} mode="navigate" />
-            )}
-            {currentPage === "create" && (
-              <SeedsView seeds={seeds} navigate={navigate} setOpen={setOpen} mode="create" />
-            )}
-            {currentPage === "edit-schema" && <EditSchemaView seeds={seeds} setOpen={setOpen} />}
-            {currentPage === "settings" && <SettingsView setOpen={setOpen} />}
-            {currentPage === "search-results" && (
+            {currentPage === "search-results" ? (
               <SearchResultsView search={search} seeds={seeds} navigate={navigate} setOpen={setOpen} />
+            ) : (
+              <PaletteList items={items} ranked={search.trim().length > 0} onPerform={perform} />
             )}
           </CommandList>
 
