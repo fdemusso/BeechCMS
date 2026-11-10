@@ -1,46 +1,128 @@
-Dashboard completamente RBAC. La dashboard non deve mai rivelare dati a chi non ha lo scope per vederli, e il sistema legacy (`users.role`, claim JWT `role`) esce totalmente dalla dashboard. Ogni tab della dashboard può essere assegnata a uno o più ruoli RBAC: chi non possiede quel ruolo non vede la tab. L'entry editor è fuori da questa iterazione.
+# BeechPal (Cmd+K 2.0) — La Command Palette Universale di BeechCMS
+> **Ispirazione diretta**: Microsoft PowerToys CmdPal (DevPal) & Raycast  
+> **Ruolo**: Hub primario di navigazione, operatività, calcolo e controllo di BeechCMS.
 
-PROBLEMA VERIFICATO NEL CODICE:
-- Il selettore in alto a sinistra del builder usa `KNOWN_DASHBOARD_ROLES = ['admin','editor']`, cioè `users.role` legacy. Ogni account creato via RBAC o invito ha `role = 'editor'` fisso: i ruoli RBAC reali (SuperAdmin, ruoli custom) sono invisibili.
-- Il gate di modifica è incoerente: il middleware richiede `manage_users` globale, l'handler richiede legacy admin (`canEditDashboard` sul claim JWT). Il bottone "Personalizza" usa il claim JWT.
-- I widget per seed (`/api/widget/*/:seed`) sono già sicuri: `content:read` sullo slug del seed più i controlli per colonna.
-- LEAK REALE: tutte le rotte `/api/content/stats/*` hanno come unico gate `view_analytics` GLOBALE e non filtrano per seed. `total` somma tutti i seed, `breakdown` elenca nome e conteggio di ogni seed, `recent-activity` restituisce il log di tutti i seed (utente, email, `entity_slug`, `entity_id`, `details`), `media-library` e `unused-media` elencano i file di tutti i seed, `setup-checklist` espone gli slug. Chi ha `view_analytics` e `content:read` solo su `prodotti` vede attività e conteggi di `ordini`.
-- I widget non dichiarano quali permessi richiedono e il renderer non filtra nulla.
-- Il layout (JSON in `dashboard_layouts`) può contenere `config.seedSlug` di seed che il lettore non può vedere.
-- Gli scope sono già per seed: l'assegnazione è (utente, ruolo, scope) con scope = `*` o slug del seed; il seed sta sull'assegnazione, non sul ruolo. Oggi solo `content:*` è valutato davvero per seed; `view_analytics`, `manage_users` e `manage_roles` sono valutati solo a livello globale.
+---
 
-DECISIONI PRESE:
-1. Il layout non è mai l'autorità. La visibilità delle tab per ruolo è organizzazione; la protezione dei dati sta nelle rotte API, che applicano RBAC per scope. La UI nasconde per cortesia, il server rifiuta.
-2. Un solo layout (scope `default`). Si eliminano gli scope `role:*`, il selettore ruoli del builder, `KNOWN_DASHBOARD_ROLES`, `roleScope`, `resolveDashboardScopeChain` e le rotte `/:scope` e `/scopes`. Le righe `role:*` già nel DB sono ignorate (il DB è solo di test, nessuna compatibilità).
-3. Ogni tab (`DashboardPageLayout`) ha un campo opzionale `roleIds` (id dei ruoli RBAC, non i nomi). `roleIds` assente o vuoto = tab visibile a tutti. Non vuoto = visibile a chi ha almeno uno di quei ruoli con un'assegnazione attiva, in qualunque scope (le assegnazioni decadute non contano).
-4. Il server filtra le tab prima di servire il layout, così configurazioni e widget di tab non autorizzate non arrivano al client. Toglie anche i widget con `config.seedSlug` di un seed che il chiamante non può leggere.
-5. I `roleIds` sono validati al salvataggio: un id sconosciuto è un 422, mai rimosso in silenzio (svuotare la lista renderebbe la tab pubblica). Un id orfano dopo la cancellazione di un ruolo non conferisce accesso a nessuno (fail-closed); il builder lo mostra come "ruolo eliminato", rimovibile. Nessun hook sulla cancellazione del ruolo.
-6. Zero legacy nella dashboard: via `canEditDashboard`, `ROLES_ALLOWED_TO_EDIT_DASHBOARD`, `user.role` in `dashboard-page`, le righe legacy di `/api/dashboard-layout` in `PROTECTED_ROUTES`. Via `role` da `ActorContext`/`resolveActor` dopo aver verificato che nessuna policy in core lo legga. Il developer mantiene sempre SuperAdmin, quindi non serve nessun bypass `isDeveloper`.
-7. Nuovo permesso `manage_layout`: chi lo possiede può modificare il contenuto (sezioni, colonne, widget) delle tab dei ruoli che possiede. Esempio: un Commerciante vede la dashboard dei Commercianti ma non la modifica; se gli viene dato `manage_layout` può agire su quella tab. Il permesso può arrivare da qualunque ruolo posseduto (aggiunto al ruolo Commerciante, oppure un secondo ruolo "Layout Manager" assegnato al singolo utente). Servono: voce in `PERMISSIONS`, migrazione che allarghi il CHECK di `role_permissions` (rebuild della tabella, come `0032`), inserimento nel ruolo SuperAdmin, UI dei ruoli, locale, doc RBAC.
-8. Enforcement del salvataggio: il layout è un solo documento, quindi il `PUT` di chi non ha poteri strutturali viene confrontato con il layout salvato. Le pagine non sue devono essere identiche; non può aggiungere, rimuovere o riordinare pagine; non può cambiare `roleIds` (altrimenti estenderebbe da solo la visibilità). Compare-and-swap su `updated_at` per evitare sovrascritture tra editor. Il builder di chi ha poteri parziali mostra solo le sue tab, senza gestione pagine né ruoli.
-9. Ogni `WidgetDefinition` dichiara `requires` (campo opzionale additivo in `@beechcms/widget-sdk`): un permesso globale, oppure `content:read` sul seed in `config.seedSlug`, oppure `content:read` su almeno un seed. Il renderer lo valuta con `usePermissions` (stesse funzioni di core). Un widget non autorizzato è nascosto, e una sezione senza widget visibili sparisce. Il builder offre solo i widget che l'autore può usare; il generatore del default esclude ciò che l'utente non può vedere.
-10. Chiusura delle sorgenti dati (Fase 1, indipendente dal resto):
-   - `stats/total`, `breakdown`, `recent-activity` passano da `view_analytics` globale ad `AUTHED` con proiezione in-handler per `content:read` per seed (stesso pattern già ratificato di drafts e search, helper `filterSeedsByPermission`). Conteggi sommati sui soli seed leggibili; il log filtrato per `entity_slug` nei seed leggibili; le righe non legate a un seed (utenti, impostazioni) richiedono `manage_users`.
-   - `health`, `cloudflare`, `storage/sync` restano `view_analytics` globale (infrastruttura, non dati di seed).
-   - `setup-checklist` richiede un permesso amministrativo (proposta: `manage_users` globale).
-   - Test d'integrazione di isolamento: utente con `content:read` su `prodotti` e `view_analytics` non riceve nulla di `ordini`.
+## 1. Visione del Prodotto
 
-DA DECIDERE (con proposta):
-A. Media library (`media-library`, `unused-media`): non sono dati di un seed. Proposta: `content:read` globale. Alternativa: `view_analytics` globale come oggi.
-B. Chi vede tutte le tab e chi può fare operazioni strutturali (creare, eliminare, riordinare tab, assegnare `roleIds`). Conflitto emerso: `manage_layout` modifica solo le tab dei propri ruoli, quindi serve un'altra regola per chi vede e gestisce tutto. Proposta: `manage_roles` globale (assegnare ruoli alle tab è amministrazione dei ruoli) per vedere tutte le tab e fare le operazioni strutturali; SuperAdmin ha entrambi. Da confermare.
-C. Scope di `manage_layout` per la dashboard. Proposta: assegnazione globale (`*`); l'assegnazione su un seed vale solo per l'entry editor di quel seed (fuori da questa iterazione).
-D. Tab senza widget autorizzati. Proposta: nascosta del tutto. Alternativa: mostrata con un messaggio.
-E. Ordine di consegna. Proposta: Fase 1 (chiusura leak e test di isolamento) per prima, da sola, prima di toccare layout e UI.
+Attualmente la Command Palette (`Cmd+K`) di BeechCMS funge da semplice switcher di pagine e schemi. L'obiettivo è trasformarla in **BeechPal**: la superficie operativa e di navigazione principale del CMS, ispirata alla UX e all'architettura modulare di **Microsoft PowerToys CmdPal (`src/modules/cmdpal`)**.
 
-FASI:
-1. Sorgenti dati: proiezione per scope su stats, gate delle rotte infrastrutturali, decisione sulla media library, test di isolamento.
-2. Layout e tab per ruolo: `roleIds`, filtro lato server, validazione, rimozione di scope per ruolo e legacy, gate su permesso RBAC, builder con multi-select di ruoli per tab (con endpoint developer-free che restituisce id, nome e icona dei ruoli, perché `/api/rbac/roles` richiede `manage_users` o `manage_roles` e lo slice dashboard non può importare lo slice `rbac`), empty state, ricaduta sulla prima tab visibile se l'URL punta a una tab non visibile, invalidazione del layout quando cambiano le assegnazioni dell'utente.
-3. `requires` nei widget `core/*` e nel renderer.
-4. `manage_layout`: permesso, migrazione, enforcement a diff con compare-and-swap.
-5. Pulizia: `role` fuori da `ActorContext`, doc (`06-role-based-dashboards.md`, `docs/api-reference.md`, `docs/reference/rbac-api.md`).
+L'utente non deve più navigare tra menu annidati o aprire tab esterne per compiti veloci: tramite la palette esegue query ibride (lessicali e semantiche), lancia comandi di sistema, calcola dati in-line, converte unità e valute, prende appunti al volo e manipola contenuti da tastiera.
 
-FUORI SCOPE:
-- Entry editor e gate `canEditLayout` / `/api/schema/:slug/layout` (iterazione successiva; `manage_layout` per seed è già previsto lì).
-- Dashboard per utente (`user:<id>`): esplicitamente escluso dalla serie dashboard.
-- Layout diversi per ruolo (un layout per ruolo con precedenza): sostituito dalle tab per ruolo.
-- Priorità tra ruoli multipli: non serve, perché ogni tab ha la sua lista di ruoli e un utente vede l'unione delle tab dei suoi ruoli.
+---
+
+## 2. Pilastri Chiave Ispirati a PowerToys CmdPal
+
+### A. UI a Doppio Pannello (Master-Detail / Inspector)
+* **CmdPal Pattern**: Elementi con metadati ricchi mostrano a destra un pannello di dettaglio (`Details` / `Inspector`).
+* **In BeechCMS**:
+  * **Record / Contenuto**: anteprima del record, stato (bozza/pubblicato), autore, data ultima modifica, excerpt con highlight.
+  * **Media**: anteprima visiva, dimensioni, peso in KB, MIME type, copy URL pubblico.
+  * **Impostazione**: spiegazione del parametro, stato attuale (es. "SMTP: Configurato"), badge di permessi richiesti.
+  * **Calcolatrice / Conversione**: scomposizione formula, valori alternativi (percentuale, formattazione valuta, float puro).
+  * **Quick Notes**: anteprima dell'appunto locale salvato con conteggio caratteri e timestamp.
+
+### B. Barra delle Azioni Secondarie (Action Bar & Modifiers)
+* **CmdPal Pattern**: Ogni elemento ha azioni secondarie contestuali accessibili via tastiera:
+  * `Enter`: Azione primaria (apri / naviga / applica).
+  * `Cmd+Enter` / `Ctrl+Enter`: Azione secondaria (es. apri in nuova scheda, oppure modifica schema invece di aprire lista).
+  * `Cmd+C` / `Ctrl+C`: Copia negli appunti (ID record, slug, URL media, o risultato del calcolo).
+  * `Tab` o `Cmd+J`: Apre il sotto-menu delle azioni disponibili per l'elemento evidenziato.
+
+### C. Prefissi di Routing & Provider Modulari
+* **CmdPal Pattern**: Ricerca universale unificata di default, con attivazione mirata di provider tramite prefissi:
+  * `>` : **Comandi di Sistema & Sviluppo** (es. svuota cache locale, toggle theme, audit schema, diagnostica Worker/D1).
+  * `=` : **Calcolatrice & Matematica** (es. `= 120 * 1.22`, `= 1024 / 8`).
+  * `$` o `~` : **Conversioni Rapide** (valute es. `150 eur to usd`, unità es. `16px to rem`, `5GB to MB`).
+  * `#` : **Ricerca Ibrida Contenuti** (alimentata da `@beechcms/search-client`).
+  * `@` : **Utenti, Ruoli & Permessi**.
+  * `!` o `note:` : **Quick Notes** (scratchpad locale istantaneo).
+  * `?` : **Guida & Scorciatoie**.
+
+### D. Pinned / Quick-Access Shelf (Preferiti & Frequenti)
+* Sezione fissa o in cima alla vista `root` per le 3-5 azioni o viste più usate dall'utente (salvate in `localStorage`), con possibilità di aggiungere azioni ai preferiti (Pin).
+
+---
+
+## 3. Strumenti In-line Integrati (Built-in Quick Tools)
+
+### 1. Calcolatrice In-line
+* Risolve istantaneamente formule matematiche digitate nella barra di ricerca (anche senza prefisso `=` se viene rilevata un'espressione aritmetica).
+* Parser AST locale sicuro (senza `eval`).
+* Tasto `Enter` copia il risultato negli appunti e chiude la palette con feedback toast.
+
+### 2. Convertitore di Unità (CSS, Storage, Misure)
+* **Design & CSS**: `16px to rem`, `1.5rem to px`, conversioni colore (`#ffffff to rgb`).
+* **Storage**: `1024MB to GB`, `5000000 bytes to MB`.
+* **Tempo & Date**: conversione timestamp Unix (`now to unix`, `timestamp to date`).
+
+### 3. Convertitore di Valuta
+* Sintassi: `100 EUR in USD`, `50 GBP to EUR`.
+* Caching locale dei tassi di cambio con aggiornamento periodico (degradazione trasparente offline).
+
+### 4. Quick Notes (Scratchpad Locale)
+* Una semplice finestra/scheda locale interna alla palette per catturare appunti al volo.
+* I dati risiedono puramente in `localStorage`.
+* Permette di salvare un appunto al volo (es. digitando `note: Contattare fornitore domani`), visualizzare gli appunti salvati nel pannello di dettaglio, copiarli con `Cmd+C` o eliminarli con `Delete`.
+
+---
+
+## 4. Ricerca Avanzata con `@beechcms/search-client`
+
+* Sostituzione della chiamata monolitica semplice con il client dedicato [`@beechcms/search-client`](file:///C:/Users/flavi/Desktop/beech-cms/packages/search-client).
+* **Funzionalità integrate**:
+  * **Tier 1 (Lessicale)**: ricerca ultra-rapida locale sui record del manifest (titolo e campi testuali).
+  * **Tier 2 (Semantico)**: chiamata embedding asincrona (`/api/v1/public/search/embed`) e calcolo dot-product locale sui vettori memorizzati.
+  * **Reciprocal Rank Fusion (RRF)**: combinazione e riordino deterministico dei punteggi lessicali e semantici (`k = 60`).
+  * **Debouncing & Cache integrati**: 250ms di debounce nativo e cache fingerprint locale per non saturare la rete.
+
+---
+
+## 5. Accesso Totale e Azioni di Contesto su BeechCMS
+
+### A. Deep Settings & Single-Parameter Jump
+* Indicizzazione non solo delle categorie, ma di **tutti i singoli switch e parametri di configurazione** (es. "SMTP", "Turnstile", "Backup D1").
+* Possibilità di commutare al volo le impostazioni binarie (es. "Toggle Dark Mode").
+
+### B. Consapevolezza del Contesto (Context-Aware Actions)
+* La palette rileva la rotta attiva:
+  * **In modifica record (`/content/articles/123`)**:
+    * Le prime azioni proposte sono: "Salva come bozza", "Pubblica ora", "Duplica record", "Copia ID (`123`)", "Vedi storico revisioni".
+  * **Nella Media Library (`/media`)**:
+    * "Carica nuovo asset", "Filtra per immagini", "Svuota cestino".
+
+### C. Developer & System Operations
+* "Audit Schemi D1", "Verifica stato Worker", "Esporta Seed in JSON", "Visualizza log automazioni".
+
+---
+
+## 6. Architettura Tecnica e Invarianti
+
+1. **Architettura a Provider Disaccoppiata**:
+   ```ts
+   export interface PaletteContext {
+     currentRoute: string
+     theme: string
+     permissions: Set<string>
+   }
+
+   export interface PaletteProvider {
+     id: string
+     prefix?: string
+     match: (query: string, ctx: PaletteContext) => boolean
+     getItems: (query: string, ctx: PaletteContext) => Promise<CommandAction[]> | CommandAction[]
+   }
+   ```
+2. **Zero-Lag Typing & Concurrency**:
+   * I provider locali (Calcolatrice, Conversioni, Quick Notes, Comandi statici) rispondono in modo sincrono a 0 ms.
+   * Il provider di ricerca [`SearchClient`](file:///C:/Users/flavi/Desktop/beech-cms/packages/search-client/src/client.ts) gira in background con gestione del segnale di annullamento.
+3. **Rispetto delle Regole Monorepo (`_config/architecture.md`)**:
+   * Nessun accesso diretto SQL; rispetto dei contratti dei permessi e del `SEED_REGISTRY` di `@beechcms/core`.
+
+---
+
+## 7. Out of Scope (Decisioni di Sparring)
+
+* **Workers AI integrato**: *ESCLUSO per ora*. Lasciamo predisposta l'interfaccia a provider, ma non implementiamo feature generative o LLM fino a una valutazione strategica dell'AI in BeechCMS.
+* **Sincronizzazione Cloud delle Quick Notes**: *ESCLUSA*. Le note restano strettamente confinate in `localStorage` sul browser dell'utente (zero complessità backend, zero migration D1).
