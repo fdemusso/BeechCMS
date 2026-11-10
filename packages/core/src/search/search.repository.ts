@@ -16,6 +16,8 @@ export interface SearchResultRow {
   schemaSlug: string
   slug: string | null
   status: string
+  /** Unix seconds of the live row's last write (`content_{slug}.updated_at`). */
+  updatedAt: number
   title: string | null
   excerpt: string
   rank: number

@@ -66,6 +66,14 @@ export interface CountSinceOptions {
   visibility?: ActivityLogVisibility
 }
 
+/** The actor of the most recent authoring activity recorded for one content entry. */
+export interface ContentLastWriter {
+  /** The content entry id (`activity_logs.entity_id`). */
+  entryId: string
+  userName: string | null
+  userEmail: string
+}
+
 export interface IActivityLogRepository {
   /**
    * Return the most recent activity entries matching the given filters.
@@ -85,4 +93,12 @@ export interface IActivityLogRepository {
    * is one call so the repository contract stays narrow and deterministic.
    */
   countSince(options: CountSinceOptions): Promise<number>
+
+  /**
+   * For each id in `entryIds`, the actor of its most recent `create`, `update` or `publish` row with
+   * `entityType = 'content'`. Ids with no such row are absent from the result; order is unspecified.
+   * Keyed on the entry id alone: public-API writes store the entry slug, not the seed slug, in
+   * `entitySlug`. An empty `entryIds` resolves to `[]`.
+   */
+  lastContentWriters(entryIds: readonly string[]): Promise<ContentLastWriter[]>
 }

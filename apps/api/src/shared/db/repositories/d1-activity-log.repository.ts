@@ -11,6 +11,7 @@ import type {
   ActivityAction,
   EntityType,
   CountSinceOptions,
+  ContentLastWriter,
 } from '@beechcms/core'
 
 interface ActivityLogRow {
@@ -25,6 +26,14 @@ interface ActivityLogRow {
   details: string | null
   created_at: number
 }
+
+interface ContentLastWriterRow {
+  entity_id: string
+  user_name: string | null
+  user_email: string
+}
+
+const CONTENT_AUTHORING_ACTIONS = ['create', 'update', 'publish'] as const satisfies readonly ActivityAction[]
 
 /**
  * D1-backed implementation of {@link IActivityLogRepository}.
@@ -95,6 +104,38 @@ export class D1ActivityLogRepository implements IActivityLogRepository {
       .bind(...bindings)
       .first<{ count: number }>()
     return row?.count ?? 0
+  }
+
+  /**
+   * Latest authoring actor per entry, resolved in one statement.
+   *
+   * Approximation: a draft save logs `update`, so the last writer can be someone whose draft is not
+   * yet live. Accepted, since the palette row shows who last worked on the entry.
+   */
+  async lastContentWriters(entryIds: readonly string[]): Promise<ContentLastWriter[]> {
+    if (entryIds.length === 0) return []
+
+    const queryResult = await this.database
+      .prepare(
+        `SELECT entity_id, user_name, user_email
+           FROM (
+             SELECT entity_id, user_name, user_email,
+                    ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at DESC, rowid DESC) AS writer_rank
+               FROM activity_logs
+              WHERE entity_type = 'content'
+                AND entity_id IN (SELECT value FROM json_each(?))
+                AND action IN (SELECT value FROM json_each(?))
+           )
+          WHERE writer_rank = 1`
+      )
+      .bind(JSON.stringify(entryIds), JSON.stringify(CONTENT_AUTHORING_ACTIONS))
+      .all<ContentLastWriterRow>()
+
+    return (queryResult.results ?? []).map((row) => ({
+      entryId: row.entity_id,
+      userName: row.user_name,
+      userEmail: row.user_email,
+    }))
   }
 }
 

@@ -10,9 +10,10 @@
  * FTS is per-seed (`fts_{slug}`), joined with `content_{slug}` for metadata.
  */
 
-import type { FtsRow, FtsQueryParams, SearchResultItem } from '../types'
+import type { ContentLastWriter, SearchResultRow } from '@beechcms/core'
+import type { FtsQueryParams, SearchResultItem } from '../types'
 
-export type { FtsRow, FtsQueryParams, SearchResultItem }
+export type { FtsQueryParams, SearchResultItem }
 
 // ─── Cursor encoding ─────────────────────────────────────────────────────────
 
@@ -91,42 +92,33 @@ function stripHtmlPreservingMarkTags(htmlSnippet: string): string {
 }
 
 /**
- * Maps a raw database {@link FtsRow} (snake_case) to the wire-format
- * {@link SearchResultItem} returned to API consumers.
+ * Picks the label shown as a result's author: the trimmed user name, or the
+ * e-mail when the account has no usable name.
  *
- * HTML tags in the excerpt are stripped via {@link stripHtmlPreservingMarkTags}.
- *
- * @param row - Raw row from the UNION ALL FTS query.
- * @returns A sanitised {@link SearchResultItem} ready for JSON serialisation.
+ * @param writer - Last authoring actor of a content entry.
+ * @returns The user name when non-blank, otherwise the user e-mail.
  */
-export function mapFtsRow(row: FtsRow): SearchResultItem {
-  return {
-    id:          row.entry_id,
-    schema_slug: row.schema_slug,
-    slug:        row.slug,
-    status:      row.status,
-    title:       row.title ?? '',
-    excerpt:     stripHtmlPreservingMarkTags(row.excerpt ?? ''),
-    data:        {},
-  }
+export function authorDisplayName(writer: ContentLastWriter): string {
+  const trimmedName = writer.userName?.trim()
+  return trimmedName ? trimmedName : writer.userEmail
 }
 
 /**
  * Maps a repository-shaped {@link SearchResultRow} (camelCase) to the
  * wire-format {@link SearchResultItem} returned by the `GET /api/search` route.
  *
- * This is the counterpart of {@link mapFtsRow} for rows that have already been
- * normalised by the search repository layer.
- *
- * @param row - Repository result row with camelCase field names.
+ * @param row        - Repository result row with camelCase field names.
+ * @param authorName - Display name of the entry's last writer, `null` when unknown.
  * @returns A sanitised {@link SearchResultItem} ready for JSON serialisation.
  */
-export function mapSearchResultRow(row: import('@beechcms/core').SearchResultRow): SearchResultItem {
+export function mapSearchResultRow(row: SearchResultRow, authorName: string | null): SearchResultItem {
   return {
     id:          row.entryId,
     schema_slug: row.schemaSlug,
     slug:        row.slug,
     status:      row.status,
+    updated_at:  row.updatedAt,
+    author_name: authorName,
     title:       row.title ?? '',
     excerpt:     stripHtmlPreservingMarkTags(row.excerpt ?? ''),
     data:        {},

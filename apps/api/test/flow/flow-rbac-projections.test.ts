@@ -40,6 +40,7 @@ describe('Flow: RBAC scoped projections', () => {
         id TEXT NOT NULL PRIMARY KEY,
         slug TEXT NOT NULL UNIQUE,
         status TEXT NOT NULL DEFAULT 'draft',
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
         title TEXT,
         body TEXT,
         deleted_at INTEGER

@@ -9,22 +9,41 @@
  * Responsibilities:
  * - Parse and validate query parameters.
  * - Delegate the data fetch and count to the injected `searchRepository`.
+ * - Resolve each page entry's last writer through the injected `activityLogRepository`.
  * - Assemble and return the paginated {@link SearchResponse}.
  *
  * The handler intentionally contains no SQL — all data access is performed
- * through the `searchRepository` injected by `repositoryMiddleware`.
+ * through the `searchRepository` and `activityLogRepository` injected by `repositoryMiddleware`.
  */
 
 import type { Context } from 'hono'
+import type { IActivityLogRepository } from '@beechcms/core'
 import type { AppEnv } from '../../../types'
 import type { ZodQueryInput } from '../../../shared/utils/zod-query'
 import type { fullTextSearchQuerySchema } from '../search.schema'
 import { SEARCH_ERRORS, SEARCH_LIMITS } from '../constants'
 import type { SearchResponse } from '../types'
-import { encodeCursor, mapSearchResultRow } from '../utils/search-utils'
+import { authorDisplayName, encodeCursor, mapSearchResultRow } from '../utils/search-utils'
 import { resolveEffectivePermissions } from '../../../shared/rbac/effective-permissions'
 import { filterSeedsByPermission } from '../../../shared/rbac/scoped-projection'
 import { loadDisplayLocaleConfig, resolveDisplayName } from '../../../shared/localization/display-name'
+
+/**
+ * Maps entry ids to the display name of their last writer.
+ * An unreadable audit trail yields an empty map: author data is decorative and must never fail a search.
+ */
+async function loadAuthorNames(
+  repository: IActivityLogRepository,
+  entryIds: readonly string[],
+): Promise<Map<string, string>> {
+  try {
+    const writers = await repository.lastContentWriters(entryIds)
+    return new Map(writers.map((writer) => [writer.entryId, authorDisplayName(writer)]))
+  } catch (error) {
+    console.error('fullTextSearchHandler: could not load content writers', error)
+    return new Map()
+  }
+}
 
 /**
  * Handles `GET /api/search?q=…&schema_slug=…&status=…&limit=20&cursor=…`.
@@ -92,11 +111,15 @@ export async function fullTextSearchHandler(c: Context<AppEnv, '/', ZodQueryInpu
     return c.json({ items: [], nextCursor: null, total: countResult.total } satisfies SearchResponse, 200)
   }
 
-  const localeConfig = await loadDisplayLocaleConfig(c.get('siteSettingsRepository'), searchableSeeds)
+  const [localeConfig, authorNames] = await Promise.all([
+    loadDisplayLocaleConfig(c.get('siteSettingsRepository'), searchableSeeds),
+    loadAuthorNames(c.get('activityLogRepository'), pageRows.map((row) => row.entryId)),
+  ])
   const seedsBySlug = new Map(searchableSeeds.map((seed) => [seed.slug, seed]))
   const items = pageRows.map((row) => {
     const seed = seedsBySlug.get(row.schemaSlug)
-    return mapSearchResultRow(seed ? { ...row, title: resolveDisplayName(seed, row.title, localeConfig) } : row)
+    const localizedRow = seed ? { ...row, title: resolveDisplayName(seed, row.title, localeConfig) } : row
+    return mapSearchResultRow(localizedRow, authorNames.get(row.entryId) ?? null)
   })
 
   return c.json({ items, nextCursor, total: countResult.total } satisfies SearchResponse, 200)

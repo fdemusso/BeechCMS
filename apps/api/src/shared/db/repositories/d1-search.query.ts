@@ -20,6 +20,7 @@ export interface FtsRow {
   schema_slug: string
   slug:        string | null
   status:      string
+  updated_at:  number
   title:       string | null
   excerpt:     string
   rank:        number
@@ -114,7 +115,7 @@ export function buildFtsQuery(params: FtsQueryParams, seeds: Seed[]): FtsQueryRe
 
   if (searchableSeeds.length === 0) {
     return {
-      sql:        "SELECT NULL as entry_id, NULL as schema_slug, NULL as slug, NULL as status, NULL as title, '' as excerpt, 0 as rank WHERE 1=0",
+      sql:        "SELECT NULL as entry_id, NULL as schema_slug, NULL as slug, NULL as status, NULL as updated_at, NULL as title, '' as excerpt, 0 as rank WHERE 1=0",
       binds:      [],
       countSql:   'SELECT 0 as total',
       countBinds: [],
@@ -157,7 +158,7 @@ export function buildFtsQuery(params: FtsQueryParams, seeds: Seed[]): FtsQueryRe
     }
 
     perSeedQueryParts.push(
-      `SELECT f.entry_id, '${seed.slug}' AS schema_slug, ce.slug, ce.status,` +
+      `SELECT f.entry_id, '${seed.slug}' AS schema_slug, ce.slug, ce.status, ce.updated_at,` +
       ` ce.${titleColumn} AS title,` +
       ` snippet(${ftsTable}, -1, '<mark>', '</mark>', '…', 16) AS excerpt,` +
       ` bm25(${ftsTable}) AS rank` +
@@ -205,6 +206,7 @@ export function mapFtsRowToResultRow(row: FtsRow): SearchResultRow {
     schemaSlug: row.schema_slug,
     slug: row.slug,
     status: row.status,
+    updatedAt: row.updated_at,
     title: row.title,
     excerpt: row.excerpt,
     rank: row.rank,

@@ -11,29 +11,6 @@
 
 import type { SearchResultRow } from '@beechcms/core'
 
-// ─── FTS raw row ─────────────────────────────────────────────────────────────
-
-/**
- * Raw database row returned by the UNION ALL FTS query.
- * Field names use snake_case to match SQLite column aliases verbatim.
- */
-export interface FtsRow {
-  /** Unique identifier of the matching content entry. */
-  entry_id:    string
-  /** Slug of the seed (content type) the entry belongs to. */
-  schema_slug: string
-  /** URL-friendly slug of the entry, if set. */
-  slug:        string | null
-  /** Publication status of the entry (e.g. `published`, `draft`). */
-  status:      string
-  /** Display title of the entry, sourced from the seed's `displayNameAlias` column. */
-  title:       string | null
-  /** HTML snippet produced by SQLite's `snippet()` function highlighting matched terms. */
-  excerpt:     string
-  /** BM25 relevance score; lower (more negative) means more relevant. */
-  rank:        number
-}
-
 // ─── Wire-format response types ──────────────────────────────────────────────
 
 /**
@@ -49,6 +26,13 @@ export interface SearchResultItem {
   slug:        string | null
   /** Publication status of the entry. */
   status:      string
+  /** Unix seconds of the entry's last write to its live row. */
+  updated_at:  number
+  /**
+   * Display name of whoever last created, updated or published the entry (user name, or e-mail when
+   * the account has no name); `null` when no such activity is recorded.
+   */
+  author_name: string | null
   /** Display title of the entry; empty string when the entry has no title. */
   title:       string
   /** Plain-text excerpt with `<mark>…</mark>` wrappers around matched terms. */

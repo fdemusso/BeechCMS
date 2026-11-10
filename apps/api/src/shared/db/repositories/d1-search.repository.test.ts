@@ -33,6 +33,7 @@ describe('D1SearchRepository', () => {
       schema_slug: 'posts',
       slug: 'hello',
       status: 'published',
+      updated_at: 1_700_000_000,
       title: 'Hello',
       excerpt: '<mark>Hi</mark>',
       rank: -3.2,
@@ -48,11 +49,31 @@ describe('D1SearchRepository', () => {
         schemaSlug: 'posts',
         slug: 'hello',
         status: 'published',
+        updatedAt: 1_700_000_000,
         title: 'Hello',
         excerpt: '<mark>Hi</mark>',
         rank: -3.2,
       },
     ])
+  })
+
+  it('the per-seed SELECT and the empty sentinel both project updated_at right after status', async () => {
+    const searchable = makeMockDb()
+    const sentinel = makeMockDb()
+    const noSearchableSeeds: Seed[] = [{ slug: 'plain', label: 'Plain', displayNameAlias: 'name', branches: [] }]
+
+    await new D1SearchRepository(searchable.db).search(
+      { queryText: 'hello', schemaSlug: null, statusFilter: null, limit: 10, cursor: null },
+      seeds,
+    )
+    await new D1SearchRepository(sentinel.db).search(
+      { queryText: 'hello', schemaSlug: null, statusFilter: null, limit: 10, cursor: null },
+      noSearchableSeeds,
+    )
+
+    // UNION ALL is positional: both arms must list updated_at in the same column slot.
+    expect(searchable.prepareMock.mock.calls[0]![0]).toContain('ce.slug, ce.status, ce.updated_at,')
+    expect(sentinel.prepareMock.mock.calls[0]![0]).toContain('NULL as status, NULL as updated_at, NULL as title')
   })
 
   it('returns [] on EMPTY_QUERY (single-character terms)', async () => {
