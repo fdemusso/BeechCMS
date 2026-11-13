@@ -4,6 +4,7 @@
 
 import type { Permission, Scope } from "@beechcms/core"
 import type { IconComponent } from "@/lib/icon-registry"
+import type { Status } from "@/components/ui/status"
 import type { PermissionsApi } from "@/features/shared"
 
 // Tutte le pagine navigabili nella palette
@@ -13,7 +14,7 @@ export type CommandPage =
   | "create"
   | "settings"
   | "edit-schema"
-  | "search-results"
+  | "actions" // Engine-owned: reached only through openActions, never declared by a provider
 
 // Contratto del hook — non esposto come Context React
 export interface CommandPaletteState {
@@ -25,6 +26,10 @@ export interface CommandPaletteState {
   popPage: () => void
   search: string
   setSearch: (s: string) => void
+  /** The row whose actions the "actions" page lists, frozen when the page opened. null elsewhere. */
+  actionsTarget: ResolvedPaletteItem | null
+  /** Freezes `target`, remembers the current query and pushes the "actions" page. */
+  openActions: (target: ResolvedPaletteItem) => void
 }
 
 /** The three questions a provider may ask; same evaluator as the rest of the dashboard. */
@@ -38,14 +43,24 @@ export interface PaletteRequirement {
 }
 
 /** A leading character that routes the query to the providers declaring it. Engine-owned table: lib/parse-palette-query.ts. */
-export type PalettePrefix = "="
+export type PalettePrefix = "=" | "/"
 
 /** What selecting a row does. The engine closes the palette after `navigate`, `run` and `copy`. */
 export type PalettePerform =
   | { readonly kind: "navigate"; readonly to: string }
-  | { readonly kind: "page"; readonly page: CommandPage }
+  | { readonly kind: "page"; readonly page: Exclude<CommandPage, "actions"> }
   | { readonly kind: "run"; readonly run: () => void }
   | { readonly kind: "copy"; readonly value: string }
+
+/** A secondary action of one row. Runs through the same `perform` path as the row itself. */
+export interface PaletteRowAction {
+  /** Unique within its row, e.g. "copy-id". */
+  readonly id: string
+  readonly label: string
+  readonly icon: IconComponent
+  /** Never `page`: an action ends the interaction (the engine closes after it). */
+  readonly perform: Exclude<PalettePerform, { readonly kind: "page" }>
+}
 
 export interface PaletteItem {
   /** Stable across sessions and languages: `${providerId}:${key}`. Persisted by pins (roadmap 9). */
@@ -54,6 +69,8 @@ export interface PaletteItem {
   readonly section: string
   readonly label: string
   readonly description?: string
+  /** A content status, rendered as a StatusBadge before the second line (design rule: status only as a badge). */
+  readonly status?: Status
   readonly icon: IconComponent
   readonly keywords?: readonly string[]
   /** Key caps rendered on the row, e.g. ["Alt", "N"]. Display only. */
@@ -65,6 +82,11 @@ export interface PaletteItem {
    */
   readonly score?: number
   readonly perform: PalettePerform
+  /**
+   * Secondary actions, in display order. The first runs on Mod+Enter; all are listed on the actions page (Shift+Enter).
+   * Never shown or run while the row is disabled.
+   */
+  readonly actions?: readonly PaletteRowAction[]
 }
 
 export interface PaletteQueryContext {
@@ -87,6 +109,17 @@ export interface PaletteProvider {
   readonly prefix?: PalettePrefix
   /** Synchronous, side-effect free. A surface the caller may not see is simply not returned. */
   readonly getItems: (context: PaletteQueryContext) => readonly PaletteItem[]
+}
+
+/**
+ * A remote source. Routed like `PaletteProvider` (`pages`, `prefix`); its rows arrive after the local
+ * ones, keep the order it returns and are never re-ranked lexically.
+ */
+export interface PaletteAsyncProvider extends Pick<PaletteProvider, "id" | "pages" | "prefix"> {
+  /** Shortest `query` that triggers a fetch; below it the provider is silent and never pending. */
+  readonly minQueryLength: number
+  /** Must forward `signal` to its request. A rejection drops this source's rows silently. */
+  readonly fetchItems: (context: PaletteQueryContext, signal: AbortSignal) => Promise<readonly PaletteItem[]>
 }
 
 export interface ResolvedPaletteItem extends PaletteItem {

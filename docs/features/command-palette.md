@@ -32,6 +32,8 @@ The **Command Palette** is a global, keyboard-driven navigation spotlight built 
 | <kbd>⌘</kbd> + <kbd>K</kbd> / <kbd>Ctrl</kbd> + <kbd>K</kbd> | Toggle Command Palette open/closed |
 | <kbd>↑</kbd> / <kbd>↓</kbd> | Navigate between listed items |
 | <kbd>Enter</kbd> | Execute selected action or navigate to destination |
+| <kbd>⌘</kbd> / <kbd>Ctrl</kbd> + <kbd>Enter</kbd> | Run the selected row's first secondary action (for example Copy ID on a search result) |
+| <kbd>Shift</kbd> + <kbd>Enter</kbd> | Open the actions of the selected row |
 | <kbd>Escape</kbd> | Close palette or return to parent view |
 | <kbd>Backspace</kbd> (when input is empty) | Return to previous command level |
 

@@ -10,6 +10,15 @@ import type {
   ResolvedPaletteItem,
 } from "../types"
 
+/** Whether a provider of either lane contributes to `context`: it serves the page and, when a prefix is typed, declares it. */
+export function servesContext(
+  provider: Pick<PaletteProvider, "pages" | "prefix">,
+  context: Pick<PaletteQueryContext, "page" | "prefix">,
+): boolean {
+  if (!provider.pages.includes(context.page)) return false
+  return !context.prefix || provider.prefix === context.prefix
+}
+
 /**
  * Gathers the rows of every provider serving `context.page` and resolves each `requires` against the caller's permissions.
  * A failing requirement disables the row with `describeMissing` text; a provider that throws contributes nothing.
@@ -25,8 +34,7 @@ export function collectPaletteItems(
   const resolved: ResolvedPaletteItem[] = []
 
   for (const provider of providers) {
-    if (!provider.pages.includes(context.page)) continue
-    if (context.prefix && provider.prefix !== context.prefix) continue
+    if (!servesContext(provider, context)) continue
 
     let items: readonly PaletteItem[]
     try {

@@ -9,6 +9,8 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command"
+import { Kbd, KbdGroup } from "@/components/ui/kbd"
+import { StatusBadge } from "@/components/ui/status-badge"
 import type { ResolvedPaletteItem } from "../types"
 
 interface PaletteListProps {
@@ -37,14 +39,23 @@ function PaletteRow({ item, showSection, onPerform }: PaletteRowProps) {
       <Icon className="size-4 shrink-0 text-muted-foreground" />
       <div className="flex flex-col">
         <span>{item.label}</span>
-        {secondLine && <span className="text-xs text-muted-foreground">{secondLine}</span>}
+        {item.status ? (
+          <span className="flex items-center gap-2 text-xs text-muted-foreground">
+            <StatusBadge status={item.status} />
+            {secondLine}
+          </span>
+        ) : (
+          secondLine && <span className="text-xs text-muted-foreground">{secondLine}</span>
+        )}
       </div>
       {showSection && <span className="ml-auto text-xs text-muted-foreground">{item.section}</span>}
       {item.shortcut && (
-        <CommandShortcut className="flex items-center gap-0.5">
-          {item.shortcut.map((key) => (
-            <kbd key={key} className="text-xs font-mono bg-muted text-muted-foreground px-1 rounded">{key}</kbd>
-          ))}
+        <CommandShortcut>
+          <KbdGroup>
+            {item.shortcut.map((key) => (
+              <Kbd key={key}>{key}</Kbd>
+            ))}
+          </KbdGroup>
         </CommandShortcut>
       )}
     </CommandItem>

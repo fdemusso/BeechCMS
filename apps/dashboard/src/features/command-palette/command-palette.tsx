@@ -4,6 +4,8 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
+import { formatDistanceToNow } from "date-fns"
+import { it as itLocale, enUS, type Locale } from "date-fns/locale"
 import { useNavigate } from "react-router-dom"
 import { useTheme } from "@/lib/theme"
 import { ChevronRight } from '@/components/icons'
@@ -24,34 +26,44 @@ import { toast } from "sonner"
 import { useCommandPalette } from "./use-command-palette"
 import type {
   CommandPage,
+  PalettePerform,
   PaletteProvider,
+  PaletteQueryContext,
   PaletteRequirement,
   ResolvedPaletteItem,
 } from "./types"
+import { useAsyncPaletteItems } from "./use-async-palette-items"
 import { collectPaletteItems } from "./lib/collect-palette-items"
 import { rankPaletteItems } from "./lib/rank-palette-items"
 import { parsePaletteQuery } from "./lib/parse-palette-query"
+import { toActionRows } from "./lib/action-rows"
+import { paletteKeyBinding } from "./lib/palette-key-binding"
 import { createCalculatorProvider } from "./providers/calculator-provider"
 import { createConversionsProvider } from "./providers/conversions-provider"
 import { createNavigationProvider } from "./providers/navigation-provider"
 import { createContentProvider } from "./providers/content-provider"
+import { createContentSearchProvider } from "./providers/content-search-provider"
 import { createToolsProvider } from "./providers/tools-provider"
 import { PaletteList } from "./_parts/palette-list"
-import { SearchResultsView } from "./_parts/search-results-view"
+import { PaletteFooter } from "./_parts/palette-footer"
 
 const NO_SEEDS: Seed[] = []
+
+const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
 
 export interface CommandPaletteProps {
   /** Providers assembled outside the slice (composition root); rendered after the built-ins. */
   readonly hostProviders: readonly PaletteProvider[]
 }
 
-function EmptyMessage() {
+function EmptyMessage({ searching }: { searching: boolean }) {
   const { t } = useTranslation()
   const search = useCommandState((s) => s.search)
   return (
     <CommandEmpty>
-      {search.length === 0
+      {searching
+        ? t("commandPalette.searching")
+        : search.length === 0
         ? t("commandPalette.noResults")
         : <>{t("commandPalette.noResults")} <span className="font-medium">"{search}"</span></>}
     </CommandEmpty>
@@ -93,11 +105,12 @@ function BreadcrumbChips({ pages, popPage }: BreadcrumbChipsProps) {
 
 /** Global command palette: aggregates every provider's rows, ranks them and renders the result. */
 export function CommandPalette({ hostProviders }: CommandPaletteProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { resolvedTheme, setTheme } = useTheme()
-  const { open, setOpen, pages, currentPage, pushPage, popPage, search, setSearch } =
-    useCommandPalette()
+  const {
+    open, setOpen, pages, currentPage, pushPage, popPage, search, setSearch, actionsTarget, openActions,
+  } = useCommandPalette()
   const { data: seedsData } = useSchema()
   const seeds = seedsData ?? NO_SEEDS
   const { can, canAnywhere, canGlobally } = usePermissions()
@@ -108,14 +121,24 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
     create: t("commandPalette.placeholderCreate"),
     settings: t("commandPalette.placeholderSettings"),
     "edit-schema": t("commandPalette.placeholderEditSchema"),
-    "search-results": t("commandPalette.placeholderSearch"),
+    actions: t("commandPalette.placeholderActions"),
   }
 
   const toggleTheme = React.useCallback(() => {
     setTheme(resolvedTheme === "dark" ? "light" : "dark")
   }, [resolvedTheme, setTheme])
 
+  const formatUpdatedAt = React.useCallback(
+    (unixSeconds: number) =>
+      formatDistanceToNow(new Date(unixSeconds * 1000), {
+        addSuffix: true,
+        locale: DATE_FNS_LOCALE[i18n.language] ?? enUS,
+      }),
+    [i18n.language],
+  )
+
   // Computed providers come first so equal scores go to the computed row; idle order: navigation, content, host, tools.
+  // Search rows (async lane) always come after every local row.
   const providers = React.useMemo<readonly PaletteProvider[]>(
     () => [
       createCalculatorProvider({ t }),
@@ -128,17 +151,32 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
     [t, seeds, hostProviders, resolvedTheme, toggleTheme],
   )
 
+  const asyncProviders = React.useMemo(
+    () => [createContentSearchProvider({ t, seeds, formatUpdatedAt })],
+    [t, seeds, formatUpdatedAt],
+  )
+
   const parsed = React.useMemo(() => parsePaletteQuery(search, currentPage), [search, currentPage])
+  const context = React.useMemo<PaletteQueryContext>(
+    () => ({
+      page: currentPage,
+      query: parsed.text,
+      prefix: parsed.prefix,
+      permissions: { can, canAnywhere, canGlobally },
+    }),
+    [currentPage, parsed, can, canAnywhere, canGlobally],
+  )
+  const asyncResults = useAsyncPaletteItems(asyncProviders, context)
+
   const items = React.useMemo(() => {
+    if (currentPage === "actions") {
+      return actionsTarget ? rankPaletteItems(toActionRows(actionsTarget), parsed.text) : []
+    }
     const describeMissing = ({ permission }: PaletteRequirement) =>
       t("commandPalette.requiresPermission", { permission })
-    const collected = collectPaletteItems(
-      providers,
-      { page: currentPage, query: parsed.text, prefix: parsed.prefix, permissions: { can, canAnywhere, canGlobally } },
-      describeMissing,
-    )
-    return rankPaletteItems(collected, parsed.text)
-  }, [providers, currentPage, parsed, can, canAnywhere, canGlobally, t])
+    const localItems = rankPaletteItems(collectPaletteItems(providers, context, describeMissing), parsed.text)
+    return [...localItems, ...collectPaletteItems(asyncResults.settled, context, describeMissing)]
+  }, [currentPage, actionsTarget, providers, context, parsed.text, asyncResults.settled, t])
 
   const copyToClipboard = (value: string) => {
     if (!navigator.clipboard) {
@@ -151,8 +189,7 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
     )
   }
 
-  const perform = (item: ResolvedPaletteItem) => {
-    const { perform: action } = item
+  const runPerform = (action: PalettePerform) => {
     switch (action.kind) {
       case "navigate":
         navigate(action.to)
@@ -170,6 +207,26 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
         setOpen(false)
         break
     }
+  }
+
+  const perform = (item: ResolvedPaletteItem) => runPerform(item.perform)
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const binding = paletteKeyBinding(event.nativeEvent)
+    if (!binding) return
+
+    // cmdk's Enter ignores modifiers; consuming the chord keeps it off the primary action.
+    event.preventDefault()
+
+    // The same lookup cmdk uses to find the row Enter selects.
+    const selectedId = event.currentTarget
+      .querySelector('[cmdk-item=""][aria-selected="true"]')
+      ?.getAttribute("data-value")
+    const row = items.find((item) => item.id === selectedId)
+    if (!row || row.disabledReason !== null || !row.actions?.length) return
+
+    if (binding === "secondary-action") runPerform(row.actions[0].perform)
+    else openActions(row)
   }
 
   return (
@@ -191,7 +248,7 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
           }
         }}
       >
-        <Command loop shouldFilter={false} className="border-none bg-transparent shadow-none">
+        <Command loop shouldFilter={false} onKeyDown={handleKeyDown} className="border-none bg-transparent shadow-none">
           <div className="flex flex-col">
             <BreadcrumbChips pages={pages} popPage={popPage} />
             <CommandInput
@@ -202,20 +259,12 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
           </div>
 
           <CommandList className="max-h-[min(550px,calc(100dvh-12rem))]">
-            <EmptyMessage />
+            <EmptyMessage searching={asyncResults.pending} />
 
-            {currentPage === "search-results" ? (
-              <SearchResultsView search={search} seeds={seeds} navigate={navigate} setOpen={setOpen} />
-            ) : (
-              <PaletteList items={items} ranked={search.trim().length > 0} onPerform={perform} />
-            )}
+            <PaletteList items={items} ranked={search.trim().length > 0} onPerform={perform} />
           </CommandList>
 
-          {currentPage !== "root" && (
-            <div className="p-3 border-t text-xs text-muted-foreground bg-muted/20">
-              {t("commandPalette.backHint")}
-            </div>
-          )}
+          <PaletteFooter page={currentPage} items={items} />
         </Command>
       </CommandDialog>
     </>

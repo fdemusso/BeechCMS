@@ -3,12 +3,14 @@
 // See LICENSE in the repository root for license terms.
 
 import { useState, useEffect, useCallback } from "react"
-import type { CommandPage, CommandPaletteState } from "./types"
+import type { CommandPage, CommandPaletteState, ResolvedPaletteItem } from "./types"
 
 export function useCommandPalette(): CommandPaletteState {
   const [open, setOpen] = useState(false)
   const [pages, setPages] = useState<CommandPage[]>(["root"])
   const [search, setSearch] = useState("")
+  const [actionsTarget, setActionsTarget] = useState<ResolvedPaletteItem | null>(null)
+  const [queryToRestore, setQueryToRestore] = useState("")
 
   // safe: pages is always initialised with ["root"], at(-1) can never be undefined
   const currentPage: CommandPage = pages.at(-1) ?? "root"
@@ -18,13 +20,25 @@ export function useCommandPalette(): CommandPaletteState {
     setSearch("")
   }, [])
 
+  const openActions = useCallback((target: ResolvedPaletteItem) => {
+    setActionsTarget(target)
+    setQueryToRestore(search)
+    setPages((prev) => [...prev, "actions"])
+    setSearch("")
+  }, [search])
+
   const popPage = useCallback(() => {
     setPages((prev) => {
       if (prev.length <= 1) return prev
       return prev.slice(0, -1)
     })
-    setSearch("")
-  }, [])
+    if (currentPage === "actions") {
+      setSearch(queryToRestore)
+      setActionsTarget(null)
+    } else {
+      setSearch("")
+    }
+  }, [currentPage, queryToRestore])
 
   // Global keyboard listener: Cmd/Ctrl+K, Alt+N, Backspace-on-empty
   useEffect(() => {
@@ -43,6 +57,8 @@ export function useCommandPalette(): CommandPaletteState {
         setOpen(true)
         setPages(["root", "create"])
         setSearch("")
+        setActionsTarget(null)
+        setQueryToRestore("")
         return
       }
 
@@ -67,6 +83,8 @@ export function useCommandPalette(): CommandPaletteState {
     if (!open) {
       setSearch("")
       setPages(["root"])
+      setActionsTarget(null)
+      setQueryToRestore("")
     }
   }, [open])
 
@@ -79,5 +97,7 @@ export function useCommandPalette(): CommandPaletteState {
     popPage,
     search,
     setSearch,
+    actionsTarget,
+    openActions,
   }
 }

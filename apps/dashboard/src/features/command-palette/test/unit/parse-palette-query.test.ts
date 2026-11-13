@@ -14,6 +14,12 @@ describe("parsePaletteQuery", () => {
     expect(result).toEqual({ prefix: "=", text: "2+2" })
   })
 
+  it("a leading / on the root page is returned as the prefix and stripped from the trimmed text", () => {
+    const result = parsePaletteQuery("/ hello", "root")
+
+    expect(result).toEqual({ prefix: "/", text: "hello" })
+  })
+
   it("= followed by spaces and an expression yields the same text as without the spaces", () => {
     const result = parsePaletteQuery("  =   2+2  ", "root")
 

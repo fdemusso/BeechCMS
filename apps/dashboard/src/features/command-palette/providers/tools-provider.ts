@@ -3,10 +3,10 @@
 // See LICENSE in the repository root for license terms.
 
 import type { TFunction } from "i18next"
-import { Moon, Search, Sun } from "@/components/icons"
-import type { PaletteItem, PaletteProvider } from "../types"
+import { Moon, Sun } from "@/components/icons"
+import type { PaletteProvider } from "../types"
 
-/** Content search (only for callers who can read something) and the theme toggle. */
+/** The theme toggle. */
 export function createToolsProvider(deps: {
   t: TFunction
   theme: string | undefined
@@ -18,26 +18,15 @@ export function createToolsProvider(deps: {
   return {
     id: "tools",
     pages: ["root"],
-    getItems: ({ permissions }) => {
-      const items: PaletteItem[] = []
-      if (permissions.canAnywhere("content:read")) {
-        items.push({
-          id: "tools:search",
-          section,
-          label: t("commandPalette.searchContent"),
-          icon: Search,
-          perform: { kind: "page", page: "search-results" },
-        })
-      }
-      items.push({
+    getItems: () => [
+      {
         id: "tools:theme",
         section,
         label: t("commandPalette.changeTheme"),
         icon: theme === "dark" ? Sun : Moon,
         keywords: ["dark mode", "light mode", "tema", "theme"],
         perform: { kind: "run", run: toggleTheme },
-      })
-      return items
-    },
+      },
+    ],
   }
 }
