@@ -7,6 +7,7 @@ import { render, fireEvent, screen, waitFor, within } from "@testing-library/rea
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { CANONICAL_ENTRIES, CANONICAL_SEEDS, CANONICAL_USERS } from "@beechcms/testing"
 import { CommandPalette, type PaletteProvider } from "@/features/command-palette"
+import { insertNote, QUICK_NOTES_MAX_COUNT, readNotes, type QuickNote } from "../../lib/quick-notes-storage"
 
 const { navigateMock, grantedPermissions, toastMock, searchMock } = vi.hoisted(() => ({
   searchMock: vi.fn(),
@@ -35,6 +36,7 @@ vi.mock("@/features/shared", () => ({
       [...grantedPermissions].some((entry) => entry.startsWith(`${permission}@`)),
   }),
   useSchema: () => ({ data: CANONICAL_SEEDS }),
+  useMe: () => ({ data: { id: CANONICAL_USERS.editor.id } }),
 }))
 
 vi.mock("@/lib/theme", () => ({
@@ -48,6 +50,11 @@ const PLACEHOLDER_ROOT = "Search actions, content, seeds…"
 const PLACEHOLDER_CREATE = "Create content in which seed?"
 const HIT_ID = "0c1f6d36-9c8a-4a78-8c2e-3f2f4f6a1b11"
 const HIT_UPDATED_AT = 1_700_000_000
+const EDITOR_ID = CANONICAL_USERS.editor.id
+const ADMIN_ID = CANONICAL_USERS.admin.id
+
+const ALPHA_NOTE: QuickNote = { id: "5b0e2c1a-3d4f-4a6b-8c7d-9e0f1a2b3c4d", text: "alpha", createdAt: 1_700_000_000_000 }
+const BRAVO_NOTE: QuickNote = { id: "7d2a4e3c-5f6b-4c8d-8e9f-1a2b3c4d5e6f", text: "bravo", createdAt: 1_700_000_100_000 }
 
 // The HTTP response shape: this is the boundary being mocked.
 function searchHit(overrides: Record<string, unknown> = {}) {
@@ -471,5 +478,71 @@ describe("CommandPalette", () => {
     fireEvent.keyDown(document, { key: "k", code: "KeyK", metaKey: true })
 
     expect(screen.queryByText("Search content…")).not.toBeInTheDocument()
+  })
+
+  it("# buy milk plus Enter saves the note for the current user, closes the dialog and toasts the browser-only message", () => {
+    renderPalette([])
+    const input = typeInRoot("# buy milk")
+
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter" })
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(toastMock.success).toHaveBeenCalledWith("Note saved on this browser only")
+    expect(readNotes(localStorage, EDITOR_ID).map((note) => note.text)).toEqual(["buy milk"])
+  })
+
+  it("#f00 lists the colour conversion row and no Quick notes row", () => {
+    // Regression guard: routing a hex colour to the notes prefix would drop the conversion row.
+    renderPalette([])
+
+    typeInRoot("#f00")
+
+    expect(screen.getByText(/^#f00 = /)).toBeInTheDocument()
+    expect(screen.queryByText("Quick notes")).not.toBeInTheDocument()
+  })
+
+  it("notes stored for another user are not listed", () => {
+    insertNote(localStorage, ADMIN_ID, ALPHA_NOTE)
+    renderPalette([])
+
+    typeInRoot("#")
+
+    expect(screen.queryByText(ALPHA_NOTE.text)).not.toBeInTheDocument()
+    expect(screen.getAllByRole("option")).toHaveLength(1)
+    expect(screen.getByText("New note")).toBeInTheDocument()
+  })
+
+  it("Ctrl+Enter on a note row deletes that note from storage and keeps the others", () => {
+    insertNote(localStorage, EDITOR_ID, ALPHA_NOTE)
+    insertNote(localStorage, EDITOR_ID, BRAVO_NOTE)
+    renderPalette([])
+    // The empty compose row is disabled, so the newest note is the selected row.
+    const input = typeInRoot("#")
+
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter", ctrlKey: true })
+
+    expect(readNotes(localStorage, EDITOR_ID)).toEqual([ALPHA_NOTE])
+    expect(toastMock.success).toHaveBeenCalledWith("Note deleted", expect.any(Object))
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
+  it("with a full list the compose row is disabled with the cap message and Enter saves nothing", () => {
+    for (let index = 0; index < QUICK_NOTES_MAX_COUNT; index++) {
+      insertNote(localStorage, EDITOR_ID, {
+        id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+        text: `note ${index}`,
+        createdAt: 1_700_000_000_000 + index,
+      })
+    }
+    renderPalette([])
+    const input = typeInRoot("# one more")
+
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter" })
+
+    const composeRow = screen.getByText("Save note: one more").closest("[data-slot='command-item']")
+    expect(composeRow).toHaveAttribute("aria-disabled", "true")
+    expect(screen.getByText(`${QUICK_NOTES_MAX_COUNT} notes saved: delete one to save a new one`)).toBeInTheDocument()
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(readNotes(localStorage, EDITOR_ID)).toHaveLength(QUICK_NOTES_MAX_COUNT)
   })
 })

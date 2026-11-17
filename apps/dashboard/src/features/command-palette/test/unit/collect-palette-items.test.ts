@@ -151,4 +151,35 @@ describe("collectPaletteItems", () => {
 
     expect(result.map((item) => item.disabledReason !== null)).toEqual([true, true, true])
   })
+
+  it("an item's unavailableReason becomes its disabledReason when its requirement holds", () => {
+    const providers = [
+      providerOf("a", ["root"], [
+        itemWith("a:1", {
+          requires: { permission: "content:read", scope: "posts" },
+          unavailableReason: "cap reached",
+        }),
+      ]),
+    ]
+    const context = contextFor({ byScope: { posts: ["content:read"] } })
+
+    const [row] = collectPaletteItems(providers, context, describeMissing)
+
+    expect(row.disabledReason).toBe("cap reached")
+  })
+
+  it("a failing requirement's text wins over unavailableReason", () => {
+    const providers = [
+      providerOf("a", ["root"], [
+        itemWith("a:1", {
+          requires: { permission: "content:read", scope: "posts" },
+          unavailableReason: "cap reached",
+        }),
+      ]),
+    ]
+
+    const [row] = collectPaletteItems(providers, contextFor({}), describeMissing)
+
+    expect(row.disabledReason).toBe("missing content:read")
+  })
 })

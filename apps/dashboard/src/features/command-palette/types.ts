@@ -43,7 +43,7 @@ export interface PaletteRequirement {
 }
 
 /** A leading character that routes the query to the providers declaring it. Engine-owned table: lib/parse-palette-query.ts. */
-export type PalettePrefix = "=" | "/"
+export type PalettePrefix = "=" | "/" | "#"
 
 /** What selecting a row does. The engine closes the palette after `navigate`, `run` and `copy`. */
 export type PalettePerform =
@@ -76,6 +76,11 @@ export interface PaletteItem {
   /** Key caps rendered on the row, e.g. ["Alt", "N"]. Display only. */
   readonly shortcut?: readonly string[]
   readonly requires?: PaletteRequirement
+  /**
+   * Why the row cannot run right now, for a reason other than permissions (e.g. a cap reached).
+   * Disables the row like a failing `requires`; when both apply, the missing permission is shown.
+   */
+  readonly unavailableReason?: string
   /**
    * Relevance on cmdk's scale (0, 1], used instead of the lexical score while typing.
    * For computed rows, whose label never contains the query. Ignored when the query is blank.

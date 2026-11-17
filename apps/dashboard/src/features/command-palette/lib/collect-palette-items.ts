@@ -21,7 +21,7 @@ export function servesContext(
 
 /**
  * Gathers the rows of every provider serving `context.page` and resolves each `requires` against the caller's permissions.
- * A failing requirement disables the row with `describeMissing` text; a provider that throws contributes nothing.
+ * A failing requirement disables the row with `describeMissing` text, otherwise an item's `unavailableReason` does; a provider that throws contributes nothing.
  * The first row with a given id wins.
  * With `context.prefix` set only providers declaring that prefix contribute; without it every provider does.
  */
@@ -50,7 +50,9 @@ export function collectPaletteItems(
       const satisfied = !item.requires || isSatisfied(item.requires, context)
       resolved.push({
         ...item,
-        disabledReason: satisfied ? null : describeMissing(item.requires as PaletteRequirement),
+        disabledReason: satisfied
+          ? (item.unavailableReason ?? null)
+          : describeMissing(item.requires as PaletteRequirement),
       })
     }
   }

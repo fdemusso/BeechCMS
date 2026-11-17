@@ -1105,7 +1105,24 @@
     "actionsHint": "Actions",
     "placeholderActions": "Choose an action…",
     "noResults": "No results",
-    "ariaLabel": "Global command palette"
+    "ariaLabel": "Global command palette",
+    "notes": {
+      "section": "Quick notes",
+      "compose": "New note",
+      "save": "Save note: {{text}}",
+      "browserOnly": "Saved on this browser only",
+      "typeToSave": "Type the note after #",
+      "tooLong": "Too long: {{length}}/{{max}} characters",
+      "full": "{{max}} notes saved: delete one to save a new one",
+      "unavailable": "Notes can't be saved: browser storage is unavailable",
+      "saved": "Note saved on this browser only",
+      "saveFailed": "Note not saved: the browser refused to store it",
+      "delete": "Delete note",
+      "deleted": "Note deleted",
+      "undo": "Undo",
+      "restored": "Note restored",
+      "deleteFailed": "Note not deleted: the browser refused the change"
+    }
   },
   "gallery": {
     "noItems": "No items to display",

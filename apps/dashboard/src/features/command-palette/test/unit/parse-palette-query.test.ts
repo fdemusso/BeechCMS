@@ -51,4 +51,25 @@ describe("parsePaletteQuery", () => {
 
     expect(result).toEqual({ text: "2=2" })
   })
+
+  it("a leading # on the root page is returned as the prefix and stripped from the trimmed text", () => {
+    const result = parsePaletteQuery("#buy milk", "root")
+
+    expect(result).toEqual({ prefix: "#", text: "buy milk" })
+  })
+
+  it("a complete 3- or 6-digit hex colour, with or without to rgb, yields no prefix and the whole text", () => {
+    // Regression guard: routing #f00 to notes would drop the colour conversion row.
+    const inputs = ["#f00", "#FF0000", "#ff0000 to rgb", "  #0af  "]
+
+    const results = inputs.map((input) => parsePaletteQuery(input, "root"))
+
+    expect(results).toEqual(inputs.map((input) => ({ text: input.trim() })))
+  })
+
+  it("# fff with a space is the notes prefix with text fff", () => {
+    const result = parsePaletteQuery("# fff", "root")
+
+    expect(result).toEqual({ prefix: "#", text: "fff" })
+  })
 })

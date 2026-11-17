@@ -3,9 +3,10 @@
 // See LICENSE in the repository root for license terms.
 
 import type { CommandPage, PalettePrefix } from "../types"
+import { COLOR_PATTERN } from "./convert-value"
 
 /** Every routable prefix. `Record` makes tsc reject a `PalettePrefix` member missing here. */
-export const PALETTE_PREFIXES: Readonly<Record<PalettePrefix, true>> = { "=": true, "/": true }
+export const PALETTE_PREFIXES: Readonly<Record<PalettePrefix, true>> = { "=": true, "/": true, "#": true }
 
 export interface ParsedPaletteQuery {
   /** Absent when the query carries no prefix. */
@@ -18,6 +19,9 @@ export interface ParsedPaletteQuery {
 export function parsePaletteQuery(raw: string, page: CommandPage): ParsedPaletteQuery {
   const trimmed = raw.trim()
   if (page !== "root") return { text: trimmed }
+
+  // A hex colour is a conversion; `# fff` is the way to write such a note.
+  if (COLOR_PATTERN.test(trimmed)) return { text: trimmed }
 
   const first = trimmed.charAt(0)
   if (!Object.hasOwn(PALETTE_PREFIXES, first)) return { text: trimmed }

@@ -21,7 +21,7 @@ const CONNECTOR = String.raw`(?:\s+(?:to|in)\s+|\s*->\s*)`
 
 const CSS_PATTERN = new RegExp(`^${NUMBER}\\s*(px|rem)(?:${CONNECTOR}(px|rem))?$`, "i")
 const STORAGE_PATTERN = new RegExp(`^${NUMBER}\\s+(b|[kmgt]b|[kmgt]ib)(?:${CONNECTOR}(b|[kmgt]b|[kmgt]ib))?$`, "i")
-const COLOR_PATTERN = /^#([0-9a-f]{3}|[0-9a-f]{6})(?:\s+to\s+rgb)?$/i
+export const COLOR_PATTERN =/^#([0-9a-f]{3}|[0-9a-f]{6})(?:\s+to\s+rgb)?$/i
 const UNIX_SECONDS_PATTERN = /^\d{10}$/
 const UNIX_MILLIS_PATTERN = /^\d{13}$/
 

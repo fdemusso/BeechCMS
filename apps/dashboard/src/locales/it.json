@@ -1105,7 +1105,24 @@
     "actionsHint": "Azioni",
     "placeholderActions": "Scegli un'azione…",
     "noResults": "Nessun risultato",
-    "ariaLabel": "Palette comandi globale"
+    "ariaLabel": "Palette comandi globale",
+    "notes": {
+      "section": "Appunti rapidi",
+      "compose": "Nuova nota",
+      "save": "Salva nota: {{text}}",
+      "browserOnly": "Salvata solo su questo browser",
+      "typeToSave": "Scrivi la nota dopo #",
+      "tooLong": "Troppo lunga: {{length}}/{{max}} caratteri",
+      "full": "{{max}} note salvate: eliminane una per salvarne un'altra",
+      "unavailable": "Impossibile salvare le note: l'archiviazione del browser non è disponibile",
+      "saved": "Nota salvata solo su questo browser",
+      "saveFailed": "Nota non salvata: il browser ha rifiutato il salvataggio",
+      "delete": "Elimina nota",
+      "deleted": "Nota eliminata",
+      "undo": "Annulla",
+      "restored": "Nota ripristinata",
+      "deleteFailed": "Nota non eliminata: il browser ha rifiutato la modifica"
+    }
   },
   "gallery": {
     "noItems": "Nessun elemento da visualizzare",

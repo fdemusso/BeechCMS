@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/command"
 import { Badge } from "@/components/ui/badge"
 import type { Seed } from "@beechcms/core"
-import { usePermissions, useSchema } from "@/features/shared"
+import { useMe, usePermissions, useSchema } from "@/features/shared"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { useCommandPalette } from "./use-command-palette"
@@ -33,6 +33,7 @@ import type {
   ResolvedPaletteItem,
 } from "./types"
 import { useAsyncPaletteItems } from "./use-async-palette-items"
+import { useQuickNotes } from "./use-quick-notes"
 import { collectPaletteItems } from "./lib/collect-palette-items"
 import { rankPaletteItems } from "./lib/rank-palette-items"
 import { parsePaletteQuery } from "./lib/parse-palette-query"
@@ -43,6 +44,7 @@ import { createConversionsProvider } from "./providers/conversions-provider"
 import { createNavigationProvider } from "./providers/navigation-provider"
 import { createContentProvider } from "./providers/content-provider"
 import { createContentSearchProvider } from "./providers/content-search-provider"
+import { createQuickNotesProvider } from "./providers/quick-notes-provider"
 import { createToolsProvider } from "./providers/tools-provider"
 import { PaletteList } from "./_parts/palette-list"
 import { PaletteFooter } from "./_parts/palette-footer"
@@ -114,6 +116,8 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
   const { data: seedsData } = useSchema()
   const seeds = seedsData ?? NO_SEEDS
   const { can, canAnywhere, canGlobally } = usePermissions()
+  const { data: me } = useMe()
+  const quickNotes = useQuickNotes(me?.id, open)
 
   const PLACEHOLDER: Record<CommandPage, string> = {
     root: t("commandPalette.placeholderRoot"),
@@ -137,7 +141,12 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
     [i18n.language],
   )
 
-  // Computed providers come first so equal scores go to the computed row; idle order: navigation, content, host, tools.
+  const formatSavedAt = React.useCallback(
+    (epochMs: number) => formatUpdatedAt(epochMs / 1000),
+    [formatUpdatedAt],
+  )
+
+  // Computed providers come first so equal scores go to the computed row; idle order: navigation, content, host, notes, tools.
   // Search rows (async lane) always come after every local row.
   const providers = React.useMemo<readonly PaletteProvider[]>(
     () => [
@@ -146,9 +155,16 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
       createNavigationProvider({ t }),
       createContentProvider({ t, seeds }),
       ...hostProviders,
+      createQuickNotesProvider({
+        t,
+        notes: quickNotes.state,
+        save: quickNotes.save,
+        remove: quickNotes.remove,
+        formatSavedAt,
+      }),
       createToolsProvider({ t, theme: resolvedTheme, toggleTheme }),
     ],
-    [t, seeds, hostProviders, resolvedTheme, toggleTheme],
+    [t, seeds, hostProviders, quickNotes.state, quickNotes.save, quickNotes.remove, formatSavedAt, resolvedTheme, toggleTheme],
   )
 
   const asyncProviders = React.useMemo(
