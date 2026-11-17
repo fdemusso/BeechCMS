@@ -35,9 +35,13 @@ overrides:
   eslint>minimatch: ^11.0.1
   '@typescript-eslint/typescript-estree>minimatch': ^11.0.1
   '@ts-morph/common>minimatch': ^11.0.1
+  typedoc>minimatch: ^11.0.1
   '@beechcms/core>katex': ^0.19.0
   vue: ^3.5.42
   '@vue/server-renderer': ^3.5.42
+
+patchedDependencies:
+  typedoc@0.28.20: ec001d26d6849e863a483aff8231eb3c00f5b902373356eedb2472c2b9d44d76
 
 importers:
 
@@ -91,10 +95,10 @@ importers:
         version: 2.11.9
       typedoc:
         specifier: ^0.28.20
-        version: 0.28.20(typescript@5.9.3)
+        version: 0.28.20(patch_hash=ec001d26d6849e863a483aff8231eb3c00f5b902373356eedb2472c2b9d44d76)(typescript@5.9.3)
       typedoc-plugin-markdown:
         specifier: ^4.12.0
-        version: 4.14.0(typedoc@0.28.20(typescript@5.9.3))
+        version: 4.14.0(typedoc@0.28.20(patch_hash=ec001d26d6849e863a483aff8231eb3c00f5b902373356eedb2472c2b9d44d76)(typescript@5.9.3))
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
@@ -5915,10 +5919,6 @@ packages:
   miniflare@5.20261012.1-beta:
     resolution: {integrity: sha512-8Canhy6g9+vAhqMc0o80YphqYIwpiA3aAp8aX+uDXU7J/qbUeoZzcII9c2V1P4uT/eHD4SB93qet1o1bRY3BuQ==}
     engines: {node: '>=22.0.0'}
-
-  minimatch@10.2.6:
-    resolution: {integrity: sha512-vpLQEs+VLCr1nU0BXS07maYoFwlDAH0gngQuuttxIwutDFEMHq2blX+8vpgxDdK3J1PwjCJiep77OitTZ4Ll1A==}
-    engines: {node: 18 || 20 || >=22}
 
   minimatch@11.0.3:
     resolution: {integrity: sha512-iny/40PEGkNJQ5/Pv6z3nm6FbRAby32GeZRjCUJk2WnNDbgPSTcdI+DDvLqsgBdD4cD5sMtMheqPPnehCCa8Nw==}
@@ -12332,10 +12332,6 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  minimatch@10.2.6:
-    dependencies:
-      brace-expansion: 5.0.12
-
   minimatch@11.0.3:
     dependencies:
       '@isaacs/nonrecursive-glob-match': 1.0.3
@@ -13497,16 +13493,16 @@ snapshots:
       media-typer: 1.1.0
       mime-types: 3.0.2
 
-  typedoc-plugin-markdown@4.14.0(typedoc@0.28.20(typescript@5.9.3)):
+  typedoc-plugin-markdown@4.14.0(typedoc@0.28.20(patch_hash=ec001d26d6849e863a483aff8231eb3c00f5b902373356eedb2472c2b9d44d76)(typescript@5.9.3)):
     dependencies:
-      typedoc: 0.28.20(typescript@5.9.3)
+      typedoc: 0.28.20(patch_hash=ec001d26d6849e863a483aff8231eb3c00f5b902373356eedb2472c2b9d44d76)(typescript@5.9.3)
 
-  typedoc@0.28.20(typescript@5.9.3):
+  typedoc@0.28.20(patch_hash=ec001d26d6849e863a483aff8231eb3c00f5b902373356eedb2472c2b9d44d76)(typescript@5.9.3):
     dependencies:
       '@gerrit0/mini-shiki': 3.23.0
       lunr: 2.3.9
       markdown-it: 14.3.3
-      minimatch: 10.2.6
+      minimatch: 11.0.3
       typescript: 5.9.3
       yaml: 2.9.1
 

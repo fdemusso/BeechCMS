@@ -41,6 +41,10 @@ overrides:
   eslint>minimatch: ^11.0.1
   "@typescript-eslint/typescript-estree>minimatch": ^11.0.1
   "@ts-morph/common>minimatch": ^11.0.1
+  typedoc>minimatch: ^11.0.1
   "@beechcms/core>katex": ^0.19.0
   vue: ^3.5.42
   "@vue/server-renderer": ^3.5.42
+
+patchedDependencies:
+  typedoc@0.28.20: patches/typedoc@0.28.20.patch
