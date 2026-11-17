@@ -6,6 +6,8 @@ import type { Permission, Scope } from "@beechcms/core"
 import type { IconComponent } from "@/lib/icon-registry"
 import type { Status } from "@/components/ui/status"
 import type { PermissionsApi } from "@/features/shared"
+// Module path, not the barrel: suites mock the barrel with a fixed object.
+import type { PageAction } from "@/features/shared/hooks/use-page-actions"
 
 // Tutte le pagine navigabili nella palette
 export type CommandPage =
@@ -130,4 +132,11 @@ export interface PaletteAsyncProvider extends Pick<PaletteProvider, "id" | "page
 export interface ResolvedPaletteItem extends PaletteItem {
   /** null: enabled. Otherwise the user-facing text naming the missing permission. */
   readonly disabledReason: string | null
+}
+
+/** A page action picked from the palette that waits for confirmation; its target is frozen at selection. */
+export interface PendingPageAction {
+  readonly hostId: string
+  readonly targetId: string | null
+  readonly action: PageAction
 }

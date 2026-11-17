@@ -19,8 +19,11 @@ import {
   CommandEmpty,
 } from "@/components/ui/command"
 import { Badge } from "@/components/ui/badge"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import type { Seed } from "@beechcms/core"
 import { useMe, usePermissions, useSchema } from "@/features/shared"
+// Module path, not the barrel: suites mock the barrel with a fixed object.
+import { getPageActionDeclarations, usePageActionDeclarations } from "@/features/shared/hooks/use-page-actions"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { useCommandPalette } from "./use-command-palette"
@@ -30,6 +33,7 @@ import type {
   PaletteProvider,
   PaletteQueryContext,
   PaletteRequirement,
+  PendingPageAction,
   ResolvedPaletteItem,
 } from "./types"
 import { useAsyncPaletteItems } from "./use-async-palette-items"
@@ -40,6 +44,7 @@ import { parsePaletteQuery } from "./lib/parse-palette-query"
 import { toActionRows } from "./lib/action-rows"
 import { paletteKeyBinding } from "./lib/palette-key-binding"
 import { createCalculatorProvider } from "./providers/calculator-provider"
+import { createContextActionsProvider } from "./providers/context-actions-provider"
 import { createConversionsProvider } from "./providers/conversions-provider"
 import { createNavigationProvider } from "./providers/navigation-provider"
 import { createContentProvider } from "./providers/content-provider"
@@ -118,6 +123,9 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
   const { can, canAnywhere, canGlobally } = usePermissions()
   const { data: me } = useMe()
   const quickNotes = useQuickNotes(me?.id, open)
+  const declarations = usePageActionDeclarations()
+  const [pendingAction, setPendingAction] = React.useState<PendingPageAction | null>(null)
+  const confirmedRef = React.useRef(false)
 
   const PLACEHOLDER: Record<CommandPage, string> = {
     root: t("commandPalette.placeholderRoot"),
@@ -146,12 +154,13 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
     [formatUpdatedAt],
   )
 
-  // Computed providers come first so equal scores go to the computed row; idle order: navigation, content, host, notes, tools.
+  // Computed providers come first so equal scores go to the computed row; idle order: context, navigation, content, host, notes, tools.
   // Search rows (async lane) always come after every local row.
   const providers = React.useMemo<readonly PaletteProvider[]>(
     () => [
       createCalculatorProvider({ t }),
       createConversionsProvider({ t }),
+      createContextActionsProvider({ declarations, requestConfirm: setPendingAction }),
       createNavigationProvider({ t }),
       createContentProvider({ t, seeds }),
       ...hostProviders,
@@ -164,7 +173,7 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
       }),
       createToolsProvider({ t, theme: resolvedTheme, toggleTheme }),
     ],
-    [t, seeds, hostProviders, quickNotes.state, quickNotes.save, quickNotes.remove, formatSavedAt, resolvedTheme, toggleTheme],
+    [t, seeds, declarations, hostProviders, quickNotes.state, quickNotes.save, quickNotes.remove, formatSavedAt, resolvedTheme, toggleTheme],
   )
 
   const asyncProviders = React.useMemo(
@@ -227,6 +236,27 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
 
   const perform = (item: ResolvedPaletteItem) => runPerform(item.perform)
 
+  const confirmPendingAction = () => {
+    if (!pendingAction) return
+    confirmedRef.current = true
+    const { hostId, targetId, action } = pendingAction
+    const stillPublished = getPageActionDeclarations().some(
+      (declaration) => declaration.hostId === hostId && declaration.targetId === targetId,
+    )
+    if (stillPublished) runPerform(action.perform)
+    else toast.error(t("commandPalette.context.targetGone"))
+    setPendingAction(null)
+  }
+
+  const handleConfirmOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) return
+    const wasConfirmed = confirmedRef.current
+    confirmedRef.current = false
+    setPendingAction(null)
+    // Cancel or Escape returns to the palette; a confirmation never does.
+    if (!wasConfirmed) setOpen(true)
+  }
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     const binding = paletteKeyBinding(event.nativeEvent)
     if (!binding) return
@@ -283,6 +313,15 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
           <PaletteFooter page={currentPage} items={items} />
         </Command>
       </CommandDialog>
+
+      <ConfirmDialog
+        open={pendingAction !== null}
+        onOpenChange={handleConfirmOpenChange}
+        title={pendingAction?.action.confirm?.title ?? ""}
+        description={pendingAction?.action.confirm?.description ?? ""}
+        confirmVariant={pendingAction?.action.confirm?.destructive ? "destructive" : undefined}
+        onConfirm={confirmPendingAction}
+      />
     </>
   )
 }

@@ -811,6 +811,9 @@
       "saveAsDraft": "Save as draft",
       "editDraft": "Edit draft",
       "publishDraft": "Publish draft",
+      "publishConfirmTitle": "Publish this draft?",
+      "publishConfirmDesc": "The draft replaces the live version of this entry.",
+      "busy": "Wait for the current operation to finish",
       "discardDraft": "Discard draft",
       "discardDraftTitle": "Discard pending draft",
       "discardDraftDesc": "This will permanently delete the pending draft. The published entry remains unchanged. This action cannot be undone.",
@@ -1122,6 +1125,9 @@
       "undo": "Undo",
       "restored": "Note restored",
       "deleteFailed": "Note not deleted: the browser refused the change"
+    },
+    "context": {
+      "targetGone": "The page changed before you confirmed: nothing was done"
     }
   },
   "gallery": {

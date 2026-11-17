@@ -811,6 +811,9 @@
       "saveAsDraft": "Salva come bozza",
       "editDraft": "Modifica bozza",
       "publishDraft": "Pubblica bozza",
+      "publishConfirmTitle": "Pubblicare questa bozza?",
+      "publishConfirmDesc": "La bozza sostituisce la versione pubblicata di questo contenuto.",
+      "busy": "Attendi la fine dell'operazione in corso",
       "discardDraft": "Scarta bozza",
       "discardDraftTitle": "Scarta bozza in sospeso",
       "discardDraftDesc": "La bozza in sospeso verrà eliminata definitivamente. L'entry pubblicata rimane invariata. Questa azione non può essere annullata.",
@@ -1122,6 +1125,9 @@
       "undo": "Annulla",
       "restored": "Nota ripristinata",
       "deleteFailed": "Nota non eliminata: il browser ha rifiutato la modifica"
+    },
+    "context": {
+      "targetGone": "La pagina è cambiata prima della conferma: non è stato fatto nulla"
     }
   },
   "gallery": {

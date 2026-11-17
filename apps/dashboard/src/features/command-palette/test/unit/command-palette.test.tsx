@@ -7,6 +7,11 @@ import { render, fireEvent, screen, waitFor, within } from "@testing-library/rea
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { CANONICAL_ENTRIES, CANONICAL_SEEDS, CANONICAL_USERS } from "@beechcms/testing"
 import { CommandPalette, type PaletteProvider } from "@/features/command-palette"
+import {
+  useDeclarePageActions,
+  type PageAction,
+  type PageActionDeclaration,
+} from "@/features/shared/hooks/use-page-actions"
 import { insertNote, QUICK_NOTES_MAX_COUNT, readNotes, type QuickNote } from "../../lib/quick-notes-storage"
 
 const { navigateMock, grantedPermissions, toastMock, searchMock } = vi.hoisted(() => ({
@@ -544,5 +549,142 @@ describe("CommandPalette", () => {
     expect(screen.getByText(`${QUICK_NOTES_MAX_COUNT} notes saved: delete one to save a new one`)).toBeInTheDocument()
     expect(screen.getByRole("dialog")).toBeInTheDocument()
     expect(readNotes(localStorage, EDITOR_ID)).toHaveLength(QUICK_NOTES_MAX_COUNT)
+  })
+
+  describe("page actions", () => {
+    const PAGE_ENTRY_ID = "550e8400-e29b-41d4-a716-446655440000"
+    const OTHER_ENTRY_ID = "8f14e45f-ceea-4672-9a4b-1c5e0a2b3d4f"
+    const CONFIRM = { title: "Publish this draft?", description: "It replaces the live version." }
+
+    function pageAction(overrides: Partial<PageAction> = {}): PageAction {
+      return { id: "save", label: "Save entry", icon: () => null, perform: { kind: "run", run: vi.fn() }, ...overrides }
+    }
+
+    function pageDeclaration(action: PageAction, targetId = PAGE_ENTRY_ID): PageActionDeclaration {
+      return { hostId: "entry-editor", targetId, title: "Edit Post", actions: [action] }
+    }
+
+    // A page that declares actions renders nothing itself, like the entry editor's hook.
+    function Host({ declaration }: { declaration: PageActionDeclaration | null }) {
+      useDeclarePageActions(declaration)
+      return null
+    }
+
+    function renderPaletteWithPage(declaration: PageActionDeclaration) {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      const tree = (current: PageActionDeclaration) => (
+        <QueryClientProvider client={client}>
+          <Host declaration={current} />
+          <CommandPalette hostProviders={[]} />
+        </QueryClientProvider>
+      )
+      const view = render(tree(declaration))
+      return { updatePage: (next: PageActionDeclaration) => view.rerender(tree(next)) }
+    }
+
+    function openPalette() {
+      fireEvent.keyDown(document, { key: "k", code: "KeyK", metaKey: true })
+      return screen.getByPlaceholderText(PLACEHOLDER_ROOT)
+    }
+
+    function confirmableAction(run = vi.fn()): PageAction {
+      return pageAction({ id: "publish-draft", label: "Publish draft", confirm: CONFIRM, perform: { kind: "run", run } })
+    }
+
+    it("with a page declaration the idle root lists its section before the navigation rows", () => {
+      renderPaletteWithPage(pageDeclaration(pageAction()))
+
+      openPalette()
+
+      const rows = screen.getAllByRole("option")
+      expect(rows[0]).toHaveTextContent("Save entry")
+      expect(screen.getByText("Edit Post")).toBeInTheDocument()
+      expect(rows.some((row) => row.textContent?.includes("Dashboard"))).toBe(true)
+    })
+
+    it("Enter on an action without confirm runs it once and closes the dialog", () => {
+      const run = vi.fn()
+      renderPaletteWithPage(pageDeclaration(pageAction({ perform: { kind: "run", run } })))
+      const input = openPalette()
+
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter" })
+
+      expect(run).toHaveBeenCalledOnce()
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+
+    it("Enter on an action with confirm closes the palette, opens the confirmation and runs nothing", () => {
+      const run = vi.fn()
+      renderPaletteWithPage(pageDeclaration(confirmableAction(run)))
+      const input = openPalette()
+
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter" })
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      expect(screen.getByRole("alertdialog")).toHaveTextContent(CONFIRM.title)
+      expect(run).not.toHaveBeenCalled()
+    })
+
+    it("confirming runs the frozen action once and leaves the palette closed", async () => {
+      const run = vi.fn()
+      renderPaletteWithPage(pageDeclaration(confirmableAction(run)))
+      fireEvent.keyDown(openPalette(), { key: "Enter", code: "Enter" })
+
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }))
+
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument())
+      expect(run).toHaveBeenCalledOnce()
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+
+    it("cancelling the confirmation runs nothing and reopens the palette on root", async () => {
+      const run = vi.fn()
+      renderPaletteWithPage(pageDeclaration(confirmableAction(run)))
+      fireEvent.keyDown(openPalette(), { key: "Enter", code: "Enter" })
+
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+
+      expect(await screen.findByPlaceholderText(PLACEHOLDER_ROOT)).toBeInTheDocument()
+      expect(run).not.toHaveBeenCalled()
+    })
+
+    it("confirming after the host changed its target runs nothing and toasts an error", async () => {
+      // Regression guard: the same editor instance can switch records while the confirmation is open.
+      const run = vi.fn()
+      const action = confirmableAction(run)
+      const { updatePage } = renderPaletteWithPage(pageDeclaration(action))
+      fireEvent.keyDown(openPalette(), { key: "Enter", code: "Enter" })
+      updatePage(pageDeclaration(action, OTHER_ENTRY_ID))
+
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }))
+
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument())
+      expect(run).not.toHaveBeenCalled()
+      expect(toastMock.error).toHaveBeenCalledWith("The page changed before you confirmed: nothing was done")
+    })
+
+    it("an action whose requirement fails is disabled with the missing permission and Enter runs nothing", () => {
+      const run = vi.fn()
+      renderPaletteWithPage(
+        pageDeclaration(pageAction({ requires: { permission: "content:update", scope: "posts" }, perform: { kind: "run", run } })),
+      )
+      // Typing leaves the disabled row alone in the list; otherwise Enter would pick the next enabled row.
+      const input = typeInRoot("Save entry")
+
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter" })
+
+      const row = screen.getByText("Save entry").closest("[data-slot='command-item']")
+      expect(row).toHaveAttribute("aria-disabled", "true")
+      expect(screen.getByText("Requires the content:update permission")).toBeInTheDocument()
+      expect(run).not.toHaveBeenCalled()
+    })
+
+    it("with the = prefix no page action is listed", () => {
+      renderPaletteWithPage(pageDeclaration(pageAction()))
+
+      typeInRoot("=1+1")
+
+      expect(screen.queryByText("Save entry")).not.toBeInTheDocument()
+    })
   })
 })

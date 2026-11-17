@@ -29,6 +29,8 @@ import {
 } from "@/features/content-management"
 import { useActiveSeed, useLocaleConfig } from "@/features/shared"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
+// Module path, not the barrel: suites mock the barrel with a fixed object.
+import { useDeclarePageActions } from "@/features/shared/hooks/use-page-actions"
 import { Loader as Loader2 } from '@/components/icons'
 import type { RendererBranchMap, RendererLocalization } from "../renderer/layout-renderer"
 import { LocaleSwitcher } from "../renderer/locale-switcher"
@@ -45,6 +47,7 @@ import {
   type ApiFieldError,
   type TouchedLocales,
 } from "../lib/localized-form"
+import { buildEntryPageActions, type EntryPageActionHandlers } from "../lib/entry-page-actions"
 import type { SchemaFormCapabilities, SchemaFormViewModel } from "../renderer/schema-form-view-model"
 
 export interface UseEntryEditorDialogProps {
@@ -56,6 +59,8 @@ export interface UseEntryEditorDialogProps {
   onSaved?: (info: { entryId?: string; data: Record<string, unknown>; isCreate: boolean }) => void
   /** Pre-seed values for CREATE mode (e.g. kanban column axis value). Ignored in edit mode. */
   defaultValues?: Record<string, unknown>
+  /** While true the editor publishes its actions to the command palette. Omitted: never published. */
+  open?: boolean
 }
 
 export interface EditorBranch {
@@ -188,6 +193,7 @@ export function useEntryEditorDialog({
   readonly,
   onSaved,
   defaultValues,
+  open,
 }: UseEntryEditorDialogProps): SchemaFormViewModel {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -579,13 +585,18 @@ export function useEntryEditorDialog({
     }
   }
 
-  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
-    e.preventDefault()
+  /** The submit button's path, shared with the palette's save action. */
+  const handleSave = async () => {
     if (effectiveDraftContext) {
       await handleSaveDraftOnly()
     } else {
       await handleSaveLive()
     }
+  }
+
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    await handleSave()
   }
 
   const isBusy = isSaving || isSavingDraft || isPublishing
@@ -649,6 +660,55 @@ export function useEntryEditorDialog({
     layoutBuilder: true,
     dangerZone: false,
   }
+
+  // Handlers are re-created every render; the ref keeps the declaration from re-publishing per keystroke.
+  const latestHandlers = {
+    save: handleSave,
+    publishDraft: handlePublishDraft,
+    requestDiscardDraft: () => setShowDiscardConfirm(true),
+    remove: handleDelete,
+  }
+  const handlersRef = React.useRef(latestHandlers)
+  React.useEffect(() => {
+    handlersRef.current = latestHandlers
+  })
+  const pageActionHandlers = React.useMemo<EntryPageActionHandlers>(
+    () => ({
+      save: () => void handlersRef.current.save(),
+      publishDraft: () => void handlersRef.current.publishDraft(),
+      requestDiscardDraft: () => handlersRef.current.requestDiscardDraft(),
+      remove: () => void handlersRef.current.remove(),
+    }),
+    [],
+  )
+
+  const isFormOnScreen =
+    !!seed && !isSeedLoading && !isLocaleConfigPending && !(entryId && (isLoadingEntry || errorEntry)) && !builderMode
+  const isWorking = isBusy || isDeleting || isDiscarding
+  const declaration = React.useMemo(
+    () =>
+      buildEntryPageActions({
+        t,
+        schemaSlug,
+        entryId,
+        title,
+        ready: isFormOnScreen,
+        isCreate,
+        isDraftContext,
+        effectiveDraftContext,
+        hasSaveDropdown,
+        hasPendingDraftNotice,
+        hasRestrictedRefs,
+        isReadOnly,
+        isWorking,
+        handlers: pageActionHandlers,
+      }),
+    [
+      t, schemaSlug, entryId, title, isFormOnScreen, isCreate, isDraftContext, effectiveDraftContext,
+      hasSaveDropdown, hasPendingDraftNotice, hasRestrictedRefs, isReadOnly, isWorking, pageActionHandlers,
+    ],
+  )
+  useDeclarePageActions(open ? declaration : null)
 
   return {
     t,

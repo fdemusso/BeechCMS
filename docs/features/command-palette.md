@@ -21,6 +21,7 @@ The **Command Palette** is a global, keyboard-driven navigation spotlight built 
 - **Hierarchical Breadcrumbs**: Navigate into sub-views (e.g. `Root > Articles > Search`) with breadcrumb chips and press `Backspace` or `Escape` to pop back up.
 - **Settings**: A *Settings…* page lists every settings tab you may open, grouped as in the settings sidebar. Typing a name ("roles", "storage", "password", "invites") finds the tab, or the exact section inside it, straight from the root page.
 - **Quick notes (`#`)**: type `#` and a note to save it on this browser only (separate per user, up to 50 notes of 280 characters). `#` alone lists your notes: Enter copies one, ⌘/Ctrl+Enter deletes it (with Undo). A colour such as `#f00` is still converted. Write `# f00` to save it as a note.
+- **Page actions**: while an entry is open, the palette lists its actions first, under the entry's title: save (or save draft), publish draft, discard draft, delete, copy ID. They run exactly like the editor's buttons. Publishing asks for confirmation; delete keeps its Undo toast. Actions you lack the permission for are shown disabled with the missing permission.
 - **Content types** (for people who may manage them): *New content type…* and *Edit content type…* open the Studio builder on the right dialog, also while typing a content type's name.
 - **Quick Administration**: View System Analytics, Manage Automations, or Toggle Interface Themes.
 
