@@ -19,7 +19,8 @@ overrides:
   miniflare>ws: ^8.21.0
   jsdom>ws: ^8.21.0
   undici: ^7.29.0
-  fast-uri: ^3.1.8
+  fast-uri: ^3.1.9
+  fast-xml-parser: ^5.12.0
   "@tiptap/*": ^3.31.3
   ip-address: ^10.3.1
   browserslist: ^4.28.7
@@ -29,7 +30,7 @@ overrides:
   sharp: ^0.35.5
   react-router: ^7.18.0
   react-router-dom: ^7.18.0
-  "@hono/node-server": ^2.0.5
+  "@hono/node-server": ^2.1.6
   js-yaml: ^4.3.2
   vitepress>vite: ^6.4.5
   body-parser: ^2.3.0
