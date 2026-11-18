@@ -1107,6 +1107,7 @@
     "copyId": "Copy ID",
     "actionsHint": "Actions",
     "placeholderActions": "Choose an action…",
+    "placeholderShortcuts": "Filter shortcuts…",
     "noResults": "No results",
     "ariaLabel": "Global command palette",
     "notes": {
@@ -1128,6 +1129,40 @@
     },
     "context": {
       "targetGone": "The page changed before you confirmed: nothing was done"
+    },
+    "preferences": {
+      "section": "Preferences",
+      "switchLanguage": "Switch the dashboard to {{language}}",
+      "notify": "Notifications: {{event}}",
+      "on": "On",
+      "off": "Off",
+      "notifyUnavailable": "Your notification preferences could not be loaded",
+      "saving": "Saving your preferences…"
+    },
+    "system": {
+      "section": "System",
+      "status": "System status",
+      "statusHealthy": "Within quotas · Storage {{storage}}% · Database {{database}}%",
+      "statusWarning": "Close to a quota · Storage {{storage}}% · Database {{database}}%",
+      "statusUnavailable": "The system status could not be read"
+    },
+    "shortcuts": {
+      "title": "Keyboard shortcuts",
+      "global": "Anywhere",
+      "palette": "In the palette",
+      "prefixes": "Prefixes",
+      "togglePalette": "Open or close the palette",
+      "quickCreate": "Create content",
+      "toggleSidebar": "Show or hide the sidebar",
+      "run": "Run the selected row",
+      "firstAction": "Run the row's first action",
+      "rowActions": "Show the row's actions",
+      "back": "Go back (empty input)",
+      "close": "Go back or close",
+      "prefixSystem": "System commands and preferences",
+      "prefixCalculator": "Calculator",
+      "prefixNotes": "Quick notes",
+      "prefixContent": "Search content only"
     }
   },
   "gallery": {

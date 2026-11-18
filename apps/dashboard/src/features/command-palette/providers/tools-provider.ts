@@ -3,10 +3,10 @@
 // See LICENSE in the repository root for license terms.
 
 import type { TFunction } from "i18next"
-import { Moon, Sun } from "@/components/icons"
+import { Keyboard, Moon, Sun } from "@/components/icons"
 import type { PaletteProvider } from "../types"
 
-/** The theme toggle. */
+/** The theme toggle and the keyboard shortcuts page. */
 export function createToolsProvider(deps: {
   t: TFunction
   theme: string | undefined
@@ -18,6 +18,7 @@ export function createToolsProvider(deps: {
   return {
     id: "tools",
     pages: ["root"],
+    prefix: ">",
     getItems: () => [
       {
         id: "tools:theme",
@@ -26,6 +27,14 @@ export function createToolsProvider(deps: {
         icon: theme === "dark" ? Sun : Moon,
         keywords: ["dark mode", "light mode", "tema", "theme"],
         perform: { kind: "run", run: toggleTheme },
+      },
+      {
+        id: "tools:shortcuts",
+        section,
+        label: t("commandPalette.shortcuts.title"),
+        icon: Keyboard,
+        keywords: ["shortcuts", "scorciatoie", "keyboard", "tastiera", "tasti", "keys", "hotkeys", "prefix", "prefissi"],
+        perform: { kind: "page", page: "shortcuts" },
       },
     ],
   }

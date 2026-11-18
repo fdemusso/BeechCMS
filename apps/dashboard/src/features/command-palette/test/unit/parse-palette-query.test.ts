@@ -72,4 +72,16 @@ describe("parsePaletteQuery", () => {
 
     expect(result).toEqual({ prefix: "#", text: "fff" })
   })
+
+  it("a leading > on the root page is returned as the system prefix and stripped from the trimmed text", () => {
+    const result = parsePaletteQuery(">  theme ", "root")
+
+    expect(result).toEqual({ prefix: ">", text: "theme" })
+  })
+
+  it("a lone > yields the system prefix with empty text", () => {
+    const result = parsePaletteQuery(">", "root")
+
+    expect(result).toEqual({ prefix: ">", text: "" })
+  })
 })

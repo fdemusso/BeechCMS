@@ -6,7 +6,7 @@ import type { CommandPage, PalettePrefix } from "../types"
 import { COLOR_PATTERN } from "./convert-value"
 
 /** Every routable prefix. `Record` makes tsc reject a `PalettePrefix` member missing here. */
-export const PALETTE_PREFIXES: Readonly<Record<PalettePrefix, true>> = { "=": true, "/": true, "#": true }
+export const PALETTE_PREFIXES: Readonly<Record<PalettePrefix, true>> = { "=": true, "/": true, "#": true, ">": true }
 
 export interface ParsedPaletteQuery {
   /** Absent when the query carries no prefix. */

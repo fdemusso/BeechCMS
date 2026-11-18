@@ -81,11 +81,11 @@ function searchResponse(...hits: ReturnType<typeof searchHit>[]) {
   return { json: async () => ({ items: hits, nextCursor: null, total: hits.length }) }
 }
 
-function renderPalette(hostProviders: readonly PaletteProvider[]) {
+function renderPalette(hostProviders: readonly PaletteProvider[], onOpenChange?: (open: boolean) => void) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
-      <CommandPalette hostProviders={hostProviders} />
+      <CommandPalette hostProviders={hostProviders} onOpenChange={onOpenChange} />
     </QueryClientProvider>,
   )
 }
@@ -685,6 +685,50 @@ describe("CommandPalette", () => {
       typeInRoot("=1+1")
 
       expect(screen.queryByText("Save entry")).not.toBeInTheDocument()
+    })
+  })
+
+  describe("system commands and shortcuts", () => {
+    it("tells onOpenChange true when the palette opens and false when it closes", () => {
+      const onOpenChange = vi.fn()
+      renderPalette([], onOpenChange)
+
+      fireEvent.keyDown(document, { key: "k", code: "KeyK", metaKey: true })
+      fireEvent.keyDown(document, { key: "Escape", code: "Escape" })
+
+      // The first call is the mount report: the palette starts closed.
+      expect(onOpenChange.mock.calls).toEqual([[false], [true], [false]])
+    })
+
+    it("Enter on the keyboard shortcuts row opens the shortcuts page with the prefix rows", () => {
+      renderPalette([])
+      const input = typeInRoot("Keyboard shortcuts")
+
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter" })
+
+      expect(screen.getByPlaceholderText("Filter shortcuts…")).toBeInTheDocument()
+      expect(screen.getByText("Prefixes")).toBeInTheDocument()
+      expect(screen.getByText("System commands and preferences")).toBeInTheDocument()
+      expect(screen.getByText("Search content only")).toBeInTheDocument()
+    })
+
+    it("Enter on a shortcut row closes the palette", () => {
+      renderPalette([])
+      fireEvent.keyDown(typeInRoot("Keyboard shortcuts"), { key: "Enter", code: "Enter" })
+
+      fireEvent.keyDown(screen.getByPlaceholderText("Filter shortcuts…"), { key: "Enter", code: "Enter" })
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+
+    it("with the > prefix the tools rows are listed and the navigation rows are not", () => {
+      renderPalette([])
+
+      typeInRoot(">")
+
+      expect(screen.getByText("Change theme")).toBeInTheDocument()
+      expect(screen.getByText("Keyboard shortcuts")).toBeInTheDocument()
+      expect(screen.queryByText("Dashboard")).not.toBeInTheDocument()
     })
   })
 })

@@ -1107,6 +1107,7 @@
     "copyId": "Copia ID",
     "actionsHint": "Azioni",
     "placeholderActions": "Scegli un'azione…",
+    "placeholderShortcuts": "Filtra le scorciatoie…",
     "noResults": "Nessun risultato",
     "ariaLabel": "Palette comandi globale",
     "notes": {
@@ -1128,6 +1129,40 @@
     },
     "context": {
       "targetGone": "La pagina è cambiata prima della conferma: non è stato fatto nulla"
+    },
+    "preferences": {
+      "section": "Preferenze",
+      "switchLanguage": "Passa la dashboard a {{language}}",
+      "notify": "Notifiche: {{event}}",
+      "on": "Attive",
+      "off": "Disattivate",
+      "notifyUnavailable": "Impossibile caricare le preferenze di notifica",
+      "saving": "Salvataggio delle preferenze…"
+    },
+    "system": {
+      "section": "Sistema",
+      "status": "Stato del sistema",
+      "statusHealthy": "Entro le quote · Storage {{storage}}% · Database {{database}}%",
+      "statusWarning": "Vicino a una quota · Storage {{storage}}% · Database {{database}}%",
+      "statusUnavailable": "Impossibile leggere lo stato del sistema"
+    },
+    "shortcuts": {
+      "title": "Scorciatoie da tastiera",
+      "global": "Ovunque",
+      "palette": "Nella palette",
+      "prefixes": "Prefissi",
+      "togglePalette": "Apri o chiudi la palette",
+      "quickCreate": "Crea un contenuto",
+      "toggleSidebar": "Mostra o nascondi la barra laterale",
+      "run": "Esegui la riga selezionata",
+      "firstAction": "Esegui la prima azione della riga",
+      "rowActions": "Mostra le azioni della riga",
+      "back": "Torna indietro (campo vuoto)",
+      "close": "Torna indietro o chiudi",
+      "prefixSystem": "Comandi di sistema e preferenze",
+      "prefixCalculator": "Calcolatrice",
+      "prefixNotes": "Note rapide",
+      "prefixContent": "Cerca solo nei contenuti"
     }
   },
   "gallery": {

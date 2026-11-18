@@ -2,41 +2,19 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { Loader as Loader2 } from '@/components/icons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { SettingsRow, SettingsSection } from '@/components/ui/settings-section'
 import { rowDescriptionDomId } from '@/components/ui/settings-section-ids'
-import { useNotificationPrefs, useUpdateNotificationPrefs } from '../hooks/use-settings'
-import type { NotificationPrefs } from '../types/settings.types'
+import { useNotificationPrefToggle } from '../hooks/use-notification-pref-toggle'
+import { NOTIFICATION_PREF_ITEMS } from '../lib/notification-pref-items'
 
 /** Which events notify the person, one switch per row; a change is saved the moment it is made. */
 export function NotificationsTab() {
   const { t } = useTranslation()
-  const { data: prefs, isLoading } = useNotificationPrefs()
-  const updatePrefs = useUpdateNotificationPrefs()
-
-  const handleChange = async (key: keyof NotificationPrefs, value: boolean) => {
-    if (!prefs) return
-    const updated: NotificationPrefs = { ...prefs, [key]: value }
-    try {
-      await updatePrefs.mutateAsync(updated)
-      toast.success(t('settings.notifications.saved'))
-    } catch {
-      toast.error(t('settings.notifications.error'))
-    }
-  }
-
-  const isPending = updatePrefs.isPending
-
-  const ITEMS = [
-    { id: 'notif-content-create', key: 'contentCreate', fallback: true, text: 'contentCreate' },
-    { id: 'notif-content-update', key: 'contentUpdate', fallback: true, text: 'contentUpdate' },
-    { id: 'notif-content-delete', key: 'contentDelete', fallback: true, text: 'contentDelete' },
-    { id: 'notif-media-upload', key: 'mediaUpload', fallback: false, text: 'mediaUpload' },
-  ] as const
+  const { prefs, isLoading, isSaving: isPending, setPref } = useNotificationPrefToggle()
 
   return (
     <SettingsSection
@@ -52,7 +30,7 @@ export function NotificationsTab() {
         </div>
       ) : (
         <div aria-busy={isPending}>
-          {ITEMS.map(({ id, key, fallback, text }) => (
+          {NOTIFICATION_PREF_ITEMS.map(({ id, key, fallback, text }) => (
             <SettingsRow
               key={id}
               label={t(`settings.notifications.${text}.label`)}
@@ -63,7 +41,7 @@ export function NotificationsTab() {
               <Switch
                 id={id}
                 checked={prefs?.[key] ?? fallback}
-                onCheckedChange={(value) => handleChange(key, value)}
+                onCheckedChange={(value) => setPref(key, value)}
                 disabled={isPending}
                 aria-describedby={rowDescriptionDomId(id)}
               />

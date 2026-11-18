@@ -18,8 +18,19 @@ import {
 import { hydrateEffectivePermissions } from "@/features/shared"
 import type { CommandPage, PaletteItem, PalettePermissions } from "@/features/command-palette"
 import { SEED_INTENT_NEW } from "@/features/seed-builder"
-import { getVisibleSettingsEntries } from "@/features/settings"
-import { createContentTypesProvider, createSettingsProvider } from "./palette-providers"
+import type { SystemHealth } from "@/features/dashboard"
+import {
+  getVisibleSettingsEntries,
+  NOTIFICATION_PREF_ITEMS,
+  type DashboardLanguage,
+  type NotificationPrefToggle,
+} from "@/features/settings"
+import {
+  createContentTypesProvider,
+  createPreferencesProvider,
+  createSettingsProvider,
+  createSystemStatusProvider,
+} from "./palette-providers"
 
 type PermissionsPayload = Parameters<typeof hydrateEffectivePermissions>[0]
 
@@ -106,5 +117,172 @@ describe("createSettingsProvider", () => {
     runItem(themeRow)
 
     expect(openSettings).toHaveBeenCalledExactlyOnceWith("appearance", { section: "theme" })
+  })
+
+  it("answers the > prefix", () => {
+    const provider = createSettingsProvider({ t, openSettings: vi.fn() })
+
+    expect(provider.prefix).toBe(">")
+  })
+})
+
+describe("createPreferencesProvider", () => {
+  // `mediaUpload` is deliberately absent: the server stores nothing for it, so its fallback shows.
+  const STORED_PREFS: NonNullable<NotificationPrefToggle["prefs"]> = {
+    contentCreate: true,
+    contentUpdate: true,
+    contentDelete: false,
+  } as NonNullable<NotificationPrefToggle["prefs"]>
+
+  function itemsFor(options: {
+    query?: string
+    prefix?: ">"
+    language?: string
+    setLanguage?: (language: DashboardLanguage) => void
+    notifications?: Partial<NotificationPrefToggle>
+  }): readonly PaletteItem[] {
+    const notifications: NotificationPrefToggle = {
+      prefs: STORED_PREFS,
+      isLoading: false,
+      isError: false,
+      isSaving: false,
+      setPref: vi.fn().mockResolvedValue(undefined),
+      ...options.notifications,
+    }
+    const provider = createPreferencesProvider({
+      t,
+      language: options.language ?? "it",
+      setLanguage: options.setLanguage ?? vi.fn(),
+      notifications,
+    })
+    return provider.getItems({
+      page: "root",
+      query: options.query ?? "",
+      prefix: options.prefix,
+      permissions: permissionsFor({}),
+    })
+  }
+
+  const notificationRows = (items: readonly PaletteItem[]) => items.filter((item) => item.id.startsWith("prefs:notify:"))
+
+  it("emits nothing on the idle root without a prefix", () => {
+    const items = itemsFor({})
+
+    expect(items).toEqual([])
+  })
+
+  it("with the > prefix lists one row per other language, then one row per notification switch", () => {
+    const items = itemsFor({ prefix: ">", language: "it" })
+
+    expect(items.map((item) => item.id)).toEqual([
+      "prefs:language:en",
+      ...NOTIFICATION_PREF_ITEMS.map(({ key }) => `prefs:notify:${key}`),
+    ])
+  })
+
+  it("the language row switches through setLanguage to its language", () => {
+    const setLanguage = vi.fn()
+    const englishRow = itemsFor({ prefix: ">", language: "it", setLanguage }).find((item) => item.id === "prefs:language:en")
+
+    runItem(englishRow)
+
+    expect(setLanguage).toHaveBeenCalledExactlyOnceWith("en")
+  })
+
+  it("a notification row shows its current value and saves the opposite", () => {
+    const setPref = vi.fn().mockResolvedValue(undefined)
+    const rows = notificationRows(itemsFor({ prefix: ">", notifications: { setPref } }))
+    const expected = NOTIFICATION_PREF_ITEMS.map(({ key, fallback }) => [key, !(STORED_PREFS[key] ?? fallback)])
+
+    for (const row of rows) runItem(row)
+
+    expect(rows.map((row) => row.description)).toEqual(
+      NOTIFICATION_PREF_ITEMS.map(({ key, fallback }) =>
+        STORED_PREFS[key] ?? fallback ? "commandPalette.preferences.on" : "commandPalette.preferences.off",
+      ),
+    )
+    expect(setPref.mock.calls).toEqual(expected)
+  })
+
+  it("a key the server has not stored shows its fallback", () => {
+    const mediaRow = itemsFor({ prefix: ">" }).find((item) => item.id === "prefs:notify:mediaUpload")
+
+    expect(mediaRow?.description).toBe("commandPalette.preferences.off")
+  })
+
+  it("while the prefs are not loaded every notification row is disabled with the loading reason", () => {
+    const rows = notificationRows(itemsFor({ prefix: ">", notifications: { prefs: undefined, isLoading: true } }))
+
+    expect(rows).toHaveLength(NOTIFICATION_PREF_ITEMS.length)
+    expect(rows.every((row) => row.unavailableReason === "common.loading")).toBe(true)
+  })
+
+  it("after a failed load every notification row is disabled with the unavailable reason", () => {
+    const rows = notificationRows(itemsFor({ prefix: ">", notifications: { prefs: undefined, isError: true } }))
+
+    expect(rows.every((row) => row.unavailableReason === "commandPalette.preferences.notifyUnavailable")).toBe(true)
+  })
+
+  it("while a save is in flight every notification row is disabled with the saving reason", () => {
+    const rows = notificationRows(itemsFor({ prefix: ">", notifications: { isSaving: true } }))
+
+    expect(rows.every((row) => row.unavailableReason === "commandPalette.preferences.saving")).toBe(true)
+  })
+})
+
+describe("createSystemStatusProvider", () => {
+  const HEALTH: SystemHealth = {
+    storage: { used: 40, limit: 100, percentage: 40 },
+    database: { requests30d: 10, limit: 100, percentage: 10 },
+    status: "healthy",
+    lastUpdate: 1_700_000_000,
+  }
+
+  function itemsFor(options: {
+    payload?: PermissionsPayload
+    prefix?: ">"
+    health?: { data: SystemHealth | undefined; isError: boolean }
+  }): readonly PaletteItem[] {
+    const provider = createSystemStatusProvider({ t, health: options.health ?? { data: HEALTH, isError: false } })
+    return provider.getItems({
+      page: "root",
+      query: "",
+      prefix: options.prefix,
+      permissions: permissionsFor(options.payload ?? { global: ["view_analytics"] }),
+    })
+  }
+
+  it("emits nothing without view_analytics on *, even when it is granted on a seed", () => {
+    const items = itemsFor({ payload: { byScope: { posts: ["view_analytics"] } }, prefix: ">" })
+
+    expect(items).toEqual([])
+  })
+
+  it("emits nothing on the idle root without a prefix", () => {
+    const items = itemsFor({})
+
+    expect(items).toEqual([])
+  })
+
+  it("describes the quotas and copies that description on Enter", () => {
+    const verdicts = [
+      ["healthy", "commandPalette.system.statusHealthy"],
+      ["warning", "commandPalette.system.statusWarning"],
+    ] as const
+
+    for (const [status, expectedKey] of verdicts) {
+      const [row] = itemsFor({ prefix: ">", health: { data: { ...HEALTH, status }, isError: false } })
+
+      expect(row.description).toBe(expectedKey)
+      expect(row.perform).toEqual({ kind: "copy", value: expectedKey })
+    }
+  })
+
+  it("is disabled with the loading reason before data and with the unavailable reason after an error", () => {
+    const [loadingRow] = itemsFor({ prefix: ">", health: { data: undefined, isError: false } })
+    const [failedRow] = itemsFor({ prefix: ">", health: { data: undefined, isError: true } })
+
+    expect(loadingRow.unavailableReason).toBe("common.loading")
+    expect(failedRow.unavailableReason).toBe("commandPalette.system.statusUnavailable")
   })
 })

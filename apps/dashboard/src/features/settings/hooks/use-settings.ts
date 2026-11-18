@@ -116,11 +116,12 @@ export function useDeleteOrphans() {
   })
 }
 
-export function useNotificationPrefs() {
+export function useNotificationPrefs(options?: { readonly enabled?: boolean }) {
   return useQuery({
     queryKey: SETTINGS_QUERY_KEYS.notifications(),
     queryFn: settingsApi.getNotifications,
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   })
 }
 

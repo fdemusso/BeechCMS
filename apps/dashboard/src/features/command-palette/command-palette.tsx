@@ -50,6 +50,7 @@ import { createNavigationProvider } from "./providers/navigation-provider"
 import { createContentProvider } from "./providers/content-provider"
 import { createContentSearchProvider } from "./providers/content-search-provider"
 import { createQuickNotesProvider } from "./providers/quick-notes-provider"
+import { createShortcutsProvider } from "./providers/shortcuts-provider"
 import { createToolsProvider } from "./providers/tools-provider"
 import { PaletteList } from "./_parts/palette-list"
 import { PaletteFooter } from "./_parts/palette-footer"
@@ -61,6 +62,8 @@ const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
 export interface CommandPaletteProps {
   /** Providers assembled outside the slice (composition root); rendered after the built-ins. */
   readonly hostProviders: readonly PaletteProvider[]
+  /** Told after the palette opens or closes, so the composition root can fetch only while it is open. The palette stays uncontrolled. */
+  readonly onOpenChange?: (open: boolean) => void
 }
 
 function EmptyMessage({ searching }: { searching: boolean }) {
@@ -111,7 +114,7 @@ function BreadcrumbChips({ pages, popPage }: BreadcrumbChipsProps) {
 }
 
 /** Global command palette: aggregates every provider's rows, ranks them and renders the result. */
-export function CommandPalette({ hostProviders }: CommandPaletteProps) {
+export function CommandPalette({ hostProviders, onOpenChange }: CommandPaletteProps) {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { resolvedTheme, setTheme } = useTheme()
@@ -124,6 +127,9 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
   const { data: me } = useMe()
   const quickNotes = useQuickNotes(me?.id, open)
   const declarations = usePageActionDeclarations()
+  React.useEffect(() => {
+    onOpenChange?.(open)
+  }, [open, onOpenChange])
   const [pendingAction, setPendingAction] = React.useState<PendingPageAction | null>(null)
   const confirmedRef = React.useRef(false)
 
@@ -133,6 +139,7 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
     create: t("commandPalette.placeholderCreate"),
     settings: t("commandPalette.placeholderSettings"),
     "edit-schema": t("commandPalette.placeholderEditSchema"),
+    shortcuts: t("commandPalette.placeholderShortcuts"),
     actions: t("commandPalette.placeholderActions"),
   }
 
@@ -154,7 +161,7 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
     [formatUpdatedAt],
   )
 
-  // Computed providers come first so equal scores go to the computed row; idle order: context, navigation, content, host, notes, tools.
+  // Computed providers come first so equal scores go to the computed row; idle order: context, navigation, content, host, notes, tools; the shortcuts page serves only its own page.
   // Search rows (async lane) always come after every local row.
   const providers = React.useMemo<readonly PaletteProvider[]>(
     () => [
@@ -172,6 +179,7 @@ export function CommandPalette({ hostProviders }: CommandPaletteProps) {
         formatSavedAt,
       }),
       createToolsProvider({ t, theme: resolvedTheme, toggleTheme }),
+      createShortcutsProvider({ t }),
     ],
     [t, seeds, declarations, hostProviders, quickNotes.state, quickNotes.save, quickNotes.remove, formatSavedAt, resolvedTheme, toggleTheme],
   )

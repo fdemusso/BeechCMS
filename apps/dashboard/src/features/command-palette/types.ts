@@ -16,6 +16,7 @@ export type CommandPage =
   | "create"
   | "settings"
   | "edit-schema"
+  | "shortcuts"
   | "actions" // Engine-owned: reached only through openActions, never declared by a provider
 
 // Contratto del hook — non esposto come Context React
@@ -45,7 +46,7 @@ export interface PaletteRequirement {
 }
 
 /** A leading character that routes the query to the providers declaring it. Engine-owned table: lib/parse-palette-query.ts. */
-export type PalettePrefix = "=" | "/" | "#"
+export type PalettePrefix = "=" | "/" | "#" | ">"
 
 /** What selecting a row does. The engine closes the palette after `navigate`, `run` and `copy`. */
 export type PalettePerform =
