@@ -46,4 +46,13 @@ describe("createToolsProvider", () => {
 
     expect(provider.prefix).toBe(">")
   })
+
+  it("getStableItems lists the theme and shortcuts rows with the ids getItems uses", () => {
+    const provider = createToolsProvider({ t, theme: "light", toggleTheme: vi.fn() })
+
+    const stable = provider.getStableItems?.({ permissions: NO_PERMISSIONS })
+
+    expect(stable?.map((item) => item.id)).toEqual(["tools:theme", "tools:shortcuts"])
+    expect(stable?.map((item) => item.id)).toEqual(provider.getItems(ROOT_CONTEXT).map((item) => item.id))
+  })
 })

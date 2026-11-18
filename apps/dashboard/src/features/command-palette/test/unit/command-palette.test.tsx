@@ -13,6 +13,7 @@ import {
   type PageActionDeclaration,
 } from "@/features/shared/hooks/use-page-actions"
 import { insertNote, QUICK_NOTES_MAX_COUNT, readNotes, type QuickNote } from "../../lib/quick-notes-storage"
+import { readRecentIds, recordRecentId } from "../../lib/recent-items-storage"
 
 const { navigateMock, grantedPermissions, toastMock, searchMock } = vi.hoisted(() => ({
   searchMock: vi.fn(),
@@ -729,6 +730,92 @@ describe("CommandPalette", () => {
       expect(screen.getByText("Change theme")).toBeInTheDocument()
       expect(screen.getByText("Keyboard shortcuts")).toBeInTheDocument()
       expect(screen.queryByText("Dashboard")).not.toBeInTheDocument()
+    })
+  })
+
+  describe("recent items", () => {
+    function openPalette() {
+      fireEvent.keyDown(document, { key: "k", code: "KeyK", metaKey: true })
+      return screen.getByPlaceholderText(PLACEHOLDER_ROOT)
+    }
+
+    function recentRows() {
+      const recentHeading = screen.getByText("Recent")
+      const group = recentHeading.closest("[cmdk-group]")
+      if (!group) throw new Error("Recent heading is not inside a group")
+      return within(group as HTMLElement).getAllByRole("option")
+    }
+
+    it("the idle root shows no Recent section before anything was performed", () => {
+      renderPalette([])
+
+      openPalette()
+
+      expect(screen.getByText("Dashboard")).toBeInTheDocument()
+      expect(screen.queryByText("Recent")).not.toBeInTheDocument()
+    })
+
+    it("Enter on a navigation row, then reopening, lists that row first under Recent", () => {
+      renderPalette([])
+      fireEvent.keyDown(openPalette(), { key: "Enter", code: "Enter" })
+
+      openPalette()
+
+      const rows = screen.getAllByRole("option")
+      expect(rows[0]).toHaveTextContent("Dashboard")
+      expect(recentRows()).toHaveLength(1)
+      expect(recentRows()[0]).toHaveTextContent("Navigate")
+      expect(readRecentIds(localStorage, EDITOR_ID)).toEqual(["nav:/"])
+    })
+
+    it("Enter on a recent row navigates to its destination and keeps a single recent entry for it", () => {
+      renderPalette([])
+      fireEvent.keyDown(openPalette(), { key: "Enter", code: "Enter" })
+      const input = openPalette()
+      navigateMock.mockClear()
+
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter" })
+
+      expect(navigateMock).toHaveBeenCalledExactlyOnceWith("/")
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      expect(readRecentIds(localStorage, EDITOR_ID)).toEqual(["nav:/"])
+    })
+
+    it("typing hides the Recent section", () => {
+      recordRecentId(localStorage, EDITOR_ID, "nav:/")
+      renderPalette([])
+
+      typeInRoot("dash")
+
+      expect(screen.getByText("Dashboard")).toBeInTheDocument()
+      expect(screen.queryByText("Recent")).not.toBeInTheDocument()
+    })
+
+    it("a recorded create row is listed disabled with the missing permission once content:create on its seed is revoked", () => {
+      recordRecentId(localStorage, EDITOR_ID, "content:create:posts")
+      grantedPermissions.add("content:read@posts")
+      renderPalette([])
+
+      openPalette()
+
+      const row = screen.getByText("Create in Post").closest("[data-slot='command-item']")
+      expect(row).toHaveAttribute("aria-disabled", "true")
+      expect(row).toHaveTextContent("Requires the content:create permission")
+      expect(recentRows()).toContain(row)
+    })
+
+    it("Enter on a search row records nothing", async () => {
+      // Regression guard: search hits are never recents (roadmap 7b).
+      grantedPermissions.add("content:read@posts")
+      searchMock.mockResolvedValue(searchResponse(searchHit()))
+      renderPalette([])
+      const input = typeInRoot("/canonical")
+      await screen.findByText("Canonical Post")
+
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter" })
+
+      expect(navigateMock).toHaveBeenCalledWith(`/content/posts/${HIT_ID}`)
+      expect(readRecentIds(localStorage, EDITOR_ID)).toEqual([])
     })
   })
 })

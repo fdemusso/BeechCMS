@@ -66,7 +66,7 @@ export interface PaletteRowAction {
 }
 
 export interface PaletteItem {
-  /** Stable across sessions and languages: `${providerId}:${key}`. Persisted by pins (roadmap 9). */
+  /** Stable across sessions and languages: `${providerId}:${key}`. Persisted by recent items and pins (roadmap 9). */
   readonly id: string
   /** Translated group heading; rows with the same section render together, first appearance wins. */
   readonly section: string
@@ -106,6 +106,9 @@ export interface PaletteQueryContext {
   readonly permissions: PalettePermissions
 }
 
+/** What a provider's stable rows may depend on: never the page or the query. */
+export type PaletteStableContext = Pick<PaletteQueryContext, "permissions">
+
 export interface PaletteProvider {
   /** Unique among the providers passed to the palette; first segment of every item id it emits. */
   readonly id: string
@@ -117,6 +120,12 @@ export interface PaletteProvider {
   readonly prefix?: PalettePrefix
   /** Synchronous, side-effect free. A surface the caller may not see is simply not returned. */
   readonly getItems: (context: PaletteQueryContext) => readonly PaletteItem[]
+  /**
+   * Every row with a stable id this provider can emit, on any page and for any query, each in its root-page form.
+   * Stored ids (recent items; pins, roadmap 9) resolve against it. Same purity and hiding rules as `getItems`.
+   * Omitted: none of this provider's rows is ever recorded.
+   */
+  readonly getStableItems?: (context: PaletteStableContext) => readonly PaletteItem[]
 }
 
 /**

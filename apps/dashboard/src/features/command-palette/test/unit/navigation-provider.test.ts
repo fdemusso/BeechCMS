@@ -64,4 +64,13 @@ describe("createNavigationProvider", () => {
     const targets = items.map((item) => (item.perform.kind === "navigate" ? item.perform.to : null))
     expect(targets).not.toContain("/media")
   })
+
+  it("getStableItems lists the same rows as the idle root for the same authority", () => {
+    const payload: PermissionsPayload = { global: ["view_analytics", "manage_seeds"], byScope: { posts: ["content:read"] } }
+    const provider = createNavigationProvider({ t })
+
+    const stable = provider.getStableItems?.({ permissions: permissionsFor(payload) })
+
+    expect(stable).toEqual(itemsFor(payload))
+  })
 })

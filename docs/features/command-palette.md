@@ -16,6 +16,7 @@ The **Command Palette** is a global, keyboard-driven navigation spotlight built 
 ## Key Capabilities
 
 - **Global Hotkey (`Cmd+K` / `Ctrl+K`)**: Opens from anywhere within the dashboard instantly.
+- **Recent**: opening the palette lists, under *Recent*, the last five screens, seeds, settings and commands you used on this browser (separate per user, never sent to the server). A row you can no longer use is shown disabled, and one that no longer exists is left out. Typing hides the section.
 - **Fuzzy Collection Filtering**: Start typing any Seed name to immediately filter the navigation list.
 - **Deep Record Search**: Drill down into specific Seeds to search records by title or primary identifier.
 - **Hierarchical Breadcrumbs**: Navigate into sub-views (e.g. `Root > Articles > Search`) with breadcrumb chips and press `Backspace` or `Escape` to pop back up.

@@ -6,10 +6,10 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "i18next"
 import { toast } from "sonner"
+import { probePaletteStorage } from "./lib/palette-storage"
 import {
   deleteNote,
   insertNote,
-  probeQuickNotesStorage,
   QUICK_NOTE_MAX_LENGTH,
   QUICK_NOTES_MAX_COUNT,
   readNotes,
@@ -56,7 +56,7 @@ function rejectionMessage(t: TFunction, reason: QuickNotesRejection, textLength:
 /** Browser-only notes of `userId`, re-read from storage each time `open` turns true. */
 export function useQuickNotes(userId: string | undefined, open: boolean): QuickNotesApi {
   const { t } = useTranslation()
-  const [storage] = React.useState(probeQuickNotesStorage)
+  const [storage] = React.useState(probePaletteStorage)
   const [owned, setOwned] = React.useState<OwnedNotes>({ userId: undefined, notes: NO_NOTES })
   // Notes of another user are never exposed, even for the render before the effect re-reads storage.
   const notes = owned.userId === userId ? owned.notes : NO_NOTES

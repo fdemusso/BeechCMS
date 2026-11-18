@@ -4,7 +4,7 @@
 
 import type { TFunction } from "i18next"
 import { Keyboard, Moon, Sun } from "@/components/icons"
-import type { PaletteProvider } from "../types"
+import type { PaletteItem, PaletteProvider } from "../types"
 
 /** The theme toggle and the keyboard shortcuts page. */
 export function createToolsProvider(deps: {
@@ -15,27 +15,24 @@ export function createToolsProvider(deps: {
   const { t, theme, toggleTheme } = deps
   const section = t("commandPalette.tools")
 
-  return {
-    id: "tools",
-    pages: ["root"],
-    prefix: ">",
-    getItems: () => [
-      {
-        id: "tools:theme",
-        section,
-        label: t("commandPalette.changeTheme"),
-        icon: theme === "dark" ? Sun : Moon,
-        keywords: ["dark mode", "light mode", "tema", "theme"],
-        perform: { kind: "run", run: toggleTheme },
-      },
-      {
-        id: "tools:shortcuts",
-        section,
-        label: t("commandPalette.shortcuts.title"),
-        icon: Keyboard,
-        keywords: ["shortcuts", "scorciatoie", "keyboard", "tastiera", "tasti", "keys", "hotkeys", "prefix", "prefissi"],
-        perform: { kind: "page", page: "shortcuts" },
-      },
-    ],
-  }
+  const rows = (): PaletteItem[] => [
+    {
+      id: "tools:theme",
+      section,
+      label: t("commandPalette.changeTheme"),
+      icon: theme === "dark" ? Sun : Moon,
+      keywords: ["dark mode", "light mode", "tema", "theme"],
+      perform: { kind: "run", run: toggleTheme },
+    },
+    {
+      id: "tools:shortcuts",
+      section,
+      label: t("commandPalette.shortcuts.title"),
+      icon: Keyboard,
+      keywords: ["shortcuts", "scorciatoie", "keyboard", "tastiera", "tasti", "keys", "hotkeys", "prefix", "prefissi"],
+      perform: { kind: "page", page: "shortcuts" },
+    },
+  ]
+
+  return { id: "tools", pages: ["root"], prefix: ">", getItems: rows, getStableItems: rows }
 }

@@ -38,7 +38,9 @@ import type {
 } from "./types"
 import { useAsyncPaletteItems } from "./use-async-palette-items"
 import { useQuickNotes } from "./use-quick-notes"
+import { useRecentItems } from "./use-recent-items"
 import { collectPaletteItems } from "./lib/collect-palette-items"
+import { collectStableItems } from "./lib/stable-items"
 import { rankPaletteItems } from "./lib/rank-palette-items"
 import { parsePaletteQuery } from "./lib/parse-palette-query"
 import { toActionRows } from "./lib/action-rows"
@@ -50,6 +52,7 @@ import { createNavigationProvider } from "./providers/navigation-provider"
 import { createContentProvider } from "./providers/content-provider"
 import { createContentSearchProvider } from "./providers/content-search-provider"
 import { createQuickNotesProvider } from "./providers/quick-notes-provider"
+import { createRecentItemsProvider, recentIdToRecord } from "./providers/recent-items-provider"
 import { createShortcutsProvider } from "./providers/shortcuts-provider"
 import { createToolsProvider } from "./providers/tools-provider"
 import { PaletteList } from "./_parts/palette-list"
@@ -126,6 +129,7 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
   const { can, canAnywhere, canGlobally } = usePermissions()
   const { data: me } = useMe()
   const quickNotes = useQuickNotes(me?.id, open)
+  const recentItems = useRecentItems(me?.id, open)
   const declarations = usePageActionDeclarations()
   React.useEffect(() => {
     onOpenChange?.(open)
@@ -161,13 +165,11 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
     [formatUpdatedAt],
   )
 
-  // Computed providers come first so equal scores go to the computed row; idle order: context, navigation, content, host, notes, tools; the shortcuts page serves only its own page.
+  // Computed providers come first so equal scores go to the computed row; idle order: context, recent, navigation, content, host, notes, tools; the shortcuts page serves only its own page.
   // Search rows (async lane) always come after every local row.
-  const providers = React.useMemo<readonly PaletteProvider[]>(
-    () => [
-      createCalculatorProvider({ t }),
-      createConversionsProvider({ t }),
-      createContextActionsProvider({ declarations, requestConfirm: setPendingAction }),
+  const providers = React.useMemo<readonly PaletteProvider[]>(() => {
+    const contextActions = createContextActionsProvider({ declarations, requestConfirm: setPendingAction })
+    const afterContext = [
       createNavigationProvider({ t }),
       createContentProvider({ t, seeds }),
       ...hostProviders,
@@ -180,9 +182,16 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
       }),
       createToolsProvider({ t, theme: resolvedTheme, toggleTheme }),
       createShortcutsProvider({ t }),
-    ],
-    [t, seeds, declarations, hostProviders, quickNotes.state, quickNotes.save, quickNotes.remove, formatSavedAt, resolvedTheme, toggleTheme],
-  )
+    ]
+    const calculator = createCalculatorProvider({ t })
+    const conversions = createConversionsProvider({ t })
+    const recent = createRecentItemsProvider({
+      t,
+      recent: recentItems.state,
+      sources: [calculator, conversions, contextActions, ...afterContext],
+    })
+    return [calculator, conversions, contextActions, recent, ...afterContext]
+  }, [t, seeds, declarations, hostProviders, quickNotes.state, quickNotes.save, quickNotes.remove, recentItems.state, formatSavedAt, resolvedTheme, toggleTheme])
 
   const asyncProviders = React.useMemo(
     () => [createContentSearchProvider({ t, seeds, formatUpdatedAt })],
@@ -242,7 +251,13 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
     }
   }
 
-  const perform = (item: ResolvedPaletteItem) => runPerform(item.perform)
+  const perform = (item: ResolvedPaletteItem) => {
+    // Recorded before runPerform, which closes the palette.
+    const stable = collectStableItems(providers, { permissions: { can, canAnywhere, canGlobally } })
+    const recentId = recentIdToRecord(item, stable)
+    if (recentId) recentItems.record(recentId)
+    runPerform(item.perform)
+  }
 
   const confirmPendingAction = () => {
     if (!pendingAction) return

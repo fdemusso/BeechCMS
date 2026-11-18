@@ -5,7 +5,7 @@
 import { isSystemSeedSlug, type Seed } from "@beechcms/core"
 import type { TFunction } from "i18next"
 import { Bell, Language, Layers, Plus, Pulse } from "@/components/icons"
-import type { PaletteItem, PaletteProvider } from "@/features/command-palette"
+import type { CommandPage, PaletteItem, PalettePermissions, PaletteProvider } from "@/features/command-palette"
 import type { SystemHealth } from "@/features/dashboard"
 import { SEED_INTENT_NEW } from "@/features/seed-builder"
 import {
@@ -31,48 +31,49 @@ export function createSettingsProvider(deps: {
 }): PaletteProvider {
   const { t, openSettings } = deps
 
+  const rowsFor = (permissions: PalettePermissions, page: CommandPage): PaletteItem[] => {
+    const gates = { canGlobally: permissions.canGlobally, canAnywhere: permissions.canAnywhere }
+    const entries = getVisibleSettingsEntries(gates)
+    const items: PaletteItem[] = []
+
+    for (const groupId of SETTINGS_GROUP_ORDER) {
+      const group = SETTINGS_GROUP_LABELS[groupId]
+      const section = `${t("commandPalette.settings")} · ${t(group.key, group.defaultLabel)}`
+
+      for (const entry of entries.filter((candidate) => candidate.groupId === groupId)) {
+        const label = t(entry.labelKey, entry.defaultLabel)
+        items.push({
+          id: `settings:${entry.id}`,
+          section,
+          label,
+          icon: entry.icon,
+          keywords: [...entry.keywords, entry.id, t("commandPalette.settings")],
+          perform: { kind: "run", run: () => openSettings(entry.id) },
+        })
+        if (page !== "root") continue
+
+        // A bookmark is a hit of its own while typing ("inviti", "password").
+        for (const sectionItem of getVisibleSections(entry, gates)) {
+          items.push({
+            id: `settings:${entry.id}:${sectionItem.id}`,
+            section,
+            label: `${label} › ${t(sectionItem.labelKey, sectionItem.defaultLabel)}`,
+            icon: entry.icon,
+            keywords: [sectionItem.id, t("commandPalette.settings")],
+            perform: { kind: "run", run: () => openSettings(entry.id, { section: sectionItem.id }) },
+          })
+        }
+      }
+    }
+    return items
+  }
+
   return {
     id: "settings",
     pages: ["root", "settings"],
     prefix: ">",
-    getItems: ({ page, query, permissions }) => {
-      if (page === "root" && !query) return []
-
-      const gates = { canGlobally: permissions.canGlobally, canAnywhere: permissions.canAnywhere }
-      const entries = getVisibleSettingsEntries(gates)
-      const items: PaletteItem[] = []
-
-      for (const groupId of SETTINGS_GROUP_ORDER) {
-        const group = SETTINGS_GROUP_LABELS[groupId]
-        const section = `${t("commandPalette.settings")} · ${t(group.key, group.defaultLabel)}`
-
-        for (const entry of entries.filter((candidate) => candidate.groupId === groupId)) {
-          const label = t(entry.labelKey, entry.defaultLabel)
-          items.push({
-            id: `settings:${entry.id}`,
-            section,
-            label,
-            icon: entry.icon,
-            keywords: [...entry.keywords, entry.id, t("commandPalette.settings")],
-            perform: { kind: "run", run: () => openSettings(entry.id) },
-          })
-          if (page !== "root") continue
-
-          // A bookmark is a hit of its own while typing ("inviti", "password").
-          for (const sectionItem of getVisibleSections(entry, gates)) {
-            items.push({
-              id: `settings:${entry.id}:${sectionItem.id}`,
-              section,
-              label: `${label} › ${t(sectionItem.labelKey, sectionItem.defaultLabel)}`,
-              icon: entry.icon,
-              keywords: [sectionItem.id, t("commandPalette.settings")],
-              perform: { kind: "run", run: () => openSettings(entry.id, { section: sectionItem.id }) },
-            })
-          }
-        }
-      }
-      return items
-    },
+    getItems: ({ page, query, permissions }) => (page === "root" && !query ? [] : rowsFor(permissions, page)),
+    getStableItems: ({ permissions }) => rowsFor(permissions, "root"),
   }
 }
 
@@ -95,43 +96,44 @@ export function createPreferencesProvider(deps: {
     return undefined
   }
 
+  const rows = (): PaletteItem[] => {
+    const languageRows = DASHBOARD_LANGUAGES.filter(({ value }) => value !== language).map(
+      (entry): PaletteItem => ({
+        id: `prefs:language:${entry.value}`,
+        section,
+        label: t("commandPalette.preferences.switchLanguage", { language: entry.label }),
+        icon: Language,
+        keywords: ["lingua", "language", entry.value, entry.label],
+        perform: { kind: "run", run: () => setLanguage(entry.value) },
+      }),
+    )
+
+    const unavailableReason = notificationUnavailableReason()
+    const notificationRows = NOTIFICATION_PREF_ITEMS.map(({ key, fallback, text }): PaletteItem => {
+      const current = prefs?.[key] ?? fallback
+      return {
+        id: `prefs:notify:${key}`,
+        section,
+        label: t("commandPalette.preferences.notify", { event: t(`settings.notifications.${text}.label`) }),
+        description: prefs ? t(current ? "commandPalette.preferences.on" : "commandPalette.preferences.off") : undefined,
+        icon: Bell,
+        keywords: ["notifiche", "notifications", "avvisi", "alerts"],
+        unavailableReason,
+        perform: unavailableReason
+          ? { kind: "run", run: () => {} }
+          : { kind: "run", run: () => void setPref(key, !current) },
+      }
+    })
+
+    return [...languageRows, ...notificationRows]
+  }
+
   return {
     id: "prefs",
     pages: ["root"],
     prefix: ">",
-    getItems: ({ query, prefix }) => {
-      if (!query && prefix !== ">") return []
-
-      const languageRows = DASHBOARD_LANGUAGES.filter(({ value }) => value !== language).map(
-        (entry): PaletteItem => ({
-          id: `prefs:language:${entry.value}`,
-          section,
-          label: t("commandPalette.preferences.switchLanguage", { language: entry.label }),
-          icon: Language,
-          keywords: ["lingua", "language", entry.value, entry.label],
-          perform: { kind: "run", run: () => setLanguage(entry.value) },
-        }),
-      )
-
-      const unavailableReason = notificationUnavailableReason()
-      const notificationRows = NOTIFICATION_PREF_ITEMS.map(({ key, fallback, text }): PaletteItem => {
-        const current = prefs?.[key] ?? fallback
-        return {
-          id: `prefs:notify:${key}`,
-          section,
-          label: t("commandPalette.preferences.notify", { event: t(`settings.notifications.${text}.label`) }),
-          description: prefs ? t(current ? "commandPalette.preferences.on" : "commandPalette.preferences.off") : undefined,
-          icon: Bell,
-          keywords: ["notifiche", "notifications", "avvisi", "alerts"],
-          unavailableReason,
-          perform: unavailableReason
-            ? { kind: "run", run: () => {} }
-            : { kind: "run", run: () => void setPref(key, !current) },
-        }
-      })
-
-      return [...languageRows, ...notificationRows]
-    },
+    getItems: ({ query, prefix }) => (!query && prefix !== ">" ? [] : rows()),
+    getStableItems: rows,
   }
 }
 
@@ -142,39 +144,41 @@ export function createSystemStatusProvider(deps: {
 }): PaletteProvider {
   const { t, health } = deps
 
+  const rows = ({ permissions }: { permissions: PalettePermissions }): PaletteItem[] => {
+    if (!permissions.canGlobally("view_analytics")) return []
+
+    const base = {
+      id: "system:status",
+      section: t("commandPalette.system.section"),
+      label: t("commandPalette.system.status"),
+      icon: Pulse,
+      keywords: ["status", "stato", "health", "salute", "worker", "quota", "storage", "database", "d1", "r2"],
+    }
+
+    if (!health.data) {
+      return [
+        {
+          ...base,
+          unavailableReason: health.isError ? t("commandPalette.system.statusUnavailable") : t("common.loading"),
+          perform: { kind: "copy", value: "" },
+        },
+      ]
+    }
+
+    const { status, storage, database } = health.data
+    const summary = t(
+      status === "healthy" ? "commandPalette.system.statusHealthy" : "commandPalette.system.statusWarning",
+      { storage: storage.percentage, database: database.percentage },
+    )
+    return [{ ...base, description: summary, perform: { kind: "copy", value: summary } }]
+  }
+
   return {
     id: "system",
     pages: ["root"],
     prefix: ">",
-    getItems: ({ query, prefix, permissions }) => {
-      if (!permissions.canGlobally("view_analytics")) return []
-      if (!query && prefix !== ">") return []
-
-      const base = {
-        id: "system:status",
-        section: t("commandPalette.system.section"),
-        label: t("commandPalette.system.status"),
-        icon: Pulse,
-        keywords: ["status", "stato", "health", "salute", "worker", "quota", "storage", "database", "d1", "r2"],
-      }
-
-      if (!health.data) {
-        return [
-          {
-            ...base,
-            unavailableReason: health.isError ? t("commandPalette.system.statusUnavailable") : t("common.loading"),
-            perform: { kind: "copy", value: "" },
-          },
-        ]
-      }
-
-      const { status, storage, database } = health.data
-      const summary = t(
-        status === "healthy" ? "commandPalette.system.statusHealthy" : "commandPalette.system.statusWarning",
-        { storage: storage.percentage, database: database.percentage },
-      )
-      return [{ ...base, description: summary, perform: { kind: "copy", value: summary } }]
-    },
+    getItems: (context) => (!context.query && context.prefix !== ">" ? [] : rows(context)),
+    getStableItems: rows,
   }
 }
 
@@ -186,13 +190,41 @@ export function createContentTypesProvider(deps: {
 }): PaletteProvider {
   const { t, seeds, openBuilder } = deps
 
+  const editableSeeds = seeds.filter((seed) => !isSystemSeedSlug(seed.slug))
+
+  const newTypeRow = (): PaletteItem => ({
+    id: "schema:new",
+    section: t("commandPalette.schema"),
+    label: t("commandPalette.newContentType"),
+    icon: Plus,
+    keywords: ["seed", "schema", "nuovo tipo", "new type", "content type", "crea"],
+    perform: { kind: "run", run: () => openBuilder(SEED_INTENT_NEW) },
+  })
+
+  const editPageRow = (): PaletteItem => ({
+    id: "schema:edit",
+    section: t("commandPalette.schema"),
+    label: t("commandPalette.editContentType"),
+    icon: Layers,
+    perform: { kind: "page", page: "edit-schema" },
+  })
+
+  const editTypedRow = (seed: Seed): PaletteItem => ({
+    id: `schema:edit:${seed.slug}`,
+    section: t("commandPalette.schema"),
+    label: t("commandPalette.editSchemaOf", { label: seed.label }),
+    icon: resolveIcon(seed.dashboard?.icon),
+    keywords: ["schema", "seed", "modifica", "edit", "campi", "fields", seed.slug],
+    perform: { kind: "run", run: () => openBuilder(seed.slug) },
+  })
+
   return {
     id: "schema",
     pages: ["root", "edit-schema"],
+    getStableItems: ({ permissions }) =>
+      permissions.canGlobally("manage_seeds") ? [newTypeRow(), editPageRow(), ...editableSeeds.map(editTypedRow)] : [],
     getItems: ({ page, query, permissions }) => {
       if (!permissions.canGlobally("manage_seeds")) return []
-
-      const editableSeeds = seeds.filter((seed) => !isSystemSeedSlug(seed.slug))
 
       if (page === "edit-schema") {
         return editableSeeds.map((seed): PaletteItem => ({
@@ -206,40 +238,7 @@ export function createContentTypesProvider(deps: {
         }))
       }
 
-      const section = t("commandPalette.schema")
-      const items: PaletteItem[] = [
-        {
-          id: "schema:new",
-          section,
-          label: t("commandPalette.newContentType"),
-          icon: Plus,
-          keywords: ["seed", "schema", "nuovo tipo", "new type", "content type", "crea"],
-          perform: { kind: "run", run: () => openBuilder(SEED_INTENT_NEW) },
-        },
-      ]
-
-      if (!query) {
-        items.push({
-          id: "schema:edit",
-          section,
-          label: t("commandPalette.editContentType"),
-          icon: Layers,
-          perform: { kind: "page", page: "edit-schema" },
-        })
-        return items
-      }
-
-      for (const seed of editableSeeds) {
-        items.push({
-          id: `schema:edit:${seed.slug}`,
-          section,
-          label: t("commandPalette.editSchemaOf", { label: seed.label }),
-          icon: resolveIcon(seed.dashboard?.icon),
-          keywords: ["schema", "seed", "modifica", "edit", "campi", "fields", seed.slug],
-          perform: { kind: "run", run: () => openBuilder(seed.slug) },
-        })
-      }
-      return items
+      return query ? [newTypeRow(), ...editableSeeds.map(editTypedRow)] : [newTypeRow(), editPageRow()]
     },
   }
 }

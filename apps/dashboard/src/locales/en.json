@@ -1084,6 +1084,8 @@
     "goTo": "Go to {{label}}…",
     "allSeeds": "All seeds…",
     "chooseType": "Create in…",
+    "recentSection": "Recent",
+    "createIn": "Create in {{label}}",
     "chooseSeed": "Choose Seed",
     "newContent": "New content…",
     "changeTheme": "Change theme",

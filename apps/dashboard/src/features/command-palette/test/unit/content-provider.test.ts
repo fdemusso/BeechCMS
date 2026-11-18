@@ -104,4 +104,38 @@ describe("createContentProvider", () => {
     expect(rootIds).toEqual(["content:open:posts", "content:new"])
     expect(createIds).toEqual(["content:create:posts"])
   })
+
+  it("getStableItems lists an open row for every readable seed, beyond the idle limit", () => {
+    const seeds = paddedSeeds(7)
+    const provider = createContentProvider({ t, seeds })
+
+    const stable = provider.getStableItems?.({ permissions: permissionsFor(readableByScope(seeds)) }) ?? []
+
+    const openIds = stable.filter((item) => item.id.startsWith("content:open:")).map((item) => item.id)
+    expect(openIds).toEqual(seeds.map((seed) => `content:open:${seed.slug}`))
+    expect(stable.map((item) => item.id)).not.toContain("content:all")
+  })
+
+  it("getStableItems lists a create row per readable seed that requires content:create on that seed", () => {
+    const seeds = paddedSeeds(2)
+    const provider = createContentProvider({ t, seeds })
+
+    const stable = provider.getStableItems?.({ permissions: permissionsFor(readableByScope(seeds)) }) ?? []
+
+    const createRows = stable.filter((item) => item.id.startsWith("content:create:"))
+    expect(createRows.map((item) => item.requires)).toEqual(
+      seeds.map((seed) => ({ permission: "content:create", scope: seed.slug })),
+    )
+    expect(createRows.map((item) => item.perform)).toEqual(
+      seeds.map((seed) => ({ kind: "navigate", to: `/content/${seed.slug}/create` })),
+    )
+  })
+
+  it("getStableItems never lists a seed the caller cannot read", () => {
+    const provider = createContentProvider({ t, seeds: CANONICAL_SEEDS })
+
+    const stable = provider.getStableItems?.({ permissions: permissionsFor({ byScope: { posts: ["content:read"] } }) }) ?? []
+
+    expect(stable.map((item) => item.id)).toEqual(["content:open:posts", "content:create:posts", "content:new"])
+  })
 })

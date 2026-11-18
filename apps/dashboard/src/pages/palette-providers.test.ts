@@ -84,6 +84,27 @@ describe("createContentTypesProvider", () => {
 
     expect(openBuilder).toHaveBeenCalledExactlyOnceWith(SEED_INTENT_NEW)
   })
+
+  it("getStableItems is empty without manage_seeds on *", () => {
+    const provider = createContentTypesProvider({ t, seeds: CANONICAL_SEEDS, openBuilder: vi.fn() })
+
+    const stable = provider.getStableItems?.({ permissions: permissionsFor({ byScope: { posts: ["manage_seeds"] } }) })
+
+    expect(stable).toEqual([])
+  })
+
+  it("getStableItems lists schema:new, schema:edit and one edit row per editable seed, and never a system seed", () => {
+    const provider = createContentTypesProvider({ t, seeds: [...CANONICAL_SEEDS, systemSeed], openBuilder: vi.fn() })
+
+    const stable = provider.getStableItems?.({ permissions: permissionsFor(MANAGE_SEEDS_GLOBALLY) }) ?? []
+
+    expect(stable.map((item) => item.id)).toEqual([
+      "schema:new",
+      "schema:edit",
+      ...CANONICAL_SEEDS.map((seed) => `schema:edit:${seed.slug}`),
+    ])
+    expect(stable.some((item) => item.id === `schema:edit:${systemSeed.slug}`)).toBe(false)
+  })
 })
 
 describe("createSettingsProvider", () => {
@@ -123,6 +144,18 @@ describe("createSettingsProvider", () => {
     const provider = createSettingsProvider({ t, openSettings: vi.fn() })
 
     expect(provider.prefix).toBe(">")
+  })
+
+  it("getStableItems lists the same tabs and bookmarks as a typed root query for the same authority", () => {
+    const payload: PermissionsPayload = { global: ["manage_users"] }
+    const provider = createSettingsProvider({ t, openSettings: vi.fn() })
+    const permissions = permissionsFor(payload)
+
+    const stable = provider.getStableItems?.({ permissions }) ?? []
+
+    const typed = provider.getItems({ page: "root", query: "s", permissions })
+    expect(stable.map((item) => item.id)).toEqual(typed.map((item) => item.id))
+    expect(stable.length).toBeGreaterThan(0)
   })
 })
 
@@ -228,6 +261,27 @@ describe("createPreferencesProvider", () => {
 
     expect(rows.every((row) => row.unavailableReason === "commandPalette.preferences.saving")).toBe(true)
   })
+
+  it("getStableItems lists the same rows as the > prefix", () => {
+    const provider = createPreferencesProvider({
+      t,
+      language: "it",
+      setLanguage: vi.fn(),
+      notifications: {
+        prefs: STORED_PREFS,
+        isLoading: false,
+        isError: false,
+        isSaving: false,
+        setPref: vi.fn().mockResolvedValue(undefined),
+      },
+    })
+
+    const stable = provider.getStableItems?.({ permissions: permissionsFor({}) }) ?? []
+
+    const prefixed = provider.getItems({ page: "root", query: "", prefix: ">", permissions: permissionsFor({}) })
+    expect(stable.map((item) => item.id)).toEqual(prefixed.map((item) => item.id))
+    expect(stable.map((item) => item.description)).toEqual(prefixed.map((item) => item.description))
+  })
 })
 
 describe("createSystemStatusProvider", () => {
@@ -284,5 +338,15 @@ describe("createSystemStatusProvider", () => {
 
     expect(loadingRow.unavailableReason).toBe("common.loading")
     expect(failedRow.unavailableReason).toBe("commandPalette.system.statusUnavailable")
+  })
+
+  it("getStableItems is empty without view_analytics on * and lists system:status with it", () => {
+    const provider = createSystemStatusProvider({ t, health: { data: HEALTH, isError: false } })
+
+    const withoutAuthority = provider.getStableItems?.({ permissions: permissionsFor({ byScope: { posts: ["view_analytics"] } }) })
+    const withAuthority = provider.getStableItems?.({ permissions: permissionsFor({ global: ["view_analytics"] }) })
+
+    expect(withoutAuthority).toEqual([])
+    expect(withAuthority?.map((item) => item.id)).toEqual(["system:status"])
   })
 })
