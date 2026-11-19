@@ -133,6 +133,11 @@ export class StaticContentRepository implements ContentRepository {
     return { ...entry }
   }
 
+  async exists(seed: Seed, id: string, options?: { trashed?: TrashedMode }): Promise<boolean> {
+    const trashed = options?.trashed ?? 'active'
+    return this.getTable(seed.slug).some((e) => e.id === id && this.matchesTrashed(e, trashed))
+  }
+
   private matchesTrashed(entry: Entry, mode: TrashedMode): boolean {
     if (mode === 'any') return true
     return mode === 'trashed' ? entry.deleted_at != null : entry.deleted_at == null
