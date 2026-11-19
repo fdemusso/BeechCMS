@@ -10,6 +10,5 @@ export { TRANSFER_QUERY_KEYS, IMPORT_JOB_POLL_MS } from "./consts/transfer.keys"
 export type {
   ImportJobResponse,
   ImportJobState,
-  ImportRowError,
   ProblemDetails,
 } from "./api/transfer.api"

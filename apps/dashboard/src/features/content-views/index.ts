@@ -15,7 +15,7 @@ export {
   useDeleteContentView,
   useReorderContentViews,
 } from "./hooks/use-content-views"
-export { useViewConfigAutosave, VIEW_AUTOSAVE_DELAY_MS } from "./hooks/use-view-config-autosave"
+export { useViewConfigAutosave } from "./hooks/use-view-config-autosave"
 export { useViewLayoutState } from "./hooks/use-view-layout-state"
 export { toViewToolbarState, toContentViewConfig, type ViewToolbarState } from "./lib/view-config-mapping"
 export { resolveActiveViewId } from "./lib/resolve-active-view"

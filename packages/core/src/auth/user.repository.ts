@@ -96,6 +96,18 @@ export interface IUserRepository {
   updateNotificationPreferences(userId: string, preferencesJson: string): Promise<void>
 
   /**
+   * The user's stored UI preferences container (`users.ui_prefs`) as a raw JSON string, or null when the
+   * user does not exist. Parsing and defaults belong to `parseStoredUiPreferences`.
+   */
+  findUiPreferences(userId: string): Promise<string | null>
+
+  /**
+   * Replaces the user's UI preferences container with `preferencesJson`, already validated against
+   * `uiPreferencesSchema`. Returns false when no user row matched, so nothing was written.
+   */
+  updateUiPreferences(userId: string, preferencesJson: string): Promise<boolean>
+
+  /**
    * Checks whether the given email is already registered to a different user.
    * Used during an email change to detect conflicts without exposing whether
    * an unrelated account exists.

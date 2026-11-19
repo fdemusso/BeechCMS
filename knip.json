@@ -12,9 +12,6 @@
         "bin/**/*.mjs",
         "scripts/**/*.{mjs,js,ts,tsx}",
         "docs/.vitepress/**/*.{ts,mts}"
-      ],
-      "ignoreDependencies": [
-        "@beechcms/core"
       ]
     },
     "apps/api": {
@@ -90,6 +87,22 @@
     "apps/api/src/**/index.ts": [
       "exports",
       "types"
+    ],
+    "packages/client/src/**": [
+      "exports",
+      "types",
+      "duplicates"
+    ],
+    "packages/forms-react/src/**": [
+      "exports",
+      "types",
+      "duplicates"
+    ],
+    "apps/api/src/routes.ts": [
+      "types"
+    ],
+    "packages/core/src/engine/seeds/seed-validation.ts": [
+      "duplicates"
     ]
   }
 }

@@ -5,4 +5,3 @@
 // Moved to @beechcms/widget-sdk (Sprint 07) so custom widgets share the
 // same card chrome as built-ins.
 export { WidgetShell as DashboardWidgetShell } from "@beechcms/widget-sdk"
-export type { WidgetShellProps as DashboardWidgetShellProps } from "@beechcms/widget-sdk"

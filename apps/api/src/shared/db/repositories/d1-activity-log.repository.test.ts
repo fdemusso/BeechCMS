@@ -208,6 +208,66 @@ describe('D1ActivityLogRepository', () => {
     })
   })
 
+  describe('lastContentWriters', () => {
+    const FIRST_ID = '3f2b8c1e-5a7d-4e9b-8c6a-1d2e3f4a5b6c'
+    const SECOND_ID = '9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d'
+
+    it('an empty id list resolves to [] and never calls prepare', async () => {
+      const { db, prepareMock } = makeMockDb([])
+
+      const result = await new D1ActivityLogRepository(db).lastContentWriters([])
+
+      expect(result).toEqual([])
+      expect(prepareMock).not.toHaveBeenCalled()
+    })
+
+    it('binds the ids as one JSON array via json_each and restricts to content rows with the authoring actions', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb([])
+
+      await new D1ActivityLogRepository(db).lastContentWriters([FIRST_ID, SECOND_ID])
+
+      const sql = prepareMock.mock.calls[0][0] as string
+      expect(sql).toContain("entity_type = 'content'")
+      expect(sql).toContain('entity_id IN (SELECT value FROM json_each(?))')
+      expect(sql).toContain('action IN (SELECT value FROM json_each(?))')
+      expect(bindMock).toHaveBeenCalledWith(`["${FIRST_ID}","${SECOND_ID}"]`, '["create","update","publish"]')
+    })
+
+    it('the SQL has no entity_slug predicate', async () => {
+      const { db, prepareMock } = makeMockDb([])
+
+      await new D1ActivityLogRepository(db).lastContentWriters([FIRST_ID])
+
+      // Regression guard: public-API writes store the entry slug, not the seed slug, in entity_slug,
+      // so any entity_slug predicate would silently drop those writers.
+      expect(prepareMock.mock.calls[0][0]).not.toContain('entity_slug')
+    })
+
+    it('orders each entry rows by created_at DESC, rowid DESC and keeps one row per entity_id', async () => {
+      const { db, prepareMock } = makeMockDb([])
+
+      await new D1ActivityLogRepository(db).lastContentWriters([FIRST_ID])
+
+      const sql = prepareMock.mock.calls[0][0] as string
+      expect(sql).toMatch(/ROW_NUMBER\(\) OVER \(PARTITION BY entity_id ORDER BY created_at DESC, rowid DESC\)/)
+      expect(sql).toMatch(/writer_rank = 1/)
+    })
+
+    it('maps entity_id, user_name and user_email rows to ContentLastWriter records', async () => {
+      const { db } = makeMockDb([
+        { entity_id: FIRST_ID, user_name: 'Jane Doe', user_email: 'jane@example.com' },
+        { entity_id: SECOND_ID, user_name: null, user_email: 'sam@example.com' },
+      ])
+
+      const result = await new D1ActivityLogRepository(db).lastContentWriters([FIRST_ID, SECOND_ID])
+
+      expect(result).toEqual([
+        { entryId: FIRST_ID, userName: 'Jane Doe', userEmail: 'jane@example.com' },
+        { entryId: SECOND_ID, userName: null, userEmail: 'sam@example.com' },
+      ])
+    })
+  })
+
   it('returns null details when the JSON payload cannot be parsed', async () => {
     const { db } = makeMockDb([
       {

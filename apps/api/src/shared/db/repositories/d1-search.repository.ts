@@ -23,7 +23,7 @@ const EMPTY_QUERY_ERROR = 'EMPTY_QUERY'
  *
  * Delegates SQL composition to the pure `buildFtsQuery` helper to keep this
  * class focused on D1 wiring. Returns raw rows; the route handler is
- * responsible for mapping them via `mapFtsRow`.
+ * responsible for mapping them via `mapFtsRowToResultRow`.
  */
 export class D1SearchRepository implements ISearchRepository {
   constructor(private readonly database: D1Database) {}

@@ -33,13 +33,6 @@ export interface KanbanCardDisplayModel {
   statusStyle?: ElementStyle
 }
 
-export interface KanbanColumnModel {
-  value: string | null
-  label: string
-  total: number
-  cards: KanbanCardDisplayModel[]
-}
-
 /** Per-column fetch state from useInfiniteQuery (KB-S05/S06). */
 export interface KanbanColumnFetchState {
   cards: KanbanCardDisplayModel[]

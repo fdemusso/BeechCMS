@@ -41,7 +41,7 @@ vi.mock("@/features/settings", () => ({
   SettingsRedirect: () => <div>SETTINGS_PAGE</div>,
   useSettingsDialog: () => ({ open: false, tab: "profile", openSettings: vi.fn(), setTab: vi.fn(), closeSettings: vi.fn() }),
 }))
-vi.mock("@/features/command-palette", () => ({ CommandPalette: () => null }))
+vi.mock("@/pages/app-command-palette", () => ({ AppCommandPalette: () => null }))
 vi.mock("@/pages/widget-lab", () => ({ WidgetLabPage: () => <div>WIDGET_LAB</div> }))
 vi.mock("@/pages/forgot-password/ForgotPasswordPage", () => ({ ForgotPasswordPage: () => <div>FORGOT_PASSWORD</div> }))
 vi.mock("@/pages/reset-password/ResetPasswordPage", () => ({ ResetPasswordPage: () => <div>RESET_PASSWORD</div> }))

@@ -7,3 +7,9 @@ export const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test
 
 /** The label of the shortcut modifier key on this platform. */
 export const MOD_KEY_LABEL = IS_MAC ? "⌘" : "Ctrl"
+
+/** The label of the Alt key: Option (⌥) on Apple keyboards. */
+export const ALT_KEY_LABEL = IS_MAC ? "⌥" : "Alt"
+
+/** The label of the Shift key: ⇧ on Apple keyboards. */
+export const SHIFT_KEY_LABEL = IS_MAC ? "⇧" : "Shift"

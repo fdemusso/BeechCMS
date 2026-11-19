@@ -3,8 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect } from 'vitest'
-import { encodeCursor, decodeCursor, buildFtsQuery, mapFtsRow, mapSearchResultRow } from './search-utils'
-import type { Seed } from '@beechcms/core'
+import { encodeCursor, decodeCursor, buildFtsQuery, mapSearchResultRow, authorDisplayName } from './search-utils'
+import type { Seed, SearchResultRow } from '@beechcms/core'
 
 const TEXT_SEED = {
   slug: 'articoli',
@@ -232,93 +232,109 @@ describe('buildFtsQuery', () => {
   })
 })
 
-// ─── mapFtsRow ───────────────────────────────────────────────────────────────
+const ENTRY_ID = '3f2b8c1e-5a7d-4e9b-8c6a-1d2e3f4a5b6c'
 
-describe('mapFtsRow', () => {
-  it('maps all FtsRow fields to SearchResultItem', () => {
-    const row = {
-      entry_id: 'e1', schema_slug: 'articoli', slug: 'my-post',
-      status: 'published', title: 'My Post', excerpt: 'A snippet', rank: -1,
-    }
-    const result = mapFtsRow(row)
-    expect(result.id).toBe('e1')
-    expect(result.schema_slug).toBe('articoli')
-    expect(result.slug).toBe('my-post')
-    expect(result.status).toBe('published')
-    expect(result.title).toBe('My Post')
-    expect(result.excerpt).toBe('A snippet')
-    expect(result.data).toEqual({})
-  })
-
-  it('strips HTML tags from excerpt but preserves <mark> and </mark>', () => {
-    const row = {
-      entry_id: 'e1', schema_slug: 'a', slug: null, status: 'draft',
-      title: null, excerpt: '<p>A <mark>word</mark> here</p>', rank: 0,
-    }
-    expect(mapFtsRow(row).excerpt).toBe('A <mark>word</mark> here')
-  })
-
-  it('strips attributes from <mark> tags instead of passing them through verbatim (#610)', () => {
-    const row = {
-      entry_id: 'e1', schema_slug: 'a', slug: null, status: 'draft',
-      title: null, excerpt: '<mark onmouseover=alert(1)>word</mark> here', rank: 0,
-    }
-    expect(mapFtsRow(row).excerpt).toBe('<mark>word</mark> here')
-  })
-
-  it('strips attributes from a </mark> closing tag as well (#610)', () => {
-    const row = {
-      entry_id: 'e1', schema_slug: 'a', slug: null, status: 'draft',
-      title: null, excerpt: '<mark>word</mark onclick=alert(1)> here', rank: 0,
-    }
-    expect(mapFtsRow(row).excerpt).toBe('<mark>word</mark> here')
-  })
-
-  it('collapses multiple whitespace characters in excerpt', () => {
-    const row = {
-      entry_id: 'e1', schema_slug: 'a', slug: null, status: 'draft',
-      title: null, excerpt: '<p>  lots   of  space  </p>', rank: 0,
-    }
-    expect(mapFtsRow(row).excerpt).toBe('lots of space')
-  })
-
-  it('returns empty string for null title', () => {
-    const row = {
-      entry_id: 'e1', schema_slug: 'a', slug: null, status: 'draft',
-      title: null, excerpt: '', rank: 0,
-    }
-    expect(mapFtsRow(row).title).toBe('')
-  })
-
-  it('returns empty string for null excerpt', () => {
-    const row = {
-      entry_id: 'e1', schema_slug: 'a', slug: null, status: 'draft',
-      title: 'Has a title', excerpt: null, rank: 0,
-    } as any
-    expect(mapFtsRow(row).excerpt).toBe('')
-  })
-})
+function searchRow(overrides: Partial<SearchResultRow> = {}): SearchResultRow {
+  return {
+    entryId: ENTRY_ID,
+    schemaSlug: 'articoli',
+    slug: 'my-post',
+    status: 'published',
+    updatedAt: 1_700_000_000,
+    title: 'My Post',
+    excerpt: 'A snippet',
+    rank: -1,
+    ...overrides,
+  }
+}
 
 describe('mapSearchResultRow', () => {
   it('maps a camelCase repository row to the wire-format SearchResultItem', () => {
-    const row = {
-      entryId: 'e1', schemaSlug: 'articoli', slug: 'my-post',
-      status: 'published', title: 'My Post', excerpt: '<p>A <mark>word</mark> here</p>',
-    }
-    const result = mapSearchResultRow(row as any)
+    const row = searchRow({ excerpt: '<p>A <mark>word</mark> here</p>' })
+
+    const result = mapSearchResultRow(row, null)
+
     expect(result).toEqual({
-      id: 'e1', schema_slug: 'articoli', slug: 'my-post',
-      status: 'published', title: 'My Post', excerpt: 'A <mark>word</mark> here', data: {},
+      id: ENTRY_ID, schema_slug: 'articoli', slug: 'my-post',
+      status: 'published', updated_at: 1_700_000_000, author_name: null,
+      title: 'My Post', excerpt: 'A <mark>word</mark> here', data: {},
     })
   })
 
   it('defaults title and excerpt to empty strings when null', () => {
-    const row = {
-      entryId: 'e1', schemaSlug: 'articoli', slug: 'my-post',
-      status: 'published', title: null, excerpt: null,
-    } as any
-    const result = mapSearchResultRow(row)
+    const row = searchRow({ title: null, excerpt: null as unknown as string })
+
+    const result = mapSearchResultRow(row, null)
+
     expect(result.title).toBe('')
     expect(result.excerpt).toBe('')
+  })
+
+  it('copies updatedAt into updated_at and the given name into author_name', () => {
+    const row = searchRow({ updatedAt: 1_712_345_678 })
+
+    const result = mapSearchResultRow(row, 'Jane Doe')
+
+    expect(result.updated_at).toBe(1_712_345_678)
+    expect(result.author_name).toBe('Jane Doe')
+  })
+
+  it('yields author_name null when no name is given', () => {
+    const row = searchRow()
+
+    const result = mapSearchResultRow(row, null)
+
+    expect(result.author_name).toBeNull()
+  })
+
+  it('strips HTML tags from the excerpt but keeps bare <mark> and </mark>', () => {
+    const row = searchRow({ excerpt: '<p>A <mark>word</mark> here</p>' })
+
+    const result = mapSearchResultRow(row, null)
+
+    expect(result.excerpt).toBe('A <mark>word</mark> here')
+  })
+
+  it('strips attributes from <mark> tags instead of passing them through verbatim (#610)', () => {
+    const row = searchRow({ excerpt: '<mark onmouseover=alert(1)>word</mark> here' })
+
+    const result = mapSearchResultRow(row, null)
+
+    // Regression guard: a raw <mark onmouseover=…> must not reach an innerHTML consumer.
+    expect(result.excerpt).toBe('<mark>word</mark> here')
+  })
+
+  it('strips attributes from a </mark> closing tag as well (#610)', () => {
+    const row = searchRow({ excerpt: '<mark>word</mark onclick=alert(1)> here' })
+
+    const result = mapSearchResultRow(row, null)
+
+    // Regression guard: the closing tag is normalised too, not only the opening one.
+    expect(result.excerpt).toBe('<mark>word</mark> here')
+  })
+
+  it('collapses whitespace runs in the excerpt', () => {
+    const row = searchRow({ excerpt: '<p>  lots   of  space  </p>' })
+
+    const result = mapSearchResultRow(row, null)
+
+    expect(result.excerpt).toBe('lots of space')
+  })
+})
+
+describe('authorDisplayName', () => {
+  const NAME_PRESENCE_CASES: { label: string; userName: string | null; expected: string }[] = [
+    { label: 'a non-blank name is returned trimmed', userName: '  Jane Doe  ', expected: 'Jane Doe' },
+    { label: 'an empty name falls back to the e-mail', userName: '', expected: 'jane@example.com' },
+    { label: 'a whitespace-only name falls back to the e-mail', userName: '   ', expected: 'jane@example.com' },
+    { label: 'a null name falls back to the e-mail', userName: null, expected: 'jane@example.com' },
+  ]
+
+  it('returns the trimmed name when present and the e-mail otherwise', () => {
+    for (const { userName, expected } of NAME_PRESENCE_CASES) {
+      const label = authorDisplayName({ entryId: ENTRY_ID, userName, userEmail: 'jane@example.com' })
+
+      expect(label).toBe(expected)
+    }
   })
 })

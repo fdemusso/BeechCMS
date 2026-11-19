@@ -2,7 +2,12 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type React from "react"
+import type { Permission, Scope } from "@beechcms/core"
+import type { IconComponent } from "@/lib/icon-registry"
+import type { Status } from "@/components/ui/status"
+import type { PermissionsApi } from "@/features/shared"
+// Module path, not the barrel: suites mock the barrel with a fixed object.
+import type { PageAction } from "@/features/shared/hooks/use-page-actions"
 
 // Tutte le pagine navigabili nella palette
 export type CommandPage =
@@ -11,19 +16,8 @@ export type CommandPage =
   | "create"
   | "settings"
   | "edit-schema"
-  | "search-results"
-
-// Azione singola renderizzata come CommandItem
-export interface CommandAction {
-  id: string
-  label: string
-  description?: string
-  icon: React.ComponentType<{ className?: string }> // IconComponent compatible
-  keywords?: string[]
-  shortcut?: string       // lettera singola: "N", "F"
-  onSelect: () => void
-  disabled?: boolean
-}
+  | "shortcuts"
+  | "actions" // Engine-owned: reached only through openActions, never declared by a provider
 
 // Contratto del hook — non esposto come Context React
 export interface CommandPaletteState {
@@ -35,4 +29,127 @@ export interface CommandPaletteState {
   popPage: () => void
   search: string
   setSearch: (s: string) => void
+  /** The row whose actions the "actions" page lists, frozen when the page opened. null elsewhere. */
+  actionsTarget: ResolvedPaletteItem | null
+  /** Freezes `target`, remembers the current query and pushes the "actions" page. */
+  openActions: (target: ResolvedPaletteItem) => void
+}
+
+/** The three questions a provider may ask; same evaluator as the rest of the dashboard. */
+export type PalettePermissions = Pick<PermissionsApi, "can" | "canAnywhere" | "canGlobally">
+
+/** Permission an item needs to be ENABLED. Failing it disables the row; it never hides it. */
+export interface PaletteRequirement {
+  readonly permission: Permission
+  /** GLOBAL_SCOPE ('*') or a seed slug. Omitted: held on at least one scope (canAnywhere). */
+  readonly scope?: Scope
+}
+
+/** A leading character that routes the query to the providers declaring it. Engine-owned table: lib/parse-palette-query.ts. */
+export type PalettePrefix = "=" | "/" | "#" | ">"
+
+/** What selecting a row does. The engine closes the palette after `navigate`, `run` and `copy`. */
+export type PalettePerform =
+  | { readonly kind: "navigate"; readonly to: string }
+  | { readonly kind: "page"; readonly page: Exclude<CommandPage, "actions"> }
+  /** `keepOpen` leaves the palette open after the run: for actions the user repeats (pin, unpin). */
+  | { readonly kind: "run"; readonly run: () => void; readonly keepOpen?: boolean }
+  | { readonly kind: "copy"; readonly value: string }
+
+/** A secondary action of one row. Runs through the same `perform` path as the row itself. */
+export interface PaletteRowAction {
+  /** Unique within its row, e.g. "copy-id". */
+  readonly id: string
+  readonly label: string
+  readonly icon: IconComponent
+  /** Removes something: its menu entry takes the destructive style. */
+  readonly destructive?: boolean
+  /** Never `page`: an action ends the interaction (the engine closes after it). */
+  readonly perform: Exclude<PalettePerform, { readonly kind: "page" }>
+}
+
+export interface PaletteItem {
+  /** Stable across sessions and languages: `${providerId}:${key}`. Persisted by recent items and pins (roadmap 9). */
+  readonly id: string
+  /** Translated group heading; rows with the same section render together, first appearance wins. */
+  readonly section: string
+  readonly label: string
+  readonly description?: string
+  /** A content status, rendered as a StatusBadge before the second line (design rule: status only as a badge). */
+  readonly status?: Status
+  readonly icon: IconComponent
+  readonly keywords?: readonly string[]
+  /** Key caps rendered on the row, e.g. ["Alt", "N"]. Display only. */
+  readonly shortcut?: readonly string[]
+  readonly requires?: PaletteRequirement
+  /**
+   * Why the row cannot run right now, for a reason other than permissions (e.g. a cap reached).
+   * Disables the row like a failing `requires`; when both apply, the missing permission is shown.
+   */
+  readonly unavailableReason?: string
+  /**
+   * Relevance on cmdk's scale (0, 1], used instead of the lexical score while typing.
+   * For computed rows, whose label never contains the query. Ignored when the query is blank.
+   */
+  readonly score?: number
+  readonly perform: PalettePerform
+  /**
+   * Secondary actions, in display order. The first runs on Mod+Enter; all are listed on the actions page (Shift+Enter).
+   * Never shown or run while the row is disabled.
+   */
+  readonly actions?: readonly PaletteRowAction[]
+}
+
+export interface PaletteQueryContext {
+  readonly page: CommandPage
+  /** The text in the input, trimmed. */
+  readonly query: string
+  /** The prefix the user typed; `query` then excludes it. Absent: no prefix. */
+  readonly prefix?: PalettePrefix
+  readonly permissions: PalettePermissions
+}
+
+/** What a provider's stable rows may depend on: never the page or the query. */
+export type PaletteStableContext = Pick<PaletteQueryContext, "permissions">
+
+export interface PaletteProvider {
+  /** Unique among the providers passed to the palette; first segment of every item id it emits. */
+  readonly id: string
+  readonly pages: readonly CommandPage[]
+  /**
+   * When the query starts with this prefix, only providers declaring it contribute.
+   * A provider declaring a prefix still answers un-prefixed queries.
+   */
+  readonly prefix?: PalettePrefix
+  /** Synchronous, side-effect free. A surface the caller may not see is simply not returned. */
+  readonly getItems: (context: PaletteQueryContext) => readonly PaletteItem[]
+  /**
+   * Every row with a stable id this provider can emit, on any page and for any query, each in its root-page form.
+   * Stored ids (recent items; pins, roadmap 9) resolve against it. Same purity and hiding rules as `getItems`.
+   * Omitted: none of this provider's rows is ever recorded.
+   */
+  readonly getStableItems?: (context: PaletteStableContext) => readonly PaletteItem[]
+}
+
+/**
+ * A remote source. Routed like `PaletteProvider` (`pages`, `prefix`); its rows arrive after the local
+ * ones, keep the order it returns and are never re-ranked lexically.
+ */
+export interface PaletteAsyncProvider extends Pick<PaletteProvider, "id" | "pages" | "prefix"> {
+  /** Shortest `query` that triggers a fetch; below it the provider is silent and never pending. */
+  readonly minQueryLength: number
+  /** Must forward `signal` to its request. A rejection drops this source's rows silently. */
+  readonly fetchItems: (context: PaletteQueryContext, signal: AbortSignal) => Promise<readonly PaletteItem[]>
+}
+
+export interface ResolvedPaletteItem extends PaletteItem {
+  /** null: enabled. Otherwise the user-facing text naming the missing permission. */
+  readonly disabledReason: string | null
+}
+
+/** A page action picked from the palette that waits for confirmation; its target is frozen at selection. */
+export interface PendingPageAction {
+  readonly hostId: string
+  readonly targetId: string | null
+  readonly action: PageAction
 }

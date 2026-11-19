@@ -11,7 +11,7 @@ import { contentApi, type ContentListQueryParams, type ContentListWithMeta } fro
 import { CONTENT_QUERY_KEYS } from "../consts/content.keys"
 import { primeRelationLabels } from "../lib/prime-relation-labels"
 
-export const CONTENT_LIST_STALE_TIME = 10 * 1000 // 10 seconds
+const CONTENT_LIST_STALE_TIME = 10 * 1000 // 10 seconds
 
 interface ContentListParamsInput {
   readonly pageIndex: number

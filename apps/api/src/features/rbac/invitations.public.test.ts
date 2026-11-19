@@ -56,6 +56,8 @@ const users = {
   changePasswordAndRevokeSessions: vi.fn<IUserRepository['changePasswordAndRevokeSessions']>(),
   updateAvatarUrl: vi.fn<IUserRepository['updateAvatarUrl']>(),
   updateNotificationPreferences: vi.fn<IUserRepository['updateNotificationPreferences']>(),
+  findUiPreferences: vi.fn<IUserRepository['findUiPreferences']>(),
+  updateUiPreferences: vi.fn<IUserRepository['updateUiPreferences']>(),
   emailBelongsToAnotherUser: vi.fn<IUserRepository['emailBelongsToAnotherUser']>(),
   listAccounts: vi.fn<IUserRepository['listAccounts']>(),
   findAccountById: vi.fn<IUserRepository['findAccountById']>(),

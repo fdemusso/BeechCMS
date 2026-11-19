@@ -33,11 +33,12 @@ export function useRecentActivity(slug?: string) {
   })
 }
 
-export function useSystemHealth() {
+export function useSystemHealth(options?: { readonly enabled?: boolean }) {
   return useQuery({
     queryKey: DASHBOARD_QUERY_KEYS.health(),
     queryFn: dashboardApi.getSystemHealth,
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   })
 }
 export function useContentBreakdown() {

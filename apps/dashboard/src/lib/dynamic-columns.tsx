@@ -41,13 +41,7 @@ import {
 
 // Re-export utility functions and types for full compatibility with consumers
 export { computeMaxLengths } from "./dynamic-columns-lengths"
-export {
-  DEFAULT_DATE_GROUP_PRECISION,
-  getDateGroupValue,
-  booleanAggFn,
-  formatBooleanAggregated,
-  formatSum,
-} from "./dynamic-columns-aggregation"
+export { DEFAULT_DATE_GROUP_PRECISION } from "./dynamic-columns-aggregation"
 export type { DateGroupPrecision } from "./dynamic-columns-aggregation"
 
 /**

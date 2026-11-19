@@ -8,7 +8,7 @@ import { Edit as Pencil, Home, Trash2, X } from '@/components/icons'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { Input } from '@/components/ui/input'
 
-export interface BuilderTabPillLabels {
+interface BuilderTabPillLabels {
   readonly defaultBadge: string
   readonly rename: string
   readonly setDefault: string

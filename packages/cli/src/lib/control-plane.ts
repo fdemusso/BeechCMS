@@ -44,7 +44,7 @@ export interface McpPlan {
 }
 
 /** Verbatim response of `POST /api/seeds/:slug/mcp-apply`. */
-export interface McpApplyResult {
+interface McpApplyResult {
   slug: string
   newVersion: number
   ftsRebuilt: boolean

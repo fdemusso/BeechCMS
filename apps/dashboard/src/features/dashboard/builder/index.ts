@@ -4,5 +4,5 @@
 
 export { DashboardBuilderDialog } from './dashboard-builder-dialog'
 export { useDashboardBuilder, COLUMN_PRESETS } from './use-dashboard-builder'
-export type { UseDashboardBuilderResult, MoveWidgetArgs } from './use-dashboard-builder'
+export type { UseDashboardBuilderResult } from './use-dashboard-builder'
 export { dashboardBuilderApi } from './api/dashboard-layout.api'

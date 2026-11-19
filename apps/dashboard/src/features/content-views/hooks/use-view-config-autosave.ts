@@ -7,7 +7,7 @@ import type { ContentViewConfig } from "@beechcms/core"
 import { useUpdateContentView } from "./use-content-views"
 
 /** Long enough to coalesce typing in a filter pill, short enough that a reload rarely loses a change. */
-export const VIEW_AUTOSAVE_DELAY_MS = 600
+const VIEW_AUTOSAVE_DELAY_MS = 600
 
 interface UseViewConfigAutosaveOptions {
   slug: string

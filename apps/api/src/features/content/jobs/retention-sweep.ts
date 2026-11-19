@@ -8,7 +8,7 @@ import { deleteR2Objects, type DeleteR2ObjectsContext } from '../../../shared/st
 import { extractMediaKeysFromData } from '../../../shared/utils/media-utils'
 
 /** Sweep cadence on the every-minute cron (wrangler.jsonc). Retention is day-granular; 5 min is plenty. */
-export const RETENTION_SWEEP_INTERVAL_MINUTES = 5
+const RETENTION_SWEEP_INTERVAL_MINUTES = 5
 
 /** Purge ATTEMPTS per run, across all seeds. Each purge costs ~3 subrequests + ~4 per media key;
  *  25 keeps one invocation well inside the Workers subrequest budget and drains ~7 200 entries/day. */

@@ -4,4 +4,3 @@
 
 // Moved to @beechcms/widget-sdk (Sprint 07).
 export { WidgetEmpty } from "@beechcms/widget-sdk"
-export type { WidgetEmptyProps } from "@beechcms/widget-sdk"

@@ -24,7 +24,11 @@ vi.mock("@/features/shared/hooks/use-permissions", () => ({
   usePermissions: () => ({ can: () => true, canAnywhere: () => true, canGlobally: mocked.canGlobally, effective: {} }),
 }))
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+// One `t` for every render, as i18next gives: a fresh one would defeat the declaration memo.
+vi.mock("react-i18next", () => {
+  const t = (key: string) => key
+  return { useTranslation: () => ({ t }) }
+})
 
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
@@ -33,6 +37,7 @@ import type { PropsWithChildren, SyntheticEvent } from "react"
 import { CANONICAL_SEEDS, CANONICAL_ENTRIES } from "@beechcms/testing"
 import { ApiError } from "@/lib/http/api-error"
 import { toast } from "sonner"
+import { getPageActionDeclarations, type PageAction } from "@/features/shared/hooks/use-page-actions"
 import { useEntryEditorDialog } from "../../hooks/use-entry-editor-dialog"
 
 const entryId = "550e8400-e29b-41d4-a716-446655440000"
@@ -64,15 +69,32 @@ describe("useEntryEditorDialog", () => {
     return () => action.onClick({} as React.MouseEvent<HTMLButtonElement>)
   }
 
-  async function editor() {
+  async function editor(open?: boolean) {
     const wrapper = ({ children }: PropsWithChildren) => (
       <QueryClientProvider client={client}>
         <RouterProvider router={createMemoryRouter([{ path: "/", element: children }])} />
       </QueryClientProvider>
     )
-    const hook = renderHook(() => useEntryEditorDialog({ schemaSlug: "posts", entryId, isDraftContext: true, onClose }), { wrapper })
+    const hook = renderHook(() => useEntryEditorDialog({ schemaSlug: "posts", entryId, isDraftContext: true, onClose, open }), { wrapper })
     await waitFor(() => expect(hook.result.current.formData.title).toBe("Draft"))
     return hook
+  }
+
+  async function openEditor() {
+    const hook = await editor(true)
+    await waitFor(() => expect(getPageActionDeclarations()).toHaveLength(1))
+    return hook
+  }
+
+  function publishedAction(id: string): PageAction {
+    const action = getPageActionDeclarations()[0]?.actions.find((candidate) => candidate.id === id)
+    if (!action || action.perform.kind !== "run") throw new Error(`Missing runnable action ${id}`)
+    return action
+  }
+
+  function runPublishedAction(id: string) {
+    const { perform } = publishedAction(id)
+    if (perform.kind === "run") perform.run()
   }
 
   it("offers the layout builder to a manage_seeds@* holder", async () => {
@@ -150,5 +172,57 @@ describe("useEntryEditorDialog", () => {
 
     expect(toast.error).toHaveBeenCalledWith("content.editor.saveError")
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it("without open the editor publishes nothing", async () => {
+    await editor()
+
+    expect(getPageActionDeclarations()).toEqual([])
+  })
+
+  it("when open with the draft loaded it publishes the editor's declaration targeting the entry", async () => {
+    await openEditor()
+
+    expect(getPageActionDeclarations()[0]).toMatchObject({ hostId: "entry-editor", targetId: entryId })
+    expect(getPageActionDeclarations()[0].actions.map((action) => action.id)).toEqual(["save", "publish-draft", "discard-draft", "copy-id"])
+  })
+
+  it("editing a field keeps the published declaration object", async () => {
+    // Regression guard: re-publishing per keystroke re-renders the palette on every edit.
+    const { result } = await openEditor()
+    const before = getPageActionDeclarations()[0]
+
+    act(() => result.current.handleInputChange("title", "Typed"))
+
+    await waitFor(() => expect(result.current.formData.title).toBe("Typed"))
+    expect(getPageActionDeclarations()[0]).toBe(before)
+  })
+
+  it("running the save action saves the draft through the same request as the submit button", async () => {
+    mocked.draftPut.mockResolvedValue({ json: async () => ({ success: true }) })
+    await openEditor()
+
+    act(() => runPublishedAction("save"))
+
+    await waitFor(() => expect(mocked.draftPut).toHaveBeenCalledOnce())
+    expect(mocked.draftPut).toHaveBeenCalledWith(expect.objectContaining({ param: { slug: "posts", id: entryId } }))
+  })
+
+  it("running the publish-draft action publishes through the draft publish request", async () => {
+    mocked.publish.mockResolvedValue({ json: async () => ({ success: true }) })
+    await openEditor()
+
+    act(() => runPublishedAction("publish-draft"))
+
+    await waitFor(() => expect(mocked.publish).toHaveBeenCalledOnce())
+    expect(mocked.publish).toHaveBeenCalledWith({ param: { slug: "posts", id: entryId } })
+  })
+
+  it("unmounting the editor withdraws its declaration", async () => {
+    const { unmount } = await openEditor()
+
+    unmount()
+
+    expect(getPageActionDeclarations()).toEqual([])
   })
 })

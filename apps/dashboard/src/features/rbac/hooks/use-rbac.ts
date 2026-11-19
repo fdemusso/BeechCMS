@@ -8,7 +8,7 @@ import { ME_QUERY_KEY } from "@/features/shared"
 import { rbacApi } from "../api/rbac.api"
 import type { CreateAssignmentPayload, CreateInvitationPayload, CreateUserPayload, RoleBodyPayload } from "../types/rbac.types"
 
-export const RBAC_QUERY_KEYS = {
+const RBAC_QUERY_KEYS = {
   all: ["rbac"] as const,
   users: () => [...RBAC_QUERY_KEYS.all, "users"] as const,
   assignments: (userId: string) => [...RBAC_QUERY_KEYS.all, "assignments", userId] as const,

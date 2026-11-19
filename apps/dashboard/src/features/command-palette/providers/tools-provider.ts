@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
+import type { TFunction } from "i18next"
+import { Keyboard, Moon, Sun } from "@/components/icons"
+import { MOD_KEY_LABEL, SHIFT_KEY_LABEL } from "@/lib/platform"
+import type { PaletteItem, PaletteProvider } from "../types"
+
+/** The theme toggle and the keyboard shortcuts page. */
+export function createToolsProvider(deps: {
+  t: TFunction
+  theme: string | undefined
+  toggleTheme: () => void
+}): PaletteProvider {
+  const { t, theme, toggleTheme } = deps
+  const section = t("commandPalette.tools")
+
+  const rows = (): PaletteItem[] => [
+    {
+      id: "tools:theme",
+      section,
+      label: t("commandPalette.changeTheme"),
+      icon: theme === "dark" ? Sun : Moon,
+      shortcut: [MOD_KEY_LABEL, SHIFT_KEY_LABEL, "L"],
+      keywords: ["dark mode", "light mode", "tema", "theme"],
+      perform: { kind: "run", run: toggleTheme },
+    },
+    {
+      id: "tools:shortcuts",
+      section,
+      label: t("commandPalette.shortcuts.title"),
+      icon: Keyboard,
+      keywords: ["shortcuts", "scorciatoie", "keyboard", "tastiera", "tasti", "keys", "hotkeys", "prefix", "prefissi"],
+      perform: { kind: "page", page: "shortcuts" },
+    },
+  ]
+
+  return { id: "tools", pages: ["root"], prefix: ">", getItems: rows, getStableItems: rows }
+}

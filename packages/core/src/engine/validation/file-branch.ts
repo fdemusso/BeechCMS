@@ -28,7 +28,7 @@ function tryParseJson(raw: string): unknown {
  * @param input - The value to validate.
  * @returns The cleaned URL string, or null if invalid.
  */
-export function parseHttpUrl(input: unknown): string | null {
+function parseHttpUrl(input: unknown): string | null {
   if (typeof input !== 'string') return null
   const cleaned = cleanString(input)
   if (cleaned.length === 0) return null

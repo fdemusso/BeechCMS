@@ -273,4 +273,44 @@ describe('D1UserRepository', () => {
       expect(await new D1UserRepository(db).setActive('u1', false)).toBe('last-global-admin')
     })
   })
+
+  describe('findUiPreferences', () => {
+    it('selects ui_prefs by id and returns the stored string', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb({ firstResult: { ui_prefs: '{"palettePins":["nav:/content"]}' } })
+
+      const stored = await new D1UserRepository(db).findUiPreferences('u1')
+
+      expect(stored).toBe('{"palettePins":["nav:/content"]}')
+      expect(prepareMock.mock.calls[0][0]).toContain('SELECT ui_prefs FROM users WHERE id = ?')
+      expect(bindMock).toHaveBeenCalledWith('u1')
+    })
+
+    it('returns null when no row matches', async () => {
+      const { db } = makeMockDb({ firstResult: null })
+
+      const stored = await new D1UserRepository(db).findUiPreferences('missing')
+
+      expect(stored).toBeNull()
+    })
+  })
+
+  describe('updateUiPreferences', () => {
+    it('binds (json, userId) to an UPDATE users SET ui_prefs statement and returns true when one row changed', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb({ runChanges: 1 })
+
+      const written = await new D1UserRepository(db).updateUiPreferences('u1', '{"palettePins":[]}')
+
+      expect(written).toBe(true)
+      expect(prepareMock.mock.calls[0][0]).toContain('UPDATE users SET ui_prefs = ?')
+      expect(bindMock).toHaveBeenCalledWith('{"palettePins":[]}', 'u1')
+    })
+
+    it('returns false when no row changed', async () => {
+      const { db } = makeMockDb({ runChanges: 0 })
+
+      const written = await new D1UserRepository(db).updateUiPreferences('missing', '{"palettePins":[]}')
+
+      expect(written).toBe(false)
+    })
+  })
 })

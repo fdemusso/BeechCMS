@@ -10,7 +10,7 @@ import { loadCpuSlot } from '../lib/cpu-slot.js'
  * bundled package cannot import; packages/cli/src/test/test.test.ts asserts the two agree.
  */
 export const RUNNABLE_TIERS = ['unit', 'flow', 'integration', 'e2e', 'scale'] as const
-export type TestTier = (typeof RUNNABLE_TIERS)[number]
+type TestTier = (typeof RUNNABLE_TIERS)[number]
 
 export interface TestOptions {
   coverage?: boolean

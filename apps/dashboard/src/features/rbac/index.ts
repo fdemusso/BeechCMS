@@ -5,4 +5,3 @@
 export { UsersSection } from "./components/users-section"
 export { RolesSection } from "./components/roles-section"
 export { InvitationsSection } from "./components/invitations-section"
-export { RBAC_QUERY_KEYS } from "./hooks/use-rbac"

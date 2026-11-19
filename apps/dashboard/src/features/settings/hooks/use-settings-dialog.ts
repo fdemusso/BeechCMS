@@ -10,7 +10,7 @@ import { resolveSettingsTab } from "../lib/settings-registry"
 /** Query param that opens the settings dialog over whatever page is current (`?settings=<tab>`). */
 export const SETTINGS_PARAM = "settings"
 /** Query param naming the bookmark inside the open tab (`?settings=account&section=password`). */
-export const SETTINGS_SECTION_PARAM = "section"
+const SETTINGS_SECTION_PARAM = "section"
 const DEFAULT_TAB: SettingsTab = "account"
 
 /**
