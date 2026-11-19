@@ -157,6 +157,22 @@ export class D1UserRepository implements IUserRepository {
       .run()
   }
 
+  async findUiPreferences(userId: string): Promise<string | null> {
+    const row = await this.db
+      .prepare('SELECT ui_prefs FROM users WHERE id = ? LIMIT 1')
+      .bind(userId)
+      .first<{ ui_prefs: string }>()
+    return row ? row.ui_prefs : null
+  }
+
+  async updateUiPreferences(userId: string, preferencesJson: string): Promise<boolean> {
+    const result = await this.db
+      .prepare('UPDATE users SET ui_prefs = ? WHERE id = ?')
+      .bind(preferencesJson, userId)
+      .run()
+    return (result.meta.changes ?? 0) > 0
+  }
+
   async emailBelongsToAnotherUser(email: string, currentUserId: string): Promise<boolean> {
     const row = await this.db
       .prepare('SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1')

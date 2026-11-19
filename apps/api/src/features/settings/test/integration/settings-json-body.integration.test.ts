@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /**
- * Settings slice — JSON body shape integration tier. Covers the five PUT routes that read fields
+ * Settings slice — JSON body shape integration tier. Covers the six PUT routes that read fields
  * off a parsed body: a valid JSON value that is not an object must be a client error, never a 500.
  */
 
@@ -19,6 +19,7 @@ const BODY_ROUTES = [
   { path: '/api/settings/password', user: 'editor' },
   { path: '/api/settings/avatar', user: 'editor' },
   { path: '/api/settings/notifications', user: 'editor' },
+  { path: '/api/settings/ui-preferences', user: 'editor' },
 ] as const
 
 // `null` and arrays are valid JSON, so they pass the parse step and reach the field access.
