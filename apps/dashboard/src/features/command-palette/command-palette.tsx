@@ -129,7 +129,7 @@ export function CommandPalette({ hostProviders, onOpenChange, onNewSeed }: Comma
   const { resolvedTheme, setTheme } = useTheme()
   const {
     open, setOpen, pages, currentPage, pushPage, popPage, search, setSearch, actionsTarget, openActions,
-  } = useCommandPalette()
+  } = useCommandPalette(onOpenChange)
   const { data: seedsData } = useSchema()
   const seeds = seedsData ?? NO_SEEDS
   const { can, canAnywhere, canGlobally } = usePermissions()
@@ -144,9 +144,6 @@ export function CommandPalette({ hostProviders, onOpenChange, onNewSeed }: Comma
     [pins.state],
   )
   const declarations = usePageActionDeclarations()
-  React.useEffect(() => {
-    onOpenChange?.(open)
-  }, [open, onOpenChange])
   const [pendingAction, setPendingAction] = React.useState<PendingPageAction | null>(null)
   const confirmedRef = React.useRef(false)
 

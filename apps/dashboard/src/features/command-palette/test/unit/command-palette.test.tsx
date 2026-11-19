@@ -830,8 +830,8 @@ describe("CommandPalette", () => {
       fireEvent.keyDown(document, { key: "k", code: "KeyK", metaKey: true })
       fireEvent.keyDown(document, { key: "Escape", code: "Escape" })
 
-      // The first call is the mount report: the palette starts closed.
-      expect(onOpenChange.mock.calls).toEqual([[false], [true], [false]])
+      // Reported on change only: the palette starts closed and the host assumes that.
+      expect(onOpenChange.mock.calls).toEqual([[true], [false]])
     })
 
     it("Enter on the keyboard shortcuts row opens the shortcuts page with the prefix rows", () => {

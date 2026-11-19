@@ -30,13 +30,14 @@ export function withPinActions(
 ): ResolvedPaletteItem[] {
   const { t, pins, stable, pin, unpin } = deps
   if (pins.status === "unavailable" || pins.saving) return [...items]
+  const pinnedIds = new Set(pins.ids)
 
   return items.map((item) => {
     const sourceId = pinSourceId(item.id) ?? recentSourceId(item.id) ?? item.id
     const source = stable.get(sourceId)
     if (!source || sourceId.length > PALETTE_PIN_ID_MAX_LENGTH) return item
 
-    const action: PaletteRowAction = pins.ids.includes(sourceId)
+    const action: PaletteRowAction = pinnedIds.has(sourceId)
       ? {
           id: UNPIN_ACTION_ID,
           label: t("commandPalette.pins.unpin"),

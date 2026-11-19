@@ -5,8 +5,19 @@
 import { useState, useEffect, useCallback } from "react"
 import type { CommandPage, CommandPaletteState, ResolvedPaletteItem } from "./types"
 
-export function useCommandPalette(): CommandPaletteState {
-  const [open, setOpen] = useState(false)
+/**
+ * `onOpenChange` is called from the same handlers that change `open`, so a host can mirror the state without an
+ * effect that pushes data to it.
+ */
+export function useCommandPalette(onOpenChange?: (open: boolean) => void): CommandPaletteState {
+  const [open, setOpenState] = useState(false)
+  const setOpen = useCallback(
+    (next: boolean) => {
+      setOpenState(next)
+      onOpenChange?.(next)
+    },
+    [onOpenChange],
+  )
   const [pages, setPages] = useState<CommandPage[]>(["root"])
   const [search, setSearch] = useState("")
   const [actionsTarget, setActionsTarget] = useState<ResolvedPaletteItem | null>(null)
@@ -46,7 +57,7 @@ export function useCommandPalette(): CommandPaletteState {
       // Toggle palette
       if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
-        setOpen((prev) => !prev)
+        setOpen(!open)
         return
       }
 
@@ -77,7 +88,7 @@ export function useCommandPalette(): CommandPaletteState {
 
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
-  }, [open, search, pages.length, popPage])
+  }, [open, search, pages.length, popPage, setOpen])
 
   // Reset state when palette closes
   useEffect(() => {
