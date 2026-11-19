@@ -7,14 +7,14 @@ import type { Permission, Scope } from "@beechcms/core"
 import type { IconComponent } from "@/lib/icon-registry"
 
 /** Permission an action needs to be enabled; same shape and evaluation as the palette's requirements. */
-export interface PageActionRequirement {
+interface PageActionRequirement {
   readonly permission: Permission
   /** GLOBAL_SCOPE ('*') or a seed slug. Omitted: held on at least one scope. */
   readonly scope?: Scope
 }
 
 /** Question asked before an irreversible action runs (brief rule 2). Cancelling changes nothing. */
-export interface PageActionConfirm {
+interface PageActionConfirm {
   readonly title: string
   readonly description: string
   /** Destructive styling on the confirming button (design contract, "Deleting"). */

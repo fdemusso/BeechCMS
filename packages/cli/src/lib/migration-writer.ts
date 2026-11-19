@@ -101,7 +101,7 @@ export function buildMigrationSql(
 }
 
 /** Writes the migration file and returns its absolute path. */
-export function writeMigrationFile(
+function writeMigrationFile(
   migrationsDir: string, index: string, name: string, sql: string,
 ): string {
   if (!existsSync(migrationsDir)) mkdirSync(migrationsDir, { recursive: true })

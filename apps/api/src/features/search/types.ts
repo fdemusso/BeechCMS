@@ -100,6 +100,3 @@ export interface EmbedResponse {
   shape: [number]
 }
 
-// ─── Re-export core type for internal use ────────────────────────────────────
-
-export type { SearchResultRow }

@@ -15,7 +15,7 @@ const MAX_PASSWORD_LENGTH = 128
 const MAX_PASSWORD_BYTES = 72
 const MAX_NAME_LENGTH = 100
 
-export const PASSWORDS_REQUIRED_MESSAGE = 'Both currentPassword and newPassword are required'
+const PASSWORDS_REQUIRED_MESSAGE = 'Both currentPassword and newPassword are required'
 
 function isUrl(value: string): boolean {
   try {

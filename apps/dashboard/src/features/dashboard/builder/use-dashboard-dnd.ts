@@ -16,7 +16,7 @@ import {
 import { useLayoutDnd, type LayoutDndAdapter } from '@/components/builder/use-layout-dnd'
 import type { UseDashboardBuilderResult } from './use-dashboard-builder'
 
-export type DragKind = 'page' | 'section' | 'column' | 'widget'
+type DragKind = 'page' | 'section' | 'column' | 'widget'
 
 const ids = makeDragIds('page', 'widget')
 
@@ -38,7 +38,7 @@ export const DashboardDragContext = BuilderDragContext
 const findColumn = (layout: DashboardLayout, { rootId, sectionId, columnId }: ColumnRef) =>
   layout.pages.find((p) => p.id === rootId)?.sections.find((s) => s.id === sectionId)?.columns.find((c) => c.id === columnId)
 
-export function locateWidget(layout: DashboardLayout, widgetId: string): ItemLocation | null {
+function locateWidget(layout: DashboardLayout, widgetId: string): ItemLocation | null {
   for (const page of layout.pages) {
     for (const section of page.sections) {
       for (const column of section.columns) {

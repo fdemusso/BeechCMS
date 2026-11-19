@@ -6,7 +6,7 @@ import type { ActivityEntry } from "../types/settings.types"
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
 
-export type ActivityTone = "default" | "secondary" | "destructive" | "outline"
+type ActivityTone = "default" | "secondary" | "destructive" | "outline"
 
 export interface ActivityView {
   /** Translated name of what happened: the badge. */

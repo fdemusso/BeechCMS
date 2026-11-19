@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const RESOURCES_DIR = join(__dirname, '..', 'resources')
 
-export interface ResourceEntry {
+interface ResourceEntry {
   uri: string
   title: string
   description: string

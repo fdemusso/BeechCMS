@@ -13,7 +13,7 @@
 import type { ContentLastWriter, SearchResultRow } from '@beechcms/core'
 import type { FtsQueryParams, SearchResultItem } from '../types'
 
-export type { FtsQueryParams, SearchResultItem }
+export type { SearchResultItem }
 
 // ─── Cursor encoding ─────────────────────────────────────────────────────────
 
@@ -57,11 +57,7 @@ export function decodeCursor(cursor: string): { rank: number; entryId: string } 
   }
 }
 
-export {
-  buildFtsQuery,
-  type FtsQueryResult,
-  type FtsQueryParams as RepositoryFtsQueryParams,
-} from '../../../shared/db/repositories/d1-search.query'
+export { buildFtsQuery } from '../../../shared/db/repositories/d1-search.query'
 
 // ─── Row mappers ─────────────────────────────────────────────────────────────
 

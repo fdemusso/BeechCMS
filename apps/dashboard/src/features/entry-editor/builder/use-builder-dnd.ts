@@ -15,7 +15,7 @@ import {
 import { useLayoutDnd, type LayoutDndAdapter } from '@/components/builder/use-layout-dnd'
 import { getFullWidthWarningLabel, type UseLayoutBuilderResult } from './use-layout-builder'
 
-export type DragKind = 'tab' | 'section' | 'column' | 'field'
+type DragKind = 'tab' | 'section' | 'column' | 'field'
 
 const ids = makeDragIds('tab', 'field')
 
@@ -37,7 +37,7 @@ const findSection = (layout: FormLayout, rootId: string, sectionId: string) =>
 const findColumn = (layout: FormLayout, { rootId, sectionId, columnId }: ColumnRef) =>
   findSection(layout, rootId, sectionId)?.columns.find((column) => column.id === columnId)
 
-export function locateField(layout: FormLayout, branchId: string): ItemLocation | null {
+function locateField(layout: FormLayout, branchId: string): ItemLocation | null {
   for (const tab of layout.tabs) {
     for (const section of tab.sections) {
       for (const column of section.columns) {

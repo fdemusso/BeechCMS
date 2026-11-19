@@ -9,7 +9,6 @@ export { getVisibleSettingsEntries, getVisibleSections, matchSettings, resolveSe
 export type { SettingsEntry } from './lib/settings-registry'
 export { useSettingsDialog } from './hooks/use-settings-dialog'
 export { useProfile, useGeneralSettings, useUpdateGeneralSettings } from './hooks/use-settings'
-export { SETTINGS_QUERY_KEYS } from './hooks/use-settings'
 export { DASHBOARD_LANGUAGES, useDashboardLanguage } from './hooks/use-dashboard-language'
 export type { DashboardLanguage, DashboardLanguageControl } from './hooks/use-dashboard-language'
 export { useNotificationPrefToggle } from './hooks/use-notification-pref-toggle'

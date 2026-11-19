@@ -55,20 +55,6 @@ const LEAF_BRANCH_TYPES: BranchType[] = [
 ]
 
 /**
- * Column names owned by the CMS itself (primary key, status, timestamps, etc.).
- * Exported so alias inputs elsewhere can be validated against picking one of
- * these as a custom field alias, since they'd collide with a real SQL column.
- */
-export const AUTOMATION_RESERVED = new Set([
-  "id",
-  "slug",
-  "status",
-  "created_at",
-  "updated_at",
-  "schema_slug",
-])
-
-/**
  * Properties for the {@link BranchItemRow} component.
  */
 export interface BranchItemRowProps {

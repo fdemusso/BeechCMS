@@ -22,7 +22,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useBackrefs, useBackrefsGroup } from './hooks/use-backrefs'
 import type { BackrefGroup, BackrefItem } from './api'
 
@@ -289,44 +288,3 @@ export function ReferencedByPanel({ targetSlug, targetId, onRestrictsChange }: R
 // ---------------------------------------------------------------------------
 // Delete button with tooltip when restricted
 // ---------------------------------------------------------------------------
-
-interface DeleteButtonProps {
-  onClick: () => void
-  restricted: boolean
-  restrictCount: number
-  disabled?: boolean
-  children: React.ReactNode
-}
-
-export function DeleteButtonWithRestrict({
-  onClick,
-  restricted,
-  restrictCount,
-  disabled,
-  children,
-}: DeleteButtonProps) {
-  const { t } = useTranslation()
-
-  if (restricted) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="inline-flex">
-            <Button variant="destructive" disabled>
-              {children}
-            </Button>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>
-          {t('backrefs.deleteBlocked', { count: restrictCount })}
-        </TooltipContent>
-      </Tooltip>
-    )
-  }
-
-  return (
-    <Button variant="destructive" onClick={onClick} disabled={disabled}>
-      {children}
-    </Button>
-  )
-}

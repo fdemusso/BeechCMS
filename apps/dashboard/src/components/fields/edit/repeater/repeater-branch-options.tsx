@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { FieldEditRepeater } from "./repeater"
-import { localizationBlocker, type LocalizationBlocker } from "./repeater-localization"
+import { localizationBlocker } from "./repeater-localization"
 
 /** Select item value standing for "no avatar": a Radix Select item cannot carry an empty string. */
 const NO_AVATAR = "__none__"
@@ -678,9 +678,6 @@ function PolicyKey({ icon: Icon, label, role, active, disabled, onClick }: Polic
     </Tooltip>
   )
 }
-
-/** Why a text / richtext / json branch cannot be localized; mirrors seed-validation Fatal 17. */
-export type { LocalizationBlocker }
 
 /** Properties for the {@link LocalizedOptionsForm} component. */
 export interface LocalizedOptionsFormProps {

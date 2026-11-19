@@ -26,7 +26,7 @@ export function decodeJwtPayload(token: string): unknown {
 }
 
 /** Risposta POST /auth/login */
-export interface LoginResponse {
+interface LoginResponse {
   token: string
   expiresIn: string
 }

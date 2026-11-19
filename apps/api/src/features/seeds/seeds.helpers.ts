@@ -20,7 +20,7 @@ export type { AppContext }
  * @param context - The Hono request context.
  * @returns The parsed JSON body payload, or a 400 Bad Request Problem Details Response on syntax failure.
  */
-export async function parseJsonBody(context: AppContext): Promise<unknown> {
+async function parseJsonBody(context: AppContext): Promise<unknown> {
   try { return await context.req.json() } catch {
     return publicProblem(context, { type: 'invalid-json', title: 'Invalid JSON', status: 400, detail: 'Body must be valid JSON.' })
   }

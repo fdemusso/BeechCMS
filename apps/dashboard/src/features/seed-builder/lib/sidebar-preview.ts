@@ -7,7 +7,7 @@ import type { Seed } from "@beechcms/core"
 /** Sidebar position of a seed with no `dashboard.order`; mirrors `buildContentMenu`. */
 export const DEFAULT_SIDEBAR_ORDER = 99
 
-export interface SidebarPreviewItem {
+interface SidebarPreviewItem {
   slug: string | null
   title: string
   icon?: string
@@ -27,7 +27,7 @@ export interface SidebarPreview {
 }
 
 /** How many neighbours of the current entry the preview shows on each side. */
-export const PREVIEW_RADIUS = 2
+const PREVIEW_RADIUS = 2
 
 /** The sidebar groups already in use, in the order the sidebar shows them (first seed that names one first). */
 export function existingGroups(seeds: readonly Seed[]): string[] {

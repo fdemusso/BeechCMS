@@ -21,9 +21,9 @@ import type { BeechSchemaManifest, ManifestSeed } from '@beechcms/core/schema'
  * - `only_in_database` — deployed but absent from the manifest; the snapshot is stale, re-export.
  * - `differs`        — both sides exist and disagree.
  */
-export type SeedDriftStatus = 'in_sync' | 'only_in_manifest' | 'only_in_database' | 'differs'
+type SeedDriftStatus = 'in_sync' | 'only_in_manifest' | 'only_in_database' | 'differs'
 
-export interface SeedDrift {
+interface SeedDrift {
   slug: string
   status: SeedDriftStatus
 }

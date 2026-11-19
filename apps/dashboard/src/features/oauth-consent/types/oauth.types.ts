@@ -8,9 +8,6 @@ import type { rpc } from '@/lib/rpc'
 /** Response of `GET /oauth/authorize/request`. */
 export type AuthorizationRequestMetadata = InferResponseType<typeof rpc.oauth.authorize.request.$get>
 
-/** Scope vocabulary of the authorization server (`@beechcms/core` OAUTH_SCOPES). */
-export type OAuthScope = AuthorizationRequestMetadata['requestedScopes'][number]
-
 /** Body of `POST /oauth/authorize/consent` (OAuth params stay snake_case on the wire). */
 export type ConsentDecisionBody = InferRequestType<typeof rpc.oauth.authorize.consent.$post>['json']
 

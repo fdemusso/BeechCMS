@@ -32,7 +32,7 @@ function getInitials(name: string | null, surname: string | null, email: string)
  * The fields name what they hold (`given-name`, `family-name`, `email`) so the browser's autofill offers the right
  * thing in the right place, and the form has no password field, so a password manager leaves it alone.
  */
-export function ProfileSection() {
+function ProfileSection() {
   const { t } = useTranslation()
   const { data: profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
@@ -206,7 +206,7 @@ export function ProfileSection() {
  * knows which saved login the new password replaces. The three password fields say which is which
  * (`current-password`, `new-password`) so it offers to fill the first and to generate the second.
  */
-export function PasswordSection() {
+function PasswordSection() {
   const { t } = useTranslation()
   const changePassword = useChangePassword()
   // The strength bar also weighs the password against who the user is (a name or email in it scores lower).

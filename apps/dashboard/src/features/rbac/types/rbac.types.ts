@@ -3,10 +3,10 @@
 // See LICENSE in the repository root for license terms.
 
 import type { InferRequestType, InferResponseType } from "hono/client"
-import type { Permission, RoleRecord, Scope } from "@beechcms/core"
+import type { RoleRecord } from "@beechcms/core"
 import type { rpc } from "@/lib/rpc"
 
-export type { Permission, RoleRecord, Scope }
+export type { RoleRecord }
 
 // Read off the routes, not restated: the API is the only place these shapes are defined.
 type Rbac = typeof rpc.api.rbac

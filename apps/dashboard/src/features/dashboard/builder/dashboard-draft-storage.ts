@@ -6,8 +6,6 @@ import {
   createDraftStorage,
   fingerprintLayout,
   isRecord,
-  type BuilderDraft,
-  type BuilderDraftLookup,
 } from '@/components/builder/draft-storage'
 
 /**
@@ -19,9 +17,6 @@ import {
 
 /** The one key the builder stores its draft under: the dashboard has a single layout. */
 export const DASHBOARD_DRAFT_KEY = 'layout'
-
-export type DashboardDraft = BuilderDraft<DashboardLayout>
-export type DashboardDraftLookup = BuilderDraftLookup<DashboardLayout>
 
 function isLayoutShape(value: unknown): value is DashboardLayout {
   if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.pages)) return false

@@ -8,8 +8,6 @@ import { z } from 'zod'
 import type { AutomationTriggerEvent, TriggerCondition } from '@beechcms/core'
 import { AUTOMATION_RESERVED_WORDS, isPrivateHost } from '@beechcms/core'
 
-export { AUTOMATION_RESERVED_WORDS }
-
 export const TRIGGER_OPS = ['eq', 'neq', 'contains', 'gt', 'lt', 'isempty', 'isnotempty'] as const
 
 const WHEN_OPS = [
