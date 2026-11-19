@@ -40,12 +40,6 @@ function collectText(node: TipTapNode, chunks: string[]): void {
     return
   }
 
-  if (type === 'inlineMath' || type === 'blockMath' || type === 'mathematics') {
-    const latex = typeof node.attrs?.latex === 'string' ? node.attrs.latex : (typeof node.text === 'string' ? node.text : '')
-    if (latex) chunks.push(latex)
-    return
-  }
-
   if (type === 'image') {
     const alt = typeof node.attrs?.alt === 'string' ? node.attrs.alt : ''
     if (alt) chunks.push(alt)

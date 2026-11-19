@@ -298,22 +298,6 @@ describe('@beechcms/client/richtext', () => {
       )
     })
 
-    it('renders mathematics and LaTeX nodes with fallback span', () => {
-      const doc = {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-            content: [
-              { type: 'text', text: 'Formula: ' },
-              { type: 'inlineMath', attrs: { latex: 'E = mc^2' } },
-            ],
-          },
-        ],
-      }
-      expect(renderRichText(doc)).toBe('<p>Formula: <span class="math-inline">E = mc^2</span></p>')
-    })
-
     it('skips unknown node types and emits console.warn', () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
       const doc = {
@@ -410,7 +394,7 @@ describe('@beechcms/client/richtext', () => {
       expect(richTextToPlainText(doc)).toBe('Photo of A beech tree')
     })
 
-    it('handles hardBreak, horizontalRule, math, and unknown nodes in plain text', () => {
+    it('handles hardBreak, horizontalRule, and unknown nodes in plain text', () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
       const doc = {
         type: 'doc',
@@ -425,17 +409,11 @@ describe('@beechcms/client/richtext', () => {
           },
           { type: 'horizontalRule' },
           {
-            type: 'paragraph',
-            content: [
-              { type: 'inlineMath', attrs: { latex: 'x + y = z' } },
-            ],
-          },
-          {
             type: 'unsupportedNode',
           },
         ],
       }
-      expect(richTextToPlainText(doc)).toBe('Line 1\nLine 2\nx + y = z')
+      expect(richTextToPlainText(doc)).toBe('Line 1\nLine 2')
       expect(warnSpy).toHaveBeenCalledWith('[BeechCMS RichText] Unrecognized node type "unsupportedNode". Skipping node.')
       warnSpy.mockRestore()
     })

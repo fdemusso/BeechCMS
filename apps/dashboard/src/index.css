@@ -478,7 +478,7 @@ input[type="search"]::-webkit-search-results-decoration {
 
 /* ═══════════════════════════════════════════════════════════════════════════════════════════════════════
    3. LIBRARY STYLES
-   Overrides for code we do not own: sonner, TipTap / ProseMirror, KaTeX, CodeMirror.
+   Overrides for code we do not own: sonner, TipTap / ProseMirror, CodeMirror.
    ═══════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 /* ── Sonner: undo toast (use-delete-with-undo) ────────────────────────────────────────────────────────── */
@@ -644,36 +644,6 @@ input[type="search"]::-webkit-search-results-decoration {
   font-size: var(--text-sm);
   line-height: 1.5;
   overflow-x: auto;
-}
-
-/* Formula a blocco: centrata rispetto alla colonna di testo */
-.richtext-editor-root .ProseMirror [data-type="block-math"],
-.richtext-content [data-type="block-math"] {
-  display: block;
-  margin: 0.75rem 0;
-  text-align: center;
-}
-
-.richtext-editor-root .ProseMirror [data-type="block-math"] .block-math-inner,
-.richtext-content [data-type="block-math"] .block-math-inner {
-  display: flex;
-  justify-content: center;
-}
-
-/* KaTeX display nel blocco (editor + HTML generato se presente) */
-.richtext-editor-root .ProseMirror [data-type="block-math"] .katex-display,
-.richtext-content [data-type="block-math"] .katex-display {
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* Errore LaTeX renderizzato nel nodo formula (TipTap) */
-.richtext-editor-root .ProseMirror .tiptap-math-katex-error,
-.richtext-content .tiptap-math-katex-error {
-  color: var(--status-danger-foreground);
-  font-size: var(--text-xs);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  line-height: 1.35;
 }
 
 /* ── CodeMirror ───────────────────────────────────────────────────────────────────────────────────────── */

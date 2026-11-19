@@ -443,15 +443,6 @@ describe('required richtext field emptiness detection', () => {
     expect(r.requiredFieldsMissing).toContain('body')
   })
 
-  it('treats a doc with only latex content in attrs as non-empty', () => {
-    const latexDoc = {
-      type: 'doc',
-      content: [{ type: 'mathBlock', attrs: { latex: 'x^2' }, content: [] }],
-    }
-    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: latexDoc }, { operation: 'create' })
-    expect(r.requiredFieldsMissing).not.toContain('body')
-  })
-
   it('treats a doc with actual text content as non-empty', () => {
     const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hello' }] }] }
     const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: doc }, { operation: 'create' })

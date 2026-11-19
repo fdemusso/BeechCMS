@@ -530,7 +530,7 @@ The `@beechcms/client/richtext` submodule is an **isomorphic, zero-dependency re
 
 - **Fail-Safe Normalization:** Automatically unwraps schema envelopes (`{ schemaVersion: 1, doc }`) and raw doc objects. Invalid inputs gracefully return `""`.
 - **Automatic XSS Protection:** Strict character escaping (`&`, `<`, `>`, `"`, `'`) and strict URL protocol validation (`http:`, `https:`, `mailto:`, `tel:`, or relative paths, blocking `javascript:` and `data:` schemes).
-- **Full AST Support:** Headings (`h1`–`h6`, with `textAlign` support), paragraphs, blockquotes, code blocks (`<pre class="richtext-code-block"><code>`), lists (bullet, ordered, task lists with checkboxes), tables (headers, rows, cells, colspan, rowspan), horizontal rules, line breaks (`hardBreak`), images (with safe `src`, `alt`, and `title`), inline and block mathematics (`inlineMath`, `blockMath`, `mathematics`), and formatting marks (`bold`/`strong`, `italic`/`em`, `underline`/`u`, `strike`/`s`, `code`, `link`, `highlight`, `superscript`, `subscript`, and `textStyle` colors).
+- **Full AST Support:** Headings (`h1`–`h6`, with `textAlign` support), paragraphs, blockquotes, code blocks (`<pre class="richtext-code-block"><code>`), lists (bullet, ordered, task lists with checkboxes), tables (headers, rows, cells, colspan, rowspan), horizontal rules, line breaks (`hardBreak`), images (with safe `src`, `alt`, and `title`), and formatting marks (`bold`/`strong`, `italic`/`em`, `underline`/`u`, `strike`/`s`, `code`, `link`, `highlight`, `superscript`, `subscript`, and `textStyle` colors).
 
 ### API Reference
 

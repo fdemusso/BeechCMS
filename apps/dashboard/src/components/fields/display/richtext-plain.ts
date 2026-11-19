@@ -31,7 +31,7 @@ export function isTipTapDoc(value: unknown): boolean {
 
 /**
  * Extracts plain text directly from TipTap JSON structure without HTML conversion.
- * This avoids bundling heavy dependencies like KaTeX and highlight.js in table and card views.
+ * This avoids bundling heavy dependencies like highlight.js in table and card views.
  */
 export function extractTextFromTiptap(value: unknown): string {
   if (value == null || value === "") return ""
