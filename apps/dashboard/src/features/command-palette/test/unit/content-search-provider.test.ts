@@ -143,6 +143,17 @@ describe("createContentSearchProvider", () => {
     expect(rows[0].status).toBeUndefined()
   })
 
+  it("a hit of a seed without the draft workflow carries no status", async () => {
+    // Regression guard: "Published" on a seed that has no drafts is noise.
+    respondWith(hit())
+    const seedsWithoutDrafts = CANONICAL_SEEDS.map((seed) => ({ ...seed, allowDrafts: false }))
+    const provider = createProvider(seedsWithoutDrafts)
+
+    const rows = await provider.fetchItems(contextFor(READER), new AbortController().signal)
+
+    expect(rows[0].status).toBeUndefined()
+  })
+
   it("a hit of a seed missing from the schema uses its slug as the section", async () => {
     respondWith(hit({ schema_slug: "ghosts" }))
     const provider = createProvider([])

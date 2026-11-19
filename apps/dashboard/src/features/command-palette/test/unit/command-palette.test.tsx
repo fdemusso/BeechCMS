@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { render, fireEvent, screen, waitFor, within } from "@testing-library/react"
+import { render, fireEvent, screen, waitFor, within, act } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { CANONICAL_ENTRIES, CANONICAL_SEEDS, CANONICAL_USERS } from "@beechcms/testing"
 import { CommandPalette, type PaletteProvider } from "@/features/command-palette"
@@ -15,8 +15,11 @@ import {
 import { insertNote, QUICK_NOTES_MAX_COUNT, readNotes, type QuickNote } from "../../lib/quick-notes-storage"
 import { readRecentIds, recordRecentId } from "../../lib/recent-items-storage"
 
-const { navigateMock, grantedPermissions, toastMock, searchMock } = vi.hoisted(() => ({
+const { navigateMock, grantedPermissions, toastMock, searchMock, uiPreferencesGetMock, uiPreferencesPutMock, setThemeMock } = vi.hoisted(() => ({
   searchMock: vi.fn(),
+  setThemeMock: vi.fn(),
+  uiPreferencesGetMock: vi.fn(),
+  uiPreferencesPutMock: vi.fn(),
   navigateMock: vi.fn(),
   // Entries are "<permission>@<scope>"; "*" is the global scope.
   grantedPermissions: new Set<string>(),
@@ -25,7 +28,14 @@ const { navigateMock, grantedPermissions, toastMock, searchMock } = vi.hoisted((
 
 vi.mock("sonner", () => ({ toast: toastMock }))
 
-vi.mock("@/lib/rpc", () => ({ rpc: { api: { search: { $get: searchMock } } } }))
+vi.mock("@/lib/rpc", () => ({
+  rpc: {
+    api: {
+      search: { $get: searchMock },
+      settings: { "ui-preferences": { $get: uiPreferencesGetMock, $put: uiPreferencesPutMock } },
+    },
+  },
+}))
 // The debounce only delays the request; the tests are about what is requested and shown.
 vi.mock("@/hooks/use-debounce", () => ({ useDebounce: <T,>(value: T) => value }))
 
@@ -48,7 +58,7 @@ vi.mock("@/features/shared", () => ({
 vi.mock("@/lib/theme", () => ({
   useTheme: () => ({
     resolvedTheme: "dark",
-    setTheme: vi.fn(),
+    setTheme: setThemeMock,
   }),
 }))
 
@@ -82,11 +92,11 @@ function searchResponse(...hits: ReturnType<typeof searchHit>[]) {
   return { json: async () => ({ items: hits, nextCursor: null, total: hits.length }) }
 }
 
-function renderPalette(hostProviders: readonly PaletteProvider[], onOpenChange?: (open: boolean) => void) {
+function renderPalette(hostProviders: readonly PaletteProvider[], onOpenChange?: (open: boolean) => void, onNewSeed?: () => void) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
-      <CommandPalette hostProviders={hostProviders} onOpenChange={onOpenChange} />
+      <CommandPalette hostProviders={hostProviders} onOpenChange={onOpenChange} onNewSeed={onNewSeed} />
     </QueryClientProvider>,
   )
 }
@@ -97,6 +107,13 @@ describe("CommandPalette", () => {
     grantedPermissions.clear()
     searchMock.mockReset()
     searchMock.mockResolvedValue(searchResponse())
+    setThemeMock.mockClear()
+    uiPreferencesGetMock.mockReset()
+    uiPreferencesGetMock.mockResolvedValue({ json: async () => ({ palettePins: [] }) })
+    uiPreferencesPutMock.mockReset()
+    uiPreferencesPutMock.mockImplementation(async ({ json }: { json: { palettePins: string[] } }) => ({
+      json: async () => json,
+    }))
   })
 
   afterEach(() => {
@@ -140,6 +157,54 @@ describe("CommandPalette", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument()
     expect(screen.getByPlaceholderText(PLACEHOLDER_CREATE)).toBeInTheDocument()
+  })
+
+  it("Alt+Shift+N does not open the create page: it belongs to the host's new content type shortcut", () => {
+    renderPalette([])
+
+    fireEvent.keyDown(document, { key: "N", code: "KeyN", altKey: true, shiftKey: true })
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
+  it("Alt+Shift+N closes an open palette and runs onNewSeed", () => {
+    const onNewSeed = vi.fn()
+    renderPalette([], undefined, onNewSeed)
+    fireEvent.keyDown(document, { key: "k", code: "KeyK", metaKey: true })
+
+    fireEvent.keyDown(document, { key: "N", code: "KeyN", altKey: true, shiftKey: true })
+
+    expect(onNewSeed).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
+  it("Alt+Shift+N does nothing without onNewSeed", () => {
+    renderPalette([])
+
+    fireEvent.keyDown(document, { key: "N", code: "KeyN", altKey: true, shiftKey: true })
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
+  it("Cmd+Shift+L switches the theme and Ctrl+Shift+L does the same", () => {
+    renderPalette([])
+
+    fireEvent.keyDown(document, { key: "L", code: "KeyL", metaKey: true, shiftKey: true })
+    fireEvent.keyDown(document, { key: "L", code: "KeyL", ctrlKey: true, shiftKey: true })
+
+    expect(setThemeMock.mock.calls).toEqual([["light"], ["light"]])
+  })
+
+  it.each([
+    ["without Shift", { key: "l", code: "KeyL", metaKey: true }],
+    ["without Cmd or Ctrl", { key: "L", code: "KeyL", shiftKey: true }],
+    ["with Alt", { key: "L", code: "KeyL", metaKey: true, shiftKey: true, altKey: true }],
+  ])("the theme shortcut is not triggered %s", (_name, keys) => {
+    renderPalette([])
+
+    fireEvent.keyDown(document, keys)
+
+    expect(setThemeMock).not.toHaveBeenCalled()
   })
 
   it("Escape on a sub-page returns to the root page and keeps the palette open", () => {
@@ -250,16 +315,19 @@ describe("CommandPalette", () => {
     expect(screen.queryByRole("option")).not.toBeInTheDocument()
   })
 
-  it("with no clipboard API Enter on a computed row closes the dialog and shows the error toast", () => {
+  it("with no clipboard API and a refusing fallback Enter on a computed row closes the dialog and shows the error toast", async () => {
     stubClipboard(undefined)
+    // The selection fallback is the last resort: here it refuses too.
+    Object.defineProperty(document, "execCommand", { value: () => false, configurable: true })
     renderPalette([])
     const input = typeInRoot("2025-5")
 
     fireEvent.keyDown(input, { key: "Enter", code: "Enter" })
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
-    expect(toastMock.error).toHaveBeenCalledWith("Copy failed")
+    await vi.waitFor(() => expect(toastMock.error).toHaveBeenCalledWith("Copy failed"))
     expect(toastMock.success).not.toHaveBeenCalled()
+    Reflect.deleteProperty(document, "execCommand")
   })
 
   it("typing a term lists the matching local rows at once while the search request is pending", () => {
@@ -516,6 +584,71 @@ describe("CommandPalette", () => {
     expect(screen.queryByText(ALPHA_NOTE.text)).not.toBeInTheDocument()
     expect(screen.getAllByRole("option")).toHaveLength(1)
     expect(screen.getByText("New note")).toBeInTheDocument()
+  })
+
+  it("Enter on a note row copies its text and confirms with a toast", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    stubClipboard(writeText)
+    insertNote(localStorage, EDITOR_ID, ALPHA_NOTE)
+    renderPalette([])
+    const input = typeInRoot("#")
+
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter" })
+
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(ALPHA_NOTE.text)
+    await vi.waitFor(() => expect(toastMock.success).toHaveBeenCalledWith(`Copied ${ALPHA_NOTE.text}`))
+    expect(toastMock.error).not.toHaveBeenCalled()
+  })
+
+  it("copying a long note confirms with a short preview, not the whole text", async () => {
+    stubClipboard(vi.fn().mockResolvedValue(undefined))
+    const longNote: QuickNote = { ...ALPHA_NOTE, text: "word ".repeat(30).trim() }
+    insertNote(localStorage, EDITOR_ID, longNote)
+    renderPalette([])
+    const input = typeInRoot("#")
+
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter" })
+
+    await vi.waitFor(() => expect(toastMock.success).toHaveBeenCalledTimes(1))
+    const [message] = toastMock.success.mock.calls[0] as [string]
+    // "Copied " plus a 40 character preview.
+    expect(message.length).toBeLessThanOrEqual(47)
+    expect(message.startsWith("Copied word word")).toBe(true)
+  })
+
+  it("right-clicking a note offers Delete note and picking it removes that note", async () => {
+    insertNote(localStorage, EDITOR_ID, ALPHA_NOTE)
+    insertNote(localStorage, EDITOR_ID, BRAVO_NOTE)
+    renderPalette([])
+    typeInRoot("#")
+
+    fireEvent.contextMenu(screen.getByText(ALPHA_NOTE.text))
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Delete note" }))
+
+    expect(readNotes(localStorage, EDITOR_ID)).toEqual([BRAVO_NOTE])
+  })
+
+  it("the Delete note entry of the right-click menu has the destructive style", async () => {
+    insertNote(localStorage, EDITOR_ID, ALPHA_NOTE)
+    renderPalette([])
+    typeInRoot("#")
+
+    fireEvent.contextMenu(screen.getByText(ALPHA_NOTE.text))
+
+    const deleteEntry = await screen.findByRole("menuitem", { name: "Delete note" })
+    expect(deleteEntry).toHaveAttribute("data-variant", "destructive")
+  })
+
+  it("clicking a note row copies its text", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    stubClipboard(writeText)
+    insertNote(localStorage, EDITOR_ID, ALPHA_NOTE)
+    renderPalette([])
+    typeInRoot("#")
+
+    fireEvent.click(screen.getByText(ALPHA_NOTE.text))
+
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(ALPHA_NOTE.text)
   })
 
   it("Ctrl+Enter on a note row deletes that note from storage and keeps the others", () => {
@@ -816,6 +949,202 @@ describe("CommandPalette", () => {
 
       expect(navigateMock).toHaveBeenCalledWith(`/content/posts/${HIT_ID}`)
       expect(readRecentIds(localStorage, EDITOR_ID)).toEqual([])
+    })
+  })
+
+  describe("pins", () => {
+    const CTRL_ENTER = { key: "Enter", code: "Enter", ctrlKey: true }
+
+    function openPalette() {
+      fireEvent.keyDown(document, { key: "k", code: "KeyK", metaKey: true })
+      return screen.getByPlaceholderText(PLACEHOLDER_ROOT)
+    }
+
+    // The pins are in cache before the first open, as in the app; the flush lets the mocked GET settle.
+    async function settlePins(stored: string[]) {
+      uiPreferencesGetMock.mockResolvedValue({ json: async () => ({ palettePins: stored }) })
+      renderPalette([])
+      await waitFor(() => expect(uiPreferencesGetMock).toHaveBeenCalled())
+      await act(async () => {})
+    }
+
+    function groupRows(heading: string) {
+      const group = screen.getByText(heading).closest("[cmdk-group]")
+      if (!group) throw new Error(`${heading} heading is not inside a group`)
+      return within(group as HTMLElement).getAllByRole("option")
+    }
+
+    function Host({ declaration }: { declaration: PageActionDeclaration }) {
+      useDeclarePageActions(declaration)
+      return null
+    }
+
+    it("the idle root shows no Pinned section when nothing is pinned", async () => {
+      await settlePins([])
+
+      openPalette()
+
+      expect(screen.getByText("Dashboard")).toBeInTheDocument()
+      expect(screen.queryByText("Pinned")).not.toBeInTheDocument()
+    })
+
+    it("stored pins are listed first under Pinned, after the page actions and before Recent", async () => {
+      uiPreferencesGetMock.mockResolvedValue({ json: async () => ({ palettePins: ["tools:theme"] }) })
+      recordRecentId(localStorage, EDITOR_ID, "nav:/")
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      const declaration: PageActionDeclaration = {
+        hostId: "entry-editor",
+        targetId: HIT_ID,
+        title: "Edit Post",
+        actions: [{ id: "save", label: "Save entry", icon: () => null, perform: { kind: "run", run: vi.fn() } }],
+      }
+      render(
+        <QueryClientProvider client={client}>
+          <Host declaration={declaration} />
+          <CommandPalette hostProviders={[]} />
+        </QueryClientProvider>,
+      )
+      await waitFor(() => expect(uiPreferencesGetMock).toHaveBeenCalled())
+      await act(async () => {})
+
+      openPalette()
+
+      const [first, second, third] = screen.getAllByRole("option")
+      expect(first).toHaveTextContent("Save entry")
+      expect(second).toHaveTextContent("Change theme")
+      expect(third).toHaveTextContent("Dashboard")
+      expect(groupRows("Pinned")).toHaveLength(1)
+      expect(groupRows("Recent")).toHaveLength(1)
+    })
+
+    it("Mod+Enter on a navigation row PUTs it as a pin and keeps the palette open, listing it under Pinned", async () => {
+      await settlePins([])
+      const input = openPalette()
+
+      fireEvent.keyDown(input, CTRL_ENTER)
+
+      await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("Pinned: Dashboard"))
+      expect(uiPreferencesPutMock).toHaveBeenCalledExactlyOnceWith({ json: { palettePins: ["nav:/"] } })
+      expect(screen.getByRole("dialog")).toBeInTheDocument()
+      await waitFor(() => expect(groupRows("Pinned")[0]).toHaveTextContent("Dashboard"))
+    })
+
+    it("picking Pin to the top on the actions page returns to the list and keeps the palette open", async () => {
+      await settlePins([])
+      const input = openPalette()
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter", shiftKey: true })
+      const pinAction = await screen.findByText("Pin to the top")
+
+      fireEvent.click(pinAction)
+
+      await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("Pinned: Dashboard"))
+      expect(screen.getByRole("dialog")).toBeInTheDocument()
+      expect(screen.getByPlaceholderText(PLACEHOLDER_ROOT)).toBeInTheDocument()
+    })
+
+    it("right-clicking a stable row offers Pin to the top, and picking it pins the row and keeps the palette open", async () => {
+      await settlePins([])
+      openPalette()
+
+      fireEvent.contextMenu(screen.getByText("Dashboard"))
+      fireEvent.click(await screen.findByRole("menuitem", { name: "Pin to the top" }))
+
+      await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("Pinned: Dashboard"))
+      expect(uiPreferencesPutMock).toHaveBeenCalledExactlyOnceWith({ json: { palettePins: ["nav:/"] } })
+      expect(screen.getByRole("dialog")).toBeInTheDocument()
+    })
+
+    it("right-clicking a pinned row offers Unpin instead of Pin", async () => {
+      await settlePins(["nav:/"])
+      openPalette()
+
+      fireEvent.contextMenu(groupRows("Pinned")[0])
+
+      expect(await screen.findByRole("menuitem", { name: "Unpin" })).toBeInTheDocument()
+      expect(screen.queryByRole("menuitem", { name: "Pin to the top" })).not.toBeInTheDocument()
+    })
+
+    it("Shift+Enter on a stable row lists Pin to the top on the actions page", async () => {
+      await settlePins([])
+      const input = openPalette()
+
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter", shiftKey: true })
+
+      expect(await screen.findByPlaceholderText("Choose an action…")).toBeInTheDocument()
+      expect(screen.getByText("Pin to the top")).toBeInTheDocument()
+    })
+
+    it("Mod+Enter on a pinned row unpins it", async () => {
+      await settlePins(["nav:/"])
+      const input = openPalette()
+
+      fireEvent.keyDown(input, CTRL_ENTER)
+
+      await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("Unpinned: Dashboard"))
+      expect(uiPreferencesPutMock).toHaveBeenCalledExactlyOnceWith({ json: { palettePins: [] } })
+    })
+
+    it("a pinned create row is listed disabled with the missing permission once content:create on its seed is revoked", async () => {
+      grantedPermissions.add("content:read@posts")
+      await settlePins(["content:create:posts"])
+
+      openPalette()
+
+      const pinnedRow = groupRows("Pinned")[0]
+      expect(pinnedRow).toHaveTextContent("Create in Post")
+      expect(pinnedRow).toHaveAttribute("aria-disabled", "true")
+      expect(pinnedRow).toHaveTextContent("Requires the content:create permission")
+    })
+
+    it("a pin whose seed no longer exists is listed as unavailable, and Enter on it PUTs the list without it", async () => {
+      await settlePins(["content:open:deleted-seed"])
+      const input = openPalette()
+      expect(groupRows("Pinned")[0]).toHaveTextContent("Unavailable item")
+
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter" })
+
+      await waitFor(() =>
+        expect(uiPreferencesPutMock).toHaveBeenCalledExactlyOnceWith({ json: { palettePins: [] } }),
+      )
+    })
+
+    it("a pinned row is not listed again under Recent", async () => {
+      recordRecentId(localStorage, EDITOR_ID, "nav:/")
+      await settlePins(["nav:/"])
+
+      openPalette()
+
+      expect(groupRows("Pinned")).toHaveLength(1)
+      expect(screen.queryByText("Recent")).not.toBeInTheDocument()
+    })
+
+    it("a rejected PUT toasts the error and the open palette shows the pins as before", async () => {
+      // Regression guard: the list must never look saved when the server refused it.
+      uiPreferencesPutMock.mockRejectedValue(new Error("network"))
+      await settlePins([])
+      const input = openPalette()
+
+      fireEvent.keyDown(input, CTRL_ENTER)
+
+      await waitFor(() =>
+        expect(toastMock.error).toHaveBeenCalledWith("Pins not saved: try again. Your list is unchanged"),
+      )
+      expect(screen.getByRole("dialog")).toBeInTheDocument()
+      expect(screen.queryByText("Pinned")).not.toBeInTheDocument()
+    })
+
+    it("a search row offers no pin action", async () => {
+      // Regression guard: search hits are never pins.
+      grantedPermissions.add("content:read@posts")
+      searchMock.mockResolvedValue(searchResponse(searchHit()))
+      await settlePins([])
+      const input = typeInRoot("/canonical")
+      await screen.findByText("Canonical Post")
+
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter", shiftKey: true })
+
+      expect(await screen.findByText("Copy ID")).toBeInTheDocument()
+      expect(screen.queryByText("Pin to the top")).not.toBeInTheDocument()
     })
   })
 })

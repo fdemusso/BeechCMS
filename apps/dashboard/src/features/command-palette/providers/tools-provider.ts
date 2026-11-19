@@ -4,6 +4,7 @@
 
 import type { TFunction } from "i18next"
 import { Keyboard, Moon, Sun } from "@/components/icons"
+import { MOD_KEY_LABEL, SHIFT_KEY_LABEL } from "@/lib/platform"
 import type { PaletteItem, PaletteProvider } from "../types"
 
 /** The theme toggle and the keyboard shortcuts page. */
@@ -21,6 +22,7 @@ export function createToolsProvider(deps: {
       section,
       label: t("commandPalette.changeTheme"),
       icon: theme === "dark" ? Sun : Moon,
+      shortcut: [MOD_KEY_LABEL, SHIFT_KEY_LABEL, "L"],
       keywords: ["dark mode", "light mode", "tema", "theme"],
       perform: { kind: "run", run: toggleTheme },
     },

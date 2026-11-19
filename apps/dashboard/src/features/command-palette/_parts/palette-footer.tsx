@@ -14,7 +14,7 @@ interface PaletteFooterProps {
   readonly items: readonly ResolvedPaletteItem[]
 }
 
-const FOOTER_CLASS = "p-3 border-t text-xs text-muted-foreground bg-muted/20"
+const FOOTER_CLASS = "w-full shrink-0 border-t px-4 py-2.5 text-xs text-muted-foreground bg-muted/20"
 
 /** Back hint on sub-pages; on root, the key hints of the selected row when it has actions. */
 export function PaletteFooter({ page, items }: PaletteFooterProps) {
@@ -22,7 +22,7 @@ export function PaletteFooter({ page, items }: PaletteFooterProps) {
   const selectedId = useCommandState((state) => state.value)
 
   if (page !== "root") {
-    return <div className={FOOTER_CLASS}>{t("commandPalette.backHint")}</div>
+    return <div data-slot="palette-footer" className={FOOTER_CLASS}>{t("commandPalette.backHint")}</div>
   }
 
   const selected = items.find((item) => item.id === selectedId)
@@ -30,7 +30,7 @@ export function PaletteFooter({ page, items }: PaletteFooterProps) {
   if (!firstAction) return null
 
   return (
-    <div className={`${FOOTER_CLASS} flex items-center justify-end gap-4`}>
+    <div data-slot="palette-footer" className={`${FOOTER_CLASS} flex items-center justify-end gap-4`}>
       <span className="flex items-center gap-1.5">
         {firstAction.label}
         <KbdGroup>

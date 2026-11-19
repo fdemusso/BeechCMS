@@ -40,7 +40,7 @@ export function useCommandPalette(): CommandPaletteState {
     }
   }, [currentPage, queryToRestore])
 
-  // Global keyboard listener: Cmd/Ctrl+K, Alt+N, Backspace-on-empty
+  // Global keyboard listener: Cmd/Ctrl+K, Alt+N, Backspace-on-empty (Cmd/Ctrl+Shift+L is in the engine, it needs the theme)
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       // Toggle palette
@@ -52,7 +52,8 @@ export function useCommandPalette(): CommandPaletteState {
 
       // Alt+N → apre palette sulla pagina "create"
       // e.code: su macOS Option+N produce e.key "˜", non "n"
-      if (e.code === "KeyN" && e.altKey && !e.metaKey && !e.ctrlKey) {
+      // Alt+Shift+N is the host's "new content type" shortcut: leave it alone.
+      if (e.code === "KeyN" && e.altKey && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
         e.preventDefault()
         setOpen(true)
         setPages(["root", "create"])

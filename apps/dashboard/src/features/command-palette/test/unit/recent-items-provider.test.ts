@@ -126,6 +126,19 @@ describe("createRecentItemsProvider", () => {
     expect(rows.map((item) => item.id)).toEqual(["recent:nav:/"])
   })
 
+  it("skips a stored id that is in exclude", () => {
+    const provider = createRecentItemsProvider({
+      t,
+      recent: { status: "ready", ids: ["nav:/pinned", "nav:/"] },
+      sources: [source(row("nav:/"), row("nav:/pinned"))],
+      exclude: new Set(["nav:/pinned"]),
+    })
+
+    const rows = idleRows(provider)
+
+    expect(rows.map((item) => item.id)).toEqual(["recent:nav:/"])
+  })
+
   it("a source requiring a permission the caller lacks is listed disabled with that permission", () => {
     // Regression guard: a recent row must never run what its source cannot.
     const createPosts = row("content:create:posts", { requires: { permission: "content:create", scope: "posts" } })

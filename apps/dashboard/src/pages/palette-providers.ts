@@ -17,9 +17,9 @@ import {
   SETTINGS_GROUP_ORDER,
   useSettingsDialog,
   type DashboardLanguage,
-  type NotificationPrefToggle,
 } from "@/features/settings"
 import { resolveIcon } from "@/lib/icon-registry"
+import { ALT_KEY_LABEL, SHIFT_KEY_LABEL } from "@/lib/platform"
 
 /**
  * Settings tabs and the bookmarks inside them, shown only to callers the settings registry lets in.
@@ -77,24 +77,16 @@ export function createSettingsProvider(deps: {
   }
 }
 
-/** Personal preferences toggled in place (dashboard language, notification switches), through the settings tabs' own paths. */
+/** Personal preferences: the dashboard language switches in place, each notification row opens the Notifications tab. */
 export function createPreferencesProvider(deps: {
   t: TFunction
   /** The resolved dashboard language, e.g. "it". */
   language: string
   setLanguage: (language: DashboardLanguage) => void
-  notifications: NotificationPrefToggle
+  openSettings: ReturnType<typeof useSettingsDialog>["openSettings"]
 }): PaletteProvider {
-  const { t, language, setLanguage, notifications } = deps
-  const { prefs, isError, isSaving, setPref } = notifications
+  const { t, language, setLanguage, openSettings } = deps
   const section = t("commandPalette.preferences.section")
-
-  const notificationUnavailableReason = (): string | undefined => {
-    if (prefs === undefined && isError) return t("commandPalette.preferences.notifyUnavailable")
-    if (prefs === undefined) return t("common.loading")
-    if (isSaving) return t("commandPalette.preferences.saving")
-    return undefined
-  }
 
   const rows = (): PaletteItem[] => {
     const languageRows = DASHBOARD_LANGUAGES.filter(({ value }) => value !== language).map(
@@ -108,22 +100,16 @@ export function createPreferencesProvider(deps: {
       }),
     )
 
-    const unavailableReason = notificationUnavailableReason()
-    const notificationRows = NOTIFICATION_PREF_ITEMS.map(({ key, fallback, text }): PaletteItem => {
-      const current = prefs?.[key] ?? fallback
-      return {
+    const notificationRows = NOTIFICATION_PREF_ITEMS.map(
+      ({ key, text }): PaletteItem => ({
         id: `prefs:notify:${key}`,
         section,
         label: t("commandPalette.preferences.notify", { event: t(`settings.notifications.${text}.label`) }),
-        description: prefs ? t(current ? "commandPalette.preferences.on" : "commandPalette.preferences.off") : undefined,
         icon: Bell,
         keywords: ["notifiche", "notifications", "avvisi", "alerts"],
-        unavailableReason,
-        perform: unavailableReason
-          ? { kind: "run", run: () => {} }
-          : { kind: "run", run: () => void setPref(key, !current) },
-      }
-    })
+        perform: { kind: "run", run: () => openSettings("notifications") },
+      }),
+    )
 
     return [...languageRows, ...notificationRows]
   }
@@ -197,6 +183,7 @@ export function createContentTypesProvider(deps: {
     section: t("commandPalette.schema"),
     label: t("commandPalette.newContentType"),
     icon: Plus,
+    shortcut: [ALT_KEY_LABEL, SHIFT_KEY_LABEL, "N"],
     keywords: ["seed", "schema", "nuovo tipo", "new type", "content type", "crea"],
     perform: { kind: "run", run: () => openBuilder(SEED_INTENT_NEW) },
   })

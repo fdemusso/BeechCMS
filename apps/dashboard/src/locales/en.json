@@ -1129,17 +1129,24 @@
       "restored": "Note restored",
       "deleteFailed": "Note not deleted: the browser refused the change"
     },
+    "pins": {
+      "section": "Pinned",
+      "pin": "Pin to the top",
+      "unpin": "Unpin",
+      "pinned": "Pinned: {{label}}",
+      "unpinned": "Unpinned: {{label}}",
+      "full": "{{max}} items pinned: unpin one to pin another",
+      "saveFailed": "Pins not saved: try again. Your list is unchanged",
+      "unavailableLabel": "Unavailable item",
+      "unavailableHint": "{{id}} · Enter removes the pin"
+    },
     "context": {
       "targetGone": "The page changed before you confirmed: nothing was done"
     },
     "preferences": {
       "section": "Preferences",
       "switchLanguage": "Switch the dashboard to {{language}}",
-      "notify": "Notifications: {{event}}",
-      "on": "On",
-      "off": "Off",
-      "notifyUnavailable": "Your notification preferences could not be loaded",
-      "saving": "Saving your preferences…"
+      "notify": "Notifications: {{event}}"
     },
     "system": {
       "section": "System",
@@ -1156,6 +1163,8 @@
       "togglePalette": "Open or close the palette",
       "quickCreate": "Create content",
       "toggleSidebar": "Show or hide the sidebar",
+      "toggleTheme": "Switch between light and dark theme",
+      "newSeed": "Create a content type",
       "run": "Run the selected row",
       "firstAction": "Run the row's first action",
       "rowActions": "Show the row's actions",

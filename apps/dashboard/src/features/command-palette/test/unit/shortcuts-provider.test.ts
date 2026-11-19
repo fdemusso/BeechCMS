@@ -47,6 +47,8 @@ describe("createShortcutsProvider", () => {
       "shortcuts:toggle-palette",
       "shortcuts:quick-create",
       "shortcuts:toggle-sidebar",
+      "shortcuts:toggle-theme",
+      "shortcuts:new-seed",
     ])
   })
 

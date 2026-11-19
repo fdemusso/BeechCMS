@@ -6,6 +6,7 @@ import type { Seed } from "@beechcms/core"
 import type { TFunction } from "i18next"
 import { Layers, Plus } from "@/components/icons"
 import { resolveIcon } from "@/lib/icon-registry"
+import { ALT_KEY_LABEL } from "@/lib/platform"
 import type { PaletteItem, PaletteProvider, PalettePermissions } from "../types"
 
 const IDLE_SEED_LIMIT = 5
@@ -55,7 +56,7 @@ export function createContentProvider(deps: { t: TFunction; seeds: readonly Seed
     section: t("commandPalette.create"),
     label: t("commandPalette.newContent"),
     icon: Plus,
-    shortcut: ["Alt", "N"],
+    shortcut: [ALT_KEY_LABEL, "N"],
     requires: { permission: "content:create" },
     perform: { kind: "page", page: "create" },
   })

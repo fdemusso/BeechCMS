@@ -1129,17 +1129,24 @@
       "restored": "Nota ripristinata",
       "deleteFailed": "Nota non eliminata: il browser ha rifiutato la modifica"
     },
+    "pins": {
+      "section": "Fissati",
+      "pin": "Fissa in cima",
+      "unpin": "Rimuovi dai fissati",
+      "pinned": "Fissato: {{label}}",
+      "unpinned": "Rimosso dai fissati: {{label}}",
+      "full": "{{max}} voci fissate: rimuovine una per fissarne un'altra",
+      "saveFailed": "Fissati non salvati: riprova. L'elenco non è cambiato",
+      "unavailableLabel": "Voce non disponibile",
+      "unavailableHint": "{{id}} · Invio rimuove il fissato"
+    },
     "context": {
       "targetGone": "La pagina è cambiata prima della conferma: non è stato fatto nulla"
     },
     "preferences": {
       "section": "Preferenze",
       "switchLanguage": "Passa la dashboard a {{language}}",
-      "notify": "Notifiche: {{event}}",
-      "on": "Attive",
-      "off": "Disattivate",
-      "notifyUnavailable": "Impossibile caricare le preferenze di notifica",
-      "saving": "Salvataggio delle preferenze…"
+      "notify": "Notifiche: {{event}}"
     },
     "system": {
       "section": "Sistema",
@@ -1156,6 +1163,8 @@
       "togglePalette": "Apri o chiudi la palette",
       "quickCreate": "Crea un contenuto",
       "toggleSidebar": "Mostra o nascondi la barra laterale",
+      "toggleTheme": "Passa dal tema chiaro a quello scuro",
+      "newSeed": "Crea un tipo di contenuto",
       "run": "Esegui la riga selezionata",
       "firstAction": "Esegui la prima azione della riga",
       "rowActions": "Mostra le azioni della riga",

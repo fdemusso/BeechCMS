@@ -46,7 +46,8 @@ export function createContentSearchProvider(deps: {
           id: `search:${hit.id}`,
           section: seed?.label ?? hit.schema_slug,
           label: hit.title.trim() || t("commandPalette.untitledEntry"),
-          status: isStatus(hit.status) ? hit.status : undefined,
+          // Publish status only means something for seeds with the draft workflow.
+          status: seed?.allowDrafts && isStatus(hit.status) ? hit.status : undefined,
           description,
           icon: resolveIcon(seed?.dashboard?.icon),
           perform: { kind: "navigate", to: `/content/${hit.schema_slug}/${hit.id}` },

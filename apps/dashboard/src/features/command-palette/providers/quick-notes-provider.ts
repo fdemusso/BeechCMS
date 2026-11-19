@@ -63,6 +63,7 @@ export function createQuickNotesProvider(deps: {
         id: "delete",
         label: t("commandPalette.notes.delete"),
         icon: Trash2,
+        destructive: true,
         perform: { kind: "run", run: () => remove(note) },
       },
     ],

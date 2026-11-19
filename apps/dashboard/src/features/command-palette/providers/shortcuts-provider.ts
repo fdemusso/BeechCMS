@@ -4,9 +4,15 @@
 
 import type { TFunction } from "i18next"
 import { Keyboard } from "@/components/icons"
-import { MOD_KEY_LABEL } from "@/lib/platform"
+import { ALT_KEY_LABEL, MOD_KEY_LABEL, SHIFT_KEY_LABEL } from "@/lib/platform"
 import type { PaletteItem, PalettePrefix, PaletteProvider } from "../types"
-import { MOD_KEY, PALETTE_SHORTCUTS, PREFIX_LABEL_KEYS } from "../lib/palette-shortcuts"
+import { ALT_KEY, MOD_KEY, PALETTE_SHORTCUTS, PREFIX_LABEL_KEYS, SHIFT_KEY } from "../lib/palette-shortcuts"
+
+const KEY_LABELS: Readonly<Record<string, string>> = {
+  [MOD_KEY]: MOD_KEY_LABEL,
+  [ALT_KEY]: ALT_KEY_LABEL,
+  [SHIFT_KEY]: SHIFT_KEY_LABEL,
+}
 
 const closePalette = () => {}
 
@@ -20,7 +26,7 @@ export function createShortcutsProvider(deps: { t: TFunction }): PaletteProvider
       section: t(group === "global" ? "commandPalette.shortcuts.global" : "commandPalette.shortcuts.palette"),
       label: t(labelKey),
       icon: Keyboard,
-      shortcut: keys.map((key) => (key === MOD_KEY ? MOD_KEY_LABEL : key)),
+      shortcut: keys.map((key) => KEY_LABELS[key] ?? key),
       perform: { kind: "run", run: closePalette },
     }))
 

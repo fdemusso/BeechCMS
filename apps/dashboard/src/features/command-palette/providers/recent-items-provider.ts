@@ -7,7 +7,7 @@ import { collectStableItems } from "../lib/stable-items"
 import type { PaletteItem, PaletteProvider } from "../types"
 import type { RecentItemsState } from "../use-recent-items"
 
-export const RECENT_PROVIDER_ID = "recent"
+const RECENT_PROVIDER_ID = "recent"
 
 const RECENT_ROW_PREFIX = `${RECENT_PROVIDER_ID}:`
 
@@ -38,8 +38,10 @@ export function createRecentItemsProvider(deps: {
   recent: RecentItemsState
   /** Every other local provider; their stable rows are what stored ids resolve against. */
   sources: readonly PaletteProvider[]
+  /** Stable ids never listed as recent (the pinned ones, shown in their own section). */
+  exclude?: ReadonlySet<string>
 }): PaletteProvider {
-  const { t, recent, sources } = deps
+  const { t, recent, sources, exclude } = deps
 
   return {
     id: RECENT_PROVIDER_ID,
@@ -53,6 +55,7 @@ export function createRecentItemsProvider(deps: {
       const items: PaletteItem[] = []
 
       for (const sourceId of recent.ids) {
+        if (exclude?.has(sourceId)) continue
         const source = stable.get(sourceId)
         if (!source) continue
         const { score: _score, ...row } = source

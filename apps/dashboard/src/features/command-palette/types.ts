@@ -52,7 +52,8 @@ export type PalettePrefix = "=" | "/" | "#" | ">"
 export type PalettePerform =
   | { readonly kind: "navigate"; readonly to: string }
   | { readonly kind: "page"; readonly page: Exclude<CommandPage, "actions"> }
-  | { readonly kind: "run"; readonly run: () => void }
+  /** `keepOpen` leaves the palette open after the run: for actions the user repeats (pin, unpin). */
+  | { readonly kind: "run"; readonly run: () => void; readonly keepOpen?: boolean }
   | { readonly kind: "copy"; readonly value: string }
 
 /** A secondary action of one row. Runs through the same `perform` path as the row itself. */
@@ -61,6 +62,8 @@ export interface PaletteRowAction {
   readonly id: string
   readonly label: string
   readonly icon: IconComponent
+  /** Removes something: its menu entry takes the destructive style. */
+  readonly destructive?: boolean
   /** Never `page`: an action ends the interaction (the engine closes after it). */
   readonly perform: Exclude<PalettePerform, { readonly kind: "page" }>
 }

@@ -23,7 +23,6 @@ import {
   getVisibleSettingsEntries,
   NOTIFICATION_PREF_ITEMS,
   type DashboardLanguage,
-  type NotificationPrefToggle,
 } from "@/features/settings"
 import {
   createContentTypesProvider,
@@ -160,33 +159,18 @@ describe("createSettingsProvider", () => {
 })
 
 describe("createPreferencesProvider", () => {
-  // `mediaUpload` is deliberately absent: the server stores nothing for it, so its fallback shows.
-  const STORED_PREFS: NonNullable<NotificationPrefToggle["prefs"]> = {
-    contentCreate: true,
-    contentUpdate: true,
-    contentDelete: false,
-  } as NonNullable<NotificationPrefToggle["prefs"]>
-
   function itemsFor(options: {
     query?: string
     prefix?: ">"
     language?: string
     setLanguage?: (language: DashboardLanguage) => void
-    notifications?: Partial<NotificationPrefToggle>
+    openSettings?: (tab?: string) => void
   }): readonly PaletteItem[] {
-    const notifications: NotificationPrefToggle = {
-      prefs: STORED_PREFS,
-      isLoading: false,
-      isError: false,
-      isSaving: false,
-      setPref: vi.fn().mockResolvedValue(undefined),
-      ...options.notifications,
-    }
     const provider = createPreferencesProvider({
       t,
       language: options.language ?? "it",
       setLanguage: options.setLanguage ?? vi.fn(),
-      notifications,
+      openSettings: options.openSettings ?? vi.fn(),
     })
     return provider.getItems({
       page: "root",
@@ -222,65 +206,29 @@ describe("createPreferencesProvider", () => {
     expect(setLanguage).toHaveBeenCalledExactlyOnceWith("en")
   })
 
-  it("a notification row shows its current value and saves the opposite", () => {
-    const setPref = vi.fn().mockResolvedValue(undefined)
-    const rows = notificationRows(itemsFor({ prefix: ">", notifications: { setPref } }))
-    const expected = NOTIFICATION_PREF_ITEMS.map(({ key, fallback }) => [key, !(STORED_PREFS[key] ?? fallback)])
+  it("every notification row opens the Notifications tab", () => {
+    const openSettings = vi.fn()
+    const rows = notificationRows(itemsFor({ prefix: ">", openSettings }))
 
     for (const row of rows) runItem(row)
 
-    expect(rows.map((row) => row.description)).toEqual(
-      NOTIFICATION_PREF_ITEMS.map(({ key, fallback }) =>
-        STORED_PREFS[key] ?? fallback ? "commandPalette.preferences.on" : "commandPalette.preferences.off",
-      ),
-    )
-    expect(setPref.mock.calls).toEqual(expected)
-  })
-
-  it("a key the server has not stored shows its fallback", () => {
-    const mediaRow = itemsFor({ prefix: ">" }).find((item) => item.id === "prefs:notify:mediaUpload")
-
-    expect(mediaRow?.description).toBe("commandPalette.preferences.off")
-  })
-
-  it("while the prefs are not loaded every notification row is disabled with the loading reason", () => {
-    const rows = notificationRows(itemsFor({ prefix: ">", notifications: { prefs: undefined, isLoading: true } }))
-
     expect(rows).toHaveLength(NOTIFICATION_PREF_ITEMS.length)
-    expect(rows.every((row) => row.unavailableReason === "common.loading")).toBe(true)
+    expect(openSettings.mock.calls).toEqual(NOTIFICATION_PREF_ITEMS.map(() => ["notifications"]))
   })
 
-  it("after a failed load every notification row is disabled with the unavailable reason", () => {
-    const rows = notificationRows(itemsFor({ prefix: ">", notifications: { prefs: undefined, isError: true } }))
+  it("a notification row carries no value and is never disabled", () => {
+    const rows = notificationRows(itemsFor({ prefix: ">" }))
 
-    expect(rows.every((row) => row.unavailableReason === "commandPalette.preferences.notifyUnavailable")).toBe(true)
-  })
-
-  it("while a save is in flight every notification row is disabled with the saving reason", () => {
-    const rows = notificationRows(itemsFor({ prefix: ">", notifications: { isSaving: true } }))
-
-    expect(rows.every((row) => row.unavailableReason === "commandPalette.preferences.saving")).toBe(true)
+    expect(rows.every((row) => row.description === undefined && row.unavailableReason === undefined)).toBe(true)
   })
 
   it("getStableItems lists the same rows as the > prefix", () => {
-    const provider = createPreferencesProvider({
-      t,
-      language: "it",
-      setLanguage: vi.fn(),
-      notifications: {
-        prefs: STORED_PREFS,
-        isLoading: false,
-        isError: false,
-        isSaving: false,
-        setPref: vi.fn().mockResolvedValue(undefined),
-      },
-    })
+    const provider = createPreferencesProvider({ t, language: "it", setLanguage: vi.fn(), openSettings: vi.fn() })
 
     const stable = provider.getStableItems?.({ permissions: permissionsFor({}) }) ?? []
 
     const prefixed = provider.getItems({ page: "root", query: "", prefix: ">", permissions: permissionsFor({}) })
     expect(stable.map((item) => item.id)).toEqual(prefixed.map((item) => item.id))
-    expect(stable.map((item) => item.description)).toEqual(prefixed.map((item) => item.description))
   })
 })
 

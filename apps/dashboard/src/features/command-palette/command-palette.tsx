@@ -39,7 +39,10 @@ import type {
 import { useAsyncPaletteItems } from "./use-async-palette-items"
 import { useQuickNotes } from "./use-quick-notes"
 import { useRecentItems } from "./use-recent-items"
+import { usePalettePins } from "./use-palette-pins"
 import { collectPaletteItems } from "./lib/collect-palette-items"
+import { copyText, toastPreview } from "./lib/copy-text"
+import { withPinActions } from "./lib/pin-actions"
 import { collectStableItems } from "./lib/stable-items"
 import { rankPaletteItems } from "./lib/rank-palette-items"
 import { parsePaletteQuery } from "./lib/parse-palette-query"
@@ -52,6 +55,7 @@ import { createNavigationProvider } from "./providers/navigation-provider"
 import { createContentProvider } from "./providers/content-provider"
 import { createContentSearchProvider } from "./providers/content-search-provider"
 import { createQuickNotesProvider } from "./providers/quick-notes-provider"
+import { createPinsProvider } from "./providers/pins-provider"
 import { createRecentItemsProvider, recentIdToRecord } from "./providers/recent-items-provider"
 import { createShortcutsProvider } from "./providers/shortcuts-provider"
 import { createToolsProvider } from "./providers/tools-provider"
@@ -67,6 +71,8 @@ export interface CommandPaletteProps {
   readonly hostProviders: readonly PaletteProvider[]
   /** Told after the palette opens or closes, so the composition root can fetch only while it is open. The palette stays uncontrolled. */
   readonly onOpenChange?: (open: boolean) => void
+  /** Alt+Shift+N: the palette closes and this runs. Absent when the caller may not create content types. */
+  readonly onNewSeed?: () => void
 }
 
 function EmptyMessage({ searching }: { searching: boolean }) {
@@ -117,7 +123,7 @@ function BreadcrumbChips({ pages, popPage }: BreadcrumbChipsProps) {
 }
 
 /** Global command palette: aggregates every provider's rows, ranks them and renders the result. */
-export function CommandPalette({ hostProviders, onOpenChange }: CommandPaletteProps) {
+export function CommandPalette({ hostProviders, onOpenChange, onNewSeed }: CommandPaletteProps) {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { resolvedTheme, setTheme } = useTheme()
@@ -130,6 +136,13 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
   const { data: me } = useMe()
   const quickNotes = useQuickNotes(me?.id, open)
   const recentItems = useRecentItems(me?.id, open)
+  const pins = usePalettePins(me?.id)
+  // Content rows are the only stable rows that wait on a query the engine owns.
+  const catalogueReady = seedsData !== undefined
+  const pinnedIds = React.useMemo(
+    () => new Set(pins.state.status === "ready" ? pins.state.ids : []),
+    [pins.state],
+  )
   const declarations = usePageActionDeclarations()
   React.useEffect(() => {
     onOpenChange?.(open)
@@ -151,6 +164,30 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
     setTheme(resolvedTheme === "dark" ? "light" : "dark")
   }, [resolvedTheme, setTheme])
 
+  // Cmd/Ctrl+Shift+L, as in Notion. e.code: Shift changes e.key's case, and the shortcut must not depend on layout state.
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "KeyL" || !event.shiftKey || event.altKey || !(event.metaKey || event.ctrlKey)) return
+      event.preventDefault()
+      toggleTheme()
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [toggleTheme])
+
+  // Alt+Shift+N. e.code: on macOS Option+N produces a dead key, so e.key is not "n".
+  React.useEffect(() => {
+    if (!onNewSeed) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "KeyN" || !event.altKey || !event.shiftKey || event.metaKey || event.ctrlKey) return
+      event.preventDefault()
+      setOpen(false)
+      onNewSeed()
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [onNewSeed, setOpen])
+
   const formatUpdatedAt = React.useCallback(
     (unixSeconds: number) =>
       formatDistanceToNow(new Date(unixSeconds * 1000), {
@@ -165,7 +202,7 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
     [formatUpdatedAt],
   )
 
-  // Computed providers come first so equal scores go to the computed row; idle order: context, recent, navigation, content, host, notes, tools; the shortcuts page serves only its own page.
+  // Computed providers come first so equal scores go to the computed row; idle order: context, pinned, recent, navigation, content, host, notes, tools; the shortcuts page serves only its own page.
   // Search rows (async lane) always come after every local row.
   const providers = React.useMemo<readonly PaletteProvider[]>(() => {
     const contextActions = createContextActionsProvider({ declarations, requestConfirm: setPendingAction })
@@ -185,13 +222,11 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
     ]
     const calculator = createCalculatorProvider({ t })
     const conversions = createConversionsProvider({ t })
-    const recent = createRecentItemsProvider({
-      t,
-      recent: recentItems.state,
-      sources: [calculator, conversions, contextActions, ...afterContext],
-    })
-    return [calculator, conversions, contextActions, recent, ...afterContext]
-  }, [t, seeds, declarations, hostProviders, quickNotes.state, quickNotes.save, quickNotes.remove, recentItems.state, formatSavedAt, resolvedTheme, toggleTheme])
+    const sources = [calculator, conversions, contextActions, ...afterContext]
+    const pinned = createPinsProvider({ t, pins: pins.state, sources, catalogueReady, unpin: pins.unpin })
+    const recent = createRecentItemsProvider({ t, recent: recentItems.state, sources, exclude: pinnedIds })
+    return [calculator, conversions, contextActions, pinned, recent, ...afterContext]
+  }, [t, seeds, declarations, hostProviders, quickNotes.state, quickNotes.save, quickNotes.remove, recentItems.state, pins.state, pins.unpin, catalogueReady, pinnedIds, formatSavedAt, resolvedTheme, toggleTheme])
 
   const asyncProviders = React.useMemo(
     () => [createContentSearchProvider({ t, seeds, formatUpdatedAt })],
@@ -209,6 +244,10 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
     [currentPage, parsed, can, canAnywhere, canGlobally],
   )
   const asyncResults = useAsyncPaletteItems(asyncProviders, context)
+  const stable = React.useMemo(
+    () => collectStableItems(providers, { permissions: { can, canAnywhere, canGlobally } }),
+    [providers, can, canAnywhere, canGlobally],
+  )
 
   const items = React.useMemo(() => {
     if (currentPage === "actions") {
@@ -216,18 +255,14 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
     }
     const describeMissing = ({ permission }: PaletteRequirement) =>
       t("commandPalette.requiresPermission", { permission })
-    const localItems = rankPaletteItems(collectPaletteItems(providers, context, describeMissing), parsed.text)
+    const rankedLocal = rankPaletteItems(collectPaletteItems(providers, context, describeMissing), parsed.text)
+    const localItems = withPinActions(rankedLocal, { t, pins: pins.state, stable, pin: pins.pin, unpin: pins.unpin })
     return [...localItems, ...collectPaletteItems(asyncResults.settled, context, describeMissing)]
-  }, [currentPage, actionsTarget, providers, context, parsed.text, asyncResults.settled, t])
+  }, [currentPage, actionsTarget, providers, context, parsed.text, asyncResults.settled, t, pins.state, pins.pin, pins.unpin, stable])
 
   const copyToClipboard = (value: string) => {
-    if (!navigator.clipboard) {
-      toast.error(t("common.copyFailed"))
-      return
-    }
-    navigator.clipboard.writeText(value).then(
-      () => toast.success(t("commandPalette.copied", { value })),
-      () => toast.error(t("common.copyFailed")),
+    void copyText(value).then((copied) =>
+      copied ? toast.success(t("commandPalette.copied", { value: toastPreview(value) })) : toast.error(t("common.copyFailed")),
     )
   }
 
@@ -242,7 +277,9 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
         break
       case "run":
         action.run()
-        setOpen(false)
+        if (!action.keepOpen) setOpen(false)
+        // The actions page lists a frozen copy of its row, which would still offer the old Pin or Unpin.
+        else if (currentPage === "actions") popPage()
         break
       case "copy":
         copyToClipboard(action.value)
@@ -253,7 +290,6 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
 
   const perform = (item: ResolvedPaletteItem) => {
     // Recorded before runPerform, which closes the palette.
-    const stable = collectStableItems(providers, { permissions: { can, canAnywhere, canGlobally } })
     const recentId = recentIdToRecord(item, stable)
     if (recentId) recentItems.record(recentId)
     runPerform(item.perform)
@@ -317,8 +353,9 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
           }
         }}
       >
-        <Command loop shouldFilter={false} onKeyDown={handleKeyDown} className="border-none bg-transparent shadow-none">
-          <div className="flex flex-col">
+        {/* No padding on Command: each of header, body and footer pads itself, so the footer's border and tint reach the dialog edges. */}
+        <Command loop shouldFilter={false} onKeyDown={handleKeyDown} className="border-none bg-transparent p-0 shadow-none">
+          <div data-slot="palette-header" className="flex flex-col p-1">
             <BreadcrumbChips pages={pages} popPage={popPage} />
             <CommandInput
               placeholder={PLACEHOLDER[currentPage]}
@@ -327,11 +364,18 @@ export function CommandPalette({ hostProviders, onOpenChange }: CommandPalettePr
             />
           </div>
 
-          <CommandList className="max-h-[min(550px,calc(100dvh-12rem))]">
-            <EmptyMessage searching={asyncResults.pending} />
+          <div data-slot="palette-body" className="min-h-0 flex-1 px-1 pb-1">
+            <CommandList className="max-h-[min(550px,calc(100dvh-12rem))]">
+              <EmptyMessage searching={asyncResults.pending} />
 
-            <PaletteList items={items} ranked={search.trim().length > 0} onPerform={perform} />
-          </CommandList>
+              <PaletteList
+                items={items}
+                ranked={search.trim().length > 0}
+                onPerform={perform}
+                onRunAction={(action) => runPerform(action.perform)}
+              />
+            </CommandList>
+          </div>
 
           <PaletteFooter page={currentPage} items={items} />
         </Command>

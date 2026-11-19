@@ -133,7 +133,8 @@ function RootLayout() {
   if (needsSetup && pathname !== '/setup') return <SplashScreen />
   return (
     <RoutePrefetchProvider prefetch={prefetchRoute}>
-      <AppCommandPalette />
+      {/* No session on /setup: the palette's schema and me queries would 401 and hard-redirect to /login. */}
+      {pathname !== '/setup' && <AppCommandPalette />}
       <SettingsDialogHost />
       <Suspense fallback={<SplashScreen />}>
         <Outlet />

@@ -11,16 +11,20 @@ export interface PaletteShortcut {
   readonly group: "global" | "palette"
   /** Locale key of the description. */
   readonly labelKey: string
-  /** Key caps in order; the literal "Mod" stands for the platform modifier (⌘ or Ctrl). */
+  /** Key caps in order; "Mod", "Alt" and "Shift" stand for the platform labels (⌘ or Ctrl, ⌥ or Alt, ⇧ or Shift). */
   readonly keys: readonly string[]
 }
 
 export const MOD_KEY = "Mod"
+export const ALT_KEY = "Alt"
+export const SHIFT_KEY = "Shift"
 
 export const PALETTE_SHORTCUTS: readonly PaletteShortcut[] = [
   { id: "toggle-palette", group: "global", keys: [MOD_KEY, "K"], labelKey: "commandPalette.shortcuts.togglePalette" },
-  { id: "quick-create", group: "global", keys: ["Alt", "N"], labelKey: "commandPalette.shortcuts.quickCreate" },
+  { id: "quick-create", group: "global", keys: [ALT_KEY, "N"], labelKey: "commandPalette.shortcuts.quickCreate" },
   { id: "toggle-sidebar", group: "global", keys: [MOD_KEY, "B"], labelKey: "commandPalette.shortcuts.toggleSidebar" },
+  { id: "toggle-theme", group: "global", keys: [MOD_KEY, SHIFT_KEY, "L"], labelKey: "commandPalette.shortcuts.toggleTheme" },
+  { id: "new-seed", group: "global", keys: [ALT_KEY, SHIFT_KEY, "N"], labelKey: "commandPalette.shortcuts.newSeed" },
   { id: "run", group: "palette", keys: ["↵"], labelKey: "commandPalette.shortcuts.run" },
   { id: "first-action", group: "palette", keys: [MOD_KEY, "↵"], labelKey: "commandPalette.shortcuts.firstAction" },
   { id: "row-actions", group: "palette", keys: ["⇧", "↵"], labelKey: "commandPalette.shortcuts.rowActions" },
