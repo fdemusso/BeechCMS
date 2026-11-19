@@ -3,7 +3,6 @@
 // See LICENSE in the repository root for license terms.
 
 import { createMiddleware } from 'hono/factory'
-import { EntryNotFoundError } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../../shared/content/constants'
 import type { AppEnv } from '../../types'
@@ -47,19 +46,13 @@ export const draftGuard = createMiddleware<AppEnv>(async (context, next) => {
     })
   }
 
-  const repository = context.get('repository')
-  try {
-    await repository.findById(seed, id)
-  } catch (error) {
-    if (error instanceof EntryNotFoundError) {
-      return publicProblem(context, {
-        type: 'content-not-found',
-        title: 'Not Found',
-        status: 404,
-        detail: CONTENT_ERRORS.NOT_FOUND,
-      })
-    }
-    throw error
+  if (!(await context.get('repository').exists(seed, id))) {
+    return publicProblem(context, {
+      type: 'content-not-found',
+      title: 'Not Found',
+      status: 404,
+      detail: CONTENT_ERRORS.NOT_FOUND,
+    })
   }
 
   await next()
