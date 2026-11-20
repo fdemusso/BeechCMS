@@ -123,19 +123,27 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
         {/* Title */}
         <h3 className={cn(
           "font-heading line-clamp-2 text-sm font-bold leading-snug text-foreground",
-          !model.title && "text-muted-foreground italic",
+          !model.title && !model.titleField && "text-muted-foreground italic",
           slotClass(model.slotStyles?.title)
         )}>
-          {model.title || t("gallery.untitled")}
+          {model.titleField ? (
+            <FieldDisplay branch={model.titleField.branch} value={model.titleField.value} options={{ compact: true }} />
+          ) : (
+            model.title || t("gallery.untitled")
+          )}
         </h3>
 
         {/* Excerpt */}
-        {model.excerpt && (
+        {(model.excerpt || model.excerptField) && (
           <p className={cn(
             "line-clamp-2 text-xs leading-relaxed text-muted-foreground",
             slotClass(model.slotStyles?.excerpt)
           )}>
-            {model.excerpt}
+            {model.excerptField ? (
+              <FieldDisplay branch={model.excerptField.branch} value={model.excerptField.value} options={{ compact: true }} />
+            ) : (
+              model.excerpt
+            )}
           </p>
         )}
 

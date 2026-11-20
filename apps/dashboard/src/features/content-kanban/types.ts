@@ -15,6 +15,8 @@ export interface KanbanCardSlots {
 export interface KanbanCardDisplayModel {
   entryId: string
   title: string
+  /** Legacy-path title whose branch is a relation: the raw value is an id, rendered by `FieldDisplay`. */
+  titleField?: ResolvedSlotField
   statusBadge?: string
   imageUrl?: string
   axisValue: string | null

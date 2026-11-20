@@ -142,7 +142,11 @@ export const KanbanCard = React.memo(function KanbanCard({
             <p className={cn(
               "truncate text-sm font-medium leading-tight",
               model.titleStyle && getConditionalFormatCellClass(model.titleStyle.tone, model.titleStyle.textStyles)
-            )}>{model.title || model.entryId}</p>
+            )}>
+              {model.titleField
+                ? <FieldDisplay branch={model.titleField.branch} value={model.titleField.value} options={{ maxLength: 40, compact: true }} />
+                : model.title || model.entryId}
+            </p>
             {model.statusBadge && (
               <span className={cn(
                 "inline-block w-fit rounded-control bg-muted px-1.5 py-0.5 text-xs text-muted-foreground",
