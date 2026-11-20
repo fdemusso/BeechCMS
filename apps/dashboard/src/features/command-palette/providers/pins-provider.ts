@@ -60,8 +60,8 @@ export function createPinsProvider(deps: {
           items.push({
             id: toPinRowId(id),
             section,
-            label: t("commandPalette.pins.unavailableLabel"),
-            description: t("commandPalette.pins.unavailableHint", { id }),
+            label: t("commandPalette.pins.unavailable.label"),
+            description: t("commandPalette.pins.unavailable.hint", { id }),
             icon: PinOff,
             perform: { kind: "run", run: () => unpin(id, id), keepOpen: true },
           })

@@ -53,7 +53,7 @@ export function SiteTab() {
         <div className="space-y-10">
           <SettingsSection
             id="identity"
-            title={t('settings.general.companyInfoTitle')}
+            title={t('settings.general.companyInfo.title')}
             description={t('settings.general.companyInfoDesc')}
           >
             <SettingsRow label={t('settings.general.siteTitleLabel')} htmlFor="site-title">
@@ -70,18 +70,18 @@ export function SiteTab() {
               />
             </SettingsRow>
 
-            <SettingsRow label={t('settings.general.companyAbbreviationLabel')} htmlFor="site-abbreviation">
+            <SettingsRow label={t('settings.general.companyAbbreviation.label')} htmlFor="site-abbreviation">
               <Input
                 id="site-abbreviation"
                 name="abbreviation"
                 autoComplete="off"
                 value={state.companyAbbreviation}
                 onChange={(e) => actions.setCompanyAbbreviation(e.target.value)}
-                placeholder={t('settings.general.companyAbbreviationPlaceholder')}
+                placeholder={t('settings.general.companyAbbreviation.placeholder')}
               />
             </SettingsRow>
 
-            <SettingsRow label={t('settings.general.companyWebsiteLabel')} htmlFor="site-website">
+            <SettingsRow label={t('settings.general.companyWebsite.label')} htmlFor="site-website">
               <Input
                 ref={websiteRef}
                 id="site-website"
@@ -91,7 +91,7 @@ export function SiteTab() {
                 autoComplete="url"
                 value={state.companyWebsite}
                 onChange={(e) => actions.setCompanyWebsite(e.target.value)}
-                placeholder={t('settings.general.companyWebsitePlaceholder')}
+                placeholder={t('settings.general.companyWebsite.placeholder')}
                 aria-invalid={errors.companyWebsite ? true : undefined}
                 aria-describedby={errors.companyWebsite ? 'site-website-error' : undefined}
               />
@@ -101,31 +101,31 @@ export function SiteTab() {
 
           <SettingsSection
             id="regional"
-            title={t('settings.general.siteDefaultsTitle')}
+            title={t('settings.general.siteDefaults.title')}
             description={t('settings.general.siteDefaultsDesc')}
           >
-            <SettingsRow label={t('settings.general.languageLabel')} htmlFor="site-language">
+            <SettingsRow label={t('settings.general.language.label')} htmlFor="site-language">
               <LanguageSelect id="site-language" value={state.defaultLanguage} onValueChange={actions.setDefaultLanguage} />
             </SettingsRow>
 
-            <SettingsRow label={t('settings.general.timezoneLabel')} htmlFor="site-timezone">
+            <SettingsRow label={t('settings.general.timezone.label')} htmlFor="site-timezone">
               <TimezoneSelect id="site-timezone" value={state.timezone} onValueChange={actions.setTimezone} />
             </SettingsRow>
 
-            <SettingsRow label={t('settings.general.currencyLabel')} htmlFor="site-currency">
+            <SettingsRow label={t('settings.general.currency.label')} htmlFor="site-currency">
               <CurrencySelect id="site-currency" value={state.currency} onValueChange={actions.setCurrency} />
             </SettingsRow>
           </SettingsSection>
 
           <SettingsSection
             id="trash"
-            title={t('settings.general.trashTitle')}
+            title={t('settings.general.trash.title')}
             description={t('settings.general.trashDesc')}
           >
             <SettingsRow
-              label={t('settings.general.trashRetentionLabel')}
+              label={t('settings.general.trashRetention.label')}
               htmlFor="site-trash-retention"
-              description={t('settings.general.trashRetentionHint')}
+              description={t('settings.general.trashRetention.hint')}
             >
               <Input
                 ref={retentionRef}

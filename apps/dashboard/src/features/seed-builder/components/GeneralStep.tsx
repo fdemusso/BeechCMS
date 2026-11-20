@@ -78,12 +78,12 @@ export function GeneralStep({ form, labelInputRef }: GeneralStepProps) {
           {form.slugTaken && <FieldError id="sf-slug-error">{t("seedBuilder.editor.slugTaken")}</FieldError>}
         </Field>
         <Field>
-          <FieldLabel htmlFor="sf-plural">{t("seedBuilder.editor.labelPlural")}</FieldLabel>
+          <FieldLabel htmlFor="sf-plural">{t("seedBuilder.editor.labelPlural.label")}</FieldLabel>
           <Input
             id="sf-plural"
             data-enter-next=""
             value={String(formData.label_plural ?? "")}
-            placeholder={label || t("seedBuilder.editor.labelPluralPlaceholder")}
+            placeholder={label || t("seedBuilder.editor.labelPlural.placeholder")}
             onChange={(e) => setField("label_plural", e.target.value)}
           />
         </Field>
@@ -104,9 +104,9 @@ export function GeneralStep({ form, labelInputRef }: GeneralStepProps) {
       <div className="space-y-1">
         <h3 id="sf-public-title" className="flex items-center gap-2 text-sm font-medium">
           <Globe aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-          {t("seedBuilder.editor.publicAccessTitle")}
+          {t("seedBuilder.editor.publicAccess.title")}
         </h3>
-        <p className="text-xs text-muted-foreground">{t("seedBuilder.editor.publicAccessDescription")}</p>
+        <p className="text-xs text-muted-foreground">{t("seedBuilder.editor.publicAccess.description")}</p>
       </div>
       <div className="space-y-3 border-t pt-3">
         {PUBLIC_FLAGS.map(({ alias, key }) => (

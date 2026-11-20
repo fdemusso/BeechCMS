@@ -30,6 +30,15 @@ describe("useDashboardLanguage", () => {
     expect(toast.success).toHaveBeenCalledWith("Lingua cambiata in Italiano")
   })
 
+  it("words the confirmation in the language just chosen, naming it in itself", () => {
+    vi.spyOn(i18n, "changeLanguage").mockResolvedValue((() => "") as never)
+    const { result } = renderHook(() => useDashboardLanguage())
+
+    act(() => result.current.setLanguage("de"))
+
+    expect(toast.success).toHaveBeenCalledWith("Sprache auf Deutsch umgestellt")
+  })
+
   it("reports the resolved language, not the raw detected one", async () => {
     // A regional tag keeps `language` as typed while `resolvedLanguage` falls back to a supported one.
     await i18n.changeLanguage("it-IT")

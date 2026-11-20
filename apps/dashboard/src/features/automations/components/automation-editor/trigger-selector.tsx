@@ -38,17 +38,17 @@ export function TriggerSelector({ value, onChange, allowedEvents }: TriggerSelec
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 justify-between w-full text-sm">
           <span className="truncate">
-            {value ? t(`automations.triggers.${value}`) : t('automations.editor.triggerSelectPlaceholder')}
+            {value ? t(`automations.triggers.${value}`) : t('automations.editor.triggerSelect.placeholder')}
           </span>
           <ChevronDown className="size-3.5 opacity-60 shrink-0" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64 p-2">
         <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-          {t('automations.editor.triggerLabel')}
+          {t('automations.editor.trigger.label')}
         </DropdownMenuLabel>
         <Input
-          placeholder={t('automations.editor.searchPlaceholder')}
+          placeholder={t('automations.editor.search.placeholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="h-8 text-sm mb-1"

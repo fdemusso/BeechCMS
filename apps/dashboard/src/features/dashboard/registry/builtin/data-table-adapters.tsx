@@ -40,12 +40,12 @@ export function DataTableConfigPanel({
     <div className="space-y-3">
       <SeedSelect value={config.seedSlug} onChange={(seedSlug) => onChange({ ...config, seedSlug })} />
       <TextField
-        label={t("dashboard.builder.config.columns")}
+        label={t("dashboard.builder.config.columns.label")}
         value={(config.columns ?? []).join(", ")}
         onChange={(value) =>
           onChange({ ...config, columns: value.split(",").map((c) => c.trim()).filter(Boolean) })
         }
-        placeholder={t("dashboard.builder.config.columnsPlaceholder")}
+        placeholder={t("dashboard.builder.config.columns.placeholder")}
       />
       <NumberField
         label={t("dashboard.builder.config.pageSize")}
@@ -57,7 +57,7 @@ export function DataTableConfigPanel({
         seedSlug={config.seedSlug}
         value={config.orderByColumn}
         onChange={(orderByColumn) => onChange({ ...config, orderByColumn })}
-        label={t("dashboard.builder.config.orderByColumn")}
+        label={t("dashboard.builder.config.orderBy.column")}
       />
       <VariantSelect
         label={t("dashboard.builder.config.orderDirection")}

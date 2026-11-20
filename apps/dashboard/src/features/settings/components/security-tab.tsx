@@ -60,9 +60,9 @@ function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: st
     setPending(true)
     try {
       await onRevoke(session.id)
-      toast.success(t('settings.security.revokeSuccess'))
+      toast.success(t('settings.security.revoke.success'))
     } catch {
-      toast.error(t('settings.security.revokeError'))
+      toast.error(t('settings.security.revoke.error'))
     } finally {
       setPending(false)
     }
@@ -99,11 +99,11 @@ function SessionRow({ session, onRevoke }: { session: Session; onRevoke: (id: st
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('settings.security.revokeTitle')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('settings.security.revoke.title')}</AlertDialogTitle>
             <AlertDialogDescription>{t('settings.security.revokeDesc')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.action.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleRevoke}>{t('settings.security.revokeConfirm')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -139,13 +139,13 @@ export function SessionsSection() {
   const revokeSession = useRevokeSession()
 
   return (
-    <SettingsSection id="sessions" title={t('settings.security.sessionsTitle')} description={t('settings.security.sessionsDesc')}>
+    <SettingsSection id="sessions" title={t('settings.security.sessions.title')} description={t('settings.security.sessionsDesc')}>
       {isLoading ? (
         <Loading rows={3}>{t('common.loading')}</Loading>
       ) : !sessions?.length ? (
         <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('settings.security.noSessions')}</p>
       ) : (
-        <SettingsScroll label={t('settings.security.sessionsTitle')} rows={SESSIONS_VISIBLE} rowRem={ROW_REM}>
+        <SettingsScroll label={t('settings.security.sessions.title')} rows={SESSIONS_VISIBLE} rowRem={ROW_REM}>
           <ul>
           {sessions.map(session => (
             <SessionRow
@@ -167,13 +167,13 @@ export function ActivitySection() {
   const { data: activity, isLoading } = useSettingsActivity()
 
   return (
-    <SettingsSection id="activity" title={t('settings.security.activityTitle')} description={t('settings.security.activityDesc')}>
+    <SettingsSection id="activity" title={t('settings.security.activity.title')} description={t('settings.security.activityDesc')}>
       {isLoading ? (
         <Loading rows={5}>{t('common.loading')}</Loading>
       ) : !activity?.length ? (
         <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('settings.security.noActivity')}</p>
       ) : (
-        <SettingsScroll label={t('settings.security.activityTitle')} rows={SETTINGS_VISIBLE_ROWS} rowRem={ROW_REM}>
+        <SettingsScroll label={t('settings.security.activity.title')} rows={SETTINGS_VISIBLE_ROWS} rowRem={ROW_REM}>
           <ul>{activity.map(entry => <ActivityRow key={entry.id} entry={entry} />)}</ul>
         </SettingsScroll>
       )}

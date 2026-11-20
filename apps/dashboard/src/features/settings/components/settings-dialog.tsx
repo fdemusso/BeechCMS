@@ -230,7 +230,7 @@ export function SettingsDialog({
 
             {/* Families, their tabs and the bookmarks of the open tab */}
             <ScrollArea className="flex-1 min-h-0">
-              <nav ref={navRef} className="px-3 py-3" aria-label={t("settings.navLabel", "Settings categories")}>
+              <nav ref={navRef} className="px-3 py-3" aria-label={t("settings.nav.label", "Settings categories")}>
                 {groups.length === 0 && (
                   <p className="px-2.5 py-4 text-sm text-sidebar-foreground/70">{t("settings.noResults", "No settings found")}</p>
                 )}
@@ -346,7 +346,7 @@ export function SettingsDialog({
                 size="icon-sm"
                 onClick={onClose}
                 className="rounded-full"
-                aria-label={t("common.close", "Close")}
+                aria-label={t("common.action.close", "Close")}
               >
                 <XIcon aria-hidden className="size-4" />
               </Button>

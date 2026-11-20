@@ -37,7 +37,7 @@ export function AutomationValueInput({
   id,
 }: AutomationValueInputProps) {
   const { t } = useTranslation()
-  const placeholder = t('automations.when.valuePlaceholder')
+  const placeholder = t('automations.when.value.placeholder')
 
   if (!branch) {
     return (

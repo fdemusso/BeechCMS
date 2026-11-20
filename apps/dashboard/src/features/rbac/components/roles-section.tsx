@@ -71,7 +71,7 @@ export function RolesSection() {
     <SettingsSection
       id="roles"
       title={t("rbac.roles.title", "Roles")}
-      description={t("rbac.roles.sectionDescription")}
+      description={t("rbac.roles.section.description")}
       action={canManageRoles && (
         <Button size="sm" onClick={() => { setEditingRole(null); setFormOpen(true) }}>
           <Plus aria-hidden className="size-4" />
@@ -86,7 +86,7 @@ export function RolesSection() {
         </div>
       ) : (
         <TooltipProvider delayDuration={100} disableHoverableContent>
-          <p id={SYSTEM_HINT_ID} className="sr-only">{t("rbac.roles.systemHint")}</p>
+          <p id={SYSTEM_HINT_ID} className="sr-only">{t("rbac.roles.system.hint")}</p>
           <SettingsScroll label={t("rbac.roles.title", "Roles")} rowRem={SETTINGS_TABLE_ROW_REM} headerRem={SETTINGS_TABLE_HEAD_REM}>
           {/* The table must not scroll on its own, or the header could not stay above the rows. */}
           <Table containerClassName="overflow-visible" aria-label={t("rbac.roles.title", "Roles")}>
@@ -94,8 +94,8 @@ export function RolesSection() {
               <TableRow>
                 <TableHead className="w-[200px]">{t("rbac.roles.name", "Name")}</TableHead>
                 <TableHead className="max-w-[320px]">{t("rbac.roles.description", "Description")}</TableHead>
-                <TableHead className="w-[130px]">{t("rbac.roles.permissions", "Permissions")}</TableHead>
-                {canManageRoles && <TableHead className="w-[100px] text-right">{t("common.actions", "Actions")}</TableHead>}
+                <TableHead className="w-[130px]">{t("rbac.roles.permissions.label", "Permissions")}</TableHead>
+                {canManageRoles && <TableHead className="w-[100px] text-right">{t("content.actions.label")}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -107,7 +107,7 @@ export function RolesSection() {
                       <div className="flex items-center gap-2">
                         <RoleIcon aria-hidden className="size-4 text-muted-foreground shrink-0" />
                         <span className="truncate">{role.name}</span>
-                        {role.isSystem && <Badge variant="outline" className="text-xs shrink-0">{t("rbac.roles.system", "System")}</Badge>}
+                        {role.isSystem && <Badge variant="outline" className="text-xs shrink-0">{t("rbac.roles.system.label", "System")}</Badge>}
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground max-w-[320px] truncate" title={role.description ?? undefined}>
@@ -159,8 +159,8 @@ export function RolesSection() {
                                   <AlertDialogDescription>{t("rbac.roles.deleteWarning", "Every assignment through this role is removed by cascade.")}</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(role.id)}>{t("common.confirm")}</AlertDialogAction>
+                                  <AlertDialogCancel>{t("common.action.cancel")}</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(role.id)}>{t("common.action.confirm")}</AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>

@@ -79,7 +79,7 @@ export function SeedBuilderPage({ showSubtitle = true }: { readonly showSubtitle
           {canManageSeeds && (
             <Button onClick={() => setCreateOpen(true)} size="sm" className="gap-1.5">
               <Plus className="size-4" />
-              {t("seedBuilder.page.newButton")}
+              {t("seedBuilder.page.new.button")}
             </Button>
           )}
         </div>
@@ -186,7 +186,7 @@ export function SeedBuilderPage({ showSubtitle = true }: { readonly showSubtitle
                                 variant="ghost"
                                 size="icon-sm"
                                 onClick={() => setDeleteRecord(record)}
-                                aria-label={t("common.delete")}
+                                aria-label={t("common.action.delete")}
                                 data-testid="delete-seed-btn"
                                 className="text-status-danger-foreground hover:text-status-danger-foreground"
                               >

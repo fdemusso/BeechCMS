@@ -87,7 +87,7 @@ export function getContentCategoryMenu(t: (key: string) => string, gates: MenuGa
 /** The developer's workspace: absent (axis one) for anyone without `manage_seeds`. */
 export function getStudioMenu(t: (key: string) => string, gates: MenuGates): NavItem[] {
   if (!gates.manageSeeds) return []
-  return [{ title: t("seedBuilder.page.navTitle"), url: "/schema", icon: Layers }]
+  return [{ title: t("seedBuilder.page.nav.title"), url: "/schema", icon: Layers }]
 }
 
 export function getSettingsMenu(t: (key: string) => string): NavItem[] {

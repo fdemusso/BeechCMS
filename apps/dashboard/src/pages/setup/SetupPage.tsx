@@ -253,12 +253,12 @@ export function SetupPage() {
 
           {step === 1 && (
             <div className="space-y-4">
-              <p className="text-sm font-medium text-foreground">{t('setup.step1Title')}</p>
+              <p className="text-sm font-medium text-foreground">{t('setup.step1.title')}</p>
 
               {environment?.isDeveloper && (
                 <div className="rounded-control border border-border bg-muted p-3 space-y-1">
                   <p className="text-sm font-medium text-foreground">
-                    {t('setup.devAlertTitle')}
+                    {t('setup.devAlert.title')}
                   </p>
                   <p className="text-xs text-muted-foreground">{t('setup.devAlertDesc')}</p>
                   <button
@@ -272,7 +272,7 @@ export function SetupPage() {
               )}
 
                <div className="space-y-2">
-                <Label htmlFor="setupLanguage">{t('setup.languageLabel')}</Label>
+                <Label htmlFor="setupLanguage">{t('setup.language.label')}</Label>
                 <LanguageSelect
                   id="setupLanguage"
                   value={language}
@@ -281,12 +281,12 @@ export function SetupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="setupTimezone">{t('setup.timezoneLabel')}</Label>
+                <Label htmlFor="setupTimezone">{t('setup.timezone.label')}</Label>
                 <TimezoneSelect id="setupTimezone" value={timezone} onValueChange={setTimezone} />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="setupCurrency">{t('setup.currencyLabel')}</Label>
+                <Label htmlFor="setupCurrency">{t('setup.currency.label')}</Label>
                 <CurrencySelect id="setupCurrency" value={currency} onValueChange={setCurrency} />
               </div>
 
@@ -298,24 +298,24 @@ export function SetupPage() {
 
           {step === 2 && (
             <div className="space-y-4" onKeyDown={handleCredentialsKeyDown}>
-              <p className="text-sm font-medium text-foreground">{t('setup.step2Title')}</p>
+              <p className="text-sm font-medium text-foreground">{t('setup.step2.title')}</p>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="name">{t('setup.nameLabel')}</Label>
+                  <Label htmlFor="name">{t('setup.name.label')}</Label>
                   <Input
                     id="name"
-                    placeholder={t('setup.namePlaceholder')}
+                    placeholder={t('setup.name.placeholder')}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     autoComplete="given-name"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="surname">{t('setup.surnameLabel')}</Label>
+                  <Label htmlFor="surname">{t('setup.surname.label')}</Label>
                   <Input
                     id="surname"
-                    placeholder={t('setup.surnamePlaceholder')}
+                    placeholder={t('setup.surname.placeholder')}
                     value={surname}
                     onChange={(e) => setSurname(e.target.value)}
                     autoComplete="family-name"
@@ -324,11 +324,11 @@ export function SetupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">{t('setup.emailLabel')}</Label>
+                <Label htmlFor="email">{t('setup.email.label')}</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder={t('setup.emailPlaceholder')}
+                  placeholder={t('setup.email.placeholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
@@ -336,12 +336,12 @@ export function SetupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">{t('setup.passwordLabel')}</Label>
+                <Label htmlFor="password">{t('setup.password.label')}</Label>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder={t('setup.passwordPlaceholder')}
+                    placeholder={t('setup.password.placeholder')}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="new-password"
@@ -367,12 +367,12 @@ export function SetupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirm">{t('setup.confirmLabel')}</Label>
+                <Label htmlFor="confirm">{t('setup.confirm.label')}</Label>
                 <div className="relative">
                   <Input
                     id="confirm"
                     type={showConfirm ? 'text' : 'password'}
-                    placeholder={t('setup.confirmPlaceholder')}
+                    placeholder={t('setup.confirm.placeholder')}
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     autoComplete="new-password"
@@ -394,7 +394,7 @@ export function SetupPage() {
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => { setError(null); setStep(1) }}>
-                  {t('setup.buttonBack')}
+                  {t('common.action.back')}
                 </Button>
                 <Button className="flex-1" onClick={goNext}>
                   {t('setup.buttonNext')}
@@ -405,13 +405,13 @@ export function SetupPage() {
 
           {step === 3 && (
             <div className="space-y-4">
-              <p className="text-sm font-medium text-foreground">{t('setup.step3Title')}</p>
+              <p className="text-sm font-medium text-foreground">{t('setup.step3.title')}</p>
 
               {track === 'developer' ? (
                 <>
                   <div className="rounded-control border p-3 space-y-2">
                     <p className="text-xs font-medium uppercase text-muted-foreground tracking-wide">
-                      {t('setup.servicesTitle')}
+                      {t('setup.services.title')}
                     </p>
                     {environment && (
                       <>
@@ -438,36 +438,36 @@ export function SetupPage() {
                       onCheckedChange={(v) => setLoadDemoData(v === true)}
                     />
                     <Label htmlFor="loadDemo" className="cursor-pointer">
-                      {t('setup.loadDemoLabel')}
+                      {t('setup.loadDemo.label')}
                     </Label>
                   </div>
                 </>
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="companyName">{t('setup.companyNameLabel')}</Label>
+                    <Label htmlFor="companyName">{t('setup.companyName.label')}</Label>
                     <Input
                       id="companyName"
-                      placeholder={t('setup.companyNamePlaceholder')}
+                      placeholder={t('setup.companyName.placeholder')}
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="companyWebsite">{t('setup.companyWebsiteLabel')}</Label>
+                    <Label htmlFor="companyWebsite">{t('setup.companyWebsite.label')}</Label>
                     <Input
                       id="companyWebsite"
                       type="url"
-                      placeholder={t('setup.companyWebsitePlaceholder')}
+                      placeholder={t('setup.companyWebsite.placeholder')}
                       value={companyWebsite}
                       onChange={(e) => setCompanyWebsite(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="companyAbbreviation">{t('setup.companyAbbreviationLabel')}</Label>
+                    <Label htmlFor="companyAbbreviation">{t('setup.companyAbbreviation.label')}</Label>
                     <Input
                       id="companyAbbreviation"
-                      placeholder={t('setup.companyAbbreviationPlaceholder')}
+                      placeholder={t('setup.companyAbbreviation.placeholder')}
                       value={companyAbbreviation}
                       onChange={(e) => setCompanyAbbreviation(e.target.value)}
                     />
@@ -479,7 +479,7 @@ export function SetupPage() {
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => { setError(null); setStep(2) }}>
-                  {t('setup.buttonBack')}
+                  {t('common.action.back')}
                 </Button>
                 <Button
                   className="flex-1"

@@ -73,7 +73,7 @@ export function FilterColumnMenu({
           {t("toolbar.filter.label")}
         </DropdownMenuLabel>
         <Input
-          placeholder={t("toolbar.filter.searchPlaceholder")}
+          placeholder={t("toolbar.filter.search.placeholder")}
           value={searchTerm}
           onChange={(e) => onSearchTermChange(e.target.value)}
           className="h-8 text-sm"

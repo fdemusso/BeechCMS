@@ -245,7 +245,7 @@ Email delivery is required. With no `EMAIL_PROVIDER=smtp` and no `RESEND_API_KEY
 { "email": "newcomer@example.com", "roleId": "…", "scope": "blog", "locale": "it" }
 ```
 
-`locale` selects the email language; anything unknown falls back to `en`.
+`locale` selects the email language (`en` or `it`). A regional tag such as `it-IT` is reduced to its base language; anything without a template, including `es`, `de` and `fr`, falls back to `en`.
 
 | Status | Condition |
 |---|---|

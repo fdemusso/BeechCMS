@@ -193,6 +193,9 @@ describe("createPreferencesProvider", () => {
 
     expect(items.map((item) => item.id)).toEqual([
       "prefs:language:en",
+      "prefs:language:es",
+      "prefs:language:de",
+      "prefs:language:fr",
       ...NOTIFICATION_PREF_ITEMS.map(({ key }) => `prefs:notify:${key}`),
     ])
   })

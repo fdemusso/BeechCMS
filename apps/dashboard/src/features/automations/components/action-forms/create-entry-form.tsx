@@ -37,14 +37,14 @@ export function CreateEntryForm({ index }: CreateEntryFormProps) {
     <div className="flex flex-col gap-3">
       <div>
         <label htmlFor={seedTriggerId} className="text-xs font-medium text-muted-foreground mb-1 block">
-          {t('automations.actions.targetSeed')} *
+          {t('automations.actions.targetSeed.label')} *
         </label>
         <Select
           value={seedSlug ?? ''}
           onValueChange={(v) => setValue(`actions.${index}.seed_slug` as any, v)}
         >
           <SelectTrigger id={seedTriggerId} size="sm" className="h-8 text-sm">
-            <SelectValue placeholder={t('automations.actions.targetSeedPlaceholder')} />
+            <SelectValue placeholder={t('automations.actions.targetSeed.placeholder')} />
           </SelectTrigger>
           <SelectContent>
             {seeds.map((s) => (

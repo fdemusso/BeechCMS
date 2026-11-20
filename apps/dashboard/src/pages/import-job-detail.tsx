@@ -20,10 +20,10 @@ export function ImportJobDetailPage() {
         <div className="mb-2 flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
             <ArrowLeft className="size-4" />
-            {t("common.back")}
+            {t("common.action.back")}
           </Button>
         </div>
-        <PageHeader title={t("transfer.job.pageTitle")} />
+        <PageHeader title={t("transfer.job.page.title")} />
         {jobId && <ImportJobPanel jobId={jobId} />}
       </PageBody>
     </AppShell>

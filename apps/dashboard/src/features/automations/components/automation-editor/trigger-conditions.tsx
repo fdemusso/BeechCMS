@@ -71,7 +71,7 @@ function WhenPredicateEditor({ pred, onChange, onRemove, onWrap, seedBranches }:
             onValueChange={handleFieldChange}
           >
             <SelectTrigger size="sm" className="h-7 text-xs flex-1 min-w-[80px]">
-              <SelectValue placeholder={t('automations.when.fieldPlaceholder')} />
+              <SelectValue placeholder={t('automations.when.field.placeholder')} />
             </SelectTrigger>
             <SelectContent>
               {seedBranches.map((b) => (

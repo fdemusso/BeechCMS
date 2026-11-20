@@ -322,8 +322,7 @@ export function generateColumns(
         if (!label) return null
         return (
           <span className="text-xs text-muted-foreground">
-            {label} · {count}{" "}
-            {count === 1 ? translate("content.table.item") : translate("content.table.items")}
+            {label} · {translate("content.table.itemCount", { count })}
           </span>
         )
       }
@@ -352,8 +351,7 @@ export function generateColumns(
         const count = row.subRows?.length ?? 0
         return (
           <span className="text-xs text-muted-foreground">
-            {count}{" "}
-            {count === 1 ? translate("content.table.item") : translate("content.table.items")}
+            {translate("content.table.itemCount", { count })}
           </span>
         )
       }
@@ -418,7 +416,7 @@ export function generateColumns(
                     className="text-status-danger-foreground focus:text-status-danger-foreground"
                     disabled={!canDelete}
                   >
-                    {translate("common.delete")}
+                    {translate("common.action.delete")}
                     <DropdownMenuShortcut>Del</DropdownMenuShortcut>
                   </DropdownMenuItem>
                 </>
@@ -449,7 +447,7 @@ export function generateColumns(
                     className="text-status-danger-foreground focus:text-status-danger-foreground"
                     disabled={!canDelete}
                   >
-                    {translate("common.delete")}
+                    {translate("common.action.delete")}
                     <DropdownMenuShortcut>Del</DropdownMenuShortcut>
                   </DropdownMenuItem>
                 </>

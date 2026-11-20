@@ -221,8 +221,8 @@ export function ContentListPage() {
       <ConfirmDialog
         open={viewPendingDelete !== null}
         onOpenChange={(open) => { if (!open) setViewPendingDelete(null) }}
-        title={t("content.views.deleteConfirmTitle")}
-        description={t("content.views.deleteConfirmDescription", {
+        title={t("content.views.deleteConfirm.title")}
+        description={t("content.views.deleteConfirm.description", {
           label: viewPendingDelete ? (viewPendingDelete.title ?? typeLabel(viewPendingDelete.type)) : "",
         })}
         confirmVariant="destructive"

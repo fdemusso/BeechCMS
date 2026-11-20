@@ -67,7 +67,7 @@ export function GroupPicker({ value, groups, defaultLabel, onChange, id }: Group
             <CommandGroup>
               <CommandItem value={defaultLabel} onSelect={() => choose("")}>
                 <span className="truncate">{defaultLabel}</span>
-                <span className="text-xs text-muted-foreground">{t("seedBuilder.editor.dashGroupDefault")}</span>
+                <span className="text-xs text-muted-foreground">{t("seedBuilder.editor.group.default.badge")}</span>
                 <Check className={cn("ml-auto size-4 shrink-0", value === "" ? "opacity-100" : "opacity-0")} />
               </CommandItem>
               {groups.map((group) => (

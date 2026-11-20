@@ -67,7 +67,7 @@ function HeaderCell<TData>({ header, enableColumnResizing, sortable }: HeaderCel
       {enableColumnResizing && header.column.getCanResize() && (
         <button
           type="button"
-          aria-label={t("toolbar.settings.resizeColumn")}
+          aria-label={t("toolbar.settings.resize.column")}
           onMouseDown={header.getResizeHandler()}
           onTouchStart={header.getResizeHandler()}
           // Keeps the resize handle from starting a column drag on the parent header.

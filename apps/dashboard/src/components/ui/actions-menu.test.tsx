@@ -42,7 +42,7 @@ function renderTable({
     const m: any = {
       "common.openMenu": "Open menu",
       "content.actions.label": "Actions",
-      "common.delete": "Delete",
+      "common.action.delete": "Delete",
       "common.edit": "Edit",
       "content.actions.copyId": "Copy ID"
     }

@@ -87,7 +87,7 @@ export function TagsEdit(props: FieldEditProps) {
             </Button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-56 max-w-full p-2">
-            <div className="mb-2 text-xs text-muted-foreground">{t("fields.tags.menuTitle")}</div>
+            <div className="mb-2 text-xs text-muted-foreground">{t("fields.tags.menu.title")}</div>
             <div className="max-h-56 space-y-1 overflow-y-auto">
               {(branch.options ?? []).map((option) => {
                 const isActive = selected.includes(option.value)

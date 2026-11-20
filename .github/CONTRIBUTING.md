@@ -15,8 +15,9 @@ This document outlines every rule and convention that **must be followed** befor
 3. [Code quality standards](#3-code-quality-standards)
 4. [Architecture: Vertical Slice Architecture (VSA)](#4-architecture-vertical-slice-architecture-vsa)
 5. [Documentation and System Map](#5-documentation-and-system-map)
-6. [AI-assisted development](#6-ai-assisted-development)
-7. [Submitting a pull request](#7-submitting-a-pull-request)
+6. [Languages and translations](#6-languages-and-translations)
+7. [AI-assisted development](#7-ai-assisted-development)
+8. [Submitting a pull request](#8-submitting-a-pull-request)
 
 ---
 
@@ -244,6 +245,7 @@ A PR that introduces a new feature, changes a public API, or modifies a shared i
 | New automation action or schema change | `docs/automations.md` |
 | Frontend field renderer or dashboard feature | `docs/frontend-guide.md` |
 | Email module change | `docs/email-module.md` |
+| New or removed language, interface or email | `docs/features/localization.md`, `docs/features/email-module.md`, and the i18n lines of `_config/SYSTEM_MAP.md` |
 | Any cross-cutting change that affects the overall picture | **`docs/system-map.md`** |
 
 ### System Map (`docs/system-map.md`)
@@ -258,7 +260,59 @@ Do not leave the system map out of date. A stale system map is worse than no map
 
 ---
 
-## 6. AI-assisted development
+## 6. Languages and translations
+
+The dashboard speaks five languages. English is the source; every other file is a translation of it.
+
+| Code | Language | Address form |
+|------|----------|--------------|
+| `en` | English (source and fallback) | — |
+| `it` | Italiano | tu |
+| `es` | Español | tú |
+| `de` | Deutsch | Sie |
+| `fr` | Français | vous |
+
+Dictionaries live in `apps/dashboard/src/locales/<code>.json`. Transactional emails are a separate system and currently exist in `en` and `it` only (see [Email languages](#email-languages)).
+
+### Rules for UI strings
+
+- **Add the English string first**, then the same key in every other locale in the same commit. The locale tests fail on a missing or extra key, an empty string, or a `{{variable}}` or `<tag>` that differs from the English one.
+- **Name keys `<domain>.<surface>.<element>.<role>`**, in `camelCase`, at most 5 levels deep. The role says what the string is (`label`, `title`, `placeholder`, `hint`, `description`, `tooltip`, `ariaLabel`, `badge`, `column`, `button`, `success`, `error`, `toast`, `sentence`), so a translator knows the space it has without a separate context file. A segment that mirrors a backend enum value (`discard_draft`, `isempty`) keeps the enum's spelling.
+- **Generic verbs live in `common.action.*`**: only `save`, `cancel`, `close`, `back`, `confirm` and `delete`. Domain actions ("Add field", "Create role") stay in their domain, because other languages change gender and phrasing with the object.
+- **Never build a sentence from fragments.** Write one string with `{{variables}}`, and use `<Trans>` with named tags (`<user>`, `<target>`, `<kbd>`, `<code>`) when parts of it need markup. Word order is the translator's decision.
+- **Plurals use native i18next suffixes**: `_one` and `_other` (plus `_many` in `es` and `fr`). Every plural key needs `_other`. Do not introduce ICU message syntax.
+- **Variables are `{{double braces}}`.** To show a literal `{{token}}` (for example automation template syntax), pass it as a variable value instead of writing it in the string. The tokens inside `automations.actions.hintFixed`, `hintCollection` and `filterTemplateHint` must stay identical in every language.
+- **Every key used in code must exist in `en.json`**, and a call site carries no hardcoded fallback text. `locale-keys.test.ts` fails otherwise. Prefer static keys; a key built from a runtime value (`` t(`area.${value}`) ``) is only for values that come from a fixed enum, and its subtree must not be renamed.
+- **Keep `.badge`, `.tab`, `.column` and `.button` strings short.** German and French run 30–40% longer than English.
+
+### Glossary
+
+`apps/dashboard/src/locales/glossary.json` is the contract for terms that must not drift between languages:
+
+- `hard_dnt` terms (`Seed`, `Slug`, `Webhook`, `Beech`, `BeechCMS`, `Studio`, `JSON`, …) stay verbatim in every language. The match is case-sensitive on word boundaries, except `Cron`. The locale tests enforce it.
+- `soft_dnt` terms are loanwords that some languages translate (`Dashboard` is "Panel" in Spanish and "Tableau de bord" in French). Follow the `translation_note` of the term.
+- Add a term as one atomic entry, never a slash-separated list.
+
+### Adding a dashboard language
+
+1. Create `apps/dashboard/src/locales/<code>.json` from `en.json`, following the glossary.
+2. Register it in `apps/dashboard/src/lib/i18n.ts` (`resources` and `supportedLngs`).
+3. Add its native name to `DASHBOARD_LANGUAGES` in `features/settings/hooks/use-dashboard-language.ts`.
+4. Add its date-fns locale to `apps/dashboard/src/lib/date-locale.ts`.
+5. Add it to `apps/dashboard/src/test/setup.ts` and to the locale list in `locales.test.ts`, so the full parity suite runs against it.
+6. Decide on emails (see below) and update the documentation listed in section 5.
+
+### Content languages
+
+The languages of your *content* (entry fields marked `localized`) are a project setting and have nothing to do with the dashboard's interface language. See [`docs/features/localization.md`](../docs/features/localization.md).
+
+### Email languages
+
+`resolveEmailLocale()` in `apps/api/src/shared/email/email.types.ts` reduces a regional tag (`it-IT`, `de_AT`) to its base language and falls back to `en` for a language without a template. Adding a dashboard language does **not** add emails in it. To add one, follow *Adding Languages* in [`docs/features/email-module.md`](../docs/features/email-module.md), including the glossary rules.
+
+---
+
+## 7. AI-assisted development
 
 AI agents and coding assistants are welcome and encouraged in the BeechCMS workflow, subject to the following rules.
 
@@ -278,7 +332,7 @@ AI-generated code is subject to all the same rules as human-authored code: VSA c
 
 ---
 
-## 7. Submitting a pull request
+## 8. Submitting a pull request
 
 ### Contributor License Agreement (CLA)
 
@@ -301,6 +355,7 @@ By submitting a pull request to BeechCMS, you agree to the following terms:
 - [ ] No cross-slice imports — each feature only imports from `shared/` or the routing layer.
 - [ ] No unexplained acronyms, dangling ternaries, or half-resolved logic.
 - [ ] No use of `any` without a documented reason in a comment.
+- [ ] New or changed UI strings exist in every dashboard locale and the locale tests (`apps/dashboard/src/locales`) pass.
 - [ ] New or changed public-facing behaviour is documented in the relevant `docs/` file.
 - [ ] `docs/system-map.md` is updated if the folder structure, tech stack, or major conventions changed.
 

@@ -38,12 +38,12 @@ function SourceLabel({
 }) {
   const { t } = useTranslation()
   if (fixedId) {
-    return <span className="text-muted-foreground">{t('automations.actions.fixedIdBadge', { id: fixedId })}</span>
+    return <span className="text-muted-foreground">{t('automations.actions.fixedId.badge', { id: fixedId })}</span>
   }
   if (seedSlug) {
     return <>{seeds.find((s) => s.slug === seedSlug)?.label ?? seedSlug}</>
   }
-  return <span className="text-muted-foreground">{t('automations.actions.sourcePlaceholder')}</span>
+  return <span className="text-muted-foreground">{t('automations.actions.source.placeholder')}</span>
 }
 
 export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps) {
@@ -112,7 +112,7 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
       {/* Variable name */}
       <div>
         <label htmlFor={nameId} className="text-xs font-medium text-muted-foreground mb-1 block">
-          {t('automations.actions.variableName')} *
+          {t('automations.actions.variableName.label')} *
         </label>
         <Input
           id={nameId}
@@ -123,13 +123,13 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
         {actionErrors?.name && (
           <p className="mt-1 text-xs text-status-danger-foreground">{t(actionErrors.name.message)}</p>
         )}
-        <p className="mt-1 text-xs text-muted-foreground">{t('automations.actions.variableNameHint')}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t('automations.actions.variableName.hint')}</p>
       </div>
 
       {/* Source combobox */}
       <div>
         <label htmlFor={sourceTriggerId} className="text-xs font-medium text-muted-foreground mb-1 block">
-          {t('automations.actions.source')} *
+          {t('automations.actions.source.label')} *
         </label>
         <Popover open={sourceOpen} onOpenChange={setSourceOpen}>
           <PopoverTrigger asChild>
@@ -152,7 +152,7 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
             <Command shouldFilter={false}>
               <CommandInput
                 ref={inputRef}
-                placeholder={t('automations.editor.searchPlaceholder')}
+                placeholder={t('automations.editor.search.placeholder')}
                 value={sourceInput}
                 onValueChange={handleSourceInputChange}
               />
@@ -176,7 +176,7 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
                   >
                     {triggerSeed.label}
                     <Badge variant="secondary" className="ml-2 text-xs py-0">
-                      {t('automations.actions.thisSeed')}
+                      {t('automations.actions.triggerSeed.badge')}
                     </Badge>
                   </CommandItem>
                 )}

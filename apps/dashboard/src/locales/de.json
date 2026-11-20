@@ -1,0 +1,2612 @@
+{
+  "common": {
+    "loading": "Wird geladen...",
+    "action": {
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "delete": "Löschen",
+      "back": "Zurück",
+      "close": "Schließen",
+      "confirm": "Bestätigen"
+    },
+    "saving": "Wird gespeichert...",
+    "deleting": "Wird gelöscht...",
+    "edit": "Bearbeiten",
+    "create": "Erstellen",
+    "noResults": "Keine Ergebnisse",
+    "error": "Fehler",
+    "retry": "Erneut versuchen",
+    "copied": "ID kopiert",
+    "copyFailed": "Kopieren fehlgeschlagen",
+    "openMenu": "Menü öffnen",
+    "selectAll": "Alle auswählen",
+    "selectRow": "Zeile auswählen",
+    "yes": "Ja",
+    "no": "Nein",
+    "previous": "Zurück",
+    "selectedOfTotal_one": "{{selected}} von {{total}} ausgewählt",
+    "selectedOfTotal_other": "{{selected}} von {{total}} ausgewählt",
+    "next": "Weiter"
+  },
+  "status": {
+    "published": "Veröffentlicht",
+    "draft": "Entwurf",
+    "scheduled": "Geplant",
+    "failed": "Fehlgeschlagen",
+    "archived": "Archiviert"
+  },
+  "dashboard": {
+    "greeting": {
+      "morning": "Guten Morgen",
+      "afternoon": "Guten Tag",
+      "evening": "Guten Abend",
+      "night": "Gute Nacht",
+      "subtitle": "Das ist heute in Ihrem Arbeitsbereich passiert."
+    },
+    "recentActivity": {
+      "title": "Letzte Aktivität",
+      "loading": "Aktivität wird geladen...",
+      "empty": "Keine aktuelle Aktivität aufgezeichnet",
+      "entry": {
+        "create": {
+          "sentence": "<user>{{user}}</user> hat <target>{{target}}</target> erstellt"
+        },
+        "update": {
+          "sentence": "<user>{{user}}</user> hat <target>{{target}}</target> geändert"
+        },
+        "delete": {
+          "sentence": "<user>{{user}}</user> hat <target>{{target}}</target> gelöscht"
+        },
+        "upload": {
+          "sentence": "<user>{{user}}</user> hat <target>{{target}}</target> hochgeladen"
+        },
+        "trash": {
+          "sentence": "<user>{{user}}</user> hat <target>{{target}}</target> in den Papierkorb verschoben"
+        },
+        "restore": {
+          "sentence": "<user>{{user}}</user> hat <target>{{target}}</target> wiederhergestellt"
+        },
+        "purge": {
+          "sentence": "<user>{{user}}</user> hat <target>{{target}}</target> endgültig gelöscht"
+        },
+        "publish": {
+          "sentence": "<user>{{user}}</user> hat <target>{{target}}</target> veröffentlicht"
+        },
+        "discard_draft": {
+          "sentence": "<user>{{user}}</user> hat einen Entwurf von <target>{{target}}</target> verworfen"
+        },
+        "import": {
+          "sentence": "<user>{{user}}</user> hat <target>{{target}}</target> importiert"
+        },
+        "bulk_update": {
+          "sentence": "<user>{{user}}</user> hat <target>{{target}}</target> per Massenbearbeitung geändert"
+        }
+      }
+    },
+    "contentPulse": {
+      "noContent": "Keine Inhalte gefunden.",
+      "totalDistribution": "Gesamtverteilung",
+      "entries": "{{count}} Einträge",
+      "items": "{{count}} Elemente"
+    },
+    "widgets": {
+      "activityFeed": {
+        "title": "Letzte Aktivität",
+        "empty": "Keine Aktivitätsprotokolle"
+      },
+      "quickDraft": {
+        "title": "Neuer Entwurf",
+        "createDraft": "Schnellentwurf erstellen",
+        "creating": "Wird erstellt…",
+        "create": "Erstellen",
+        "draftCreated": "Entwurf erstellt!",
+        "type": "Typ",
+        "errorCreating": "Fehler beim Erstellen",
+        "fieldLabels": {
+          "title": "Titel",
+          "name": "Name",
+          "author": "Autor",
+          "description": "Beschreibung"
+        }
+      },
+      "recentContent": {
+        "title": "Neueste Inhalte",
+        "viewAll": "Alle anzeigen →",
+        "noContent": "Keine Inhalte",
+        "noContentDesc": "Erstellen Sie den ersten Inhalt, um ihn hier zu sehen"
+      },
+      "pendingDrafts": {
+        "title": "Ausstehende Entwürfe",
+        "viewAll": "Alle anzeigen",
+        "caption_one": "ausstehender Entwurf",
+        "caption_other": "ausstehende Entwürfe",
+        "noPending": "Keine ausstehenden Entwürfe",
+        "publish": "Veröffentlichen"
+      },
+      "publicationStats": {
+        "today": "Heute",
+        "week": "Woche",
+        "month": "Monat",
+        "total": {
+          "caption": "Inhalte gesamt"
+        }
+      },
+      "storage": {
+        "title": "Speicher R2",
+        "gauge": {
+          "caption": "belegt"
+        },
+        "summary": {
+          "caption": "Gesamt: {{total}} GB"
+        },
+        "noData": "Keine Speicherdaten"
+      },
+      "error": {
+        "message": "Fehler beim Laden",
+        "retry": "Erneut versuchen"
+      },
+      "stat": {
+        "total": {
+          "title": "Inhalte gesamt",
+          "description": "Alle Sammlungen"
+        },
+        "visitors": {
+          "title": "Einzelne Besucher",
+          "description": "Letzte 30 Tage (Edge)"
+        },
+        "traffic": {
+          "title": "Gesamttraffic",
+          "description": "Edge-Bandbreite"
+        },
+        "storage": {
+          "description": "{{percentage}} % von {{total}} GB"
+        },
+        "formula": {
+          "defaultLabel": "Statistik"
+        }
+      },
+      "chart": {
+        "empty": {
+          "title": "Noch keine Daten",
+          "description": "Für dieses Diagramm sind nicht genug Daten vorhanden"
+        },
+        "more": "+{{count}} weitere"
+      },
+      "dateFilter": {
+        "label": "Zeitraum",
+        "presets": {
+          "all": "Gesamter Zeitraum",
+          "week": "Diese Woche",
+          "month": "Letzte 30 Tage",
+          "year": "Letzte 12 Monate",
+          "thisMonth": "Dieser Monat",
+          "lastMonth": "Letzter Monat",
+          "thisYear": "Dieses Jahr",
+          "custom": "Benutzerdefiniert"
+        }
+      },
+      "dataTable": {
+        "empty": {
+          "title": "Keine Einträge",
+          "description": "Diese Sammlung hat noch keine Einträge"
+        }
+      },
+      "mediaGallery": {
+        "title": "Mediengalerie",
+        "all": "Alle",
+        "unused": "Ungenutzt",
+        "allInUse": {
+          "title": "Super gemacht!"
+        },
+        "allInUseDesc": "Alle Ihre Dateien werden verwendet.",
+        "empty": {
+          "title": "Keine Medien"
+        },
+        "emptyDesc": "Laden Sie Dateien hoch, um sie hier zu sehen"
+      }
+    },
+    "widgetRegistry": {
+      "unknown": {
+        "sentence": "Unbekanntes Widget: <code>{{type}}</code>"
+      },
+      "disabled": "Widget funktioniert in dieser Version nicht",
+      "widgets": {
+        "stat": {
+          "label": "Statistik"
+        },
+        "recentActivity": {
+          "label": "Letzte Aktivität"
+        },
+        "systemHealth": {
+          "label": "Systemzustand"
+        },
+        "contentPulse": {
+          "label": "Content-Puls"
+        },
+        "aiInsights": {
+          "label": "KI-Einblicke"
+        },
+        "quickActions": {
+          "label": "Schnellaktionen"
+        },
+        "recentContent": {
+          "label": "Neueste Inhalte"
+        },
+        "quickDraft": {
+          "label": "Schnellentwurf"
+        },
+        "pendingDrafts": {
+          "label": "Ausstehende Entwürfe"
+        },
+        "publicationStats": {
+          "label": "Veröffentlichungsstatistik"
+        },
+        "siteStatus": {
+          "label": "Website-Status"
+        },
+        "storage": {
+          "label": "Speicher"
+        },
+        "mediaGallery": {
+          "label": "Mediengalerie"
+        },
+        "activityFeed": {
+          "label": "Aktivitäts-Feed"
+        },
+        "setupChecklist": {
+          "label": "Einrichtungs-Checkliste"
+        },
+        "lineChart": {
+          "label": "Liniendiagramm"
+        },
+        "barChart": {
+          "label": "Balkendiagramm"
+        },
+        "areaChart": {
+          "label": "Flächendiagramm"
+        },
+        "pieChart": {
+          "label": "Kreisdiagramm"
+        },
+        "dataTable": {
+          "label": "Datentabelle"
+        },
+        "text": {
+          "label": "Text"
+        }
+      }
+    },
+    "setupChecklist": {
+      "title": "Einrichtungs-Checkliste",
+      "allDone": "Projekt bereit – alle Einrichtungsschritte abgeschlossen",
+      "systemTables": {
+        "label": "Datenbank initialisiert",
+        "hint": "Ausführen: npx beech init --db --local"
+      },
+      "seeds": "{{count}} aktive(r) Inhaltstyp(en)",
+      "seedsNone": "Keine Inhaltstypen in der Datenbank konfiguriert",
+      "seedsAction": "Seeds-Anleitung lesen",
+      "contentTables": {
+        "label": "Inhaltstabellen erstellt"
+      },
+      "adminAccount": "Administratorkonto erstellt",
+      "adminAction": "Zum Einrichtungsassistenten",
+      "firstContent": "Erster Inhaltseintrag",
+      "firstContentAction": "Ersten Eintrag erstellen"
+    },
+    "empty": {
+      "title": "Noch nichts anzuzeigen",
+      "description": "Für Ihre Rollen und Berechtigungen ist kein Dashboard-Tab verfügbar."
+    },
+    "builder": {
+      "customize": "Anpassen",
+      "title": "Dashboard-Builder",
+      "saved": "Dashboard-Layout gespeichert.",
+      "firstSaveNeedsRoles": "Nur wer Rollen verwaltet, kann das erste Dashboard-Layout erstellen.",
+      "conflict": {
+        "title": "Das Layout wurde von jemand anderem geändert"
+      },
+      "conflictDesc": "Ein anderer Editor hat das Dashboard gespeichert, nachdem Sie es geöffnet haben. Laden Sie die neueste Version neu und wenden Sie Ihre Änderungen erneut an. Ihre nicht gespeicherten Änderungen gehen verloren.",
+      "save": {
+        "error": "Das Dashboard-Layout konnte nicht gespeichert werden."
+      },
+      "reset": "Zurücksetzen",
+      "resetDone": "Dashboard auf Standard zurückgesetzt.",
+      "resetConfirm": {
+        "title": "Auf Standard zurücksetzen?"
+      },
+      "resetConfirmDesc": "Dadurch wird das benutzerdefinierte Dashboard-Layout entfernt. Es wird das Standardlayout verwendet.",
+      "showPreview": "Vorschau anzeigen",
+      "hidePreview": "Vorschau ausblenden",
+      "warnNoCrossPageSection": "Verschieben Sie Abschnitte innerhalb ihrer Seite.",
+      "errorMoveWidget": "Das Widget konnte nicht auf diese Seite verschoben werden.",
+      "page": {
+        "add": "Seite hinzufügen",
+        "rename": "Seite umbenennen",
+        "delete": "Seite löschen",
+        "default": {
+          "badge": "Standardseite"
+        },
+        "setDefault": "Als Standard festlegen",
+        "newPage": "Neue Seite"
+      },
+      "audience": {
+        "label": "Sichtbar für",
+        "everyone": {
+          "hint": "Alle · Rolle hinzufügen"
+        },
+        "add": "Rolle hinzufügen",
+        "search": "Rollen suchen…",
+        "empty": "Keine Rollen gefunden.",
+        "deletedRole": "Gelöschte Rolle",
+        "load": {
+          "error": "Rollen konnten nicht geladen werden."
+        }
+      },
+      "section": {
+        "add": "Abschnitt hinzufügen",
+        "no": {
+          "label": "Keine Beschriftung"
+        },
+        "rename": "Umbenennen",
+        "hide": {
+          "label": "Beschriftung ausblenden"
+        },
+        "collapsible": "Einklappbar",
+        "columns": "Spalten",
+        "duplicate": "Duplizieren",
+        "remove": "Entfernen",
+        "widgetCount_one": "{{count}} Widget",
+        "widgetCount_other": "{{count}} Widgets",
+        "widgetCount": "{{count}} Widgets",
+        "removeConfirm": "Diesen Abschnitt und seine Widgets entfernen?",
+        "dragHandle": "Ziehen, um den Abschnitt zu verschieben"
+      },
+      "widget": {
+        "add": "Widget hinzufügen",
+        "configure": "Konfigurieren",
+        "moveToPage": "Auf Seite verschieben…",
+        "remove": "Entfernen",
+        "needsSetup": "Einrichtung erforderlich",
+        "duplicate": "Duplizieren",
+        "replaceWith": "Ersetzen durch…",
+        "rename": "Umbenennen",
+        "tooNarrow": "Dieses Widget funktioniert in einer breiteren Spalte besser.",
+        "warnFull": "Diese Spalte ist voll.",
+        "search": {
+          "placeholder": "Widgets suchen…"
+        },
+        "noResults": "Keine Widgets gefunden.",
+        "locked": {
+          "label": "Widget nicht verfügbar",
+          "hint": "Sie können die Daten dieses Widgets nicht sehen. Es bleibt an seinem Platz."
+        }
+      },
+      "picker": {
+        "categories": {
+          "stats": "Statistiken",
+          "charts": "Diagramme",
+          "content": "Inhalte",
+          "system": "System",
+          "custom": "Benutzerdefiniert"
+        }
+      },
+      "config": {
+        "title": "Titel",
+        "noOptions": "Dieses Widget hat keine konfigurierbaren Optionen.",
+        "seed": {
+          "label": "Inhaltstyp",
+          "placeholder": "Inhaltstyp auswählen…"
+        },
+        "column": "Spalte",
+        "columnPlaceholder": "Spalte auswählen…",
+        "window": "Zeitfenster",
+        "windowWeek": "Letzte Woche",
+        "windowMonth": "Letzter Monat",
+        "windowYear": "Letztes Jahr",
+        "windowAll": "Gesamter Zeitraum",
+        "formula": "Formel",
+        "formulaOps": {
+          "count": "Anzahl",
+          "sum": "Summe",
+          "avg": "Durchschnitt",
+          "min": "Minimum",
+          "max": "Maximum",
+          "countWhere": "Anzahl wenn",
+          "percentageOf": "Prozentsatz von"
+        },
+        "matchValue": "Vergleichswert",
+        "numerator": "Zählerspalte",
+        "denominator": "Nennerspalte",
+        "statKey": "Statistik",
+        "showTrend": "Trend anzeigen",
+        "group": {
+          "column": "Nach Spalte gruppieren"
+        },
+        "color": "Farbe",
+        "donut": "Donut-Stil",
+        "limit": "Limit",
+        "columns": {
+          "label": "Spalten",
+          "placeholder": "Spaltennamen, durch Kommas getrennt (alle, wenn leer)"
+        },
+        "pageSize": "Seitengröße",
+        "orderBy": {
+          "column": "Sortieren nach"
+        },
+        "orderDirection": "Sortierrichtung",
+        "content": "Inhalt",
+        "align": "Ausrichtung",
+        "variant": "Variante",
+        "totalBytes": "Gesamtkapazität (Bytes)",
+        "variants": {
+          "list": "Liste",
+          "cards": "Karten",
+          "minimal": "Minimal",
+          "expanded": "Erweitert",
+          "counter": "Zähler",
+          "trio": "Trio",
+          "single": "Einzeln",
+          "badge": "Badge",
+          "pillRow": "Pill-Reihe",
+          "bar": "Balken",
+          "gauge": "Messuhr",
+          "grid": "Raster",
+          "unused": "Nur ungenutzte",
+          "feed": "Feed",
+          "compact": "Kompakt",
+          "full": "Vollständig",
+          "left": "Links",
+          "center": "Mitte",
+          "asc": "Aufsteigend",
+          "desc": "Absteigend"
+        }
+      },
+      "warnPageLimit": "Ein Dashboard kann höchstens 8 Seiten haben.",
+      "warnSectionLimit": "Eine Seite kann höchstens 50 Abschnitte haben.",
+      "warnColumnFull": "Diese Spalte ist voll.",
+      "column": {
+        "drag": "Ziehen, um die Spalte zu verschieben"
+      }
+    }
+  },
+  "editor": {
+    "bold": "Fett",
+    "italic": "Kursiv",
+    "underline": "Unterstrichen",
+    "strikethrough": "Durchgestrichen",
+    "inlineCode": "Inline-Code",
+    "clearFormatting": "Formatierung entfernen",
+    "moreFormatting": "Weitere Formatierung",
+    "textColor": "Textfarbe",
+    "undo": "Rückgängig (Mod+Z)",
+    "redo": "Wiederholen (Mod+Y)",
+    "insertElements": "Elemente einfügen",
+    "textStyles": "Textstile",
+    "normalText": "Normaler Text",
+    "heading1": "Überschrift 1",
+    "heading2": "Überschrift 2",
+    "heading3": "Überschrift 3",
+    "heading4": "Überschrift 4",
+    "heading5": "Überschrift 5",
+    "heading6": "Überschrift 6",
+    "numberedList": "Nummerierte Liste",
+    "bulletList": "Aufzählung",
+    "blockCode": "Codeblock",
+    "blockquote": "Zitat",
+    "divider": "Trennlinie",
+    "listMenu": "Liste"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "groups": {
+      "account": "Konto",
+      "experience": "Erfahrung",
+      "workspace": "Arbeitsbereich"
+    },
+    "tabs": {
+      "account": "Mein Konto",
+      "appearance": "Darstellung",
+      "language": "Sprache",
+      "site": "Website",
+      "people": "Nutzer & Rollen",
+      "storage": "Speicher",
+      "notifications": "Benachrichtigungen",
+      "connectedApps": "Verbundene Apps"
+    },
+    "sections": {
+      "profile": "Profil",
+      "password": "Passwort",
+      "sessions": "Aktive Sitzungen",
+      "activity": "Letzte Aktivität",
+      "theme": "Design",
+      "lists": "Listen",
+      "identity": "Website-Identität",
+      "regional": "Regionale Standardwerte",
+      "contentLanguages": "Inhaltssprachen",
+      "trash": "Papierkorb",
+      "users": "Nutzer",
+      "invitations": "Einladungen",
+      "roles": "Rollen",
+      "usage": "Nutzung",
+      "orphans": "Verwaiste Dateien"
+    },
+    "search": "Einstellungen durchsuchen…",
+    "clearSearch": "Suche löschen",
+    "noResults": "Keine Einstellungen gefunden",
+    "description": "Verwalten Sie Ihr Konto, Ihre Präferenzen und den Arbeitsbereich.",
+    "resultsCount_one": "{{count}} Einstellung gefunden",
+    "resultsCount_other": "{{count}} Einstellungen gefunden",
+    "nav": {
+      "label": "Einstellungskategorien"
+    },
+    "logout": "Abmelden",
+    "notifications": {
+      "title": "In-App-Benachrichtigungen",
+      "description": "Wählen Sie, über welche Ereignisse Sie benachrichtigt werden möchten.",
+      "saved": "Benachrichtigungseinstellungen gespeichert",
+      "error": "Fehler beim Speichern",
+      "contentCreate": {
+        "label": "Neuer Inhalt",
+        "description": "Wenn ein neuer Eintrag erstellt wird"
+      },
+      "contentUpdate": {
+        "label": "Inhalt geändert",
+        "description": "Wenn ein Eintrag aktualisiert oder ein Entwurf veröffentlicht wird"
+      },
+      "contentDelete": {
+        "label": "Inhalt gelöscht",
+        "description": "Wenn ein Eintrag endgültig gelöscht wird"
+      },
+      "mediaUpload": {
+        "label": "Medien hochgeladen",
+        "description": "Wenn eine neue Datei in die Medienbibliothek hochgeladen wird"
+      }
+    },
+    "storage": {
+      "used": {
+        "label": "Belegter Speicher"
+      },
+      "files": {
+        "label": "Gespeicherte Dateien"
+      },
+      "orphans": {
+        "label": "Verwaiste Dateien",
+        "title": "Verwaiste Dateien"
+      },
+      "progress": {
+        "label": "Anteil am kostenlosen Kontingent ({{limit}})"
+      },
+      "file": {
+        "column": "Datei"
+      },
+      "type": {
+        "column": "Typ"
+      },
+      "size": {
+        "column": "Größe"
+      },
+      "select": {
+        "column": "Auswahl"
+      },
+      "pages": {
+        "label": "Seiten verwaister Dateien"
+      },
+      "orphansList": {
+        "label": "Verwaiste Dateien"
+      },
+      "usage": {
+        "title": "Speichernutzung"
+      },
+      "usageDesc": "Von auf R2 hochgeladenen Dateien belegter Speicherplatz.",
+      "orphansDesc": "Hochgeladene Dateien, die von keinem Dateifeld eines Inhalts referenziert werden, weder live noch als Entwurf. Prüfen Sie vor dem Löschen: Eine Datei kann noch anderswo verwendet werden.",
+      "fileCount": "{{count}} Dateien insgesamt",
+      "referenceVisual": "Cloudflare R2 hat keine eigene Größenbegrenzung: {{limit}} ist das monatliche Gratiskontingent des Tarifs und dient hier als Referenz. Darüber hinaus wird der Speicher berechnet.",
+      "noOrphans": "Keine verwaisten Dateien gefunden",
+      "orphanCount": "{{count}} verwaiste Dateien",
+      "pageRange": "{{start}}–{{end}} von {{total}}",
+      "loadFailed": "Speicherinformationen konnten nicht geladen werden",
+      "selectOrphan": "{{filename}} auswählen",
+      "deleteSelected": "{{count}} ausgewählte löschen",
+      "delete": {
+        "title": "{{count}} Dateien endgültig löschen?"
+      },
+      "deleteDesc": "Die Dateien werden aus dem Speicher entfernt und können nicht wiederhergestellt werden. Wird eine ausgewählte Datei erneut referenziert oder nicht mehr erfasst, wird nichts gelöscht.",
+      "deleted": "{{count}} Dateien gelöscht",
+      "deleteFailed": "Die ausgewählten Dateien konnten nicht gelöscht werden. Die Liste wurde aktualisiert: Prüfen Sie sie und versuchen Sie es erneut."
+    },
+    "profile": {
+      "info": {
+        "title": "Profilinformationen"
+      },
+      "infoDesc": "Aktualisieren Sie Ihren Namen, Ihre E-Mail und Ihr Profilfoto.",
+      "photo": {
+        "label": "Foto"
+      },
+      "removePhoto": "Foto entfernen",
+      "avatarRemoved": "Profilfoto entfernt",
+      "avatarRemove": {
+        "error": "Fehler beim Entfernen des Fotos"
+      },
+      "changePhoto": "Foto ändern",
+      "name": {
+        "label": "Vorname",
+        "placeholder": "Ihr Vorname"
+      },
+      "surname": {
+        "label": "Nachname",
+        "placeholder": "Ihr Nachname"
+      },
+      "email": {
+        "label": "E-Mail",
+        "placeholder": "name@beispiel.de"
+      },
+      "saveChanges": "Änderungen speichern",
+      "password": {
+        "title": "Passwort ändern",
+        "success": "Passwort aktualisiert",
+        "error": "Das aktuelle Passwort ist falsch"
+      },
+      "passwordDesc": "Wählen Sie ein sicheres Passwort mit mindestens 8 Zeichen.",
+      "currentPassword": "Aktuelles Passwort",
+      "newPassword": "Neues Passwort",
+      "confirmPassword": "Passwort bestätigen",
+      "updatePassword": "Passwort aktualisieren",
+      "saved": {
+        "success": "Profil aktualisiert",
+        "error": "Fehler beim Speichern"
+      },
+      "passwordMismatch": "Die neuen Passwörter stimmen nicht überein",
+      "avatar": {
+        "success": "Profilfoto aktualisiert",
+        "error": "Fehler beim Hochladen des Fotos"
+      }
+    },
+    "general": {
+      "siteDefaults": {
+        "title": "Website-Standards"
+      },
+      "siteDefaultsDesc": "Legen Sie Standardsprache, Zeitzone und Währung für die Website fest.",
+      "companyInfo": {
+        "title": "Unternehmensdaten"
+      },
+      "companyInfoDesc": "Rechtliche und Kontaktinformationen des Unternehmens, dem die Website gehört.",
+      "siteTitleLabel": "Website-Titel / Firmenname",
+      "siteTitlePlaceholder": "z. B. Acme Corp",
+      "companyWebsite": {
+        "label": "Firmenwebsite",
+        "placeholder": "https://acme.com"
+      },
+      "companyAbbreviation": {
+        "label": "Firmenkürzel",
+        "placeholder": "z. B. ACM"
+      },
+      "language": {
+        "label": "Standardsprache",
+        "placeholder": "Standardsprache auswählen"
+      },
+      "timezone": {
+        "label": "Standardzeitzone"
+      },
+      "currency": {
+        "label": "Standardwährung"
+      },
+      "saved": {
+        "success": "Website-Einstellungen erfolgreich gespeichert",
+        "error": "Fehler beim Speichern der Einstellungen"
+      },
+      "saveChanges": "Änderungen speichern",
+      "trash": {
+        "title": "Papierkorb"
+      },
+      "trashDesc": "Wie lange gelöschte Einträge im Papierkorb bleiben, bevor sie gelöscht werden. Ein Inhaltstyp kann dies überschreiben.",
+      "trashRetention": {
+        "label": "Aufbewahrung (Tage)",
+        "hint": "0 = nie automatisch löschen."
+      },
+      "trashRetentionInvalid": "Die Aufbewahrung muss eine ganze Zahl zwischen 0 und {{max}} sein."
+    },
+    "contentLanguages": {
+      "title": "Inhaltssprachen",
+      "description": "Sprachen, in die Ihre Inhalte übersetzt werden können. Die Standardsprache wird angezeigt, wo eine Übersetzung fehlt.",
+      "makeDefaultAria": "{{language}} als Standardsprache festlegen",
+      "removeAria": "{{language}} aus den Inhaltssprachen entfernen",
+      "list": {
+        "label": "Verwendete Inhaltssprachen"
+      },
+      "count_one": "{{count}} Sprache",
+      "count_other": "{{count}} Sprachen",
+      "default": {
+        "badge": "Standard"
+      },
+      "makeDefault": "Als Standard festlegen",
+      "addLabel": "Sprache hinzufügen",
+      "add": {
+        "placeholder": "z. B. en, fr, pt-BR",
+        "label": "Hinzufügen"
+      },
+      "keptOnRemove": {
+        "hint": "Das Entfernen einer Sprache löscht nie ihre Übersetzungen: Sie bleiben gespeichert und sind wieder da, wenn Sie die Sprache erneut hinzufügen."
+      },
+      "errors": {
+        "invalid": "Verwenden Sie einen Sprachcode wie \"en\", \"fr\" oder \"pt-BR\".",
+        "duplicate": "Diese Sprache ist bereits in der Liste.",
+        "limit": "Sie können bis zu 50 Sprachen hinzufügen."
+      },
+      "save": "Sprachen speichern",
+      "saved": {
+        "success": "Inhaltssprachen gespeichert",
+        "error": "Fehler beim Speichern der Inhaltssprachen"
+      }
+    },
+    "activity": {
+      "actions": {
+        "create": "Erstellt",
+        "update": "Geändert",
+        "delete": "Gelöscht",
+        "upload": "Hochgeladen",
+        "bulk_update": "Massenbearbeitung",
+        "security_alert": "Sicherheitswarnung",
+        "trash": "In den Papierkorb verschoben",
+        "restore": "Wiederhergestellt",
+        "purge": "Endgültig gelöscht",
+        "publish": "Veröffentlicht",
+        "discard_draft": "Entwurf verworfen",
+        "import": "Importiert",
+        "revoke": "Widerrufen",
+        "accept": "Akzeptiert",
+        "authorize": "Autorisiert",
+        "login": "Angemeldet",
+        "login_failed": "Anmeldung fehlgeschlagen",
+        "logout": "Abgemeldet"
+      },
+      "entities": {
+        "content": "Inhalt",
+        "media": "Medien",
+        "seed": "Inhaltstyp",
+        "user": "Konto",
+        "role": "Rolle",
+        "assignment": "Rollenzuweisung",
+        "invitation": "Einladung",
+        "settings": "Website-Einstellungen",
+        "session": "Sitzung",
+        "auth": "Zugriff",
+        "app": "Verbundene App",
+        "automation": "Automatisierung",
+        "layout": "Dashboard-Layout",
+        "view": "Ansicht"
+      },
+      "ops": {
+        "profile": "Profil aktualisiert",
+        "password": "Passwort geändert",
+        "avatar-set": "Foto geändert",
+        "avatar-removed": "Foto entfernt",
+        "notifications": "Benachrichtigungseinstellungen geändert",
+        "create": "Konto erstellt",
+        "activate": "Konto aktiviert",
+        "deactivate": "Konto deaktiviert",
+        "setup": "Ersteinrichtung abgeschlossen",
+        "password-reset-requested": "Passwort-Zurücksetzung angefordert",
+        "password-reset": "Passwort zurückgesetzt",
+        "site": "Website-Einstellungen geändert",
+        "regenerate": "Einladungslink neu erstellt",
+        "enable": "Automatisierung aktiviert",
+        "disable": "Automatisierung deaktiviert",
+        "reset": "Layout zurückgesetzt",
+        "kanban-move": "In eine andere Spalte verschoben",
+        "rotate-field": "Feldwert rotiert",
+        "orphans": "Verwaiste Dateien entfernt",
+        "fts-rebuild": "Suchindex neu aufgebaut",
+        "hard-delete-start": "Endgültiges Löschen gestartet",
+        "mcp-apply": "Schema angewendet (MCP)",
+        "drop-branch": "Feld entfernt",
+        "drop-orphan": "Verwaiste Spalte entfernt",
+        "rename-branch": "Feld umbenannt",
+        "retype-branch": "Feldtyp geändert",
+        "draft-saved": "Entwurf gespeichert"
+      },
+      "reasons": {
+        "wrong-password": "Falsches Passwort",
+        "inactive": "Konto deaktiviert"
+      },
+      "entries": "{{count}} Einträge",
+      "orphans": "{{count}} verwaiste Dateien",
+      "detail": {
+        "fields": "Felder: {{fields}}"
+      },
+      "sessionsRevoked": "andere Sitzungen abgemeldet",
+      "scope": {
+        "all": "Alle Inhalte"
+      }
+    },
+    "security": {
+      "sessions": {
+        "title": "Aktive Sitzungen"
+      },
+      "sessionsDesc": "Derzeit für Ihr Konto geöffnete Anmeldesitzungen.",
+      "sessionActive": "Aktive Sitzung",
+      "sessionInfo": "Erstellt am {{created}} · Läuft ab am {{expires}}",
+      "revokeSessionAria": "Die am {{created}} erstellte Sitzung widerrufen",
+      "revoke": {
+        "title": "Sitzung widerrufen?",
+        "success": "Sitzung widerrufen",
+        "error": "Fehler beim Widerrufen der Sitzung"
+      },
+      "revokeDesc": "Diese Sitzung wird sofort getrennt.",
+      "revokeConfirm": "Widerrufen",
+      "noSessions": "Keine aktiven Sitzungen",
+      "activity": {
+        "title": "Letzte Aktivität"
+      },
+      "activityDesc": "Zuletzt mit Ihrem Konto im CMS ausgeführte Aktionen.",
+      "noActivity": "Keine Aktivität aufgezeichnet"
+    },
+    "interface": {
+      "themeRow": {
+        "label": "Farbschema"
+      },
+      "langRow": {
+        "label": "Oberflächensprache"
+      },
+      "theme": {
+        "title": "Design"
+      },
+      "themeDesc": "Wählen Sie das Erscheinungsbild der Oberfläche.",
+      "themeLight": "Hell",
+      "themeDark": "Dunkel",
+      "themeSystem": "System",
+      "lang": {
+        "title": "Sprache"
+      },
+      "langDesc": "Sprache der Oberfläche. Wird sofort angewendet.",
+      "rows": {
+        "title": "Inhalte pro Seite",
+        "label": "Zeilen pro Seite"
+      },
+      "rowsDesc": "Anzahl der in Inhaltslisten angezeigten Elemente.",
+      "rowsSaved": "Einstellung gespeichert – gilt beim nächsten Laden",
+      "rows10": "10 Zeilen",
+      "rows20": "20 Zeilen",
+      "rows50": "50 Zeilen",
+      "rows100": "100 Zeilen",
+      "langChanged": "Sprache auf {{language}} umgestellt"
+    }
+  },
+  "content": {
+    "list": {
+      "subtitle": "Inhalte von \"{{slug}}\" verwalten",
+      "table": "Tabelle",
+      "gallery": "Galerie",
+      "kanban": "Kanban",
+      "empty": {
+        "title": "Hier gibt es nichts"
+      },
+      "emptyCreateFirst": "Erstellen Sie Ihr erstes {{label}}"
+    },
+    "views": {
+      "add": "Ansicht hinzufügen",
+      "delete": "Ansicht löschen",
+      "deleteConfirm": {
+        "title": "Diese Ansicht löschen?",
+        "description": "\"{{label}}\" wird für alle entfernt, die auf diesen Inhaltstyp zugreifen können. Einträge sind nicht betroffen."
+      },
+      "tabs": {
+        "label": "Ansichten"
+      },
+      "picker": {
+        "title": "Neue Ansicht hinzufügen"
+      },
+      "types": {
+        "chart": "Diagramm",
+        "board": "Board",
+        "list": "Liste",
+        "calendar": "Kalender",
+        "map": "Karte",
+        "timeline": "Zeitleiste",
+        "feed": "Feed",
+        "form": "Formular"
+      },
+      "empty": {
+        "title": "Noch keine {{label}}-Ansichten",
+        "description": "Erstellen Sie eine Ansicht, um diese Inhalte als {{label}} zu sehen."
+      },
+      "emptyCreate": "Erstellen Sie Ihre erste Ansicht",
+      "errors": {
+        "loadFailed": "Die Ansichten dieses Inhaltstyps konnten nicht geladen werden",
+        "createFailed": "Die Ansicht konnte nicht erstellt werden",
+        "saveFailed": "Die Ansicht konnte nicht gespeichert werden",
+        "deleteFailed": "Die Ansicht konnte nicht gelöscht werden",
+        "lastTable": "Ein Inhaltstyp muss mindestens eine Tabellenansicht behalten",
+        "reorderFailed": "Die Reihenfolge der Ansichten konnte nicht gespeichert werden"
+      }
+    },
+    "editor": {
+      "newEntry": "Neu: {{label}}",
+      "editEntry": "{{label}} bearbeiten",
+      "saving": "Wird gespeichert...",
+      "status": "Status",
+      "placeholder": "Schreiben Sie hier Ihren Inhalt...",
+      "writeField": "{{field}} schreiben...",
+      "selectDate": "Datum auswählen",
+      "pendingDraftNotice": "Dieser Eintrag hat einen ausstehenden Entwurf.",
+      "draftModeNotice": "Ausstehender Entwurf wird bearbeitet – Änderungen gehen erst nach der Veröffentlichung live.",
+      "saveDraft": "Entwurf speichern",
+      "editDraft": "Entwurf bearbeiten",
+      "publishDraft": "Entwurf veröffentlichen",
+      "publishConfirm": {
+        "title": "Diesen Entwurf veröffentlichen?"
+      },
+      "publishConfirmDesc": "Der Entwurf ersetzt die Live-Version dieses Eintrags.",
+      "busy": "Warten Sie, bis der aktuelle Vorgang abgeschlossen ist",
+      "discardDraft": {
+        "label": "Entwurf verwerfen",
+        "title": "Ausstehenden Entwurf verwerfen"
+      },
+      "discardDraftDesc": "Dadurch wird der ausstehende Entwurf endgültig gelöscht. Der veröffentlichte Eintrag bleibt unverändert. Diese Aktion kann nicht rückgängig gemacht werden.",
+      "draftPublish": {
+        "success": "Entwurf erfolgreich veröffentlicht"
+      },
+      "draftSave": {
+        "success": "Entwurf gespeichert"
+      },
+      "draftDiscard": {
+        "success": "Ausstehender Entwurf verworfen"
+      },
+      "unsaved": {
+        "title": "Nicht gespeicherte Änderungen"
+      },
+      "unsavedDesc": "Sie haben nicht gespeicherte Änderungen. Wenn Sie jetzt beenden, gehen sie verloren. Möchten Sie fortfahren?",
+      "stay": "Bleiben",
+      "exitWithout": "Ohne Speichern beenden",
+      "seedNotFound": "Seed \"{{slug}}\" nicht gefunden.",
+      "saved": {
+        "success": "Änderungen gespeichert"
+      },
+      "created": {
+        "success": "Eintrag erstellt"
+      },
+      "slugDuplicate": "Dieser Slug existiert in diesem Schema bereits",
+      "updateConflict": "Dieser Eintrag wurde anderswo geändert – laden Sie neu, um die neueste Version zu sehen",
+      "reload": "Neu laden",
+      "save": {
+        "error": "Fehler beim Speichern"
+      },
+      "validation": {
+        "error_one": "{{count}} Feld hat einen Validierungsfehler – prüfen Sie die markierten Felder",
+        "error_other": "{{count}} Felder haben Validierungsfehler – prüfen Sie die markierten Felder"
+      },
+      "json": {
+        "error": "Das Feld \"{{field}}\" muss gültiges JSON enthalten"
+      },
+      "emptyTab": "Dieser Tab enthält noch keine Felder.",
+      "empty": {
+        "column": "Leer"
+      },
+      "localization": {
+        "switcher": {
+          "label": "Inhaltssprache"
+        },
+        "default": {
+          "badge": "Standard"
+        },
+        "missing": "Noch kein Wert für {{locale}}: Leser in {{locale}} sehen eine Ersatzsprache.",
+        "copyFromDefault": "Aus Standard kopieren ({{locale}})"
+      },
+      "relation": {
+        "placeholder": "Verknüpften Eintrag auswählen…",
+        "search": "Suchen…",
+        "clear": "Auswahl löschen",
+        "empty": "Keine Ergebnisse",
+        "loading": "Wird geladen…"
+      },
+      "relationMulti": {
+        "add": "Hinzufügen…",
+        "dragHandle": "Zum Umsortieren ziehen",
+        "remove": "Entfernen",
+        "selectedItems": "Ausgewählte Elemente",
+        "selectedCount": "{{count}} ausgewählt",
+        "loadMore": "Mehr laden",
+        "done": "Fertig"
+      },
+      "name": "Name",
+      "updated": "Aktualisiert",
+      "tabs": {
+        "dangerZone": "Gefahrenzone"
+      }
+    },
+    "trash": {
+      "open": "Papierkorb",
+      "title": "Papierkorb — {{type}}",
+      "back": "Zurück zur Liste",
+      "deletedAt": "Gelöscht",
+      "retention": "Aufbewahrung",
+      "daysLeft_one": "Noch {{count}} Tag",
+      "daysLeft_other": "Noch {{count}} Tage",
+      "neverPurged": "Unbegrenzt aufbewahrt",
+      "empty": "Der Papierkorb ist leer",
+      "restore": "Wiederherstellen",
+      "purge": "Endgültig löschen",
+      "selectedCount_one": "{{count}} ausgewählter Eintrag",
+      "selectedCount_other": "{{count}} ausgewählte Einträge",
+      "restored": "Eintrag wiederhergestellt",
+      "restoredRenamed": "Eintrag mit dem Slug \"{{slug}}\" wiederhergestellt – der ursprüngliche Slug war vergeben.",
+      "purged": "Eintrag endgültig gelöscht",
+      "partialFailure_one": "{{count}} Eintrag konnte nicht verarbeitet werden",
+      "partialFailure_other": "{{count}} Einträge konnten nicht verarbeitet werden"
+    },
+    "deleteDialog": {
+      "trash": {
+        "title": "In den Papierkorb verschieben"
+      },
+      "trashSingle": "Diesen \"{{type}}\"-Eintrag in den Papierkorb verschieben? Sie können ihn später wiederherstellen.",
+      "trashMultiple": "{{count}} \"{{type}}\"-Einträge in den Papierkorb verschieben? Sie können sie später wiederherstellen.",
+      "trashConfirm": "In den Papierkorb verschieben",
+      "purge": {
+        "title": "Endgültig löschen"
+      },
+      "purgeSingle": "Diesen \"{{type}}\"-Eintrag endgültig löschen?",
+      "purgeMultiple": "{{count}} \"{{type}}\"-Einträge endgültig löschen?",
+      "purgeWarning": "Dies kann nicht rückgängig gemacht werden. Angehängte Medien werden gelöscht und die Löschung wird dauerhaft protokolliert, sodass der Eintrag auch nach einer Datenbankwiederherstellung gelöscht bleibt.",
+      "purgeConfirm": "Endgültig löschen",
+      "bulkTrashed_one": "{{count}} Eintrag in den Papierkorb verschoben",
+      "bulkTrashed_other": "{{count}} Einträge in den Papierkorb verschoben",
+      "bulkPartialFailure": "{{count}} von {{total}} Einträgen konnten nicht in den Papierkorb verschoben werden. Bestätigen Sie, um es erneut zu versuchen."
+    },
+    "undoDelete": {
+      "trashed": "In den Papierkorb verschoben",
+      "undo": "Rückgängig",
+      "deleteFailed": "Der Eintrag konnte nicht gelöscht werden",
+      "restoreFailed": "Rückgängig nicht möglich – der Eintrag liegt noch im Papierkorb"
+    },
+    "actions": {
+      "label": "Aktionen",
+      "copyId": "ID kopieren"
+    },
+    "table": {
+      "status": "Status",
+      "pendingDraft": "Ausstehender Entwurf",
+      "itemCount_one": "{{count}} Element",
+      "itemCount_other": "{{count}} Elemente",
+      "created": "Erstellt",
+      "updated": "Zuletzt geändert",
+      "slug": "Slug"
+    }
+  },
+  "toolbar": {
+    "search": {
+      "placeholder": "Suchen...",
+      "ariaLabel": "Suchen",
+      "close": "Suche schließen",
+      "open": "Suche öffnen",
+      "unavailable": "Die Suche ist für diesen Inhaltstyp nicht verfügbar"
+    },
+    "sort": {
+      "tooltip": "Sortieren",
+      "label": "Nach Spalte sortieren",
+      "search": {
+        "placeholder": "Spalte suchen..."
+      },
+      "noColumns": "Keine Spalten gefunden",
+      "invertOrder": "Reihenfolge umkehren"
+    },
+    "filter": {
+      "tooltip": "Filter",
+      "label": "Nach Spalte filtern",
+      "search": {
+        "placeholder": "Spalte suchen..."
+      },
+      "noColumns": "Keine Spalten gefunden",
+      "ariaLabel": "{{label}} filtern",
+      "filtersOn": "Filter auf \"{{label}}\"",
+      "remove": {
+        "column": "Spalte aus den Filtern entfernen"
+      },
+      "addFilter": "Filter hinzufügen",
+      "removeAll": "Alle entfernen",
+      "removeCondition": "Bedingung entfernen",
+      "operator": "Operator"
+    },
+    "newEntry": {
+      "moreOptions": "Vorlagen",
+      "templates": {
+        "title": "Vorlagen für {{label}}",
+        "description": "Erstellen Sie eine wiederverwendbare Eintragsvorlage für diesen Inhaltstyp."
+      },
+      "newTemplate": "Neue Vorlage",
+      "missingPermission": "Sie haben keine Berechtigung, hier Einträge zu erstellen"
+    },
+    "filterBanner": {
+      "message": "Filter werden automatisch für alle gespeichert, die diese Ansicht sehen können.",
+      "clearAll": "Alle Filter löschen",
+      "dismiss": "Verstanden"
+    },
+    "settings": {
+      "selectAxisField": "Wählen Sie im Einstellungsmenü (Zahnradsymbol) oben rechts ein Feld aus, nach dem die Karten gruppiert werden.",
+      "tooltip": "Ansichtseinstellungen",
+      "title": "Ansichtseinstellungen",
+      "viewName": "Ansichtsname",
+      "quickActions": "Schnellaktionen",
+      "filter": "Filtern",
+      "sort": "Sortieren",
+      "layoutStyle": "Layout & Stil",
+      "group": "Gruppieren",
+      "groupBy": "Nach Spalte gruppieren",
+      "noGrouping": "Keine Gruppierung",
+      "recommended": "Empfohlen",
+      "state": {
+        "active": {
+          "badge": "Aktiv"
+        }
+      },
+      "display": "Anzeige",
+      "columnSearch": "Spalte suchen...",
+      "noColumns": "Keine Spalten gefunden",
+      "decreaseRows": "Weniger Zeilen",
+      "increaseRows": "Mehr Zeilen",
+      "rows": "Zeilen",
+      "density": "Dichte",
+      "densityCompact": "Kompakt",
+      "densityNormal": "Normal",
+      "densityComfortable": "Komfortabel",
+      "resize": {
+        "column": "Spaltengröße ändern"
+      },
+      "conditionalColors": "Bedingte Farben",
+      "visibleColumns": "Sichtbare Spalten",
+      "columnVisibility": "Spaltensichtbarkeit",
+      "otherFields": "Andere Felder",
+      "manyGroups": "Kann viele Gruppen erzeugen",
+      "day": "Tag",
+      "year": "Jahr",
+      "month": "Monat"
+    },
+    "conditionalFormats": {
+      "noRules": "Keine Regeln",
+      "add": "Hinzufügen",
+      "moveUp": "Nach oben",
+      "moveDown": "Nach unten",
+      "deleteRule": "Regel löschen",
+      "ruleName": "Regelname",
+      "removeCondition": "Bedingung entfernen",
+      "addCondition": "Bedingung hinzufügen",
+      "operator": "Operator",
+      "colorPreset": "Farbvorgabe",
+      "bold": "Fett",
+      "italic": "Kursiv",
+      "underline": "Unterstrichen",
+      "addRule": "Regel hinzufügen",
+      "rulesList": "Regelliste",
+      "editRule": "Regel bearbeiten",
+      "toggleRule": "Regel aktivieren/deaktivieren",
+      "applyTo": "Anwenden auf",
+      "field": "Feld",
+      "element": "Ganzes Element",
+      "condition": {
+        "heading": "Farbbedingung"
+      },
+      "style": {
+        "heading": "Formatierungsstil"
+      },
+      "default": "Standard",
+      "notAvailable": "Konfiguration nicht verfügbar",
+      "selectRule": "Wählen Sie eine Regel aus der Liste.",
+      "choose": {
+        "column": "Spalte wählen"
+      },
+      "noColumns": "Keine Spalten verfügbar"
+    },
+    "operators": {
+      "eq": "Ist gleich",
+      "is_not_empty": "Ist nicht leer",
+      "is_empty": "Ist leer",
+      "gt": "Größer als",
+      "lt": "Kleiner als",
+      "gte": "Größer oder gleich",
+      "lte": "Kleiner oder gleich",
+      "contains": "Enthält"
+    },
+    "conditionInput": {
+      "value": "Wert...",
+      "choose": "Auswählen...",
+      "tag": "Tag...",
+      "true": "Wahr",
+      "false": "Falsch"
+    },
+    "automation": "Automatisierung"
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "markAllRead": "Alle als gelesen markieren",
+    "all": "Alle",
+    "new": "Neu",
+    "noNotifications": "Keine Benachrichtigungen",
+    "noNotificationsNew": "Sie haben keine neuen Benachrichtigungen.",
+    "noNotificationsAll": "Es gibt keine Benachrichtigungen anzuzeigen.",
+    "markSeen": "Als gelesen markieren",
+    "markUnseen": "Als ungelesen markieren",
+    "ariaLabel": "Benachrichtigungen",
+    "unreadCount": "Sie haben {{count}} ungelesene Benachrichtigungen",
+    "noUnread": "Keine ungelesenen Benachrichtigungen"
+  },
+  "commandPalette": {
+    "navigate": "Navigieren",
+    "contents": "Inhalte",
+    "create": "Erstellen",
+    "tools": "Werkzeuge",
+    "calculator": "Rechner",
+    "conversion": "Umrechnung",
+    "calculatorResult": "{{expression}} = {{result}}",
+    "conversionResult": "{{from}} = {{to}}",
+    "copy": {
+      "hint": "Eingabe zum Kopieren"
+    },
+    "copied": "{{value}} kopiert",
+    "conversionHint": {
+      "css": "Basis {{base}}px · Eingabe zum Kopieren",
+      "storage": "1 KB = 1000 B, 1 KiB = 1024 B · Eingabe zum Kopieren",
+      "unixSeconds": "Unix-Sekunden, UTC · Eingabe zum Kopieren",
+      "unixMillis": "Unix-Millisekunden, UTC · Eingabe zum Kopieren"
+    },
+    "goTo": "Zu {{label}} wechseln…",
+    "allSeeds": "Alle Seeds…",
+    "chooseType": "Erstellen in…",
+    "recentSection": "Zuletzt",
+    "createIn": "In {{label}} erstellen",
+    "chooseSeed": "Seed wählen",
+    "newContent": "Neuer Inhalt…",
+    "changeTheme": "Design ändern",
+    "searching": "Suche läuft…",
+    "untitledEntry": "Ohne Titel",
+    "settings": "Einstellungen",
+    "settingsAll": "Einstellungen…",
+    "schema": "Datenmodell",
+    "newContentType": "Neuer Inhaltstyp…",
+    "editContentType": "Inhaltstyp bearbeiten…",
+    "editSchemaOf": "Schema von {{label}} bearbeiten",
+    "chooseContentType": "Inhaltstyp wählen",
+    "placeholderEditSchema": "Welchen Inhaltstyp bearbeiten?",
+    "placeholderSettings": "Welche Einstellungen öffnen?",
+    "requiresPermission": "Erfordert die Berechtigung {{permission}}",
+    "placeholderRoot": "Aktionen, Inhalte, Seeds suchen…",
+    "placeholderSeeds": "Zu welchem Seed wechseln?",
+    "placeholderCreate": "In welchem Seed Inhalt erstellen?",
+    "back": {
+      "hint": "← Rücktaste zum Zurückgehen"
+    },
+    "copyId": "ID kopieren",
+    "actions": {
+      "hint": "Aktionen"
+    },
+    "placeholderActions": "Aktion wählen…",
+    "placeholderShortcuts": "Tastenkürzel filtern…",
+    "noResults": "Keine Ergebnisse",
+    "ariaLabel": "Globale Befehlspalette",
+    "notes": {
+      "section": "Schnellnotizen",
+      "compose": "Neue Notiz",
+      "save": "Notiz speichern: {{text}}",
+      "browserOnly": "Nur in diesem Browser gespeichert",
+      "typeToSave": "Notiz nach # eingeben",
+      "tooLong": "Zu lang: {{length}}/{{max}} Zeichen",
+      "full": "{{max}} Notizen gespeichert: Löschen Sie eine, um eine neue zu speichern",
+      "unavailable": "Notizen können nicht gespeichert werden: Der Browser-Speicher ist nicht verfügbar",
+      "saved": "Notiz nur in diesem Browser gespeichert",
+      "saveFailed": "Notiz nicht gespeichert: Der Browser hat das Speichern verweigert",
+      "delete": "Notiz löschen",
+      "deleted": "Notiz gelöscht",
+      "undo": "Rückgängig",
+      "restored": "Notiz wiederhergestellt",
+      "deleteFailed": "Notiz nicht gelöscht: Der Browser hat die Änderung verweigert"
+    },
+    "pins": {
+      "section": "Angeheftet",
+      "pin": "Oben anheften",
+      "unpin": "Lösen",
+      "pinned": "Angeheftet: {{label}}",
+      "unpinned": "Gelöst: {{label}}",
+      "full": "{{max}} Elemente angeheftet: Lösen Sie eines, um ein anderes anzuheften",
+      "saveFailed": "Anheftungen nicht gespeichert: Versuchen Sie es erneut. Ihre Liste ist unverändert",
+      "unavailable": {
+        "label": "Nicht verfügbares Element",
+        "hint": "{{id}} · Eingabe entfernt die Anheftung"
+      }
+    },
+    "context": {
+      "targetGone": "Die Seite hat sich geändert, bevor Sie bestätigt haben: Es wurde nichts ausgeführt"
+    },
+    "preferences": {
+      "section": "Präferenzen",
+      "switchLanguage": "Dashboard auf {{language}} umstellen",
+      "notify": "Benachrichtigungen: {{event}}"
+    },
+    "system": {
+      "section": "System",
+      "status": "Systemstatus",
+      "statusHealthy": "Innerhalb der Kontingente · Speicher {{storage}} % · Datenbank {{database}} %",
+      "statusWarning": "Nahe an einem Kontingent · Speicher {{storage}} % · Datenbank {{database}} %",
+      "statusUnavailable": "Der Systemstatus konnte nicht gelesen werden"
+    },
+    "shortcuts": {
+      "title": "Tastenkürzel",
+      "global": "Überall",
+      "palette": "In der Palette",
+      "prefixes": "Präfixe",
+      "togglePalette": "Palette öffnen oder schließen",
+      "quickCreate": "Inhalt erstellen",
+      "toggleSidebar": "Seitenleiste ein- oder ausblenden",
+      "toggleTheme": "Zwischen hellem und dunklem Design wechseln",
+      "newSeed": "Einen Inhaltstyp erstellen",
+      "run": "Ausgewählte Zeile ausführen",
+      "firstAction": "Erste Aktion der Zeile ausführen",
+      "rowActions": "Aktionen der Zeile anzeigen",
+      "back": "Zurück (leere Eingabe)",
+      "close": "Zurück oder schließen",
+      "prefixSystem": "Systembefehle und Präferenzen",
+      "prefixCalculator": "Rechner",
+      "prefixNotes": "Schnellnotizen",
+      "prefixContent": "Nur Inhalte suchen"
+    }
+  },
+  "gallery": {
+    "noItems": "Keine Elemente zum Anzeigen",
+    "noItemsDesc": "Für diese Galerieansicht sind keine Inhalte verfügbar.",
+    "untitled": "Ohne Titel",
+    "preview": "Vorschau",
+    "imageUnavailable": "Bild nicht verfügbar",
+    "openDetail": {
+      "ariaLabel": "Detail öffnen: {{title}}"
+    },
+    "openDetailAriaLabelFallback": "Detail des Eintrags {{id}} öffnen",
+    "folders": {
+      "section": {
+        "ariaLabel": "Ordner"
+      },
+      "empty": {
+        "title": "Sie haben noch keine Ordner",
+        "description": "Fügen Sie das erste Foto hinzu und legen Sie seine Kategorie fest: Die Ordner erscheinen hier."
+      },
+      "uncategorized": "Weitere Fotos",
+      "itemCount": "{{count}} {{label}}",
+      "open": {
+        "ariaLabel": "Ordner {{label}} öffnen, {{count}}"
+      },
+      "edit": {
+        "title": "Ordner anpassen",
+        "label": "Name",
+        "description": "Beschreibung",
+        "color": "Farbe",
+        "icon": "Symbol",
+        "reset": "Zurücksetzen",
+        "open": {
+          "ariaLabel": "Ordner {{label}} bearbeiten"
+        },
+        "colors": {
+          "slate": "Schiefer",
+          "red": "Rot",
+          "orange": "Orange",
+          "amber": "Bernstein",
+          "green": "Grün",
+          "teal": "Petrol",
+          "blue": "Blau",
+          "violet": "Violett",
+          "pink": "Pink"
+        },
+        "icons": {
+          "Folder": "Ordner",
+          "Star": "Stern",
+          "Heart": "Herz",
+          "Image": "Bild",
+          "Camera": "Kamera",
+          "Calendar": "Kalender",
+          "Tag": "Tag",
+          "Bookmark": "Lesezeichen",
+          "Home": "Haus",
+          "Gift": "Geschenk",
+          "Video": "Video",
+          "Music": "Musik",
+          "Book": "Buch",
+          "Flag": "Flagge",
+          "Briefcase": "Aktentasche",
+          "Users": "Personen",
+          "Sun": "Sonne",
+          "Crown": "Krone"
+        }
+      }
+    }
+  },
+  "siteHeader": {
+    "new": "Neu"
+  },
+  "sidebar": {
+    "search": "Suchen…",
+    "navigation": "Haupt",
+    "contents": "Inhalte",
+    "drafts": "Entwürfe",
+    "contentGroup": "Inhalt",
+    "createNew": "Neu erstellen",
+    "scheduled": "Geplant",
+    "analytics": "Analysen",
+    "studio": "Studio",
+    "disabled": {
+      "createContent": "Sie können hier keine Inhalte erstellen"
+    }
+  },
+  "drafts": {
+    "title": "Entwürfe",
+    "subtitle": "Alle ausstehenden Entwürfe Ihrer Inhalte",
+    "columns": {
+      "seed": "Typ",
+      "name": "Name",
+      "updatedAt": "Zuletzt geändert",
+      "user": "Geändert von"
+    },
+    "actions": {
+      "edit": "Bearbeiten",
+      "publish": "Veröffentlichen",
+      "discard": "Verwerfen",
+      "create": "Neuer Entwurf"
+    },
+    "selectType": "Inhaltstyp auswählen",
+    "empty": "Keine ausstehenden Entwürfe",
+    "discardConfirm": "Diesen Entwurf verwerfen? Das kann nicht rückgängig gemacht werden.",
+    "published": "Entwurf veröffentlicht",
+    "discarded": "Entwurf verworfen",
+    "error": "Aktion fehlgeschlagen"
+  },
+  "media": {
+    "imageLink": "Bildlink",
+    "removeImage": "Bild entfernen",
+    "errorNotImage": "Wählen Sie ein Bild (JPG, PNG, WebP, GIF)",
+    "errorHttps": "Die URL muss mit https:// beginnen",
+    "errorNotRenderable": "URL kann nicht als Bild dargestellt werden",
+    "upload": "Datei hochladen"
+  },
+  "login": {
+    "hidePassword": "Passwort ausblenden",
+    "showPassword": "Passwort anzeigen",
+    "signingIn": "Anmeldung läuft...",
+    "forgotPassword": "Passwort vergessen?"
+  },
+  "forgotPassword": {
+    "title": "Passwort vergessen",
+    "desc": "Geben Sie Ihre E-Mail-Adresse ein, und wir senden Ihnen einen Link zum Zurücksetzen.",
+    "email": "E-Mail",
+    "emailRequired": "Geben Sie Ihre E-Mail ein",
+    "emailInvalid": "Ungültige E-Mail-Adresse",
+    "send": "Link zum Zurücksetzen senden",
+    "sending": "Wird gesendet...",
+    "backToLogin": "Zurück zur Anmeldung",
+    "success": {
+      "title": "Prüfen Sie Ihr Postfach"
+    },
+    "successDesc": "Wenn für diese E-Mail ein Konto existiert, erhalten Sie in Kürze einen Link zum Zurücksetzen."
+  },
+  "resetPassword": {
+    "title": "Neues Passwort festlegen",
+    "desc": "Wählen Sie ein sicheres Passwort mit mindestens 8 Zeichen.",
+    "newPassword": "Neues Passwort",
+    "confirmPassword": "Passwort bestätigen",
+    "reset": "Passwort zurücksetzen",
+    "resetting": "Wird zurückgesetzt...",
+    "mismatch": "Die Passwörter stimmen nicht überein",
+    "tooShort": "Das Passwort muss mindestens 8 Zeichen lang sein",
+    "tooLong": "Das Passwort darf höchstens 128 Zeichen lang sein",
+    "invalidToken": "Dieser Link zum Zurücksetzen ist ungültig oder abgelaufen",
+    "invalidLink": {
+      "title": "Ungültiger Link",
+      "label": "Dieser Link zum Zurücksetzen ist ungültig. Fordern Sie einen neuen an."
+    },
+    "requestNew": "Neuen Link anfordern",
+    "success": "Passwort erfolgreich zurückgesetzt",
+    "generic": {
+      "error": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut."
+    }
+  },
+  "errorPage": {
+    "title": "Hoppla, es ist ein Fehler aufgetreten",
+    "backHome": "Zurück zur Startseite",
+    "unknown": "Unbekannter Fehler"
+  },
+  "automations": {
+    "panel": {
+      "title": "Automatisierungen",
+      "new": {
+        "button": "Neue Automatisierung"
+      },
+      "empty": {
+        "title": "Keine Automatisierungen",
+        "description": "Erstellen Sie die erste Automatisierung für diesen Inhaltstyp"
+      },
+      "emptyAction": "Automatisierung erstellen",
+      "toggle": {
+        "ariaLabel": "Automatisierung aktivieren/deaktivieren"
+      }
+    },
+    "editor": {
+      "name": {
+        "placeholder": "Name der Automatisierung"
+      },
+      "subtitle": "Für alle Einträge in {{seed}}",
+      "trigger": {
+        "label": "Wenn"
+      },
+      "actions": {
+        "label": "Dann"
+      },
+      "addCondition": "Bedingung hinzufügen",
+      "addAction": "+ Aktion hinzufügen",
+      "enable": {
+        "button": "Aktivieren"
+      },
+      "noActions": "Noch keine Aktionen. Fügen Sie unten eine hinzu.",
+      "triggerSelect": {
+        "placeholder": "Auslöser wählen..."
+      },
+      "addTrigger": "Auslöser hinzufügen",
+      "search": {
+        "placeholder": "Suchen..."
+      },
+      "cron": {
+        "hint": "Cron-Format: Minute Stunde Tag Monat Wochentag — z. B. 0 9 * * 1 = jeden Montag um 9:00",
+        "title": "Häufigkeit",
+        "presetHourly": "Stündlich",
+        "presetDaily": "Täglich",
+        "presetWeekly": "Wöchentlich",
+        "presetMonthly": "Monatlich",
+        "presetAdvanced": "Cron / Erweitert",
+        "time": {
+          "label": "Ausführungszeit (UTC)"
+        },
+        "dayOfWeek": {
+          "label": "Wochentag"
+        },
+        "dayOfMonth": {
+          "label": "Tag des Monats"
+        },
+        "days": {
+          "0": "Sonntag",
+          "1": "Montag",
+          "2": "Dienstag",
+          "3": "Mittwoch",
+          "4": "Donnerstag",
+          "5": "Freitag",
+          "6": "Samstag"
+        }
+      },
+      "conditionField": "Feld",
+      "defaultName": "Automatisierung von {{name}}",
+      "errors": {
+        "nameRequired": "Name ist erforderlich",
+        "actionsMin": "Mindestens eine Aktion ist erforderlich",
+        "triggersMin": "Mindestens ein Auslöser ist erforderlich",
+        "triggerEventRequired": "Wählen Sie ein Ereignis für diesen Auslöser",
+        "cronRequired": "Cron-Ausdruck ist erforderlich",
+        "urlRequired": "URL ist erforderlich",
+        "urlInvalid": "Ungültige URL",
+        "emailRequired": "E-Mail ist erforderlich",
+        "emailInvalid": "Ungültige E-Mail",
+        "subjectRequired": "Betreff ist erforderlich",
+        "bodyRequired": "Nachrichtentext ist erforderlich",
+        "fieldRequired": "Feld ist erforderlich",
+        "seedRequired": "Seed ist erforderlich",
+        "variableNameInvalid": "Der Variablenname muss alphanumerisch sein und darf Unterstriche enthalten",
+        "variableNameReserved": "Dieser Name ist von der Template-Engine reserviert",
+        "webhookHttpsRequired": "Nur HTTPS-URLs sind erlaubt",
+        "webhookPrivateHostBlocked": "Private, Loopback- und Link-Local-Hosts sind nicht erlaubt"
+      }
+    },
+    "triggers": {
+      "create": "Eintrag erstellt",
+      "update": "Eintrag aktualisiert",
+      "delete": "Eintrag gelöscht",
+      "cron": "Geplant (Cron)"
+    },
+    "ops": {
+      "eq": "ist gleich",
+      "neq": "ist nicht gleich",
+      "contains": "enthält",
+      "gt": "größer als",
+      "lt": "kleiner als",
+      "isempty": "ist leer",
+      "isnotempty": "ist nicht leer"
+    },
+    "actions": {
+      "webhook": "Webhook",
+      "send_mail": "E-Mail senden",
+      "edit_field": "Feld bearbeiten",
+      "create_entry": "Eintrag erstellen",
+      "templateHint": "Verwenden Sie {{example}}, um Feldwerte einzufügen",
+      "webhookUrl": "URL",
+      "webhookMethod": "HTTP-Methode",
+      "webhookHeaders": "Header",
+      "webhookBody": {
+        "label": "Body-Vorlage"
+      },
+      "webhookSecret": {
+        "hint": "Beech signiert jede Anfrage mit HMAC-SHA256 im Header X-BeechCMS-Signature. Setzen Sie WEBHOOK_SECRET im Worker, um das Signieren zu aktivieren. Prüfen Sie die Signatur beim Empfänger, bevor Sie den Payload verarbeiten."
+      },
+      "addHeader": "Header hinzufügen",
+      "webhookHeaderKey": {
+        "placeholder": "Header"
+      },
+      "webhookHeaderValue": {
+        "placeholder": "Wert"
+      },
+      "mailTo": {
+        "label": "An",
+        "placeholder": "empfaenger@beispiel.de"
+      },
+      "mailSubject": {
+        "label": "Betreff",
+        "placeholder": "Neuer Eintrag: {{example}}"
+      },
+      "mailBody": {
+        "label": "Text",
+        "placeholder": "Hallo,\n\nein neuer Eintrag wurde erstellt: {{example}}"
+      },
+      "editField": {
+        "label": "Feld",
+        "placeholder": "Feld wählen..."
+      },
+      "editValue": {
+        "label": "Wert"
+      },
+      "targetSeed": {
+        "label": "Ziel-Seed",
+        "placeholder": "Seed wählen..."
+      },
+      "fieldMap": "Feldzuordnung",
+      "fieldMapTarget": "Zielfeld",
+      "fieldMapSource": "Quellfeld",
+      "addFieldMap": "Zuordnung hinzufügen",
+      "set_variable": "Variable setzen",
+      "variableName": {
+        "label": "Variablenname",
+        "hint": "Nur Buchstaben, Zahlen und Unterstriche. Z. B.: kunde, aktive_bestellungen"
+      },
+      "source": {
+        "label": "Quelle",
+        "placeholder": "Tabelle wählen oder ID einfügen..."
+      },
+      "triggerSeed": {
+        "badge": "Dieser Seed"
+      },
+      "useAsFixedId": "'{{value}}' als feste ID verwenden",
+      "fixedId": {
+        "badge": "ID: {{id}}"
+      },
+      "column": "Spalte (optional)",
+      "columnAll": "— alle Spalten —",
+      "filters": "Filter",
+      "noFilters": "Keine Filter. Alle Datensätze werden geladen.",
+      "filterTemplateHint": "Werte können Vorlagen verwenden: {{this.field}}, {{variable.field}}",
+      "templateHintTitle": "Template-Zugriff",
+      "hintCollection": "{{varname}}                          → vollständiges Objekt\n{{varname.firstone.field}}           → Feld des ersten Datensatzes\n{{varname.count}}                    → Zeilenanzahl\n{{varname.sum.field}}                → Spaltensumme\n{{varname.count.(status=active)}}    → gefilterte Anzahl",
+      "hintFixed": "{{varname}}                          → gesamtes Objekt (oder null)\n{{varname.field}}                    → Spaltenwert"
+    },
+    "toast": {
+      "created": "Automatisierung erstellt",
+      "updated": "Automatisierung aktualisiert",
+      "deleted": "Automatisierung gelöscht",
+      "toggled": "Automatisierung aktualisiert",
+      "error": "Vorgang fehlgeschlagen"
+    },
+    "when": {
+      "and": "UND",
+      "or": "ODER",
+      "not": "NICHT",
+      "addCondition": "Bedingung hinzufügen",
+      "removeGroup": "Gruppe entfernen",
+      "wrapGroup": "Mit Alternative gruppieren",
+      "field": {
+        "placeholder": "Feld..."
+      },
+      "customRef": "Eigene Referenz...",
+      "value": {
+        "placeholder": "Wert..."
+      },
+      "true": "Wahr",
+      "false": "Falsch",
+      "chooseDate": "Datum wählen...",
+      "chooseTag": "Wert wählen...",
+      "ops": {
+        "eq": "ist gleich",
+        "neq": "ist nicht gleich",
+        "gt": "größer als",
+        "gte": "größer oder gleich",
+        "lt": "kleiner als",
+        "lte": "kleiner oder gleich",
+        "contains": "enthält",
+        "startswith": "beginnt mit",
+        "endswith": "endet mit",
+        "in": "ist in Liste",
+        "notin": "ist nicht in Liste",
+        "isempty": "ist leer",
+        "isnotempty": "ist nicht leer",
+        "matches": "entspricht Regex"
+      }
+    }
+  },
+  "backrefs": {
+    "title": "Referenziert von",
+    "summary_one": "1 Eintrag verweist darauf",
+    "summary_other": "{{count}} Einträge verweisen darauf",
+    "showAll": "Alle {{count}} anzeigen",
+    "deleteBlocked": "Löschen nicht möglich: {{count}} Einträge hängen von diesem Datensatz ab"
+  },
+  "bulkEdit": {
+    "trigger": "Auswahl bearbeiten",
+    "title": "{{count}} Einträge bearbeiten",
+    "pickField": "Feld zum Aktualisieren wählen",
+    "mode": {
+      "replace": "Ersetzen",
+      "add": "Hinzufügen",
+      "remove": "Entfernen"
+    },
+    "confirm": "{{count}} Einträge aktualisieren?",
+    "executing": "Wird aktualisiert…",
+    "successAll": "{{count}} Einträge aktualisiert",
+    "successPartial": "{{updated}} von {{total}} aktualisiert. {{failed}} fehlgeschlagen.",
+    "downloadReport": "Fehlerbericht herunterladen"
+  },
+  "setup": {
+    "title": "Willkommen bei Beech CMS",
+    "subtitle": "Richten Sie Ihren Arbeitsbereich in wenigen Schritten ein.",
+    "step1": {
+      "title": "Website-Einstellungen"
+    },
+    "step2": {
+      "title": "Administrator-Zugangsdaten"
+    },
+    "step3": {
+      "title": "Abschließende Konfiguration"
+    },
+    "language": {
+      "label": "Standardsprache"
+    },
+    "timezone": {
+      "label": "Zeitzone",
+      "placeholder": "Zeitzone auswählen"
+    },
+    "searchTimezone": {
+      "placeholder": "Zeitzone suchen..."
+    },
+    "noTimezoneFound": "Keine Zeitzone gefunden.",
+    "currency": {
+      "label": "Währung",
+      "placeholder": "Währung auswählen"
+    },
+    "devAlert": {
+      "title": "Entwicklungsumgebung erkannt"
+    },
+    "devAlertDesc": "Sie richten Beech im Entwicklermodus ein.",
+    "switchToNormal": "Zur normalen Einrichtung wechseln",
+    "switchToDeveloper": "Zur Entwickler-Einrichtung wechseln",
+    "name": {
+      "label": "Vorname",
+      "placeholder": "Ihr Vorname"
+    },
+    "surname": {
+      "label": "Nachname",
+      "placeholder": "Ihr Nachname"
+    },
+    "email": {
+      "label": "E-Mail",
+      "placeholder": "admin@beispiel.de"
+    },
+    "password": {
+      "label": "Passwort",
+      "placeholder": "Mindestens 8 Zeichen"
+    },
+    "confirm": {
+      "label": "Passwort bestätigen",
+      "placeholder": "Passwort wiederholen"
+    },
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort ausblenden",
+    "strengthWeak": "Schwach",
+    "strengthFair": "Mittel",
+    "strengthStrong": "Stark",
+    "services": {
+      "title": "Erkannte Dienste"
+    },
+    "serviceMail": "E-Mail",
+    "serviceQstash": "QStash",
+    "serviceActive": "Aktiv",
+    "serviceInactive": "Nicht konfiguriert",
+    "loadDemo": {
+      "label": "Demo-Inhalte in die Datenbank laden"
+    },
+    "companyName": {
+      "label": "Firmenname",
+      "placeholder": "Acme Corp"
+    },
+    "companyWebsite": {
+      "label": "Firmenwebsite",
+      "placeholder": "https://beispiel.de"
+    },
+    "companyAbbreviation": {
+      "label": "Kürzel (optional)",
+      "placeholder": "ACM"
+    },
+    "buttonNext": "Weiter",
+    "buttonFinish": "Einrichtung abschließen",
+    "loadingAccount": "Ihr Konto wird erstellt…",
+    "loadingDemo": "Demodaten werden geladen…",
+    "errorFallback": "Einrichtung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "passwordMismatch": "Die Passwörter stimmen nicht überein.",
+    "passwordTooShort": "Das Passwort muss mindestens 8 Zeichen lang sein.",
+    "emailInvalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+    "companyNameRequired": "Der Firmenname ist erforderlich.",
+    "companyWebsiteRequired": "Bitte geben Sie eine gültige URL für die Website ein."
+  },
+  "layoutBuilder": {
+    "editLayout": "Layout bearbeiten",
+    "reset": "Zurücksetzen",
+    "resetConfirm": {
+      "title": "Auf Standard zurücksetzen?"
+    },
+    "resetConfirmDesc": "Dadurch wird das benutzerdefinierte Layout entfernt. Es wird das Standardlayout verwendet.",
+    "resetDone": "Layout auf Standard zurückgesetzt.",
+    "saved": "Layout gespeichert.",
+    "save": {
+      "error": "Das Layout konnte nicht gespeichert werden."
+    },
+    "addSection": "Abschnitt hinzufügen",
+    "addField": "Feld hinzufügen",
+    "dragHandle": "Ziehen, um das Feld zu verschieben",
+    "removeField": "Aus dem Layout entfernen",
+    "drag": {
+      "column": "Ziehen, um die Spalte zu verschieben"
+    },
+    "dragSection": "Ziehen, um den Abschnitt zu verschieben",
+    "addTab": "Tab hinzufügen",
+    "searchFields": "Felder suchen…",
+    "noFields": "Keine Felder verfügbar.",
+    "no": {
+      "label": "Keine Beschriftung"
+    },
+    "fieldCount_one": "{{count}} Feld",
+    "fieldCount_other": "{{count}} Felder",
+    "fieldCount": "{{count}} Felder",
+    "sectionMenu": {
+      "rename": "Umbenennen",
+      "hide": {
+        "label": "Beschriftung ausblenden"
+      },
+      "hideBorder": "Rahmen ausblenden",
+      "collapsible": "Einklappbar",
+      "columns": "Spalten",
+      "remove": "Entfernen"
+    },
+    "tabMenu": {
+      "rename": "Tab umbenennen",
+      "setDefault": "Als Standard festlegen",
+      "delete": "Tab löschen"
+    },
+    "warnFullWidth": "{{label}} benötigt einen eigenen Abschnitt in voller Breite.",
+    "warnNoCrossTabSection": "Verschieben Sie Abschnitte innerhalb ihres Tabs.",
+    "warnFullWidthColumns": "Dieser Abschnitt enthält ein Feld in voller Breite. Die Spaltenzahl kann nicht geändert werden.",
+    "defaultTab": {
+      "badge": "Standard"
+    }
+  },
+  "fields": {
+    "tags": {
+      "empty": "Kein Wert ausgewählt",
+      "menu": {
+        "title": "Aus den Optionen wählen"
+      },
+      "allSelected": "Alle Optionen sind bereits ausgewählt.",
+      "add": "Wert wählen",
+      "remove": "{{value}} entfernen",
+      "notInOptions": "{{value}} — nicht in den Optionen"
+    },
+    "restricted": "Eingeschränkt",
+    "relation": {
+      "moreItems": "{{count}} weitere"
+    },
+    "repeater": {
+      "addItem": "Element hinzufügen",
+      "removeItem": "Element entfernen",
+      "dragHandle": "Zum Umsortieren ziehen",
+      "emptyState": "Noch keine Elemente. Verwenden Sie „Element hinzufügen“, um zu beginnen.",
+      "item": "Element",
+      "itemsCount": "{{count}} Element",
+      "itemsCount_other": "{{count}} Elemente"
+    }
+  },
+  "seedBuilder": {
+    "page": {
+      "subtitle": "Verwalten Sie Ihre zur Laufzeit definierten Inhaltstypen.",
+      "new": {
+        "button": "Neuer Inhaltstyp"
+      },
+      "showDeleted": "Gelöschte anzeigen",
+      "nav": {
+        "title": "Inhaltstypen"
+      }
+    },
+    "table": {
+      "label": "Bezeichnung",
+      "slug": "Slug",
+      "branches": "Felder",
+      "source": "Quelle",
+      "status": "Status",
+      "actions": "Aktionen",
+      "sourceCode": "Im Code definiert",
+      "sourceRuntime": "Hier erstellt",
+      "statusActive": "Aktiv",
+      "statusDeleted": "Gelöscht",
+      "deleted": "Gelöscht"
+    },
+    "editor": {
+      "create": {
+        "title": "Neuer Inhaltstyp",
+        "success": "„{{label}}“ erfolgreich erstellt."
+      },
+      "edit": {
+        "title": "Bearbeiten — {{label}}"
+      },
+      "tabGeneral": "Allgemein",
+      "tabFields": "Felder",
+      "tabDashboard": "Dashboard",
+      "slug": "Slug",
+      "label": "Bezeichnung",
+      "labelPlaceholder": "Artikel",
+      "labelPlural": {
+        "label": "Bezeichnung (Plural)",
+        "placeholder": "Artikel"
+      },
+      "displayNameAlias": {
+        "label": "Feld für den Anzeigenamen",
+        "placeholder": "Feld auswählen"
+      },
+      "displayNameSearch": "Felder suchen…",
+      "displayNameEmpty": "Kein Feld gefunden.",
+      "allowPublicRead": "Lesen",
+      "allowPublicPost": "Erstellen",
+      "allowPublicEdit": "Bearbeiten",
+      "allowDrafts": "Entwürfe aktivieren",
+      "dashGroup": "Seitenleistengruppe",
+      "dashOrder": {
+        "label": "Sortierung",
+        "hint": "Niedrigere Zahlen stehen in der Gruppe zuerst. Leer bedeutet zuletzt (99)."
+      },
+      "dashHidden": "In der Seitenleiste ausblenden",
+      "dash": {
+        "description": "Beschreibung"
+      },
+      "dashDescriptionPlaceholder": "Kurzer Tooltip in der Seitenleiste",
+      "dashViewsSection": "Zugelassene Ansichten",
+      "dashGroupSearch": "Gruppe suchen oder erstellen…",
+      "group": {
+        "default": {
+          "badge": "Standard"
+        }
+      },
+      "dashGroupCreate": "„{{name}}“ erstellen",
+      "dashPreview": "So sieht es in der Seitenleiste aus",
+      "dashPreviewNew": "Neuer Inhaltstyp",
+      "dashPreviewMore": "{{count}} weitere",
+      "dashPreviewHidden": "Ausgeblendet: Erscheint nicht in der Seitenleiste.",
+      "viewGroups": {
+        "browse": "Durchsuchen",
+        "organize": "Organisieren",
+        "plan": "Zeit & Ort",
+        "insight": "Analyse & Eingabe"
+      },
+      "selectIcon": "Symbol auswählen",
+      "searchIcons": "Symbole suchen...",
+      "noIconsFound": "Keine Symbole gefunden",
+      "publicAccess": {
+        "title": "Öffentlicher Zugriff",
+        "description": "Für anonyme Besucher über die öffentliche API. Es werden nur öffentliche Felder bereitgestellt."
+      },
+      "publicAccessRbacNote": "Angemeldete Nutzer folgen ihren Rollen, nicht diesen Schaltern.",
+      "dangerZoneToggle": "Gefahrenzone",
+      "next": "Weiter",
+      "footer": {
+        "next": {
+          "hint": "Drücken Sie <kbd>{{shortcut}}</kbd>, um fortzufahren"
+        },
+        "save": {
+          "hint": "Drücken Sie <kbd>{{shortcut}}</kbd>, um zu speichern"
+        }
+      },
+      "slugTaken": "Dieser Slug wird bereits verwendet.",
+      "update": {
+        "success": "„{{label}}“ erfolgreich aktualisiert."
+      },
+      "hints": {
+        "slug": "Eindeutiger Bezeichner dieses Inhaltstyps. Wird zum Namen der Datenbanktabelle (content_slug) und in URLs verwendet. Kann nach der Erstellung nicht mehr geändert werden.",
+        "allowPublicRead": "Jeder kann Einträge lesen.",
+        "allowPublicPost": "Jeder kann neue Einträge einreichen.",
+        "allowPublicEdit": "Jeder kann bestehende Einträge ändern.",
+        "allowDrafts": "Aktiviert eine parallele Entwurfstabelle. Redakteure können unveröffentlichte Versionen speichern und manuell zu veröffentlichten Inhalten befördern."
+      }
+    },
+    "branchEditor": {
+      "required": {
+        "label": "Pflichtfeld"
+      },
+      "hint": "Hinweis",
+      "hintPlaceholder": "Hilfetext unter dem Feld",
+      "issues": {
+        "alias": "Ungültiger Alias",
+        "reserved": "Reservierter Alias",
+        "duplicate": "Doppelter Alias",
+        "target": "Ziel auswählen"
+      },
+      "newField": "Neues Feld",
+      "alias": "Alias",
+      "aliasReadOnly": {
+        "hint": "Ein gespeichertes Feld wird im Tab „Gefahrenzone“ umbenannt."
+      },
+      "type": "Typ",
+      "typeReadOnly": {
+        "hint": "Der Typ eines gespeicherten Felds wird im Tab „Gefahrenzone“ geändert."
+      },
+      "label": "Bezeichnung",
+      "labelPlaceholder": "Feldbezeichnung",
+      "repeaterFields": "Repeater-Felder",
+      "minItems": "Mindestanzahl Elemente",
+      "maxItems": "Höchstanzahl Elemente",
+      "addSubField": "Feld hinzufügen",
+      "relationOptions": "Relationsoptionen",
+      "targetSeed": {
+        "label": "Ziel-Inhaltstyp",
+        "placeholder": "Inhaltstyp auswählen"
+      },
+      "multiple": "Mehrere Werte",
+      "onDelete": "Beim Löschen",
+      "onDeleteCascade": "Kaskade – verknüpfte Einträge löschen",
+      "onDeleteRestrict": "Einschränken – Löschen bei Verknüpfung blockieren",
+      "onDeleteSetNull": "Auf Null setzen – Verweis entfernen",
+      "avatarSource": {
+        "label": "Avatar-Bild",
+        "hint": "Bildfeld des Ziels, das als Avatar angezeigt wird. Ersatzweise werden die Initialen des Anzeigenamens verwendet."
+      },
+      "avatarSourceNone": "Kein Avatar",
+      "avatarSourceUnavailable": "Der Ziel-Seed hat kein einzelnes Bildfeld. Fügen Sie eines hinzu, um es als Avatar zu verwenden.",
+      "numberOptions": "Zahlenoptionen",
+      "min": "Min.",
+      "max": "Max.",
+      "step": "Schritt",
+      "control": "Steuerelement",
+      "control_input": "Eingabe",
+      "control_slider": "Schieberegler",
+      "control_rating": "Bewertung",
+      "control_stepper": "Stepper",
+      "fileOptions": "Dateioptionen",
+      "fileAccept": "Akzeptierte Dateien",
+      "fileAccept_any": "Beliebige Datei",
+      "fileAccept_image": "Nur Bilder",
+      "fileAccept_document": "Nur Dokumente",
+      "options": "Optionen",
+      "optionValue": "Wert",
+      "optionColor": "Farbe",
+      "addOption": "Option hinzufügen",
+      "removeOption": "Option entfernen",
+      "moveOptionUp": "Nach oben",
+      "moveOptionDown": "Nach unten",
+      "freeTags": {
+        "hint": "Keine Optionen: Jede kurze Bezeichnung wird akzeptiert (freie Tags, bis zu 10 pro Feld, je 25 Zeichen)."
+      },
+      "policies": "Richtlinien",
+      "localized": {
+        "label": "Lokalisiert",
+        "hint": "Redakteure füllen dieses Feld einmal pro Inhaltssprache aus. Verwalten Sie sie unter <languages>Inhaltssprachen</languages>."
+      },
+      "localizedBlockedSubField": "Unterfelder eines Repeaters können nicht lokalisiert werden.",
+      "localizedBlockedClassification": "Vertrauliche und eingeschränkte Felder werden verschlüsselt oder gehasht gespeichert und können daher nicht lokalisiert werden.",
+      "localizedDisableWarning": "Bestehende Übersetzungen bleiben gespeichert. Bis Sie die Lokalisierung wieder aktivieren, zeigt dieses Feld sie als Rohtext an."
+    },
+    "policies": {
+      "classification": "Datenklassifizierung",
+      "classification_public": "Öffentlich",
+      "classification_public_desc": "Klartext-Speicherung, in der öffentlichen API sichtbar, durchsuchbar und sortierbar.",
+      "classification_internal": "Intern",
+      "classification_internal_desc": "Klartext-Speicherung, in der öffentlichen API verborgen, für authentifizierte Nutzer zugänglich.",
+      "classification_confidential": "Vertraulich",
+      "classification_confidential_desc": "Im Ruhezustand verschlüsselt (AES-256-GCM), in der öffentlichen API verborgen, per Blind-Index filterbar.",
+      "classification_restricted": "Eingeschränkt",
+      "classification_restricted_desc": "Im Ruhezustand gehasht (SHA-256), in allen APIs verborgen, keine Suche oder Sortierung.",
+      "classification_locked_entries": "„Vertraulich“ und „Eingeschränkt“ sind nur verfügbar, wenn die Tabelle keine Einträge hat.",
+      "classification_locked_encrypted": "Verschlüsselte Spalten können nicht entschlüsselt oder konvertiert werden, wenn die Tabelle Einträge enthält.",
+      "classification_locked_restricted": "Gehashte Spalten können nicht entschlüsselt oder konvertiert werden, wenn die Tabelle Einträge enthält.",
+      "help": "Zum Datenschutz",
+      "flags": {
+        "title": "Optionen"
+      },
+      "search": "Volltextsuche",
+      "filter": "Filterbar",
+      "sort": "Sortierbar",
+      "public": "In der öffentlichen API sichtbar"
+    },
+    "fields": {
+      "add": {
+        "label": "Hinzufügen",
+        "placeholder": "Feldname, dann Eingabetaste"
+      },
+      "empty": "Noch keine Felder. Geben Sie oben einen Namen ein.",
+      "select": "Wählen Sie ein Feld zum Bearbeiten aus."
+    },
+    "templates": {
+      "title": "Beginnen mit",
+      "person": {
+        "name": "Person",
+        "last_name": "Nachname",
+        "first_name": "Vorname",
+        "email": "E-Mail",
+        "phone": "Telefon",
+        "birth_date": "Geburtsdatum",
+        "tax_id": "Steuernummer",
+        "address": "Adresse",
+        "city": "Stadt",
+        "country": "Land",
+        "photo": "Foto",
+        "relationship": "Beziehung",
+        "marketing_consent": "Marketing-Einwilligung",
+        "notes": "Notizen"
+      },
+      "event": {
+        "name": "Veranstaltung",
+        "title": "Titel",
+        "description": "Beschreibung",
+        "start_at": "Beginn",
+        "end_at": "Ende",
+        "all_day": "Ganztägig",
+        "location": "Ort",
+        "event_status": "Status",
+        "capacity": "Kapazität",
+        "contact_name": "Kontaktname",
+        "contact_email": "Kontakt-E-Mail",
+        "contact_phone": "Kontakttelefon"
+      },
+      "article": {
+        "name": "Artikel",
+        "title": "Titel",
+        "excerpt": "Auszug",
+        "cover": "Titelbild",
+        "body": "Text",
+        "author": "Autor",
+        "published_at": "Veröffentlicht am",
+        "categories": "Kategorien"
+      },
+      "contact": {
+        "name": "Kontaktanfrage",
+        "subject": "Betreff",
+        "sender": "Name",
+        "email": "E-Mail",
+        "message": "Nachricht",
+        "reason": "Grund",
+        "state": "Status"
+      }
+    },
+    "fieldTypes": {
+      "text": "Text",
+      "richtext": "Rich Text",
+      "number": "Zahl",
+      "boolean": "Boolesch",
+      "date": "Datum",
+      "json": "JSON",
+      "tags": "Tags",
+      "file": "Datei / Medien",
+      "relation": "Relation",
+      "repeater": "Repeater"
+    },
+    "delete": {
+      "title": "„{{label}}“ löschen?",
+      "description": "Dadurch wird der Inhaltstyp im Dashboard und in der API ausgeblendet.",
+      "dataRetained": "Seine Daten werden NICHT gelöscht – die Tabelle bleibt erhalten und kann wiederhergestellt werden, indem der Typ mit demselben Slug neu erstellt wird.",
+      "dangerZone": {
+        "hint": "Das endgültige Löschen ist in der Gefahrenzone verfügbar."
+      },
+      "success": {
+        "toast": "„{{label}}“ gelöscht."
+      },
+      "referenceConflict": "Löschen nicht möglich – andere Inhaltstypen verweisen auf diesen.",
+      "referencedBy": "Referenziert von: {{seeds}}"
+    },
+    "errors": {
+      "createFailed": "Inhaltstyp konnte nicht erstellt werden",
+      "updateFailed": "Inhaltstyp konnte nicht aktualisiert werden",
+      "deleteFailed": "Inhaltstyp konnte nicht gelöscht werden"
+    },
+    "purge": {
+      "button": "Endgültig bereinigen",
+      "title": "{{label}} endgültig löschen",
+      "description": "Dieser Inhaltstyp wurde vorläufig gelöscht. Das Bereinigen entfernt seine Tabellen und Medien dauerhaft."
+    },
+    "dangerZone": {
+      "manifest": {
+        "title": "Verwaltet durch beech.schema.ts.",
+        "body": "Bearbeiten Sie das Manifest und wenden Sie es erneut an, um Felder zu ändern oder diesen Typ zu löschen. Nur der Suchindex kann hier neu aufgebaut werden."
+      },
+      "maintenance": {
+        "title": "Wartung",
+        "safe": {
+          "badge": "Sicher"
+        },
+        "subtitle": "Es gehen keine Daten verloren. Nutzen Sie es, wenn etwas nicht synchron wirkt."
+      },
+      "ftsRebuild": {
+        "title": "Suchindex",
+        "description": "Baut den Volltextindex und seine Trigger aus den aktuellen Textfeldern neu auf.",
+        "button": "Neu aufbauen",
+        "success": {
+          "toast": "Suchindex neu aufgebaut."
+        }
+      },
+      "orphans": {
+        "title": "Verwaiste Spalten",
+        "description": "Spalten, die noch in der Datenbank, aber nicht mehr in der Definition sind.",
+        "empty": "Keine verwaisten Spalten.",
+        "review": "Prüfen",
+        "hide": "Ausblenden",
+        "drop": {
+          "button": "Löschen"
+        },
+        "refresh": {
+          "button": "Aktualisieren"
+        },
+        "success": {
+          "toast": "Spalte „{{column}}“ gelöscht."
+        }
+      },
+      "fieldOps": {
+        "title": "Feldoperationen",
+        "writes": {
+          "badge": "Ändert die DB"
+        },
+        "subtitle": "Wählen Sie ein Feld und dann die Aktion. Nicht verfügbare Optionen nennen den Grund.",
+        "empty": "Dieser Inhaltstyp hat noch keine gespeicherten Felder.",
+        "rename": "Umbenennen",
+        "retype": "Typ ändern",
+        "drop": "Löschen"
+      },
+      "blocked": {
+        "displayName": "dieses Feld ist der Anzeigename des Inhaltstyps.",
+        "displayNameLink": "Anderes Feld wählen →",
+        "repeater": "Repeater-Felder können nicht umgetypt werden.",
+        "multiRelation": "eine Mehrfachrelation liegt in einer Verknüpfungstabelle, es gibt also keine Spalte zum Umtypen.",
+        "localized": "dieses Feld ist lokalisiert. Deaktivieren Sie zuerst die Lokalisierung und ändern Sie dann den Typ."
+      },
+      "rename": {
+        "newAlias": {
+          "label": "Neuer Alias"
+        },
+        "impact": {
+          "title": "Benennt die Datenbankspalte um und baut die Suche neu auf."
+        },
+        "impactBody": "Automatisierungen, die den alten Alias verwenden, müssen angepasst werden; Sie erfahren, welche.",
+        "button": "Feld umbenennen",
+        "success": {
+          "toast": "„{{alias}}“ in „{{newAlias}}“ umbenannt."
+        },
+        "automationWarning": "{{count}} Automatisierung(en) verweisen auf den alten Alias und könnten nicht mehr funktionieren: {{ids}}"
+      },
+      "retype": {
+        "newType": {
+          "label": "Neuer Typ"
+        },
+        "impact": {
+          "title": "Konvertiert jeden gespeicherten Wert."
+        },
+        "impactBody": "Lässt sich ein Wert nicht verlustfrei konvertieren, wird die Änderung abgelehnt und nichts angetastet.",
+        "button": "Typ ändern",
+        "success": {
+          "toast": "„{{alias}}“ ist jetzt {{newType}}."
+        }
+      },
+      "dropField": {
+        "impact": {
+          "title": "Entfernt die Spalte und alle ihre Daten."
+        },
+        "impactBody": "Die Werte dieses Felds gehen für jeden Eintrag verloren und können nicht wiederhergestellt werden.",
+        "confirm": {
+          "placeholder": "Geben Sie hier {{expected}} ein"
+        },
+        "button": "Feld löschen",
+        "success": {
+          "toast": "Feld „{{alias}}“ gelöscht."
+        }
+      },
+      "hardDelete": {
+        "fillSlug": "{{slug}} eingeben",
+        "footer": {
+          "button": "Inhaltstyp löschen",
+          "hint": "Das Löschen des Inhaltstyps entfernt seine Einträge, Tabellen und Medien."
+        },
+        "manifest": {
+          "hint": "Verwaltet durch beech.schema.ts: Entfernen Sie ihn aus dem Manifest, um ihn zu löschen."
+        },
+        "title": "{{label}} endgültig löschen",
+        "description": "Blendet diesen Inhaltstyp sofort aus und entfernt anschließend seine Tabellen und Medien im Hintergrund. Dies kann nicht rückgängig gemacht werden.",
+        "impactEntries": "Alle seine Einträge",
+        "impactFields": "{{count}} Felder und ihre Tabellen, einschließlich Entwürfen",
+        "impactMedia": "Die dafür gespeicherten Mediendateien",
+        "confirm": {
+          "label": "Geben Sie „{{slug}}“ zur Bestätigung ein",
+          "placeholder": "Slug zur Bestätigung eingeben"
+        },
+        "button": "Endgültig löschen",
+        "success": {
+          "toast": "Löschen von „{{slug}}“ gestartet. Die Medienbereinigung steht noch aus."
+        }
+      },
+      "errors": {
+        "hardDeleteFailed": "Endgültiges Löschen fehlgeschlagen",
+        "dropColumnFailed": "Löschen fehlgeschlagen",
+        "renameFailed": "Umbenennen fehlgeschlagen",
+        "retypeFailed": "Typänderung fehlgeschlagen",
+        "ftsRebuildFailed": "Neuaufbau des Suchindex fehlgeschlagen"
+      }
+    }
+  },
+  "kanban": {
+    "cardConfig": {
+      "title": "Kartenlayout",
+      "mediaSlot": "Medien",
+      "headerSlot": "Kopfzeile",
+      "subtitleSlot": "Untertitel",
+      "metadataSlot": "Metadaten",
+      "noField": "Kein Feld",
+      "openConfig": "Kartenlayout konfigurieren"
+    }
+  },
+  "oauth": {
+    "consent": {
+      "title": "{{client}} möchte auf BeechCMS zugreifen",
+      "subtitle": "Prüfen Sie die Berechtigungen, bevor Sie den Zugriff gewähren.",
+      "scope": {
+        "granted": {
+          "badge": "Bereits gewährt"
+        }
+      },
+      "redirectNotice": "Nach der Freigabe werden Sie zu {{uri}} zurückgeleitet.",
+      "approve": "Zugriff erlauben",
+      "deny": "Ablehnen",
+      "error": {
+        "title": "Diese Autorisierungsanfrage ist ungültig"
+      },
+      "backToDashboard": "Zurück zum Dashboard",
+      "submit": {
+        "error": "Die Autorisierung konnte nicht abgeschlossen werden"
+      },
+      "scopes": {
+        "schema:read": "Ihre Inhaltstypen und das Schema lesen (einschließlich Dry-Run-Migrationspläne)",
+        "schema:write": "Schemamigrationen anwenden, die Ihre Inhaltstypen ändern"
+      },
+      "required": "Erforderlich",
+      "disclaimer": "Die Berechtigungen sind für die MCP-Integration erforderlich. Sie können den Zugriff jederzeit unter Einstellungen > Verbundene Apps widerrufen."
+    },
+    "apps": {
+      "application": "Anwendung",
+      "permissions": "Berechtigungen",
+      "granted": "Autorisiert",
+      "status": "Status",
+      "active": "Aktiv",
+      "revokeFor": "Zugriff von {{client}} widerrufen",
+      "list": {
+        "label": "Verbundene Apps"
+      },
+      "title": "Verbundene Apps",
+      "description": "Anwendungen, die Sie autorisiert haben, in Ihrem Namen auf BeechCMS zuzugreifen.",
+      "empty": "Keine verbundenen Apps",
+      "noTokens": {
+        "badge": "Kein aktives Token"
+      },
+      "revoke": {
+        "title": "Zugriff widerrufen?",
+        "success": "Zugriff widerrufen",
+        "error": "Fehler beim Widerrufen des Zugriffs"
+      },
+      "revokeDesc": "{{client}} verliert sofort den Zugriff. Jedes aktive Token wird ungültig."
+    }
+  },
+  "rbac": {
+    "users": {
+      "description": "Alle, die sich anmelden können, und die Rollen, die sie haben.",
+      "noAccess": "Kein Zugriff",
+      "inactive": "Inaktiv",
+      "statusFor": "Konto aktiv: {{email}}",
+      "manageRolesOf": "Rollen von {{email}} verwalten",
+      "title": "Nutzer",
+      "create": {
+        "label": "Konto erstellen",
+        "success": "Konto erstellt"
+      },
+      "email": "E-Mail",
+      "name": "Vorname",
+      "surname": "Nachname",
+      "password": "Passwort",
+      "status": "Status",
+      "roles": "Rollen",
+      "you": "Sie",
+      "manageRoles": "Rollen verwalten",
+      "zeroTrust": {
+        "hint": "Das Konto wird ohne Rolle und ohne Zugriff erstellt, bis eine Rolle zugewiesen wird."
+      },
+      "cannotDeactivateSelf": "Sie können Ihr eigenes Konto nicht deaktivieren"
+    },
+    "roles": {
+      "section": {
+        "description": "Was jede Rolle erlaubt. Weisen Sie einer Person eine Rolle zu, um ihr Zugriff zu geben."
+      },
+      "editFor": "Rolle {{name}} bearbeiten",
+      "deleteFor": "Rolle {{name}} löschen",
+      "system": {
+        "hint": "Eine Systemrolle ist integriert und kann weder geändert noch gelöscht werden.",
+        "label": "System"
+      },
+      "permissions": {
+        "hint": "Ausgegraute Berechtigungen besitzen Sie selbst nicht und können sie daher nicht vergeben.",
+        "label": "Berechtigungen"
+      },
+      "title": "Rollen",
+      "create": "Rolle erstellen",
+      "edit": "Rolle bearbeiten",
+      "delete": "Rolle löschen",
+      "name": "Name",
+      "description": "Beschreibung",
+      "selectIcon": "Symbol auswählen",
+      "searchIcons": "Symbole suchen...",
+      "noIconsFound": "Keine Symbole gefunden",
+      "deleteWarning": "Alle Zuweisungen über diese Rolle werden kaskadiert entfernt.",
+      "save": {
+        "success": "Rolle gespeichert"
+      },
+      "morePermissions": "+{{count}} weitere",
+      "moreRoles": "+{{count}} weitere",
+      "groupContent": "Inhalt",
+      "groupSystem": "System"
+    },
+    "invitations": {
+      "description": "Bisher gesendete Einladungen und ob sie angenommen wurden.",
+      "empty": "Noch keine Einladungen.",
+      "copyLinkFor": "Einladungslink für {{email}} kopieren",
+      "regenerateFor": "Einladung für {{email}} neu erstellen",
+      "revokeFor": "Einladung für {{email}} widerrufen",
+      "title": "Einladungen",
+      "invite": "Einladen",
+      "status": "Status",
+      "expires": "Läuft ab",
+      "regenerate": "Neu erstellen",
+      "revoke": "Widerrufen",
+      "emailSent": "Einladung per E-Mail gesendet",
+      "revokeWarning": "Dieser Einladungslink funktioniert dann nicht mehr.",
+      "copyLink": "Einladungslink kopieren",
+      "linkCopied": "Einladungslink kopiert",
+      "statuses": {
+        "pending": "Ausstehend",
+        "accepted": "Angenommen",
+        "expired": "Abgelaufen"
+      }
+    },
+    "assignments": {
+      "removeFor": "{{role}} für {{scope}} entfernen",
+      "roleLabel": "Zuzuweisende Rolle",
+      "scopeLabel": "Wo sie gilt",
+      "list": "Vergebene Rollen",
+      "title": "Rollen für {{email}}",
+      "add": "Hinzufügen",
+      "role": "Rolle",
+      "scope": "Geltungsbereich",
+      "inactiveScope": "Inaktiver Geltungsbereich",
+      "empty": "Noch keine Zuweisungen"
+    },
+    "scope": {
+      "global": "Alle Seeds (global)",
+      "none": "Keine Geltungsbereiche verfügbar",
+      "select": "Geltungsbereich auswählen"
+    },
+    "permissions": {
+      "content:read": "Inhalte lesen",
+      "content:create": "Inhalte erstellen",
+      "content:update": "Inhalte aktualisieren",
+      "content:delete": "Inhalte löschen",
+      "manage_users": "Nutzer verwalten",
+      "manage_roles": "Rollen verwalten",
+      "manage_layout": "Dashboard-Layout verwalten",
+      "manage_seeds": "Inhaltstypen verwalten",
+      "view_analytics": "Analysen ansehen"
+    },
+    "errors": {
+      "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+      "escalation-refused": "Sie können keine Befugnis vergeben, die Sie selbst nicht haben.",
+      "email-taken": "Diese E-Mail ist bereits registriert.",
+      "role-name-taken": "Dieser Rollenname wird bereits verwendet.",
+      "system-role-immutable": "Systemrollen können nicht geändert werden.",
+      "last-global-admin": "Dadurch hätte die Plattform keinen aktiven globalen Administrator mehr.",
+      "invitation-already-used": "Diese Einladung wurde bereits verwendet."
+    }
+  },
+  "acceptInvite": {
+    "title": "Einladung annehmen",
+    "invitation": {
+      "sentence": "Sie wurden als {{role}} für {{scope}} eingeladen"
+    },
+    "invalidOrExpired": "Dieser Einladungslink ist ungültig oder abgelaufen.",
+    "password": {
+      "label": "Passwort",
+      "placeholder": "Mindestens 8 Zeichen"
+    },
+    "confirm": {
+      "label": "Passwort bestätigen",
+      "placeholder": "Passwort wiederholen"
+    },
+    "mismatch": "Die Passwörter stimmen nicht überein",
+    "tooShort": "Das Passwort muss mindestens 8 Zeichen lang sein",
+    "tooLong": "Das Passwort darf höchstens 128 Zeichen lang sein",
+    "strengthWeak": "Schwach",
+    "strengthFair": "Mittel",
+    "strengthStrong": "Stark",
+    "submit": "Konto aktivieren",
+    "success": "Konto aktiviert. Sie können sich jetzt anmelden.",
+    "accountExists": "Für diese E-Mail existiert bereits ein Konto. Melden Sie sich stattdessen an.",
+    "generic": {
+      "error": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut."
+    }
+  },
+  "transfer": {
+    "menu": {
+      "tooltip": "Export / Import",
+      "exportGroup": "Export",
+      "csvDisabled": "CSV deaktiviert: {{branches}} können nicht als flache Spalten dargestellt werden",
+      "import": "Import…"
+    },
+    "export": {
+      "errors": {
+        "unknown": "Export fehlgeschlagen"
+      }
+    },
+    "import": {
+      "title": "In {{label}} importieren",
+      "description": "Laden Sie eine CSV- oder NDJSON-Datei hoch, um neue Einträge einzufügen.",
+      "format": {
+        "label": "Format"
+      },
+      "csvDisabled": "CSV deaktiviert: {{branches}} können nicht als flache Spalten dargestellt werden",
+      "file": {
+        "label": "Datei"
+      },
+      "startUpload": "Hochladen und Import starten",
+      "uploading": "Import-Job wird hochgeladen und gestartet…",
+      "openJobPage": "Vollständige Job-Seite öffnen",
+      "presignPermissionWarning": "Das Hochladen einer Importdatei erfordert derzeit die globale Berechtigung zum Erstellen von Inhalten.",
+      "errors": {
+        "unknown": "Import fehlgeschlagen",
+        "storageNotConfigured": "Der direkte Upload ist in dieser Bereitstellung nicht konfiguriert. Bitten Sie einen Administrator, die R2-S3-API-Zugangsdaten einzurichten."
+      }
+    },
+    "job": {
+      "page": {
+        "title": "Import-Job"
+      },
+      "loading": "Job wird geladen…",
+      "rowsRead": "Gelesene Zeilen",
+      "insertedRows": "Eingefügt",
+      "failedRows": "Fehlgeschlagen",
+      "state": {
+        "pending": "Ausstehend",
+        "processing": "Wird verarbeitet",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen"
+      },
+      "errorTable": {
+        "row": "Zeile",
+        "field": "Feld",
+        "code": "Code",
+        "message": "Meldung",
+        "capped": "{{count}} weitere Fehler werden nicht aufgelistet"
+      },
+      "errors": {
+        "forbidden": "Sie sind nicht berechtigt, diesen Job anzuzeigen",
+        "notFound": "Dieser Job wurde nicht gefunden",
+        "unknown": "Der Job konnte nicht geladen werden"
+      }
+    }
+  }
+}

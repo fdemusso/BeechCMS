@@ -383,7 +383,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
             variant="secondary"
             onClick={handleOpenPicker}
             disabled={isBusy}
-            aria-label={t("media.upload", "Upload file")}
+            aria-label={t("media.upload")}
             className="shrink-0"
           >
             <Upload className="size-4" />

@@ -76,7 +76,7 @@ export function UsersSection() {
       action={
         <Button size="sm" onClick={() => setCreateOpen(true)}>
           <Plus aria-hidden className="size-4" />
-          {t("rbac.users.create", "Create account")}
+          {t("rbac.users.create.label", "Create account")}
         </Button>
       }
     >
@@ -95,7 +95,7 @@ export function UsersSection() {
                 <TableHead>{t("rbac.users.email", "Email")}</TableHead>
                 <TableHead>{t("rbac.users.name", "Name")}</TableHead>
                 <TableHead>{t("rbac.users.roles", "Roles")}</TableHead>
-                <TableHead className="w-[120px] text-right">{t("common.actions", "Actions")}</TableHead>
+                <TableHead className="w-[120px] text-right">{t("content.actions.label")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

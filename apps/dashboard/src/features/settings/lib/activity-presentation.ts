@@ -103,7 +103,7 @@ export function describeActivity(entry: ActivityEntry, t: Translate): ActivityVi
   const fields = Array.isArray(details.fields) ? details.fields.filter((f): f is string => typeof f === "string") : []
   const count = typeof details.count === "number" ? details.count : null
   const scope = text(details.scope)
-  const scopeLabel = scope ? (scope === "*" ? t("settings.activity.allContent") : scope) : null
+  const scopeLabel = scope ? (scope === "*" ? t("settings.activity.scope.all") : scope) : null
 
   switch (entityType) {
     case "content": {
@@ -113,7 +113,7 @@ export function describeActivity(entry: ActivityEntry, t: Translate): ActivityVi
       if (action === "bulk_update" && count !== null) {
         return {
           label, tone, title: t("settings.activity.entries", { count }),
-          detail: join([entry.entity_slug, fields.length ? t("settings.activity.fields", { fields: fields.join(", ") }) : null]),
+          detail: join([entry.entity_slug, fields.length ? t("settings.activity.detail.fields", { fields: fields.join(", ") }) : null]),
         }
       }
       const note = text(details.note)
@@ -168,11 +168,11 @@ export function describeActivity(entry: ActivityEntry, t: Translate): ActivityVi
       return {
         label, tone,
         title: opLabel ?? entityLabel,
-        detail: join([text(details.email), fields.length ? t("settings.activity.fields", { fields: fields.join(", ") }) : null, details.sessionsRevoked === true ? t("settings.activity.sessionsRevoked") : null]),
+        detail: join([text(details.email), fields.length ? t("settings.activity.detail.fields", { fields: fields.join(", ") }) : null, details.sessionsRevoked === true ? t("settings.activity.sessionsRevoked") : null]),
       }
 
     case "settings":
-      return { label, tone, title: opLabel ?? entityLabel, detail: fields.length ? t("settings.activity.fields", { fields: fields.join(", ") }) : null }
+      return { label, tone, title: opLabel ?? entityLabel, detail: fields.length ? t("settings.activity.detail.fields", { fields: fields.join(", ") }) : null }
 
     default: {
       // Session, dashboard layout and whatever comes next: the operation if there is one, else the kind of thing.

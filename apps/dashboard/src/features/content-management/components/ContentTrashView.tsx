@@ -73,7 +73,7 @@ export function ContentTrashView(props: Readonly<ContentTrashViewProps>) {
       },
       {
         id: "slug",
-        header: t("content.table.slug", { defaultValue: "Slug" }),
+        header: t("content.table.slug"),
         accessorFn: (row) => (row.slug ? fromTrashedSlug(row.slug) : row.slug),
         cell: ({ getValue }) => (
           <span className="font-mono text-sm">{getValue<string | null>() ?? "—"}</span>

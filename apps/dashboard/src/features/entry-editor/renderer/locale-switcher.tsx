@@ -30,7 +30,7 @@ export interface LocaleSwitcherProps {
  */
 export function LocaleSwitcher({ locales, defaultLocale, activeLocale, completion, onLocaleChange }: LocaleSwitcherProps) {
   const { t } = useTranslation()
-  const switcherLabel = t("content.editor.localization.switcherLabel")
+  const switcherLabel = t("content.editor.localization.switcher.label")
 
   return (
     <Select value={activeLocale} onValueChange={onLocaleChange}>
@@ -70,7 +70,7 @@ export function LocaleSwitcher({ locales, defaultLocale, activeLocale, completio
               <span className="font-medium">{locale.toUpperCase()}</span>
               {locale === defaultLocale && (
                 <span className="text-xs opacity-70 font-normal">
-                  ({t("content.editor.localization.defaultBadge")})
+                  {t("content.editor.localization.default.badge")}
                 </span>
               )}
             </SelectItem>

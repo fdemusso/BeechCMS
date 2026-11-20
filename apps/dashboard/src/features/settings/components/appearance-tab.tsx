@@ -44,8 +44,8 @@ export function AppearanceTab() {
 
   return (
     <div className="space-y-10">
-      <SettingsSection id="theme" title={t('settings.interface.themeTitle')} description={t('settings.interface.themeDesc')}>
-        <SettingsRow label={t('settings.interface.themeRowLabel')} labelId={THEME_LABEL_ID} controlClassName="sm:w-96">
+      <SettingsSection id="theme" title={t('settings.interface.theme.title')} description={t('settings.interface.themeDesc')}>
+        <SettingsRow label={t('settings.interface.themeRow.label')} labelId={THEME_LABEL_ID} controlClassName="sm:w-96">
           <RadioGroup
             aria-labelledby={THEME_LABEL_ID}
             value={theme}
@@ -62,8 +62,8 @@ export function AppearanceTab() {
         </SettingsRow>
       </SettingsSection>
 
-      <SettingsSection id="lists" title={t('settings.interface.rowsTitle')} description={t('settings.interface.rowsDesc')}>
-        <SettingsRow label={t('settings.interface.rowsLabel')} htmlFor="rows-per-page">
+      <SettingsSection id="lists" title={t('settings.interface.rows.title')} description={t('settings.interface.rowsDesc')}>
+        <SettingsRow label={t('settings.interface.rows.label')} htmlFor="rows-per-page">
           <Select value={rows} onValueChange={handleRowsChange}>
             <SelectTrigger id="rows-per-page" className="w-full">
               <SelectValue />

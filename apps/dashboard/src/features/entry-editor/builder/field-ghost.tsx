@@ -112,7 +112,7 @@ function FileGhost({ gallery }: { readonly gallery: boolean }) {
           <div className="flex-1">
             <GhostInput width="w-1/2" />
           </div>
-          <Button type="button" variant="secondary" disabled aria-label={t('media.upload', 'Upload file')} className="shrink-0">
+          <Button type="button" variant="secondary" disabled aria-label={t('media.upload')} className="shrink-0">
             <Upload className="size-4" />
           </Button>
         </div>

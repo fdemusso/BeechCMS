@@ -5,20 +5,16 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatDistanceToNow } from "date-fns"
-import { it as itLocale, enUS, type Locale } from "date-fns/locale"
+import { dateFnsLocaleFor } from "@/lib/date-locale"
 import { useTranslation } from "react-i18next"
 import { useRecentActivity } from "../hooks/use-dashboard-stats"
 import { activityTarget } from "../utils/activity-target"
-
-const DATE_FNS_LOCALE: Record<string, Locale> = {
-  it: itLocale,
-  en: enUS,
-}
+import { ActivitySentence } from "./activity-sentence"
 
 export function RecentActivity() {
   const { data: activities = [], isLoading } = useRecentActivity()
   const { t, i18n } = useTranslation()
-  const dateLocale = DATE_FNS_LOCALE[i18n.language] ?? itLocale
+  const dateLocale = dateFnsLocaleFor(i18n.language)
 
   return (
     <Card className="col-span-2 border-none bg-background/50 backdrop-blur-sm">
@@ -45,15 +41,13 @@ export function RecentActivity() {
                 </Avatar>
                 <div className="flex flex-1 flex-col gap-1">
                   <p className="text-sm leading-none text-muted-foreground">
-                    <span className="font-bold text-foreground">
-                      {activity.user_name || activity.user_email}
-                    </span>{" "}
-                    {t(`dashboard.recentActivity.actions.${activity.action}`, {
-                      defaultValue: activity.action,
-                    })}{" "}
-                    <span className="font-medium text-foreground">
-                      {activityTarget(activity)}
-                    </span>
+                    <ActivitySentence
+                      action={activity.action}
+                      user={activity.user_name || activity.user_email}
+                      target={activityTarget(activity)}
+                      userClassName="font-bold text-foreground"
+                      targetClassName="font-medium text-foreground"
+                    />
                   </p>
                   <p className="text-xs text-muted-foreground/70">
                     {formatDistanceToNow(new Date(activity.created_at * 1000), {

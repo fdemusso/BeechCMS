@@ -6,7 +6,10 @@ import {
   type Locale,
 } from "react-day-picker"
 
+import { useTranslation } from "react-i18next"
+
 import { cn } from "@/lib/utils"
+import { dateFnsLocaleFor } from "@/lib/date-locale"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronDown as ChevronDownIcon } from '@/components/icons'
 
@@ -23,6 +26,9 @@ function Calendar({
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
+  const { i18n } = useTranslation()
+  // Month and weekday names follow the dashboard language unless a caller picks another locale.
+  const resolvedLocale = locale ?? dateFnsLocaleFor(i18n.language)
   const defaultClassNames = getDefaultClassNames()
 
   return (
@@ -35,10 +41,10 @@ function Calendar({
         className
       )}
       captionLayout={captionLayout}
-      locale={locale}
+      locale={resolvedLocale}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString(locale?.code, { month: "short" }),
+          date.toLocaleString(resolvedLocale.code, { month: "short" }),
         ...formatters,
       }}
       classNames={{
@@ -160,7 +166,7 @@ function Calendar({
           )
         },
         DayButton: ({ ...props }) => (
-          <CalendarDayButton locale={locale} {...props} />
+          <CalendarDayButton locale={resolvedLocale} {...props} />
         ),
         WeekNumber: ({ children, ...props }) => {
           return (

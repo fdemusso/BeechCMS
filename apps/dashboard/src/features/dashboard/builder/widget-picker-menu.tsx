@@ -52,7 +52,7 @@ export function WidgetPickerMenu({ children, onSelect, permissions }: WidgetPick
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
       <DropdownMenuContent className="w-72 p-0" align="start">
         <Command value={highlighted} onValueChange={setHighlighted}>
-          <CommandInput placeholder={t('dashboard.builder.widget.searchPlaceholder')} />
+          <CommandInput placeholder={t('dashboard.builder.widget.search.placeholder')} />
           <CommandList className="max-h-72" onMouseLeave={() => setHighlighted('')}>
             <CommandEmpty>{t('dashboard.builder.widget.noResults')}</CommandEmpty>
             {groups.map(({ category, defs }) => (

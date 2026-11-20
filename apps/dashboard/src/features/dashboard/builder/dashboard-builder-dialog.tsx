@@ -163,7 +163,7 @@ export function DashboardBuilderDialog({
       <ConfirmDialog
         open={conflictOpen}
         onOpenChange={setConflictOpen}
-        title={t('dashboard.builder.conflictTitle')}
+        title={t('dashboard.builder.conflict.title')}
         description={t('dashboard.builder.conflictDesc')}
         onConfirm={handleConflictReload}
       />
@@ -222,7 +222,7 @@ function BuilderPaneController({
       ...(roleIds ? { roleIds } : {}),
     })
     if (!result.ok) {
-      toast.error(result.errors[0] ?? t('dashboard.builder.saveError'))
+      toast.error(result.errors[0] ?? t('dashboard.builder.save.error'))
       return
     }
 
@@ -240,7 +240,7 @@ function BuilderPaneController({
         return
       }
       const body = isApiError(err) ? err.data : null
-      toast.error(body?.detail ?? body?.title ?? t('dashboard.builder.saveError'))
+      toast.error(body?.detail ?? body?.title ?? t('dashboard.builder.save.error'))
     } finally {
       setIsSaving(false)
     }
@@ -259,7 +259,7 @@ function BuilderPaneController({
         onConflict()
         return
       }
-      toast.error(t('dashboard.builder.saveError'))
+      toast.error(t('dashboard.builder.save.error'))
     }
   }
 

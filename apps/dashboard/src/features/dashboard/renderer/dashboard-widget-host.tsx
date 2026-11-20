@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useTranslation } from "react-i18next"
+import { Trans, useTranslation } from "react-i18next"
 import type { DashboardWidgetInstance } from "@beechcms/core"
 import { getWidgetDefinition, isWidgetDisabled } from "../registry/widget-registry"
 import { WidgetErrorBoundary } from "../components/widget-error-boundary"
@@ -33,8 +33,13 @@ export function DashboardWidgetHost({ instance }: DashboardWidgetHostProps) {
     return (
       <div className="flex h-full min-h-[80px] items-center justify-center rounded-lg border-2 border-dashed border-muted p-4">
         <p className="text-sm text-muted-foreground">
-          {t("dashboard.widgetRegistry.unknown")}{" "}
-          <span className="font-mono font-medium">{instance.type}</span>
+          <Trans
+            i18nKey="dashboard.widgetRegistry.unknown.sentence"
+            values={{ type: instance.type }}
+            tOptions={{ interpolation: { escapeValue: true } }}
+            shouldUnescape
+            components={{ code: <span className="font-mono font-medium" /> }}
+          />
         </p>
       </div>
     )

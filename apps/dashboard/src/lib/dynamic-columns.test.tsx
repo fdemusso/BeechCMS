@@ -106,6 +106,10 @@ describe("dynamic-columns - computeMaxLengths", () => {
   })
 })
 
+/** Stand-in for i18next: `content.table.itemCount` pluralizes on `count` (one → "entry", other → "entries"). */
+const translateEntries = (key: string, options?: { count?: number }) =>
+  key === "content.table.itemCount" ? `${options?.count} ${options?.count === 1 ? "entry" : "entries"}` : key
+
 describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
   const baseSeed = makeSeed({
     branches: [
@@ -125,7 +129,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
       [],
       undefined,
       { year: true, month: false, day: false },
-      (k) => (k === "content.table.items" ? "entries" : k)
+      translateEntries
     )
 
     const dateCol = cols.find((c) => c.id === "publishedAt") as any
@@ -166,7 +170,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
   })
 
   it("number: formatSum usa Σ quando value è number e fallback su NaN", () => {
-    const cols = generateColumns(baseSeed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, (k) => (k === "content.table.items" ? "entries" : k))
+    const cols = generateColumns(baseSeed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, translateEntries)
     const numCol = cols.find((c) => c.id === "price") as any
 
     const el = numCol.aggregatedCell({
@@ -187,11 +191,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
   })
 
   it("default/text: aggregatedCell rende 'entry' quando count=1 e 'entries' quando count>1", () => {
-    const cols = generateColumns(baseSeed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, (k) => {
-      if (k === "content.table.item") return "entry"
-      if (k === "content.table.items") return "entries"
-      return k
-    })
+    const cols = generateColumns(baseSeed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, translateEntries)
     const textCol = cols.find((c) => c.id === "title") as any
 
     const elSingle = textCol.aggregatedCell({
@@ -294,7 +294,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
         const m: any = {
           "common.openMenu": "Open menu",
           "content.actions.label": "Actions",
-          "common.delete": "Delete",
+          "common.action.delete": "Delete",
           "common.edit": "Edit",
           "content.actions.copyId": "Copy ID",
           "common.copied": "ID copied"
@@ -363,7 +363,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
 
       const seed = makeSeed({ branches: [] })
       const entry = makeEntry("id-1", {})
-      const t = (k: string) => (k === "common.delete" || k === "common.openMenu") ? (k === "common.delete" ? "Delete" : "Open menu") : k
+      const t = (k: string) => (k === "common.action.delete" || k === "common.openMenu") ? (k === "common.action.delete" ? "Delete" : "Open menu") : k
       const cols = generateColumns(seed, vi.fn(), onDelete, undefined, ["id-1", "id-2"], onBulkDelete, undefined, t)
 
       render(<DataTable columns={cols} data={[entry]} />)

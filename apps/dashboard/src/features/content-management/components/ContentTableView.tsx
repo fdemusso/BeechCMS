@@ -133,7 +133,7 @@ export function ContentTableView({
             disabled={!can("content:delete", slug)}
           >
             <Trash2 className="size-4" />
-            {t("common.delete")}
+            {t("common.action.delete")}
             <ContextMenuShortcut>Del</ContextMenuShortcut>
           </ContextMenuItem>
         ) : (
@@ -161,7 +161,7 @@ export function ContentTableView({
               disabled={!can("content:delete", slug)}
             >
               <Trash2 className="size-4" />
-              {t("common.delete")}
+              {t("common.action.delete")}
               <ContextMenuShortcut>Del</ContextMenuShortcut>
             </ContextMenuItem>
           </>
@@ -176,7 +176,7 @@ export function ContentTableView({
       isEmptySeed ? (
         <SmallCta
           svgPath={`${import.meta.env.BASE_URL}working.svg`}
-          title={t("content.list.emptyTitle")}
+          title={t("content.list.empty.title")}
           buttonText={t("content.list.emptyCreateFirst", { label: seed.label })}
           onButtonClick={onCreate}
           buttonDisabled={!can("content:create", slug)}

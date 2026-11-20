@@ -41,9 +41,9 @@ export function ConfirmDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+          <AlertDialogCancel>{t('common.action.cancel')}</AlertDialogCancel>
           <AlertDialogAction variant={confirmVariant} onClick={onConfirm}>
-            {t('common.confirm')}
+            {t('common.action.confirm')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

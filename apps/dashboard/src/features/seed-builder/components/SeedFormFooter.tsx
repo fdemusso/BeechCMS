@@ -2,7 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useTranslation } from "react-i18next"
+import { Fragment, type ReactNode } from "react"
+import { Trans, useTranslation } from "react-i18next"
 import { Trash2 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
@@ -14,6 +15,24 @@ export interface SeedFormFooterProps {
   form: SeedFormState
   editRecord: SeedRecordDTO | null
   onDelete: () => void
+}
+
+const SUBMIT_SHORTCUT = `${MOD_KEY_LABEL}+↵`
+
+/** The <kbd> slot of the shortcut hint: the text the translation puts inside it ("⌘+↵") becomes one key cap per key. */
+function ShortcutKeys({ children }: { children?: ReactNode }) {
+  const keys = String(children ?? "").split("+")
+  return (
+    <KbdGroup>
+      {keys.map((key, position) => (
+        // A key name never repeats in one shortcut, so the name itself identifies the cap.
+        <Fragment key={key}>
+          {position > 0 && <span>+</span>}
+          <Kbd>{key}</Kbd>
+        </Fragment>
+      ))}
+    </KbdGroup>
+  )
 }
 
 const FOOTER_CLASS = "flex flex-shrink-0 items-center justify-between gap-3 border-t px-6 py-4"
@@ -28,8 +47,8 @@ export function SeedFormFooter({ form, editRecord, onDelete }: SeedFormFooterPro
       <footer className={FOOTER_CLASS}>
         <p id="sf-delete-hint" className="text-xs text-muted-foreground">
           {editRecord.source === "code"
-            ? t("seedBuilder.dangerZone.hardDelete.manifestHint")
-            : t("seedBuilder.dangerZone.hardDelete.footerHint")}
+            ? t("seedBuilder.dangerZone.hardDelete.manifest.hint")
+            : t("seedBuilder.dangerZone.hardDelete.footer.hint")}
         </p>
         <Button
           type="button"
@@ -39,7 +58,7 @@ export function SeedFormFooter({ form, editRecord, onDelete }: SeedFormFooterPro
           onClick={onDelete}
         >
           <Trash2 className="size-4" />
-          {t("seedBuilder.dangerZone.hardDelete.footerButton")}
+          {t("seedBuilder.dangerZone.hardDelete.footer.button")}
         </Button>
       </footer>
     )
@@ -51,18 +70,17 @@ export function SeedFormFooter({ form, editRecord, onDelete }: SeedFormFooterPro
       <div className="flex items-center gap-3">
         {isCreate && form.step !== SEED_FORM_STEPS[0] && (
           <Button type="button" variant="outline" onClick={form.goBack}>
-            {t("seedBuilder.editor.back")}
+            {t("common.action.back")}
           </Button>
         )}
       </div>
       <div className="flex items-center gap-3">
         <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
-          <KbdGroup>
-            <Kbd>{MOD_KEY_LABEL}</Kbd>
-            <span>+</span>
-            <Kbd>↵</Kbd>
-          </KbdGroup>
-          {advancing ? t("seedBuilder.editor.nextShortcut") : t("seedBuilder.editor.saveShortcut")}
+          <Trans
+            i18nKey={advancing ? "seedBuilder.editor.footer.next.hint" : "seedBuilder.editor.footer.save.hint"}
+            values={{ shortcut: SUBMIT_SHORTCUT }}
+            components={{ kbd: <ShortcutKeys /> }}
+          />
         </span>
         {advancing ? (
           <Button type="submit" disabled={!form.canAdvance}>
@@ -70,7 +88,7 @@ export function SeedFormFooter({ form, editRecord, onDelete }: SeedFormFooterPro
           </Button>
         ) : (
           <Button type="submit" disabled={!form.canSubmit}>
-            {isCreate ? t("common.create") : t("common.save")}
+            {isCreate ? t("common.create") : t("common.action.save")}
           </Button>
         )}
       </div>

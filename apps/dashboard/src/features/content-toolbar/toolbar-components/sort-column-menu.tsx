@@ -70,7 +70,7 @@ export function SortColumnMenu({
         </DropdownMenuLabel>
         <div className="flex items-center gap-2">
           <Input
-            placeholder={t("toolbar.sort.searchPlaceholder")}
+            placeholder={t("toolbar.sort.search.placeholder")}
             value={searchTerm}
             onChange={(e) => onSearchTermChange(e.target.value)}
             className="h-8 flex-1 text-sm"

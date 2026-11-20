@@ -108,7 +108,7 @@ export function StorageWidget({ variant = "bar", totalBytes = DEFAULT_TOTAL }: S
             On sm+: side-by-side as designed. */}
         <div className="flex flex-col items-center gap-2 h-full w-full xs:flex-row sm:flex-row sm:items-center sm:gap-3">
           <div className="shrink-0">
-            <GaugeSvg pct={pct} usedLabel={t("dashboard.widgets.storage.used")} />
+            <GaugeSvg pct={pct} usedLabel={t("dashboard.widgets.storage.gauge.caption")} />
           </div>
           <div className="flex-1 min-w-0 text-center sm:text-left">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{t("dashboard.widgets.storage.title")}</p>
@@ -116,7 +116,7 @@ export function StorageWidget({ variant = "bar", totalBytes = DEFAULT_TOTAL }: S
               {formatGb(storageBytes)}&nbsp;<span className="text-sm font-medium text-muted-foreground">GB</span>
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {t("dashboard.widgets.storage.total", { total: formatGb(totalBytes) })}
+              {t("dashboard.widgets.storage.summary.caption", { total: formatGb(totalBytes) })}
             </p>
           </div>
         </div>

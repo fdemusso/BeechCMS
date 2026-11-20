@@ -89,10 +89,10 @@ vi.mock("react-i18next", () => ({
         "bulkEdit.mode.replace": "Replace",
         "bulkEdit.mode.add": "Add",
         "bulkEdit.mode.remove": "Remove",
-        "common.cancel": "Cancel",
-        "common.confirm": "Confirm",
-        "common.back": "Back",
-        "common.close": "Close",
+        "common.action.cancel": "Cancel",
+        "common.action.confirm": "Confirm",
+        "common.action.back": "Back",
+        "common.action.close": "Close",
       }
       return map[key] ?? key
     },

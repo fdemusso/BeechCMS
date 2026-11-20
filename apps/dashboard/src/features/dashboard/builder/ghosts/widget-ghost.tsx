@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
 import * as React from 'react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import type { DashboardWidgetInstance } from '@beechcms/core'
 import { AlertTriangle } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
@@ -66,8 +66,20 @@ function UnavailableGhost({ widget, disabled }: { readonly widget: DashboardWidg
     <div className="flex min-h-24 h-full w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-status-warning/60 p-4 text-center">
       <AlertTriangle className="size-4 text-status-warning" />
       <p className="text-sm text-muted-foreground">
-        {disabled ? t('dashboard.widgetRegistry.disabled') : t('dashboard.widgetRegistry.unknown')}{' '}
-        <span className="font-mono font-medium">{def ? t(def.labelKey) : widget.type}</span>
+        {disabled ? (
+          <>
+            {t('dashboard.widgetRegistry.disabled')}{' '}
+            <span className="font-mono font-medium">{def ? t(def.labelKey) : widget.type}</span>
+          </>
+        ) : (
+          <Trans
+            i18nKey="dashboard.widgetRegistry.unknown.sentence"
+            values={{ type: widget.type }}
+            tOptions={{ interpolation: { escapeValue: true } }}
+            shouldUnescape
+            components={{ code: <span className="font-mono font-medium" /> }}
+          />
+        )}
       </p>
     </div>
   )

@@ -85,7 +85,7 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
       } else {
         await createRole.mutateAsync(payload)
       }
-      toast.success(t("rbac.roles.saveSuccess", "Role saved"))
+      toast.success(t("rbac.roles.save.success", "Role saved"))
       onOpenChange(false)
     } catch (err) {
       const code = rbacErrorCode(err)
@@ -137,9 +137,9 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
             </Field>
             {/* A fieldset, so a screen reader says which group a checkbox is in: "Permissions, Content, read". */}
             <fieldset className="space-y-3">
-              <legend className="text-sm font-medium">{t("rbac.roles.permissions", "Permissions")}</legend>
+              <legend className="text-sm font-medium">{t("rbac.roles.permissions.label", "Permissions")}</legend>
               {hasUnheldPermission && (
-                <p id="rf-permissions-hint" className="text-sm text-muted-foreground">{t("rbac.roles.permissionsHint")}</p>
+                <p id="rf-permissions-hint" className="text-sm text-muted-foreground">{t("rbac.roles.permissions.hint")}</p>
               )}
               <TooltipProvider delayDuration={100} disableHoverableContent>
                 <div className="grid grid-cols-2 gap-4">
@@ -186,7 +186,7 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
           </FieldGroup>
           <DialogFooter className="mt-4">
             <Button type="submit" disabled={!name || permissions.length === 0 || createRole.isPending || updateRole.isPending}>
-              {t("common.save", "Save")}
+              {t("common.action.save", "Save")}
             </Button>
           </DialogFooter>
         </form>

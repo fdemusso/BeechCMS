@@ -62,14 +62,14 @@ describe("ConnectedAppsTab", () => {
     renderTab()
     expect(await screen.findByText("Beech MCP CLI")).toBeInTheDocument()
     expect(screen.getByText("schema:read")).toBeInTheDocument()
-    expect(screen.getByText("no active token")).toBeInTheDocument()
+    expect(screen.getByText("No active token")).toBeInTheDocument()
   })
 
   it("does not render the no-active-token badge when a token is active", async () => {
     getConnectedAppsMock.mockResolvedValue([APP])
     renderTab()
     expect(await screen.findByText("Beech MCP CLI")).toBeInTheDocument()
-    expect(screen.queryByText("no active token")).not.toBeInTheDocument()
+    expect(screen.queryByText("No active token")).not.toBeInTheDocument()
   })
 
   it("confirming the dialog calls revokeConnectedApp with the right clientId and shows a success toast", async () => {

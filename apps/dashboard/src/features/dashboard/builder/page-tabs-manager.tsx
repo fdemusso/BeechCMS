@@ -46,7 +46,7 @@ export function PageTabsManager({
   }
 
   const labels = {
-    defaultBadge: t('dashboard.builder.page.defaultBadge'),
+    defaultBadge: t('dashboard.builder.page.default.badge'),
     rename: t('dashboard.builder.page.rename'),
     setDefault: t('dashboard.builder.page.setDefault'),
     delete: t('dashboard.builder.page.delete'),

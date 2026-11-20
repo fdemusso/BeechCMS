@@ -58,7 +58,7 @@ function MaintenanceSection({ record, manifestOwned, open, onOpenChange }: { rec
   async function handleRebuild() {
     try {
       await rebuildFts.mutateAsync()
-      toast.success(t("seedBuilder.dangerZone.ftsRebuild.successToast"))
+      toast.success(t("seedBuilder.dangerZone.ftsRebuild.success.toast"))
     } catch { /* the hook shows the error toast */ }
   }
 
@@ -67,7 +67,7 @@ function MaintenanceSection({ record, manifestOwned, open, onOpenChange }: { rec
     if (confirms[column] !== expected) return
     try {
       await dropOrphan.mutateAsync({ slug: record.slug, column, confirm: expected })
-      toast.success(t("seedBuilder.dangerZone.orphans.successToast", { column }))
+      toast.success(t("seedBuilder.dangerZone.orphans.success.toast", { column }))
       void refetch()
     } catch { /* the hook shows the error toast */ }
   }
@@ -79,7 +79,7 @@ function MaintenanceSection({ record, manifestOwned, open, onOpenChange }: { rec
           <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
             {t("seedBuilder.dangerZone.maintenance.title")}
           </h3>
-          <Badge variant="outline">{t("seedBuilder.dangerZone.maintenance.badge")}</Badge>
+          <Badge variant="outline">{t("seedBuilder.dangerZone.maintenance.safe.badge")}</Badge>
         </div>
         <p className="text-xs text-muted-foreground">{t("seedBuilder.dangerZone.maintenance.subtitle")}</p>
       </header>
@@ -110,11 +110,11 @@ function MaintenanceSection({ record, manifestOwned, open, onOpenChange }: { rec
             <ButtonGroup className="w-full">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button type="button" variant="outline" size="icon-sm" onClick={() => void refetch()} disabled={isFetching} aria-label={t("seedBuilder.dangerZone.orphans.refreshButton")}>
+                  <Button type="button" variant="outline" size="icon-sm" onClick={() => void refetch()} disabled={isFetching} aria-label={t("seedBuilder.dangerZone.orphans.refresh.button")}>
                     <Refresh className={cn("size-3.5", isFetching && "animate-spin")} />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="top">{t("seedBuilder.dangerZone.orphans.refreshButton")}</TooltipContent>
+                <TooltipContent side="top">{t("seedBuilder.dangerZone.orphans.refresh.button")}</TooltipContent>
               </Tooltip>
               {/* The width is always that of "Review": the invisible label sizes the button, the current one sits over it. */}
               <Button type="button" variant="outline" size="sm" className="relative flex-1 whitespace-nowrap" onClick={() => onOpenChange(!open)} aria-expanded={open} aria-controls={listId}>
@@ -148,7 +148,7 @@ function MaintenanceSection({ record, manifestOwned, open, onOpenChange }: { rec
                   <ul className="space-y-2">
                     {orphans.map((column) => {
                       const expected = `${record.slug}.${column}`
-                      const placeholder = t("seedBuilder.dangerZone.dropField.confirmPlaceholder", { expected })
+                      const placeholder = t("seedBuilder.dangerZone.dropField.confirm.placeholder", { expected })
                       return (
                         <li key={column} className="flex items-center gap-2">
                           <code className="flex-1 text-xs">{column}</code>
@@ -167,7 +167,7 @@ function MaintenanceSection({ record, manifestOwned, open, onOpenChange }: { rec
                             disabled={manifestOwned || confirms[column] !== expected || dropOrphan.isPending}
                             onClick={() => void handleDrop(column)}
                           >
-                            {t("seedBuilder.dangerZone.orphans.dropButton")}
+                            {t("seedBuilder.dangerZone.orphans.drop.button")}
                           </Button>
                         </li>
                       )
@@ -202,7 +202,7 @@ function FieldOperations({ record, disabled, state, onStateChange, onChooseDispl
             {t("seedBuilder.dangerZone.fieldOps.title")}
           </h3>
           <Badge variant="outline" className="border-status-warning/50 text-status-warning-foreground">
-            {t("seedBuilder.dangerZone.fieldOps.badge")}
+            {t("seedBuilder.dangerZone.fieldOps.writes.badge")}
           </Badge>
         </div>
         <p className="text-xs text-muted-foreground">{t("seedBuilder.dangerZone.fieldOps.subtitle")}</p>
@@ -262,7 +262,7 @@ function FieldOperationPanel({ branch, mode, onModeChange, slug, displayNameAlia
   const [confirm, setConfirm] = React.useState("")
 
   const expected = `${slug}.${branch.alias}`
-  const placeholder = t("seedBuilder.dangerZone.dropField.confirmPlaceholder", { expected })
+  const placeholder = t("seedBuilder.dangerZone.dropField.confirm.placeholder", { expected })
   const blocked = blockedReasons(branch, displayNameAlias, t)
   const busy = renameBranch.isPending || retypeBranch.isPending || dropBranch.isPending
 
@@ -270,7 +270,7 @@ function FieldOperationPanel({ branch, mode, onModeChange, slug, displayNameAlia
     try {
       if (mode === "rename") {
         const res = await renameBranch.mutateAsync({ slug, branchId: branch.id, newAlias, confirm: expected })
-        toast.success(t("seedBuilder.dangerZone.rename.successToast", { alias: branch.alias, newAlias }))
+        toast.success(t("seedBuilder.dangerZone.rename.success.toast", { alias: branch.alias, newAlias }))
         if (res.affectedAutomations?.length > 0) {
           toast.warning(t("seedBuilder.dangerZone.rename.automationWarning", {
             count: res.affectedAutomations.length,
@@ -279,10 +279,10 @@ function FieldOperationPanel({ branch, mode, onModeChange, slug, displayNameAlia
         }
       } else if (mode === "retype") {
         await retypeBranch.mutateAsync({ slug, branchId: branch.id, newType, confirm: expected })
-        toast.success(t("seedBuilder.dangerZone.retype.successToast", { alias: branch.alias, newType: t(`seedBuilder.fieldTypes.${newType}`) }))
+        toast.success(t("seedBuilder.dangerZone.retype.success.toast", { alias: branch.alias, newType: t(`seedBuilder.fieldTypes.${newType}`) }))
       } else {
         await dropBranch.mutateAsync({ slug, branchId: branch.id, confirm: expected })
-        toast.success(t("seedBuilder.dangerZone.dropField.successToast", { alias: branch.alias }))
+        toast.success(t("seedBuilder.dangerZone.dropField.success.toast", { alias: branch.alias }))
       }
     } catch { /* the hook shows the error toast */ }
   }
@@ -370,13 +370,13 @@ function FieldOperationPanel({ branch, mode, onModeChange, slug, displayNameAlia
           <TabsPrimitive.Content value={mode} className="space-y-3 outline-none">
           {effectiveMode === "rename" && (
             <>
-              <Impact tone="warn" title={t("seedBuilder.dangerZone.rename.impactTitle")} body={t("seedBuilder.dangerZone.rename.impactBody")} />
+              <Impact tone="warn" title={t("seedBuilder.dangerZone.rename.impact.title")} body={t("seedBuilder.dangerZone.rename.impactBody")} />
               <div className="flex gap-2">
                 <Input
-                  aria-label={t("seedBuilder.dangerZone.rename.newAliasLabel")}
+                  aria-label={t("seedBuilder.dangerZone.rename.newAlias.label")}
                   value={newAlias}
                   onChange={(e) => setNewAlias(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                  placeholder={t("seedBuilder.dangerZone.rename.newAliasLabel")}
+                  placeholder={t("seedBuilder.dangerZone.rename.newAlias.label")}
                   className="font-mono"
                   autoComplete="off"
                 />
@@ -387,10 +387,10 @@ function FieldOperationPanel({ branch, mode, onModeChange, slug, displayNameAlia
 
           {effectiveMode === "retype" && (
             <>
-              <Impact tone="warn" title={t("seedBuilder.dangerZone.retype.impactTitle")} body={t("seedBuilder.dangerZone.retype.impactBody")} />
+              <Impact tone="warn" title={t("seedBuilder.dangerZone.retype.impact.title")} body={t("seedBuilder.dangerZone.retype.impactBody")} />
               <div className="flex gap-2">
                 <Select value={newType} onValueChange={(v) => setNewType(v as BranchType)}>
-                  <SelectTrigger aria-label={t("seedBuilder.dangerZone.retype.newTypeLabel")}><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label={t("seedBuilder.dangerZone.retype.newType.label")}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {RETYPE_TARGETS.map((type) => (
                       <SelectItem key={type} value={type}>{t(`seedBuilder.fieldTypes.${type}`)}</SelectItem>
@@ -404,7 +404,7 @@ function FieldOperationPanel({ branch, mode, onModeChange, slug, displayNameAlia
 
           {effectiveMode === "drop" && (
             <>
-              <Impact tone="danger" title={t("seedBuilder.dangerZone.dropField.impactTitle")} body={t("seedBuilder.dangerZone.dropField.impactBody")} />
+              <Impact tone="danger" title={t("seedBuilder.dangerZone.dropField.impact.title")} body={t("seedBuilder.dangerZone.dropField.impactBody")} />
               <div className="flex gap-2">
                 <Input
                   aria-label={placeholder}

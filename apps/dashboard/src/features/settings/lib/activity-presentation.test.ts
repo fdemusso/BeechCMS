@@ -48,7 +48,7 @@ describe("describeActivity", () => {
     expect(bulk).toMatchObject({ title: "3 entries", detail: "posts" })
 
     const edit = describeActivity(entry({ action: "bulk_update", entity_type: "content", entity_slug: "posts", entity_id: "posts" }, { count: 4, fields: ["status", "tags"] }), t)
-    expect(edit).toMatchObject({ label: "Bulk edit", title: "4 entries", detail: "posts · fields: status, tags" })
+    expect(edit).toMatchObject({ label: "Bulk edit", title: "4 entries", detail: "posts · Fields: status, tags" })
   })
 
   it("only a saved draft carries its note", () => {
@@ -78,12 +78,12 @@ describe("describeActivity", () => {
     expect(password).toMatchObject({ title: "Password changed", detail: "other sessions signed out" })
 
     const profile = describeActivity(entry({ action: "update", entity_type: "user", entity_id: "u1" }, { op: "profile", fields: ["name", "email"] }), t)
-    expect(profile).toMatchObject({ title: "Profile updated", detail: "fields: name, email" })
+    expect(profile).toMatchObject({ title: "Profile updated", detail: "Fields: name, email" })
   })
 
   it("names who got which role, and where", () => {
     const assigned = describeActivity(entry({ action: "create", entity_type: "assignment", entity_id: "a1" }, { email: "ada@example.com", role: "Editor", scope: "*" }), t)
-    expect(assigned).toMatchObject({ title: "ada@example.com · Editor", detail: "Role assignment · all content" })
+    expect(assigned).toMatchObject({ title: "ada@example.com · Editor", detail: "Role assignment · All content" })
   })
 
   it("covers every action and entity the API can write, in both languages", () => {

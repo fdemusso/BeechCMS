@@ -25,7 +25,6 @@ vi.mock('react-i18next', () => ({
         'backrefs.summary_one': '1 entry references this',
         'backrefs.summary_other': `${params?.count} entries reference this`,
         'backrefs.showAll': `Show all ${params?.count}`,
-        'backrefs.empty': 'No references',
         'backrefs.deleteBlocked': `Cannot delete: ${params?.count} entries depend on this record`,
       }
       return map[key] ?? key
@@ -41,6 +40,9 @@ vi.mock('date-fns', () => ({
 vi.mock('date-fns/locale', () => ({
   enUS: {},
   it: {},
+  es: {},
+  de: {},
+  fr: {},
 }))
 
 const mockFetchBackrefs = vi.fn()

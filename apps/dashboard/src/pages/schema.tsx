@@ -19,7 +19,7 @@ export function SchemaPage() {
   return (
     <AppShell>
       <PageBody>
-        <PageHeader className="mb-6" title={t("seedBuilder.page.navTitle")} description={t("seedBuilder.page.subtitle")} />
+        <PageHeader className="mb-6" title={t("seedBuilder.page.nav.title")} description={t("seedBuilder.page.subtitle")} />
         <SeedBuilderPage showSubtitle={false} />
       </PageBody>
     </AppShell>

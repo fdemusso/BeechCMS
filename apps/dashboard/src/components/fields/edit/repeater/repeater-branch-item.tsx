@@ -184,7 +184,7 @@ export function BranchEditorForm({
                 readOnly
                 className="bg-muted text-muted-foreground cursor-not-allowed"
               />
-              <LockedHint hint={t("seedBuilder.branchEditor.aliasReadOnlyHint")} onOpen={onOpenDangerZone} />
+              <LockedHint hint={t("seedBuilder.branchEditor.aliasReadOnly.hint")} onOpen={onOpenDangerZone} />
             </div>
           ) : (
             <Input
@@ -210,7 +210,7 @@ export function BranchEditorForm({
                 readOnly
                 className="bg-muted text-muted-foreground cursor-not-allowed"
               />
-              <LockedHint hint={t("seedBuilder.branchEditor.typeReadOnlyHint")} onOpen={onOpenDangerZone} />
+              <LockedHint hint={t("seedBuilder.branchEditor.typeReadOnly.hint")} onOpen={onOpenDangerZone} />
             </div>
           ) : (
             <Select value={branch.type} onValueChange={(v) => set("type", v as BranchType)}>
@@ -253,7 +253,7 @@ export function BranchEditorForm({
 
       {/* Required: locked on a stored column, where NOT NULL is part of the table */}
       <div className="flex min-h-8 items-center justify-between gap-3">
-        <Label htmlFor={`required-${branch.id}`} className="text-xs">{t("seedBuilder.branchEditor.required")}</Label>
+        <Label htmlFor={`required-${branch.id}`} className="text-xs">{t("seedBuilder.branchEditor.required.label")}</Label>
         <Switch
           id={`required-${branch.id}`}
           checked={isRequired}
@@ -354,7 +354,7 @@ export function BranchItemRow({
               {branch.type}
             </Badge>
             {branch.localized === true && (
-              <Badge variant="outline" className="text-xs">{t("seedBuilder.branchEditor.localizedBadge")}</Badge>
+              <Badge variant="outline" className="text-xs">{t("seedBuilder.branchEditor.localized.label")}</Badge>
             )}
           </div>
           {branch.label && <p className="text-xs text-muted-foreground truncate">{branch.label}</p>}

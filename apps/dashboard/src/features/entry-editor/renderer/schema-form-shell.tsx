@@ -84,7 +84,7 @@ function ShellMessageBody({ message, onClose, t }: ShellMessageBodyProps) {
         <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
           <p className="text-status-danger-foreground">{message}</p>
           <Button variant="outline" className="mt-2" onClick={onClose}>
-            {t("common.close")}
+            {t("common.action.close")}
           </Button>
         </div>
       </div>
@@ -317,7 +317,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                     onClick={() => setShowDiscardConfirm(true)}
                     disabled={isDiscarding}
                   >
-                    {t("content.editor.discardDraft")}
+                    {t("content.editor.discardDraft.label")}
                   </Button>
                 </div>
               </div>
@@ -331,7 +331,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                 fieldErrors={fieldErrors}
                 onChange={handleInputChange}
                 dangerZoneSlot={capabilities.dangerZone && !isCreate ? dangerZoneSlot : undefined}
-                dangerZoneLabel={t("content.editor.tabs.dangerZone", "Danger Zone")}
+                dangerZoneLabel={t("content.editor.tabs.dangerZone")}
                 activeTabId={activeTabId}
                 onActiveTabChange={setActiveTabId}
                 isReadOnly={vm.isReadOnly}
@@ -362,7 +362,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="inline-flex">
-                            <Button type="button" variant="outline" size="icon" className={FOOTER_RADIUS} disabled aria-label={t("common.delete", "Delete")}>
+                            <Button type="button" variant="outline" size="icon" className={FOOTER_RADIUS} disabled aria-label={t("common.action.delete", "Delete")}>
                               <Trash2 />
                             </Button>
                           </span>
@@ -377,7 +377,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                         variant="outline"
                         size="icon"
                         className={`${FOOTER_RADIUS} hover:[&_svg]:text-status-danger-foreground [&_svg]:transition-colors`}
-                        aria-label={t("common.delete", "Delete")}
+                        aria-label={t("common.action.delete", "Delete")}
                         disabled={isDeleting}
                         onClick={handleDelete}
                       >
@@ -408,7 +408,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                           className="text-status-danger-foreground"
                           onClick={() => setShowDiscardConfirm(true)}
                         >
-                          {t("content.editor.discardDraft")}
+                          {t("content.editor.discardDraft.label")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -457,7 +457,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t("content.editor.unsavedTitle")}
+              {t("content.editor.unsaved.title")}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t("content.editor.unsavedDesc")}
@@ -481,7 +481,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
         <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{t("content.editor.discardDraftTitle")}</AlertDialogTitle>
+              <AlertDialogTitle>{t("content.editor.discardDraft.title")}</AlertDialogTitle>
               <AlertDialogDescription>{t("content.editor.discardDraftDesc")}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -490,7 +490,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
               </AlertDialogCancel>
               <AlertDialogAction variant="destructive" onClick={handleDiscardDraft} disabled={isDiscarding}>
                 {isDiscarding ? <Loader2 className="mr-1 size-4 animate-spin" /> : null}
-                {t("content.editor.discardDraft")}
+                {t("content.editor.discardDraft.label")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

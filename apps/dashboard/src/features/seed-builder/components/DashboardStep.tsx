@@ -49,7 +49,7 @@ export function DashboardStep({ form, editRecord, existingSeeds }: DashboardStep
       <FieldGroup>
         {form.branches.length > 0 && (
           <Field>
-            <FieldLabel htmlFor="sf-display">{t("seedBuilder.editor.displayNameAlias")}</FieldLabel>
+            <FieldLabel htmlFor="sf-display">{t("seedBuilder.editor.displayNameAlias.label")}</FieldLabel>
             <DisplayNamePicker
               id="sf-display"
               branches={form.branches}
@@ -70,7 +70,7 @@ export function DashboardStep({ form, editRecord, existingSeeds }: DashboardStep
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="sf-order">{t("seedBuilder.editor.dashOrder")}</FieldLabel>
+            <FieldLabel htmlFor="sf-order">{t("seedBuilder.editor.dashOrder.label")}</FieldLabel>
             <Input
               id="sf-order"
               data-enter-next=""
@@ -85,9 +85,9 @@ export function DashboardStep({ form, editRecord, existingSeeds }: DashboardStep
             />
           </Field>
         </div>
-        <p id="sf-order-hint" className="-mt-2 text-xs text-muted-foreground">{t("seedBuilder.editor.dashOrderHint")}</p>
+        <p id="sf-order-hint" className="-mt-2 text-xs text-muted-foreground">{t("seedBuilder.editor.dashOrder.hint")}</p>
         <Field>
-          <FieldLabel htmlFor="sf-description">{t("seedBuilder.editor.dashDescription")}</FieldLabel>
+          <FieldLabel htmlFor="sf-description">{t("seedBuilder.editor.dash.description")}</FieldLabel>
           <Input
             id="sf-description"
             data-enter-next=""

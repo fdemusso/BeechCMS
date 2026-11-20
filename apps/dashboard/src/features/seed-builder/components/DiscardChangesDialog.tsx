@@ -45,7 +45,7 @@ export function DiscardChangesDialog({ form, onClose }: DiscardChangesDialogProp
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t("content.editor.unsavedTitle")}</AlertDialogTitle>
+          <AlertDialogTitle>{t("content.editor.unsaved.title")}</AlertDialogTitle>
           <AlertDialogDescription>{t("content.editor.unsavedDesc")}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -93,7 +93,7 @@ describe("buildEntryPageActions", () => {
       ["draft context", DRAFT_WITH_DROPDOWN, "content.editor.saveDraft"],
       ["create in draft context", { isDraftContext: true, isCreate: true, entryId: undefined }, "content.editor.saveDraft"],
       ["create", { isCreate: true, entryId: undefined }, "common.create"],
-      ["live edit", {}, "content.editor.save"],
+      ["live edit", {}, "common.action.save"],
     ]
 
     for (const [state, overrides, expectedLabel] of cases) {
