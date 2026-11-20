@@ -210,6 +210,7 @@ export function RelationDisplay({ branch, value, options }: FieldDisplayProps) {
         // The dialog is portaled, but React events still bubble to the host (a table cell/row): there a click
         // moves focus to the table, Radix reads that as focus leaving the dialog and closes it. Keep them here.
         <div
+          role="presentation"
           className="contents"
           onClick={stopPropagation}
           onDoubleClick={stopPropagation}

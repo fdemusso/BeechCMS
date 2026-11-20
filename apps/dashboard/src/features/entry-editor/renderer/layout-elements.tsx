@@ -149,6 +149,8 @@ function ColumnRenderer({
             }
           >
             <div
+              // Click-to-copy is a pointer shortcut on top of the field; real controls inside keep their own keyboard behaviour.
+              role="presentation"
               className={isReadOnly ? "cursor-pointer [&_:disabled]:pointer-events-none" : undefined}
               onClick={isReadOnly ? handleReadOnlyFieldClick : undefined}
             >

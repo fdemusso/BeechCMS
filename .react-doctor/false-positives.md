@@ -64,18 +64,3 @@ the match scoped.
   local state to the parent: it closes the dialog once, when the layout query settles and the draft found
   after a reload turns out to be stale. That outcome is only known after the async fetch, so there is no
   event handler to put it in.
-
-## react-doctor/no-static-element-interactions
-
-- `apps/dashboard/src/components/fields/display/relation.tsx` — the `div.contents` wrapper is not a control: it has no
-  box (`display: contents`) and only stops React events that bubble out of the portaled entry dialog to the host table
-  cell/row. Giving it a role or key handlers would announce a non-existent widget.
-- `apps/dashboard/src/features/entry-editor/renderer/layout-elements.tsx` — the read-only field wrapper adds a
-  click-to-copy convenience on top of the field; the real controls inside it (links, buttons) stay keyboard-reachable
-  and the handler ignores them. Same entry covers `react-doctor/click-events-have-key-events` for this file.
-
-## react-doctor/no-adjust-state-on-prop-change
-
-- `apps/dashboard/src/features/content-toolbar/toolbar-hooks/use-conditional-formats.ts` — the effect consumes a one-shot
-  `editRequest` (identified by `nonce`, deduplicated through a ref) that can only be applied once the rule reaches
-  `conditionalFormats` a render later. It is an event handed in as a prop, not state derived from a prop.

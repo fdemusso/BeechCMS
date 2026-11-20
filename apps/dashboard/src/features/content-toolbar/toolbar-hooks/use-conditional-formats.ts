@@ -70,15 +70,17 @@ export function useConditionalFormats({
     }
   }, [activeConditionalRuleId, conditionalFormats])
 
-  const handledEditNonceRef = React.useRef<number | null>(null)
-  React.useEffect(() => {
-    if (!editRequest || handledEditNonceRef.current === editRequest.nonce) return
-    // The rule reaches `conditionalFormats` one render after the request: wait for it.
-    if (!conditionalFormats.some((rule) => rule.id === editRequest.ruleId)) return
-    handledEditNonceRef.current = editRequest.nonce
+  const [handledEditNonce, setHandledEditNonce] = React.useState<number | null>(null)
+  // The rule reaches `conditionalFormats` one render after the request: wait for it, then apply the request once.
+  if (
+    editRequest &&
+    handledEditNonce !== editRequest.nonce &&
+    conditionalFormats.some((rule) => rule.id === editRequest.ruleId)
+  ) {
+    setHandledEditNonce(editRequest.nonce)
     setActiveConditionalRuleId(editRequest.ruleId)
     setIsConditionalEditorOpen(true)
-  }, [editRequest, conditionalFormats])
+  }
 
   const activeConditionalRule = React.useMemo(() => {
     if (!activeConditionalRuleId) return conditionalFormats[0] ?? null
