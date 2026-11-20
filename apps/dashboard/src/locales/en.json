@@ -1198,7 +1198,16 @@
       "choose": {
         "column": "Choose column"
       },
-      "noColumns": "No columns available"
+      "noColumns": "No columns available",
+      "rules": "Rules",
+      "hint": "Rules apply from top to bottom.",
+      "tone": {
+        "success": "Success",
+        "warning": "Warning",
+        "danger": "Critical",
+        "info": "Info",
+        "neutral": "Neutral"
+      }
     },
     "operators": {
       "eq": "Equals",
@@ -1217,7 +1226,12 @@
       "true": "True",
       "false": "False"
     },
-    "automation": "Automation"
+    "automation": "Automation",
+    "headerMenu": {
+      "groupBy": "Group",
+      "ungroup": "Ungroup",
+      "conditionalColor": "Conditional color"
+    }
   },
   "notifications": {
     "title": "Notifications",

@@ -8,7 +8,7 @@ import userEvent from "@testing-library/user-event"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { FilterConditionInput } from "@/features/content-toolbar/toolbar-components/filter-condition-input"
-import { ConditionalFormatsEditor } from "@/features/content-toolbar/toolbar-components/conditional-formats-editor"
+import { ConditionalColorsSubmenu } from "@/features/content-toolbar/toolbar-components/conditional-formats-editor"
 
 describe("toolbar dropdowns close on selection", () => {
   it.each([
@@ -33,39 +33,31 @@ describe("toolbar dropdowns close on selection", () => {
     await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
   })
 
-  it("ColumnPicker selects the column and closes the menu", async () => {
+  it("Add rule submenu selects the column and closes the menu", async () => {
     const addConditionalFormatRule = vi.fn()
+    const onClose = vi.fn()
     render(
       <DropdownMenu open>
         <DropdownMenuTrigger>host</DropdownMenuTrigger>
         <DropdownMenuContent>
-          <ConditionalFormatsEditor
+          <ConditionalColorsSubmenu
             enabled
             formattableColumns={[{ columnId: "status", label: "Status", type: "select" }]}
             conditionalFormats={[]}
-            activeConditionalRule={null}
-            isConditionalEditorOpen={false}
-            setIsConditionalEditorOpen={vi.fn()}
             setActiveConditionalRuleId={vi.fn()}
+            setIsConditionalEditorOpen={vi.fn()}
             addConditionalFormatRule={addConditionalFormatRule}
-            updateConditionalRule={vi.fn()}
-            updateConditionalTextStyles={vi.fn()}
-            removeConditionalRule={vi.fn()}
-            moveConditionalRule={vi.fn()}
-            updateConditionalCondition={vi.fn()}
-            addConditionalCondition={vi.fn()}
-            removeConditionalCondition={vi.fn()}
-            availableTagsByColumnId={{}}
+            onClose={onClose}
           />
         </DropdownMenuContent>
       </DropdownMenu>,
     )
 
-    await userEvent.click(screen.getAllByRole("button", { name: /add/i })[0])
+    await userEvent.click(screen.getByRole("menuitem", { name: /conditional colors/i }))
+    await userEvent.click(await screen.findByRole("menuitem", { name: /add rule/i }))
     await userEvent.click(await screen.findByRole("menuitem", { name: /status/i }))
 
     expect(addConditionalFormatRule).toHaveBeenCalledWith("status")
-    // The host menu stays open (it is controlled); only the picker menu must be gone.
-    await waitFor(() => expect(screen.queryByRole("menuitem", { name: /status/i })).toBeNull())
+    expect(onClose).toHaveBeenCalled()
   })
 })

@@ -254,6 +254,7 @@ export function DataTableBody<TData, TValue>({
             enableColumnResizing={enableColumnResizing}
             enableColumnReorder={enableColumnReorder}
             stickyHeader={isGroupingActive}
+            renderContextMenuContent={props.renderHeaderContextMenuContent}
           />
         </TableHeader>
         {isGroupingActive && rows.length > 0 ? renderGroupBodies() : <TableBody>{renderTableRows()}</TableBody>}

@@ -21,6 +21,7 @@ import {
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import { TableHead, TableRow } from "@/components/ui/table"
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from "@/components/ui/context-menu"
 import { fixedColumnStyle, FIXED_COLUMN_CLASS, isFixedColumn, resizableColumnStyle } from "../fixed-column"
 import { COLUMN_SEPARATOR_CLASS, STICKY_HEADER_CLASS } from "../styles"
 
@@ -31,6 +32,8 @@ interface DataTableHeaderProps<TData> {
   enableColumnReorder?: boolean
   /** Header cells stay at the top of the scroll area (grouped mode scrolls inside the table). */
   stickyHeader?: boolean
+  /** Right-click menu of a header cell: only the items. Null for a column without a menu. */
+  renderContextMenuContent?: (columnId: string) => React.ReactNode
 }
 
 interface HeaderCellProps<TData> {
@@ -38,16 +41,17 @@ interface HeaderCellProps<TData> {
   enableColumnResizing?: boolean
   sortable: boolean
   sticky?: boolean
+  menuContent?: React.ReactNode
 }
 
-function HeaderCell<TData>({ header, enableColumnResizing, sortable, sticky }: HeaderCellProps<TData>) {
+function HeaderCell<TData>({ header, enableColumnResizing, sortable, sticky, menuContent }: HeaderCellProps<TData>) {
   const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: header.column.id,
     disabled: !sortable,
   })
 
-  return (
+  const cell = (
     <TableHead
       ref={sortable ? setNodeRef : undefined}
       {...(sortable ? listeners : undefined)}
@@ -85,6 +89,14 @@ function HeaderCell<TData>({ header, enableColumnResizing, sortable, sticky }: H
       )}
     </TableHead>
   )
+
+  if (!menuContent) return cell
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{cell}</ContextMenuTrigger>
+      <ContextMenuContent>{menuContent}</ContextMenuContent>
+    </ContextMenu>
+  )
 }
 
 function DataTableHeaderInner<TData>({
@@ -92,6 +104,7 @@ function DataTableHeaderInner<TData>({
   enableColumnResizing,
   enableColumnReorder,
   stickyHeader,
+  renderContextMenuContent,
 }: DataTableHeaderProps<TData>) {
   // Distance constraint: a plain click (sort) never turns into a drag.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
@@ -128,6 +141,7 @@ function DataTableHeaderInner<TData>({
           enableColumnResizing={enableColumnResizing}
           sortable={reorderableIds.includes(header.column.id)}
           sticky={stickyHeader}
+          menuContent={header.isPlaceholder ? null : renderContextMenuContent?.(header.column.id)}
         />
       ))}
     </TableRow>

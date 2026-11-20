@@ -36,10 +36,11 @@ export function buildFilterableColumns(
   seed: Seed,
   availableStatusOptions: string[] = []
 ): FilterableColumn[] {
-  const columns: FilterableColumn[] = [
-    { columnId: "slug", label: "Slug", type: "system" },
-    { columnId: "status", label: "Stato", type: "select", selectOptions: availableStatusOptions },
-  ]
+  const columns: FilterableColumn[] = [{ columnId: "slug", label: "Slug", type: "system" }]
+  // The status column exists only when the seed has the draft workflow.
+  if (seed.allowDrafts) {
+    columns.push({ columnId: "status", label: "Stato", type: "select", selectOptions: availableStatusOptions })
+  }
   for (const branch of seed.branches) {
     if (!resolvePolicies(branch).filter) continue
     const alias = branch.alias

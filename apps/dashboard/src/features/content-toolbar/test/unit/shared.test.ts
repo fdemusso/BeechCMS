@@ -104,6 +104,7 @@ describe("content-toolbar/shared", () => {
 
   it("calcola groupable columns per branch/section", () => {
     const seed = {
+      allowDrafts: true,
       branches: [
         { alias: "isLive", label: "Live", type: "boolean" },
         { alias: "publishedAt", label: "Data", type: "date" },
@@ -132,6 +133,14 @@ describe("content-toolbar/shared", () => {
 
     const withManyStatus = getGroupableColumns(seed, Array.from({ length: 9 }, (_, i) => `s${i}`))
     expect(withManyStatus[0].section).toBe("other")
+  })
+
+  it("getGroupableColumns omits status when the seed has no drafts", () => {
+    const seed = { allowDrafts: false, branches: [{ alias: "isLive", label: "Live", type: "boolean" }] } as any
+
+    const columns = getGroupableColumns(seed, ["draft", "published"])
+
+    expect(columns.map((c) => c.columnId)).toEqual(["isLive"])
   })
 
   it("getGroupableColumns lists a single-choice tags branch as recommended and omits a multiple-choice one", () => {

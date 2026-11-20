@@ -87,15 +87,13 @@ export const DEFAULT_VIEW_SETTINGS: readonly ViewSetting[] = [
   "density",
 ]
 
-export const CONDITIONAL_TONE_OPTIONS: Array<{
-  value: ConditionalFormatTone
-  label: string
-}> = [
-  { value: "success", label: "Successo" },
-  { value: "warning", label: "Attenzione" },
-  { value: "danger", label: "Critico" },
-  { value: "info", label: "Info" },
-  { value: "neutral", label: "Neutro" },
+/** Labels live in `toolbar.conditionalFormats.tone.<value>`. */
+export const CONDITIONAL_TONE_OPTIONS: Array<{ value: ConditionalFormatTone }> = [
+  { value: "success" },
+  { value: "warning" },
+  { value: "danger" },
+  { value: "info" },
+  { value: "neutral" },
 ]
 
 export function normalizeConditionalTarget(value: unknown): ConditionalFormatTarget {
@@ -128,6 +126,34 @@ export function getConditionalToneStripClass(tone: ConditionalFormatTone): strin
 
 export function generateConditionId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+}
+
+const FORMATTABLE_TYPES: ReadonlySet<FilterGroupType> = new Set(["select", "number", "date", "boolean", "tags"])
+
+/** Conditional colors can colour columns of these types only. */
+export function isFormattableColumn(col: FilterableColumn): boolean {
+  return FORMATTABLE_TYPES.has(col.type)
+}
+
+/** A new, enabled rule for `col`, with one empty condition. */
+export function buildConditionalRule(col: FilterableColumn, priority: number): ConditionalFormatRule {
+  return {
+    id: generateConditionId(),
+    enabled: true,
+    priority,
+    label: col.label,
+    columnId: col.columnId,
+    group: {
+      columnId: col.columnId,
+      label: col.label,
+      type: col.type,
+      selectOptions: col.selectOptions,
+      conditions: [{ id: generateConditionId(), op: col.type === "tags" ? "contains" : "eq", value: null }],
+    },
+    tone: "warning",
+    target: "element",
+    textStyles: [],
+  }
 }
 
 export { buildFilterableColumns, type FilterableColumn } from "@/lib/filter-dsl"
@@ -198,11 +224,14 @@ export function getGroupableColumns(
   statusLabel: string = "Stato"
 ): GroupableColumn[] {
   const result: GroupableColumn[] = []
-  const statusSection: GroupableSection =
-    availableStatusOptions.length > 0 && availableStatusOptions.length <= 8
-      ? "recommended"
-      : "other"
-  result.push({ columnId: "status", label: statusLabel, section: statusSection })
+  // The status column exists only when the seed has the draft workflow.
+  if (seed.allowDrafts) {
+    const statusSection: GroupableSection =
+      availableStatusOptions.length > 0 && availableStatusOptions.length <= 8
+        ? "recommended"
+        : "other"
+    result.push({ columnId: "status", label: statusLabel, section: statusSection })
+  }
 
   for (const branch of seed.branches) {
     if (branch.type === "boolean") {

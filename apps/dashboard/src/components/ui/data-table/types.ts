@@ -40,6 +40,11 @@ export interface DataTableProps<TData, TValue> {
    * La funzione deve rendere SOLO gli items del menu (content interno).
    */
   renderRowContextMenuContent?: (row: TData, columnId: string) => React.ReactNode
+  /**
+   * Se fornito, abilita il menu contestuale (tasto destro) sulle intestazioni di colonna.
+   * Rende SOLO gli items; ritorna null per non mostrare il menu su quella colonna.
+   */
+  renderHeaderContextMenuContent?: (columnId: string) => React.ReactNode
   /** Colonne escluse dal menu contestuale (default: select, actions). */
   rowContextMenuExcludedColumnIds?: string[]
   /** Selezione righe controllata dall'esterno (chiavi: rowId). */

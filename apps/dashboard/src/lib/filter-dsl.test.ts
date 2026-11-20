@@ -255,6 +255,11 @@ describe("filter-dsl - matchesFilterGroupStrict", () => {
 describe("buildFilterableColumns", () => {
   const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts") as Seed
 
+  it("buildFilterableColumns omits status when the seed has no drafts and keeps it when it has", () => {
+    expect(buildFilterableColumns({ ...posts, allowDrafts: false }).some((c) => c.columnId === "status")).toBe(false)
+    expect(buildFilterableColumns({ ...posts, allowDrafts: true }).some((c) => c.columnId === "status")).toBe(true)
+  })
+
   it("buildFilterableColumns types a tags branch as tags", () => {
     const columns = buildFilterableColumns(posts)
 

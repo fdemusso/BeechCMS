@@ -13,6 +13,7 @@
 export { ContentToolbar } from "./content-toolbar"
 export { useContentToolbar } from "./use-content-toolbar"
 export type { ContentToolbarProps } from "./types"
+export type { ConditionalRuleEditRequest } from "./toolbar-hooks/use-conditional-formats"
 export type {
   UserViewInstance,
   ToolbarFiltersState,
@@ -22,7 +23,7 @@ export type {
   FilterGroupType,
   FilterOperator,
 } from "./shared"
-export { DEFAULT_ENABLED_TOOLS, DEFAULT_VIEW_SETTINGS, buildFilterableColumns, defaultOperatorForType, generateConditionId } from "./shared"
+export { DEFAULT_ENABLED_TOOLS, DEFAULT_VIEW_SETTINGS, buildConditionalRule, buildFilterableColumns, defaultOperatorForType, generateConditionId, getGroupableColumns, isFormattableColumn } from "./shared"
 export type { FilterableColumn } from "./shared"
 export { VIEW_TYPE_CATALOGUE } from "./toolbar-components/view-type-catalogue"
 export { ViewSwitcher } from "./toolbar-components/view-switcher"

@@ -6,6 +6,7 @@ import * as React from "react"
 import type { ConditionalFormatRule, ConditionalFormatTextStyle } from "@/lib/conditional-format"
 import type { FilterOperator, ToolbarFilterCondition } from "@/features/content-toolbar/shared"
 import {
+  buildConditionalRule,
   generateConditionId,
   MAX_CONDITIONS_PER_FILTER,
   normalizeConditionalTarget,
@@ -18,6 +19,13 @@ interface UseConditionalFormatsOptions {
   conditionalFormatsInput?: ConditionalFormatRule[]
   formattableColumns: FormattableColumn[]
   onConditionalFormatsChange?: (viewId: string, next: ConditionalFormatRule[]) => void
+  /** Opens the editor on a rule created elsewhere (table header menu). `nonce` makes a repeat request count. */
+  editRequest?: ConditionalRuleEditRequest
+}
+
+export interface ConditionalRuleEditRequest {
+  readonly ruleId: string
+  readonly nonce: number
 }
 
 export function useConditionalFormats({
@@ -25,6 +33,7 @@ export function useConditionalFormats({
   conditionalFormatsInput,
   formattableColumns,
   onConditionalFormatsChange,
+  editRequest,
 }: UseConditionalFormatsOptions) {
   const [activeConditionalRuleId, setActiveConditionalRuleId] = React.useState<string | null>(null)
   const [isConditionalEditorOpen, setIsConditionalEditorOpen] = React.useState(false)
@@ -61,6 +70,16 @@ export function useConditionalFormats({
     }
   }, [activeConditionalRuleId, conditionalFormats])
 
+  const handledEditNonceRef = React.useRef<number | null>(null)
+  React.useEffect(() => {
+    if (!editRequest || handledEditNonceRef.current === editRequest.nonce) return
+    // The rule reaches `conditionalFormats` one render after the request: wait for it.
+    if (!conditionalFormats.some((rule) => rule.id === editRequest.ruleId)) return
+    handledEditNonceRef.current = editRequest.nonce
+    setActiveConditionalRuleId(editRequest.ruleId)
+    setIsConditionalEditorOpen(true)
+  }, [editRequest, conditionalFormats])
+
   const activeConditionalRule = React.useMemo(() => {
     if (!activeConditionalRuleId) return conditionalFormats[0] ?? null
     return (
@@ -82,25 +101,8 @@ export function useConditionalFormats({
     (columnId: string) => {
       const col = formattableColumns.find((c) => c.columnId === columnId)
       if (!col) return
-      const id = generateConditionId()
-      const defaultOp: FilterOperator = col.type === "tags" ? "contains" : "eq"
-      const nextRule: ConditionalFormatRule = {
-        id,
-        enabled: true,
-        priority: conditionalFormats.length,
-        label: col.label,
-        columnId,
-        group: {
-          columnId,
-          label: col.label,
-          type: col.type,
-          selectOptions: col.selectOptions,
-          conditions: [{ id: generateConditionId(), op: defaultOp, value: null }],
-        },
-        tone: "warning",
-        target: "element",
-        textStyles: [],
-      }
+      const nextRule = buildConditionalRule(col, conditionalFormats.length)
+      const id = nextRule.id
       commitConditionalFormats([...conditionalFormats, nextRule])
       setActiveConditionalRuleId(id)
       setIsConditionalEditorOpen(true)

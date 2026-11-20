@@ -1209,7 +1209,16 @@
       "choose": {
         "column": "Elegir columna"
       },
-      "noColumns": "No hay columnas disponibles"
+      "noColumns": "No hay columnas disponibles",
+      "rules": "Reglas",
+      "hint": "Las reglas se aplican de arriba abajo.",
+      "tone": {
+        "success": "Éxito",
+        "warning": "Atención",
+        "danger": "Crítico",
+        "info": "Info",
+        "neutral": "Neutro"
+      }
     },
     "operators": {
       "eq": "Es igual a",
@@ -1228,7 +1237,12 @@
       "true": "Verdadero",
       "false": "Falso"
     },
-    "automation": "Automatización"
+    "automation": "Automatización",
+    "headerMenu": {
+      "groupBy": "Agrupar",
+      "ungroup": "Desagrupar",
+      "conditionalColor": "Color condicional"
+    }
   },
   "notifications": {
     "title": "Notificaciones",

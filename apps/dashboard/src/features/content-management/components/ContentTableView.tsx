@@ -66,6 +66,8 @@ export interface ContentTableViewProps {
   onDelete: (id: string) => void
   onBulkDelete: (ids: string[]) => void
   onCreate: (defaultValues?: Record<string, unknown> | React.SyntheticEvent | Event) => void
+  /** Items of the column-header context menu; null on a column with no shortcut. */
+  renderHeaderContextMenuContent?: (columnId: string) => React.ReactNode
   /** Adds a toolbar filter for the value of `columnId` in `entry` (context menu). */
   onCellFilter: (columnId: string, entry: ContentEntry) => void
 }
@@ -109,6 +111,7 @@ export function ContentTableView({
   onBulkDelete,
   onCreate,
   onCellFilter,
+  renderHeaderContextMenuContent,
 }: ContentTableViewProps) {
   const { t } = useTranslation()
 
@@ -235,6 +238,7 @@ export function ContentTableView({
       collapsedGroupsStorageKey={collapsedGroupsStorageKey}
       onGroupingChange={onGroupingChange}
       renderRowContextMenuContent={renderContextMenuContent}
+      renderHeaderContextMenuContent={renderHeaderContextMenuContent}
       pageSize={pageSize}
       onPageSizeChange={onPageSizeChange}
       pageIndex={pageIndex}

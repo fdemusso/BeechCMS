@@ -8,9 +8,17 @@ import { useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { isSearchSupported, type ContentView, type DashboardView, type Seed, type TransferFormat } from "@beechcms/core"
 import { useSchema } from "@/features/shared/hooks/use-schema"
-import type { ViewEntryActions, ViewEntrySavedInfo } from "@/features/shared"
+import type { ViewColumnActions, ViewEntryActions, ViewEntrySavedInfo } from "@/features/shared"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
-import { ContentToolbar, type UserViewInstance } from "@/features/content-toolbar"
+import {
+  ContentToolbar,
+  buildConditionalRule,
+  buildFilterableColumns,
+  getGroupableColumns,
+  isFormattableColumn,
+  type ConditionalRuleEditRequest,
+  type UserViewInstance,
+} from "@/features/content-toolbar"
 import { useContentListQuery, useContentListModals, ContentListModals } from "@/features/content-management"
 import { toContentViewConfig, toViewToolbarState, useViewConfigAutosave, useViewLayoutState } from "@/features/content-views"
 import { FOLDER_PARAM, folderCreateDefaults } from "@/features/content-gallery"
@@ -120,6 +128,24 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
 
   const definition = viewRegistry.get(view.type)
 
+  const [ruleEditRequest, setRuleEditRequest] = React.useState<ConditionalRuleEditRequest>()
+  const columnActions = React.useMemo<ViewColumnActions>(() => {
+    const statusLabel = t("content.table.status")
+    const groupableIds = new Set(getGroupableColumns(seed, query.effectiveStatusOptions, statusLabel).map((c) => c.columnId))
+    const formattable = buildFilterableColumns(seed, query.effectiveStatusOptions).filter(isFormattableColumn)
+    return {
+      canGroupBy: (columnId) => groupableIds.has(columnId),
+      canFormat: (columnId) => formattable.some((c) => c.columnId === columnId),
+      addConditionalRule: (columnId) => {
+        const col = formattable.find((c) => c.columnId === columnId)
+        if (!col) return
+        const rule = buildConditionalRule(col, layout.conditionalFormats.length)
+        layout.setConditionalFormats((prev) => [...prev, rule])
+        setRuleEditRequest((prev) => ({ ruleId: rule.id, nonce: (prev?.nonce ?? 0) + 1 }))
+      },
+    }
+  }, [seed, query.effectiveStatusOptions, layout.conditionalFormats.length, layout.setConditionalFormats, t])
+
   // Gallery con cartella aperta: "Nuovo" precompila il campo "Raggruppa per" con il valore della cartella.
   const [searchParams] = useSearchParams()
   const folderParam = searchParams.get(FOLDER_PARAM)
@@ -176,6 +202,7 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
         onDeleteView={onDeleteView}
         canDeleteView={canDeleteView}
         onConditionalFormatsChange={handleConditionalFormatsChange}
+        conditionalRuleEditRequest={ruleEditRequest}
         onCreate={handleToolbarCreate}
         searchValue={query.tableSearch}
         onSearchChange={query.setTableSearch}
@@ -220,6 +247,7 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
             layout={layout}
             formatElement={formatElement}
             entries={entries}
+            columnActions={columnActions}
             isSaving={isSaving}
             configDialog={{ open: configDialogOpen, onOpenChange: setConfigDialogOpen }}
           />
