@@ -9,7 +9,7 @@ import {
   matchOperation,
   requiresConfirmation,
   resolveOperationRisk,
-  type AgentIntentRisk,
+  type AgentIntentPendingResponse,
 } from '@beechcms/core'
 import type { AppEnv } from '../types'
 import { insufficientScopeResponse } from './oauth-scope.middleware'
@@ -31,10 +31,7 @@ export interface AgentIntentGateOptions {
   dispatch: IntentDispatcher
 }
 
-/** Body of the 202 answer. `expiresAt` is Unix seconds. */
-export interface AgentIntentPendingResponse {
-  intent: { id: string; operationId: string; risk: AgentIntentRisk; summary: string; status: 'pending'; expiresAt: number }
-}
+export type { AgentIntentPendingResponse } from '@beechcms/core'
 
 function errorResponse(status: 409 | 413, error: string, description: string): Response {
   return new Response(JSON.stringify({ error, error_description: description }), {

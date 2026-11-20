@@ -187,4 +187,47 @@ describe('client', () => {
     await requestB('GET', '/api/seeds')
     expect(writeGrantMock).toHaveBeenCalledWith('http://localhost:8787', 'client-B', FRESH_GRANT)
   })
+
+  describe('send', () => {
+    function freshSend() {
+      return createApiClient(resolveApiConfig({ baseUrl: 'http://localhost:8787' })).send
+    }
+
+    it('send returns a 404 Response without throwing and without reading its body', async () => {
+      readGrantMock.mockReturnValue(FRESH_GRANT)
+      globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ title: 'Not found' }), { status: 404 }))
+      const send = freshSend()
+
+      const response = await send('GET', '/api/content/posts/missing')
+
+      expect(response.status).toBe(404)
+      expect(response.bodyUsed).toBe(false)
+    })
+
+    it('send refreshes once on 401 and returns the retried Response', async () => {
+      readGrantMock.mockReturnValue(FRESH_GRANT)
+      refreshMock.mockResolvedValue({ ...FRESH_GRANT, accessToken: 'access-3' })
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce(new Response('', { status: 401 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      const send = freshSend()
+
+      const response = await send('GET', '/api/seeds')
+
+      expect(response.status).toBe(200)
+      expect(refreshMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('send returns a 202 Response with its body intact', async () => {
+      readGrantMock.mockReturnValue(FRESH_GRANT)
+      const stubbedBody = { jobId: 'j1' }
+      globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(stubbedBody), { status: 202 }))
+      const send = freshSend()
+
+      const response = await send('POST', '/api/content/posts/import', { objectKey: 'k', format: 'csv' })
+
+      expect(response.status).toBe(202)
+      expect(await response.json()).toEqual(stubbedBody)
+    })
+  })
 })

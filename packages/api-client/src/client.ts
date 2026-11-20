@@ -30,6 +30,8 @@ export interface ApiResponse<T> {
 
 export interface ApiClient {
   request<T = unknown>(method: string, path: string, body?: unknown): Promise<ApiResponse<T>>
+  /** Authenticated request with refresh-on-401 and transient retries; returns the final Response whatever its status. */
+  send(method: string, path: string, body?: unknown): Promise<Response>
   readonly baseUrl: string
 }
 
@@ -127,7 +129,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     }
   }
 
-  async function request<T = unknown>(method: string, path: string, body?: unknown): Promise<ApiResponse<T>> {
+  async function send(method: string, path: string, body?: unknown): Promise<Response> {
     let accessToken = await getAccessToken()
     let response = await rawFetch(method, path, accessToken, body)
 
@@ -146,6 +148,12 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       await sleep(RETRY_BASE_DELAY_MS * 2 ** attempt + Math.random() * RETRY_BASE_DELAY_MS)
       response = await rawFetch(method, path, accessToken, body)
     }
+
+    return response
+  }
+
+  async function request<T = unknown>(method: string, path: string, body?: unknown): Promise<ApiResponse<T>> {
+    const response = await send(method, path, body)
 
     if (response.status === 403) {
       let errorBody: { error?: string; error_description?: string } = {}
@@ -176,5 +184,5 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     return { data: (await response.json()) as T, headers: response.headers }
   }
 
-  return { request, baseUrl: config.baseUrl }
+  return { request, send, baseUrl: config.baseUrl }
 }

@@ -1,6 +1,6 @@
 # `@beechcms/mcp` 2.0 — Agent Control Plane (ROADMAP)
 
-> Stato: **sprint 03-04 DONE, sprint 05 PLANNED** · Data: 2026-11-20 · Base:
+> Stato: **sprint 03-05b DONE, sprint 06 PLANNED** · Data: 2026-11-21 · Base:
 > `@beechcms/mcp@1.2.0`, `api@0.10.0`
 > Obiettivo: l'agente di un developer che lavora in locale può fare tutto ciò che l'utente fa
 > dalla dashboard, entro il suo RBAC, scrivendo script TypeScript invece di chiamare un tool alla
@@ -182,6 +182,47 @@ I conteggi sono stime fatte a mano: quelli esatti escono dal catalog nello sprin
 > - Nessuna implementazione in-memory del repository: i test usano D1 reale (`testing_conventions.md` 0.1).
 > - Activity log: nuovo `EntityType` `'intent'`; azioni esistenti `create` (intent creato), `authorize` (approvato ed
 >   eseguito), `revoke` (rifiutato). Le etichette in dashboard arrivano con lo sprint 05b.
+>
+> **Decisioni della pianificazione dello sprint 05b** (fonte di verità: `AgentIntentsDashboard.md`):
+> - Solo dashboard: nessuna modifica ad API, core o package. Le route di 05 accettano già il JWT dashboard.
+> - Nessuno slice nuovo: la sezione "Azioni agente in attesa" vive in `features/oauth-consent/` ed è la prima sezione
+>   del tab **Impostazioni → App collegate**, sopra l'elenco delle app.
+> - Indirizzo stabile per il fallback dello sprint 08: **`?settings=connected-apps&section=agent-actions`**.
+> - Anteprima = corpo della richiesta salvata (JSON indentato, solo testo). Approvare dal dialog è la conferma: nessun
+>   secondo dialog; per `destructive` il pulsante usa la variante `destructive`.
+> - Polling ogni 30 s solo con la sezione aperta; nessun badge/contatore, nessuno storico degli intent decisi.
+>
+> **Decisioni della pianificazione dello sprint 06** (fonte di verità: `ScriptSdk.md`):
+> - Nomi: il metodo SDK è l'id del catalog (`drafts.publish` → `beech.drafts.publish()`), 19 namespace = i domini del
+>   catalog. 108 metodi su 110 operazioni `agent`; omesse con motivo solo `intents.approve` (niente auto-approvazione) e
+>   il multipart `media.upload` (il Worker non riceve byte). Helper: `content.listAll`, `content.importFile` (CSV o
+>   NDJSON, al posto di `importCsv`), `content.waitForImport`, `media.uploadFile`. Nessun namespace `jobs`.
+> - Esito: le letture restituiscono il dato; ogni altro metodo restituisce `WriteOutcome<T>` =
+>   `executed | pending (intent) | dry-run`, discriminato da `kind`. L'intent si riconosce dalla forma del body
+>   (`isAgentIntentPendingResponse`, in core insieme al tipo spostato dal middleware), mai dal solo `202`: import e
+>   purge dei seed rispondono `202` con un job.
+> - Dry-run: le letture partono, le altre richieste vengono solo registrate nel journal (`calls`, `pendingIntents`)
+>   che `beech run` stamperà nello sprint 07.
+> - Tipi precisi solo per `content`, `trash`, `media`, `intents` e job di import; gli altri 15 namespace hanno firme
+>   meccaniche (parametri di path, poi query o body) e risposta `SdkJson`.
+> - Trasporto: `ApiClient.send()` nuovo in `@beechcms/api-client` (Response grezza, stesso OAuth/retry); `request()`
+>   invariato. Un solo scope per il client `beech-mcp-cli` (`CLI_OAUTH_SCOPE` = tutti tranne `agent:approve`), usato
+>   anche da `beech schema *`, per non avere due grant con scope diversi sulla stessa chiave di cache.
+> - `@beechcms/cli/sdk` esporta solo tipi, `BeechSdkError` e le guardie; `createBeechSdk` resta interno fino allo
+>   sprint 07.
+>
+> **Smoke test API dello sprint 05** (2026-11-20, `pnpm beech dev` su `localhost:8789`, consensi OAuth reali di
+> `beech-mcp-cli` e `beech-mcp`): **12/12 controlli passati** una volta corretti due errori dello script di prova.
+> `DELETE /api/seeds/:slug` col token degli script → `202` intent `pending` (`seeds.delete`, `destructive`), seed intatto;
+> l'intent compare in `GET /api/agent/intents`; reject → `200 rejected`, seed intatto; approve dopo reject → `409
+> intent_not_pending`; approve col client degli script → `403` (manca `agent:approve`); approve con `beech-mcp` → `200`,
+> replay `200 {"success":true}`, intent `executed`, seed `deleted`; secondo approve → `409`. Un replay che il server
+> rifiuta (seed legato a un manifest, `409 seed-manifest-owned`) viene salvato come `failed` con il suo stato: corretto.
+> Seed di prova rimossi con hard delete passato anch'esso dal gate (replay `202` del job di purge).
+> - Trovato: `pnpm beech db:migrate` non applica migration nuove su un DB locale già inizializzato (il DB era senza
+>   0045/0046, consenso fallito con `invalid_scope`). Issue **#967**; 0045/0046 applicate a mano sul DB locale.
+> - Da verificare (non bloccante): `GET /api/seeds/:slug` risponde anche per un seed `deleted`.
+> - Lo smoke della UI (sezione "Azioni agente in attesa", approvazione con il JWT dashboard) si fa a fine sprint 05b.
 
 ### 3.1 Auth e OAuth (17) — fuori dall'MCP
 
@@ -632,9 +673,9 @@ successivo.
 |:-:|---|---|---|---|
 | 03 | **OperationCatalog** | DONE | `packages/core/src/operations/` con le 142 operazioni; `matchOperation()`; test di parità in `apps/api` | CI fallisce se una route non è catalogata o un'operazione non esiste; ogni `excluded` ha un motivo |
 | 04 | **OAuthScopesV2** | DONE | scope v2 in core (`OAUTH_SCOPES` = `OPERATION_SCOPES` del catalog); `oauth-scope.middleware` legge dal catalog; rimuove il ramo morto `kanban-position` da `PROTECTED_ROUTES`; migration che aggiorna `oauth_clients.allowed_scopes`; template di consenso in dashboard | Token `content:read` non scrive; un token più largo dell'RBAC resta limitato dall'RBAC; token 1.x `schema:*` continuano a funzionare |
-| 05 | **AgentIntents** | PLANNED | scope `agent:read`/`agent:approve`; migration `0046_agent_intents` (+ `allowed_scopes`); rimozione del guard interim `confirmation_required` dello sprint 04; repository; middleware `agentIntentGate`; endpoint `/api/agent/intents`; replay lato server; activity log | Nessuna `destructive` eseguita con token OAuth senza approve; intent scaduto, riusato o di un altro utente rifiutato; policy dev/prod rispettata; JWT dashboard invariato |
-| 05b | **AgentIntentsDashboard** | PENDING | sezione dashboard "Azioni agente in attesa" (lista, anteprima, Approva/Rifiuta via JWT); etichette activity log per `intent` | Un intent creato da un token OAuth si approva o rifiuta dalla dashboard; design-token check pulito; 5 locale |
-| 06 | **ScriptSdk** | PENDING | SDK `beech` in `packages/cli/src/sdk/` + export `@beechcms/cli/sdk`: metodi per tutte le operazioni `agent`, tipi per-seed, `IntentPending`, helper, dry-run | Test di parità SDK ↔ catalog; test helper (upload, import, paginazione) contro D1 di test |
+| 05 | **AgentIntents** | DONE | scope `agent:read`/`agent:approve`; migration `0046_agent_intents` (+ `allowed_scopes`); rimozione del guard interim `confirmation_required` dello sprint 04; repository; middleware `agentIntentGate`; endpoint `/api/agent/intents`; replay lato server; activity log | Nessuna `destructive` eseguita con token OAuth senza approve; intent scaduto, riusato o di un altro utente rifiutato; policy dev/prod rispettata; JWT dashboard invariato |
+| 05b | **AgentIntentsDashboard** | DONE | sezione dashboard "Azioni agente in attesa" (lista, anteprima, Approva/Rifiuta via JWT); etichette activity log per `intent` | Un intent creato da un token OAuth si approva o rifiuta dalla dashboard; design-token check pulito; 5 locale |
+| 06 | **ScriptSdk** | PLANNED | SDK `beech` in `packages/cli/src/sdk/` + export `@beechcms/cli/sdk`: metodi per tutte le operazioni `agent`, tipi per-seed, `IntentPending`, helper, dry-run | Test di parità SDK ↔ catalog; test helper (upload, import, paginazione) contro D1 di test |
 | 07 | **BeechRun** | PENDING | `beech run`, `defineScript`, `.beech/scripts`, `beech agent setup` | Script d'esempio gira contro `pnpm beech dev`; `--dry-run` non scrive niente; output JSON stabile |
 | 08 | **Mcp2** | PENDING | `@beechcms/mcp@2.0.0`: whoami/search/intents/confirm con elicitation, fallback dashboard, versione corretta, SKILL.md riscritto | In Claude Code un intent viene approvato da dialog; con elicitation rifiutata o non supportata, l'agente riceve l'istruzione di fallback |
 | 09 | **DocsEvals** | PENDING | `docs/reference/mcp-server.md`, guida "agente in locale", suite di task v1 vs v2 | Report su turni, token e successo per task |
