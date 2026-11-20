@@ -1427,6 +1427,7 @@
     "scheduled": "Geplant",
     "analytics": "Analysen",
     "studio": "Studio",
+    "toggle": "Seitenleiste ein-/ausblenden",
     "disabled": {
       "createContent": "Sie können hier keine Inhalte erstellen"
     }

@@ -21,10 +21,12 @@ import type { MenuGates } from "@/config/dashboard-menu"
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 /**
  * Short line between groups; only shown in the icon rail, where the group labels are gone.
@@ -92,19 +94,19 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
         <SidebarSearch />
       </SidebarHeader>
       <SidebarContent className="group-data-[collapsible=icon]:overflow-auto">
-        <NavSection items={getStaticMenu(t, gates)} groupLabel={t("sidebar.navigation")}>
+        <NavSection items={getStaticMenu(t, gates)} groupLabel={t("sidebar.navigation")} collapsible={false}>
           <NavNotifications />
         </NavSection>
         {studioItems.length > 0 && (
           <>
             <RailDivider spaced />
-            <NavSection items={studioItems} groupLabel={t("sidebar.studio")} />
+            <NavSection items={studioItems} groupLabel={t("sidebar.studio")} collapsible={false} />
           </>
         )}
         {contentCategoryItems.length > 0 && (
           <>
             <RailDivider spaced />
-            <NavSection items={contentCategoryItems} groupLabel={t("sidebar.contentGroup")} />
+            <NavSection items={contentCategoryItems} groupLabel={t("sidebar.contentGroup")} collapsible={false} />
           </>
         )}
         {contentGroups.map((group, i) => (
@@ -118,16 +120,21 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
             />
           </React.Fragment>
         ))}
-        {/* Settings entry with the sidebar close button beside it. */}
-        {/* Collapsed (icon rail): the row stacks, settings icon above the toggle. */}
-        <div data-rail-static className="mt-auto flex items-center pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:pr-0">
-          <NavSection items={getSettingsMenu(t).map((item) => ({ ...item, onSelect: () => openSettings() }))} className="min-w-0 flex-1 pt-0" />
-          {/* Same box, radius, icon size, colour and hover as the Settings SidebarMenuButton beside it (size-8, rounded-control,
-              16px icon), on the same centre line: self-start because the Settings group has pt-0, so centring in the row would
-              sit 4px below the button. In the rail it stacks under it, left-aligned to the button (group p-2). */}
-          <SidebarTrigger className="size-8 shrink-0 self-start rounded-control [&_svg]:size-4 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:ml-2 group-data-[collapsible=icon]:mb-2" />
-        </div>
       </SidebarContent>
+      {/* Settings + sidebar close button live outside the scrolling content, so they are always visible.
+          Collapsed (icon rail): the row stacks, settings icon above the toggle. */}
+      <SidebarFooter data-rail-static className="flex-row items-center gap-0 p-0 pr-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:pr-0">
+        <NavSection items={getSettingsMenu(t).map((item) => ({ ...item, onSelect: () => openSettings() }))} className="min-w-0 flex-1 pt-0" />
+        {/* Same box, radius, icon size, colour and hover as the Settings SidebarMenuButton beside it (size-8, rounded-control,
+            16px icon), on the same centre line: self-start because the Settings group has pt-0, so centring in the row would
+            sit 4px below the button. In the rail it stacks under it, left-aligned to the button (group p-2). */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <SidebarTrigger aria-label={t("sidebar.toggle")} className="size-8 shrink-0 self-start rounded-control [&_svg]:size-4 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:ml-2 group-data-[collapsible=icon]:mb-2" />
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">{t("sidebar.toggle")}</TooltipContent>
+        </Tooltip>
+      </SidebarFooter>
     </Sidebar>
   )
 })

@@ -445,6 +445,27 @@ input[type="search"]::-webkit-search-results-decoration {
   to { height: 0; overflow: hidden; }
 }
 
+/* Sidebar group collapse: the group's menu slides closed over its measured height and fades, clipped while it runs,
+   so the rows under the label never sit beneath the next group's label while they leave. Opens over --duration-enter,
+   closes 20% faster (--duration-exit). Clipped only while it runs (like collapsible-down). Unlayered on purpose: it wins over the generic collapsible animation classes. */
+@keyframes sidebar-group-down {
+  from { height: 0; opacity: 0; overflow: hidden; }
+  to { height: var(--radix-collapsible-content-height); opacity: 1; overflow: hidden; }
+}
+@keyframes sidebar-group-up {
+  from { height: var(--radix-collapsible-content-height); opacity: 1; overflow: hidden; }
+  to { height: 0; opacity: 0; overflow: hidden; }
+}
+.sidebar-group-content[data-state="open"] {
+  animation: sidebar-group-down var(--duration-enter) cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.sidebar-group-content[data-state="closed"] {
+  animation: sidebar-group-up var(--duration-exit) cubic-bezier(0.64, 0, 0.78, 0) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-group-content[data-state] { animation: none; }
+}
+
 /* Icon rail "lens": scale comes from --lens-scale, set per item by useRailLens (distance from the pointer: the icon
    under it grows, the others shrink less the further they are). Items are the menu buttons, the sidebar toggle and
    anything marked data-rail-item (the search button); profile, Settings and the toggle are excluded

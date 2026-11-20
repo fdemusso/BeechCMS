@@ -1427,6 +1427,7 @@
     "scheduled": "Scheduled",
     "analytics": "Analytics",
     "studio": "Studio",
+    "toggle": "Toggle sidebar",
     "disabled": {
       "createContent": "You cannot create content here"
     }

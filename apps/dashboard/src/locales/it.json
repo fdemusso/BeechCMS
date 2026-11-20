@@ -1427,6 +1427,7 @@
     "scheduled": "Programmati",
     "analytics": "Analitiche",
     "studio": "Studio",
+    "toggle": "Mostra/nascondi sidebar",
     "disabled": {
       "createContent": "Non puoi creare contenuti qui"
     }

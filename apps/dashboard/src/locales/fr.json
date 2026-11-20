@@ -1438,6 +1438,7 @@
     "scheduled": "Planifiés",
     "analytics": "Analyses",
     "studio": "Studio",
+    "toggle": "Afficher/masquer la barre latérale",
     "disabled": {
       "createContent": "Vous ne pouvez pas créer de contenu ici"
     }
