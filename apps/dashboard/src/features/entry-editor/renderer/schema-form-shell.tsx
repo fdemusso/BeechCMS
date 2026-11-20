@@ -206,6 +206,68 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
     else if (status === "stale") clearLayoutDraft(seed.slug)
   }, [seed, builderMode, capabilities.layoutBuilder, canEditLayoutFlag, setBuilderMode])
 
+  // Lives outside the animated content wrapper: that wrapper carries a transform while it fades in, which would
+  // make it the containing block of this absolutely positioned bar and park it below the header until the end.
+  const toolbar: ReactNode = (isLoading || isNotFound || isError) ? null : (
+    <div className="absolute top-2 right-10 flex items-center gap-1">
+      {headerSlot}
+      {vm.isReadOnly && (
+        <Tooltip>
+          {canUpdate ? (
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => vm.setIsReadOnly?.(false)}
+              >
+                <Pencil className="size-4" />
+                <span className="sr-only">{t("content.editor.switchToEdit")}</span>
+              </Button>
+            </TooltipTrigger>
+          ) : (
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled
+                >
+                  <Pencil className="size-4" />
+                  <span className="sr-only">{t("content.editor.switchToEdit")}</span>
+                </Button>
+              </span>
+            </TooltipTrigger>
+          )}
+          <TooltipContent side="bottom">
+            {canUpdate ? t("content.editor.switchToEdit") : t("content.editor.noUpdatePermission")}
+          </TooltipContent>
+        </Tooltip>
+      )}
+
+      {capabilities.layoutBuilder && canEditLayoutFlag && seed && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={builderMode}
+              onClick={() => setBuilderMode(true)}
+            >
+              <LayoutTemplate className="size-4" />
+              <span className="sr-only">{t("layoutBuilder.editLayout")}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {t("layoutBuilder.editLayout")}
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
+  )
+
   let body: ReactNode
   if (isLoading) {
     body = <ShellSkeletonBody />
@@ -216,64 +278,6 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
   } else {
     body = (
       <>
-        <div className="absolute top-2 right-10 flex items-center gap-1">
-          {headerSlot}
-          {vm.isReadOnly && (
-            <Tooltip>
-              {canUpdate ? (
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => vm.setIsReadOnly?.(false)}
-                  >
-                    <Pencil className="size-4" />
-                    <span className="sr-only">{t("content.editor.switchToEdit")}</span>
-                  </Button>
-                </TooltipTrigger>
-              ) : (
-                <TooltipTrigger asChild>
-                  <span className="inline-flex">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled
-                    >
-                      <Pencil className="size-4" />
-                      <span className="sr-only">{t("content.editor.switchToEdit")}</span>
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-              )}
-              <TooltipContent side="bottom">
-                {canUpdate ? t("content.editor.switchToEdit") : t("content.editor.noUpdatePermission")}
-              </TooltipContent>
-            </Tooltip>
-          )}
-
-          {capabilities.layoutBuilder && canEditLayoutFlag && seed && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={builderMode}
-                  onClick={() => setBuilderMode(true)}
-                >
-                  <LayoutTemplate className="size-4" />
-                  <span className="sr-only">{t("layoutBuilder.editLayout")}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {t("layoutBuilder.editLayout")}
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-
         {capabilities.layoutBuilder && builderMode && seed ? (
           <BuilderPane
             seed={seed as Seed}
@@ -441,6 +445,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
               {isLoading ? <Skeleton className="h-6 w-48" /> : (title || t("common.error"))}
             </DialogTitle>
           </DialogHeader>
+          {toolbar}
           <div
             // Keyed on loading: when the data arrives the content fades in over the skeleton instead of
             // popping in, which also hides how long the load took.
