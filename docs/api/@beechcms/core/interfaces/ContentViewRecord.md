@@ -30,7 +30,7 @@ Display order of data columns; columns missing from the list follow in default o
 
 ##### appearance.density?
 
-> `optional` **density?**: `"compact"` \| `"normal"` \| `"comfortable"`
+> `optional` **density?**: `"compact"` \| `"comfortable"` \| `"normal"`
 
 ##### appearance.hiddenColumns?
 
@@ -134,17 +134,41 @@ Kanban-only. Dropped from any non-kanban instance.
 
 > **axisBranchId**: `string` \| `null`
 
+##### kanban.cardSize?
+
+> `optional` **cardSize?**: `"compact"` \| `"comfortable"`
+
+Card density. Absent ⇒ 'comfortable'.
+
 ##### kanban.collapsedColumnValues?
 
 > `optional` **collapsedColumnValues?**: `string`[]
+
+##### kanban.colorColumns?
+
+> `optional` **colorColumns?**: `boolean`
+
+Tint each column with its option color. Absent ⇒ on. The board ignores it while conditional formats are active.
 
 ##### kanban.hiddenColumnValues?
 
 > `optional` **hiddenColumnValues?**: `string`[]
 
+##### kanban.showFieldLabels?
+
+> `optional` **showFieldLabels?**: `boolean`
+
+Show the field label above each metadata value. Absent ⇒ on.
+
 ##### kanban.sort
 
 > **sort**: \{ `branchId`: `string`; `dir`: `"ASC"` \| `"DESC"`; \} \| `null`
+
+##### kanban.wrapTitle?
+
+> `optional` **wrapTitle?**: `boolean`
+
+Let the card header wrap on two lines instead of truncating. Absent ⇒ on.
 
 #### sort
 

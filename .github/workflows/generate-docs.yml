@@ -1,7 +1,7 @@
 name: Generate & Verify Documentation
 
-# On pushes to master (and manually) it regenerates docs/api and commits the result. On pull requests it
-# only generates and builds, so a broken docs build is seen before the merge; nothing is committed.
+# On pushes to master (and manually) it regenerates docs/api and warns if the committed copy is stale. On pull requests it
+# only generates and builds, so a broken docs build is seen before the merge; nothing is committed either way.
 on:
   push:
     branches: [master]
@@ -54,15 +54,12 @@ jobs:
       - name: Build VitePress Documentation
         run: pnpm exec vitepress build docs
 
-      - name: Commit and push updated docs
+      # master is protected (PR + signed commits + required checks), so the bot cannot push docs/api.
+      # Deploy Docs regenerates docs/api at build time; here we only fail on a stale committed snapshot.
+      - name: Check committed API docs are current
         if: github.event_name == 'push'
         run: |
           if [ -n "$(git status --porcelain docs/api)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add docs/api
-            git commit -m "chore(docs): auto-generate API documentation [skip ci]"
-            git push origin ${{ github.ref_name }}
-          else
-            echo "No documentation changes detected."
+            echo "::warning::docs/api is out of date. Run 'pnpm run docs:generate' and commit it."
+            git status --short docs/api | head -20
           fi

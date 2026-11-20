@@ -47,3 +47,11 @@
 ### title
 
 > **title**: `string` \| `null`
+
+***
+
+### updatedAt
+
+> **updatedAt**: `number`
+
+Unix seconds of the live row's last write (`content_{slug}.updated_at`).

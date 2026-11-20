@@ -19,7 +19,7 @@ References to missing branches and to non-`tags` branches are not issues (cleanu
 
 #### appearance
 
-\{ `columnOrder?`: `string`[]; `density?`: `"compact"` \| `"normal"` \| `"comfortable"`; `hiddenColumns?`: `string`[]; `pageSize?`: `number`; \} = `...`
+\{ `columnOrder?`: `string`[]; `density?`: `"compact"` \| `"comfortable"` \| `"normal"`; `hiddenColumns?`: `string`[]; `pageSize?`: `number`; \} = `...`
 
 #### appearance.columnOrder?
 
@@ -29,7 +29,7 @@ Display order of data columns; columns missing from the list follow in default o
 
 #### appearance.density?
 
-`"compact"` \| `"normal"` \| `"comfortable"` = `...`
+`"compact"` \| `"comfortable"` \| `"normal"` = `...`
 
 #### appearance.hiddenColumns?
 
@@ -93,7 +93,7 @@ Gallery-only. Style per folder, keyed by the normalized group value. Dropped fro
 
 #### kanban?
 
-\{ `axisBranchId`: `string` \| `null`; `collapsedColumnValues?`: `string`[]; `hiddenColumnValues?`: `string`[]; `sort`: \{ `branchId`: `string`; `dir`: `"ASC"` \| `"DESC"`; \} \| `null`; \} = `...`
+\{ `axisBranchId`: `string` \| `null`; `cardSize?`: `"compact"` \| `"comfortable"`; `collapsedColumnValues?`: `string`[]; `colorColumns?`: `boolean`; `hiddenColumnValues?`: `string`[]; `showFieldLabels?`: `boolean`; `sort`: \{ `branchId`: `string`; `dir`: `"ASC"` \| `"DESC"`; \} \| `null`; `wrapTitle?`: `boolean`; \} = `...`
 
 Kanban-only. Dropped from any non-kanban instance.
 
@@ -101,17 +101,41 @@ Kanban-only. Dropped from any non-kanban instance.
 
 `string` \| `null` = `...`
 
+#### kanban.cardSize?
+
+`"compact"` \| `"comfortable"` = `...`
+
+Card density. Absent ⇒ 'comfortable'.
+
 #### kanban.collapsedColumnValues?
 
 `string`[] = `...`
+
+#### kanban.colorColumns?
+
+`boolean` = `...`
+
+Tint each column with its option color. Absent ⇒ on. The board ignores it while conditional formats are active.
 
 #### kanban.hiddenColumnValues?
 
 `string`[] = `...`
 
+#### kanban.showFieldLabels?
+
+`boolean` = `...`
+
+Show the field label above each metadata value. Absent ⇒ on.
+
 #### kanban.sort
 
 \{ `branchId`: `string`; `dir`: `"ASC"` \| `"DESC"`; \} \| `null` = `...`
+
+#### kanban.wrapTitle?
+
+`boolean` = `...`
+
+Let the card header wrap on two lines instead of truncating. Absent ⇒ on.
 
 #### sort
 

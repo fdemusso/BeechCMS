@@ -31,6 +31,27 @@ is one call so the repository contract stays narrow and deterministic.
 
 ***
 
+### lastContentWriters()
+
+> **lastContentWriters**(`entryIds`): `Promise`&lt;[`ContentLastWriter`](ContentLastWriter.md)[]&gt;
+
+For each id in `entryIds`, the actor of its most recent `create`, `update` or `publish` row with
+`entityType = 'content'`. Ids with no such row are absent from the result; order is unspecified.
+Keyed on the entry id alone: public-API writes store the entry slug, not the seed slug, in
+`entitySlug`. An empty `entryIds` resolves to `[]`.
+
+#### Parameters
+
+##### entryIds
+
+readonly `string`[]
+
+#### Returns
+
+`Promise`&lt;[`ContentLastWriter`](ContentLastWriter.md)[]&gt;
+
+***
+
 ### list()
 
 > **list**(`options`): `Promise`&lt;[`ActivityLogRecord`](ActivityLogRecord.md)[]&gt;

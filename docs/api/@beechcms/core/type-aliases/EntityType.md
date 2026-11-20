@@ -6,4 +6,6 @@
 
 # Type Alias: EntityType
 
-> **EntityType** = `"content"` \| `"media"` \| `"seed"`
+> **EntityType** = `"content"` \| `"media"` \| `"seed"` \| `"user"` \| `"role"` \| `"assignment"` \| `"invitation"` \| `"settings"` \| `"session"` \| `"auth"` \| `"app"` \| `"automation"` \| `"layout"` \| `"view"`
+
+What it happened to.

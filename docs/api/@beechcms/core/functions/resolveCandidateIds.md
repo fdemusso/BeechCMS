@@ -6,7 +6,7 @@
 
 # Function: resolveCandidateIds()
 
-> **resolveCandidateIds**&lt;`T`&gt;(`candidate`, `stored`): `T`
+> **resolveCandidateIds**&lt;`T`&gt;(`candidate`, `stored`): `Omit`&lt;`T`, `"branches"`&gt; & `object`
 
 Fills the id of every branch (and repeater sub-field) that lacks one.
 
@@ -34,4 +34,4 @@ manifests) must send none rather than invented ones.
 
 ## Returns
 
-`T`
+`Omit`&lt;`T`, `"branches"`&gt; & `object`
