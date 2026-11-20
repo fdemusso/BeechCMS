@@ -45,6 +45,19 @@ export interface KanbanColumnFetchState {
   fetchNextPage: () => void
 }
 
+/** How the board draws its cards. Resolved once from the view config; every field has a default. */
+export interface KanbanCardOptions {
+  size: 'compact' | 'comfortable'
+  wrapTitle: boolean
+  showFieldLabels: boolean
+}
+
+export const DEFAULT_KANBAN_CARD_OPTIONS: KanbanCardOptions = {
+  size: 'comfortable',
+  wrapTitle: true,
+  showFieldLabels: true,
+}
+
 /** Runtime board config (axis resolved + user prefs). */
 export interface KanbanBoardConfig extends KanbanConfig {
   collapsedColumnValues?: string[]

@@ -41,6 +41,14 @@ export interface KanbanConfig {
   sort: { branchId: string; dir: 'ASC' | 'DESC' } | null
   /** Axis values the user chose to hide when columns exceed the cap (KB-U06c). */
   hiddenColumnValues?: string[]
+  /** Tint each column with its option color. Absent ⇒ on. */
+  colorColumns?: boolean
+  /** Card density. Absent ⇒ 'comfortable'. */
+  cardSize?: 'compact' | 'comfortable'
+  /** Let the card header wrap on two lines. Absent ⇒ on. */
+  wrapTitle?: boolean
+  /** Show the field label above each metadata value. Absent ⇒ on. */
+  showFieldLabels?: boolean
 }
 
 export type KanbanIncompatibleReason = 'drafts-enabled' | 'no-candidate-branch'

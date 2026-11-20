@@ -5,6 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { CANONICAL_SEEDS } from "@beechcms/testing"
 import type { Seed } from "@beechcms/core"
 import type { ViewEntryActions, ViewLayout, ViewQueryState, ViewRendererProps } from "@/features/shared"
@@ -107,8 +108,10 @@ function renderWithClient(props: ViewRendererProps) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
+<TooltipProvider>
       <KanbanViewRenderer {...props} />
-    </QueryClientProvider>
+    </TooltipProvider>
+</QueryClientProvider>
   )
 }
 
@@ -146,14 +149,18 @@ describe("KanbanViewRenderer", () => {
     const queryClient = new QueryClient()
     const { rerender } = render(
       <QueryClientProvider client={queryClient}>
+<TooltipProvider>
         <KanbanViewRenderer {...props} />
-      </QueryClientProvider>
+      </TooltipProvider>
+</QueryClientProvider>
     )
 
     rerender(
       <QueryClientProvider client={queryClient}>
+<TooltipProvider>
         <KanbanViewRenderer {...props} isSaving />
-      </QueryClientProvider>
+      </TooltipProvider>
+</QueryClientProvider>
     )
 
     expect(subscribeSaved).toHaveBeenCalledTimes(1)

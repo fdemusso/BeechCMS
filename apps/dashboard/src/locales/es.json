@@ -1174,7 +1174,15 @@
       "manyGroups": "Puede generar muchos grupos",
       "day": "Día",
       "year": "Año",
-      "month": "Mes"
+      "month": "Mes",
+      "kanbanCardSize": "Tamaño de tarjeta",
+      "kanbanCardSize_comfortable": "Cómodo",
+      "kanbanCardSize_compact": "Compacto",
+      "kanbanColorColumns": "Colorear columnas",
+      "kanbanColorColumnsLocked": "Colorear columnas (desactivado: formatos condicionales activos)",
+      "kanbanWrapTitle": "Ajustar título de tarjeta",
+      "kanbanShowFieldLabels": "Mostrar etiquetas de campos",
+      "kanbanCardDisplay": "Visualización de tarjetas"
     },
     "conditionalFormats": {
       "noRules": "Sin reglas",
@@ -2388,6 +2396,20 @@
       "metadataSlot": "Metadatos",
       "noField": "Sin campo",
       "openConfig": "Configurar el diseño de la tarjeta"
+    },
+    "column": {
+      "ariaLabel": "{{label}} — {{count}} entradas",
+      "collapse": "Contraer {{label}}",
+      "expand": "Expandir {{label}}",
+      "newEntryIn": "Nueva entrada en {{label}}",
+      "empty": "Sin entradas",
+      "loadMore": "Cargar más ({{count}})",
+      "loading": "Cargando…"
+    },
+    "board": {
+      "loading": "Cargando…",
+      "draftsEnabled": "Kanban no está disponible para seeds con borradores activados.",
+      "noCompatibleField": "No se encontró ningún campo compatible con la vista Kanban."
     }
   },
   "oauth": {

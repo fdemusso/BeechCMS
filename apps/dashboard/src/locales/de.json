@@ -1163,7 +1163,15 @@
       "manyGroups": "Kann viele Gruppen erzeugen",
       "day": "Tag",
       "year": "Jahr",
-      "month": "Monat"
+      "month": "Monat",
+      "kanbanCardSize": "Kartengröße",
+      "kanbanCardSize_comfortable": "Komfortabel",
+      "kanbanCardSize_compact": "Kompakt",
+      "kanbanColorColumns": "Spalten einfärben",
+      "kanbanColorColumnsLocked": "Spalten einfärben (aus: bedingte Formatierung aktiv)",
+      "kanbanWrapTitle": "Kartentitel umbrechen",
+      "kanbanShowFieldLabels": "Feldbezeichnungen anzeigen",
+      "kanbanCardDisplay": "Kartenanzeige"
     },
     "conditionalFormats": {
       "noRules": "Keine Regeln",
@@ -2374,6 +2382,20 @@
       "metadataSlot": "Metadaten",
       "noField": "Kein Feld",
       "openConfig": "Kartenlayout konfigurieren"
+    },
+    "column": {
+      "ariaLabel": "{{label}} — {{count}} Einträge",
+      "collapse": "{{label}} einklappen",
+      "expand": "{{label}} ausklappen",
+      "newEntryIn": "Neuer Eintrag in {{label}}",
+      "empty": "Keine Einträge",
+      "loadMore": "Mehr laden ({{count}})",
+      "loading": "Wird geladen…"
+    },
+    "board": {
+      "loading": "Wird geladen…",
+      "draftsEnabled": "Kanban ist für Seeds mit aktivierten Entwürfen nicht verfügbar.",
+      "noCompatibleField": "Kein kompatibles Feld für die Kanban-Ansicht gefunden."
     }
   },
   "oauth": {

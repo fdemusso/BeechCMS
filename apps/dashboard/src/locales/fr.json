@@ -1174,7 +1174,15 @@
       "manyGroups": "Peut générer de nombreux groupes",
       "day": "Jour",
       "year": "Année",
-      "month": "Mois"
+      "month": "Mois",
+      "kanbanCardSize": "Taille des cartes",
+      "kanbanCardSize_comfortable": "Confortable",
+      "kanbanCardSize_compact": "Compacte",
+      "kanbanColorColumns": "Colorer les colonnes",
+      "kanbanColorColumnsLocked": "Colorer les colonnes (désactivé : mises en forme conditionnelles actives)",
+      "kanbanWrapTitle": "Retour à la ligne du titre",
+      "kanbanShowFieldLabels": "Afficher les libellés des champs",
+      "kanbanCardDisplay": "Affichage des cartes"
     },
     "conditionalFormats": {
       "noRules": "Aucune règle",
@@ -2388,6 +2396,20 @@
       "metadataSlot": "Métadonnées",
       "noField": "Aucun champ",
       "openConfig": "Configurer la mise en page de la carte"
+    },
+    "column": {
+      "ariaLabel": "{{label}} — {{count}} entrées",
+      "collapse": "Réduire {{label}}",
+      "expand": "Développer {{label}}",
+      "newEntryIn": "Nouvelle entrée dans {{label}}",
+      "empty": "Aucune entrée",
+      "loadMore": "Charger plus ({{count}})",
+      "loading": "Chargement…"
+    },
+    "board": {
+      "loading": "Chargement…",
+      "draftsEnabled": "Kanban n'est pas disponible pour les seeds avec brouillons activés.",
+      "noCompatibleField": "Aucun champ compatible trouvé pour la vue Kanban."
     }
   },
   "oauth": {

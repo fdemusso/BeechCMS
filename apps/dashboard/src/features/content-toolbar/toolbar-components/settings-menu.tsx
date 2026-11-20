@@ -349,19 +349,12 @@ export function SettingsMenu({
 
         <DropdownMenuSeparator />
 
-        {/* The active View Type's own settings block (today: Kanban's layout & style group). */}
-        {settingsSectionNode && (
-          <>
-            {settingsSectionNode}
-            <DropdownMenuSeparator />
-          </>
-        )}
-
-        {/* Layout e stile (universale) */}
-        {showLayoutGroup && (
+        {/* Layout e stile: one group for the universal items and the active View Type's own items. */}
+        {(showLayoutGroup || settingsSectionNode) && (
           <>
             <DropdownMenuGroup>
               <DropdownMenuLabel>{t("toolbar.settings.layoutStyle")}</DropdownMenuLabel>
+              {settingsSectionNode}
               {settings.includes("groupBy") && (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>

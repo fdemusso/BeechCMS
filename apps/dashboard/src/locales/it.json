@@ -1163,7 +1163,15 @@
       "manyGroups": "Potrebbe generare molti gruppi",
       "day": "Giorno",
       "year": "Anno",
-      "month": "Mese"
+      "month": "Mese",
+      "kanbanCardSize": "Dimensione schede",
+      "kanbanCardSize_comfortable": "Comoda",
+      "kanbanCardSize_compact": "Compatta",
+      "kanbanColorColumns": "Colora le colonne",
+      "kanbanColorColumnsLocked": "Colora le colonne (off: formattazioni condizionali attive)",
+      "kanbanWrapTitle": "Titolo scheda a capo",
+      "kanbanShowFieldLabels": "Mostra etichette campi",
+      "kanbanCardDisplay": "Visualizzazione schede"
     },
     "conditionalFormats": {
       "noRules": "Non ci sono regole",
@@ -2374,6 +2382,20 @@
       "metadataSlot": "Metadati",
       "noField": "Nessun campo",
       "openConfig": "Configura layout scheda"
+    },
+    "column": {
+      "ariaLabel": "{{label}} — {{count}} voci",
+      "collapse": "Comprimi {{label}}",
+      "expand": "Espandi {{label}}",
+      "newEntryIn": "Nuova voce in {{label}}",
+      "empty": "Nessuna voce",
+      "loadMore": "Carica altri ({{count}})",
+      "loading": "Caricamento…"
+    },
+    "board": {
+      "loading": "Caricamento…",
+      "draftsEnabled": "Kanban non disponibile per i seed con bozze abilitate.",
+      "noCompatibleField": "Nessun campo compatibile trovato per la vista Kanban."
     }
   },
   "oauth": {

@@ -18,6 +18,9 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenuSub: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DropdownMenuSubTrigger: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DropdownMenuSubContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DropdownMenuCheckboxItem: ({ children, checked, onCheckedChange }: { children: ReactNode; checked?: boolean; onCheckedChange?: (checked: boolean) => void }) => (
+    <div role="menuitemcheckbox" aria-checked={checked} onClick={() => onCheckedChange?.(!checked)}>{children}</div>
+  ),
   DropdownMenuItem: ({ children, onSelect }: { children: ReactNode; onSelect?: () => void }) => (
     <div role="menuitem" onClick={() => onSelect?.()}>{children}</div>
   ),

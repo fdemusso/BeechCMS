@@ -1163,7 +1163,15 @@
       "manyGroups": "May generate many groups",
       "day": "Day",
       "year": "Year",
-      "month": "Month"
+      "month": "Month",
+      "kanbanCardSize": "Card size",
+      "kanbanCardSize_comfortable": "Comfortable",
+      "kanbanCardSize_compact": "Compact",
+      "kanbanColorColumns": "Color columns",
+      "kanbanColorColumnsLocked": "Color columns (off: conditional formats active)",
+      "kanbanWrapTitle": "Wrap card title",
+      "kanbanShowFieldLabels": "Show field labels",
+      "kanbanCardDisplay": "Card display"
     },
     "conditionalFormats": {
       "noRules": "No rules",
@@ -2374,6 +2382,20 @@
       "metadataSlot": "Metadata",
       "noField": "No field",
       "openConfig": "Configure card layout"
+    },
+    "column": {
+      "ariaLabel": "{{label}} — {{count}} entries",
+      "collapse": "Collapse {{label}}",
+      "expand": "Expand {{label}}",
+      "newEntryIn": "New entry in {{label}}",
+      "empty": "No entries",
+      "loadMore": "Load more ({{count}})",
+      "loading": "Loading…"
+    },
+    "board": {
+      "loading": "Loading…",
+      "draftsEnabled": "Kanban is not available for seeds with drafts enabled.",
+      "noCompatibleField": "No compatible field found for the Kanban view."
     }
   },
   "oauth": {

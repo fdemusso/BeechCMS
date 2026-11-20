@@ -41,6 +41,28 @@ describe('kanbanViewConfigSchema', () => {
     }
   })
 
+  it('accepts the card display options and keeps them in the parsed data', () => {
+    const result = kanbanViewConfigSchema.safeParse({
+      axisBranchId: 'br_01',
+      sort: null,
+      colorColumns: false,
+      cardSize: 'compact',
+      wrapTitle: false,
+      showFieldLabels: false,
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data).toMatchObject({ colorColumns: false, cardSize: 'compact', wrapTitle: false, showFieldLabels: false })
+    }
+  })
+
+  it('rejects an unknown cardSize', () => {
+    const result = kanbanViewConfigSchema.safeParse({ axisBranchId: null, sort: null, cardSize: 'huge' })
+
+    expect(result.success).toBe(false)
+  })
+
   it('rejects invalid sort dir', () => {
     const result = kanbanViewConfigSchema.safeParse({
       axisBranchId: null,
