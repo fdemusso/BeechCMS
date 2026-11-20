@@ -12,6 +12,7 @@ import type {
 } from "@/lib/conditional-format"
 
 import type { ToolbarTool, ViewSetting } from "@/features/shared"
+import type { FilterableColumn } from "@/lib/filter-dsl"
 export type { ToolbarTool }
 
 export interface UserViewInstance {

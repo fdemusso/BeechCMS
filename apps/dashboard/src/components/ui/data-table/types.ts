@@ -22,6 +22,8 @@ export const ROW_HEIGHT_PX = 48
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+  /** Stable id of a row. Defaults to the row's string `id` field, then its index. */
+  getRowId?: (row: TData) => string
   initialHiddenColumns?: string[]
   /**
    * Calcolo styling per riga eseguito una volta sola e poi riusato per tutte le celle.

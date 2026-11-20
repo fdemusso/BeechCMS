@@ -16,7 +16,6 @@ import {
   type ColumnOrderState,
   type ColumnSizingState,
   type GroupingState,
-  type ExpandedState,
   type PaginationState,
   type RowSelectionState,
   type SortingState,
@@ -203,7 +202,7 @@ export function useDataTableState<TData, TValue>(
   // Groups are open unless the user closed them. TanStack's own expanded state is derived from that list, and only
   // the list is stored (see useCollapsedGroups); a group toggle goes through `toggleGroup`, not row.toggleExpanded.
   const { closed: closedGroupIds, toggle: toggleGroup } = useCollapsedGroups(props.collapsedGroupsStorageKey)
-  const expanded = React.useMemo<ExpandedState>(
+  const expanded = React.useMemo<Record<string, boolean>>(
     () => Object.fromEntries(closedGroupIds.map((id) => [id, false])),
     [closedGroupIds]
   )
@@ -224,10 +223,12 @@ export function useDataTableState<TData, TValue>(
   const table = useReactTable({
     data,
     columns,
-    getRowId: (original, index) => {
-      const maybeId = (original as { id?: unknown }).id
-      return typeof maybeId === "string" && maybeId ? maybeId : String(index)
-    },
+    getRowId:
+      props.getRowId ??
+      ((original, index) => {
+        const maybeId = (original as { id?: unknown }).id
+        return typeof maybeId === "string" && maybeId ? maybeId : String(index)
+      }),
     onSortingChange: handleSortingChange,
     onColumnFiltersChange: handleColumnFiltersChange,
     getCoreRowModel: getCoreRowModel(),
@@ -240,7 +241,7 @@ export function useDataTableState<TData, TValue>(
     onRowSelectionChange: handleRowSelectionChange,
     onGlobalFilterChange: setGlobalFilter,
     onGroupingChange: handleGroupingChange,
-    getIsRowExpanded: (row) => expanded[row.id as keyof typeof expanded] !== false,
+    getIsRowExpanded: (row) => expanded[row.id] !== false,
     globalFilterFn: "includesString",
     autoResetExpanded: false,
     manualPagination,

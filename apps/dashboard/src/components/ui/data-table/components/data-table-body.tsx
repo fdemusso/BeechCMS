@@ -78,6 +78,7 @@ export function DataTableBody<TData, TValue>({
   props,
   selection,
 }: DataTableBodyProps<TData, TValue>) {
+  const { emptyState, enableColumnResizing, manualPagination, data, totalRows: totalRowsProp } = props
   const scrollContainerRef = React.useRef<HTMLDivElement>(null)
   const rows = table.getRowModel().rows
   const columnCount = table.getVisibleLeafColumns().length
@@ -102,7 +103,6 @@ export function DataTableBody<TData, TValue>({
   const groupedHeight = props.pageSize === undefined ? undefined : headerHeight + props.pageSize * rowHeight
   const groupedFillsPage = props.pageSize !== undefined && (props.totalRows ?? data.length) >= props.pageSize
 
-  const { emptyState, enableColumnResizing, manualPagination, data, totalRows: totalRowsProp } = props
   const enableColumnReorder = props.columnOrder !== undefined || props.onColumnOrderChange !== undefined
 
   // A closing group keeps its rows mounted until their exit animation ends (a collapsed group has no rows in the model).
@@ -115,8 +115,9 @@ export function DataTableBody<TData, TValue>({
     // Without motion there is no animationend to wait for, so nothing may linger.
     const animates = typeof window !== "undefined" && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
     const stillThere = new Set(groupRows.map((row) => row.id))
-    const justClosed = animates ? prevOpenGroupIds.filter((id) => stillThere.has(id) && !openGroupIds.includes(id)) : []
-    setClosingGroupIds((current) => [...current.filter((id) => stillThere.has(id) && !openGroupIds.includes(id)), ...justClosed])
+    const openNow = new Set(openGroupIds)
+    const justClosed = animates ? prevOpenGroupIds.filter((id) => stillThere.has(id) && !openNow.has(id)) : []
+    setClosingGroupIds((current) => [...current.filter((id) => stillThere.has(id) && !openNow.has(id)), ...justClosed])
   }
   const handleExitEnd = React.useCallback(
     (groupId: string) => setClosingGroupIds((current) => (current.includes(groupId) ? current.filter((id) => id !== groupId) : current)),
@@ -138,8 +139,9 @@ export function DataTableBody<TData, TValue>({
     if (!root || !isGroupingActive) return
 
     // Rows are gone (or the group reopened): drop the slide in the same commit, so nothing flashes.
+    const closingNow = new Set(closingGroupIds)
     for (const id of wasClosing) {
-      if (closingGroupIds.includes(id)) continue
+      if (closingNow.has(id)) continue
       for (const animation of shiftAnimationsRef.current.get(id) ?? []) animation.cancel()
       shiftAnimationsRef.current.delete(id)
     }
@@ -164,11 +166,13 @@ export function DataTableBody<TData, TValue>({
       shiftAnimationsRef.current.set(groupId, [...(shiftAnimationsRef.current.get(groupId) ?? []), ...animations])
     }
 
+    const wasClosingSet = new Set(wasClosing)
+    const wasOpenSet = new Set(wasOpen)
     for (const id of closingGroupIds) {
-      if (!wasClosing.includes(id)) slideFollowing(id, 0, 1, "exit", "forwards")
+      if (!wasClosingSet.has(id)) slideFollowing(id, 0, 1, "exit", "forwards")
     }
     for (const id of openGroupIds) {
-      if (!wasOpen.includes(id)) slideFollowing(id, -1, 0, "enter", "none")
+      if (!wasOpenSet.has(id)) slideFollowing(id, -1, 0, "enter", "none")
     }
   })
 
@@ -198,7 +202,7 @@ export function DataTableBody<TData, TValue>({
     const placeholderCount = totalRows >= pageSize && rows.length < pageSize ? pageSize - rows.length : 0
     return (
       <>
-        {rows.map(renderRow)}
+        {rows.map((row) => renderRow(row))}
         <PlaceholderRows count={placeholderCount} columnCount={columnCount} rowHeight={rowHeight} />
       </>
     )
@@ -217,9 +221,10 @@ export function DataTableBody<TData, TValue>({
    */
   const renderGroupBodies = () => {
     const bodies: React.ReactNode[] = []
+    const closingSet = new Set(closingGroupIds)
     for (const row of rows) {
       if (!row.getIsGrouped()) continue
-      const isClosing = closingGroupIds.includes(row.id)
+      const isClosing = closingSet.has(row.id)
       const leafRows = row.getIsExpanded() || isClosing ? row.subRows : []
       bodies.push(
         <TableBody key={row.id} data-group-id={row.id}>
@@ -237,7 +242,7 @@ export function DataTableBody<TData, TValue>({
       className="min-h-0 w-full"
       style={
         isGroupingActive
-          ? ({ ...(groupedFillsPage ? { height: groupedHeight } : { maxHeight: groupedHeight }), "--dt-header-h": `${headerHeight}px` } as React.CSSProperties)
+          ? ({ ...(groupedFillsPage ? { height: groupedHeight } : { maxHeight: groupedHeight }), "--dt-header-h": `${headerHeight}px` } as React.CSSProperties & Record<"--dt-header-h", string>)
           : undefined
       }
     >

@@ -119,6 +119,7 @@ function makeProps(overrides: Partial<ViewRendererProps> = {}): ViewRendererProp
   return {
     seed: posts,
     slug: "posts",
+    viewId: "view-1",
     query: makeQuery(),
     layout: makeLayout(),
     formatElement: NO_ELEMENT_FORMATTER,

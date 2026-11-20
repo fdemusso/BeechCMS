@@ -42,15 +42,14 @@ export function useCollapsedGroups(storageKey: string | undefined) {
     setState(current)
   }
 
+  // The storage write is a side effect, so it stays out of the state updater (React may run updaters twice).
   const toggle = React.useCallback(
     (groupId: string) => {
-      setState((prev) => {
-        const closed = prev.closed.includes(groupId) ? prev.closed.filter((id) => id !== groupId) : [...prev.closed, groupId]
-        write(prev.storageKey, closed)
-        return { ...prev, closed }
-      })
+      const closed = current.closed.includes(groupId) ? current.closed.filter((id) => id !== groupId) : [...current.closed, groupId]
+      write(current.storageKey, closed)
+      setState({ storageKey: current.storageKey, closed })
     },
-    []
+    [current]
   )
 
   return { closed: current.closed, toggle }
