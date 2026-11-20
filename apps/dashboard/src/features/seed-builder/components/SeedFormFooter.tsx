@@ -24,9 +24,10 @@ function ShortcutKeys({ children }: { children?: ReactNode }) {
   const keys = String(children ?? "").split("+")
   return (
     <KbdGroup>
-      {keys.map((key, i) => (
-        <Fragment key={i}>
-          {i > 0 && <span>+</span>}
+      {keys.map((key, position) => (
+        // A key name never repeats in one shortcut, so the name itself identifies the cap.
+        <Fragment key={key}>
+          {position > 0 && <span>+</span>}
           <Kbd>{key}</Kbd>
         </Fragment>
       ))}
