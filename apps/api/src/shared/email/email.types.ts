@@ -24,20 +24,18 @@ export type EmailLocale = (typeof SUPPORTED_EMAIL_LOCALES)[number]
 
 /**
  * Resolves an unverified locale string (e.g., from a request body)
- * to a supported `EmailLocale` value. Any unknown value
+ * to a supported `EmailLocale` value. A regional or oddly cased tag
+ * (`it-IT`, `de_AT`, `FR`) is reduced to its base language first, and any
+ * language without a template (today `es`, `de`, `fr`) or any non-string
  * safely falls back to `'en'`.
  *
  * @param raw - Raw value from the client (can be anything).
  * @returns A valid `EmailLocale`, always.
  */
 export function resolveEmailLocale(raw: unknown): EmailLocale {
-  if (
-    typeof raw === 'string' &&
-    (SUPPORTED_EMAIL_LOCALES as readonly string[]).includes(raw)
-  ) {
-    return raw as EmailLocale
-  }
-  return 'en'
+  if (typeof raw !== 'string') return 'en'
+  const base = raw.trim().toLowerCase().split(/[-_]/)[0]
+  return (SUPPORTED_EMAIL_LOCALES as readonly string[]).includes(base) ? (base as EmailLocale) : 'en'
 }
 
 // ── Service function parameters ───────────────────────────────────────────────
