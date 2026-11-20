@@ -2,7 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useTranslation } from "react-i18next"
+import { Fragment, type ReactNode } from "react"
+import { Trans, useTranslation } from "react-i18next"
 import { Trash2 } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
@@ -14,6 +15,23 @@ export interface SeedFormFooterProps {
   form: SeedFormState
   editRecord: SeedRecordDTO | null
   onDelete: () => void
+}
+
+const SUBMIT_SHORTCUT = `${MOD_KEY_LABEL}+↵`
+
+/** The <kbd> slot of the shortcut hint: the text the translation puts inside it ("⌘+↵") becomes one key cap per key. */
+function ShortcutKeys({ children }: { children?: ReactNode }) {
+  const keys = String(children ?? "").split("+")
+  return (
+    <KbdGroup>
+      {keys.map((key, i) => (
+        <Fragment key={i}>
+          {i > 0 && <span>+</span>}
+          <Kbd>{key}</Kbd>
+        </Fragment>
+      ))}
+    </KbdGroup>
+  )
 }
 
 const FOOTER_CLASS = "flex flex-shrink-0 items-center justify-between gap-3 border-t px-6 py-4"
@@ -57,12 +75,11 @@ export function SeedFormFooter({ form, editRecord, onDelete }: SeedFormFooterPro
       </div>
       <div className="flex items-center gap-3">
         <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
-          <KbdGroup>
-            <Kbd>{MOD_KEY_LABEL}</Kbd>
-            <span>+</span>
-            <Kbd>↵</Kbd>
-          </KbdGroup>
-          {advancing ? t("seedBuilder.editor.nextShortcut") : t("seedBuilder.editor.saveShortcut")}
+          <Trans
+            i18nKey={advancing ? "seedBuilder.editor.footer.next.hint" : "seedBuilder.editor.footer.save.hint"}
+            values={{ shortcut: SUBMIT_SHORTCUT }}
+            components={{ kbd: <ShortcutKeys /> }}
+          />
         </span>
         {advancing ? (
           <Button type="submit" disabled={!form.canAdvance}>

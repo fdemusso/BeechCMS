@@ -127,9 +127,7 @@ export function AcceptInvitePage() {
                 <div className="flex flex-col items-center gap-2 text-center">
                   <h1 className="font-heading text-2xl font-bold">{t("acceptInvite.title")}</h1>
                   <p className="text-muted-foreground text-balance text-sm">
-                    {t("acceptInvite.invitedAs", { role: preview.roleName })}
-                    {" "}
-                    {t("acceptInvite.onScope", { scope: scopeLabel })}
+                    {t("acceptInvite.invitation.sentence", { role: preview.roleName, scope: scopeLabel })}
                   </p>
                 </div>
                 <Field>

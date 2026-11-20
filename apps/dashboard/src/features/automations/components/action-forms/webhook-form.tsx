@@ -145,7 +145,7 @@ export function WebhookForm({ index, triggerSeedSlug }: WebhookFormProps) {
         {actionErrors?.body_template && (
           <p className="mt-1 text-xs text-status-danger-foreground">{t(actionErrors.body_template.message)}</p>
         )}
-        <p className="mt-1 text-xs text-muted-foreground">{t('automations.actions.templateHint')}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t('automations.actions.templateHint', { example: '{{fieldAlias}}' })}</p>
       </div>
 
       <div className="rounded-control bg-muted/50 border border-border px-3 py-2 text-xs text-muted-foreground">

@@ -354,7 +354,7 @@ export function BranchItemRow({
               {branch.type}
             </Badge>
             {branch.localized === true && (
-              <Badge variant="outline" className="text-xs">{t("seedBuilder.branchEditor.localizedBadge")}</Badge>
+              <Badge variant="outline" className="text-xs">{t("seedBuilder.branchEditor.localized")}</Badge>
             )}
           </div>
           {branch.label && <p className="text-xs text-muted-foreground truncate">{branch.label}</p>}

@@ -176,7 +176,7 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
                   >
                     {triggerSeed.label}
                     <Badge variant="secondary" className="ml-2 text-xs py-0">
-                      {t('automations.actions.thisSeed')}
+                      {t('automations.actions.triggerSeed.badge')}
                     </Badge>
                   </CommandItem>
                 )}

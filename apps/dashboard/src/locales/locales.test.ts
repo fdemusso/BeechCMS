@@ -6,6 +6,8 @@ import en from "./en.json"
 import itJson from "./it.json"
 import enSource from "./en.json?raw"
 import itSource from "./it.json?raw"
+import glossary from "./glossary.json"
+import i18next from "i18next"
 
 /** Every key that appears twice in the same object: JSON.parse keeps the last one and drops the other without a word. */
 function duplicateKeys(text: string): string[] {
@@ -24,6 +26,16 @@ function duplicateKeys(text: string): string[] {
   return duplicates
 }
 
+/** Leaf paths of a locale tree, `a.b.c` -> string. */
+function flatten(node: unknown, prefix = "", out: Record<string, string> = {}): Record<string, string> {
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    const path = prefix ? `${prefix}.${key}` : key
+    if (typeof value === "string") out[path] = value
+    else if (value && typeof value === "object") flatten(value, path, out)
+  }
+  return out
+}
+
 describe("dashboard locales parity and coverage", () => {
   it("no object repeats a key, so no translation silently overwrites another", () => {
     expect(duplicateKeys(enSource)).toEqual([])
@@ -40,5 +52,46 @@ describe("dashboard locales parity and coverage", () => {
     expect(itJson.rbac?.invitations?.copyLink).toBe("Copia link di invito")
     expect(itJson.rbac?.invitations?.linkCopied).toBe("Link di invito copiato")
     expect(itJson.rbac?.roles?.moreRoles).toBe("+{{count}} altri")
+  })
+
+  describe("glossary: hard_dnt terms survive translation", () => {
+    const enFlat = flatten(en)
+    const itFlat = flatten(itJson)
+
+    it("every term is atomic (no slash lists) and has a reason", () => {
+      for (const entry of glossary.hard_dnt) {
+        expect(entry.term, entry.term).not.toMatch(/[\/,]/)
+        expect(entry.reason.length, entry.term).toBeGreaterThan(0)
+      }
+      for (const entry of glossary.soft_dnt) {
+        expect(entry.term, entry.term).not.toMatch(/[\/,]/)
+        expect(entry.translation_note.length, entry.term).toBeGreaterThan(0)
+      }
+    })
+
+    it.each(glossary.hard_dnt.map((entry) => entry.term))("%s stays verbatim wherever the English string uses it", (term) => {
+      // Word boundary, case-sensitive; Cron is the one case-insensitive term ("Espressione cron").
+      const pattern = new RegExp(`\\b${term}\\b`, term === "Cron" ? "i" : "")
+      const lost = Object.entries(enFlat)
+        .filter(([key, value]) => pattern.test(value) && !pattern.test(itFlat[key] ?? ""))
+        .map(([key]) => key)
+      expect(lost).toEqual([])
+    })
+  })
+
+  describe("interpolation syntax", () => {
+    it("no string uses a single-brace {variable}: i18next and the automation engine both want {{variable}}", () => {
+      const single = /(?<!\{)\{[A-Za-z_]\w*\}(?!\})/
+      for (const flat of [flatten(en), flatten(itJson)]) {
+        expect(Object.entries(flat).filter(([, value]) => single.test(value)).map(([key]) => key)).toEqual([])
+      }
+    })
+
+    it("automation template examples render the literal {{token}} the engine expects", async () => {
+      const i18n = i18next.createInstance()
+      await i18n.init({ lng: "en", resources: { en: { translation: en } }, interpolation: { escapeValue: false } })
+      expect(i18n.t("automations.actions.templateHint", { example: "{{fieldAlias}}" })).toBe("Use {{fieldAlias}} to insert field values")
+      expect(i18n.t("automations.actions.mailSubjectPlaceholder", { example: "{{title}}" })).toBe("New entry: {{title}}")
+    })
   })
 })

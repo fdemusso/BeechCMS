@@ -259,7 +259,7 @@ function ConditionalRuleEditor({
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs font-medium">{t("toolbar.conditionalFormats.useColorIf")}</div>
+        <div className="text-xs font-medium">{t("toolbar.conditionalFormats.condition.heading")}</div>
         <div className="h-8 rounded-control border bg-muted/20 px-2 text-xs flex items-center">
           <span className="truncate">{activeConditionalRule.group.label}</span>
         </div>
@@ -337,7 +337,7 @@ function ConditionalRuleEditor({
       </div>
 
       <div className="space-y-1 pt-1">
-        <div className="text-xs font-medium">{t("toolbar.conditionalFormats.formatStyle")}</div>
+        <div className="text-xs font-medium">{t("toolbar.conditionalFormats.style.heading")}</div>
         <div className="rounded-control border border-dashed p-2">
           <div
             className={`flex min-h-12 items-center rounded-control border px-3 ${

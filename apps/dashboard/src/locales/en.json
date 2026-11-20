@@ -51,18 +51,40 @@
       "title": "Recent Activity",
       "loading": "Loading activity...",
       "empty": "No recent activity recorded",
-      "actions": {
-        "create": "created",
-        "update": "modified",
-        "delete": "deleted",
-        "upload": "uploaded",
-        "trash": "moved to trash",
-        "restore": "restored",
-        "purge": "permanently deleted",
-        "publish": "published",
-        "discard_draft": "discarded a draft of",
-        "import": "imported",
-        "bulk_update": "edited in bulk"
+      "entry": {
+        "create": {
+          "sentence": "<user>{{user}}</user> created <target>{{target}}</target>"
+        },
+        "update": {
+          "sentence": "<user>{{user}}</user> modified <target>{{target}}</target>"
+        },
+        "delete": {
+          "sentence": "<user>{{user}}</user> deleted <target>{{target}}</target>"
+        },
+        "upload": {
+          "sentence": "<user>{{user}}</user> uploaded <target>{{target}}</target>"
+        },
+        "trash": {
+          "sentence": "<user>{{user}}</user> moved <target>{{target}}</target> to the Trash"
+        },
+        "restore": {
+          "sentence": "<user>{{user}}</user> restored <target>{{target}}</target>"
+        },
+        "purge": {
+          "sentence": "<user>{{user}}</user> permanently deleted <target>{{target}}</target>"
+        },
+        "publish": {
+          "sentence": "<user>{{user}}</user> published <target>{{target}}</target>"
+        },
+        "discard_draft": {
+          "sentence": "<user>{{user}}</user> discarded a draft of <target>{{target}}</target>"
+        },
+        "import": {
+          "sentence": "<user>{{user}}</user> imported <target>{{target}}</target>"
+        },
+        "bulk_update": {
+          "sentence": "<user>{{user}}</user> edited <target>{{target}}</target> in bulk"
+        }
       }
     },
     "contentPulse": {
@@ -101,7 +123,8 @@
       "pendingDrafts": {
         "title": "Pending drafts",
         "viewAll": "View all",
-        "pendingCount": "pending drafts",
+        "caption_one": "pending draft",
+        "caption_other": "pending drafts",
         "noPending": "No pending drafts",
         "publish": "Publish"
       },
@@ -109,12 +132,18 @@
         "today": "Today",
         "week": "Week",
         "month": "Month",
-        "totalContent": "total contents"
+        "total": {
+          "caption": "Total content"
+        }
       },
       "storage": {
         "title": "Storage R2",
-        "used": "used",
-        "total": "of {{total}} GB total",
+        "gauge": {
+          "caption": "used"
+        },
+        "summary": {
+          "caption": "Total: {{total}} GB"
+        },
         "noData": "No storage data"
       },
       "error": {
@@ -178,7 +207,9 @@
       }
     },
     "widgetRegistry": {
-      "unknown": "Unknown widget:",
+      "unknown": {
+        "sentence": "Unknown widget: <code>{{type}}</code>"
+      },
       "disabled": "Widget not working in this version",
       "widgets": {
         "stat": {
@@ -700,9 +731,13 @@
       },
       "entries": "{{count}} entries",
       "orphans": "{{count}} orphan files",
-      "fields": "fields: {{fields}}",
+      "detail": {
+        "fields": "Fields: {{fields}}"
+      },
       "sessionsRevoked": "other sessions signed out",
-      "allContent": "all content"
+      "scope": {
+        "all": "All content"
+      }
     },
     "security": {
       "sessionsTitle": "Active sessions",
@@ -840,7 +875,9 @@
       "emptyColumn": "Empty",
       "localization": {
         "switcherLabel": "Content language",
-        "defaultBadge": "default",
+        "default": {
+          "badge": "Default"
+        },
         "completion": "{{filled}}/{{total}} translated",
         "missing": "No {{locale}} value yet: readers in {{locale}} see a fallback language.",
         "copyFromDefault": "Copy from default ({{locale}})"
@@ -914,8 +951,8 @@
     "table": {
       "status": "Status",
       "pendingDraft": "Pending draft",
-      "item": "item",
-      "items": "items",
+      "itemCount_one": "{{count}} item",
+      "itemCount_other": "{{count}} items",
       "created": "Created",
       "updated": "Last modified"
     }
@@ -976,7 +1013,11 @@
       "groupBy": "Group by column",
       "noGrouping": "No grouping",
       "recommended": "Recommended",
-      "active": "active",
+      "state": {
+        "active": {
+          "badge": "Active"
+        }
+      },
       "table": "Table",
       "display": "Display",
       "columnSearch": "Search column...",
@@ -1020,8 +1061,12 @@
       "applyTo": "Apply to",
       "field": "Field",
       "element": "Whole item",
-      "useColorIf": "use color if",
-      "formatStyle": "formatting style",
+      "condition": {
+        "heading": "Color condition"
+      },
+      "style": {
+        "heading": "Formatting style"
+      },
       "default": "Default",
       "notAvailable": "Configuration unavailable",
       "selectRule": "Select a rule from the list.",
@@ -1376,7 +1421,6 @@
         "timeLabel": "Execution time (UTC)",
         "dayOfWeekLabel": "Day of the week",
         "dayOfMonthLabel": "Day of the month",
-        "expressionPreview": "Expression:",
         "days": {
           "0": "Sunday",
           "1": "Monday",
@@ -1427,7 +1471,7 @@
       "send_mail": "Send email",
       "edit_field": "Edit field",
       "create_entry": "Create entry",
-      "templateHint": "Use {fieldAlias} to insert field values",
+      "templateHint": "Use {{example}} to insert field values",
       "webhookUrl": "URL",
       "webhookMethod": "HTTP Method",
       "webhookHeaders": "Headers",
@@ -1440,9 +1484,9 @@
       "mailTo": "To",
       "mailToPlaceholder": "recipient@example.com",
       "mailSubject": "Subject",
-      "mailSubjectPlaceholder": "New entry: {title}",
+      "mailSubjectPlaceholder": "New entry: {{example}}",
       "mailBody": "Body",
-      "mailBodyPlaceholder": "Hello,\n\nA new entry was created: {title}",
+      "mailBodyPlaceholder": "Hello,\n\nA new entry was created: {{example}}",
       "editField": "Field",
       "editFieldPlaceholder": "Choose a field...",
       "editValue": "Value",
@@ -1458,7 +1502,9 @@
       "variableNameHint": "Letters, numbers and underscores only. E.g: customer, active_orders",
       "source": "Source",
       "sourcePlaceholder": "Choose a table or paste an ID...",
-      "thisSeed": "this seed",
+      "triggerSeed": {
+        "badge": "This seed"
+      },
       "useAsFixedId": "Use '{{value}}' as fixed ID",
       "fixedIdBadge": "ID: {{id}}",
       "column": "Column (optional)",
@@ -1729,7 +1775,11 @@
       "dashDescriptionPlaceholder": "Short tooltip shown in the sidebar",
       "dashViewsSection": "Authorized views",
       "dashGroupSearch": "Search or create a group…",
-      "dashGroupDefault": "default",
+      "group": {
+        "default": {
+          "badge": "Default"
+        }
+      },
       "dashGroupCreate": "Create “{{name}}”",
       "dashOrderHint": "Lower numbers come first in the group. Empty means last (99).",
       "dashPreview": "How it looks in the sidebar",
@@ -1753,9 +1803,15 @@
       "dangerZoneToggle": "Danger zone",
       "back": "Back",
       "next": "Next",
-      "nextShortcut": "to continue",
+      "footer": {
+        "next": {
+          "hint": "Press <kbd>{{shortcut}}</kbd> to continue"
+        },
+        "save": {
+          "hint": "Press <kbd>{{shortcut}}</kbd> to save"
+        }
+      },
       "slugTaken": "This slug is already in use.",
-      "saveShortcut": "to save",
       "features": "Dashboard features",
       "featSearch": "Search",
       "featFilter": "Filters",
@@ -1836,7 +1892,6 @@
       "removeExistingWarning": "The field stops being used; existing data is retained in the database and not deleted. Continue?",
       "reservedAliasError": "One or more aliases conflict with reserved system field names.",
       "localized": "Localized",
-      "localizedBadge": "localized",
       "localizedHint": "Editors fill this field once per content language. Manage them in <languages>Content languages</languages>.",
       "localizedBlockedSubField": "Repeater sub-fields can't be localized.",
       "localizedBlockedClassification": "Confidential and restricted fields are stored encrypted or hashed, so they can't be localized.",
@@ -1882,7 +1937,7 @@
         "email": "Email",
         "phone": "Phone",
         "birth_date": "Date of birth",
-        "tax_id": "Tax ID",
+        "tax_id": "Tax number",
         "address": "Address",
         "city": "City",
         "country": "Country",
@@ -1900,7 +1955,7 @@
         "all_day": "All day",
         "location": "Location",
         "event_status": "Status",
-      "capacity": "Capacity",
+        "capacity": "Capacity",
         "contact_name": "Contact name",
         "contact_email": "Contact email",
         "contact_phone": "Contact phone"
@@ -1965,7 +2020,9 @@
       },
       "maintenance": {
         "title": "Maintenance",
-        "badge": "safe",
+        "safe": {
+          "badge": "Safe"
+        },
         "subtitle": "No data is lost. Use it when something looks out of sync."
       },
       "ftsRebuild": {
@@ -1986,7 +2043,9 @@
       },
       "fieldOps": {
         "title": "Field operations",
-        "badge": "changes the database",
+        "writes": {
+          "badge": "Changes database"
+        },
         "subtitle": "Pick a field, then choose what to do. Unavailable options say why.",
         "empty": "This content type has no saved fields yet.",
         "rename": "Rename",
@@ -2062,7 +2121,11 @@
     "consent": {
       "title": "{{client}} wants to access BeechCMS",
       "subtitle": "Review permissions before granting access.",
-      "alreadyGranted": "already granted",
+      "scope": {
+        "granted": {
+          "badge": "Already granted"
+        }
+      },
       "redirectNotice": "After approving you will be sent back to {{uri}}.",
       "approve": "Allow access",
       "deny": "Deny",
@@ -2089,7 +2152,9 @@
       "description": "Applications you have authorized to access BeechCMS on your behalf.",
       "empty": "No connected apps",
       "grantedAt": "Authorized on {{date}}",
-      "noActiveTokens": "no active token",
+      "noTokens": {
+        "badge": "No active token"
+      },
       "revokeTitle": "Revoke access?",
       "revokeDesc": "{{client}} will immediately lose access. Any active token is invalidated.",
       "revokeSuccess": "Access revoked",
@@ -2218,8 +2283,9 @@
   "acceptInvite": {
     "title": "Accept invitation",
     "desc": "Set a password to activate your account.",
-    "invitedAs": "You were invited as {{role}}",
-    "onScope": "on {{scope}}",
+    "invitation": {
+      "sentence": "You were invited as {{role}} on {{scope}}"
+    },
     "invalidOrExpired": "This invitation link is invalid or has expired.",
     "password": "Password",
     "confirm": "Confirm password",

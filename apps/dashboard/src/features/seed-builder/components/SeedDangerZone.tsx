@@ -79,7 +79,7 @@ function MaintenanceSection({ record, manifestOwned, open, onOpenChange }: { rec
           <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
             {t("seedBuilder.dangerZone.maintenance.title")}
           </h3>
-          <Badge variant="outline">{t("seedBuilder.dangerZone.maintenance.badge")}</Badge>
+          <Badge variant="outline">{t("seedBuilder.dangerZone.maintenance.safe.badge")}</Badge>
         </div>
         <p className="text-xs text-muted-foreground">{t("seedBuilder.dangerZone.maintenance.subtitle")}</p>
       </header>
@@ -202,7 +202,7 @@ function FieldOperations({ record, disabled, state, onStateChange, onChooseDispl
             {t("seedBuilder.dangerZone.fieldOps.title")}
           </h3>
           <Badge variant="outline" className="border-status-warning/50 text-status-warning-foreground">
-            {t("seedBuilder.dangerZone.fieldOps.badge")}
+            {t("seedBuilder.dangerZone.fieldOps.writes.badge")}
           </Badge>
         </div>
         <p className="text-xs text-muted-foreground">{t("seedBuilder.dangerZone.fieldOps.subtitle")}</p>

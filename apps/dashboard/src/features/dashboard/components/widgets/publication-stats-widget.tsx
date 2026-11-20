@@ -98,7 +98,7 @@ export function PublicationStatsWidget({ variant = "single" }: PublicationStatsW
             {today}
           </span>
         </div>
-        <p className="text-sm text-muted-foreground">{t("dashboard.widgets.publicationStats.totalContent")}</p>
+        <p className="text-sm text-muted-foreground">{t("dashboard.widgets.publicationStats.total.caption")}</p>
       </div>
     </DashboardWidgetShell>
   )

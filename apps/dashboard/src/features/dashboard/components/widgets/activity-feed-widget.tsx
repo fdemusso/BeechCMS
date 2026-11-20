@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardWidgetShell } from "../dashboard-widget-shell"
 import { useRecentActivity } from "../../hooks/use-dashboard-stats"
 import { activityTarget } from "../../utils/activity-target"
+import { ActivitySentence } from "../activity-sentence"
 import { cn } from "@/lib/utils"
 import { WidgetEmpty } from "./_parts/widget-empty"
 import { WidgetError } from "./_parts/widget-error"
@@ -94,13 +95,14 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: Activi
           <ul className="space-y-1 pr-3">
             {items.map((log) => (
               <li key={log.id} className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground truncate flex-1">
-                  <span className="font-medium text-foreground">{displayName(log.user_name, log.user_email)}</span>{" "}
-                  {t(`dashboard.recentActivity.actions.${log.action}`, { defaultValue: log.action })}{" "}
-                  <span className="font-medium text-foreground">
-                    {activityTarget(log)}
-                  </span>
-                </span>
+                <ActivitySentence
+                  className="text-xs text-muted-foreground truncate flex-1"
+                  action={log.action}
+                  user={displayName(log.user_name, log.user_email)}
+                  target={activityTarget(log)}
+                  userClassName="font-medium text-foreground"
+                  targetClassName="font-medium text-foreground"
+                />
                 <span className="text-xs text-muted-foreground/60 shrink-0">{relativeTime(log.created_at)}</span>
               </li>
             ))}
@@ -134,13 +136,14 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: Activi
                 </div>
                 <div className="flex-1 min-w-0 space-y-0.5">
                   <p className="text-sm leading-snug">
-                    <span className="font-medium">{displayName(log.user_name, log.user_email)}</span>{" "}
-                    <span className="text-muted-foreground">
-                      {t(`dashboard.recentActivity.actions.${log.action}`, { defaultValue: log.action })}
-                    </span>{" "}
-                    <span className="font-medium">
-                      {activityTarget(log)}
-                    </span>
+                    <ActivitySentence
+                      className="text-muted-foreground"
+                      action={log.action}
+                      user={displayName(log.user_name, log.user_email)}
+                      target={activityTarget(log)}
+                      userClassName="font-medium text-foreground"
+                      targetClassName="font-medium text-foreground"
+                    />
                   </p>
                   <p className="text-xs text-muted-foreground/70">{relativeTime(log.created_at)}</p>
                 </div>

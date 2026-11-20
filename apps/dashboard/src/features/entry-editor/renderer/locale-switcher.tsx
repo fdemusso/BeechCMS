@@ -70,7 +70,7 @@ export function LocaleSwitcher({ locales, defaultLocale, activeLocale, completio
               <span className="font-medium">{locale.toUpperCase()}</span>
               {locale === defaultLocale && (
                 <span className="text-xs opacity-70 font-normal">
-                  ({t("content.editor.localization.defaultBadge")})
+                  {t("content.editor.localization.default.badge")}
                 </span>
               )}
             </SelectItem>

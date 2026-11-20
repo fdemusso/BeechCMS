@@ -74,7 +74,7 @@ function AppRow({ app, onRevoke }: { app: ConnectedApp; onRevoke: (clientId: str
       </TableCell>
       <TableCell>
         <Badge variant={app.hasActiveTokens ? 'secondary' : 'outline'}>
-          {app.hasActiveTokens ? t('oauth.apps.active') : t('oauth.apps.noActiveTokens')}
+          {app.hasActiveTokens ? t('oauth.apps.active') : t('oauth.apps.noTokens.badge')}
         </Badge>
       </TableCell>
       <TableCell className="text-right">

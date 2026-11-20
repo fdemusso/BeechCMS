@@ -93,7 +93,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, tit
       <DashboardWidgetShell title={widgetTitle} icon={ClipboardList}>
         <div className="flex flex-col items-center justify-center gap-2 h-full text-center">
           <span className="text-5xl font-bold tabular-nums">{data?.length ?? 0}</span>
-          <p className="text-sm text-muted-foreground">{t("dashboard.widgets.pendingDrafts.pendingCount")}</p>
+          <p className="text-sm text-muted-foreground">{t("dashboard.widgets.pendingDrafts.caption", { count: data?.length ?? 0 })}</p>
           <Link to={`/content/${seedSlug}?status=draft`}>
             <Button variant="outline" size="sm">{t("dashboard.widgets.pendingDrafts.viewAll")}</Button>
           </Link>

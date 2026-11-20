@@ -9,6 +9,7 @@ import { it as itLocale, enUS, type Locale } from "date-fns/locale"
 import { useTranslation } from "react-i18next"
 import { useRecentActivity } from "../hooks/use-dashboard-stats"
 import { activityTarget } from "../utils/activity-target"
+import { ActivitySentence } from "./activity-sentence"
 
 const DATE_FNS_LOCALE: Record<string, Locale> = {
   it: itLocale,
@@ -45,15 +46,13 @@ export function RecentActivity() {
                 </Avatar>
                 <div className="flex flex-1 flex-col gap-1">
                   <p className="text-sm leading-none text-muted-foreground">
-                    <span className="font-bold text-foreground">
-                      {activity.user_name || activity.user_email}
-                    </span>{" "}
-                    {t(`dashboard.recentActivity.actions.${activity.action}`, {
-                      defaultValue: activity.action,
-                    })}{" "}
-                    <span className="font-medium text-foreground">
-                      {activityTarget(activity)}
-                    </span>
+                    <ActivitySentence
+                      action={activity.action}
+                      user={activity.user_name || activity.user_email}
+                      target={activityTarget(activity)}
+                      userClassName="font-bold text-foreground"
+                      targetClassName="font-medium text-foreground"
+                    />
                   </p>
                   <p className="text-xs text-muted-foreground/70">
                     {formatDistanceToNow(new Date(activity.created_at * 1000), {

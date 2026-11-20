@@ -51,18 +51,40 @@
       "title": "Attività Recente",
       "loading": "Caricamento attività...",
       "empty": "Nessuna attività recente registrata",
-      "actions": {
-        "create": "ha creato",
-        "update": "ha modificato",
-        "delete": "ha eliminato",
-        "upload": "ha caricato",
-        "trash": "ha spostato nel cestino",
-        "restore": "ha ripristinato",
-        "purge": "ha eliminato definitivamente",
-        "publish": "ha pubblicato",
-        "discard_draft": "ha scartato una bozza di",
-        "import": "ha importato",
-        "bulk_update": "ha modificato in blocco"
+      "entry": {
+        "create": {
+          "sentence": "<user>{{user}}</user> ha creato <target>{{target}}</target>"
+        },
+        "update": {
+          "sentence": "<user>{{user}}</user> ha modificato <target>{{target}}</target>"
+        },
+        "delete": {
+          "sentence": "<user>{{user}}</user> ha eliminato <target>{{target}}</target>"
+        },
+        "upload": {
+          "sentence": "<user>{{user}}</user> ha caricato <target>{{target}}</target>"
+        },
+        "trash": {
+          "sentence": "<user>{{user}}</user> ha spostato <target>{{target}}</target> nel Cestino"
+        },
+        "restore": {
+          "sentence": "<user>{{user}}</user> ha ripristinato <target>{{target}}</target>"
+        },
+        "purge": {
+          "sentence": "<user>{{user}}</user> ha eliminato definitivamente <target>{{target}}</target>"
+        },
+        "publish": {
+          "sentence": "<user>{{user}}</user> ha pubblicato <target>{{target}}</target>"
+        },
+        "discard_draft": {
+          "sentence": "<user>{{user}}</user> ha scartato una bozza di <target>{{target}}</target>"
+        },
+        "import": {
+          "sentence": "<user>{{user}}</user> ha importato <target>{{target}}</target>"
+        },
+        "bulk_update": {
+          "sentence": "<user>{{user}}</user> ha modificato <target>{{target}}</target> in blocco"
+        }
       }
     },
     "contentPulse": {
@@ -101,7 +123,8 @@
       "pendingDrafts": {
         "title": "Bozze in attesa",
         "viewAll": "Vedi tutte",
-        "pendingCount": "bozze in attesa",
+        "caption_one": "bozza in attesa",
+        "caption_other": "bozze in attesa",
         "noPending": "Nessuna bozza in attesa",
         "publish": "Pubblica"
       },
@@ -109,12 +132,18 @@
         "today": "Oggi",
         "week": "Settimana",
         "month": "Mese",
-        "totalContent": "contenuti totali"
+        "total": {
+          "caption": "Contenuti totali"
+        }
       },
       "storage": {
         "title": "Storage R2",
-        "used": "usato",
-        "total": "di {{total}} GB totali",
+        "gauge": {
+          "caption": "usato"
+        },
+        "summary": {
+          "caption": "Totale: {{total}} GB"
+        },
         "noData": "Nessun dato storage"
       },
       "error": {
@@ -178,7 +207,9 @@
       }
     },
     "widgetRegistry": {
-      "unknown": "Widget sconosciuto:",
+      "unknown": {
+        "sentence": "Widget sconosciuto: <code>{{type}}</code>"
+      },
       "disabled": "Widget non funzionante in questa versione",
       "widgets": {
         "stat": {
@@ -700,9 +731,13 @@
       },
       "entries": "{{count}} voci",
       "orphans": "{{count}} file orfani",
-      "fields": "campi: {{fields}}",
+      "detail": {
+        "fields": "Campi: {{fields}}"
+      },
       "sessionsRevoked": "altre sessioni chiuse",
-      "allContent": "tutti i contenuti"
+      "scope": {
+        "all": "Tutti i contenuti"
+      }
     },
     "security": {
       "sessionsTitle": "Sessioni attive",
@@ -840,7 +875,9 @@
       "emptyColumn": "Vuoto",
       "localization": {
         "switcherLabel": "Lingua del contenuto",
-        "defaultBadge": "predefinita",
+        "default": {
+          "badge": "Predefinita"
+        },
         "completion": "{{filled}}/{{total}} tradotti",
         "missing": "Nessun valore in {{locale}}: chi legge in {{locale}} vede una lingua di ripiego.",
         "copyFromDefault": "Copia dal valore predefinito ({{locale}})"
@@ -914,8 +951,8 @@
     "table": {
       "status": "Stato",
       "pendingDraft": "Bozza in sospeso",
-      "item": "voce",
-      "items": "voci",
+      "itemCount_one": "{{count}} voce",
+      "itemCount_other": "{{count}} voci",
       "created": "Creato",
       "updated": "Ultima modifica"
     }
@@ -976,7 +1013,11 @@
       "groupBy": "Raggruppa per colonna",
       "noGrouping": "Nessun raggruppamento",
       "recommended": "Consigliati",
-      "active": "attivo",
+      "state": {
+        "active": {
+          "badge": "Attivo"
+        }
+      },
       "table": "Tabella",
       "display": "Visualizzazione",
       "columnSearch": "Cerca colonna...",
@@ -1020,8 +1061,12 @@
       "applyTo": "Applica a",
       "field": "Campo",
       "element": "Intero elemento",
-      "useColorIf": "usa colore se",
-      "formatStyle": "stile di formattazione",
+      "condition": {
+        "heading": "Condizione colore"
+      },
+      "style": {
+        "heading": "Stile di formattazione"
+      },
       "default": "Predefinito",
       "notAvailable": "Configurazione non disponibile",
       "selectRule": "Seleziona una regola dall'elenco.",
@@ -1376,7 +1421,6 @@
         "timeLabel": "Orario di esecuzione (UTC)",
         "dayOfWeekLabel": "Giorno della settimana",
         "dayOfMonthLabel": "Giorno del mese",
-        "expressionPreview": "Espressione:",
         "days": {
           "0": "Domenica",
           "1": "Lunedì",
@@ -1427,7 +1471,7 @@
       "send_mail": "Invia email",
       "edit_field": "Modifica campo",
       "create_entry": "Crea elemento",
-      "templateHint": "Usa {fieldAlias} per inserire i valori dei campi",
+      "templateHint": "Usa {{example}} per inserire i valori dei campi",
       "webhookUrl": "URL",
       "webhookMethod": "Metodo HTTP",
       "webhookHeaders": "Header",
@@ -1440,9 +1484,9 @@
       "mailTo": "Destinatario",
       "mailToPlaceholder": "destinatario@esempio.it",
       "mailSubject": "Oggetto",
-      "mailSubjectPlaceholder": "Nuovo elemento: {title}",
+      "mailSubjectPlaceholder": "Nuovo elemento: {{example}}",
       "mailBody": "Corpo",
-      "mailBodyPlaceholder": "Ciao,\n\nUn nuovo elemento è stato creato: {title}",
+      "mailBodyPlaceholder": "Ciao,\n\nUn nuovo elemento è stato creato: {{example}}",
       "editField": "Campo",
       "editFieldPlaceholder": "Scegli un campo...",
       "editValue": "Valore",
@@ -1458,7 +1502,9 @@
       "variableNameHint": "Solo lettere, numeri e underscore. Es: cliente, ordini_attivi",
       "source": "Sorgente",
       "sourcePlaceholder": "Scegli una tabella o incolla un ID...",
-      "thisSeed": "questo seed",
+      "triggerSeed": {
+        "badge": "Questo seed"
+      },
       "useAsFixedId": "Usa '{{value}}' come ID fisso",
       "fixedIdBadge": "ID: {{id}}",
       "column": "Colonna (opzionale)",
@@ -1729,7 +1775,11 @@
       "dashDescriptionPlaceholder": "Breve tooltip mostrato nella sidebar",
       "dashViewsSection": "Viste autorizzate",
       "dashGroupSearch": "Cerca o crea un gruppo…",
-      "dashGroupDefault": "predefinito",
+      "group": {
+        "default": {
+          "badge": "Predefinito"
+        }
+      },
       "dashGroupCreate": "Crea “{{name}}”",
       "dashOrderHint": "I numeri più bassi vengono prima nel gruppo. Vuoto significa ultimo (99).",
       "dashPreview": "Come appare nella sidebar",
@@ -1753,9 +1803,15 @@
       "dangerZoneToggle": "Zona pericolosa",
       "back": "Indietro",
       "next": "Avanti",
-      "nextShortcut": "per continuare",
+      "footer": {
+        "next": {
+          "hint": "Premi <kbd>{{shortcut}}</kbd> per continuare"
+        },
+        "save": {
+          "hint": "Premi <kbd>{{shortcut}}</kbd> per salvare"
+        }
+      },
       "slugTaken": "Questo slug è già in uso.",
-      "saveShortcut": "per salvare",
       "features": "Funzionalità dashboard",
       "featSearch": "Ricerca",
       "featFilter": "Filtri",
@@ -1836,7 +1892,6 @@
       "removeExistingWarning": "Il campo smette di essere usato; i dati esistenti vengono conservati nel database e non eliminati. Continuare?",
       "reservedAliasError": "Uno o più alias confliggono con nomi di campo di sistema riservati.",
       "localized": "Localizzato",
-      "localizedBadge": "localizzato",
       "localizedHint": "Gli editor compilano questo campo per ogni lingua dei contenuti. Gestiscile in <languages>Lingue dei contenuti</languages>.",
       "localizedBlockedSubField": "I sotto-campi di un repeater non possono essere localizzati.",
       "localizedBlockedClassification": "I campi riservati e ristretti sono salvati cifrati o come hash, quindi non possono essere localizzati.",
@@ -1900,7 +1955,7 @@
         "all_day": "Tutto il giorno",
         "location": "Luogo",
         "event_status": "Stato",
-      "capacity": "Capienza",
+        "capacity": "Capienza",
         "contact_name": "Nome referente",
         "contact_email": "Email referente",
         "contact_phone": "Telefono referente"
@@ -1965,7 +2020,9 @@
       },
       "maintenance": {
         "title": "Manutenzione",
-        "badge": "sicura",
+        "safe": {
+          "badge": "Sicura"
+        },
         "subtitle": "Nessun dato va perso. Usala quando qualcosa sembra fuori sincronia."
       },
       "ftsRebuild": {
@@ -1986,7 +2043,9 @@
       },
       "fieldOps": {
         "title": "Operazioni sui campi",
-        "badge": "modifica il database",
+        "writes": {
+          "badge": "Modifica il database"
+        },
         "subtitle": "Scegli un campo, poi cosa farne. Le opzioni non disponibili ne spiegano il motivo.",
         "empty": "Questo tipo di contenuto non ha ancora campi salvati.",
         "rename": "Rinomina",
@@ -2062,7 +2121,11 @@
     "consent": {
       "title": "{{client}} vuole accedere a BeechCMS",
       "subtitle": "Verifica i permessi prima di concedere l'accesso.",
-      "alreadyGranted": "già concesso",
+      "scope": {
+        "granted": {
+          "badge": "Già concesso"
+        }
+      },
       "redirectNotice": "Dopo l'approvazione verrai reindirizzato a {{uri}}.",
       "approve": "Consenti accesso",
       "deny": "Nega",
@@ -2089,7 +2152,9 @@
       "description": "Applicazioni che hai autorizzato ad accedere a BeechCMS per tuo conto.",
       "empty": "Nessuna app connessa",
       "grantedAt": "Autorizzata il {{date}}",
-      "noActiveTokens": "nessun token attivo",
+      "noTokens": {
+        "badge": "Nessun token attivo"
+      },
       "revokeTitle": "Revocare l'accesso?",
       "revokeDesc": "{{client}} perderà immediatamente l'accesso. Ogni token attivo viene invalidato.",
       "revokeSuccess": "Accesso revocato",
@@ -2218,8 +2283,9 @@
   "acceptInvite": {
     "title": "Accetta invito",
     "desc": "Imposta una password per attivare il tuo account.",
-    "invitedAs": "Sei stato invitato come {{role}}",
-    "onScope": "su {{scope}}",
+    "invitation": {
+      "sentence": "Sei stato invitato come {{role}} su {{scope}}"
+    },
     "invalidOrExpired": "Questo link di invito non è valido o è scaduto.",
     "password": "Password",
     "confirm": "Conferma password",

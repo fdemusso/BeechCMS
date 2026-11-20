@@ -43,13 +43,13 @@ export function SendMailForm({ index }: SendMailFormProps) {
         <Input
           id={`${baseId}-subject`}
           {...register(`actions.${index}.subject_template` as any)}
-          placeholder={t('automations.actions.mailSubjectPlaceholder')}
+          placeholder={t('automations.actions.mailSubjectPlaceholder', { example: '{{title}}' })}
           className="h-8 text-sm"
         />
         {actionErrors?.subject_template && (
           <p className="mt-1 text-xs text-status-danger-foreground">{t(actionErrors.subject_template.message)}</p>
         )}
-        <p className="mt-1 text-xs text-muted-foreground">{t('automations.actions.templateHint')}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t('automations.actions.templateHint', { example: '{{fieldAlias}}' })}</p>
       </div>
 
       <div>
@@ -60,13 +60,13 @@ export function SendMailForm({ index }: SendMailFormProps) {
           id={`${baseId}-body`}
           {...register(`actions.${index}.body_template` as any)}
           rows={4}
-          placeholder={t('automations.actions.mailBodyPlaceholder')}
+          placeholder={t('automations.actions.mailBodyPlaceholder', { example: '{{title}}' })}
           className="w-full rounded-control border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
         {actionErrors?.body_template && (
           <p className="mt-1 text-xs text-status-danger-foreground">{t(actionErrors.body_template.message)}</p>
         )}
-        <p className="mt-1 text-xs text-muted-foreground">{t('automations.actions.templateHint')}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t('automations.actions.templateHint', { example: '{{fieldAlias}}' })}</p>
       </div>
     </div>
   )

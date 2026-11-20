@@ -50,7 +50,7 @@ describe("Connected apps markup", () => {
     expect(rows[0]).toHaveTextContent("schema:read, schema:write")
     expect(rows[0].querySelector("time[datetime]")).not.toBeNull()
     expect(within(rows[0]).getByText("Active")).toBeInTheDocument()
-    expect(within(rows[1]).getByText("no active token")).toBeInTheDocument()
+    expect(within(rows[1]).getByText("No active token")).toBeInTheDocument()
   })
 
   it("names every revoke button after the app it ends", () => {

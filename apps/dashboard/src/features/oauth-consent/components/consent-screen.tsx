@@ -116,7 +116,7 @@ export function ConsentScreen({ metadata, params }: ConsentScreenProps) {
                       </Badge>
                       {alreadyGranted ? (
                         <Badge variant="outline" className="text-xs px-1.5 py-0 text-muted-foreground">
-                          {t('oauth.consent.alreadyGranted')}
+                          {t('oauth.consent.scope.granted.badge')}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-xs px-1.5 py-0 border-primary/30 text-foreground font-normal">

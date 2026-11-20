@@ -364,7 +364,7 @@ export function SettingsMenu({
                   {t("toolbar.settings.group")}{groupBy ? "..." : ""}
                   {groupBy && (
                     <span className="ml-auto text-xs text-muted-foreground uppercase">
-                      {t("toolbar.settings.active")}
+                      {t("toolbar.settings.state.active.badge")}
                     </span>
                   )}
                 </DropdownMenuSubTrigger>

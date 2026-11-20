@@ -112,9 +112,7 @@ export function formatSum(
   translate: (key: string, options?: any) => string
 ): string {
   if (typeof value === "number" && !Number.isNaN(value)) {
-    return `Σ ${value.toLocaleString("en-US")} · ${count} ${
-      count === 1 ? translate("content.table.item") : translate("content.table.items")
-    }`
+    return `Σ ${value.toLocaleString("en-US")} · ${translate("content.table.itemCount", { count })}`
   }
-  return `${count} ${count === 1 ? translate("content.table.item") : translate("content.table.items")}`
+  return translate("content.table.itemCount", { count })
 }
