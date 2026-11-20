@@ -39,7 +39,7 @@ export function GalleryFolderCard({ seed, group, onOpen, style, onEdit }: Galler
       <button
         type="button"
         onClick={() => onOpen(group.key)}
-        aria-label={t("gallery.folders.openAriaLabel", { label, count: formatItemCount(t, group.models.length, seed) })}
+        aria-label={t("gallery.folders.open.ariaLabel", { label, count: formatItemCount(t, group.models.length, seed) })}
         className={GALLERY_CARD_SURFACE_CLASS}
       >
         <div className={cn("flex h-36 w-full items-center justify-center bg-gradient-to-br", colors?.banner ?? "from-muted/40 to-muted/80")}>
@@ -52,7 +52,7 @@ export function GalleryFolderCard({ seed, group, onOpen, style, onEdit }: Galler
                   alt=""
                   loading="lazy"
                   onError={(event) => { event.currentTarget.style.display = "none" }}
-                  className="size-20 rounded-lg border-2 border-card object-cover shadow-md transition-transform duration-200 group-hover:-translate-y-1"
+                  className="size-20 rounded-lg border-2 border-card object-cover shadow-md transition-transform group-hover:-translate-y-1"
                 />
               ))}
             </div>
@@ -63,7 +63,7 @@ export function GalleryFolderCard({ seed, group, onOpen, style, onEdit }: Galler
         <div className="flex items-center gap-3 p-4">
           <FolderIcon className={cn("size-5 shrink-0", colors?.icon ?? "text-muted-foreground")} />
           <div className="min-w-0 flex-1">
-            <h3 className="font-heading truncate text-base font-semibold">{label}</h3>
+            <h3 className="font-heading truncate text-base font-bold">{label}</h3>
             <p className="text-sm text-muted-foreground">{formatItemCount(t, group.models.length, seed)}</p>
             {style?.description && <p className="truncate text-xs text-muted-foreground">{style.description}</p>}
           </div>
@@ -73,8 +73,8 @@ export function GalleryFolderCard({ seed, group, onOpen, style, onEdit }: Galler
         <button
           type="button"
           onClick={onEdit}
-          aria-label={t("gallery.folders.edit.openAriaLabel", { label })}
-          className="absolute right-2 top-2 flex size-7 cursor-pointer items-center justify-center rounded-md bg-background/80 text-muted-foreground opacity-0 shadow-sm backdrop-blur-sm transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/folder:opacity-100"
+          aria-label={t("gallery.folders.edit.open.ariaLabel", { label })}
+          className="absolute right-2 top-2 flex size-7 cursor-pointer items-center justify-center rounded-control bg-background/80 text-muted-foreground opacity-0 shadow-sm backdrop-blur-sm transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/folder:opacity-100"
         >
           <Edit className="size-3.5" />
         </button>

@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { logActivity } from '../../shared/services/activity-log/log-activity'
 import type { Context } from 'hono'
 import type { ZodJsonInput } from '../../shared/utils/zod-json'
 import type { ZodQueryInput } from '../../shared/utils/zod-query'
@@ -225,6 +226,8 @@ export async function consentHandler(context: Context<AppEnv, '/oauth/authorize/
     decision.grantedScopes,
     nowSeconds,
   )
+
+  logActivity(context, { action: 'authorize', entityType: 'app', entityId: request.clientId, details: { client: client.name, scopes: decision.grantedScopes } })
 
   const code = generateOpaqueToken()
   const codeHash = await sha256hex(code)

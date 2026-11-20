@@ -248,7 +248,7 @@ describe('content slice — import integration (real D1, real R2)', () => {
       // this caller proves the handler's scope check rather than a coarse
       // "holds content:create somewhere" gate.
       const rolesResponse = await admin.get('/api/rbac/roles')
-      const { roles } = await rolesResponse.json<{ roles: Array<{ id: string; data: { name: string } }> }>()
+      const { roles } = await rolesResponse.json<{ roles: Array<{ id: string; name: string }> }>()
       const superAdminRole = roles.find((role) => role.name === 'SuperAdmin')
       if (!superAdminRole) throw new Error('expected the seeded SuperAdmin role to exist')
       await admin.post('/api/rbac/assignments', {

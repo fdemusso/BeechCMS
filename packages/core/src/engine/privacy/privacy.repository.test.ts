@@ -10,9 +10,9 @@ const PRIVACY_SEED: Seed = {
   displayNameAlias: 'name',
   label: 'User',
   branches: [
-    { id: 'br_01', alias: 'name', type: 'text', policies: { privacy: 'plain' } },
-    { id: 'br_02', alias: 'ssn', type: 'text', policies: { privacy: 'encrypt' } },
-    { id: 'br_03', alias: 'email_hash', type: 'text', policies: { privacy: 'hash' } },
+    { id: 'br_01', alias: 'name', label: 'name', type: 'text', policies: { privacy: 'plain' } },
+    { id: 'br_02', alias: 'ssn', label: 'ssn', type: 'text', policies: { privacy: 'encrypt' } },
+    { id: 'br_03', alias: 'email_hash', label: 'email_hash', type: 'text', policies: { privacy: 'hash' } },
   ],
 }
 

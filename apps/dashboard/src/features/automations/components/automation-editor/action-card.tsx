@@ -16,11 +16,11 @@ import { CreateEntryForm } from '../action-forms/create-entry-form'
 import type { AutomationFormValues } from '../../schema/automation.schema'
 
 const ACTION_BORDER: Record<string, string> = {
-  set_variable: 'border-l-cyan-500',
-  webhook: 'border-l-blue-500',
-  send_mail: 'border-l-green-500',
-  edit_field: 'border-l-amber-500',
-  create_entry: 'border-l-purple-500',
+  set_variable: 'border-l-status-info',
+  webhook: 'border-l-status-info',
+  send_mail: 'border-l-status-live',
+  edit_field: 'border-l-status-warning',
+  create_entry: 'border-l-category',
 }
 
 interface ActionCardProps {
@@ -69,7 +69,7 @@ export function ActionCard({ index, total, seedBranches, seedSlug, onRemove, onM
             type="button"
             variant="ghost"
             size="icon"
-            className="size-6 text-destructive hover:text-destructive"
+            className="size-6 text-status-danger-foreground hover:text-status-danger-foreground"
             onClick={onRemove}
             aria-label="Remove action"
           >

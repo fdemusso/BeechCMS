@@ -47,6 +47,11 @@ export function buildKanbanCardDisplayModel(
   const titleBranch = Object.keys(data).find(k => !SYSTEM_KEYS.has(k) && typeof data[k] === 'string' && data[k] !== '')
   const title = titleBranch ? toPlainText(data[titleBranch]) : entry.id
 
+  const titleRelation = titleBranch ? seed?.branches.find(b => b.alias === titleBranch && b.type === 'relation') : undefined
+  const titleField: ResolvedSlotField | undefined = titleRelation
+    ? { branch: titleRelation, value: data[titleRelation.alias] }
+    : undefined
+
   const fileBranch = Object.keys(data).find(k => {
     const v = data[k]; return typeof v === 'string' && (v.includes('/') || v.startsWith('http'))
   })
@@ -79,6 +84,7 @@ export function buildKanbanCardDisplayModel(
   return {
     entryId: entry.id,
     title,
+    ...(titleField ? { titleField } : {}),
     statusBadge: entry.status !== 'published' ? entry.status : undefined,
     imageUrl,
     axisValue: columnValue,

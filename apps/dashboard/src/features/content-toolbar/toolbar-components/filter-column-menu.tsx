@@ -73,7 +73,7 @@ export function FilterColumnMenu({
           {t("toolbar.filter.label")}
         </DropdownMenuLabel>
         <Input
-          placeholder={t("toolbar.filter.searchPlaceholder")}
+          placeholder={t("toolbar.filter.search.placeholder")}
           value={searchTerm}
           onChange={(e) => onSearchTermChange(e.target.value)}
           className="h-8 text-sm"
@@ -95,7 +95,7 @@ export function FilterColumnMenu({
                 >
                   <span className="truncate">{col.label}</span>
                   {activeFiltersCountByColumn[col.columnId] ? (
-                    <span className="text-muted-foreground text-[10px] uppercase">
+                    <span className="text-muted-foreground text-xs uppercase">
                       {activeFiltersCountByColumn[col.columnId]}
                     </span>
                   ) : null}

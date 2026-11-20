@@ -5,6 +5,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { createBeechBrowserClient, createBeechClient } from './index.js'
 import type { BeechClientConfig } from '../types.js'
 
+// The default registry types every row as `unknown`; these tests read fields off the rows.
+type TestRegistry = Record<string, Record<string, unknown>>
+
 function mockFetch(status: number, body: unknown, contentType = 'application/json', statusText = 'OK') {
   return vi.fn().mockResolvedValue({
     ok: status >= 200 && status < 300,
@@ -23,13 +26,13 @@ const baseConfig: BeechClientConfig = {
 describe('Browser Client (@beechcms/client/browser)', () => {
   it('throws error on missing or invalid configuration', () => {
     expect(() => createBeechBrowserClient(null as unknown as BeechClientConfig)).toThrow(TypeError)
-    expect(() => createBeechBrowserClient({ baseUrl: '', apiKey: 'key' })).toThrow(/baseUrl is required/)
-    expect(() => createBeechBrowserClient({ baseUrl: 'https://api.example.com', apiKey: '' })).toThrow(/apiKey is required/)
+    expect(() => createBeechBrowserClient<TestRegistry>({ baseUrl: '', apiKey: 'key' })).toThrow(/baseUrl is required/)
+    expect(() => createBeechBrowserClient<TestRegistry>({ baseUrl: 'https://api.example.com', apiKey: '' })).toThrow(/apiKey is required/)
   })
 
   it('normalizes trailing slashes on baseUrl', async () => {
     const fetchMock = mockFetch(200, { data: [], meta: { total: 0, returned: 0, seed: 'posts' } })
-    const client = createBeechBrowserClient({ ...baseConfig, baseUrl: 'https://api.example.com///', fetch: fetchMock })
+    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, baseUrl: 'https://api.example.com///', fetch: fetchMock })
     await client.collection('posts').list()
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.example.com/api/v1/public/posts',
@@ -39,7 +42,7 @@ describe('Browser Client (@beechcms/client/browser)', () => {
 
   it('list sends GET request with X-API-Key and search params', async () => {
     const fetchMock = mockFetch(200, { data: [{ id: '1', title: 'A' }], meta: { total: 1, returned: 1, seed: 'posts' } })
-    const client = createBeechBrowserClient({ ...baseConfig, fetch: fetchMock })
+    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
     const res = await client.collection('posts').where({ title: 'hello' }).select(['id']).list()
     expect(res.error).toBeNull()
     expect(res.data?.data).toHaveLength(1)
@@ -50,7 +53,7 @@ describe('Browser Client (@beechcms/client/browser)', () => {
 
   it('get by id is performed using where and first, sending GET request with ?filter=...', async () => {
     const fetchMock = mockFetch(200, { data: [{ id: 'p_123', title: 'Post' }], meta: { seed: 'posts' } })
-    const client = createBeechBrowserClient({ ...baseConfig, fetch: fetchMock })
+    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
     const res = await client.collection('posts').where({ id: 'p_123' }).first()
     expect(res.error).toBeNull()
     expect(res.data?.data.id).toBe('p_123')
@@ -61,7 +64,7 @@ describe('Browser Client (@beechcms/client/browser)', () => {
 
   it('get by slug is performed using where and first, sending GET request with ?filter=...', async () => {
     const fetchMock = mockFetch(200, { data: [{ id: 'p_123', slug: 'my-slug' }], meta: { seed: 'posts' } })
-    const client = createBeechBrowserClient({ ...baseConfig, fetch: fetchMock })
+    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
     const res = await client.collection('posts').where({ slug: 'my-slug' }).first()
     expect(res.error).toBeNull()
     expect(res.data?.data.slug).toBe('my-slug')
@@ -72,7 +75,7 @@ describe('Browser Client (@beechcms/client/browser)', () => {
 
   it('first() returns a 404 BeechProblem when the list comes back empty', async () => {
     const fetchMock = mockFetch(200, { data: [], meta: { seed: 'posts' } })
-    const client = createBeechBrowserClient({ ...baseConfig, fetch: fetchMock })
+    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
     const res = await client.collection('posts').where({ id: 'missing' }).first()
     expect(res.data).toBeNull()
     expect(res.error).toEqual(expect.objectContaining({ status: 404, type: 'not_found' }))
@@ -80,7 +83,7 @@ describe('Browser Client (@beechcms/client/browser)', () => {
 
   it('list forwards the validate option without altering the response', async () => {
     const fetchMock = mockFetch(200, { data: [{ id: '1' }], meta: { total: 1, returned: 1, seed: 'posts' } })
-    const client = createBeechBrowserClient({ ...baseConfig, fetch: fetchMock })
+    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
     const res = await client.collection('posts').list({ validate: true })
     expect(res.error).toBeNull()
     expect(res.data?.data).toHaveLength(1)
@@ -101,7 +104,7 @@ describe('Browser Client (@beechcms/client/browser)', () => {
       detail: 'Resource does not exist',
     }
     const fetchMock = mockFetch(404, problem, 'application/problem+json', 'Not Found')
-    const client = createBeechBrowserClient({ ...baseConfig, fetch: fetchMock })
+    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
     const res = await client.collection('posts').where({ id: 'missing' }).first()
     expect(res.data).toBeNull()
     expect(res.error).toEqual(expect.objectContaining({ status: 404, detail: 'Resource does not exist' }))
@@ -109,7 +112,7 @@ describe('Browser Client (@beechcms/client/browser)', () => {
 
   it('encapsulates network errors with status: 0 without throwing', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
-    const client = createBeechBrowserClient({ ...baseConfig, fetch: fetchMock })
+    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
     const res = await client.collection('posts').list()
     expect(res.data).toBeNull()
     expect(res.error).toEqual(expect.objectContaining({ status: 0, detail: 'Failed to fetch' }))

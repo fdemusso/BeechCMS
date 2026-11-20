@@ -22,7 +22,7 @@ export function GallerySkeletonGrid() {
       {SKELETON_KEYS.map((key) => (
         <div
           key={key}
-          className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card"
+          className="flex flex-col overflow-hidden rounded-lg border border-border bg-card"
         >
           {/* Image area */}
           <div className="relative h-44 w-full shrink-0">

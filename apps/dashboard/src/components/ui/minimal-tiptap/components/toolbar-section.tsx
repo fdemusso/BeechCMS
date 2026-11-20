@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ToolbarButton } from "./toolbar-button"
 import { ShortcutKey } from "./shortcut-key"
-import { getShortcutKey } from "../utils"
+import { ShortcutTooltip } from "./shortcut-tooltip"
 
 interface ToolbarSectionProps extends VariantProps<typeof toggleVariants> {
   editor: Editor
@@ -65,7 +65,7 @@ export const ToolbarSection: React.FC<ToolbarSectionProps> = ({
         onClick={() => action.action(editor)}
         disabled={!action.canExecute(editor)}
         isActive={action.isActive(editor)}
-        tooltip={`${action.label} ${action.shortcuts.map((s) => getShortcutKey(s).symbol).join(" ")}`}
+        tooltip={<ShortcutTooltip label={action.label} keys={action.shortcuts} />}
         aria-label={action.label}
         size={size}
         variant={variant}

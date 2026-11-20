@@ -38,7 +38,7 @@ export function AutomationRow({ automation, onEdit, onDelete, onToggle, isToggli
           checked={automation.enabled}
           onCheckedChange={onToggle}
           disabled={isToggling}
-          aria-label={t('automations.panel.toggleAriaLabel')}
+          aria-label={t('automations.panel.toggle.ariaLabel')}
         />
       ) : (
         <Tooltip>
@@ -47,7 +47,7 @@ export function AutomationRow({ automation, onEdit, onDelete, onToggle, isToggli
               <Switch
                 checked={automation.enabled}
                 disabled
-                aria-label={t('automations.panel.toggleAriaLabel')}
+                aria-label={t('automations.panel.toggle.ariaLabel')}
               />
             </span>
           </TooltipTrigger>
@@ -92,9 +92,9 @@ export function AutomationRow({ automation, onEdit, onDelete, onToggle, isToggli
         <Button
           variant="ghost"
           size="icon"
-          className="size-7 text-destructive hover:text-destructive"
+          className="size-7 text-status-danger-foreground hover:text-status-danger-foreground"
           onClick={onDelete}
-          aria-label={t('common.delete')}
+          aria-label={t('common.action.delete')}
         >
           <Trash2 className="size-3.5" />
         </Button>
@@ -105,9 +105,9 @@ export function AutomationRow({ automation, onEdit, onDelete, onToggle, isToggli
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-7 text-destructive hover:text-destructive"
+                className="size-7 text-status-danger-foreground hover:text-status-danger-foreground"
                 disabled
-                aria-label={t('common.delete')}
+                aria-label={t('common.action.delete')}
               >
                 <Trash2 className="size-3.5" />
               </Button>

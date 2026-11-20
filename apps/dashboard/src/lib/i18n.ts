@@ -5,20 +5,26 @@
 import i18n from "i18next"
 import { initReactI18next } from "react-i18next"
 import LanguageDetector from "i18next-browser-languagedetector"
-import it from "@/locales/it.json"
 import en from "@/locales/en.json"
+import it from "@/locales/it.json"
+import es from "@/locales/es.json"
+import de from "@/locales/de.json"
+import fr from "@/locales/fr.json"
 
-// lookupLocalStorage must match LANGUAGE_KEY in interface-tab.tsx
+// lookupLocalStorage must match the language the Language tab of the settings writes (it goes through i18n itself).
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources: {
-      it: { translation: it },
       en: { translation: en },
+      it: { translation: it },
+      es: { translation: es },
+      de: { translation: de },
+      fr: { translation: fr },
     },
     fallbackLng: "en",
-    supportedLngs: ["it", "en"],
+    supportedLngs: ["en", "it", "es", "de", "fr"],
     interpolation: { escapeValue: false },
     detection: {
       order: ["localStorage", "navigator"],
@@ -26,5 +32,12 @@ i18n
       lookupLocalStorage: "beech_language",
     },
   })
+
+// A screen reader pronounces the page by <html lang>: it has to say what the dashboard is written in.
+const syncDocumentLanguage = (language?: string) => {
+  if (typeof document !== "undefined" && language) document.documentElement.lang = language.split("-")[0]
+}
+i18n.on("initialized", () => syncDocumentLanguage(i18n.resolvedLanguage ?? i18n.language))
+i18n.on("languageChanged", syncDocumentLanguage)
 
 export default i18n

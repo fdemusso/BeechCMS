@@ -53,7 +53,7 @@ export function ConsentPage() {
       <div className="flex min-h-svh w-full items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>{t('oauth.consent.errorTitle')}</CardTitle>
+            <CardTitle>{t('oauth.consent.error.title')}</CardTitle>
             {description && <CardDescription>{description}</CardDescription>}
           </CardHeader>
           <CardContent />

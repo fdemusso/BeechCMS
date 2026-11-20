@@ -41,13 +41,7 @@ import {
 
 // Re-export utility functions and types for full compatibility with consumers
 export { computeMaxLengths } from "./dynamic-columns-lengths"
-export {
-  DEFAULT_DATE_GROUP_PRECISION,
-  getDateGroupValue,
-  booleanAggFn,
-  formatBooleanAggregated,
-  formatSum,
-} from "./dynamic-columns-aggregation"
+export { DEFAULT_DATE_GROUP_PRECISION } from "./dynamic-columns-aggregation"
 export type { DateGroupPrecision } from "./dynamic-columns-aggregation"
 
 /**
@@ -201,7 +195,7 @@ export function generateColumns(
     // Colonna di sistema: ID
     {
       id: "id",
-      size: 160,
+      size: 140,
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.id,
@@ -219,7 +213,7 @@ export function generateColumns(
     // Colonna di sistema: Slug
     {
       id: "slug",
-      size: 160,
+      size: 140,
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.slug,
@@ -234,7 +228,7 @@ export function generateColumns(
     // Colonna di sistema: Status (indicator dot + label)
     {
       id: "status",
-      size: 160,
+      size: 140,
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.status,
@@ -266,7 +260,7 @@ export function generateColumns(
     // System columns: timestamps
     {
       id: "updated_at",
-      size: 160,
+      size: 140,
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.updated_at,
@@ -278,7 +272,7 @@ export function generateColumns(
     },
     {
       id: "created_at",
-      size: 160,
+      size: 140,
       minSize: 80,
       maxSize: 400,
       accessorFn: (row) => row.created_at,
@@ -297,7 +291,7 @@ export function generateColumns(
     const baseColumn: ColumnDef<ContentEntry> & GroupingColumnDef<ContentEntry, unknown> = {
       accessorFn: (row) => row.data[branch.alias],
       id: branch.alias,
-      size: 200,
+      size: 170,
       minSize: 80,
       maxSize: 600,
       header: () => (
@@ -328,8 +322,7 @@ export function generateColumns(
         if (!label) return null
         return (
           <span className="text-xs text-muted-foreground">
-            {label} · {count}{" "}
-            {count === 1 ? translate("content.table.item") : translate("content.table.items")}
+            {label} · {translate("content.table.itemCount", { count })}
           </span>
         )
       }
@@ -358,8 +351,7 @@ export function generateColumns(
         const count = row.subRows?.length ?? 0
         return (
           <span className="text-xs text-muted-foreground">
-            {count}{" "}
-            {count === 1 ? translate("content.table.item") : translate("content.table.items")}
+            {translate("content.table.itemCount", { count })}
           </span>
         )
       }
@@ -393,7 +385,7 @@ export function generateColumns(
     id: "actions",
     enableHiding: false,
     enableResizing: false,
-    size: 56,
+    size: 48,
     cell: function ActionsCellRender({ row }) {
       const entry = row.original
       const currentSelectedIds = typeof selectedIds === "function" ? selectedIds() : selectedIds
@@ -403,7 +395,7 @@ export function generateColumns(
       const canDelete = can("content:delete", seed.slug)
 
       return (
-        <div className="text-right">
+        <div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon-xs">
@@ -421,10 +413,10 @@ export function generateColumns(
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => onBulkDelete?.(currentSelectedIds)}
-                    className="text-destructive focus:text-destructive"
+                    className="text-status-danger-foreground focus:text-status-danger-foreground"
                     disabled={!canDelete}
                   >
-                    {translate("common.delete")}
+                    {translate("common.action.delete")}
                     <DropdownMenuShortcut>Del</DropdownMenuShortcut>
                   </DropdownMenuItem>
                 </>
@@ -452,10 +444,10 @@ export function generateColumns(
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => onDelete(entry.id)}
-                    className="text-destructive focus:text-destructive"
+                    className="text-status-danger-foreground focus:text-status-danger-foreground"
                     disabled={!canDelete}
                   >
-                    {translate("common.delete")}
+                    {translate("common.action.delete")}
                     <DropdownMenuShortcut>Del</DropdownMenuShortcut>
                   </DropdownMenuItem>
                 </>

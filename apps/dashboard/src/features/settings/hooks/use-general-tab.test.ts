@@ -91,14 +91,39 @@ describe("useGeneralTabLogic", () => {
     const invalidInputs = ["", "-1", "1.5", "abc", "36501"]
 
     for (const typed of invalidInputs) {
-      vi.mocked(toast.error).mockClear()
+      const refusalsBefore = result.current.refusals
 
       await saveRetention(result, typed)
 
-      expect(toast.error).toHaveBeenCalledWith(
+      expect(result.current.errors.trashRetentionDays).toBe(
         `Retention must be a whole number between 0 and ${MAX_RETENTION_DAYS}.`,
       )
+      expect(result.current.refusals).toBe(refusalsBefore + 1)
     }
+    expect(mocked.putSettings).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it("clears the refusal as soon as the field is edited", async () => {
+    const { result } = await renderLoadedHook()
+    await saveRetention(result, "abc")
+    expect(result.current.errors.trashRetentionDays).toBeDefined()
+
+    act(() => result.current.actions.setTrashRetentionDays("30"))
+
+    expect(result.current.errors.trashRetentionDays).toBeUndefined()
+  })
+
+  it("refuses a website that is not a URL, and says so for that field only", async () => {
+    const { result } = await renderLoadedHook()
+    act(() => result.current.actions.setCompanyWebsite("not a url"))
+
+    await act(async () => {
+      await result.current.actions.handleSave({ preventDefault: vi.fn() } as unknown as React.FormEvent)
+    })
+
+    expect(result.current.errors.companyWebsite).toBe("Please enter a valid URL for the website.")
+    expect(result.current.errors.trashRetentionDays).toBeUndefined()
     expect(mocked.putSettings).not.toHaveBeenCalled()
   })
 })

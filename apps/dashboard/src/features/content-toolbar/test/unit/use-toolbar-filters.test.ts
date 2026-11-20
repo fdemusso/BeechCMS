@@ -8,6 +8,7 @@ import { renderHook, act } from "@testing-library/react"
 import { useToolbarFilters } from "@/features/content-toolbar/toolbar-hooks/use-toolbar-filters"
 
 const seed: any = {
+  allowDrafts: true,
   branches: [
     { alias: "title", label: "Titolo", type: "text" },
     { alias: "price", label: "Prezzo", type: "number" },

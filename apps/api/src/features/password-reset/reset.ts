@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { logActivity, requestOrigin } from '../../shared/services/activity-log/log-activity'
 import type { Context } from 'hono'
 import type { AppEnv } from '../../types'
 import type { ZodJsonInput } from '../../shared/utils/zod-json'
@@ -69,6 +70,12 @@ export async function resetPassword(
   if (!isRedeemed) {
     return context.json({ error: 'Invalid or expired token' }, 400)
   }
+
+  logActivity(context, {
+    action: 'update', entityType: 'user', entityId: tokenRecord.userId,
+    details: { op: 'password-reset', sessionsRevoked: true, ...requestOrigin(context) },
+    actor: { id: tokenRecord.userId, email: tokenRecord.email },
+  })
 
   const smtpBaseUrl = env.SMTP_HOST
     ? `http://${env.SMTP_HOST}:${env.SMTP_PORT ?? '8025'}`

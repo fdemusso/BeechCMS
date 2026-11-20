@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { afterEach } from "vitest"
 import i18n from "i18next"
 import { initReactI18next } from "react-i18next"
 
@@ -13,11 +14,17 @@ if (typeof window !== "undefined") {
 if (!i18n.isInitialized) {
   const itTranslations = await import("@/locales/it.json")
   const enTranslations = await import("@/locales/en.json")
+  const esTranslations = await import("@/locales/es.json")
+  const deTranslations = await import("@/locales/de.json")
+  const frTranslations = await import("@/locales/fr.json")
   i18n.use(initReactI18next).init({
     lng: "en",
     resources: {
       it: { translation: itTranslations.default },
       en: { translation: enTranslations.default },
+      es: { translation: esTranslations.default },
+      de: { translation: deTranslations.default },
+      fr: { translation: frTranslations.default },
     },
     fallbackLng: "en",
     interpolation: { escapeValue: false },
@@ -41,6 +48,11 @@ if (typeof globalThis.ResizeObserver === "undefined") {
 }
 
 if (typeof window !== "undefined") {
+  // Drafts and other per-browser state kept in localStorage must not leak from one test into the next.
+  afterEach(() => {
+    localStorage.clear()
+  })
+
   if (!window.HTMLElement.prototype.scrollIntoView) {
     window.HTMLElement.prototype.scrollIntoView = function() {};
   }

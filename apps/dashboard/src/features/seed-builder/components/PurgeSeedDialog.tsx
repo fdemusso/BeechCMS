@@ -3,9 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import type { SeedRecordDTO } from "../api/seeds.api"
-import { HardDeleteSection } from "./SeedDangerZone"
+import { HardDeleteDialog } from "./HardDeleteDialog"
 
 interface PurgeSeedDialogProps {
   seed: SeedRecordDTO | null
@@ -13,20 +12,16 @@ interface PurgeSeedDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-/** Permanent removal of a soft-deleted seed, reusing the Danger Zone's typed-slug confirmation. */
+/** Permanent removal of a soft-deleted seed: the same typed-slug confirmation as the editor's footer. */
 export function PurgeSeedDialog({ seed, open, onOpenChange }: PurgeSeedDialogProps) {
   const { t } = useTranslation()
-  if (!seed) return null
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("seedBuilder.purge.title", { label: seed.definition.label })}</DialogTitle>
-          <DialogDescription>{t("seedBuilder.purge.description")}</DialogDescription>
-        </DialogHeader>
-        <HardDeleteSection record={seed} onDeleted={() => onOpenChange(false)} />
-      </DialogContent>
-    </Dialog>
+    <HardDeleteDialog
+      seed={seed}
+      open={open}
+      onOpenChange={onOpenChange}
+      title={seed ? t("seedBuilder.purge.title", { label: seed.definition.label }) : undefined}
+      description={t("seedBuilder.purge.description")}
+    />
   )
 }

@@ -72,17 +72,17 @@ export function MediaDisplay({ branch, value }: FieldDisplayProps) {
           renderAsImage ? (
             <Avatar
               key={url}
-              className="size-10 shrink-0 rounded-md border border-input bg-muted"
+              className="size-10 shrink-0 rounded-control border border-input bg-muted"
             >
               <AvatarImage src={url} alt="" className="object-cover" />
-              <AvatarFallback className="rounded-md bg-muted">
+              <AvatarFallback className="rounded-control bg-muted">
                 <FileIcon className="size-5 text-muted-foreground" />
               </AvatarFallback>
             </Avatar>
           ) : (
             <div
               key={url}
-              className="flex size-10 items-center justify-center rounded-md border border-input bg-muted"
+              className="flex size-10 items-center justify-center rounded-control border border-input bg-muted"
             >
               <FileIcon className="size-5 text-muted-foreground" />
             </div>
@@ -103,7 +103,7 @@ export function MediaDisplay({ branch, value }: FieldDisplayProps) {
   if (!renderAsImage) {
     return (
       <div
-        className="flex size-10 items-center justify-center rounded-md border border-input bg-muted"
+        className="flex size-10 items-center justify-center rounded-control border border-input bg-muted"
         title={url}
       >
         <FileIcon className="size-5 text-muted-foreground" />
@@ -112,9 +112,9 @@ export function MediaDisplay({ branch, value }: FieldDisplayProps) {
   }
 
   return (
-    <Avatar className="size-10 shrink-0 rounded-md border border-input bg-muted">
+    <Avatar className="size-10 shrink-0 rounded-control border border-input bg-muted">
       <AvatarImage src={url} alt="" className="object-cover" />
-      <AvatarFallback className="rounded-md bg-muted">
+      <AvatarFallback className="rounded-control bg-muted">
         <FileIcon className="size-5 text-muted-foreground" />
       </AvatarFallback>
     </Avatar>

@@ -5,7 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { z } from 'zod'
 import type { Branch, Seed, SeedRecord } from '@beechcms/core'
-import { nextBranchId, validateSeedDefinitions, SLUG_RE } from '@beechcms/core'
+import { nextBranchId, validateSeedDefinitions, hasBlindIndex, isSystemSeedSlug, SLUG_RE, SYSTEM_COLUMNS } from '@beechcms/core'
 import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
 import { BODY_NOT_JSON_DETAIL, BODY_NOT_OBJECT_DETAIL } from './seeds.schema'
 import type { ZodJsonRefusal } from '../../shared/utils/zod-json'
@@ -20,7 +20,7 @@ export type { AppContext }
  * @param context - The Hono request context.
  * @returns The parsed JSON body payload, or a 400 Bad Request Problem Details Response on syntax failure.
  */
-export async function parseJsonBody(context: AppContext): Promise<unknown> {
+async function parseJsonBody(context: AppContext): Promise<unknown> {
   try { return await context.req.json() } catch {
     return publicProblem(context, { type: 'invalid-json', title: 'Invalid JSON', status: 400, detail: 'Body must be valid JSON.' })
   }
@@ -150,7 +150,36 @@ export async function getSeedAnyStatus(context: AppContext, slug: string) {
  *
  * @returns A 409 Problem Details Response when the seed is manifest-owned, or `null` when it is not.
  */
+/**
+ * Physical columns a seed's definition accounts for: the system columns, one per branch, and the `<alias>_bidx` blind
+ * index that the engine keeps beside every encrypted, filterable branch. A column outside this set is an orphan.
+ * Multi-relations have no column (they live in a junction table).
+ */
+export function definedColumns(definition: Seed): Set<string> {
+  const columns = new Set<string>(SYSTEM_COLUMNS)
+  for (const branch of definition.branches) {
+    if (branch.type === 'relation' && branch.multiple === true) continue
+    columns.add(branch.alias)
+    if (hasBlindIndex(branch)) columns.add(`${branch.alias}_bidx`)
+  }
+  return columns
+}
+
+/**
+ * Refuses interactive mutation of a seed the platform or the manifest owns.
+ *
+ * A system seed (`isSystemSeedSlug`) is refused by slug, whatever its `source`: a feature depends on its exact
+ * shape, so a copy bootstrapped with `source = 'runtime'` must not become editable through this router.
+ */
 export function rejectManifestOwned(context: AppContext, record: SeedRecord) {
+  if (isSystemSeedSlug(record.slug)) {
+    return publicProblem(context, {
+      type: 'seed-system',
+      title: 'Seed is platform-owned',
+      status: 409,
+      detail: `Seed '${record.slug}' is a system seed used by a BeechCMS feature and cannot be edited or deleted.`,
+    })
+  }
   if (record.source !== 'code') return null
   return publicProblem(context, {
     type: 'seed-manifest-owned',

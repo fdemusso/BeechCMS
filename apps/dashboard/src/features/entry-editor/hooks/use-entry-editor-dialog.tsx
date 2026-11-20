@@ -29,6 +29,8 @@ import {
 } from "@/features/content-management"
 import { useActiveSeed, useLocaleConfig } from "@/features/shared"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
+// Module path, not the barrel: suites mock the barrel with a fixed object.
+import { useDeclarePageActions } from "@/features/shared/hooks/use-page-actions"
 import { Loader as Loader2 } from '@/components/icons'
 import type { RendererBranchMap, RendererLocalization } from "../renderer/layout-renderer"
 import { LocaleSwitcher } from "../renderer/locale-switcher"
@@ -45,6 +47,7 @@ import {
   type ApiFieldError,
   type TouchedLocales,
 } from "../lib/localized-form"
+import { buildEntryPageActions, type EntryPageActionHandlers } from "../lib/entry-page-actions"
 import type { SchemaFormCapabilities, SchemaFormViewModel } from "../renderer/schema-form-view-model"
 
 export interface UseEntryEditorDialogProps {
@@ -56,6 +59,8 @@ export interface UseEntryEditorDialogProps {
   onSaved?: (info: { entryId?: string; data: Record<string, unknown>; isCreate: boolean }) => void
   /** Pre-seed values for CREATE mode (e.g. kanban column axis value). Ignored in edit mode. */
   defaultValues?: Record<string, unknown>
+  /** While true the editor publishes its actions to the command palette. Omitted: never published. */
+  open?: boolean
 }
 
 export interface EditorBranch {
@@ -188,6 +193,7 @@ export function useEntryEditorDialog({
   readonly,
   onSaved,
   defaultValues,
+  open,
 }: UseEntryEditorDialogProps): SchemaFormViewModel {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -310,7 +316,7 @@ export function useEntryEditorDialog({
   const reloadDraft = async () => {
     const [live, draft] = await Promise.all([refetchEntry(), refetchDraft()])
     if (live.isError || draft.isError || !live.data) {
-      toast.error(t("content.editor.saveError"))
+      toast.error(t("content.editor.save.error"))
       return
     }
     setFormData({ ...live.data.data, ...draft.data })
@@ -326,7 +332,7 @@ export function useEntryEditorDialog({
     if (apiError?.status === 400 && apiError.data?.errors?.length) {
       const errors = apiError.data.errors as ApiFieldError[]
       setFieldErrors(foldFieldErrors(errors, seedBranches))
-      toast.error(t("content.editor.validationError", { count: errors.length }))
+      toast.error(t("content.editor.validation.error", { count: errors.length }))
       return
     }
     const code = contentErrorCode(err)
@@ -337,7 +343,7 @@ export function useEntryEditorDialog({
       const publishConflict = code === CONTENT_ERROR_CODES.DRAFT_PUBLISH_CONFLICT
       toast.error(apiError.data?.detail || t("content.editor.updateConflict"), {
         action: {
-          label: t(publishConflict ? "content.editor.discardDraft" : "content.editor.reload"),
+          label: t(publishConflict ? "content.editor.discardDraft.label" : "content.editor.reload"),
           onClick: () => {
             if (publishConflict) setShowDiscardConfirm(true)
             else void reloadDraft()
@@ -346,7 +352,7 @@ export function useEntryEditorDialog({
       })
       return
     }
-    toast.error(err instanceof Error ? err.message : t("content.editor.saveError"))
+    toast.error(err instanceof Error ? err.message : t("content.editor.save.error"))
   }
 
   const handlePublishDraft = async () => {
@@ -354,7 +360,7 @@ export function useEntryEditorDialog({
     setFieldErrors({})
     try {
       await publishDraft({ slug: schemaSlug, id: entryId })
-      toast.success(t("content.editor.draftPublishSuccess"))
+      toast.success(t("content.editor.draftPublish.success"))
       hasJustSavedRef.current = true
       if (effectiveDraftContext) {
         navigate("/drafts")
@@ -370,7 +376,7 @@ export function useEntryEditorDialog({
     if (!schemaSlug || !entryId) return
     try {
       await discardDraft({ slug: schemaSlug, id: entryId })
-      toast.success(t("content.editor.draftDiscardSuccess"))
+      toast.success(t("content.editor.draftDiscard.success"))
       if (effectiveDraftContext) {
         hasJustSavedRef.current = true
         navigate("/drafts")
@@ -378,7 +384,7 @@ export function useEntryEditorDialog({
         onClose()
       }
     } catch {
-      toast.error(t("content.editor.saveError"))
+      toast.error(t("content.editor.save.error"))
     } finally {
       setShowDiscardConfirm(false)
     }
@@ -488,14 +494,14 @@ export function useEntryEditorDialog({
   const hasInvalidJson = (): boolean => {
     const jsonValidation = validateEntryJsonFields(branches, formData)
     if (!jsonValidation.isValid) {
-      toast.error(t("content.editor.jsonError", { field: jsonValidation.errorFieldLabel }))
+      toast.error(t("content.editor.json.error", { field: jsonValidation.errorFieldLabel }))
       return true
     }
     const invalidTranslation = localeConfig
       ? findInvalidLocalizedJson(seedBranches, formData, touchedLocales, localeConfig)
       : null
     if (invalidTranslation) {
-      toast.error(t("content.editor.jsonError", {
+      toast.error(t("content.editor.json.error", {
         field: `${invalidTranslation.label} (${invalidTranslation.locale.toUpperCase()})`,
       }))
       return true
@@ -514,7 +520,7 @@ export function useEntryEditorDialog({
       const payload = buildPayload()
       const ifMatch = !isCreate && entryData?.updated_at != null ? String(entryData.updated_at) : undefined
       const result = await saveContent({ slug: schemaSlug, id: isCreate ? undefined : entryId, data: payload, ifMatch })
-      toast.success(isCreate ? t("content.editor.createdSuccess") : t("content.editor.savedSuccess"))
+      toast.success(isCreate ? t("content.editor.created.success") : t("content.editor.saved.success"))
       setIsDirty(false)
       hasJustSavedRef.current = true
       onSaved?.({
@@ -546,11 +552,11 @@ export function useEntryEditorDialog({
         const errors = apiError.data?.errors as ApiFieldError[] | undefined
         if (errors && errors.length > 0) {
           setFieldErrors(foldFieldErrors(errors, seedBranches))
-          toast.error(t("content.editor.validationError", { count: errors.length }))
+          toast.error(t("content.editor.validation.error", { count: errors.length }))
           return
         }
       }
-      toast.error(err instanceof Error ? err.message : t("content.editor.saveError"))
+      toast.error(err instanceof Error ? err.message : t("content.editor.save.error"))
     }
   }
 
@@ -566,7 +572,7 @@ export function useEntryEditorDialog({
       delete draftPayload.slug
       delete draftPayload.status
       await saveDraft({ slug: schemaSlug, id: entryId, data: draftPayload })
-      toast.success(t("content.editor.draftSaveSuccess"))
+      toast.success(t("content.editor.draftSave.success"))
       setIsDirty(false)
       hasJustSavedRef.current = true
       if (effectiveDraftContext) {
@@ -579,13 +585,18 @@ export function useEntryEditorDialog({
     }
   }
 
-  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
-    e.preventDefault()
+  /** The submit button's path, shared with the palette's save action. */
+  const handleSave = async () => {
     if (effectiveDraftContext) {
       await handleSaveDraftOnly()
     } else {
       await handleSaveLive()
     }
+  }
+
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    await handleSave()
   }
 
   const isBusy = isSaving || isSavingDraft || isPublishing
@@ -612,7 +623,7 @@ export function useEntryEditorDialog({
   } else if (isCreate) {
     saveLabel = t("common.create")
   } else {
-    saveLabel = t("content.editor.save")
+    saveLabel = t("common.action.save")
   }
 
   const fieldStates = React.useMemo(
@@ -649,6 +660,55 @@ export function useEntryEditorDialog({
     layoutBuilder: true,
     dangerZone: false,
   }
+
+  // Handlers are re-created every render; the ref keeps the declaration from re-publishing per keystroke.
+  const latestHandlers = {
+    save: handleSave,
+    publishDraft: handlePublishDraft,
+    requestDiscardDraft: () => setShowDiscardConfirm(true),
+    remove: handleDelete,
+  }
+  const handlersRef = React.useRef(latestHandlers)
+  React.useEffect(() => {
+    handlersRef.current = latestHandlers
+  })
+  const pageActionHandlers = React.useMemo<EntryPageActionHandlers>(
+    () => ({
+      save: () => void handlersRef.current.save(),
+      publishDraft: () => void handlersRef.current.publishDraft(),
+      requestDiscardDraft: () => handlersRef.current.requestDiscardDraft(),
+      remove: () => void handlersRef.current.remove(),
+    }),
+    [],
+  )
+
+  const isFormOnScreen =
+    !!seed && !isSeedLoading && !isLocaleConfigPending && !(entryId && (isLoadingEntry || errorEntry)) && !builderMode
+  const isWorking = isBusy || isDeleting || isDiscarding
+  const declaration = React.useMemo(
+    () =>
+      buildEntryPageActions({
+        t,
+        schemaSlug,
+        entryId,
+        title,
+        ready: isFormOnScreen,
+        isCreate,
+        isDraftContext,
+        effectiveDraftContext,
+        hasSaveDropdown,
+        hasPendingDraftNotice,
+        hasRestrictedRefs,
+        isReadOnly,
+        isWorking,
+        handlers: pageActionHandlers,
+      }),
+    [
+      t, schemaSlug, entryId, title, isFormOnScreen, isCreate, isDraftContext, effectiveDraftContext,
+      hasSaveDropdown, hasPendingDraftNotice, hasRestrictedRefs, isReadOnly, isWorking, pageActionHandlers,
+    ],
+  )
+  useDeclarePageActions(open ? declaration : null)
 
   return {
     t,

@@ -3,12 +3,12 @@
 // See LICENSE in the repository root for license terms.
 
 import { useEffect } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { queryOptions, useQuery, type QueryClient } from "@tanstack/react-query"
 import { rpc } from "@/lib/rpc"
 import { registerSeeds, SEED_REGISTRY, type Seed } from "@beechcms/core"
 
-export function useSchema() {
-  const query = useQuery<Seed[]>({
+export const schemaQueryOptions = () =>
+  queryOptions<Seed[]>({
     queryKey: ["schema"],
     queryFn: async () => {
       const response = await rpc.api.schema.$get()
@@ -16,6 +16,14 @@ export function useSchema() {
     },
     staleTime: 1000 * 60 * 5,
   })
+
+/** Starts (or reuses) the schema fetch ahead of the component that reads it. Rejects like the query does. */
+export function prefetchSchema(queryClient: QueryClient): Promise<Seed[]> {
+  return queryClient.fetchQuery(schemaQueryOptions())
+}
+
+export function useSchema() {
+  const query = useQuery(schemaQueryOptions())
 
   // Popola il registro globale di @beechcms/core quando i dati sono pronti
   useEffect(() => {

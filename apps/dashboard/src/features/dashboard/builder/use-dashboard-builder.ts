@@ -29,9 +29,9 @@ export interface UseDashboardBuilderArgs {
   restoredDraft?: DashboardLayout
 }
 
-export type SectionFlag = 'hideLabel' | 'collapsible'
+type SectionFlag = 'hideLabel' | 'collapsible'
 
-export interface MoveWidgetArgs {
+interface MoveWidgetArgs {
   from: { pageId: string; sectionId: string; columnId: string; widgetId: string }
   to: { pageId: string; sectionId: string; columnId: string; index?: number }
 }

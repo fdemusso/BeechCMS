@@ -65,7 +65,7 @@ describe("DataTable page layout", () => {
     const frame = container.querySelector("[data-datatable-root]")
 
     expect(frame?.className).toContain("overflow-hidden")
-    expect(frame?.className).toContain("rounded-md")
+    expect(frame?.className).toContain("rounded-lg")
   })
 })
 

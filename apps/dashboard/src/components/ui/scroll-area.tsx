@@ -7,8 +7,14 @@ import { cn } from "@/lib/utils"
 
 const ScrollArea = React.forwardRef<
   React.ComponentRef<typeof ScrollAreaPrimitive.Root>,
-  React.ComponentProps<typeof ScrollAreaPrimitive.Root>
->(({ className, children, ...props }, ref) => {
+  React.ComponentProps<typeof ScrollAreaPrimitive.Root> & {
+    /**
+     * Props for the element that actually scrolls. A region with nothing focusable inside must be reachable by
+     * keyboard to be scrolled: pass `tabIndex={0}` with a `role="group"` and an `aria-label` to name it.
+     */
+    viewportProps?: React.ComponentProps<typeof ScrollAreaPrimitive.Viewport>
+  }
+>(({ className, children, viewportProps, ...props }, ref) => {
   return (
     <ScrollAreaPrimitive.Root
       ref={ref}
@@ -18,7 +24,11 @@ const ScrollArea = React.forwardRef<
     >
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
-        className="size-full rounded-[inherit] max-h-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
+        {...viewportProps}
+        className={cn(
+          "size-full rounded-[inherit] max-h-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1",
+          viewportProps?.className
+        )}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
@@ -40,7 +50,7 @@ function ScrollBar({
       data-orientation={orientation}
       orientation={orientation}
       className={cn(
-        "flex touch-none p-px transition-colors select-none data-horizontal:h-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:h-full data-vertical:w-2.5 data-vertical:border-l data-vertical:border-l-transparent",
+        "z-30 flex touch-none p-px transition-colors select-none data-horizontal:h-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:h-full data-vertical:w-2.5 data-vertical:border-l data-vertical:border-l-transparent",
         className
       )}
       {...props}

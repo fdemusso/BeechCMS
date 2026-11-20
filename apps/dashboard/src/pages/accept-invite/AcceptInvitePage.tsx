@@ -52,7 +52,7 @@ export function AcceptInvitePage() {
         <Card className="overflow-hidden shadow-md">
           <CardContent className="p-6 md:p-8">
             <div className="flex flex-col items-center gap-4 text-center">
-              <h1 className="font-heading text-2xl font-semibold">{t("acceptInvite.title")}</h1>
+              <h1 className="font-heading text-2xl font-bold">{t("acceptInvite.title")}</h1>
               <p className="text-muted-foreground text-sm">{t("acceptInvite.invalidOrExpired")}</p>
               <Link to="/login" className="text-sm hover:opacity-80 transition-opacity">
                 {t("forgotPassword.backToLogin")}
@@ -108,7 +108,7 @@ export function AcceptInvitePage() {
       } else if (code === "validation-failed") {
         setError(t("acceptInvite.tooShort"))
       } else {
-        setError(t("acceptInvite.genericError"))
+        setError(t("acceptInvite.generic.error"))
       }
     } finally {
       setIsSubmitting(false)
@@ -125,11 +125,9 @@ export function AcceptInvitePage() {
             <form onSubmit={handleSubmit} noValidate>
               <FieldGroup>
                 <div className="flex flex-col items-center gap-2 text-center">
-                  <h1 className="font-heading text-2xl font-semibold">{t("acceptInvite.title")}</h1>
+                  <h1 className="font-heading text-2xl font-bold">{t("acceptInvite.title")}</h1>
                   <p className="text-muted-foreground text-balance text-sm">
-                    {t("acceptInvite.invitedAs", { role: preview.roleName })}
-                    {" "}
-                    {t("acceptInvite.onScope", { scope: scopeLabel })}
+                    {t("acceptInvite.invitation.sentence", { role: preview.roleName, scope: scopeLabel })}
                   </p>
                 </div>
                 <Field>
@@ -145,13 +143,13 @@ export function AcceptInvitePage() {
                   <Input id="ai-surname" value={surname} onChange={(e) => setSurname(e.target.value)} />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="ai-password">{t("acceptInvite.password")}</FieldLabel>
+                  <FieldLabel htmlFor="ai-password">{t("acceptInvite.password.label")}</FieldLabel>
                   <div className="relative">
                     <Input
                       id="ai-password"
                       type={isPasswordVisible ? "text" : "password"}
                       autoComplete="new-password"
-                      placeholder={t("acceptInvite.passwordPlaceholder", { defaultValue: t("setup.passwordPlaceholder") })}
+                      placeholder={t("acceptInvite.password.placeholder", { defaultValue: t("setup.password.placeholder") })}
                       value={password}
                       className={cn("pr-10", error ? "border-destructive" : "")}
                       onChange={(e) => { setPassword(e.target.value); setError(null) }}
@@ -179,13 +177,13 @@ export function AcceptInvitePage() {
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="ai-confirm">{t("acceptInvite.confirm")}</FieldLabel>
+                  <FieldLabel htmlFor="ai-confirm">{t("acceptInvite.confirm.label")}</FieldLabel>
                   <div className="relative">
                     <Input
                       id="ai-confirm"
                       type={isConfirmVisible ? "text" : "password"}
                       autoComplete="new-password"
-                      placeholder={t("acceptInvite.confirmPlaceholder", { defaultValue: t("setup.confirmPlaceholder") })}
+                      placeholder={t("acceptInvite.confirm.placeholder", { defaultValue: t("setup.confirm.placeholder") })}
                       value={confirm}
                       className={cn("pr-10", error ? "border-destructive" : "")}
                       onChange={(e) => { setConfirm(e.target.value); setError(null) }}

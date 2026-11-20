@@ -33,6 +33,8 @@ You are assisting with the Beech CMS codebase. You MUST strictly adhere to the f
 - **Side Effects (Automations)**:
   - **CONSTRAINT**: Handlers MUST NOT perform synchronous side-effects (e.g. emails, webhooks). Trigger them asynchronously via `c.get('automationRunner').run()` wrapped in `c.get('scheduler').waitUntil()`.
 - **Schema Management**: Seeds are DB-resident. Schema mutations (DDL) are calculated by `planSeedDdl` and applied via `ISchemaMutator`.
+- **System seeds** (e.g. `import_jobs`): platform-owned content types, identified by slug in `SYSTEM_SEED_SLUGS` (`packages/core/src/engine/seeds/system-seeds.ts`), NOT by a definition flag, `source`, or `dashboard.hidden`.
+  - **CONSTRAINT**: Never hard-code a system slug string in feature code; import the constant. `GET /api/seeds` and the Content Types page filter them with `isSystemSeedSlug()`. Full contract in `docs/reference/internal-content.md#system-seeds`.
 
 ## 6. Testing
 - **Integration**: Uses real services via Docker (MinIO, Mailpit, webhook-tester). NO external mocks.

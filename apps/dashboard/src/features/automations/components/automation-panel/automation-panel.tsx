@@ -57,7 +57,7 @@ export function AutomationPanel({
             {canUpdateGlobal ? (
               <Button size="sm" onClick={openNew}>
                 <Plus className="size-4 mr-1" />
-                {t('automations.panel.newButton')}
+                {t('automations.panel.new.button')}
               </Button>
             ) : (
               <Tooltip>
@@ -65,7 +65,7 @@ export function AutomationPanel({
                   <span className="inline-flex">
                     <Button size="sm" disabled>
                       <Plus className="size-4 mr-1" />
-                      {t('automations.panel.newButton')}
+                      {t('automations.panel.new.button')}
                     </Button>
                   </span>
                 </TooltipTrigger>

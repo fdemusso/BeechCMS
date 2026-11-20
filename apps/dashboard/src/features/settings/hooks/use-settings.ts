@@ -7,7 +7,7 @@ import { settingsApi } from '../api/settings.api'
 import type { NotificationPrefs } from '../types/settings.types'
 import { GENERAL_SETTINGS_QUERY_KEY, ME_QUERY_KEY, useMe } from "@/features/shared"
 
-export const SETTINGS_QUERY_KEYS = {
+const SETTINGS_QUERY_KEYS = {
   all: ['settings'] as const,
   /** Same key as `features/shared`'s `useMe()` — one cache entry for `/settings/me`. */
   profile: () => ME_QUERY_KEY,
@@ -66,6 +66,15 @@ export function useUpdateAvatar() {
   })
 }
 
+/** Clears the user's own photo: the profile then falls back to Gravatar, or to the initials when there is none. */
+export function useRemoveAvatar() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => settingsApi.updateAvatar(null),
+    onSuccess: () => qc.invalidateQueries({ queryKey: SETTINGS_QUERY_KEYS.profile() }),
+  })
+}
+
 export function useSessions() {
   return useQuery({
     queryKey: SETTINGS_QUERY_KEYS.sessions(),
@@ -107,11 +116,12 @@ export function useDeleteOrphans() {
   })
 }
 
-export function useNotificationPrefs() {
+export function useNotificationPrefs(options?: { readonly enabled?: boolean }) {
   return useQuery({
     queryKey: SETTINGS_QUERY_KEYS.notifications(),
     queryFn: settingsApi.getNotifications,
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   })
 }
 

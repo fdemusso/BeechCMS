@@ -41,7 +41,7 @@ export function ViewTypePicker({ creatableViewTypes, onCreateView, triggerClassN
       </Tooltip>
       <DropdownMenuContent align="start" className="w-[400px] max-w-[calc(100vw-2rem)] p-3">
         <DropdownMenuLabel className="px-1 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-          {t("content.views.pickerTitle")}
+          {t("content.views.picker.title")}
         </DropdownMenuLabel>
         <div className="grid grid-cols-4 gap-2">
           {VIEW_TYPE_CATALOGUE.map(({ type, labelKey, Icon }) => {

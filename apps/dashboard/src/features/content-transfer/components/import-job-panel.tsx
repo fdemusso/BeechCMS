@@ -57,7 +57,7 @@ export function ImportJobPanel({ jobId, onCompleted }: ImportJobPanelProps) {
 
   if (query.error || !job) {
     return (
-      <div className="flex items-center gap-2 text-sm text-destructive">
+      <div className="flex items-center gap-2 text-sm text-status-danger-foreground">
         <AlertTriangle className="size-4" />
         {problemDetail ?? t("transfer.job.errors.unknown")}
       </div>
@@ -99,7 +99,7 @@ export function ImportJobPanel({ jobId, onCompleted }: ImportJobPanelProps) {
       )}
 
       {job.errors.length > 0 && (
-        <div className="rounded-md border">
+        <div className="rounded-control border">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b bg-muted/50 text-left">

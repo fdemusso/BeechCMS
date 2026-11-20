@@ -43,7 +43,8 @@ export async function deleteHandler(context: Context<AppEnv, '/:slug/:id', ZodQu
 
     const title = row.title || row.name || entryId
 
-    logContentActivity(context, 'delete', entryId, schemaSlug, String(title))
+    // A trashed entry can come back; a purged one cannot: the history keeps them apart.
+    logContentActivity(context, forcePurge ? 'purge' : 'trash', entryId, schemaSlug, String(title))
     dispatchContentAutomation(context, schemaSlug, 'delete', { ...row, id: entryId })
 
     // R2 lives outside the row's lifecycle: a trashed entry must stay restorable WITH its media

@@ -44,7 +44,7 @@ export interface ColumnShellProps {
 function DropMarker({ gap }: { readonly gap: number }) {
   return (
     <div aria-hidden className="relative h-0" style={{ marginBlock: `calc(var(--spacing, 0.25rem) * ${-gap / 2})` }}>
-      <div className="absolute inset-x-1 top-0 h-[3px] -translate-y-1/2 rounded-full bg-foreground/40" />
+      <div className="absolute inset-x-1 top-0 h-[3px] -translate-y-1/2 rounded-full bg-primary" />
     </div>
   )
 }
@@ -95,9 +95,9 @@ export function ColumnShell({
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1, ...style }}
       className={cn(
         'group/column relative flex min-h-[48px] min-w-0 max-w-full flex-col rounded-lg border border-transparent transition-colors',
-        // Dragging an item: every column gets a thin solid outline, the one under it a darker grey and a faint fill.
+        // Dragging an item: every column gets a thin solid outline, the one under it an ink outline and a faint grey fill.
         (empty || draggingItem) && 'border-border',
-        isActiveColumn && 'border-foreground/25 bg-muted/50',
+        isActiveColumn && 'border-primary bg-muted/50',
         className,
       )}
     >

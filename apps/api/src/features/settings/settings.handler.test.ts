@@ -61,6 +61,7 @@ function buildApp(mocks: any = {}) {
           id: 'log-1',
           action: 'create',
           entityType: 'post',
+          entityId: 'post-1',
           entitySlug: 'first-post',
           details: { ip: '127.0.0.1' },
           createdAt: 1700000000,
@@ -291,6 +292,9 @@ describe('Settings Handler', () => {
       expect(body.email).toBe('test@beechcms.com')
       expect(body.surname).toBe('User')
       expect(body.avatarUrl).toContain('gravatar.com')
+      // d=404: no Gravatar on file means initials, not the generic silhouette.
+      expect(body.avatarUrl).toContain('d=404')
+      expect(body.hasCustomAvatar).toBe(false)
       expect(body.notificationPrefs.contentUpdate).toBe(false)
       expect(body.manageableScopes).toEqual([])
     })
@@ -628,6 +632,7 @@ describe('Settings Handler', () => {
       expect(body[0].id).toBe('log-1')
       expect(body[0].entity_type).toBe('post')
       expect(body[0].entity_slug).toBe('first-post')
+      expect(body[0].entity_id).toBe('post-1')
       expect(body[0].details).toBe('{"ip":"127.0.0.1"}')
     })
   })
@@ -639,6 +644,7 @@ describe('Settings Handler', () => {
       expect(res.status).toBe(200)
       const body = await res.json() as any
       expect(body.totalBytes).toBe(3072)
+      expect(body.limitBytes).toBe(10 * 1024 * 1024 * 1024)
       expect(body.fileCount).toBe(5)
       expect(body.orphans).toHaveLength(1)
       expect(body.orphans[0].key).toBe('media/img2.png')
@@ -686,6 +692,73 @@ describe('Settings Handler', () => {
           mediaUpload: false,
         })
       )
+    })
+  })
+
+  describe('GET /ui-preferences', () => {
+    it('answers 200 with the parsed container of the stored string', async () => {
+      const findUiPreferences = vi.fn().mockResolvedValue('{"palettePins":["nav:/content","nav:settings"]}')
+      const app = buildApp({ userRepository: { findUiPreferences } })
+
+      const res = await app.request('/ui-preferences')
+
+      expect(res.status).toBe(200)
+      expect(await res.json<{ palettePins: string[] }>()).toEqual({ palettePins: ['nav:/content', 'nav:settings'] })
+      expect(findUiPreferences).toHaveBeenCalledWith('u1')
+    })
+
+    it('answers 404 when findUiPreferences resolves null', async () => {
+      const app = buildApp({ userRepository: { findUiPreferences: vi.fn().mockResolvedValue(null) } })
+
+      const res = await app.request('/ui-preferences')
+
+      expect(res.status).toBe(404)
+      expect(await res.json<{ error: string }>()).toEqual({ error: 'User not found' })
+    })
+  })
+
+  describe('PUT /ui-preferences', () => {
+    const putUiPreferences = (app: ReturnType<typeof buildApp>, body: string) =>
+      app.request('/ui-preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body })
+
+    it('stores the normalized container for the JWT subject and answers with it', async () => {
+      const updateUiPreferences = vi.fn().mockResolvedValue(true)
+      const app = buildApp({ userRepository: { updateUiPreferences } })
+
+      const res = await putUiPreferences(app, '{}')
+
+      expect(res.status).toBe(200)
+      expect(await res.json<{ palettePins: string[] }>()).toEqual({ palettePins: [] })
+      expect(updateUiPreferences).toHaveBeenCalledWith('u1', '{"palettePins":[]}')
+    })
+
+    it('answers 404 when updateUiPreferences resolves false', async () => {
+      const app = buildApp({ userRepository: { updateUiPreferences: vi.fn().mockResolvedValue(false) } })
+
+      const res = await putUiPreferences(app, '{}')
+
+      expect(res.status).toBe(404)
+      expect(await res.json<{ error: string }>()).toEqual({ error: 'User not found' })
+    })
+
+    const tooLargePins = Array.from({ length: 8 }, (_, index) => `${index}${'é'.repeat(199)}`)
+    const refusals: ReadonlyArray<readonly [string, string, Record<string, unknown>]> = [
+      ['malformed JSON text', 'not json', { error: 'Invalid JSON body' }],
+      ['a null body', 'null', { error: 'Invalid JSON body' }],
+      ['an unknown key', JSON.stringify({ theme: 'dark' }), { type: 'ui-preferences-unknown-key', keys: ['theme'] }],
+      ['a duplicated pin', JSON.stringify({ palettePins: ['a', 'a'] }), { type: 'ui-preferences-invalid', field: 'palettePins' }],
+      ['an over-size container', JSON.stringify({ palettePins: tooLargePins }), { type: 'ui-preferences-too-large', maxBytes: 2048 }],
+    ]
+
+    it.each(refusals)('%s answers 400 with its machine-readable refusal and writes nothing', async (_cause, body, expected) => {
+      const updateUiPreferences = vi.fn().mockResolvedValue(true)
+      const app = buildApp({ userRepository: { updateUiPreferences } })
+
+      const res = await putUiPreferences(app, body)
+
+      expect(res.status).toBe(400)
+      expect(await res.json<Record<string, unknown>>()).toEqual(expected)
+      expect(updateUiPreferences).not.toHaveBeenCalled()
     })
   })
 })

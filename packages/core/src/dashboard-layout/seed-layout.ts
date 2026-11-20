@@ -14,6 +14,14 @@ export const kanbanViewConfigSchema = z.object({
   sort: z.object({ branchId: z.string(), dir: z.enum(['ASC', 'DESC']) }).nullable(),
   hiddenColumnValues: z.array(z.string()).optional(),
   collapsedColumnValues: z.array(z.string()).optional(),
+  /** Tint each column with its option color. Absent ⇒ on. The board ignores it while conditional formats are active. */
+  colorColumns: z.boolean().optional(),
+  /** Card density. Absent ⇒ 'comfortable'. */
+  cardSize: z.enum(['compact', 'comfortable']).optional(),
+  /** Let the card header wrap on two lines instead of truncating. Absent ⇒ on. */
+  wrapTitle: z.boolean().optional(),
+  /** Show the field label above each metadata value. Absent ⇒ on. */
+  showFieldLabels: z.boolean().optional(),
 })
 export type KanbanViewConfig = z.infer<typeof kanbanViewConfigSchema>
 

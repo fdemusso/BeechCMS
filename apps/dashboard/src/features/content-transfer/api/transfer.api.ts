@@ -11,14 +11,6 @@ import { isApiError } from "@/lib/http/api-error"
 
 export type ImportJobState = "pending" | "processing" | "completed" | "failed"
 
-/** One rejected row. `row` is the 1-based index of the DATA record, header excluded. */
-export interface ImportRowError {
-  row: number
-  code: string
-  message: string
-  field?: string
-}
-
 /** The wire shape of GET /api/content/import-jobs/:id. `objectKey` and `createdBy` are
  *  deliberately absent from the endpoint — do not add them here to "complete" the type. */
 export type ImportJobResponse = InferResponseType<(typeof rpc.api.content)["import-jobs"][":id"]["$get"]>

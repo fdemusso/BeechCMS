@@ -89,10 +89,10 @@ export function BulkEditPickStep({
       </Select>
       <DialogFooter>
         <Button variant="outline" onClick={onCancel}>
-          {translate("common.cancel")}
+          {translate("common.action.cancel")}
         </Button>
         <Button onClick={onNext} disabled={!selectedAlias}>
-          {translate("common.confirm")}
+          {translate("common.action.confirm")}
         </Button>
       </DialogFooter>
     </div>
@@ -155,9 +155,9 @@ export function BulkEditValueStep({
       <FieldEdit branch={selectedBranch} value={fieldValue} onChange={onFieldValueChange} />
       <DialogFooter>
         <Button variant="outline" onClick={onBack}>
-          {translate("common.back")}
+          {translate("common.action.back")}
         </Button>
-        <Button onClick={onNext}>{translate("common.confirm")}</Button>
+        <Button onClick={onNext}>{translate("common.action.confirm")}</Button>
       </DialogFooter>
     </div>
   )
@@ -204,10 +204,10 @@ export function BulkEditConfirmStep({
       </ul>
       <DialogFooter>
         <Button variant="outline" onClick={onBack}>
-          {translate("common.back")}
+          {translate("common.action.back")}
         </Button>
         <Button onClick={onConfirm} disabled={isPending}>
-          {translate("common.confirm")}
+          {translate("common.action.confirm")}
         </Button>
       </DialogFooter>
     </div>
@@ -259,7 +259,7 @@ export function BulkEditResultStep({
   return (
     <div className="space-y-4 py-2">
       {result.failed.length === 0 ? (
-        <p className="text-sm text-green-600 dark:text-green-400">
+        <p className="text-sm text-status-live-foreground">
           {translate("bulkEdit.successAll", { count: result.updated })}
         </p>
       ) : (
@@ -271,9 +271,9 @@ export function BulkEditResultStep({
               failed: result.failed.length,
             })}
           </p>
-          <div className="rounded-md border p-3 space-y-1 max-h-40 overflow-y-auto">
+          <div className="rounded-control border p-3 space-y-1 max-h-40 overflow-y-auto">
             {result.failed.map((failure) => (
-              <p key={failure.id} className="text-xs text-destructive font-mono truncate">
+              <p key={failure.id} className="text-xs text-status-danger-foreground font-mono truncate">
                 {failure.id}: {failure.problem.detail}
               </p>
             ))}
@@ -284,7 +284,7 @@ export function BulkEditResultStep({
         </div>
       )}
       <DialogFooter>
-        <Button onClick={onClose}>{translate("common.close")}</Button>
+        <Button onClick={onClose}>{translate("common.action.close")}</Button>
       </DialogFooter>
     </div>
   )

@@ -130,7 +130,7 @@ describe('buildMediaPresetCatalog', () => {
     )
 
     expect(catalog.get('banner')).toEqual({ kind: 'crop', width: 1600, height: 400 })
-    expect(catalog.get('card')).toEqual({ kind: 'crop', width: 600, height: 400 }, 5120)
+    expect(catalog.get('card')).toEqual({ kind: 'crop', width: 600, height: 400 })
     expect(catalog.has('hero')).toBe(false)
   })
 

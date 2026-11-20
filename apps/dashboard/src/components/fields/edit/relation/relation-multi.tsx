@@ -120,7 +120,7 @@ function SelectedRow({ id, targetSlug, labelAlias, avatarAlias, disabled, onRemo
         aria-label={translate("content.editor.relationMulti.remove")}
         disabled={disabled}
         onClick={() => onRemove(id)}
-        className="mr-[5px] text-destructive opacity-0 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-0 [@media(hover:none)]:opacity-100"
+        className="mr-[5px] text-status-danger-foreground opacity-0 hover:text-status-danger-foreground focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-0 [@media(hover:none)]:opacity-100"
       >
         <X />
       </Button>

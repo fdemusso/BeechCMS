@@ -39,7 +39,7 @@ export function DashboardSection({ section }: DashboardSectionProps) {
               type="button"
               onClick={() => setCollapsed((c) => !c)}
               aria-expanded={!collapsed}
-              className="rounded-md p-1 transition-colors hover:bg-muted hover:text-foreground"
+              className="rounded-control p-1 transition-colors hover:bg-muted hover:text-foreground"
             >
               <ChevronDown className={cn("size-4 transition-transform", collapsed && "-rotate-90")} />
             </button>

@@ -53,7 +53,7 @@ describe("usePermissions", () => {
   it("can() is true for a scoped grant, and false at GLOBAL_SCOPE ('*') — the asymmetry", () => {
     vi.mocked(useMe).mockReturnValue({
       data: {
-        id: "u1", email: "a@b.com", name: null, surname: null, avatarUrl: null,
+        id: "u1", email: "a@b.com", name: null, surname: null, avatarUrl: null, hasCustomAvatar: false,
         notificationPrefs: { contentCreate: true, contentUpdate: true, contentDelete: true, mediaUpload: false },
         permissions: { global: [], byScope: { articles: ["content:read"] } },
         manageableScopes: [],
@@ -69,7 +69,7 @@ describe("usePermissions", () => {
   it("canAnywhere() is true for a scoped-only grant", () => {
     vi.mocked(useMe).mockReturnValue({
       data: {
-        id: "u1", email: "a@b.com", name: null, surname: null, avatarUrl: null,
+        id: "u1", email: "a@b.com", name: null, surname: null, avatarUrl: null, hasCustomAvatar: false,
         notificationPrefs: { contentCreate: true, contentUpdate: true, contentDelete: true, mediaUpload: false },
         permissions: { global: [], byScope: { articles: ["manage_users"] } },
         manageableScopes: ["articles"],
@@ -85,7 +85,7 @@ describe("usePermissions", () => {
   it("canGlobally('manage_seeds') is false for a manage_seeds grant held only on a seed", () => {
     const meResult: Partial<ReturnType<typeof useMe>> = {
       data: {
-        id: "u1", email: "a@b.com", name: null, surname: null, avatarUrl: null,
+        id: "u1", email: "a@b.com", name: null, surname: null, avatarUrl: null, hasCustomAvatar: false,
         notificationPrefs: { contentCreate: true, contentUpdate: true, contentDelete: true, mediaUpload: false },
         permissions: { global: [], byScope: { articles: ["manage_seeds"] } },
         manageableScopes: [],

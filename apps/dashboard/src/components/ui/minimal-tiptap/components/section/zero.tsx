@@ -9,6 +9,7 @@ import type { toggleVariants } from "@/components/ui/toggle"
 import type { VariantProps } from "class-variance-authority"
 import { Undo as Undo2, Redo as Redo2 } from '@/components/icons'
 import { ToolbarButton } from "../toolbar-button"
+import { ShortcutTooltip } from "../shortcut-tooltip"
 
 interface SectionZeroProps extends VariantProps<typeof toggleVariants> {
   editor: Editor
@@ -25,7 +26,7 @@ export const SectionZero: React.FC<SectionZeroProps> = ({
       <ToolbarButton
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().chain().focus().undo().run()}
-        tooltip={t("editor.undo")}
+        tooltip={<ShortcutTooltip label={t("editor.undo")} keys={["mod", "Z"]} />}
         aria-label={t("editor.undo")}
         size={size}
         variant={variant}
@@ -35,7 +36,7 @@ export const SectionZero: React.FC<SectionZeroProps> = ({
       <ToolbarButton
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().chain().focus().redo().run()}
-        tooltip={t("editor.redo")}
+        tooltip={<ShortcutTooltip label={t("editor.redo")} keys={["mod", "shift", "Z"]} />}
         aria-label={t("editor.redo")}
         size={size}
         variant={variant}

@@ -14,6 +14,8 @@ function Progress({
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
+      // The value belongs to the root too: that is what makes it a progressbar with a value (aria-valuenow).
+      value={value}
       className={cn(
         "relative flex h-1 w-full items-center overflow-x-hidden rounded-full bg-muted",
         className
@@ -22,7 +24,7 @@ function Progress({
     >
       <ProgressPrimitive.Indicator
         data-slot="progress-indicator"
-        className={cn("size-full flex-1 bg-primary transition-all", indicatorClassName)}
+        className={cn("size-full flex-1 bg-signal-strong transition-all", indicatorClassName)}
         style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
       />
     </ProgressPrimitive.Root>

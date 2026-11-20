@@ -7,7 +7,8 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ChevronDown, Export as ExternalLink, Loader as Loader2 } from '@/components/icons'
 import { formatDistanceToNow } from 'date-fns'
-import { it as itLocale, enUS, type Locale } from 'date-fns/locale'
+import type { Locale } from 'date-fns/locale'
+import { dateFnsLocaleFor } from '@/lib/date-locale'
 import {
   Collapsible,
   CollapsibleContent,
@@ -22,7 +23,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useFieldsConfig } from '@/components/fields/context'
+import { useRelationIdentity } from '@/components/fields/display/relation-identity'
 import { useBackrefs, useBackrefsGroup } from './hooks/use-backrefs'
 import type { BackrefGroup, BackrefItem } from './api'
 
@@ -32,7 +34,7 @@ import type { BackrefGroup, BackrefItem } from './api'
 
 function useLocaleForDate(): Locale {
   const { i18n } = useTranslation()
-  return i18n.language.startsWith('it') ? itLocale : enUS
+  return dateFnsLocaleFor(i18n.language)
 }
 
 function RelativeTime({ timestamp, locale }: { timestamp: number | null; locale: Locale }) {
@@ -94,9 +96,9 @@ function GroupDialog({ targetSlug, targetId, group, open, onOpenChange }: GroupD
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-muted-foreground">
-                  <th className="py-2 pl-3 text-left font-medium">{t('content.editor.name', 'Name')}</th>
+                  <th className="py-2 pl-3 text-left font-medium">{t('content.editor.name')}</th>
                   <th className="py-2 text-left font-medium">{t('content.editor.status', 'Status')}</th>
-                  <th className="py-2 pr-3 text-right font-medium">{t('content.editor.updated', 'Updated')}</th>
+                  <th className="py-2 pr-3 text-right font-medium">{t('content.editor.updated')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -139,6 +141,27 @@ function GroupDialog({ targetSlug, targetId, group, open, onOpenChange }: GroupD
 // Single item row
 // ---------------------------------------------------------------------------
 
+/**
+ * The row label. A seed may name its entries after a single relation branch (a subscription named after its
+ * customer): the API then returns the related entry's id, which is resolved to that entry's own display name.
+ */
+function ItemLabel({ item, sourceSlug }: { item: BackrefItem; sourceSlug: string }) {
+  const { useSchema } = useFieldsConfig()
+  const { data: seeds } = useSchema()
+  const sourceSeed = seeds?.find((seed) => seed.slug === sourceSlug)
+  const displayBranch = sourceSeed?.branches.find((b) => b.alias === sourceSeed.displayNameAlias)
+  const relation = displayBranch?.type === 'relation' && !displayBranch.multiple ? displayBranch : undefined
+  const targetSlug = relation?.targetSeed
+  const targetSeed = seeds?.find((seed) => seed.slug === targetSlug)
+  const identity = useRelationIdentity(
+    targetSlug ?? '',
+    targetSlug ? item.displayName : null,
+    targetSeed?.displayNameAlias ?? 'title',
+  )
+  if (targetSlug && item.displayName) return <>{identity.label}</>
+  return <>{item.displayName ?? item.id}</>
+}
+
 function ItemRow({ item, sourceSlug, locale }: { item: BackrefItem; sourceSlug: string; locale: Locale }) {
   return (
     <tr className="border-b last:border-0 hover:bg-muted/30">
@@ -147,7 +170,7 @@ function ItemRow({ item, sourceSlug, locale }: { item: BackrefItem; sourceSlug: 
           to={`/content/${sourceSlug}/${item.id}`}
           className="flex items-center gap-1 hover:opacity-80 transition-opacity font-medium"
         >
-          {item.displayName ?? item.id}
+          <ItemLabel item={item} sourceSlug={sourceSlug} />
           <ExternalLink className="size-3 text-muted-foreground" />
         </Link>
       </td>
@@ -183,7 +206,7 @@ function GroupSection({ group, targetSlug, targetId, locale }: GroupSectionProps
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         {group.sourceLabel} · {group.branchLabel}
       </p>
       {/* -mx-3: the rows' own padding bleeds into the panel's, so the name lines up with the title above and
@@ -253,7 +276,7 @@ export function ReferencedByPanel({ targetSlug, targetId, onRestrictsChange }: R
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border bg-card overflow-hidden">
-      <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold hover:bg-muted/50 transition-colors">
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors">
         <div className="flex items-center gap-2">
           <span>{t('backrefs.title')}</span>
           {isLoading ? (
@@ -262,7 +285,7 @@ export function ReferencedByPanel({ targetSlug, targetId, onRestrictsChange }: R
             <Badge variant="secondary" className="text-xs">{summary}</Badge>
           ) : null}
         </div>
-        <ChevronDown className={`size-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`size-4 transition-transform duration-(--duration-enter) ${open ? 'rotate-180' : ''}`} />
       </CollapsibleTrigger>
 
       <CollapsibleContent>
@@ -289,44 +312,3 @@ export function ReferencedByPanel({ targetSlug, targetId, onRestrictsChange }: R
 // ---------------------------------------------------------------------------
 // Delete button with tooltip when restricted
 // ---------------------------------------------------------------------------
-
-interface DeleteButtonProps {
-  onClick: () => void
-  restricted: boolean
-  restrictCount: number
-  disabled?: boolean
-  children: React.ReactNode
-}
-
-export function DeleteButtonWithRestrict({
-  onClick,
-  restricted,
-  restrictCount,
-  disabled,
-  children,
-}: DeleteButtonProps) {
-  const { t } = useTranslation()
-
-  if (restricted) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="inline-flex">
-            <Button variant="destructive" disabled>
-              {children}
-            </Button>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>
-          {t('backrefs.deleteBlocked', { count: restrictCount })}
-        </TooltipContent>
-      </Tooltip>
-    )
-  }
-
-  return (
-    <Button variant="destructive" onClick={onClick} disabled={disabled}>
-      {children}
-    </Button>
-  )
-}

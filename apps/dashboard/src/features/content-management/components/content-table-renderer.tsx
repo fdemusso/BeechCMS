@@ -4,6 +4,8 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
+import { Palette, RowVertical as Rows3 } from "@/components/icons"
+import { ContextMenuItem } from "@/components/ui/context-menu"
 import type { ViewDefinition, ViewRendererProps } from "@/features/shared"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import type { ContentEntry } from "@/lib/dynamic-columns"
@@ -12,7 +14,7 @@ import { ContentTableView } from "./ContentTableView"
 import { toTableRowStyles } from "./table-row-styles"
 
 /** The Table View Type's renderer: owns column/grouping derivation, the harness owns layout state. */
-function ContentTableRenderer({ seed, slug, query, layout, formatElement, entries }: ViewRendererProps) {
+function ContentTableRenderer({ seed, slug, viewId, query, layout, formatElement, entries, columnActions }: ViewRendererProps) {
   const { t } = useTranslation()
   const { can } = usePermissions()
 
@@ -32,6 +34,39 @@ function ContentTableRenderer({ seed, slug, query, layout, formatElement, entrie
   const getRowStyles = React.useCallback(
     (entry: ContentEntry) => toTableRowStyles(formatElement(entry)),
     [formatElement]
+  )
+
+  const { groupBy, setGroupBy } = layout
+  const renderHeaderContextMenuContent = React.useCallback(
+    (columnId: string) => {
+      if (!columnActions) return null
+      const canGroup = columnActions.canGroupBy(columnId)
+      const canFormat = columnActions.canFormat(columnId)
+      if (!canGroup && !canFormat) return null
+      return (
+        <>
+          {canGroup &&
+            (groupBy === columnId ? (
+              <ContextMenuItem onSelect={() => setGroupBy(null)}>
+                <Rows3 className="size-4" />
+                {t("toolbar.headerMenu.ungroup")}
+              </ContextMenuItem>
+            ) : (
+              <ContextMenuItem onSelect={() => setGroupBy(columnId)}>
+                <Rows3 className="size-4" />
+                {t("toolbar.headerMenu.groupBy")}
+              </ContextMenuItem>
+            ))}
+          {canFormat && (
+            <ContextMenuItem onSelect={() => columnActions.addConditionalRule(columnId)}>
+              <Palette className="size-4" />
+              {t("toolbar.headerMenu.conditionalColor")}
+            </ContextMenuItem>
+          )}
+        </>
+      )
+    },
+    [columnActions, groupBy, setGroupBy, t]
   )
 
   if (query.isLoading) {
@@ -60,6 +95,7 @@ function ContentTableRenderer({ seed, slug, query, layout, formatElement, entrie
       getRowStyles={getRowStyles}
       rowSelection={entries.rowSelection}
       onRowSelectionChange={entries.setRowSelection}
+      collapsedGroupsStorageKey={tableConfig.grouping[0] ? `beech:groups-closed:${slug}:${viewId}:${tableConfig.grouping[0]}` : undefined}
       grouping={tableConfig.grouping}
       onGroupingChange={tableConfig.handleGroupingChange}
       pageSize={query.pageSize}
@@ -80,7 +116,8 @@ function ContentTableRenderer({ seed, slug, query, layout, formatElement, entrie
       onDelete={entries.handleDelete}
       onBulkDelete={entries.handleBulkDelete}
       onCreate={entries.handleCreate}
-      onCellActivate={query.applyCellFilter}
+      onCellFilter={query.applyCellFilter}
+      renderHeaderContextMenuContent={renderHeaderContextMenuContent}
     />
   )
 }

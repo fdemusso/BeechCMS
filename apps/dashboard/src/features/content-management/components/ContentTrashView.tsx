@@ -73,7 +73,7 @@ export function ContentTrashView(props: Readonly<ContentTrashViewProps>) {
       },
       {
         id: "slug",
-        header: t("content.table.slug", { defaultValue: "Slug" }),
+        header: t("content.table.slug"),
         accessorFn: (row) => (row.slug ? fromTrashedSlug(row.slug) : row.slug),
         cell: ({ getValue }) => (
           <span className="font-mono text-sm">{getValue<string | null>() ?? "—"}</span>
@@ -124,7 +124,7 @@ export function ContentTrashView(props: Readonly<ContentTrashViewProps>) {
   return (
     <div className="flex flex-1 flex-col gap-3 min-h-0">
       {selectedIds.length > 0 && (
-        <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
+        <div className="flex items-center justify-between rounded-control border bg-muted/40 px-3 py-2">
           <span className="text-sm">{t("content.trash.selectedCount", { count: selectedIds.length })}</span>
           <div className="flex gap-2">
             <Button

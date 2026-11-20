@@ -1,5 +1,5 @@
 .minimal-tiptap-editor .ProseMirror .heading-node {
-  @apply relative font-semibold;
+  @apply relative font-bold;
 }
 
 .minimal-tiptap-editor .ProseMirror .heading-node:first-child {

@@ -82,9 +82,9 @@ function ShellMessageBody({ message, onClose, t }: ShellMessageBodyProps) {
     <ScrollArea className="flex-1 max-h-[calc(100vh-12rem)]">
       <div className="px-6 pt-4 pb-4">
         <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-          <p className="text-destructive">{message}</p>
+          <p className="text-status-danger-foreground">{message}</p>
           <Button variant="outline" className="mt-2" onClick={onClose}>
-            {t("common.close")}
+            {t("common.action.close")}
           </Button>
         </div>
       </div>
@@ -206,6 +206,68 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
     else if (status === "stale") clearLayoutDraft(seed.slug)
   }, [seed, builderMode, capabilities.layoutBuilder, canEditLayoutFlag, setBuilderMode])
 
+  // Lives outside the animated content wrapper: that wrapper carries a transform while it fades in, which would
+  // make it the containing block of this absolutely positioned bar and park it below the header until the end.
+  const toolbar: ReactNode = (isLoading || isNotFound || isError) ? null : (
+    <div className="absolute top-2 right-10 flex items-center gap-1">
+      {headerSlot}
+      {vm.isReadOnly && (
+        <Tooltip>
+          {canUpdate ? (
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => vm.setIsReadOnly?.(false)}
+              >
+                <Pencil className="size-4" />
+                <span className="sr-only">{t("content.editor.switchToEdit")}</span>
+              </Button>
+            </TooltipTrigger>
+          ) : (
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled
+                >
+                  <Pencil className="size-4" />
+                  <span className="sr-only">{t("content.editor.switchToEdit")}</span>
+                </Button>
+              </span>
+            </TooltipTrigger>
+          )}
+          <TooltipContent side="bottom">
+            {canUpdate ? t("content.editor.switchToEdit") : t("content.editor.noUpdatePermission")}
+          </TooltipContent>
+        </Tooltip>
+      )}
+
+      {capabilities.layoutBuilder && canEditLayoutFlag && seed && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={builderMode}
+              onClick={() => setBuilderMode(true)}
+            >
+              <LayoutTemplate className="size-4" />
+              <span className="sr-only">{t("layoutBuilder.editLayout")}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {t("layoutBuilder.editLayout")}
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
+  )
+
   let body: ReactNode
   if (isLoading) {
     body = <ShellSkeletonBody />
@@ -216,64 +278,6 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
   } else {
     body = (
       <>
-        <div className="absolute top-2 right-10 flex items-center gap-1">
-          {headerSlot}
-          {vm.isReadOnly && (
-            <Tooltip>
-              {canUpdate ? (
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => vm.setIsReadOnly?.(false)}
-                  >
-                    <Pencil className="size-4" />
-                    <span className="sr-only">Passa alla modalità modifica</span>
-                  </Button>
-                </TooltipTrigger>
-              ) : (
-                <TooltipTrigger asChild>
-                  <span className="inline-flex">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled
-                    >
-                      <Pencil className="size-4" />
-                      <span className="sr-only">Passa alla modalità modifica</span>
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-              )}
-              <TooltipContent side="bottom">
-                {canUpdate ? "Passa alla modalità modifica" : "Manca il permesso 'content:update'"}
-              </TooltipContent>
-            </Tooltip>
-          )}
-
-          {capabilities.layoutBuilder && canEditLayoutFlag && seed && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={builderMode}
-                  onClick={() => setBuilderMode(true)}
-                >
-                  <LayoutTemplate className="size-4" />
-                  <span className="sr-only">{t("layoutBuilder.editLayout")}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {t("layoutBuilder.editLayout")}
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-
         {capabilities.layoutBuilder && builderMode && seed ? (
           <BuilderPane
             seed={seed as Seed}
@@ -291,20 +295,20 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
             <div className="px-6 pt-4 pb-4 space-y-4">
 
             {capabilities.drafts && (effectiveDraftContext || (isCreate && isDraftContext)) && (
-              <div className="flex items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-200">
+              <div className="flex items-center gap-3 rounded-control border border-status-warning/30 bg-status-warning-soft px-4 py-3 text-sm text-status-warning-foreground">
                 <span>{t("content.editor.draftModeNotice")}</span>
               </div>
             )}
 
             {capabilities.drafts && !effectiveDraftContext && hasPendingDraftNotice && (
-              <div className="flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-200">
+              <div className="flex flex-wrap items-center gap-3 rounded-control border border-status-warning/30 bg-status-warning-soft px-4 py-3 text-sm text-status-warning-foreground">
                 <span className="flex-1">{t("content.editor.pendingDraftNotice")}</span>
                 <div className="flex gap-2">
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                    className="border-status-warning text-status-warning-foreground hover:bg-status-warning-soft"
                     onClick={() => navigate(`/content/${schemaSlug}/${entryId}`, { state: { isDraftContext: true }, replace: true })}
                   >
                     {t("content.editor.editDraft")}
@@ -313,11 +317,11 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                    className="border-status-warning text-status-warning-foreground hover:bg-status-warning-soft"
                     onClick={() => setShowDiscardConfirm(true)}
                     disabled={isDiscarding}
                   >
-                    {t("content.editor.discardDraft")}
+                    {t("content.editor.discardDraft.label")}
                   </Button>
                 </div>
               </div>
@@ -331,7 +335,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                 fieldErrors={fieldErrors}
                 onChange={handleInputChange}
                 dangerZoneSlot={capabilities.dangerZone && !isCreate ? dangerZoneSlot : undefined}
-                dangerZoneLabel={t("content.editor.tabs.dangerZone", "Danger Zone")}
+                dangerZoneLabel={t("content.editor.tabs.dangerZone")}
                 activeTabId={activeTabId}
                 onActiveTabChange={setActiveTabId}
                 isReadOnly={vm.isReadOnly}
@@ -362,7 +366,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="inline-flex">
-                            <Button type="button" variant="outline" size="icon" className={FOOTER_RADIUS} disabled aria-label={t("common.delete", "Delete")}>
+                            <Button type="button" variant="outline" size="icon" className={FOOTER_RADIUS} disabled aria-label={t("common.action.delete", "Delete")}>
                               <Trash2 />
                             </Button>
                           </span>
@@ -376,8 +380,8 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                         type="button"
                         variant="outline"
                         size="icon"
-                        className={`${FOOTER_RADIUS} hover:[&_svg]:text-destructive [&_svg]:transition-colors`}
-                        aria-label={t("common.delete", "Delete")}
+                        className={`${FOOTER_RADIUS} hover:[&_svg]:text-status-danger-foreground [&_svg]:transition-colors`}
+                        aria-label={t("common.action.delete", "Delete")}
                         disabled={isDeleting}
                         onClick={handleDelete}
                       >
@@ -405,10 +409,10 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                           {t("content.editor.publishDraft")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          className="text-destructive"
+                          className="text-status-danger-foreground"
                           onClick={() => setShowDiscardConfirm(true)}
                         >
-                          {t("content.editor.discardDraft")}
+                          {t("content.editor.discardDraft.label")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -428,8 +432,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
         <DialogContent
           // The overlay fades as long as the content (its default is 100ms against the content's 200ms), so the
           // blurred backdrop does not snap away while the dialog is still half visible.
-          overlayClassName="duration-200"
-          className="flex flex-col max-h-[calc(100vh-2rem)] p-0 duration-200 data-open:zoom-in-100 data-closed:zoom-out-100 sm:max-w-2xl md:max-w-4xl"
+                    className="flex flex-col max-h-[calc(100vh-2rem)] p-0 data-open:zoom-in-100 data-closed:zoom-out-100 sm:max-w-2xl md:max-w-4xl"
           onOpenAutoFocus={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => { if (isBuilderDragging) e.preventDefault() }}
           onAnimationEnd={(e) => {
@@ -442,12 +445,13 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
               {isLoading ? <Skeleton className="h-6 w-48" /> : (title || t("common.error"))}
             </DialogTitle>
           </DialogHeader>
+          {toolbar}
           <div
             // Keyed on loading: when the data arrives the content fades in over the skeleton instead of
             // popping in, which also hides how long the load took.
             key={isLoading ? "loading" : "ready"}
             ref={modeHeightRef}
-            className="flex min-h-0 flex-col animate-in fade-in-0 duration-200 data-[resizing]:[&_.overflow-y-auto]:overflow-y-hidden! data-[resizing]:[&_[data-slot=scroll-area-viewport]]:overflow-hidden! data-[resizing]:[&_[data-slot=scroll-area-scrollbar]]:hidden"
+            className="flex min-h-0 flex-col animate-in fade-in-0 duration-(--duration-enter) data-[resizing]:[&_.overflow-y-auto]:overflow-y-hidden! data-[resizing]:[&_[data-slot=scroll-area-viewport]]:overflow-hidden! data-[resizing]:[&_[data-slot=scroll-area-scrollbar]]:hidden"
           >
             {body}
           </div>
@@ -458,7 +462,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t("content.editor.unsavedTitle")}
+              {t("content.editor.unsaved.title")}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t("content.editor.unsavedDesc")}
@@ -482,7 +486,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
         <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{t("content.editor.discardDraftTitle")}</AlertDialogTitle>
+              <AlertDialogTitle>{t("content.editor.discardDraft.title")}</AlertDialogTitle>
               <AlertDialogDescription>{t("content.editor.discardDraftDesc")}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -491,7 +495,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
               </AlertDialogCancel>
               <AlertDialogAction variant="destructive" onClick={handleDiscardDraft} disabled={isDiscarding}>
                 {isDiscarding ? <Loader2 className="mr-1 size-4 animate-spin" /> : null}
-                {t("content.editor.discardDraft")}
+                {t("content.editor.discardDraft.label")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

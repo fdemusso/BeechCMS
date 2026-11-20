@@ -10,7 +10,6 @@ const ALLOWED_RICHTEXT_NODE_TYPES = new Set([
   'doc', 'paragraph', 'text', 'heading', 'blockquote', 'bulletList', 'orderedList',
   'listItem', 'codeBlock', 'horizontalRule', 'hardBreak', 'image',
   'table', 'tableRow', 'tableHeader', 'tableCell',
-  'inlineMath', 'blockMath', // Mathematics extension
   'taskList', 'taskItem',
 ])
 /** Allowlisted TipTap mark `type` values. */
@@ -223,7 +222,7 @@ export function sanitizeRichtext(raw: unknown, maxBytes: number): RichtextSaniti
 }
 
 /**
- * Gathers all text and latex strings from a rich text structure to compute if it contains content.
+ * Gathers all text strings from a rich text structure to compute if it contains content.
  *
  * @param node - The rich text node to inspect.
  * @param sink - Accumulated text chunks.
@@ -239,9 +238,6 @@ function gatherRichtextText(node: unknown, sink: string[], depth = 0): void {
   if (typeof node.text === 'string') {
     sink.push(cleanString(node.text))
   }
-  if (isPlainObject(node.attrs) && typeof node.attrs.latex === 'string') {
-    sink.push(cleanString(node.attrs.latex))
-  }
   if (node.type === 'image' || node.type === 'horizontalRule' || node.type === 'table') {
     sink.push(node.type)
   }
@@ -251,7 +247,7 @@ function gatherRichtextText(node: unknown, sink: string[], depth = 0): void {
 }
 
 /**
- * Checks if a rich text document is effectively empty (contains no text or LaTeX blocks).
+ * Checks if a rich text document is effectively empty (contains no text or content nodes).
  *
  * @param value - The rich text document structure.
  * @returns True if empty, false otherwise.

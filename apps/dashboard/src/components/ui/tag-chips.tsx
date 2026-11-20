@@ -48,6 +48,7 @@ export function TagChip({ chip, variant = "secondary", className }: TagChipProps
       title={chip.label}
       style={
         chip.tone === "option" && chip.color
+          // design-ok: the option colour is user-chosen data, so no token can guarantee the text contrast
           ? { backgroundColor: chip.color, color: "#fff", borderColor: chip.color }
           : undefined
       }

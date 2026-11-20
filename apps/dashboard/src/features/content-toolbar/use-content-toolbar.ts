@@ -19,6 +19,7 @@ export function useContentToolbar({
   seed,
   views,
   activeViewId,
+  conditionalRuleEditRequest,
   onRenameView,
   isFilterActive,
   isSortActive,
@@ -113,6 +114,7 @@ export function useContentToolbar({
     conditionalFormatsInput: activeView?.conditionalFormats,
     formattableColumns,
     onConditionalFormatsChange,
+    editRequest: conditionalRuleEditRequest,
   })
 
   const tableColumns = useMemo(

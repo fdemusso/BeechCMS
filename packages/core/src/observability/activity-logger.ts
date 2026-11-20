@@ -13,8 +13,23 @@
  * @module @beechcms/core/observability/activity-logger
  */
 
-export type ActivityAction = 'create' | 'update' | 'delete' | 'upload' | 'bulk_update' | 'security_alert'
-export type EntityType = 'content' | 'media' | 'seed'
+/**
+ * What happened. `trash`, `restore` and `purge` keep a recoverable removal apart from an irreversible one, and
+ * `publish` / `discard_draft` apart from an ordinary edit. `login`, `login_failed`, `logout` and `security_alert`
+ * are the sign-in and abuse trail. An action never says *what* changed: `details` does (conventionally `op`).
+ */
+export type ActivityAction =
+  | 'create' | 'update' | 'delete' | 'upload' | 'bulk_update' | 'security_alert'
+  | 'trash' | 'restore' | 'purge' | 'publish' | 'discard_draft' | 'import'
+  | 'revoke' | 'accept' | 'authorize'
+  | 'login' | 'login_failed' | 'logout'
+
+/** What it happened to. */
+export type EntityType =
+  | 'content' | 'media' | 'seed'
+  | 'user' | 'role' | 'assignment' | 'invitation'
+  | 'settings' | 'session' | 'auth' | 'app'
+  | 'automation' | 'layout' | 'view'
 
 /**
  * Identifies the human (or machine) actor that triggered the event.

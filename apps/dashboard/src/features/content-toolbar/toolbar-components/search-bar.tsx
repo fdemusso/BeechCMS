@@ -59,7 +59,7 @@ export function SearchBar({
 
   return (
     <div
-      className="overflow-hidden rounded-md bg-transparent transition-[width] duration-200 ease-out"
+      className="overflow-hidden rounded-control bg-transparent transition-[width] duration-(--duration-enter) ease-out"
       style={{ width: isSearchOpen ? 192 : 32 }}
     >
       {isSearchOpen ? (

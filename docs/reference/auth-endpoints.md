@@ -103,7 +103,7 @@ Content-Type: application/json
 - The reset token has a **30-minute TTL** and is stored as a SHA-256 hash in D1 (`password_reset_tokens`).
 - Email delivery is sent via Resend (production) or Mailpit (local dev) using `sendPasswordResetEmail`. Token issuance and email delivery both run in a non-blocking `waitUntil` task, so a known and an unknown email answer with the same latency.
 - The reset link is `${APP_URL}/admin/reset-password?token=<plaintext_token>`.
-- The `locale` field selects the email language: `'en'` (default) or `'it'`.
+- The `locale` field selects the email language: `'en'` (default) or `'it'`. A regional tag such as `'it-IT'` is reduced to its base language, and any language without an email template (`es`, `de`, `fr`, …) falls back to `'en'`. See [Email module](/features/email-module#multilingual-support).
 - Rate limited via Dual-Key Token Bucket: IP capacity 5 (refill 0.05/s) and Account capacity 3 (refill 0.02/s).
 
 **Required environment variables:**

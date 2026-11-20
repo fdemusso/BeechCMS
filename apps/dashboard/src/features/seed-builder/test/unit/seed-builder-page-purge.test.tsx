@@ -5,6 +5,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router-dom"
 import type { Seed } from "@beechcms/core"
 import type { SeedRecordDTO } from "@/features/seed-builder"
 
@@ -21,8 +22,7 @@ const deletedSeed: SeedRecordDTO = {
 
 vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ canGlobally: () => true }) }))
 vi.mock("@/features/shared", () => ({ useSchema: () => ({ data: [] }) }))
-vi.mock("@/features/entry-editor", () => ({ SchemaFormShell: () => null }))
-vi.mock("@/features/seed-builder/hooks/use-seed-editor-dialog", () => ({ useSeedEditorDialog: () => ({}) }))
+vi.mock("@/features/seed-builder/components/SeedFormDialog", () => ({ SeedFormDialog: () => null }))
 vi.mock("@/features/seed-builder/hooks/use-seeds", () => ({
   useSeeds: () => ({ data: [deletedSeed], isLoading: false, refetch: vi.fn() }),
   useDeleteSeed: () => ({ mutate: vi.fn(), isPending: false }),
@@ -39,7 +39,7 @@ import { SeedBuilderPage } from "@/features/seed-builder/components/SeedBuilderP
 
 describe("SeedBuilderPage — soft-deleted seeds", () => {
   it("lets an admin permanently purge a soft-deleted seed", async () => {
-    render(<SeedBuilderPage />)
+    render(<MemoryRouter><SeedBuilderPage /></MemoryRouter>)
     fireEvent.click(screen.getByRole("switch"))
 
     await userEvent.click(screen.getByTestId("purge-seed-btn"))

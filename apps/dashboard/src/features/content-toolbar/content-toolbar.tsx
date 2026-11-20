@@ -351,14 +351,14 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
               availableTagsByColumnId={availableTagsByColumnId}
             >
               {isFilterBannerOpen && !isFilterBannerDismissed && (
-                <div className="flex h-8 min-w-64 flex-1 items-center justify-between gap-3 rounded-full bg-amber-50 px-3 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                <div className="flex h-8 min-w-64 flex-1 items-center justify-between gap-3 rounded-full bg-status-warning-soft px-3 text-xs text-status-warning-foreground">
                   <span className="min-w-0 truncate">{t("toolbar.filterBanner.message")}</span>
                   <div className="flex shrink-0 items-center gap-2">
                     <Button
                       type="button"
                       variant="link"
                       size="sm"
-                      className="h-6 shrink-0 px-1 text-xs text-amber-800 underline hover:text-amber-950 dark:text-amber-200 dark:hover:text-amber-100"
+                      className="h-6 shrink-0 px-1 text-xs text-status-warning-foreground underline hover:text-status-warning-foreground"
                       onClick={clearAllFilters}
                     >
                       {t("toolbar.filterBanner.clearAll")}
@@ -367,7 +367,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                       type="button"
                       variant="link"
                       size="sm"
-                      className="h-6 shrink-0 px-1 text-xs text-amber-800 underline hover:text-amber-950 dark:text-amber-200 dark:hover:text-amber-100"
+                      className="h-6 shrink-0 px-1 text-xs text-status-warning-foreground underline hover:text-status-warning-foreground"
                       onClick={dismissFilterBanner}
                     >
                       {t("toolbar.filterBanner.dismiss")}

@@ -58,12 +58,12 @@ export function AutomationEditor({
               <DialogTitle asChild>
                 <Input
                   {...register('name')}
-                  className="text-lg font-semibold border-0 bg-secondary dark:bg-secondary px-3 py-1.5 h-auto transition-colors focus-visible:ring-1 focus-visible:ring-ring shadow-none"
-                  placeholder={t('automations.editor.namePlaceholder')}
+                  className="text-xl font-medium border-0 bg-secondary dark:bg-secondary px-3 py-1.5 h-auto transition-colors focus-visible:ring-1 focus-visible:ring-ring shadow-none"
+                  placeholder={t('automations.editor.name.placeholder')}
                 />
               </DialogTitle>
               {errors.name && (
-                <p className="text-xs text-destructive mt-1">{t(errors.name.message ?? '')}</p>
+                <p className="text-xs text-status-danger-foreground mt-1">{t(errors.name.message ?? '')}</p>
               )}
               <p className="text-sm text-muted-foreground">
                 {t('automations.editor.subtitle', { seed: seedDisplayName })}
@@ -89,7 +89,7 @@ export function AutomationEditor({
                   onOpenChange(false)
                 }}
               >
-                {isEdit ? t('common.back') : t('common.cancel')}
+                {isEdit ? t('common.action.back') : t('common.action.cancel')}
               </Button>
               <Button
                 type="submit"
@@ -98,8 +98,8 @@ export function AutomationEditor({
                 {isPending
                   ? t('common.saving')
                   : isEdit
-                    ? t('common.save')
-                    : t('automations.editor.enableButton')}
+                    ? t('common.action.save')
+                    : t('automations.editor.enable.button')}
               </Button>
             </DialogFooter>
           </form>

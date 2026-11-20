@@ -5,7 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { formatDistanceToNow } from "date-fns"
-import { it as itLocale, enUS, type Locale } from "date-fns/locale"
+import { dateFnsLocaleFor } from "@/lib/date-locale"
 import { ClipboardList, Send } from '@/components/icons'
 import { rpc } from "@/lib/rpc"
 import { Badge } from "@/components/ui/badge"
@@ -27,8 +27,6 @@ export interface PendingDraftsWidgetProps {
   title?: string
 }
 
-const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
-
 function entryTitle(entry: ContentEntry): string {
   for (const val of Object.values(entry.data)) {
     if (typeof val === "string" && val.trim()) return val
@@ -38,7 +36,7 @@ function entryTitle(entry: ContentEntry): string {
 
 export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, title }: PendingDraftsWidgetProps) {
   const { t, i18n } = useTranslation()
-  const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
+  const dateFnsLocale = dateFnsLocaleFor(i18n.language)
   const widgetTitle = title || t("dashboard.widgets.pendingDrafts.title")
   const queryClient = useQueryClient()
   const { data, isLoading, isError, refetch } = useQuery({
@@ -69,7 +67,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, tit
   })
 
   const countBadge = data?.length ? (
-    <Badge className="bg-amber-100 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-800/60 text-xs tabular-nums" variant="outline">
+    <Badge className="text-xs tabular-nums" variant="signal">
       {data.length}
     </Badge>
   ) : null
@@ -93,7 +91,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, tit
       <DashboardWidgetShell title={widgetTitle} icon={ClipboardList}>
         <div className="flex flex-col items-center justify-center gap-2 h-full text-center">
           <span className="text-5xl font-bold tabular-nums">{data?.length ?? 0}</span>
-          <p className="text-sm text-muted-foreground">{t("dashboard.widgets.pendingDrafts.pendingCount")}</p>
+          <p className="text-sm text-muted-foreground">{t("dashboard.widgets.pendingDrafts.caption", { count: data?.length ?? 0 })}</p>
           <Link to={`/content/${seedSlug}?status=draft`}>
             <Button variant="outline" size="sm">{t("dashboard.widgets.pendingDrafts.viewAll")}</Button>
           </Link>
@@ -137,7 +135,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, tit
                 >
                   {entryTitle(entry)}
                 </Link>
-                <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums hidden sm:inline">
+                <span className="text-xs text-muted-foreground shrink-0 tabular-nums hidden sm:inline">
                   {entry.updated_at
                     ? formatDistanceToNow(new Date(entry.updated_at * 1000), { addSuffix: true, locale: dateFnsLocale })
                     : "—"
@@ -159,7 +157,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, tit
               </div>
               {/* Mobile-only: timestamp + button on second line */}
               <div className="flex items-center justify-between gap-2 mt-1 sm:hidden">
-                <span className="text-[10px] text-muted-foreground tabular-nums">
+                <span className="text-xs text-muted-foreground tabular-nums">
                   {entry.updated_at
                     ? formatDistanceToNow(new Date(entry.updated_at * 1000), { addSuffix: true, locale: dateFnsLocale })
                     : "—"

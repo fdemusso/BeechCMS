@@ -21,7 +21,7 @@ function StarRatingDisplay({ value, max, allowHalf }: { value: number; max: numb
           <div key={starValue} className="relative" aria-hidden="true">
             <Star className="h-4 w-4 text-muted-foreground/30" />
             {(isFull || isHalf) && (
-              <div className={cn("absolute inset-0 overflow-hidden text-yellow-500", isHalf ? "w-1/2" : "w-full")}>
+              <div className={cn("absolute inset-0 overflow-hidden text-status-warning", isHalf ? "w-1/2" : "w-full")}>
                 <Star className="h-4 w-4 fill-current" />
               </div>
             )}
@@ -42,10 +42,10 @@ function PercentageDisplay({ value, formatted }: { value: number; formatted: str
 
   const indicatorColor =
     pct < 34
-      ? "[&_[data-slot=progress-indicator]]:bg-red-500"
+      ? "[&_[data-slot=progress-indicator]]:bg-status-danger"
       : pct < 67
-        ? "[&_[data-slot=progress-indicator]]:bg-yellow-400"
-        : "[&_[data-slot=progress-indicator]]:bg-green-500"
+        ? "[&_[data-slot=progress-indicator]]:bg-status-warning"
+        : "[&_[data-slot=progress-indicator]]:bg-status-live"
 
   return (
     <TooltipProvider>

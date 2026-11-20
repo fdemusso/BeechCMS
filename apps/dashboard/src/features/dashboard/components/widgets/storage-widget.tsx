@@ -23,9 +23,9 @@ function formatGb(bytes: number): string {
 }
 
 function gaugeColor(pct: number): string {
-  if (pct > 85) return "#ef4444"
-  if (pct > 60) return "#eab308"
-  return "#22c55e"
+  if (pct > 85) return "var(--status-danger)"
+  if (pct > 60) return "var(--status-warning)"
+  return "var(--status-live)"
 }
 
 function GaugeSvg({ pct, usedLabel }: { pct: number; usedLabel: string }) {
@@ -51,7 +51,7 @@ function GaugeSvg({ pct, usedLabel }: { pct: number; usedLabel: string }) {
         strokeDasharray={circumference}
         strokeDashoffset={offset}
         transform={`rotate(-90 ${cx} ${cy})`}
-        className="transition-all duration-1000 ease-in-out"
+        className="transition-all duration-(--duration-enter) ease-in-out"
         style={{ filter: `drop-shadow(0 0 4px ${color}60)` }}
       />
       <text
@@ -108,15 +108,15 @@ export function StorageWidget({ variant = "bar", totalBytes = DEFAULT_TOTAL }: S
             On sm+: side-by-side as designed. */}
         <div className="flex flex-col items-center gap-2 h-full w-full xs:flex-row sm:flex-row sm:items-center sm:gap-3">
           <div className="shrink-0">
-            <GaugeSvg pct={pct} usedLabel={t("dashboard.widgets.storage.used")} />
+            <GaugeSvg pct={pct} usedLabel={t("dashboard.widgets.storage.gauge.caption")} />
           </div>
           <div className="flex-1 min-w-0 text-center sm:text-left">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{t("dashboard.widgets.storage.title")}</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{t("dashboard.widgets.storage.title")}</p>
             <p className="text-base font-bold text-foreground tabular-nums leading-tight">
               {formatGb(storageBytes)}&nbsp;<span className="text-sm font-medium text-muted-foreground">GB</span>
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {t("dashboard.widgets.storage.total", { total: formatGb(totalBytes) })}
+              {t("dashboard.widgets.storage.summary.caption", { total: formatGb(totalBytes) })}
             </p>
           </div>
         </div>

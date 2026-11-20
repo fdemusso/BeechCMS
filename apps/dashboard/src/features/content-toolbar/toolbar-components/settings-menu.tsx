@@ -22,13 +22,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Settings, Filter, Grid as LayoutGrid, SortV as ArrowUpDown, RowVertical as Rows3, Palette, Eye, EyeOff, RowVertical as Rows2, AlignLeft as AlignJustify, Minus, Plus, Check, Trash2 } from '@/components/icons'
+import { Settings, Filter, Grid as LayoutGrid, SortV as ArrowUpDown, RowVertical as Rows3, Eye, EyeOff, RowVertical as Rows2, AlignLeft as AlignJustify, Minus, Plus, Trash2 } from '@/components/icons'
 
 import type { VisibilityState } from "@tanstack/react-table"
 import type { TableDensity } from "@/lib/density"
 import type { ConditionalFormatRule } from "@/lib/conditional-format"
 import type { ViewSetting } from "@/features/shared"
-import { ConditionalFormatsEditor } from "./conditional-formats-editor"
+import { ConditionalColorsSubmenu, ConditionalRuleDialog } from "./conditional-formats-editor"
 import type { DatePrecisionMode } from "../toolbar-hooks/use-toolbar-groupby"
 
 interface SettingsMenuProps {
@@ -93,6 +93,8 @@ interface SettingsMenuProps {
   readonly canDeleteView?: boolean
 }
 
+const NO_GROUPING = "__none__"
+
 export function SettingsMenu({
   isSettingsMenuOpenEffective,
   setIsSettingsMenuOpenState,
@@ -156,6 +158,8 @@ export function SettingsMenu({
   const { t } = useTranslation()
   const showLayoutGroup = settings.includes("groupBy") || settings.includes("conditionalFormats") || settings.includes("cardLayout")
   const showDisplayGroup = settings.includes("columns") || settings.includes("pageSize") || settings.includes("density")
+  const groupByLabel =
+    [...recommendedGroupColumns, ...otherGroupColumns].find((col: any) => col.columnId === groupBy)?.label ?? groupBy
   const settingsSectionNode = renderSettingsSection?.({ close: closeSettingsMenu }) ?? null
   // The display group is the only block that does not end in its own separator (quick actions,
   // the settings section and the layout group all do, or nothing rendered since the quick-actions
@@ -163,6 +167,7 @@ export function SettingsMenu({
   // iff the display group rendered, regardless of what rendered before it.
   const deleteSeparatorAlreadyEmitted = !showDisplayGroup
   return (
+    <>
     <DropdownMenu
       open={isSettingsMenuOpenEffective}
       onOpenChange={(open) => {
@@ -234,7 +239,7 @@ export function SettingsMenu({
                   {t("toolbar.filter.label")}
                 </DropdownMenuLabel>
                 <Input
-                  placeholder={t("toolbar.filter.searchPlaceholder")}
+                  placeholder={t("toolbar.filter.search.placeholder")}
                   value={filterColumnSearchTerm}
                   onChange={(e) => setFilterColumnSearchTerm(e.target.value)}
                   className="h-8 text-sm"
@@ -263,7 +268,7 @@ export function SettingsMenu({
                         >
                           <span className="truncate">{col.label}</span>
                           {filters[col.columnId]?.conditions?.length ? (
-                            <span className="text-muted-foreground text-[10px] uppercase">
+                            <span className="text-muted-foreground text-xs uppercase">
                               {filters[col.columnId].conditions.length}
                             </span>
                           ) : null}
@@ -288,7 +293,7 @@ export function SettingsMenu({
                   </DropdownMenuLabel>
                   <div className="flex items-center gap-2">
                     <Input
-                      placeholder={t("toolbar.sort.searchPlaceholder")}
+                      placeholder={t("toolbar.sort.search.placeholder")}
                       value={sortColumnSearchTerm}
                       onChange={(e) => setSortColumnSearchTerm(e.target.value)}
                       className="h-8 flex-1 text-sm"
@@ -326,7 +331,7 @@ export function SettingsMenu({
                             >
                               <span className="truncate">{branch.label}</span>
                               {isSelected && (
-                                <span className="text-muted-foreground text-[10px] uppercase">
+                                <span className="text-muted-foreground text-xs uppercase">
                                   {sortState?.desc ? "DESC" : "ASC"}
                                 </span>
                               )}
@@ -344,150 +349,97 @@ export function SettingsMenu({
 
         <DropdownMenuSeparator />
 
-        {/* The active View Type's own settings block (today: Kanban's layout & style group). */}
-        {settingsSectionNode && (
-          <>
-            {settingsSectionNode}
-            <DropdownMenuSeparator />
-          </>
-        )}
-
-        {/* Layout e stile (universale) */}
-        {showLayoutGroup && (
+        {/* Layout e stile: one group for the universal items and the active View Type's own items. */}
+        {(showLayoutGroup || settingsSectionNode) && (
           <>
             <DropdownMenuGroup>
               <DropdownMenuLabel>{t("toolbar.settings.layoutStyle")}</DropdownMenuLabel>
+              {settingsSectionNode}
               {settings.includes("groupBy") && (
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <Rows3 className="size-4" />
-                  {t("toolbar.settings.group")}{groupBy ? "..." : ""}
-                  {groupBy && (
-                    <span className="ml-auto text-[10px] text-muted-foreground uppercase">
-                      {t("toolbar.settings.active")}
-                    </span>
-                  )}
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                  <DropdownMenuSubContent className="w-64 p-2">
-                    <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                      {t("toolbar.settings.groupBy")}
-                    </DropdownMenuLabel>
-                    {/* Voce "Nessun raggruppamento" */}
-                    <Button
-                      type="button"
-                      variant={groupBy ? "ghost" : "secondary"}
-                      size="sm"
-                      className="h-8 w-full justify-between px-2 text-xs"
-                      onClick={() => {
-                        onGroupByChange?.(null)
-                        closeSettingsMenu()
-                      }}
-                    >
-                      <span>{t("toolbar.settings.noGrouping")}</span>
-                      {!groupBy && <Check className="size-3.5 shrink-0 text-muted-foreground" />}
-                    </Button>
-                    {recommendedGroupColumns.length > 0 && (
-                      <>
-                        <DropdownMenuSeparator className="my-2" />
-                        <DropdownMenuLabel className="px-0 pb-1 pt-0 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                          {t("toolbar.settings.recommended")}
-                        </DropdownMenuLabel>
-                        <div className="flex flex-col gap-1">
-                          {recommendedGroupColumns.map((col: any) =>
-                            col.branchType === "date" ? (
-                              <DropdownMenuSub key={col.columnId}>
-                                <DropdownMenuSubTrigger
-                                  className="h-8 w-full rounded-sm px-2 text-xs data-[state=open]:bg-accent"
-                                >
-                                  <span className="flex-1 truncate text-left">{col.label}</span>
-                                  {groupBy === col.columnId && <Check className="mr-2 size-3.5 shrink-0 text-muted-foreground" />}
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuPortal>
-                                  <DropdownMenuSubContent className="w-48 p-2">
-                                    <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                                      {t("toolbar.settings.group")}
-                                    </DropdownMenuLabel>
-                                    <DropdownMenuRadioGroup
-                                      value={datePrecisionMode}
-                                      onValueChange={(v) => {
-                                        const nextMode = (v || "monthYear") as DatePrecisionMode
-                                        onGroupByChange?.(col.columnId)
-                                        applyDatePrecisionMode(nextMode)
-                                        closeSettingsMenu()
-                                      }}
-                                    >
-                                      <DropdownMenuRadioItem value="day">
-                                        {t("toolbar.settings.day")}
-                                      </DropdownMenuRadioItem>
-                                      <DropdownMenuRadioItem value="year">
-                                        {t("toolbar.settings.year")}
-                                      </DropdownMenuRadioItem>
-                                      <DropdownMenuRadioItem value="monthYear">
-                                        {t("toolbar.settings.month")}
-                                      </DropdownMenuRadioItem>
-                                    </DropdownMenuRadioGroup>
-                                  </DropdownMenuSubContent>
-                                </DropdownMenuPortal>
-                              </DropdownMenuSub>
-                            ) : (
-                              <Button
-                                key={col.columnId}
-                                type="button"
-                                variant={groupBy === col.columnId ? "secondary" : "ghost"}
-                                size="sm"
-                                className="h-8 w-full justify-between px-2 text-xs"
-                                onClick={() => {
-                                  onGroupByChange?.(groupBy === col.columnId ? null : col.columnId)
-                                  closeSettingsMenu()
-                                }}
-                              >
-                                <span className="truncate">{col.label}</span>
-                                {groupBy === col.columnId && (
-                                  <Check className="size-3.5 shrink-0 text-muted-foreground" />
-                                )}
-                              </Button>
-                            )
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Rows3 className="size-4" />
+                    <span className="flex-1">{t("toolbar.settings.group")}</span>
+                    {groupBy && (
+                      <span className="max-w-24 truncate text-xs text-muted-foreground">
+                        {groupByLabel}
+                      </span>
+                    )}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent className="w-64">
+                      <DropdownMenuLabel>{t("toolbar.settings.groupBy")}</DropdownMenuLabel>
+                      <DropdownMenuRadioGroup
+                        value={groupBy ?? NO_GROUPING}
+                        onValueChange={(value) => {
+                          onGroupByChange?.(value === NO_GROUPING ? null : value)
+                          closeSettingsMenu()
+                        }}
+                      >
+                        <DropdownMenuRadioItem value={NO_GROUPING}>
+                          {t("toolbar.settings.noGrouping")}
+                        </DropdownMenuRadioItem>
+                        <ScrollArea className="max-h-72">
+                          {recommendedGroupColumns.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuLabel>{t("toolbar.settings.recommended")}</DropdownMenuLabel>
+                              {recommendedGroupColumns.map((col: any) =>
+                                col.branchType === "date" ? (
+                                  <DropdownMenuSub key={col.columnId}>
+                                    <DropdownMenuSubTrigger>
+                                      <span className="flex-1 truncate">{col.label}</span>
+                                      {groupBy === col.columnId && (
+                                        <span className="text-xs text-muted-foreground">
+                                          {t(`toolbar.settings.${datePrecisionMode === "monthYear" ? "month" : datePrecisionMode}`)}
+                                        </span>
+                                      )}
+                                    </DropdownMenuSubTrigger>
+                                    <DropdownMenuPortal>
+                                      <DropdownMenuSubContent className="w-48">
+                                        <DropdownMenuLabel>{col.label}</DropdownMenuLabel>
+                                        <DropdownMenuRadioGroup
+                                          value={groupBy === col.columnId ? datePrecisionMode : ""}
+                                          onValueChange={(v) => {
+                                            onGroupByChange?.(col.columnId)
+                                            applyDatePrecisionMode((v || "monthYear") as DatePrecisionMode)
+                                            closeSettingsMenu()
+                                          }}
+                                        >
+                                          <DropdownMenuRadioItem value="day">{t("toolbar.settings.day")}</DropdownMenuRadioItem>
+                                          <DropdownMenuRadioItem value="monthYear">{t("toolbar.settings.month")}</DropdownMenuRadioItem>
+                                          <DropdownMenuRadioItem value="year">{t("toolbar.settings.year")}</DropdownMenuRadioItem>
+                                        </DropdownMenuRadioGroup>
+                                      </DropdownMenuSubContent>
+                                    </DropdownMenuPortal>
+                                  </DropdownMenuSub>
+                                ) : (
+                                  <DropdownMenuRadioItem key={col.columnId} value={col.columnId}>
+                                    <span className="truncate">{col.label}</span>
+                                  </DropdownMenuRadioItem>
+                                )
+                              )}
+                            </>
                           )}
-                        </div>
-                      </>
-                    )}
-                    {otherGroupColumns.length > 0 && (
-                      <>
-                        <DropdownMenuSeparator className="my-2" />
-                        <DropdownMenuLabel className="px-0 pb-1 pt-0 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                          {t("toolbar.settings.otherFields")}
-                        </DropdownMenuLabel>
-                        <div className="px-0 pb-1 text-[10px] text-muted-foreground/70">
-                          {t("toolbar.settings.manyGroups")}
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          {otherGroupColumns.map((col: any) => (
-                            <Button
-                              key={col.columnId}
-                              type="button"
-                              variant={groupBy === col.columnId ? "secondary" : "ghost"}
-                              size="sm"
-                              className="h-auto min-h-8 w-full flex-col items-start gap-0 px-2 py-1.5 text-xs"
-                              onClick={() => {
-                                onGroupByChange?.(groupBy === col.columnId ? null : col.columnId)
-                                closeSettingsMenu()
-                              }}
-                            >
-                              <div className="flex w-full items-center justify-between">
-                                <span className="truncate">{col.label}</span>
-                                {groupBy === col.columnId && (
-                                  <Check className="size-3.5 shrink-0 text-muted-foreground" />
-                                )}
-                              </div>
-                            </Button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-              </DropdownMenuSub>
+                          {otherGroupColumns.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuLabel>{t("toolbar.settings.otherFields")}</DropdownMenuLabel>
+                              <p className="px-1.5 pb-1 text-xs text-muted-foreground">
+                                {t("toolbar.settings.manyGroups")}
+                              </p>
+                              {otherGroupColumns.map((col: any) => (
+                                <DropdownMenuRadioItem key={col.columnId} value={col.columnId}>
+                                  <span className="truncate">{col.label}</span>
+                                </DropdownMenuRadioItem>
+                              ))}
+                            </>
+                          )}
+                        </ScrollArea>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
               )}
               {settings.includes("cardLayout") && onOpenCardConfig && (
                 <DropdownMenuItem
@@ -501,34 +453,15 @@ export function SettingsMenu({
                 </DropdownMenuItem>
               )}
               {settings.includes("conditionalFormats") && (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <Palette className="size-4" />
-                    {t("toolbar.settings.conditionalColors")}
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuSubContent className="w-[620px] p-3">
-                      <ConditionalFormatsEditor
-                        enabled={Boolean(onConditionalFormatsChange)}
-                        formattableColumns={formattableColumns}
-                        conditionalFormats={conditionalFormats}
-                        activeConditionalRule={activeConditionalRule}
-                        isConditionalEditorOpen={isConditionalEditorOpen}
-                        setIsConditionalEditorOpen={setIsConditionalEditorOpen}
-                        setActiveConditionalRuleId={setActiveConditionalRuleId}
-                        addConditionalFormatRule={addConditionalFormatRule}
-                        updateConditionalRule={updateConditionalRule}
-                        updateConditionalTextStyles={updateConditionalTextStyles}
-                        removeConditionalRule={removeConditionalRule}
-                        moveConditionalRule={moveConditionalRule}
-                        updateConditionalCondition={updateConditionalCondition}
-                        addConditionalCondition={addConditionalCondition}
-                        removeConditionalCondition={removeConditionalCondition}
-                        availableTagsByColumnId={availableTagsByColumnId}
-                      />
-                    </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-                </DropdownMenuSub>
+                <ConditionalColorsSubmenu
+                  enabled={Boolean(onConditionalFormatsChange)}
+                  formattableColumns={formattableColumns}
+                  conditionalFormats={conditionalFormats}
+                  setActiveConditionalRuleId={setActiveConditionalRuleId}
+                  setIsConditionalEditorOpen={setIsConditionalEditorOpen}
+                  addConditionalFormatRule={addConditionalFormatRule}
+                  onClose={closeSettingsMenu}
+                />
               )}
             </DropdownMenuGroup>
 
@@ -672,7 +605,7 @@ export function SettingsMenu({
             {!deleteSeparatorAlreadyEmitted && <DropdownMenuSeparator />}
             <DropdownMenuItem
               variant="destructive"
-              className="text-destructive focus:bg-destructive/10 focus:text-destructive [&_svg]:text-destructive"
+              className="text-status-danger-foreground focus:bg-destructive/10 focus:text-status-danger-foreground [&_svg]:text-status-danger-foreground"
               disabled={!canDeleteView}
               onSelect={() => {
                 closeSettingsMenu()
@@ -686,5 +619,25 @@ export function SettingsMenu({
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+    {settings.includes("conditionalFormats") && (
+      <ConditionalRuleDialog
+        rule={activeConditionalRule}
+        open={isConditionalEditorOpen && Boolean(activeConditionalRule)}
+        onOpenChange={setIsConditionalEditorOpen}
+        conditionalFormats={conditionalFormats}
+        updateConditionalRule={updateConditionalRule}
+        moveConditionalRule={moveConditionalRule}
+        removeConditionalRule={(id) => {
+          removeConditionalRule(id)
+          setIsConditionalEditorOpen(false)
+        }}
+        updateConditionalCondition={updateConditionalCondition}
+        addConditionalCondition={addConditionalCondition}
+        removeConditionalCondition={removeConditionalCondition}
+        updateConditionalTextStyles={updateConditionalTextStyles}
+        availableTagsByColumnId={availableTagsByColumnId}
+      />
+    )}
+    </>
   )
 }

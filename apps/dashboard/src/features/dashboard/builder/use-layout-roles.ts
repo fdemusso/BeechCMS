@@ -10,7 +10,7 @@ import { dashboardBuilderApi } from './api/dashboard-layout.api'
 /** One role as `GET /api/dashboard-layout/roles` serves it. Inferred from the route. */
 export type LayoutRole = InferResponseType<typeof rpc.api["dashboard-layout"]["roles"]["$get"]>[number]
 
-export const LAYOUT_ROLES_QUERY_KEY = ["dashboard-builder-roles"] as const
+const LAYOUT_ROLES_QUERY_KEY = ["dashboard-builder-roles"] as const
 
 /** The role list the builder targets tabs with. Builder-only: mounted inside the open dialog. */
 export function useLayoutRoles(enabled = true): UseQueryResult<LayoutRole[]> {

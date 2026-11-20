@@ -5,7 +5,7 @@ import pc from 'picocolors'
 import type { Seed, SchemaQueryExecutor, LiveTable } from '@beechcms/core'
 import { getExpectedColumns, introspectTable } from '@beechcms/core'
 
-export interface ColumnDiff {
+interface ColumnDiff {
   name: string
   status: 'ok' | 'missing' | 'extra' | 'type_mismatch' | 'fk_missing' | 'fk_mismatch' | 'index_missing'
   expectedType?: string

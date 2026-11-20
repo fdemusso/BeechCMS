@@ -5,5 +5,5 @@
 export { backrefsApi } from './api'
 export type { BackrefItem, BackrefGroup, BackrefsResponse } from './api'
 export { useBackrefs, useBackrefsGroup, BACKREF_QUERY_KEY } from './hooks/use-backrefs'
-export { ReferencedByPanel, DeleteButtonWithRestrict } from './referenced-by-panel'
+export { ReferencedByPanel } from './referenced-by-panel'
 export type { ReferencedByPanelProps } from './referenced-by-panel'

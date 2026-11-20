@@ -15,7 +15,7 @@ import type {
 } from "@tanstack/react-table"
 import type { Seed } from "@beechcms/core"
 import { DataTable } from "@/components/ui/data-table"
-import { Copy, Edit as Pencil, Trash2 } from "@/components/icons"
+import { Copy, Edit as Pencil, Filter, Trash2 } from "@/components/icons"
 import {
   ContextMenuItem,
   ContextMenuLabel,
@@ -45,6 +45,8 @@ export interface ContentTableViewProps {
   rowSelection: RowSelectionState
   onRowSelectionChange: (updater: RowSelectionState | ((old: RowSelectionState) => RowSelectionState)) => void
   grouping: GroupingState
+  /** localStorage key of the closed groups of this view + grouped field. */
+  collapsedGroupsStorageKey?: string
   onGroupingChange: (updater: GroupingState | ((old: GroupingState) => GroupingState)) => void
   pageSize: number
   onPageSizeChange: (size: number) => void
@@ -64,7 +66,10 @@ export interface ContentTableViewProps {
   onDelete: (id: string) => void
   onBulkDelete: (ids: string[]) => void
   onCreate: (defaultValues?: Record<string, unknown> | React.SyntheticEvent | Event) => void
-  onCellActivate: (columnId: string, entry: ContentEntry) => void
+  /** Items of the column-header context menu; null on a column with no shortcut. */
+  renderHeaderContextMenuContent?: (columnId: string) => React.ReactNode
+  /** Adds a toolbar filter for the value of `columnId` in `entry` (context menu). */
+  onCellFilter: (columnId: string, entry: ContentEntry) => void
 }
 
 export function ContentTableView({
@@ -85,6 +90,7 @@ export function ContentTableView({
   rowSelection,
   onRowSelectionChange,
   grouping,
+  collapsedGroupsStorageKey,
   onGroupingChange,
   pageSize,
   onPageSizeChange,
@@ -104,13 +110,27 @@ export function ContentTableView({
   onDelete,
   onBulkDelete,
   onCreate,
-  onCellActivate,
+  onCellFilter,
+  renderHeaderContextMenuContent,
 }: ContentTableViewProps) {
   const { t } = useTranslation()
 
   const handleRowDoubleClick = React.useCallback(
     (entry: ContentEntry) => onEdit(entry.id),
     [onEdit]
+  )
+
+  const handleCellCopy = React.useCallback(
+    (_columnId: string, _entry: ContentEntry, cell: HTMLElement) => {
+      // Copy what the cell shows, not the raw stored value.
+      const text = (cell.innerText ?? cell.textContent ?? "").trim()
+      if (!text) return
+      navigator.clipboard.writeText(text).then(
+        () => toast.success(t("content.list.cellCopied")),
+        () => toast.error(t("common.copyFailed"))
+      )
+    },
+    [t]
   )
 
   const handleDeleteRows = React.useCallback(
@@ -123,7 +143,7 @@ export function ContentTableView({
   const memoizedExcludedColumns = React.useMemo(() => ["select", "actions"], [])
 
   const renderContextMenuContent = React.useCallback(
-    (entry: ContentEntry) => (
+    (entry: ContentEntry, columnId: string) => (
       <>
         <ContextMenuLabel>{t("content.actions.label")}</ContextMenuLabel>
         {selectedIds.length > 1 ? (
@@ -133,7 +153,7 @@ export function ContentTableView({
             disabled={!can("content:delete", slug)}
           >
             <Trash2 className="size-4" />
-            {t("common.delete")}
+            {t("common.action.delete")}
             <ContextMenuShortcut>Del</ContextMenuShortcut>
           </ContextMenuItem>
         ) : (
@@ -149,6 +169,10 @@ export function ContentTableView({
               <Copy className="size-4" />
               {t("content.actions.copyId")}
             </ContextMenuItem>
+            <ContextMenuItem onSelect={() => onCellFilter(columnId, entry)}>
+              <Filter className="size-4" />
+              {t("content.actions.filterByValue")}
+            </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem onSelect={() => onEdit(entry.id)} disabled={!can("content:update", slug)}>
               <Pencil className="size-4" />
@@ -161,14 +185,14 @@ export function ContentTableView({
               disabled={!can("content:delete", slug)}
             >
               <Trash2 className="size-4" />
-              {t("common.delete")}
+              {t("common.action.delete")}
               <ContextMenuShortcut>Del</ContextMenuShortcut>
             </ContextMenuItem>
           </>
         )}
       </>
     ),
-    [selectedIds, onBulkDelete, onEdit, onDelete, can, slug, t]
+    [selectedIds, onBulkDelete, onEdit, onDelete, onCellFilter, can, slug, t]
   )
 
   const tableEmptyState = React.useMemo(
@@ -176,7 +200,7 @@ export function ContentTableView({
       isEmptySeed ? (
         <SmallCta
           svgPath={`${import.meta.env.BASE_URL}working.svg`}
-          title={t("content.list.emptyTitle")}
+          title={t("content.list.empty.title")}
           buttonText={t("content.list.emptyCreateFirst", { label: seed.label })}
           onButtonClick={onCreate}
           buttonDisabled={!can("content:create", slug)}
@@ -208,11 +232,13 @@ export function ContentTableView({
       onRowSelectionChange={onRowSelectionChange}
       onRowDoubleClick={handleRowDoubleClick}
       onDeleteRows={handleDeleteRows}
-      onCellActivate={onCellActivate}
+      onCellActivate={handleCellCopy}
       cellActivateExcludedColumnIds={memoizedExcludedColumns}
       grouping={grouping}
+      collapsedGroupsStorageKey={collapsedGroupsStorageKey}
       onGroupingChange={onGroupingChange}
       renderRowContextMenuContent={renderContextMenuContent}
+      renderHeaderContextMenuContent={renderHeaderContextMenuContent}
       pageSize={pageSize}
       onPageSizeChange={onPageSizeChange}
       pageIndex={pageIndex}

@@ -1,25 +1,21 @@
 {
   "common": {
     "loading": "Loading...",
-    "save": "Save",
+    "action": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "back": "Back",
+      "close": "Close",
+      "confirm": "Confirm"
+    },
     "saving": "Saving...",
-    "cancel": "Cancel",
-    "delete": "Delete",
     "deleting": "Deleting...",
     "edit": "Edit",
     "create": "Create",
-    "search": "Search",
     "noResults": "No results",
-    "language": "Language",
-    "back": "Back",
     "error": "Error",
     "retry": "Retry",
-    "close": "Close",
-    "confirm": "Confirm",
-    "add": "Add",
-    "remove": "Remove",
-    "replace": "Replace",
-    "publish": "Publish",
     "copied": "ID copied",
     "copyFailed": "Copy failed",
     "openMenu": "Open menu",
@@ -31,6 +27,13 @@
     "selectedOfTotal_one": "{{selected}} of {{total}} selected",
     "selectedOfTotal_other": "{{selected}} of {{total}} selected",
     "next": "Next"
+  },
+  "status": {
+    "published": "Published",
+    "draft": "Draft",
+    "scheduled": "Scheduled",
+    "failed": "Failed",
+    "archived": "Archived"
   },
   "dashboard": {
     "greeting": {
@@ -44,11 +47,40 @@
       "title": "Recent Activity",
       "loading": "Loading activity...",
       "empty": "No recent activity recorded",
-      "actions": {
-        "create": "created",
-        "update": "modified",
-        "delete": "deleted",
-        "upload": "uploaded"
+      "entry": {
+        "create": {
+          "sentence": "<user>{{user}}</user> created <target>{{target}}</target>"
+        },
+        "update": {
+          "sentence": "<user>{{user}}</user> modified <target>{{target}}</target>"
+        },
+        "delete": {
+          "sentence": "<user>{{user}}</user> deleted <target>{{target}}</target>"
+        },
+        "upload": {
+          "sentence": "<user>{{user}}</user> uploaded <target>{{target}}</target>"
+        },
+        "trash": {
+          "sentence": "<user>{{user}}</user> moved <target>{{target}}</target> to the Trash"
+        },
+        "restore": {
+          "sentence": "<user>{{user}}</user> restored <target>{{target}}</target>"
+        },
+        "purge": {
+          "sentence": "<user>{{user}}</user> permanently deleted <target>{{target}}</target>"
+        },
+        "publish": {
+          "sentence": "<user>{{user}}</user> published <target>{{target}}</target>"
+        },
+        "discard_draft": {
+          "sentence": "<user>{{user}}</user> discarded a draft of <target>{{target}}</target>"
+        },
+        "import": {
+          "sentence": "<user>{{user}}</user> imported <target>{{target}}</target>"
+        },
+        "bulk_update": {
+          "sentence": "<user>{{user}}</user> edited <target>{{target}}</target> in bulk"
+        }
       }
     },
     "contentPulse": {
@@ -60,8 +92,7 @@
     "widgets": {
       "activityFeed": {
         "title": "Recent activity",
-        "empty": "No activity logs",
-        "user": "User"
+        "empty": "No activity logs"
       },
       "quickDraft": {
         "title": "New draft",
@@ -87,7 +118,8 @@
       "pendingDrafts": {
         "title": "Pending drafts",
         "viewAll": "View all",
-        "pendingCount": "pending drafts",
+        "caption_one": "pending draft",
+        "caption_other": "pending drafts",
         "noPending": "No pending drafts",
         "publish": "Publish"
       },
@@ -95,12 +127,18 @@
         "today": "Today",
         "week": "Week",
         "month": "Month",
-        "totalContent": "total contents"
+        "total": {
+          "caption": "Total content"
+        }
       },
       "storage": {
         "title": "Storage R2",
-        "used": "used",
-        "total": "of {{total}} GB total",
+        "gauge": {
+          "caption": "used"
+        },
+        "summary": {
+          "caption": "Total: {{total}} GB"
+        },
         "noData": "No storage data"
       },
       "error": {
@@ -157,14 +195,20 @@
         "title": "Media Gallery",
         "all": "All",
         "unused": "Unused",
-        "allInUseTitle": "Great job!",
+        "allInUse": {
+          "title": "Great job!"
+        },
         "allInUseDesc": "All your files are in use.",
-        "emptyTitle": "No media",
+        "empty": {
+          "title": "No media"
+        },
         "emptyDesc": "Upload files to see them here"
       }
     },
     "widgetRegistry": {
-      "unknown": "Unknown widget:",
+      "unknown": {
+        "sentence": "Unknown widget: <code>{{type}}</code>"
+      },
       "disabled": "Widget not working in this version",
       "widgets": {
         "stat": {
@@ -235,13 +279,16 @@
     "setupChecklist": {
       "title": "Setup Checklist",
       "allDone": "Project ready — all setup steps complete",
-      "systemTables": "Database initialised",
-      "systemTablesHint": "Run: npx beech init --db --local",
+      "systemTables": {
+        "label": "Database initialised",
+        "hint": "Run: npx beech init --db --local"
+      },
       "seeds": "{{count}} active content type(s)",
       "seedsNone": "No content types configured in database",
       "seedsAction": "Read the seeds guide",
-      "contentTables": "Content tables created",
-      "contentTablesHint": "Run seed:load to create content tables in D1",
+      "contentTables": {
+        "label": "Content tables created"
+      },
       "adminAccount": "Admin account created",
       "adminAction": "Go to setup wizard",
       "firstContent": "First content entry",
@@ -254,18 +301,21 @@
     "builder": {
       "customize": "Customize",
       "title": "Dashboard Builder",
-      "save": "Save",
       "saved": "Dashboard layout saved.",
       "firstSaveNeedsRoles": "Only someone who manages roles can create the first dashboard layout.",
-      "conflictTitle": "The layout was changed by someone else",
+      "conflict": {
+        "title": "The layout was changed by someone else"
+      },
       "conflictDesc": "Another editor saved the dashboard after you opened it. Reload the latest version, then apply your changes again. Your unsaved edits will be lost.",
-      "saveError": "Could not save the dashboard layout.",
+      "save": {
+        "error": "Could not save the dashboard layout."
+      },
       "reset": "Reset",
       "resetDone": "Dashboard reset to default.",
-      "resetConfirmTitle": "Reset to default?",
+      "resetConfirm": {
+        "title": "Reset to default?"
+      },
       "resetConfirmDesc": "This removes the custom dashboard layout. The default will be used.",
-      "discardTitle": "Discard changes?",
-      "discardDesc": "Unsaved dashboard edits will be lost.",
       "showPreview": "Show Preview",
       "hidePreview": "Hide Preview",
       "warnNoCrossPageSection": "Move sections within their page.",
@@ -274,24 +324,34 @@
         "add": "Add Page",
         "rename": "Rename page",
         "delete": "Delete page",
-        "defaultBadge": "Default page",
+        "default": {
+          "badge": "Default page"
+        },
         "setDefault": "Set as default",
         "newPage": "New page"
       },
       "audience": {
         "label": "Visible to",
-        "everyoneHint": "Everyone · Add role",
+        "everyone": {
+          "hint": "Everyone · Add role"
+        },
         "add": "Add role",
         "search": "Search roles…",
         "empty": "No roles found.",
         "deletedRole": "Deleted role",
-        "loadError": "Could not load roles."
+        "load": {
+          "error": "Could not load roles."
+        }
       },
       "section": {
         "add": "Add Section",
-        "noLabel": "No Label",
+        "no": {
+          "label": "No Label"
+        },
         "rename": "Rename",
-        "hideLabel": "Hide Label",
+        "hide": {
+          "label": "Hide Label"
+        },
         "collapsible": "Collapsible",
         "columns": "Columns",
         "duplicate": "Duplicate",
@@ -300,29 +360,29 @@
         "widgetCount_other": "{{count}} widgets",
         "widgetCount": "{{count}} widgets",
         "removeConfirm": "Remove this section and its widgets?",
-        "dragHandle": "Drag to move the section",
-        "presetHint": "Column widths"
+        "dragHandle": "Drag to move the section"
       },
       "widget": {
         "add": "Add Widget",
         "configure": "Configure",
         "moveToPage": "Move to page…",
         "remove": "Remove",
-        "unavailable": "Unavailable",
         "needsSetup": "Needs setup",
         "duplicate": "Duplicate",
         "replaceWith": "Replace with…",
         "rename": "Rename",
-        "dragHandle": "Drag to move the widget",
         "tooNarrow": "This widget works best in a wider column.",
         "warnFull": "That column is full.",
-        "searchPlaceholder": "Search widgets…",
+        "search": {
+          "placeholder": "Search widgets…"
+        },
         "noResults": "No widgets found.",
-        "locked": "Widget unavailable",
-        "lockedHint": "You cannot see this widget's data. It stays where it is."
+        "locked": {
+          "label": "Widget unavailable",
+          "hint": "You cannot see this widget's data. It stays where it is."
+        }
       },
       "picker": {
-        "title": "Add Widget",
         "categories": {
           "stats": "Stats",
           "charts": "Charts",
@@ -334,8 +394,10 @@
       "config": {
         "title": "Title",
         "noOptions": "This widget has no configurable options.",
-        "seed": "Content type",
-        "seedPlaceholder": "Select a content type…",
+        "seed": {
+          "label": "Content type",
+          "placeholder": "Select a content type…"
+        },
         "column": "Column",
         "columnPlaceholder": "Select a column…",
         "window": "Time window",
@@ -358,14 +420,20 @@
         "denominator": "Denominator column",
         "statKey": "Statistic",
         "showTrend": "Show trend",
-        "groupColumn": "Group by column",
+        "group": {
+          "column": "Group by column"
+        },
         "color": "Color",
         "donut": "Donut style",
         "limit": "Limit",
-        "columns": "Columns",
-        "columnsPlaceholder": "Comma-separated column names (all if empty)",
+        "columns": {
+          "label": "Columns",
+          "placeholder": "Comma-separated column names (all if empty)"
+        },
         "pageSize": "Page size",
-        "orderByColumn": "Order by",
+        "orderBy": {
+          "column": "Order by"
+        },
         "orderDirection": "Order direction",
         "content": "Content",
         "align": "Alignment",
@@ -394,11 +462,9 @@
           "desc": "Descending"
         }
       },
-      "back": "Back",
       "warnPageLimit": "A dashboard can have at most 8 pages.",
       "warnSectionLimit": "A page can have at most 50 sections.",
       "warnColumnFull": "That column is full.",
-      "loadingLabel": "Loading the dashboard layout",
       "column": {
         "drag": "Drag to move the column"
       }
@@ -435,22 +501,46 @@
     "title": "Settings",
     "groups": {
       "account": "Account",
-      "system": "System & UI",
-      "models": "Data Models",
-      "access": "Access"
+      "experience": "Experience",
+      "workspace": "Workspace"
     },
     "tabs": {
-      "profile": "Profile",
-      "interface": "Interface",
-      "security": "Security",
+      "account": "My account",
+      "appearance": "Appearance",
+      "language": "Language",
+      "site": "Site",
+      "people": "Users & roles",
       "storage": "Storage",
       "notifications": "Notifications",
-      "general": "Site",
-      "connectedApps": "Connected apps",
-      "users": "Users",
-      "roles": "Roles",
-      "invitations": "Invitations"
+      "connectedApps": "Connected apps"
     },
+    "sections": {
+      "profile": "Profile",
+      "password": "Password",
+      "sessions": "Active sessions",
+      "activity": "Recent activity",
+      "theme": "Theme",
+      "lists": "Lists",
+      "identity": "Site identity",
+      "regional": "Regional defaults",
+      "contentLanguages": "Content languages",
+      "trash": "Trash",
+      "users": "Users",
+      "invitations": "Invitations",
+      "roles": "Roles",
+      "usage": "Usage",
+      "orphans": "Orphan files"
+    },
+    "search": "Search settings…",
+    "clearSearch": "Clear search",
+    "noResults": "No settings found",
+    "description": "Manage your account, your preferences and the workspace.",
+    "resultsCount_one": "{{count}} setting found",
+    "resultsCount_other": "{{count}} settings found",
+    "nav": {
+      "label": "Settings categories"
+    },
+    "logout": "Log out",
     "notifications": {
       "title": "In-app notifications",
       "description": "Choose which events to receive notifications for.",
@@ -474,136 +564,312 @@
       }
     },
     "storage": {
-      "usageTitle": "Storage usage",
+      "used": {
+        "label": "Space used"
+      },
+      "files": {
+        "label": "Files stored"
+      },
+      "orphans": {
+        "label": "Orphan files",
+        "title": "Orphan files"
+      },
+      "progress": {
+        "label": "Share of the free allowance ({{limit}})"
+      },
+      "file": {
+        "column": "File"
+      },
+      "type": {
+        "column": "Type"
+      },
+      "size": {
+        "column": "Size"
+      },
+      "select": {
+        "column": "Select"
+      },
+      "pages": {
+        "label": "Pages of orphan files"
+      },
+      "orphansList": {
+        "label": "Orphan files"
+      },
+      "usage": {
+        "title": "Storage usage"
+      },
       "usageDesc": "Space used by files uploaded to R2.",
-      "orphansTitle": "Orphan files",
       "orphansDesc": "Files uploaded but not referenced by any content file field, live or draft. Review before deleting: a file may still be used elsewhere.",
       "fileCount": "{{count}} total files",
-      "referenceVisual": "Visual reference: 1 GB",
+      "referenceVisual": "Cloudflare R2 has no size cap of its own: {{limit}} is the monthly free allowance of the plan, used here as the reference. Beyond it the storage is billed.",
       "noOrphans": "No orphan files found",
       "orphanCount": "{{count}} orphan files",
       "pageRange": "{{start}}–{{end}} of {{total}}",
       "loadFailed": "Could not load storage information",
       "selectOrphan": "Select {{filename}}",
       "deleteSelected": "Delete {{count}} selected",
-      "deleteTitle": "Delete {{count}} files permanently?",
+      "delete": {
+        "title": "Delete {{count}} files permanently?"
+      },
       "deleteDesc": "The files are removed from storage and cannot be recovered. If any selected file is referenced again or no longer tracked, nothing is deleted.",
       "deleted": "{{count}} files deleted",
       "deleteFailed": "Could not delete the selected files. The list has been refreshed: review it and try again."
     },
     "profile": {
-      "infoTitle": "Profile information",
+      "info": {
+        "title": "Profile information"
+      },
       "infoDesc": "Update your name, email and profile photo.",
-      "noName": "No name",
+      "photo": {
+        "label": "Photo"
+      },
+      "removePhoto": "Remove photo",
+      "avatarRemoved": "Profile photo removed",
+      "avatarRemove": {
+        "error": "Error removing photo"
+      },
       "changePhoto": "Change photo",
-      "nameLabel": "Name",
-      "namePlaceholder": "Your name",
-      "surnameLabel": "Last name",
-      "surnamePlaceholder": "Your last name",
-      "emailLabel": "Email",
-      "emailPlaceholder": "email@example.com",
+      "name": {
+        "label": "Name",
+        "placeholder": "Your name"
+      },
+      "surname": {
+        "label": "Last name",
+        "placeholder": "Your last name"
+      },
+      "email": {
+        "label": "Email",
+        "placeholder": "email@example.com"
+      },
       "saveChanges": "Save changes",
-      "passwordTitle": "Change password",
+      "password": {
+        "title": "Change password",
+        "success": "Password updated",
+        "error": "Current password is incorrect"
+      },
       "passwordDesc": "Choose a secure password of at least 8 characters.",
       "currentPassword": "Current password",
       "newPassword": "New password",
       "confirmPassword": "Confirm password",
       "updatePassword": "Update password",
-      "savedSuccess": "Profile updated",
-      "savedError": "Error saving",
+      "saved": {
+        "success": "Profile updated",
+        "error": "Error saving"
+      },
       "passwordMismatch": "New passwords do not match",
-      "passwordSuccess": "Password updated",
-      "passwordError": "Current password is incorrect",
-      "avatarSuccess": "Profile photo updated",
-      "avatarError": "Error uploading photo"
+      "avatar": {
+        "success": "Profile photo updated",
+        "error": "Error uploading photo"
+      }
     },
     "general": {
-      "title": "Site Settings",
-      "description": "Manage general site settings and company metadata.",
-      "siteDefaultsTitle": "Site Defaults",
+      "siteDefaults": {
+        "title": "Site Defaults"
+      },
       "siteDefaultsDesc": "Set default language, timezone and currency for the site.",
-      "companyInfoTitle": "Company Info",
+      "companyInfo": {
+        "title": "Company Info"
+      },
       "companyInfoDesc": "Legal and contact information of the company that owns the site.",
       "siteTitleLabel": "Site Title / Company Name",
       "siteTitlePlaceholder": "e.g. Acme Corp",
-      "companyWebsiteLabel": "Company Website",
-      "companyWebsitePlaceholder": "https://acme.com",
-      "companyAbbreviationLabel": "Company Abbreviation",
-      "companyAbbreviationPlaceholder": "e.g. ACM",
-      "languageLabel": "Default Language",
-      "languagePlaceholder": "Select default language",
-      "timezoneLabel": "Default Timezone",
-      "timezonePlaceholder": "Select default timezone",
-      "currencyLabel": "Default Currency",
-      "currencyPlaceholder": "Select default currency",
-      "savedSuccess": "Site settings saved successfully",
-      "savedError": "Error saving settings",
+      "companyWebsite": {
+        "label": "Company Website",
+        "placeholder": "https://acme.com"
+      },
+      "companyAbbreviation": {
+        "label": "Company Abbreviation",
+        "placeholder": "e.g. ACM"
+      },
+      "language": {
+        "label": "Default Language",
+        "placeholder": "Select default language"
+      },
+      "timezone": {
+        "label": "Default Timezone"
+      },
+      "currency": {
+        "label": "Default Currency"
+      },
+      "saved": {
+        "success": "Site settings saved successfully",
+        "error": "Error saving settings"
+      },
       "saveChanges": "Save changes",
-      "trashTitle": "Trash",
+      "trash": {
+        "title": "Trash"
+      },
       "trashDesc": "How long deleted entries stay in the Trash before they are erased. A content type can override it.",
-      "trashRetentionLabel": "Retention (days)",
-      "trashRetentionHint": "0 = never erase automatically.",
+      "trashRetention": {
+        "label": "Retention (days)",
+        "hint": "0 = never erase automatically."
+      },
       "trashRetentionInvalid": "Retention must be a whole number between 0 and {{max}}."
     },
     "contentLanguages": {
       "title": "Content languages",
       "description": "Languages your content can be translated into. The default language is shown wherever a translation is missing.",
-      "defaultBadge": "Default",
+      "makeDefaultAria": "Make {{language}} the default language",
+      "removeAria": "Remove {{language}} from the content languages",
+      "list": {
+        "label": "Content languages in use"
+      },
+      "count_one": "{{count}} language",
+      "count_other": "{{count}} languages",
+      "default": {
+        "badge": "Default"
+      },
       "makeDefault": "Make default",
-      "remove": "Remove {{code}}",
       "addLabel": "Add a language",
-      "addPlaceholder": "e.g. en, fr, pt-BR",
-      "add": "Add",
-      "keptOnRemoveHint": "Removing a language never deletes its translations: they stay stored and come back if you add it again.",
+      "add": {
+        "placeholder": "e.g. en, fr, pt-BR",
+        "label": "Add"
+      },
+      "keptOnRemove": {
+        "hint": "Removing a language never deletes its translations: they stay stored and come back if you add it again."
+      },
       "errors": {
         "invalid": "Use a language code such as \"en\", \"fr\" or \"pt-BR\".",
         "duplicate": "This language is already in the list.",
         "limit": "You can add up to 50 languages."
       },
       "save": "Save languages",
-      "savedSuccess": "Content languages saved",
-      "savedError": "Error saving content languages"
+      "saved": {
+        "success": "Content languages saved",
+        "error": "Error saving content languages"
+      }
     },
-    "security": {
-      "sessionsTitle": "Active sessions",
-      "sessionsDesc": "Login sessions currently open for your account.",
-      "sessionActive": "Active session",
-      "sessionInfo": "Created on {{created}} · Expires on {{expires}}",
-      "revokeTitle": "Revoke session?",
-      "revokeDesc": "This session will be disconnected immediately.",
-      "revokeConfirm": "Revoke",
-      "noSessions": "No active sessions",
-      "revokeSuccess": "Session revoked",
-      "revokeError": "Error revoking session",
-      "activityTitle": "Recent activity",
-      "activityDesc": "Latest actions performed in the CMS with your account.",
-      "noActivity": "No activity recorded",
+    "activity": {
       "actions": {
         "create": "Created",
         "update": "Modified",
         "delete": "Deleted",
-        "upload": "Uploaded"
+        "upload": "Uploaded",
+        "bulk_update": "Bulk edit",
+        "security_alert": "Security alert",
+        "trash": "Moved to trash",
+        "restore": "Restored",
+        "purge": "Permanently deleted",
+        "publish": "Published",
+        "discard_draft": "Draft discarded",
+        "import": "Imported",
+        "revoke": "Revoked",
+        "accept": "Accepted",
+        "authorize": "Authorized",
+        "login": "Signed in",
+        "login_failed": "Failed sign-in",
+        "logout": "Signed out"
+      },
+      "entities": {
+        "content": "Content",
+        "media": "Media",
+        "seed": "Content type",
+        "user": "Account",
+        "role": "Role",
+        "assignment": "Role assignment",
+        "invitation": "Invitation",
+        "settings": "Site settings",
+        "session": "Session",
+        "auth": "Access",
+        "app": "Connected app",
+        "automation": "Automation",
+        "layout": "Dashboard layout",
+        "view": "View"
+      },
+      "ops": {
+        "profile": "Profile updated",
+        "password": "Password changed",
+        "avatar-set": "Photo changed",
+        "avatar-removed": "Photo removed",
+        "notifications": "Notification preferences changed",
+        "create": "Account created",
+        "activate": "Account activated",
+        "deactivate": "Account deactivated",
+        "setup": "Initial setup completed",
+        "password-reset-requested": "Password reset requested",
+        "password-reset": "Password reset",
+        "site": "Site settings changed",
+        "regenerate": "Invitation link regenerated",
+        "enable": "Automation enabled",
+        "disable": "Automation disabled",
+        "reset": "Layout reset",
+        "kanban-move": "Moved to another column",
+        "rotate-field": "Field value rotated",
+        "orphans": "Orphan files removed",
+        "fts-rebuild": "Search index rebuilt",
+        "hard-delete-start": "Permanent deletion started",
+        "mcp-apply": "Schema applied (MCP)",
+        "drop-branch": "Field removed",
+        "drop-orphan": "Orphan column removed",
+        "rename-branch": "Field renamed",
+        "retype-branch": "Field type changed",
+        "draft-saved": "Draft saved"
+      },
+      "reasons": {
+        "wrong-password": "Wrong password",
+        "inactive": "Account disabled"
+      },
+      "entries": "{{count}} entries",
+      "orphans": "{{count}} orphan files",
+      "detail": {
+        "fields": "Fields: {{fields}}"
+      },
+      "sessionsRevoked": "other sessions signed out",
+      "scope": {
+        "all": "All content"
       }
     },
+    "security": {
+      "sessions": {
+        "title": "Active sessions"
+      },
+      "sessionsDesc": "Login sessions currently open for your account.",
+      "sessionActive": "Active session",
+      "sessionInfo": "Created on {{created}} · Expires on {{expires}}",
+      "revokeSessionAria": "Revoke the session created on {{created}}",
+      "revoke": {
+        "title": "Revoke session?",
+        "success": "Session revoked",
+        "error": "Error revoking session"
+      },
+      "revokeDesc": "This session will be disconnected immediately.",
+      "revokeConfirm": "Revoke",
+      "noSessions": "No active sessions",
+      "activity": {
+        "title": "Recent activity"
+      },
+      "activityDesc": "Latest actions performed in the CMS with your account.",
+      "noActivity": "No activity recorded"
+    },
     "interface": {
-      "themeTitle": "Theme",
+      "themeRow": {
+        "label": "Colour scheme"
+      },
+      "langRow": {
+        "label": "Interface language"
+      },
+      "theme": {
+        "title": "Theme"
+      },
       "themeDesc": "Choose the visual appearance of the interface.",
       "themeLight": "Light",
       "themeDark": "Dark",
       "themeSystem": "System",
-      "langTitle": "Language",
+      "lang": {
+        "title": "Language"
+      },
       "langDesc": "Interface language. Applied immediately.",
-      "langLabel": "Language",
-      "rowsTitle": "Contents per page",
+      "rows": {
+        "title": "Contents per page",
+        "label": "Rows per page"
+      },
       "rowsDesc": "Number of items shown in content lists.",
-      "rowsLabel": "Rows per page",
       "rowsSaved": "Preference saved — applies on next load",
       "rows10": "10 rows",
       "rows20": "20 rows",
       "rows50": "50 rows",
       "rows100": "100 rows",
-      "langChangedIt": "Lingua cambiata in Italiano",
-      "langChangedEn": "Language switched to English"
+      "langChanged": "Language changed to {{language}}"
     }
   },
   "content": {
@@ -612,16 +878,25 @@
       "table": "Table",
       "gallery": "Gallery",
       "kanban": "Kanban",
-      "emptyTitle": "There isn't anything here",
-      "emptyCreateFirst": "Create your first {{label}}"
+      "empty": {
+        "title": "There isn't anything here"
+      },
+      "emptyCreateFirst": "Create your first {{label}}",
+      "cellCopied": "Value copied"
     },
     "views": {
       "add": "Add view",
       "delete": "Delete view",
-      "deleteConfirmTitle": "Delete this view?",
-      "deleteConfirmDescription": "\"{{label}}\" will be removed for everyone who can access this content type. Entries are not affected.",
-      "tabsLabel": "Views",
-      "pickerTitle": "Add a new view",
+      "deleteConfirm": {
+        "title": "Delete this view?",
+        "description": "\"{{label}}\" will be removed for everyone who can access this content type. Entries are not affected."
+      },
+      "tabs": {
+        "label": "Views"
+      },
+      "picker": {
+        "title": "Add a new view"
+      },
       "types": {
         "chart": "Chart",
         "board": "Board",
@@ -632,8 +907,10 @@
         "feed": "Feed",
         "form": "Form"
       },
-      "emptyTitle": "No {{label}} views yet",
-      "emptyDescription": "Create a view to see this content as a {{label}}.",
+      "empty": {
+        "title": "No {{label}} views yet",
+        "description": "Create a view to see this content as a {{label}}."
+      },
       "emptyCreate": "Create your first view",
       "errors": {
         "loadFailed": "Could not load the views of this content type",
@@ -647,55 +924,75 @@
     "editor": {
       "newEntry": "New {{label}}",
       "editEntry": "Edit {{label}}",
-      "save": "Save",
       "saving": "Saving...",
-      "back": "Back",
       "status": "Status",
-      "slug": "Slug (URL)",
-      "slugPlaceholder": "e.g. my-article",
       "placeholder": "Write your content here...",
       "writeField": "Write {{field}}...",
       "selectDate": "Select a date",
-      "content": "Content",
-      "metadataSeo": "Metadata / SEO",
-      "publication": "Publication",
-      "draft": "Draft",
-      "published": "Published",
       "pendingDraftNotice": "This entry has a pending draft.",
       "draftModeNotice": "Editing pending draft — changes will not go live until published.",
-      "resumeDraft": "Resume draft",
       "saveDraft": "Save draft",
-      "saveAsDraft": "Save as draft",
       "editDraft": "Edit draft",
       "publishDraft": "Publish draft",
-      "discardDraft": "Discard draft",
-      "discardDraftTitle": "Discard pending draft",
+      "publishConfirm": {
+        "title": "Publish this draft?"
+      },
+      "publishConfirmDesc": "The draft replaces the live version of this entry.",
+      "busy": "Wait for the current operation to finish",
+      "discardDraft": {
+        "label": "Discard draft",
+        "title": "Discard pending draft"
+      },
       "discardDraftDesc": "This will permanently delete the pending draft. The published entry remains unchanged. This action cannot be undone.",
-      "draftPublishSuccess": "Draft published successfully",
-      "draftSaveSuccess": "Draft saved",
-      "draftDiscardSuccess": "Pending draft discarded",
-      "unsavedTitle": "Unsaved changes",
+      "draftPublish": {
+        "success": "Draft published successfully"
+      },
+      "draftSave": {
+        "success": "Draft saved"
+      },
+      "draftDiscard": {
+        "success": "Pending draft discarded"
+      },
+      "unsaved": {
+        "title": "Unsaved changes"
+      },
       "unsavedDesc": "You have unsaved changes. If you exit now, they will be lost. Do you want to continue?",
       "stay": "Stay",
       "exitWithout": "Exit without saving",
-      "loadingError": "Error loading",
       "seedNotFound": "Seed \"{{slug}}\" not found.",
-      "slugMissing": "Slug not specified.",
-      "savedSuccess": "Changes saved",
-      "createdSuccess": "Entry created",
+      "saved": {
+        "success": "Changes saved"
+      },
+      "created": {
+        "success": "Entry created"
+      },
       "slugDuplicate": "Slug already exists for this schema",
       "updateConflict": "This entry was changed elsewhere — reload to see the latest version",
       "reload": "Reload",
-      "saveError": "Error saving",
-      "validationError_one": "{{count}} field has a validation error — check the highlighted fields",
-      "validationError_other": "{{count}} fields have validation errors — check the highlighted fields",
-      "jsonError": "Field \"{{field}}\" must contain valid JSON",
+      "save": {
+        "error": "Error saving"
+      },
+      "validation": {
+        "error_one": "{{count}} field has a validation error — check the highlighted fields",
+        "error_other": "{{count}} fields have validation errors — check the highlighted fields"
+      },
+      "json": {
+        "error": "Field \"{{field}}\" must contain valid JSON"
+      },
       "emptyTab": "No fields in this tab yet.",
-      "emptyColumn": "Empty",
+      "switchToEdit": "Switch to edit mode",
+      "noUpdatePermission": "You don't have the 'content:update' permission",
+      "valueCopied": "Value copied",
+      "empty": {
+        "column": "Empty"
+      },
       "localization": {
-        "switcherLabel": "Content language",
-        "defaultBadge": "default",
-        "completion": "{{filled}}/{{total}} translated",
+        "switcher": {
+          "label": "Content language"
+        },
+        "default": {
+          "badge": "Default"
+        },
         "missing": "No {{locale}} value yet: readers in {{locale}} see a fallback language.",
         "copyFromDefault": "Copy from default ({{locale}})"
       },
@@ -714,6 +1011,11 @@
         "selectedCount": "{{count}} selected",
         "loadMore": "Load more",
         "done": "Done"
+      },
+      "name": "Name",
+      "updated": "Updated",
+      "tabs": {
+        "dangerZone": "Danger Zone"
       }
     },
     "trash": {
@@ -737,14 +1039,15 @@
       "partialFailure_other": "{{count}} entries could not be processed"
     },
     "deleteDialog": {
-      "title": "Confirm deletion",
-      "single": "Are you sure you want to delete this entry of type \"{{type}}\"?",
-      "multiple": "Are you sure you want to delete {{count}} entries of type \"{{type}}\"?",
-      "trashTitle": "Move to Trash",
+      "trash": {
+        "title": "Move to Trash"
+      },
       "trashSingle": "Move this \"{{type}}\" entry to the Trash? You can restore it later.",
       "trashMultiple": "Move {{count}} \"{{type}}\" entries to the Trash? You can restore them later.",
       "trashConfirm": "Move to Trash",
-      "purgeTitle": "Delete forever",
+      "purge": {
+        "title": "Delete forever"
+      },
       "purgeSingle": "Delete this \"{{type}}\" entry forever?",
       "purgeMultiple": "Delete {{count}} \"{{type}}\" entries forever?",
       "purgeWarning": "This cannot be undone. Attached media are deleted and the erasure is recorded permanently, so the entry stays deleted even after a database restore.",
@@ -761,17 +1064,17 @@
     },
     "actions": {
       "label": "Actions",
-      "edit": "Edit",
-      "delete": "Delete",
-      "copyId": "Copy ID"
+      "copyId": "Copy ID",
+      "filterByValue": "Filter by this value"
     },
     "table": {
       "status": "Status",
       "pendingDraft": "Pending draft",
-      "item": "item",
-      "items": "items",
+      "itemCount_one": "{{count}} item",
+      "itemCount_other": "{{count}} items",
       "created": "Created",
-      "updated": "Last modified"
+      "updated": "Last modified",
+      "slug": "Slug"
     }
   },
   "toolbar": {
@@ -785,30 +1088,35 @@
     "sort": {
       "tooltip": "Sort",
       "label": "Sort by column",
-      "searchPlaceholder": "Search column...",
+      "search": {
+        "placeholder": "Search column..."
+      },
       "noColumns": "No columns found",
       "invertOrder": "Invert order"
     },
     "filter": {
       "tooltip": "Filters",
       "label": "Filter by column",
-      "searchPlaceholder": "Search column...",
+      "search": {
+        "placeholder": "Search column..."
+      },
       "noColumns": "No columns found",
       "ariaLabel": "Filter {{label}}",
       "filtersOn": "Filters on \"{{label}}\"",
-      "removeColumn": "Remove column from filters",
+      "remove": {
+        "column": "Remove column from filters"
+      },
       "addFilter": "Add filter",
       "removeAll": "Remove all",
       "removeCondition": "Remove condition",
       "operator": "Operator"
     },
-    "viewSwitcher": {
-      "addView": "Add view"
-    },
     "newEntry": {
       "moreOptions": "Templates",
-      "templatesTitle": "Templates for {{label}}",
-      "templatesDescription": "Create a reusable entry template for this content type.",
+      "templates": {
+        "title": "Templates for {{label}}",
+        "description": "Create a reusable entry template for this content type."
+      },
       "newTemplate": "New template",
       "missingPermission": "You don't have permission to create entries here"
     },
@@ -830,12 +1138,14 @@
       "groupBy": "Group by column",
       "noGrouping": "No grouping",
       "recommended": "Recommended",
-      "active": "active",
-      "table": "Table",
+      "state": {
+        "active": {
+          "badge": "Active"
+        }
+      },
       "display": "Display",
       "columnSearch": "Search column...",
       "noColumns": "No columns found",
-      "invertOrder": "Invert order",
       "decreaseRows": "Decrease rows",
       "increaseRows": "Increase rows",
       "rows": "Rows",
@@ -843,7 +1153,9 @@
       "densityCompact": "Compact",
       "densityNormal": "Normal",
       "densityComfortable": "Comfortable",
-      "resizeColumn": "Resize column",
+      "resize": {
+        "column": "Resize column"
+      },
       "conditionalColors": "Conditional colors",
       "visibleColumns": "Visible columns",
       "columnVisibility": "Column visibility",
@@ -851,7 +1163,15 @@
       "manyGroups": "May generate many groups",
       "day": "Day",
       "year": "Year",
-      "month": "Month"
+      "month": "Month",
+      "kanbanCardSize": "Card size",
+      "kanbanCardSize_comfortable": "Comfortable",
+      "kanbanCardSize_compact": "Compact",
+      "kanbanColorColumns": "Color columns",
+      "kanbanColorColumnsLocked": "Color columns (off: conditional formats active)",
+      "kanbanWrapTitle": "Wrap card title",
+      "kanbanShowFieldLabels": "Show field labels",
+      "kanbanCardDisplay": "Card display"
     },
     "conditionalFormats": {
       "noRules": "No rules",
@@ -874,15 +1194,28 @@
       "applyTo": "Apply to",
       "field": "Field",
       "element": "Whole item",
-      "useColorIf": "use color if",
-      "formatStyle": "formatting style",
+      "condition": {
+        "heading": "Color condition"
+      },
+      "style": {
+        "heading": "Formatting style"
+      },
       "default": "Default",
       "notAvailable": "Configuration unavailable",
       "selectRule": "Select a rule from the list.",
-      "colorRules": "Conditional color rules",
-      "rulesApplyOrder": "Rules apply from top to bottom.",
-      "chooseColumn": "Choose column",
-      "noColumns": "No columns available"
+      "choose": {
+        "column": "Choose column"
+      },
+      "noColumns": "No columns available",
+      "rules": "Rules",
+      "hint": "Rules apply from top to bottom.",
+      "tone": {
+        "success": "Success",
+        "warning": "Warning",
+        "danger": "Critical",
+        "info": "Info",
+        "neutral": "Neutral"
+      }
     },
     "operators": {
       "eq": "Equals",
@@ -901,7 +1234,12 @@
       "true": "True",
       "false": "False"
     },
-    "automation": "Automation"
+    "automation": "Automation",
+    "headerMenu": {
+      "groupBy": "Group",
+      "ungroup": "Ungroup",
+      "conditionalColor": "Conditional color"
+    }
   },
   "notifications": {
     "title": "Notifications",
@@ -913,7 +1251,6 @@
     "noNotificationsAll": "There are no notifications to show.",
     "markSeen": "Mark as read",
     "markUnseen": "Mark as unread",
-    "delete": "Delete",
     "ariaLabel": "Notifications",
     "unreadCount": "You have {{count}} unread notifications",
     "noUnread": "No unread notifications"
@@ -923,26 +1260,119 @@
     "contents": "Contents",
     "create": "Create",
     "tools": "Tools",
+    "calculator": "Calculator",
+    "conversion": "Conversion",
+    "calculatorResult": "{{expression}} = {{result}}",
+    "conversionResult": "{{from}} = {{to}}",
+    "copy": {
+      "hint": "Enter to copy"
+    },
+    "copied": "Copied {{value}}",
+    "conversionHint": {
+      "css": "Base {{base}}px · Enter to copy",
+      "storage": "1 KB = 1000 B, 1 KiB = 1024 B · Enter to copy",
+      "unixSeconds": "Unix seconds, UTC · Enter to copy",
+      "unixMillis": "Unix milliseconds, UTC · Enter to copy"
+    },
     "goTo": "Go to {{label}}…",
     "allSeeds": "All seeds…",
     "chooseType": "Create in…",
+    "recentSection": "Recent",
+    "createIn": "Create in {{label}}",
     "chooseSeed": "Choose Seed",
     "newContent": "New content…",
     "changeTheme": "Change theme",
     "searching": "Searching…",
-    "noSearchResults": "No results found.",
-    "searchContent": "Search content…",
-    "searchResults": "Search results",
+    "untitledEntry": "Untitled",
     "settings": "Settings",
-    "mediaLibrary": "Media Library",
-    "dashboard": "Dashboard",
+    "settingsAll": "Settings…",
+    "schema": "Data model",
+    "newContentType": "New content type…",
+    "editContentType": "Edit content type…",
+    "editSchemaOf": "Edit {{label}} schema",
+    "chooseContentType": "Choose content type",
+    "placeholderEditSchema": "Edit which content type?",
+    "placeholderSettings": "Open which settings?",
+    "requiresPermission": "Requires the {{permission}} permission",
     "placeholderRoot": "Search actions, content, seeds…",
     "placeholderSeeds": "Go to which seed?",
     "placeholderCreate": "Create content in which seed?",
-    "placeholderSearch": "Search in content…",
-    "backHint": "← Backspace to go back",
+    "back": {
+      "hint": "← Backspace to go back"
+    },
+    "copyId": "Copy ID",
+    "actions": {
+      "hint": "Actions"
+    },
+    "placeholderActions": "Choose an action…",
+    "placeholderShortcuts": "Filter shortcuts…",
     "noResults": "No results",
-    "ariaLabel": "Global command palette"
+    "ariaLabel": "Global command palette",
+    "notes": {
+      "section": "Quick notes",
+      "compose": "New note",
+      "save": "Save note: {{text}}",
+      "browserOnly": "Saved on this browser only",
+      "typeToSave": "Type the note after #",
+      "tooLong": "Too long: {{length}}/{{max}} characters",
+      "full": "{{max}} notes saved: delete one to save a new one",
+      "unavailable": "Notes can't be saved: browser storage is unavailable",
+      "saved": "Note saved on this browser only",
+      "saveFailed": "Note not saved: the browser refused to store it",
+      "delete": "Delete note",
+      "deleted": "Note deleted",
+      "undo": "Undo",
+      "restored": "Note restored",
+      "deleteFailed": "Note not deleted: the browser refused the change"
+    },
+    "pins": {
+      "section": "Pinned",
+      "pin": "Pin to the top",
+      "unpin": "Unpin",
+      "pinned": "Pinned: {{label}}",
+      "unpinned": "Unpinned: {{label}}",
+      "full": "{{max}} items pinned: unpin one to pin another",
+      "saveFailed": "Pins not saved: try again. Your list is unchanged",
+      "unavailable": {
+        "label": "Unavailable item",
+        "hint": "{{id}} · Enter removes the pin"
+      }
+    },
+    "context": {
+      "targetGone": "The page changed before you confirmed: nothing was done"
+    },
+    "preferences": {
+      "section": "Preferences",
+      "switchLanguage": "Switch the dashboard to {{language}}",
+      "notify": "Notifications: {{event}}"
+    },
+    "system": {
+      "section": "System",
+      "status": "System status",
+      "statusHealthy": "Within quotas · Storage {{storage}}% · Database {{database}}%",
+      "statusWarning": "Close to a quota · Storage {{storage}}% · Database {{database}}%",
+      "statusUnavailable": "The system status could not be read"
+    },
+    "shortcuts": {
+      "title": "Keyboard shortcuts",
+      "global": "Anywhere",
+      "palette": "In the palette",
+      "prefixes": "Prefixes",
+      "togglePalette": "Open or close the palette",
+      "quickCreate": "Create content",
+      "toggleSidebar": "Show or hide the sidebar",
+      "toggleTheme": "Switch between light and dark theme",
+      "newSeed": "Create a content type",
+      "run": "Run the selected row",
+      "firstAction": "Run the row's first action",
+      "rowActions": "Show the row's actions",
+      "back": "Go back (empty input)",
+      "close": "Go back or close",
+      "prefixSystem": "System commands and preferences",
+      "prefixCalculator": "Calculator",
+      "prefixNotes": "Quick notes",
+      "prefixContent": "Search content only"
+    }
   },
   "gallery": {
     "noItems": "No items to display",
@@ -950,15 +1380,23 @@
     "untitled": "Untitled",
     "preview": "Preview",
     "imageUnavailable": "Image unavailable",
-    "openDetailAriaLabel": "Open detail: {{title}}",
+    "openDetail": {
+      "ariaLabel": "Open detail: {{title}}"
+    },
     "openDetailAriaLabelFallback": "Open detail for entry {{id}}",
     "folders": {
-      "sectionAriaLabel": "Folders",
-      "emptyTitle": "You don't have any folders yet",
-      "emptyDescription": "Add the first photo and set its category: folders will appear here.",
+      "section": {
+        "ariaLabel": "Folders"
+      },
+      "empty": {
+        "title": "You don't have any folders yet",
+        "description": "Add the first photo and set its category: folders will appear here."
+      },
       "uncategorized": "Other photos",
       "itemCount": "{{count}} {{label}}",
-      "openAriaLabel": "Open folder {{label}}, {{count}}",
+      "open": {
+        "ariaLabel": "Open folder {{label}}, {{count}}"
+      },
       "edit": {
         "title": "Customize folder",
         "label": "Name",
@@ -966,7 +1404,9 @@
         "color": "Color",
         "icon": "Icon",
         "reset": "Reset",
-        "openAriaLabel": "Edit folder {{label}}",
+        "open": {
+          "ariaLabel": "Edit folder {{label}}"
+        },
         "colors": {
           "slate": "Slate",
           "red": "Red",
@@ -1002,12 +1442,10 @@
     }
   },
   "siteHeader": {
-    "settings": "Settings",
-    "contents": "Contents",
-    "new": "New",
-    "edit": "Edit"
+    "new": "New"
   },
   "sidebar": {
+    "search": "Search…",
     "navigation": "Main",
     "contents": "Contents",
     "drafts": "Drafts",
@@ -1015,6 +1453,8 @@
     "createNew": "Create New",
     "scheduled": "Scheduled",
     "analytics": "Analytics",
+    "studio": "Studio",
+    "toggle": "Toggle sidebar",
     "disabled": {
       "createContent": "You cannot create content here"
     }
@@ -1035,7 +1475,6 @@
       "create": "New Draft"
     },
     "selectType": "Select content type",
-    "searchPlaceholder": "Search drafts…",
     "empty": "No pending drafts",
     "discardConfirm": "Discard this draft? This cannot be undone.",
     "published": "Draft published",
@@ -1043,31 +1482,12 @@
     "error": "Action failed"
   },
   "media": {
-    "manageGallery": "Manage gallery",
-    "addImages": "Add images",
-    "replace": "Replace",
-    "addImage": "Add image",
     "imageLink": "Image link",
-    "add": "Add",
-    "verifying": "Verifying...",
-    "useLink": "Use link",
-    "dropOrSelect": "drag your file here or select it",
-    "uploading": "Uploading...",
-    "removeAll": "Remove all",
     "removeImage": "Remove image",
-    "moveUp": "Move up",
-    "moveDown": "Move down",
-    "remove": "Remove image",
-    "dialogDesc": "Enter a public HTTPS URL or upload a local file.",
-    "documentPreview": "Document",
-    "filePreview": "File",
     "errorNotImage": "Select an image (JPG, PNG, WebP, GIF)",
-    "errorUrl": "Enter a public image URL",
     "errorHttps": "The URL must start with https://",
     "errorNotRenderable": "URL not renderable as image",
-    "errorUpload": "Upload error",
-    "errorNotDocument": "Select a document (PDF, DOC, XLS, TXT, CSV)",
-    "errorNotAccepted": "File type not accepted"
+    "upload": "Upload file"
   },
   "login": {
     "hidePassword": "Hide password",
@@ -1084,7 +1504,9 @@
     "send": "Send reset link",
     "sending": "Sending...",
     "backToLogin": "Back to login",
-    "successTitle": "Check your inbox",
+    "success": {
+      "title": "Check your inbox"
+    },
     "successDesc": "If an account exists for that email, you'll receive a reset link shortly."
   },
   "resetPassword": {
@@ -1098,11 +1520,15 @@
     "tooShort": "Password must be at least 8 characters",
     "tooLong": "Password cannot exceed 128 characters",
     "invalidToken": "This reset link is invalid or has expired",
-    "invalidLinkTitle": "Invalid link",
-    "invalidLink": "This reset link is not valid. Request a new one.",
+    "invalidLink": {
+      "title": "Invalid link",
+      "label": "This reset link is not valid. Request a new one."
+    },
     "requestNew": "Request a new link",
     "success": "Password reset successfully",
-    "genericError": "Something went wrong. Please try again."
+    "generic": {
+      "error": "Something went wrong. Please try again."
+    }
   },
   "errorPage": {
     "title": "Oops, there was an error",
@@ -1112,40 +1538,59 @@
   "automations": {
     "panel": {
       "title": "Automations",
-      "newButton": "New automation",
-      "emptyTitle": "No automations",
-      "emptyDescription": "Create the first automation for this content type",
+      "new": {
+        "button": "New automation"
+      },
+      "empty": {
+        "title": "No automations",
+        "description": "Create the first automation for this content type"
+      },
       "emptyAction": "Create automation",
-      "toggleAriaLabel": "Enable/disable automation"
+      "toggle": {
+        "ariaLabel": "Enable/disable automation"
+      }
     },
     "editor": {
-      "namePlaceholder": "Automation name",
+      "name": {
+        "placeholder": "Automation name"
+      },
       "subtitle": "For all entries in {{seed}}",
-      "triggerLabel": "When",
-      "actionsLabel": "Do",
+      "trigger": {
+        "label": "When"
+      },
+      "actions": {
+        "label": "Do"
+      },
       "addCondition": "Add condition",
       "addAction": "+ Add action",
-      "enableButton": "Enable",
+      "enable": {
+        "button": "Enable"
+      },
       "noActions": "No actions yet. Add one below.",
-      "triggerSelectPlaceholder": "Choose a trigger...",
+      "triggerSelect": {
+        "placeholder": "Choose a trigger..."
+      },
       "addTrigger": "Add trigger",
-      "searchPlaceholder": "Search...",
-      "cronExpression": "Cron expression",
-      "cronHint": "Cron format: minute hour day month weekday — e.g. 0 9 * * 1 = every Monday at 9:00",
-      "conditionField": "Field",
-      "conditionValue": "Value",
-      "defaultName": "{{name}}'s automation",
+      "search": {
+        "placeholder": "Search..."
+      },
       "cron": {
+        "hint": "Cron format: minute hour day month weekday — e.g. 0 9 * * 1 = every Monday at 9:00",
         "title": "Frequency",
         "presetHourly": "Hourly",
         "presetDaily": "Daily",
         "presetWeekly": "Weekly",
         "presetMonthly": "Monthly",
         "presetAdvanced": "Cron / Advanced",
-        "timeLabel": "Execution time (UTC)",
-        "dayOfWeekLabel": "Day of the week",
-        "dayOfMonthLabel": "Day of the month",
-        "expressionPreview": "Expression:",
+        "time": {
+          "label": "Execution time (UTC)"
+        },
+        "dayOfWeek": {
+          "label": "Day of the week"
+        },
+        "dayOfMonth": {
+          "label": "Day of the month"
+        },
         "days": {
           "0": "Sunday",
           "1": "Monday",
@@ -1156,6 +1601,8 @@
           "6": "Saturday"
         }
       },
+      "conditionField": "Field",
+      "defaultName": "{{name}}'s automation",
       "errors": {
         "nameRequired": "Name is required",
         "actionsMin": "At least one action is required",
@@ -1196,40 +1643,66 @@
       "send_mail": "Send email",
       "edit_field": "Edit field",
       "create_entry": "Create entry",
-      "templateHint": "Use {fieldAlias} to insert field values",
+      "templateHint": "Use {{example}} to insert field values",
       "webhookUrl": "URL",
       "webhookMethod": "HTTP Method",
       "webhookHeaders": "Headers",
-      "webhookBody": "Body template",
-      "webhookBodyHint": "Define the exact JSON payload sent to the endpoint.",
-      "webhookSecretHint": "Beech signs each request with HMAC-SHA256 in the X-BeechCMS-Signature header. Set WEBHOOK_SECRET in the worker to enable signing. Verify the signature on the receiver before processing the payload.",
+      "webhookBody": {
+        "label": "Body template"
+      },
+      "webhookSecret": {
+        "hint": "Beech signs each request with HMAC-SHA256 in the X-BeechCMS-Signature header. Set WEBHOOK_SECRET in the worker to enable signing. Verify the signature on the receiver before processing the payload."
+      },
       "addHeader": "Add header",
-      "webhookHeaderKeyPlaceholder": "Header",
-      "webhookHeaderValuePlaceholder": "Value",
-      "mailTo": "To",
-      "mailToPlaceholder": "recipient@example.com",
-      "mailSubject": "Subject",
-      "mailSubjectPlaceholder": "New entry: {title}",
-      "mailBody": "Body",
-      "mailBodyPlaceholder": "Hello,\n\nA new entry was created: {title}",
-      "editField": "Field",
-      "editFieldPlaceholder": "Choose a field...",
-      "editValue": "Value",
-      "editValuePlaceholder": "Enter value...",
-      "targetSeed": "Target seed",
-      "targetSeedPlaceholder": "Choose a seed...",
+      "webhookHeaderKey": {
+        "placeholder": "Header"
+      },
+      "webhookHeaderValue": {
+        "placeholder": "Value"
+      },
+      "mailTo": {
+        "label": "To",
+        "placeholder": "recipient@example.com"
+      },
+      "mailSubject": {
+        "label": "Subject",
+        "placeholder": "New entry: {{example}}"
+      },
+      "mailBody": {
+        "label": "Body",
+        "placeholder": "Hello,\n\nA new entry was created: {{example}}"
+      },
+      "editField": {
+        "label": "Field",
+        "placeholder": "Choose a field..."
+      },
+      "editValue": {
+        "label": "Value"
+      },
+      "targetSeed": {
+        "label": "Target seed",
+        "placeholder": "Choose a seed..."
+      },
       "fieldMap": "Field map",
       "fieldMapTarget": "Target field",
       "fieldMapSource": "Source field",
       "addFieldMap": "Add mapping",
       "set_variable": "Set variable",
-      "variableName": "Variable name",
-      "variableNameHint": "Letters, numbers and underscores only. E.g: customer, active_orders",
-      "source": "Source",
-      "sourcePlaceholder": "Choose a table or paste an ID...",
-      "thisSeed": "this seed",
+      "variableName": {
+        "label": "Variable name",
+        "hint": "Letters, numbers and underscores only. E.g: customer, active_orders"
+      },
+      "source": {
+        "label": "Source",
+        "placeholder": "Choose a table or paste an ID..."
+      },
+      "triggerSeed": {
+        "badge": "This seed"
+      },
       "useAsFixedId": "Use '{{value}}' as fixed ID",
-      "fixedIdBadge": "ID: {{id}}",
+      "fixedId": {
+        "badge": "ID: {{id}}"
+      },
       "column": "Column (optional)",
       "columnAll": "— all columns —",
       "filters": "Filters",
@@ -1246,23 +1719,6 @@
       "toggled": "Automation updated",
       "error": "Operation failed"
     },
-    "context": {
-      "title": "Context",
-      "add": "Load data",
-      "load": "Load",
-      "empty": "No context loads. Add one to reference data from other seeds.",
-      "as": "Variable name",
-      "seed": "Seed",
-      "seedPlaceholder": "Choose a seed...",
-      "selector": "Entry selector",
-      "byidValue": "Entry ID",
-      "orderBy": "Order by field",
-      "limit": "Limit",
-      "selector.lastone": "Most recent",
-      "selector.firstone": "Oldest",
-      "selector.all": "All matching entries",
-      "selector.byid": "Specific entry by ID"
-    },
     "when": {
       "and": "AND",
       "or": "OR",
@@ -1270,11 +1726,13 @@
       "addCondition": "Add condition",
       "removeGroup": "Remove group",
       "wrapGroup": "Group with alternative",
-      "fieldPlaceholder": "Field...",
+      "field": {
+        "placeholder": "Field..."
+      },
       "customRef": "Custom ref...",
-      "literalPlaceholder": "Value...",
-      "refPlaceholder": "Ref key...",
-      "valuePlaceholder": "Value...",
+      "value": {
+        "placeholder": "Value..."
+      },
       "true": "True",
       "false": "False",
       "chooseDate": "Pick a date...",
@@ -1302,7 +1760,6 @@
     "summary_one": "1 entry references this",
     "summary_other": "{{count}} entries reference this",
     "showAll": "Show all {{count}}",
-    "empty": "No references",
     "deleteBlocked": "Cannot delete: {{count}} entries depend on this record"
   },
   "bulkEdit": {
@@ -1318,56 +1775,89 @@
     "executing": "Updating…",
     "successAll": "{{count}} entries updated",
     "successPartial": "{{updated}} of {{total}} updated. {{failed}} failed.",
-    "downloadReport": "Download failure report",
-    "tooLarge": "Cannot edit more than {{max}} entries at once"
+    "downloadReport": "Download failure report"
   },
   "setup": {
     "title": "Welcome to Beech CMS",
     "subtitle": "Configure your workspace in a few steps.",
-    "step1Title": "Site settings",
-    "step2Title": "Admin credentials",
-    "step3Title": "Final configuration",
-    "languageLabel": "Default language",
-    "languagePlaceholder": "Select language",
-    "timezoneLabel": "Timezone",
-    "timezonePlaceholder": "Select timezone",
-    "searchTimezonePlaceholder": "Search timezone...",
+    "step1": {
+      "title": "Site settings"
+    },
+    "step2": {
+      "title": "Admin credentials"
+    },
+    "step3": {
+      "title": "Final configuration"
+    },
+    "language": {
+      "label": "Default language"
+    },
+    "timezone": {
+      "label": "Timezone",
+      "placeholder": "Select timezone"
+    },
+    "searchTimezone": {
+      "placeholder": "Search timezone..."
+    },
     "noTimezoneFound": "No timezone found.",
-    "currencyLabel": "Currency",
-    "currencyPlaceholder": "Select currency",
-    "devAlertTitle": "Developer environment detected",
+    "currency": {
+      "label": "Currency",
+      "placeholder": "Select currency"
+    },
+    "devAlert": {
+      "title": "Developer environment detected"
+    },
     "devAlertDesc": "You are setting up Beech in developer mode.",
     "switchToNormal": "Switch to normal setup",
     "switchToDeveloper": "Switch to developer setup",
-    "nameLabel": "First name",
-    "namePlaceholder": "Your first name",
-    "surnameLabel": "Last name",
-    "surnamePlaceholder": "Your last name",
-    "emailLabel": "Email",
-    "emailPlaceholder": "admin@example.com",
-    "passwordLabel": "Password",
-    "passwordPlaceholder": "Minimum 8 characters",
-    "confirmLabel": "Confirm password",
-    "confirmPlaceholder": "Repeat password",
+    "name": {
+      "label": "First name",
+      "placeholder": "Your first name"
+    },
+    "surname": {
+      "label": "Last name",
+      "placeholder": "Your last name"
+    },
+    "email": {
+      "label": "Email",
+      "placeholder": "admin@example.com"
+    },
+    "password": {
+      "label": "Password",
+      "placeholder": "Minimum 8 characters"
+    },
+    "confirm": {
+      "label": "Confirm password",
+      "placeholder": "Repeat password"
+    },
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "strengthWeak": "Weak",
     "strengthFair": "Fair",
     "strengthStrong": "Strong",
-    "servicesTitle": "Detected services",
+    "services": {
+      "title": "Detected services"
+    },
     "serviceMail": "Email",
     "serviceQstash": "QStash",
     "serviceActive": "Active",
     "serviceInactive": "Not configured",
-    "loadDemoLabel": "Load demo content into the database",
-    "companyNameLabel": "Company name",
-    "companyNamePlaceholder": "Acme Corp",
-    "companyWebsiteLabel": "Company website",
-    "companyWebsitePlaceholder": "https://example.com",
-    "companyAbbreviationLabel": "Abbreviation (optional)",
-    "companyAbbreviationPlaceholder": "ACM",
+    "loadDemo": {
+      "label": "Load demo content into the database"
+    },
+    "companyName": {
+      "label": "Company name",
+      "placeholder": "Acme Corp"
+    },
+    "companyWebsite": {
+      "label": "Company website",
+      "placeholder": "https://example.com"
+    },
+    "companyAbbreviation": {
+      "label": "Abbreviation (optional)",
+      "placeholder": "ACM"
+    },
     "buttonNext": "Next",
-    "buttonBack": "Back",
     "buttonFinish": "Complete setup",
     "loadingAccount": "Creating your account…",
     "loadingDemo": "Loading demo data…",
@@ -1380,34 +1870,38 @@
   },
   "layoutBuilder": {
     "editLayout": "Edit Layout",
-    "title": "Edit Quick Entry Layout — {{seed}}",
-    "showPreview": "Show Preview",
     "reset": "Reset",
-    "resetConfirmTitle": "Reset to default?",
+    "resetConfirm": {
+      "title": "Reset to default?"
+    },
     "resetConfirmDesc": "This removes the custom layout. The default will be used.",
     "resetDone": "Layout reset to default.",
-    "save": "Save",
     "saved": "Layout saved.",
-    "saveError": "Could not save the layout.",
-    "discardTitle": "Discard changes?",
-    "discardDesc": "Unsaved layout edits will be lost.",
+    "save": {
+      "error": "Could not save the layout."
+    },
     "addSection": "Add Section",
     "addField": "Add Field",
     "dragHandle": "Drag to move the field",
     "removeField": "Remove from layout",
-    "dragColumn": "Drag to move the column",
+    "drag": {
+      "column": "Drag to move the column"
+    },
     "dragSection": "Drag to move the section",
     "addTab": "Add Tab",
-    "newTab": "New Tab",
     "searchFields": "Search fields…",
     "noFields": "No fields available.",
-    "noLabel": "No Label",
+    "no": {
+      "label": "No Label"
+    },
     "fieldCount_one": "{{count}} field",
     "fieldCount_other": "{{count}} fields",
     "fieldCount": "{{count}} fields",
     "sectionMenu": {
       "rename": "Rename",
-      "hideLabel": "Hide Label",
+      "hide": {
+        "label": "Hide Label"
+      },
       "hideBorder": "Hide Border",
       "collapsible": "Collapsible",
       "columns": "Columns",
@@ -1419,15 +1913,18 @@
       "delete": "Delete tab"
     },
     "warnFullWidth": "{{label}} requires a dedicated full-width section.",
-    "warnNoEmptyColumn": "Target tab has no empty column. Add one first.",
     "warnNoCrossTabSection": "Move sections within their tab.",
     "warnFullWidthColumns": "This section contains a full-width field. Column count cannot be changed.",
-    "defaultTabBadge": "Default"
+    "defaultTab": {
+      "badge": "Default"
+    }
   },
   "fields": {
     "tags": {
       "empty": "No value selected",
-      "menuTitle": "Choose from the options",
+      "menu": {
+        "title": "Choose from the options"
+      },
       "allSelected": "All options are already selected.",
       "add": "Choose a value",
       "remove": "Remove {{value}}",
@@ -1450,9 +1947,13 @@
   "seedBuilder": {
     "page": {
       "subtitle": "Manage your runtime-defined content types.",
-      "newButton": "New content type",
+      "new": {
+        "button": "New content type"
+      },
       "showDeleted": "Show deleted",
-      "navTitle": "Content Types"
+      "nav": {
+        "title": "Content Types"
+      }
     },
     "table": {
       "label": "Label",
@@ -1468,59 +1969,112 @@
       "deleted": "Deleted"
     },
     "editor": {
-      "createTitle": "New content type",
-      "editTitle": "Edit — {{label}}",
+      "create": {
+        "title": "New content type",
+        "success": "\"{{label}}\" created successfully."
+      },
+      "edit": {
+        "title": "Edit — {{label}}"
+      },
       "tabGeneral": "General",
       "tabFields": "Fields",
       "tabDashboard": "Dashboard",
       "slug": "Slug",
-      "slugImmutable": "Immutable after creation",
       "label": "Label",
       "labelPlaceholder": "Article",
-      "labelPlural": "Label (plural)",
-      "labelPluralPlaceholder": "Articles",
-      "displayNameAlias": "Display name field",
-      "displayNameAliasPlaceholder": "Select or type an alias",
-      "capabilities": "Capabilities",
-      "allowPublicRead": "Allow public read",
-      "allowPublicPost": "Allow public create",
-      "allowPublicEdit": "Allow public edit",
+      "labelPlural": {
+        "label": "Label (plural)",
+        "placeholder": "Articles"
+      },
+      "displayNameAlias": {
+        "label": "Display name field",
+        "placeholder": "Select a field"
+      },
+      "displayNameSearch": "Search fields…",
+      "displayNameEmpty": "No field found.",
+      "allowPublicRead": "Read",
+      "allowPublicPost": "Create",
+      "allowPublicEdit": "Edit",
       "allowDrafts": "Enable drafts",
-      "dashIcon": "Icon",
-      "dashIconPlaceholder": "Select an icon",
-      "dashIconDefault": "Default (Folder)",
       "dashGroup": "Sidebar group",
-      "dashGroupPlaceholder": "Contents",
-      "dashOrder": "Sort order",
+      "dashOrder": {
+        "label": "Sort order",
+        "hint": "Lower numbers come first in the group. Empty means last (99)."
+      },
       "dashHidden": "Hide from sidebar",
-      "dashDescription": "Description",
+      "dash": {
+        "description": "Description"
+      },
       "dashDescriptionPlaceholder": "Short tooltip shown in the sidebar",
-      "features": "Dashboard features",
-      "featSearch": "Search",
-      "featFilter": "Filters",
-      "featExport": "Export",
-      "featBulkDelete": "Bulk delete",
-      "createSuccess": "\"{{label}}\" created successfully.",
-      "updateSuccess": "\"{{label}}\" updated successfully.",
+      "dashViewsSection": "Authorized views",
+      "dashGroupSearch": "Search or create a group…",
+      "group": {
+        "default": {
+          "badge": "Default"
+        }
+      },
+      "dashGroupCreate": "Create “{{name}}”",
+      "dashPreview": "How it looks in the sidebar",
+      "dashPreviewNew": "New content type",
+      "dashPreviewMore": "{{count}} more",
+      "dashPreviewHidden": "Hidden: it will not appear in the sidebar.",
+      "viewGroups": {
+        "browse": "Browse",
+        "organize": "Organize",
+        "plan": "Time & place",
+        "insight": "Insight & input"
+      },
+      "selectIcon": "Select icon",
+      "searchIcons": "Search icons...",
+      "noIconsFound": "No icons found",
+      "publicAccess": {
+        "title": "Public access",
+        "description": "For anonymous visitors, through the public API. Only public fields are exposed."
+      },
+      "publicAccessRbacNote": "Signed-in users follow their roles, not these switches.",
+      "dangerZoneToggle": "Danger zone",
+      "next": "Next",
+      "footer": {
+        "next": {
+          "hint": "Press <kbd>{{shortcut}}</kbd> to continue"
+        },
+        "save": {
+          "hint": "Press <kbd>{{shortcut}}</kbd> to save"
+        }
+      },
+      "slugTaken": "This slug is already in use.",
+      "update": {
+        "success": "\"{{label}}\" updated successfully."
+      },
       "hints": {
         "slug": "Unique identifier for this content type. Becomes the database table name (content_slug) and is used in URLs. Cannot be changed after creation.",
-        "displayNameAlias": "The field used as the representative title of each entry in dashboard lists and references. Choose a text field that clearly identifies each record.",
-        "allowPublicRead": "Allows anyone to read this content via the Public API without authentication. Useful for content like articles or products meant to be publicly accessible.",
-        "allowPublicPost": "Allows anyone to create new entries via the Public API without authentication. Enable with caution: exposes content creation to anonymous users.",
-        "allowPublicEdit": "Allows anyone to update existing entries via the Public API without authentication. Enable only in controlled scenarios.",
-        "allowDrafts": "Enables a parallel drafts table. Editors can save unpublished versions and manually promote them to published content.",
-        "dashGroup": "Name of the sidebar section this content type is grouped under. Types sharing the same group appear together. Leave empty to use the default section.",
-        "dashOrder": "Position within the group in the sidebar. Lower values appear first. Default: 99.",
-        "dashDescription": "Text shown as a tooltip when hovering this content type in the dashboard sidebar."
+        "allowPublicRead": "Anyone can read entries.",
+        "allowPublicPost": "Anyone can submit new entries.",
+        "allowPublicEdit": "Anyone can change existing entries.",
+        "allowDrafts": "Enables a parallel drafts table. Editors can save unpublished versions and manually promote them to published content."
       }
     },
     "branchEditor": {
+      "required": {
+        "label": "Required"
+      },
+      "hint": "Hint",
+      "hintPlaceholder": "Help text under the field",
+      "issues": {
+        "alias": "Invalid alias",
+        "reserved": "Reserved alias",
+        "duplicate": "Duplicate alias",
+        "target": "Pick a target"
+      },
       "newField": "New field",
-      "addField": "Add field",
       "alias": "Alias",
-      "aliasReadOnlyHint": "Renaming a field requires the Danger Zone — coming soon.",
+      "aliasReadOnly": {
+        "hint": "A stored field is renamed from the Danger zone tab."
+      },
       "type": "Type",
-      "typeReadOnlyHint": "Changing a field type requires the Danger Zone — coming soon.",
+      "typeReadOnly": {
+        "hint": "A stored field changes type from the Danger zone tab."
+      },
       "label": "Label",
       "labelPlaceholder": "Field label",
       "repeaterFields": "Repeater fields",
@@ -1528,17 +2082,21 @@
       "maxItems": "Maximum items",
       "addSubField": "Add field",
       "relationOptions": "Relation options",
-      "targetSeed": "Target content type",
-      "targetSeedPlaceholder": "Select a content type",
+      "targetSeed": {
+        "label": "Target content type",
+        "placeholder": "Select a content type"
+      },
       "multiple": "Multiple values",
       "onDelete": "On delete",
       "onDeleteCascade": "Cascade — delete linked entries",
       "onDeleteRestrict": "Restrict — block deletion if linked",
       "onDeleteSetNull": "Set null — clear the reference",
-      "avatarSource": "Avatar image",
+      "avatarSource": {
+        "label": "Avatar image",
+        "hint": "Image field of the target shown as avatar. Falls back to the initials of the display name."
+      },
       "avatarSourceNone": "No avatar",
       "avatarSourceUnavailable": "The target seed has no single image field. Add one to use it as avatar.",
-      "avatarSourceHint": "Image field of the target shown as avatar. Falls back to the initials of the display name.",
       "numberOptions": "Number options",
       "min": "Min",
       "max": "Max",
@@ -1560,13 +2118,14 @@
       "removeOption": "Remove option",
       "moveOptionUp": "Move up",
       "moveOptionDown": "Move down",
-      "freeTagsHint": "No options: any short label is accepted (free tags, up to 10 per field, 25 characters each).",
+      "freeTags": {
+        "hint": "No options: any short label is accepted (free tags, up to 10 per field, 25 characters each)."
+      },
       "policies": "Policies",
-      "removeExistingWarning": "The field stops being used; existing data is retained in the database and not deleted. Continue?",
-      "reservedAliasError": "One or more aliases conflict with reserved system field names.",
-      "localized": "Localized",
-      "localizedBadge": "localized",
-      "localizedHint": "Editors fill this field once per content language (Settings → Site → Content languages).",
+      "localized": {
+        "label": "Localized",
+        "hint": "Editors fill this field once per content language. Manage them in <languages>Content languages</languages>."
+      },
       "localizedBlockedSubField": "Repeater sub-fields can't be localized.",
       "localizedBlockedClassification": "Confidential and restricted fields are stored encrypted or hashed, so they can't be localized.",
       "localizedDisableWarning": "Existing translations stay stored. Until you turn localization back on, this field shows them as raw text."
@@ -1584,15 +2143,74 @@
       "classification_locked_entries": "Confidential and Restricted are only available when the table has no entries.",
       "classification_locked_encrypted": "Encrypted columns cannot be decrypted or converted when the table contains entries.",
       "classification_locked_restricted": "Hashed columns cannot be decrypted or converted when the table contains entries.",
-      "storage_encrypted": "Encrypted at rest",
+      "help": "About privacy",
+      "flags": {
+        "title": "Options"
+      },
       "search": "Full-text search",
       "filter": "Filterable",
       "sort": "Sortable",
-      "public": "Exposed in public API",
-      "visibility": "Visibility",
-      "visibility_full": "Full",
-      "visibility_masked": "Masked",
-      "visibility_hidden": "Hidden"
+      "public": "Exposed in public API"
+    },
+    "fields": {
+      "add": {
+        "label": "Add",
+        "placeholder": "Field name, then Enter"
+      },
+      "empty": "No fields yet. Type a name above.",
+      "select": "Select a field to edit it."
+    },
+    "templates": {
+      "title": "Start from",
+      "person": {
+        "name": "Person",
+        "last_name": "Last name",
+        "first_name": "First name",
+        "email": "Email",
+        "phone": "Phone",
+        "birth_date": "Date of birth",
+        "tax_id": "Tax number",
+        "address": "Address",
+        "city": "City",
+        "country": "Country",
+        "photo": "Photo",
+        "relationship": "Relationship",
+        "marketing_consent": "Marketing consent",
+        "notes": "Notes"
+      },
+      "event": {
+        "name": "Event",
+        "title": "Title",
+        "description": "Description",
+        "start_at": "Starts",
+        "end_at": "Ends",
+        "all_day": "All day",
+        "location": "Location",
+        "event_status": "Status",
+        "capacity": "Capacity",
+        "contact_name": "Contact name",
+        "contact_email": "Contact email",
+        "contact_phone": "Contact phone"
+      },
+      "article": {
+        "name": "Article",
+        "title": "Title",
+        "excerpt": "Excerpt",
+        "cover": "Cover image",
+        "body": "Body",
+        "author": "Author",
+        "published_at": "Published on",
+        "categories": "Categories"
+      },
+      "contact": {
+        "name": "Contact request",
+        "subject": "Subject",
+        "sender": "Name",
+        "email": "Email",
+        "message": "Message",
+        "reason": "Reason",
+        "state": "Status"
+      }
     },
     "fieldTypes": {
       "text": "Text",
@@ -1610,9 +2228,12 @@
       "title": "Delete \"{{label}}\"?",
       "description": "This hides the content type from the dashboard and API.",
       "dataRetained": "Its data is NOT deleted — the table is kept and can be restored by re-creating the type with the same slug.",
-      "dangerZoneHint": "Permanent deletion will be available in the Danger Zone.",
-      "confirm": "Delete",
-      "successToast": "\"{{label}}\" deleted.",
+      "dangerZone": {
+        "hint": "Permanent deletion will be available in the Danger Zone."
+      },
+      "success": {
+        "toast": "\"{{label}}\" deleted."
+      },
       "referenceConflict": "Cannot delete — other content types reference this one.",
       "referencedBy": "Referenced by: {{seeds}}"
     },
@@ -1627,63 +2248,128 @@
       "description": "This content type was soft-deleted. Purging removes its tables and media for good."
     },
     "dangerZone": {
-      "title": "Danger Zone",
-      "subtitle": "These operations are irreversible and may cause permanent data loss.",
-      "hardDelete": {
-        "title": "Permanently delete this content type",
-        "description": "Hides this content type immediately, then deletes its tables and media in the background. This cannot be undone.",
-        "confirmPlaceholder": "Type the slug to confirm",
-        "confirmLabel": "Type \"{{slug}}\" to confirm",
-        "button": "Delete permanently",
-        "successToast": "Deletion of \"{{slug}}\" started. Media cleanup is pending."
+      "manifest": {
+        "title": "Managed by beech.schema.ts.",
+        "body": "Edit the manifest and re-apply it to change fields or delete this type. Only the search index can be rebuilt here."
       },
-      "dropColumn": {
-        "title": "Drop field",
-        "description": "Permanently removes the column and all its data from the database.",
-        "confirmPlaceholder": "Type slug.alias to confirm",
-        "button": "Drop field",
-        "successToast": "Field \"{{alias}}\" dropped."
-      },
-      "renameAlias": {
-        "title": "Rename field alias",
-        "description": "Renames the database column. FTS is rebuilt. Automations referencing the old alias will break.",
-        "newAliasLabel": "New alias",
-        "newAliasPlaceholder": "new_alias",
-        "confirmPlaceholder": "Type slug.alias to confirm",
-        "button": "Rename",
-        "successToast": "Field renamed to \"{{newAlias}}\".",
-        "automationWarning": "Warning: {{count}} automation(s) reference the old alias and may be broken: {{ids}}"
-      },
-      "retypeField": {
-        "title": "Change field type",
-        "description": "Rebuilds the column type via add/copy/drop/rename. Existing data is CAST — values incompatible with the new type will be lost.",
-        "newTypeLabel": "New type",
-        "confirmPlaceholder": "Type slug.alias to confirm",
-        "button": "Change type",
-        "successToast": "Field \"{{alias}}\" retyped to {{newType}}."
-      },
-      "orphans": {
-        "title": "Orphaned columns",
-        "description": "Columns present in the database but absent from the current definition.",
-        "empty": "No orphaned columns.",
-        "dropButton": "Drop",
-        "refreshButton": "Refresh"
+      "maintenance": {
+        "title": "Maintenance",
+        "safe": {
+          "badge": "Safe"
+        },
+        "subtitle": "No data is lost. Use it when something looks out of sync."
       },
       "ftsRebuild": {
-        "title": "Rebuild full-text search index",
-        "description": "Drops and recreates the FTS virtual table and its triggers, then backfills from the content table.",
-        "button": "Rebuild FTS",
-        "successToast": "FTS index rebuilt."
+        "title": "Search index",
+        "description": "Rebuilds the full-text index and its triggers from the current text fields.",
+        "button": "Rebuild",
+        "success": {
+          "toast": "Search index rebuilt."
+        }
       },
-      "branchDangerToggle": "Advanced (destructive)",
-      "confirmMismatch": "Confirmation does not match — type the exact identifier shown.",
+      "orphans": {
+        "title": "Orphan columns",
+        "description": "Columns still in the database but no longer in the definition.",
+        "empty": "No orphan columns.",
+        "review": "Review",
+        "hide": "Hide",
+        "drop": {
+          "button": "Drop"
+        },
+        "refresh": {
+          "button": "Refresh"
+        },
+        "success": {
+          "toast": "Column \"{{column}}\" dropped."
+        }
+      },
+      "fieldOps": {
+        "title": "Field operations",
+        "writes": {
+          "badge": "Changes database"
+        },
+        "subtitle": "Pick a field, then choose what to do. Unavailable options say why.",
+        "empty": "This content type has no saved fields yet.",
+        "rename": "Rename",
+        "retype": "Change type",
+        "drop": "Drop"
+      },
+      "blocked": {
+        "displayName": "this field is the display name of the content type.",
+        "displayNameLink": "Choose another field →",
+        "repeater": "repeater fields cannot be retyped.",
+        "multiRelation": "a multi-relation lives in a junction table, so there is no column to retype.",
+        "localized": "this field is localized. Turn localization off first, then retype."
+      },
+      "rename": {
+        "newAlias": {
+          "label": "New alias"
+        },
+        "impact": {
+          "title": "Renames the database column and rebuilds search."
+        },
+        "impactBody": "Automations that reference the old alias will need updating; you will be told which ones.",
+        "button": "Rename field",
+        "success": {
+          "toast": "\"{{alias}}\" renamed to \"{{newAlias}}\"."
+        },
+        "automationWarning": "{{count}} automation(s) reference the old alias and may be broken: {{ids}}"
+      },
+      "retype": {
+        "newType": {
+          "label": "New type"
+        },
+        "impact": {
+          "title": "Converts every stored value."
+        },
+        "impactBody": "If any value cannot be converted without loss, the change is refused and nothing is touched.",
+        "button": "Change type",
+        "success": {
+          "toast": "\"{{alias}}\" is now {{newType}}."
+        }
+      },
+      "dropField": {
+        "impact": {
+          "title": "Removes the column and all its data."
+        },
+        "impactBody": "The values of this field are lost for every entry and cannot be restored.",
+        "confirm": {
+          "placeholder": "Type {{expected}} here"
+        },
+        "button": "Drop field",
+        "success": {
+          "toast": "Field \"{{alias}}\" dropped."
+        }
+      },
+      "hardDelete": {
+        "fillSlug": "Fill in {{slug}}",
+        "footer": {
+          "button": "Delete content type",
+          "hint": "Deleting the content type removes its entries, tables and media."
+        },
+        "manifest": {
+          "hint": "Managed by beech.schema.ts: remove it from the manifest to delete it."
+        },
+        "title": "Permanently delete {{label}}",
+        "description": "Hides this content type immediately, then removes its tables and media in the background. This cannot be undone.",
+        "impactEntries": "All its entries",
+        "impactFields": "{{count}} fields and their tables, drafts included",
+        "impactMedia": "The media files stored for it",
+        "confirm": {
+          "label": "Type \"{{slug}}\" to confirm",
+          "placeholder": "Type the slug to confirm"
+        },
+        "button": "Delete permanently",
+        "success": {
+          "toast": "Deletion of \"{{slug}}\" started. Media cleanup is pending."
+        }
+      },
       "errors": {
         "hardDeleteFailed": "Hard delete failed",
-        "dropColumnFailed": "Drop column failed",
+        "dropColumnFailed": "Drop failed",
         "renameFailed": "Rename failed",
         "retypeFailed": "Retype failed",
-        "orphansFailed": "Failed to load orphans",
-        "ftsRebuildFailed": "FTS rebuild failed"
+        "ftsRebuildFailed": "Search index rebuild failed"
       }
     }
   },
@@ -1696,81 +2382,135 @@
       "metadataSlot": "Metadata",
       "noField": "No field",
       "openConfig": "Configure card layout"
+    },
+    "column": {
+      "ariaLabel": "{{label}} — {{count}} entries",
+      "collapse": "Collapse {{label}}",
+      "expand": "Expand {{label}}",
+      "newEntryIn": "New entry in {{label}}",
+      "empty": "No entries",
+      "loadMore": "Load more ({{count}})",
+      "loading": "Loading…"
+    },
+    "board": {
+      "loading": "Loading…",
+      "draftsEnabled": "Kanban is not available for seeds with drafts enabled.",
+      "noCompatibleField": "No compatible field found for the Kanban view."
     }
   },
   "oauth": {
     "consent": {
       "title": "{{client}} wants to access BeechCMS",
       "subtitle": "Review permissions before granting access.",
-      "alreadyGranted": "already granted",
+      "scope": {
+        "granted": {
+          "badge": "Already granted"
+        }
+      },
       "redirectNotice": "After approving you will be sent back to {{uri}}.",
       "approve": "Allow access",
       "deny": "Deny",
-      "errorTitle": "This authorization request is not valid",
+      "error": {
+        "title": "This authorization request is not valid"
+      },
       "backToDashboard": "Back to dashboard",
-      "submitError": "Could not complete the authorization",
+      "submit": {
+        "error": "Could not complete the authorization"
+      },
       "scopes": {
         "schema:read": "Read your content types and schema (including dry-run migration plans)",
         "schema:write": "Apply schema migrations that change your content types"
       },
-      "signedInAs": "Signed in as",
       "required": "Required",
       "disclaimer": "Permissions are required for the MCP integration. You can revoke access at any time in Settings > Connected apps."
     },
     "apps": {
+      "application": "Application",
+      "permissions": "Permissions",
+      "granted": "Authorized",
+      "status": "Status",
+      "active": "Active",
+      "revokeFor": "Revoke access of {{client}}",
+      "list": {
+        "label": "Connected apps"
+      },
       "title": "Connected apps",
       "description": "Applications you have authorized to access BeechCMS on your behalf.",
       "empty": "No connected apps",
-      "grantedAt": "Authorized on {{date}}",
-      "noActiveTokens": "no active token",
-      "revokeTitle": "Revoke access?",
-      "revokeDesc": "{{client}} will immediately lose access. Any active token is invalidated.",
-      "revokeSuccess": "Access revoked",
-      "revokeError": "Error revoking access"
+      "noTokens": {
+        "badge": "No active token"
+      },
+      "revoke": {
+        "title": "Revoke access?",
+        "success": "Access revoked",
+        "error": "Error revoking access"
+      },
+      "revokeDesc": "{{client}} will immediately lose access. Any active token is invalidated."
     }
   },
   "rbac": {
     "users": {
+      "description": "Everyone who can sign in, and the roles they hold.",
+      "noAccess": "No access",
+      "inactive": "Inactive",
+      "statusFor": "Account active: {{email}}",
+      "manageRolesOf": "Manage roles of {{email}}",
       "title": "Users",
-      "create": "Create account",
+      "create": {
+        "label": "Create account",
+        "success": "Account created"
+      },
       "email": "Email",
       "name": "Name",
       "surname": "Surname",
       "password": "Password",
       "status": "Status",
-      "active": "Active",
-      "disabled": "Disabled",
       "roles": "Roles",
       "you": "You",
-      "deactivate": "Deactivate",
-      "reactivate": "Reactivate",
       "manageRoles": "Manage roles",
-      "zeroTrustHint": "The account is created with no role and no access until assigned.",
-      "cannotDeactivateSelf": "You cannot deactivate your own account",
-      "deactivateWarning": "All active sessions are revoked immediately.",
-      "createSuccess": "Account created"
+      "zeroTrust": {
+        "hint": "The account is created with no role and no access until assigned."
+      },
+      "cannotDeactivateSelf": "You cannot deactivate your own account"
     },
     "roles": {
+      "section": {
+        "description": "What each role allows. Give a role to a person to give them access."
+      },
+      "editFor": "Edit role {{name}}",
+      "deleteFor": "Delete role {{name}}",
+      "system": {
+        "hint": "A system role is built in and cannot be changed or deleted.",
+        "label": "System"
+      },
+      "permissions": {
+        "hint": "Greyed-out permissions are ones you do not hold yourself, so you cannot grant them.",
+        "label": "Permissions"
+      },
       "title": "Roles",
       "create": "Create role",
       "edit": "Edit role",
       "delete": "Delete role",
       "name": "Name",
       "description": "Description",
-      "icon": "Icon",
       "selectIcon": "Select icon",
       "searchIcons": "Search icons...",
       "noIconsFound": "No icons found",
-      "permissions": "Permissions",
-      "system": "System",
       "deleteWarning": "Every assignment through this role is removed by cascade.",
-      "saveSuccess": "Role saved",
+      "save": {
+        "success": "Role saved"
+      },
       "morePermissions": "+{{count}} more",
       "moreRoles": "+{{count}} more",
       "groupContent": "Content",
       "groupSystem": "System"
     },
     "invitations": {
+      "description": "Invitations sent so far, and whether they were taken up.",
+      "empty": "No invitations yet.",
+      "copyLinkFor": "Copy the invite link for {{email}}",
+      "regenerateFor": "Regenerate the invitation for {{email}}",
+      "revokeFor": "Revoke the invitation for {{email}}",
       "title": "Invitations",
       "invite": "Invite",
       "status": "Status",
@@ -1788,9 +2528,12 @@
       }
     },
     "assignments": {
+      "removeFor": "Remove {{role}} on {{scope}}",
+      "roleLabel": "Role to assign",
+      "scopeLabel": "Where it applies",
+      "list": "Roles held",
       "title": "Roles for {{email}}",
       "add": "Add",
-      "remove": "Remove",
       "role": "Role",
       "scope": "Scope",
       "inactiveScope": "Inactive scope",
@@ -1814,41 +2557,40 @@
     },
     "errors": {
       "generic": "Something went wrong. Please try again.",
-      "validation-failed": "Some fields are invalid.",
-      "not-found": "Not found.",
-      "forbidden": "You are not allowed to do this.",
       "escalation-refused": "You cannot grant authority you do not hold.",
       "email-taken": "This email is already registered.",
       "role-name-taken": "This role name is already in use.",
       "system-role-immutable": "System roles cannot be modified.",
       "last-global-admin": "This would leave the platform with no active global administrator.",
-      "unknown-scope": "That scope is not a valid seed or the global scope.",
-      "email-unavailable": "The email service is not configured. The invitation could not be sent.",
-      "invitation-invalid": "This invitation link is invalid or has expired.",
-      "invitation-revoked": "This invitation has been revoked.",
       "invitation-already-used": "This invitation was already used."
     }
   },
   "acceptInvite": {
     "title": "Accept invitation",
-    "desc": "Set a password to activate your account.",
-    "invitedAs": "You were invited as {{role}}",
-    "onScope": "on {{scope}}",
+    "invitation": {
+      "sentence": "You were invited as {{role}} on {{scope}}"
+    },
     "invalidOrExpired": "This invitation link is invalid or has expired.",
-    "password": "Password",
-    "confirm": "Confirm password",
+    "password": {
+      "label": "Password",
+      "placeholder": "Minimum 8 characters"
+    },
+    "confirm": {
+      "label": "Confirm password",
+      "placeholder": "Repeat password"
+    },
     "mismatch": "Passwords do not match",
     "tooShort": "Password must be at least 8 characters",
     "tooLong": "Password cannot exceed 128 characters",
-    "passwordPlaceholder": "Minimum 8 characters",
-    "confirmPlaceholder": "Repeat password",
     "strengthWeak": "Weak",
     "strengthFair": "Fair",
     "strengthStrong": "Strong",
     "submit": "Activate account",
     "success": "Account activated. You can now log in.",
     "accountExists": "An account with this email already exists. Sign in instead.",
-    "genericError": "Something went wrong. Please try again."
+    "generic": {
+      "error": "Something went wrong. Please try again."
+    }
   },
   "transfer": {
     "menu": {
@@ -1865,9 +2607,13 @@
     "import": {
       "title": "Import into {{label}}",
       "description": "Upload a CSV or NDJSON file to insert new entries.",
-      "formatLabel": "Format",
+      "format": {
+        "label": "Format"
+      },
       "csvDisabled": "CSV disabled: {{branches}} cannot be represented as flat columns",
-      "fileLabel": "File",
+      "file": {
+        "label": "File"
+      },
       "startUpload": "Upload and start import",
       "uploading": "Uploading and starting the import job…",
       "openJobPage": "Open the full job page",
@@ -1878,7 +2624,9 @@
       }
     },
     "job": {
-      "pageTitle": "Import job",
+      "page": {
+        "title": "Import job"
+      },
       "loading": "Loading job…",
       "rowsRead": "Rows read",
       "insertedRows": "Inserted",

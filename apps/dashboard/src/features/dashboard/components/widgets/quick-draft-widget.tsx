@@ -97,9 +97,9 @@ export function QuickDraftWidget({
   if (success) {
     return (
       <DashboardWidgetShell>
-        <div className="flex h-full items-center justify-center gap-2 text-emerald-600 dark:text-emerald-400">
+        <div className="flex h-full items-center justify-center gap-2 text-status-live-foreground">
           <CheckCircle2 className="size-5" />
-          <span className="text-sm font-semibold">{t("dashboard.widgets.quickDraft.draftCreated")}</span>
+          <span className="text-sm font-medium">{t("dashboard.widgets.quickDraft.draftCreated")}</span>
         </div>
       </DashboardWidgetShell>
     )
@@ -109,7 +109,7 @@ export function QuickDraftWidget({
     <DashboardWidgetShell icon={FilePlus} title={variant === "minimal" ? (customTitle || t("dashboard.widgets.quickDraft.title")) : undefined}>
       <form onSubmit={handleSubmit} className="space-y-3">
         {variant === "expanded" && (
-          <h3 className="font-heading text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <h3 className="font-heading text-xs font-bold text-muted-foreground uppercase tracking-wider">
             {customTitle || t("dashboard.widgets.quickDraft.createDraft")}
           </h3>
         )}
@@ -166,7 +166,7 @@ export function QuickDraftWidget({
             {isPending ? t("dashboard.widgets.quickDraft.creating") : t("dashboard.widgets.quickDraft.createDraft")}
           </Button>
         )}
-        {errorMsg && <p className="text-xs text-destructive">{errorMsg}</p>}
+        {errorMsg && <p className="text-xs text-status-danger-foreground">{errorMsg}</p>}
       </form>
     </DashboardWidgetShell>
   )

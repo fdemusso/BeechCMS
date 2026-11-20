@@ -69,7 +69,7 @@ async function buildRichtextApp(update: ReturnType<typeof vi.fn>) {
 
 describe('rotate-field handler', () => {
   it('guards the write with the updated_at it verified against', async () => {
-    const update = vi.fn(async () => undefined)
+    const update = vi.fn(async (..._args: unknown[]) => undefined)
     const res = await rotate(await buildApp(update))
 
     expect(res.status).toBe(200)
@@ -86,7 +86,7 @@ describe('rotate-field handler', () => {
   })
 
   it('hashes the sanitized next value, not the raw request value', async () => {
-    const update = vi.fn(async () => undefined)
+    const update = vi.fn(async (..._args: unknown[]) => undefined)
     const app = await buildApp(update)
 
     const rawNext = '  new\u0007value  ' // surrounding whitespace + a control char the schema strips

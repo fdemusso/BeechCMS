@@ -18,6 +18,7 @@ import { generateOpaqueToken } from '../shared/utils/opaque-token'
 import { getClientIp } from '../shared/utils/request-utils'
 import { checkDualKeyRateLimit, normalizeAccountKey } from '../shared/utils/dual-key-rate-limiter'
 import { zodJson, type ZodJsonInput } from '../shared/utils/zod-json'
+import { logActivity, requestOrigin } from '../shared/services/activity-log/log-activity'
 
 /** Refresh token expiration duration in days (7 days). */
 const REFRESH_TOKEN_EXPIRY_DAYS = 7
@@ -144,7 +145,17 @@ async function loginHandler(context: Context<AuthEnv, string, ZodJsonInput<typeo
     const hashToCompare = user?.passwordHash ?? DUMMY_PASSWORD_HASH
     const isValid = await verifyPassword(password, hashToCompare, context.get('hashProvider'))
 
-    if (!user || !isValid || !user.isActive) return context.json({ error: AUTH_ERRORS.INVALID_CREDENTIALS }, 401)
+    if (!user || !isValid || !user.isActive) {
+      // Only a real account has a history to add to: a made-up address would just be noise in nobody's log.
+      if (user) {
+        logActivity(context, {
+          action: 'login_failed', entityType: 'auth', entityId: user.id,
+          details: { ...requestOrigin(context), reason: isValid ? 'inactive' : 'wrong-password' },
+          actor: { id: user.id, email: user.email, name: [user.name, user.surname].filter(Boolean).join(' ') || null },
+        })
+      }
+      return context.json({ error: AUTH_ERRORS.INVALID_CREDENTIALS }, 401)
+    }
 
     const accessToken = await context.get('tokenService').issue({
       sub: user.id,
@@ -164,6 +175,11 @@ async function loginHandler(context: Context<AuthEnv, string, ZodJsonInput<typeo
     })
 
     setCookie(context, 'refresh_token', refreshToken, getRefreshTokenCookieOptions(isRequestSecure(context.req.url)))
+    logActivity(context, {
+      action: 'login', entityType: 'auth', entityId: user.id,
+      details: requestOrigin(context),
+      actor: { id: user.id, email: user.email, name: [user.name, user.surname].filter(Boolean).join(' ') || null },
+    })
     return context.json({ token: accessToken, expiresIn: '15m' }, 200)
   } catch (error) {
     return handleAuthError(context, error, 'Login')
@@ -248,7 +264,16 @@ async function logoutHandler(context: AuthContext) {
     if (refreshToken) {
       const nowSeconds = context.get('clock').nowSeconds()
       const tokenHash = await sha256hex(refreshToken)
+      const activeSession = await context.get('sessionRepository').findActiveByHash(tokenHash, nowSeconds)
       await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
+      const signedOutUser = activeSession ? await context.get('userRepository').findById(activeSession.userId) : null
+      if (signedOutUser) {
+        logActivity(context, {
+          action: 'logout', entityType: 'auth', entityId: signedOutUser.id,
+          details: requestOrigin(context),
+          actor: { id: signedOutUser.id, email: signedOutUser.email, name: [signedOutUser.name, signedOutUser.surname].filter(Boolean).join(' ') || null },
+        })
+      }
     }
     deleteCookie(context, 'refresh_token', getRefreshTokenDeleteCookieOptions(isRequestSecure(context.req.url)))
     return context.json({ message: 'Logged out' }, 200)

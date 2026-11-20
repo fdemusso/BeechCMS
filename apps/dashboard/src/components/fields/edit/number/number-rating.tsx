@@ -37,7 +37,7 @@ export function NumberRating({ branch, value, onChange }: FieldEditProps) {
             {(isFull || isHalf) && (
               <div 
                 className={cn(
-                  "absolute inset-0 overflow-hidden text-yellow-500",
+                  "absolute inset-0 overflow-hidden text-status-warning",
                   isHalf ? "w-1/2" : "w-full"
                 )}
               >

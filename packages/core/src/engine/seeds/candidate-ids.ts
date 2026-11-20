@@ -18,7 +18,7 @@ import type { Branch, Seed } from '../types.js'
  * already present on the candidate is kept as-is: callers that author without ids (hand-written
  * manifests) must send none rather than invented ones.
  */
-export function resolveCandidateIds<T extends { branches?: unknown }>(candidate: T, stored: Seed | null): T {
+export function resolveCandidateIds<T extends { branches?: unknown }>(candidate: T, stored: Seed | null): Omit<T, 'branches'> & { branches: Branch[] } {
   const storedBranches = stored?.branches ?? []
   return {
     ...candidate,

@@ -26,14 +26,14 @@ export function GhostShell({ icon: Icon, title, tag, action, minHeight, classNam
   const hasHeader = Boolean(Icon || title || action)
   return (
     <div
-      className={cn('flex h-full w-full flex-col rounded-2xl border bg-card/60 p-5', className)}
+      className={cn('flex h-full w-full flex-col rounded-lg border bg-card/60 p-5', className)}
       style={{ minHeight }}
     >
       {hasHeader && (
         <div className="mb-4 flex shrink-0 items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             {Icon && <Icon className="size-4 shrink-0 text-muted-foreground" />}
-            {title && <h3 className="truncate font-heading text-sm font-semibold text-foreground">{title}</h3>}
+            {title && <h3 className="truncate font-heading text-sm font-bold text-foreground">{title}</h3>}
             {tag}
           </div>
           {action}

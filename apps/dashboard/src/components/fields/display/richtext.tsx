@@ -7,9 +7,7 @@ import type { FieldDisplayProps } from "../types"
 
 const DEFAULT_MAX_LENGTH = 50
 
-import { extractTextFromTiptap, isTipTapDoc } from "./richtext-plain"
-
-export { extractTextFromTiptap, isTipTapDoc }
+import { extractTextFromTiptap } from "./richtext-plain"
 
 /**
  * Renders rich text as a plain-text, truncated preview (not the actual HTML/markup) —

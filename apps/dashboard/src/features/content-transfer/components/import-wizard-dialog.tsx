@@ -107,7 +107,7 @@ export function ImportWizardDialog({ open, onOpenChange, seed, onImportCompleted
         {step === "pick" && (
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>{t("transfer.import.formatLabel")}</Label>
+              <Label>{t("transfer.import.format.label")}</Label>
               <div role="radiogroup" className="space-y-1.5">
                 <div className="flex items-center gap-2">
                   <input
@@ -143,7 +143,7 @@ export function ImportWizardDialog({ open, onOpenChange, seed, onImportCompleted
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="import-file-input">{t("transfer.import.fileLabel")}</Label>
+              <Label htmlFor="import-file-input">{t("transfer.import.file.label")}</Label>
               <input
                 id="import-file-input"
                 type="file"
@@ -154,12 +154,12 @@ export function ImportWizardDialog({ open, onOpenChange, seed, onImportCompleted
             </div>
 
             {!canUpload && (
-              <p className="text-xs text-destructive">{t("transfer.import.presignPermissionWarning")}</p>
+              <p className="text-xs text-status-danger-foreground">{t("transfer.import.presignPermissionWarning")}</p>
             )}
 
             <DialogFooter>
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                {t("common.cancel")}
+                {t("common.action.cancel")}
               </Button>
               <Button onClick={handleStartUpload} disabled={!file || !canUpload}>
                 {t("transfer.import.startUpload")}
@@ -186,13 +186,13 @@ export function ImportWizardDialog({ open, onOpenChange, seed, onImportCompleted
               href={`/content/import-jobs/${jobId}`}
               target="_blank"
               rel="noreferrer"
-              className="text-sm text-primary underline"
+              className="text-sm text-foreground underline"
             >
               {t("transfer.import.openJobPage")}
             </a>
             <DialogFooter>
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                {t("common.close")}
+                {t("common.action.close")}
               </Button>
             </DialogFooter>
           </div>

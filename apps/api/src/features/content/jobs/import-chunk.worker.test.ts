@@ -63,7 +63,8 @@ function createFakeRepository() {
     return rows
   }
 
-  const repository: ContentRepository = {
+  // Only the members the import worker uses; the rest of the port is deliberately absent.
+  const repository = {
     async findMany() {
       throw new Error('not implemented in fake repository')
     },
@@ -93,9 +94,9 @@ function createFakeRepository() {
       Object.assign(existing, data, status !== undefined ? { status } : {})
       updates.push({ seedSlug: seed.slug, id, data })
     },
-  }
+  } satisfies Partial<ContentRepository>
 
-  return { repository, tables, updates }
+  return { repository: repository as unknown as ContentRepository, tables, updates }
 }
 
 function seedJobRow(

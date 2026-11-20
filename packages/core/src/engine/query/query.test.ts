@@ -26,7 +26,7 @@ describe('Query', () => {
       const seed: Seed = {
         ...mockSeed,
         branches: [{
-          id: 'br_01', alias: 'bio', type: 'text',
+          id: 'br_01', alias: 'bio', label: 'Bio', type: 'text',
           policies: { classification: 'confidential', public: true },
         }],
       }
@@ -58,7 +58,7 @@ describe('Query', () => {
 
       it.each(['is_empty', 'is_not_empty'] as const)('preserves ciphertext emptiness filtering for %s', (op) => {
         const query = buildSelectQuery(seed, {
-          filters: [{ column: 'bio', type: 'text', conditions: [{ op }] }],
+          filters: [{ column: 'bio', type: 'text', conditions: [{ op, value: null }] }],
         })
 
         expect(query.sql).toContain(op === 'is_empty' ? 'WHERE content_articles.deleted_at IS NULL AND (bio IS NULL' : 'WHERE content_articles.deleted_at IS NULL AND (bio IS NOT NULL')
@@ -83,7 +83,7 @@ describe('Query', () => {
 
       it('builds is_empty condition checking NULL and serialized empty array []', () => {
         const query = buildSelectQuery(seedWithRepeater, {
-          filters: [{ column: 'items', type: 'repeater', conditions: [{ op: 'is_empty' }] }],
+          filters: [{ column: 'items', type: 'repeater', conditions: [{ op: 'is_empty', value: null }] }],
         })
 
         expect(query.sql).toContain("(items IS NULL OR items = '[]' OR items = '{}')")
@@ -91,7 +91,7 @@ describe('Query', () => {
 
       it('builds is_not_empty condition excluding NULL and serialized empty array []', () => {
         const query = buildSelectQuery(seedWithRepeater, {
-          filters: [{ column: 'items', type: 'repeater', conditions: [{ op: 'is_not_empty' }] }],
+          filters: [{ column: 'items', type: 'repeater', conditions: [{ op: 'is_not_empty', value: null }] }],
         })
 
         expect(query.sql).toContain("(items IS NOT NULL AND items != '[]' AND items != '{}')")

@@ -3,6 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import type { Context } from 'hono'
+import { logActivity } from '../../../shared/services/activity-log/log-activity'
+
 import { checkFormatCompatibility, isTransferFormat, type TransferFormat } from '@beechcms/core'
 import { cleanStr } from '../../../shared/utils/query-utils'
 import { publicProblem } from '../../../public/errors/problem-details'
@@ -113,6 +115,7 @@ export async function importHandler(context: Context<AppEnv, '/:slug/import', Zo
 
   const payload: ImportChunkPayload = { jobId }
   await context.get('queue').enqueue(CONTENT_IMPORT_CHUNK_JOB, payload)
+  logActivity(context, { action: 'import', entityType: 'content', entityId: jobId, entitySlug: slug, details: { format, jobId } })
 
   return context.json({ jobId }, 202, { Location: `/api/content/import-jobs/${jobId}` })
 }

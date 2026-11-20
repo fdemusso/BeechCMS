@@ -390,6 +390,24 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   }
 
   /**
+   * Checks whether an entry with `id` exists, without loading or decrypting the row.
+   * Trashed rows are invisible unless `options.trashed` says otherwise (same as `findById`).
+   * @throws RepositoryError on any database failure.
+   */
+  async exists(seed: Seed, id: string, options?: { trashed?: TrashedMode }): Promise<boolean> {
+    try {
+      const tableName = this.getTableName(seed.slug)
+      const row = await this.database
+        .prepare(`SELECT 1 FROM ${tableName} WHERE id = ?${this.activeClause(seed, options?.trashed)} LIMIT 1`)
+        .bind(id)
+        .first()
+      return row !== null
+    } catch (error) {
+      throw this.mapError(error, `exists(${seed.slug}, ${id})`)
+    }
+  }
+
+  /**
    * Fetches a single entry by its unique `slug`, including its multi-relation arrays.
    * @throws EntryNotFoundError if no row with `slug` exists in the seed's table.
    * @throws RepositoryError on any other database failure.
@@ -1843,7 +1861,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
             SELECT id FROM activity_logs
             WHERE entity_id = ad.id
               AND entity_slug = ad.seed_slug
-              AND action IN ('create', 'update')
+              AND action IN ('create', 'update', 'publish')
             ORDER BY created_at DESC
             LIMIT 1
           )

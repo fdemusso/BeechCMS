@@ -5,13 +5,14 @@
 import { useTranslation } from "react-i18next"
 import { Activity, Plus, Edit as Pencil, Trash2, Upload } from '@/components/icons'
 import { formatDistanceToNow } from "date-fns"
-import { it as itLocale, enUS, type Locale } from "date-fns/locale"
+import { dateFnsLocaleFor } from "@/lib/date-locale"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardWidgetShell } from "../dashboard-widget-shell"
 import { useRecentActivity } from "../../hooks/use-dashboard-stats"
 import { activityTarget } from "../../utils/activity-target"
+import { ActivitySentence } from "../activity-sentence"
 import { cn } from "@/lib/utils"
 import { WidgetEmpty } from "./_parts/widget-empty"
 import { WidgetError } from "./_parts/widget-error"
@@ -23,8 +24,6 @@ export interface ActivityFeedWidgetProps {
   title?: string
 }
 
-const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
-
 const ACTION_ICONS: Record<string, React.ElementType> = {
   create: Plus,
   update: Pencil,
@@ -33,10 +32,10 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
 }
 
 const ACTION_COLORS: Record<string, string> = {
-  create: "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400",
-  update: "bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400",
-  delete: "bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400",
-  upload: "bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400",
+  create: "bg-status-live-soft text-status-live-foreground",
+  update: "bg-status-info-soft text-status-info-foreground",
+  delete: "bg-status-danger-soft text-status-danger-foreground",
+  upload: "bg-category-soft text-foreground",
 }
 
 function displayName(name?: string | null, email?: string, fallback = "User"): string {
@@ -51,7 +50,7 @@ function initials(name?: string | null, email?: string): string {
 
 export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: ActivityFeedWidgetProps) {
   const { t, i18n } = useTranslation()
-  const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
+  const dateFnsLocale = dateFnsLocaleFor(i18n.language)
   const widgetTitle = title || t("dashboard.widgets.activityFeed.title")
 
   function relativeTime(ts: number | null): string {
@@ -94,14 +93,15 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: Activi
           <ul className="space-y-1 pr-3">
             {items.map((log) => (
               <li key={log.id} className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground truncate flex-1">
-                  <span className="font-medium text-foreground">{displayName(log.user_name, log.user_email)}</span>{" "}
-                  {t(`dashboard.recentActivity.actions.${log.action}`, { defaultValue: log.action })}{" "}
-                  <span className="font-medium text-foreground">
-                    {activityTarget(log)}
-                  </span>
-                </span>
-                <span className="text-[10px] text-muted-foreground/60 shrink-0">{relativeTime(log.created_at)}</span>
+                <ActivitySentence
+                  className="text-xs text-muted-foreground truncate flex-1"
+                  action={log.action}
+                  user={displayName(log.user_name, log.user_email)}
+                  target={activityTarget(log)}
+                  userClassName="font-medium text-foreground"
+                  targetClassName="font-medium text-foreground"
+                />
+                <span className="text-xs text-muted-foreground/60 shrink-0">{relativeTime(log.created_at)}</span>
               </li>
             ))}
           </ul>
@@ -121,7 +121,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: Activi
               <li key={log.id} className="flex items-start gap-3 group">
                 <div className="relative shrink-0">
                   <Avatar className="size-8 border border-border/60">
-                    <AvatarFallback className="text-[10px] bg-muted text-foreground font-semibold">
+                    <AvatarFallback className="text-xs bg-muted text-foreground font-medium">
                       {initials(log.user_name, log.user_email)}
                     </AvatarFallback>
                   </Avatar>
@@ -134,13 +134,14 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: Activi
                 </div>
                 <div className="flex-1 min-w-0 space-y-0.5">
                   <p className="text-sm leading-snug">
-                    <span className="font-semibold">{displayName(log.user_name, log.user_email)}</span>{" "}
-                    <span className="text-muted-foreground">
-                      {t(`dashboard.recentActivity.actions.${log.action}`, { defaultValue: log.action })}
-                    </span>{" "}
-                    <span className="font-medium">
-                      {activityTarget(log)}
-                    </span>
+                    <ActivitySentence
+                      className="text-muted-foreground"
+                      action={log.action}
+                      user={displayName(log.user_name, log.user_email)}
+                      target={activityTarget(log)}
+                      userClassName="font-medium text-foreground"
+                      targetClassName="font-medium text-foreground"
+                    />
                   </p>
                   <p className="text-xs text-muted-foreground/70">{relativeTime(log.created_at)}</p>
                 </div>

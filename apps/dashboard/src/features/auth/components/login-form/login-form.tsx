@@ -89,7 +89,7 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
               <FieldGroup className="w-full max-w-sm">
                 <div className="flex flex-col items-center gap-2 text-center">
-                  <h1 className="font-heading text-2xl font-semibold">
+                  <h1 className="font-heading text-2xl font-bold">
                     Welcome back
                   </h1>
                   <p className="text-muted-foreground text-balance text-sm">

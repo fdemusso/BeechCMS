@@ -6,6 +6,7 @@
  * Upload feature — presigned R2 uploads and media serving.
  * The Worker never receives file bytes: it acts as auth gatekeeper and signer only.
  */
+import { logActivity } from '../../shared/services/activity-log/log-activity'
 import { Hono, type Context } from 'hono'
 import type { z } from 'zod'
 import { GLOBAL_SCOPE, getFileTypeByMime, hasPermission, isMimeAccepted, parseMediaTransformQuery, verifyMagicBytes, type BeechBucket, type IClock } from '@beechcms/core'
@@ -344,6 +345,7 @@ export const uploadRoutes = new Hono<AppEnv>()
     }
 
     await deleteR2Objects(c, [key])
+    logActivity(c, { action: 'delete', entityType: 'media', entityId: key, details: { name: media.filename, size: media.size_bytes, type: media.mime_type } })
     return c.json({ success: true }, 200)
   })
 

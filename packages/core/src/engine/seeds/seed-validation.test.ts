@@ -7,7 +7,6 @@ import type { Seed } from '../types.js'
 
 function makeSeed(overrides: Partial<Seed> & { slug: string }): Seed {
   return {
-    slug: overrides.slug,
     label: overrides.label ?? overrides.slug,
     displayNameAlias: 'title',
     branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text' }],

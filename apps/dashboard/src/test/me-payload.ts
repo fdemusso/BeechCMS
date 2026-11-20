@@ -22,6 +22,7 @@ export function meResponseBody(permissions: MePermissions) {
     name: "Ada",
     surname: null,
     avatarUrl: null,
+    hasCustomAvatar: false,
     notificationPrefs: { contentCreate: true, contentUpdate: true, contentDelete: true, mediaUpload: false },
     permissions,
     manageableScopes: [],

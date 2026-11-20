@@ -52,7 +52,6 @@ const profileSeed = defineSeed({
       alias: 'socials',
       label: 'Socials',
       type: 'repeater',
-      allowNull: true,
       fields: [
         { id: 'br_p3', alias: 'platform', label: 'Platform', type: 'text', requiredOnCreate: true },
         { id: 'br_p4', alias: 'url', label: 'URL', type: 'text', requiredOnCreate: true },

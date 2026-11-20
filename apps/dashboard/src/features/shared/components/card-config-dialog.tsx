@@ -118,7 +118,7 @@ export function CardConfigDialog({ open, onClose, seed, config, onSave, mediaBra
                     type="button"
                     disabled={disabled}
                     onClick={() => toggleMetadata(b.id)}
-                    className={`rounded-sm px-2 py-0.5 text-xs border transition-colors
+                    className={`rounded-control px-2 py-0.5 text-xs border transition-colors
                       ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-transparent'}
                       ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:border-muted-foreground'}`}
                   >
@@ -130,8 +130,8 @@ export function CardConfigDialog({ open, onClose, seed, config, onSave, mediaBra
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={handleSave}>{t('common.save')}</Button>
+          <Button variant="outline" onClick={onClose}>{t('common.action.cancel')}</Button>
+          <Button onClick={handleSave}>{t('common.action.save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

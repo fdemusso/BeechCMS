@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { queryOptions, useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { contentApi } from "../api/content.api"
 import { FACET_QUERY_KEYS, CONTENT_QUERY_KEYS, TRASH_QUERY_KEYS } from "../consts/content.keys"
 import { DASHBOARD_QUERY_KEYS } from "@/features/shared"
@@ -12,17 +12,21 @@ import { BACKREF_QUERY_KEY } from "@/features/shared"
  * Hook for fetching schema facets (statuses, tags).
  * Stale time is set to 5 minutes as these don't change frequently.
  */
-export function useContentFacets(slug: string | undefined) {
-  return useQuery({
-    queryKey: FACET_QUERY_KEYS.bySlug(slug || ""),
-    queryFn: () => {
-      if (!slug) throw new Error("Slug is required")
-      return contentApi.fetchFacets(slug)
-    },
-    enabled: Boolean(slug),
+const contentFacetsQueryOptions = (slug: string) =>
+  queryOptions({
+    queryKey: FACET_QUERY_KEYS.bySlug(slug),
+    queryFn: () => contentApi.fetchFacets(slug),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
   })
+
+/** Starts (or reuses) the facets fetch ahead of the page that reads it. Rejects like the query does. */
+export function prefetchContentFacets(queryClient: QueryClient, slug: string) {
+  return queryClient.fetchQuery(contentFacetsQueryOptions(slug))
+}
+
+export function useContentFacets(slug: string | undefined) {
+  return useQuery({ ...contentFacetsQueryOptions(slug ?? ""), enabled: Boolean(slug) })
 }
 
 /**

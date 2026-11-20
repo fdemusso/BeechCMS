@@ -197,13 +197,6 @@ function renderNode(node: TipTapNode): string {
       return `<img src="${safeSrc}"${alt}${title} />`
     }
 
-    case 'inlineMath':
-    case 'blockMath':
-    case 'mathematics': {
-      const latex = typeof attrs.latex === 'string' ? attrs.latex : (typeof node.text === 'string' ? node.text : '')
-      return `<span class="math-inline">${escapeHtml(latex)}</span>`
-    }
-
     default:
       console.warn(`[BeechCMS RichText] Unrecognized node type "${type}". Skipping node.`)
       return ''

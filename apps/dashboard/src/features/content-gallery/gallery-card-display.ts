@@ -35,6 +35,10 @@ export interface GalleryCardDisplayModel {
   imageUrl: string | null
   title: string
   excerpt: string
+  /** Set when the title branch is a relation: the raw value is an id, rendered by `FieldDisplay` (resolves the label). */
+  titleField?: GalleryCardMetadataItem
+  /** Same as `titleField`, for the excerpt slot. */
+  excerptField?: GalleryCardMetadataItem
   dateText: string
   metadata: GalleryCardMetadataItem[]
   ariaLabel: string
@@ -146,6 +150,13 @@ export function buildGalleryCardDisplayModel(
     : ""
   const dateText = branches.dateBranch ? formatDate(entry.data[branches.dateBranch.alias], language) : ""
 
+  const relationField = (branch: Branch | null): GalleryCardMetadataItem | undefined =>
+    branch?.type === "relation" && entry.data[branch.alias] != null && entry.data[branch.alias] !== ""
+      ? { branch, value: entry.data[branch.alias] }
+      : undefined
+  const titleField = relationField(branches.titleBranch)
+  const excerptField = relationField(branches.excerptBranch)
+
   const metadata = branches.metadataBranches.map((branch): GalleryCardMetadataItem => {
     const style = format.fields[branch.alias]
     return style
@@ -154,7 +165,7 @@ export function buildGalleryCardDisplayModel(
   })
 
   const ariaLabel = title
-    ? t("gallery.openDetailAriaLabel", { title })
+    ? t("gallery.openDetail.ariaLabel", { title })
     : t("gallery.openDetailAriaLabelFallback", { id: entry.id })
 
   const slotColumnId: Partial<Record<GalleryCardSlot, string>> = {
@@ -180,6 +191,8 @@ export function buildGalleryCardDisplayModel(
     imageUrl,
     title,
     excerpt,
+    ...(titleField ? { titleField } : {}),
+    ...(excerptField ? { excerptField } : {}),
     dateText,
     metadata,
     ariaLabel,

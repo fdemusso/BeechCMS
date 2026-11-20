@@ -3,14 +3,16 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { R2_FREE_ALLOWANCE_BYTES } from '../../shared/storage/limits'
+import { logActivity } from '../../shared/services/activity-log/log-activity'
 import { Hono, type Context } from 'hono'
 import type { z } from 'zod'
-import { GLOBAL_SCOPE, hasPermission, MAX_RETENTION_DAYS, resolveLocaleConfig, sha256hex, type SiteSettings } from '@beechcms/core'
+import { GLOBAL_SCOPE, hasPermission, MAX_RETENTION_DAYS, parseStoredUiPreferences, resolveLocaleConfig, sha256hex, UI_PREFERENCES_MAX_BYTES, uiPreferencesSchema, type SiteSettings } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { manageableScopes, serializeEffectivePermissions } from '../../shared/rbac/scoped-projection'
 import { deleteR2Objects } from '../../shared/storage/upload'
-import { zodJson } from '../../shared/utils/zod-json'
+import { zodJson, type ZodJsonRefusal } from '../../shared/utils/zod-json'
 import { zodQuery } from '../../shared/utils/zod-query'
 import {
   MAX_LOCALES,
@@ -79,6 +81,24 @@ function rejectInvalidBody(context: AppContext, error: z.ZodError) {
 
 function rejectInvalidOrphanKeys(context: AppContext) {
   return context.json({ type: 'settings-storage-invalid-orphan-keys' }, 400)
+}
+
+/**
+ * First issue wins. A malformed body is checked by `cause` before the root-level `custom` issue,
+ * because both sit at path `[]` and only the byte-cap refinement means "too large".
+ */
+function rejectInvalidUiPreferences(context: AppContext, error: z.ZodError, cause: ZodJsonRefusal) {
+  const issue = error.issues[0]
+  if (cause === 'malformed' || (issue.path.length === 0 && issue.code === 'invalid_type')) {
+    return context.json({ error: 'Invalid JSON body' }, 400)
+  }
+  if (issue.code === 'unrecognized_keys') {
+    return context.json({ type: 'ui-preferences-unknown-key', keys: issue.keys }, 400)
+  }
+  if (issue.code === 'custom' && issue.path.length === 0) {
+    return context.json({ type: 'ui-preferences-too-large', maxBytes: UI_PREFERENCES_MAX_BYTES }, 400)
+  }
+  return context.json({ type: 'ui-preferences-invalid', field: String(issue.path[0]) }, 400)
 }
 
 const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -183,6 +203,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
     }
 
     await context.get('siteSettingsRepository').setMany(fieldsToUpdate)
+    logActivity(context, { action: 'update', entityType: 'settings', entityId: 'site', details: { op: 'site', fields: Object.keys(fieldsToUpdate) } })
     return context.json({ success: true }, 200)
   })
 
@@ -205,10 +226,12 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       notificationPreferences = {}
     }
 
+    const hasCustomAvatar = Boolean(currentUser.avatarUrl)
     let avatarUrl = currentUser.avatarUrl
     if (!avatarUrl && currentUser.email) {
       const emailHash = await sha256hex(currentUser.email.trim().toLowerCase())
-      avatarUrl = `https://gravatar.com/avatar/${emailHash}?d=mp`
+      // d=404: an address without a Gravatar answers 404, so the dashboard falls back to the user's initials.
+      avatarUrl = `https://gravatar.com/avatar/${emailHash}?d=404`
     }
 
     const effective = await resolveEffectivePermissions(context)
@@ -220,6 +243,8 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       name: currentUser.name,
       surname: currentUser.surname,
       avatarUrl,
+      /** True when `avatarUrl` is a photo the user set, not the Gravatar fallback: only then can it be removed. */
+      hasCustomAvatar,
       notificationPrefs: {
         contentCreate: notificationPreferences.contentCreate ?? true,
         contentUpdate: notificationPreferences.contentUpdate ?? true,
@@ -263,6 +288,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
     if (emailInput !== null) fieldsToUpdate.email = emailInput
 
     await context.get('userRepository').updateProfile(userId, fieldsToUpdate)
+    logActivity(context, { action: 'update', entityType: 'user', entityId: userId, details: { op: 'profile', fields: Object.keys(fieldsToUpdate) } })
     return context.json({ success: true }, 200)
   })
 
@@ -288,6 +314,8 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
     const hashedNewPassword = await hashProvider.hash(newPassword)
     await context.get('userRepository').changePasswordAndRevokeSessions(userId, hashedNewPassword, context.get('clock').nowSeconds())
+    // Never the password itself: only that it changed, and that the other sessions were signed out.
+    logActivity(context, { action: 'update', entityType: 'user', entityId: userId, details: { op: 'password', sessionsRevoked: true } })
     return context.json({ success: true }, 200)
   })
 
@@ -300,6 +328,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
     const { avatarUrl } = context.req.valid('json')
     await context.get('userRepository').updateAvatarUrl(userId, avatarUrl)
+    logActivity(context, { action: 'update', entityType: 'user', entityId: userId, details: { op: avatarUrl ? 'avatar-set' : 'avatar-removed' } })
     return context.json({ success: true }, 200)
   })
 
@@ -334,6 +363,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       return context.json({ error: 'Session not found or already revoked' }, 404)
     }
 
+    logActivity(context, { action: 'revoke', entityType: 'session', entityId: sessionId })
     return context.json({ success: true }, 200)
   })
 
@@ -354,6 +384,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       id: entry.id,
       action: entry.action,
       entity_type: entry.entityType,
+      entity_id: entry.entityId,
       entity_slug: entry.entitySlug,
       details: entry.details ? JSON.stringify(entry.details) : null,
       created_at: entry.createdAt,
@@ -402,6 +433,8 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
     return context.json({
       totalBytes: totalStorageUsedBytes,
+      /** The allowance the meter is read against: R2 itself has no size cap. */
+      limitBytes: R2_FREE_ALLOWANCE_BYTES,
       fileCount: totalFileCount,
       orphans,
       orphanTotal,
@@ -442,6 +475,7 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
     // Decrements the storage counter by each deleted file's tracked size.
     await deleteR2Objects(context, selectedKeys)
+    logActivity(context, { action: 'purge', entityType: 'media', entityId: 'orphans', details: { op: 'orphans', count: selectedKeys.length } })
 
     return context.json({
       deleted: selectedKeys,
@@ -487,7 +521,40 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
     const newPreferences = context.req.valid('json')
 
     await context.get('userRepository').updateNotificationPreferences(userId, JSON.stringify(newPreferences))
+    logActivity(context, { action: 'update', entityType: 'user', entityId: userId, details: { op: 'notifications' } })
     return context.json({ success: true }, 200)
+  })
+
+  /**
+   * GET /api/settings/ui-preferences
+   * Retrieves the caller's UI preferences container; an invalid stored value reads as empty.
+   */
+  .get('/ui-preferences', async (context) => {
+    const { sub: userId } = context.get('jwtPayload')
+
+    const stored = await context.get('userRepository').findUiPreferences(userId)
+    if (stored === null) {
+      return context.json({ error: 'User not found' }, 404)
+    }
+
+    return context.json(parseStoredUiPreferences(stored), 200)
+  })
+
+  /**
+   * PUT /api/settings/ui-preferences
+   * Replaces the caller's whole UI preferences container and answers with what was stored.
+   */
+  .put('/ui-preferences', zodJson(uiPreferencesSchema, rejectInvalidUiPreferences), async (context) => {
+    const { sub: userId } = context.get('jwtPayload')
+
+    const preferences = context.req.valid('json')
+
+    const written = await context.get('userRepository').updateUiPreferences(userId, JSON.stringify(preferences))
+    if (!written) {
+      return context.json({ error: 'User not found' }, 404)
+    }
+    // No logActivity: cosmetic and frequent, it would crowd the activity tab.
+    return context.json(preferences, 200)
   })
 
 export { settingsApp }

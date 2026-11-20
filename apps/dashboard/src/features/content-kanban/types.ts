@@ -15,6 +15,8 @@ export interface KanbanCardSlots {
 export interface KanbanCardDisplayModel {
   entryId: string
   title: string
+  /** Legacy-path title whose branch is a relation: the raw value is an id, rendered by `FieldDisplay`. */
+  titleField?: ResolvedSlotField
   statusBadge?: string
   imageUrl?: string
   axisValue: string | null
@@ -33,13 +35,6 @@ export interface KanbanCardDisplayModel {
   statusStyle?: ElementStyle
 }
 
-export interface KanbanColumnModel {
-  value: string | null
-  label: string
-  total: number
-  cards: KanbanCardDisplayModel[]
-}
-
 /** Per-column fetch state from useInfiniteQuery (KB-S05/S06). */
 export interface KanbanColumnFetchState {
   cards: KanbanCardDisplayModel[]
@@ -48,6 +43,19 @@ export interface KanbanColumnFetchState {
   isFetching: boolean
   isLoading: boolean
   fetchNextPage: () => void
+}
+
+/** How the board draws its cards. Resolved once from the view config; every field has a default. */
+export interface KanbanCardOptions {
+  size: 'compact' | 'comfortable'
+  wrapTitle: boolean
+  showFieldLabels: boolean
+}
+
+export const DEFAULT_KANBAN_CARD_OPTIONS: KanbanCardOptions = {
+  size: 'comfortable',
+  wrapTitle: true,
+  showFieldLabels: true,
 }
 
 /** Runtime board config (axis resolved + user prefs). */

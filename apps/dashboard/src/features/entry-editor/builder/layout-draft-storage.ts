@@ -7,7 +7,6 @@ import {
   createDraftStorage,
   fingerprintLayout,
   isRecord,
-  type BuilderDraft,
   type BuilderDraftLookup,
 } from '@/components/builder/draft-storage'
 
@@ -18,7 +17,6 @@ import {
  * purpose (cancel, close, save) is not an interruption and removes the draft.
  */
 
-export type LayoutDraft = BuilderDraft<FormLayout>
 export type LayoutDraftLookup = BuilderDraftLookup<FormLayout>
 
 export { fingerprintLayout }

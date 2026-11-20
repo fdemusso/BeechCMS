@@ -13,7 +13,7 @@ const mockSeed: Seed = {
   branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text' }],
 }
 
-function makeRepo(version: number, seeds: Seed[] = [mockSeed]): ISeedRepository & { listActive: ReturnType<typeof vi.fn> } {
+function makeRepo(version: number, seeds: Seed[] = [mockSeed]): ISeedRepository & { listActive: ReturnType<typeof vi.fn>; getRegistryVersion: ReturnType<typeof vi.fn> } {
   return {
     listActive: vi.fn().mockResolvedValue(seeds),
     listAll: vi.fn().mockResolvedValue([]),

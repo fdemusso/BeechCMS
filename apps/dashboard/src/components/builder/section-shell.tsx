@@ -149,7 +149,7 @@ export function SectionShell({
           {isRenaming ? (
             <Input
               autoFocus
-              className="h-7 flex-1 rounded-md text-sm focus-visible:ring-1 focus-visible:ring-ring/30"
+              className="h-7 flex-1 rounded-control text-sm focus-visible:ring-1 focus-visible:ring-ring/30"
               value={renameValue}
               maxLength={labelMax}
               onChange={(e) => setRenameValue(e.target.value)}
@@ -177,7 +177,7 @@ export function SectionShell({
             </button>
           )}
 
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="category" className="text-xs">
             {countText}
           </Badge>
 
@@ -226,10 +226,10 @@ export function SectionShell({
                 setShowRemoveConfirm(false)
               }}
             >
-              {t('common.confirm')}
+              {t('common.action.confirm')}
             </Button>
             <Button type="button" variant="ghost" size="sm" onClick={() => setShowRemoveConfirm(false)}>
-              {t('common.cancel')}
+              {t('common.action.cancel')}
             </Button>
           </div>
         )}

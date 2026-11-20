@@ -17,11 +17,12 @@ export function LanguageSelect({ value, onValueChange, id }: LanguageSelectProps
   return (
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger id={id} className="w-full">
-        <SelectValue placeholder={t('settings.general.languagePlaceholder')} />
+        <SelectValue placeholder={t('settings.general.language.placeholder')} />
       </SelectTrigger>
       <SelectContent position="popper">
-        <SelectItem value="it">Italiano</SelectItem>
-        <SelectItem value="en">English</SelectItem>
+        {/* Each name in its own language, so a screen reader pronounces it as such. */}
+        <SelectItem value="it" lang="it">Italiano</SelectItem>
+        <SelectItem value="en" lang="en">English</SelectItem>
       </SelectContent>
     </Select>
   )

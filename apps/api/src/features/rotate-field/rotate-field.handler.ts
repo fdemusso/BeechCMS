@@ -6,6 +6,7 @@
 import { Hono } from 'hono'
 import { resolvePolicies, timingSafeEqual, validateAndSanitizeSeedPayload, EntryNotFoundError, EntryConflictError } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
+import { logActivity } from '../../shared/services/activity-log/log-activity'
 import { rotateFieldRequestSchema } from './rotate-field.schema'
 import type { Env, Variables } from '../../types'
 
@@ -176,6 +177,7 @@ rotateFieldApp.post('/:slug/:id/rotate-field', async (context) => {
     throw error
   }
 
+  logActivity(context, { action: 'update', entityType: 'content', entityId: entryId, entitySlug: seedSlug, details: { title: entryId, op: 'rotate-field', field: fieldAlias } })
   return context.json({ success: true })
 })
 

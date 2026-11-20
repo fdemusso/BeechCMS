@@ -236,8 +236,8 @@ describe('useBeechForm', () => {
     // Verify fetch was called without X-API-Key and with time-trap token
     const addCall = mockFetch.mock.calls.find((c) => c[0].endsWith('/contact-us/add'))
     expect(addCall).toBeDefined()
-    expect(addCall[1]?.headers?.['X-API-Key']).toBeUndefined()
-    expect(addCall[1]?.headers?.['x-time-trap']).toBe('t0_1000.abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234')
+    expect(addCall?.[1]?.headers?.['X-API-Key']).toBeUndefined()
+    expect(addCall?.[1]?.headers?.['x-time-trap']).toBe('t0_1000.abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234')
   })
 
   describe('tags branch payload', () => {

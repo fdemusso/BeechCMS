@@ -27,7 +27,7 @@ describe('isFlatSeed', () => {
     expect(result).toBe(true)
   })
 
-  const nonFlatCases: Array<{ type: BranchType; multiple?: boolean; localized?: boolean; format?: string }> = [
+  const nonFlatCases: Array<{ type: BranchType; multiple?: boolean; localized?: boolean; format?: Branch['format'] }> = [
     { type: 'relation' },
     { type: 'repeater' },
     { type: 'tags' },

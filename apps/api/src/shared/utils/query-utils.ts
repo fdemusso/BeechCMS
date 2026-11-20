@@ -5,7 +5,7 @@
 import type { FilterGroup, FilterType } from '@beechcms/core'
 
 /** Entry parsata per le risposte API — contratto immutabile (C7). */
-export interface ContentEntry {
+interface ContentEntry {
   id: string
   schema_slug: string
   slug: string | null

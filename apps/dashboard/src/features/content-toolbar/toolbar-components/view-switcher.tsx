@@ -58,7 +58,7 @@ export function ViewSwitcher({
         <SortableContext items={dragIds} strategy={horizontalListSortingStrategy}>
           <div
             role="tablist"
-            aria-label={t("content.views.tabsLabel")}
+            aria-label={t("content.views.tabs.label")}
             className="flex min-w-0 items-center gap-0.5 overflow-x-auto"
           >
             {views.map((view) => (

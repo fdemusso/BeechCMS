@@ -60,12 +60,13 @@ export function TimeseriesChartConfigPanel({
         seedSlug={config.seedSlug}
         value={config.groupColumn}
         onChange={(groupColumn) => onChange({ ...config, groupColumn })}
-        label={t("dashboard.builder.config.groupColumn")}
+        label={t("dashboard.builder.config.group.column")}
       />
       <TextField
         label={t("dashboard.builder.config.color")}
         value={config.color}
         onChange={(color) => onChange({ ...config, color })}
+        // design-ok: example value shown in the colour field, not a styled colour
         placeholder="#3b82f6"
       />
     </div>

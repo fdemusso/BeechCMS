@@ -7,6 +7,7 @@ import type { VisibilityState } from "@tanstack/react-table"
 import type { DateGroupPrecision } from "@/lib/dynamic-columns"
 import type { ConditionalFormatRule } from "@/lib/conditional-format"
 import type { UserViewInstance, ToolbarFiltersState } from "./shared"
+import type { ConditionalRuleEditRequest } from "./toolbar-hooks/use-conditional-formats"
 import type { TableDensity } from "@/lib/density"
 
 export interface ContentToolbarProps {
@@ -18,6 +19,8 @@ export interface ContentToolbarProps {
     viewId: string,
     next: ConditionalFormatRule[]
   ) => void
+  /** Opens the rule editor on a rule created outside the toolbar (table header menu). */
+  conditionalRuleEditRequest?: ConditionalRuleEditRequest
   /** Present only for users who may create views. */
   onCreateView?: (type: DashboardView) => void
   /** Types the "+" picker enables: the seed allow-list, empty without content:update. */

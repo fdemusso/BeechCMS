@@ -1,9 +1,9 @@
-﻿// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 import { useMemo } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { queryOptions, useQuery, type QueryClient } from "@tanstack/react-query"
 import {
   filterDashboardLayoutByWidgetRequirements,
   generateDefaultDashboardLayout,
@@ -27,13 +27,21 @@ export interface UseDashboardLayoutResult {
   isLoading: boolean
 }
 
-export function useDashboardLayout(): UseDashboardLayoutResult {
-  const layoutQuery = useQuery({
+const dashboardLayoutQueryOptions = () =>
+  queryOptions({
     queryKey: DASHBOARD_QUERY_KEYS.layout(),
     queryFn: dashboardApi.getDashboardLayout,
     // Per-caller authorization projection served no-store; the global 5-minute cache would outlive an assignment change.
     staleTime: 0,
   })
+
+/** Starts the layout fetch ahead of the dashboard page (staleTime 0: always a fresh request; the page then reuses it in flight). */
+export function prefetchDashboardLayout(queryClient: QueryClient) {
+  return queryClient.fetchQuery(dashboardLayoutQueryOptions())
+}
+
+export function useDashboardLayout(): UseDashboardLayoutResult {
+  const layoutQuery = useQuery(dashboardLayoutQueryOptions())
   const { data: seeds = EMPTY_SEEDS } = useSchema()
   const { effective, isLoading: permissionsLoading } = usePermissions()
 

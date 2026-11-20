@@ -45,6 +45,12 @@ function useChart() {
   return context
 }
 
+/**
+ * A chart redraws once its container has stopped changing size. Without it the chart redraws on every frame while
+ * the sidebar opens or closes (the page reflows for the whole transition) and the animation stutters.
+ */
+const RESIZE_DEBOUNCE_MS = 100
+
 function ChartContainer({
   id,
   className,
@@ -80,6 +86,7 @@ function ChartContainer({
         <ChartStyle id={chartId} config={config} />
         <RechartsPrimitive.ResponsiveContainer
           initialDimension={initialDimension}
+          debounce={RESIZE_DEBOUNCE_MS}
         >
           {children}
         </RechartsPrimitive.ResponsiveContainer>
@@ -229,6 +236,7 @@ function ChartTooltipContent({
                       !hideIndicator && (
                         <div
                           className={cn(
+                            // design-ok: micro element (≤20px), the contract has no radius level below rounded-control
                             "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
                             {
                               "h-2.5 w-2.5": indicator === "dot",
@@ -320,6 +328,7 @@ function ChartLegendContent({
                 <itemConfig.icon />
               ) : (
                 <div
+                  // design-ok: micro element (≤20px), the contract has no radius level below rounded-control
                   className="h-2 w-2 shrink-0 rounded-[2px]"
                   style={{
                     backgroundColor: item.color,

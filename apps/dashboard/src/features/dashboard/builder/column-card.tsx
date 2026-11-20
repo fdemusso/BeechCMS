@@ -59,7 +59,7 @@ export const ColumnCard = React.memo(function ColumnCard({
       handleIconClassName="size-6 rotate-90"
       gap={3}
       // Same corner radius as the widget cards it outlines while a drag is on.
-      className="rounded-2xl"
+      className="rounded-lg"
       style={{ gridColumn: `span ${span} / span ${span}` }}
       footer={
         <WidgetPickerMenu

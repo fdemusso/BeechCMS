@@ -1,92 +1,96 @@
 # Changelog
 
-## [0.9.0] — changes since v0.8.1
+## [Unreleased] — 0.10 candidate
 
-Covers `v0.8.1..HEAD` (2026-09-30 → 2026-10-20, ~270 commits).
+Covers work on `devs` not yet on `master` (2026-11-04 → 2026-11-20, ~60 commits, 5 locale files, 2 migrations). Base: `core@0.9.9`, `api@0.9.11`, `dashboard@0.9.10`.
 
 ### Highlights
 
-- **RBAC** — full role/permission system: permission vocabulary and evaluator, D1 storage, route enforcement, user/role/assignment admin API, invitation onboarding (copy-link invites), scoped listing endpoints, and dashboard surfaces with permission-aware gating.
-- **Saved Views** — view types, view instances and a view harness (#533), with `TagChoiceViews` and closed-vocabulary tags (#713).
-- **Field-Level Localization** — localized fields, locale switcher in the entry editor (#437).
-- **Soft delete & Trash** — soft delete backend, dashboard Trash, GDPR purge.
-- **Bulk data transfer** — export streams, bulk-transfer codecs, async chunked import jobs, transfer dashboard.
-- **Schema manifest tooling** — `beech.schema.ts` DSL, schema introspection fingerprint, `beech schema plan/apply`, `beech types check`, `beech schema audit` for stranded relation storage (#664) and legacy tag definitions, `beech schema migrate` for pre-0.9 tag/choice seeds.
-- **Client SDK** — fluent query builder with sorting, pagination, search and relation subqueries; public API relation expansion.
-- **Edge media presets** — preset transformations and URL builders (#436).
-- **Large security/hardening pass** — ~100 fixes from audit issues (see Security).
+- **Dashboard UI/UX foundations** — a written design system contract with a token lint, a refreshed palette, an inset sidebar with icon rail, and a rebuilt Settings area and content type editor. Together they set the visual language the 1.0 UI will build on. Not every screen has been moved onto it yet (see [Known gaps](#known-gaps)).
+- **Language support** — the dashboard now ships in five languages: English, Italian, **Spanish, German and French** (#963).
+- **BeechPal** — command palette with content search, context actions, quick notes and pins.
+- **Content type editor** — guided wizard and a redesigned Danger zone, moved to a dedicated Studio page.
+- **Settings** — rebuilt from scratch with a searchable sidebar, semantic pages and an activity feed that reads as sentences.
+
+### Languages
+
+- New dashboard languages: **es, de, fr** next to **en** and **it** (`supportedLngs: en, it, es, de, fr`, fallback `en`).
+- Keys standardized across the dashboard (#963). Locale files grew from 1,518 to 1,726 keys per language, and every locale has the same keys as `en`, plural forms aside (`es` and `fr` carry extra plural forms).
+- Guard rails in tests: every locale must answer the same keys as `en.json`, every key named in source code must exist in `en.json` (no hardcoded-string fallback), interpolation syntax must match, key naming conventions are enforced.
+- Translation glossary (`locales/glossary.json`) lists terms that must not be translated (Slug, Seed, Webhook, API, URL, ID, JSON, …) and a test checks they survive translation.
+- Settings has a Language page; the language picker and timezone selector announce names correctly to assistive tech.
 
 ### Added
 
-- **RBAC**: core permission vocabulary/evaluator; permission gate on protected routes; user/role/assignment admin API; invitation lifecycle; scoped listings and `settings/me`; dashboard RBAC surfaces, invite redemption and permission-derived navigation; content action gating with tooltips; role icons, modernized Users/Roles tabs and Manage Roles dialog; password strength indicator on invite acceptance; copy-link invites.
-- **Saved Views** (#533), `TagChoiceViews` and closed-vocabulary tags (#713).
-- **Table view**: persisted column order with type-aligned columns, keyboard selection and shortcuts, `id`/`created_at`/`updated_at` in the column picker, improved pill component.
-- **Field-Level Localization** (#437) with globe-icon locale switcher and status colors.
-- **Soft delete** backend and **Trash** dashboard; purge action for soft-deleted seeds (#772); hard-delete of soft-deleted seeds (#718).
-- **Bulk transfer**: `ContentExportStream`, codecs and queue producer port, async chunked import jobs (`ContentImportJobs`), bulk transfer dashboard.
-- **Optimistic concurrency control** on content update and draft publish (#74, #431).
-- **Schema tooling**: `beech.schema.ts` manifest DSL, introspection fingerprint, `schema plan`/`apply`, `types check` CI drift guard (#425), `schema audit` (#694).
-- **Client SDK**: fluent query builder, sorting/pagination/search, relation subqueries.
-- **Public API**: relation expansion.
-- **Media**: edge-native preset transformations and URL builders (#436).
-- **Testing**: real-D1 integration harness, tier-aware CI runner (`--tier`), Playwright e2e tier, scale performance tier, local thermal/memory budget protection for test runners, machine-wide CPU slot.
-- **CI/Release**: Dependabot auto-merge and release pipeline (#424).
-- **Dashboard**: "not implemented" toast for templates, scheduled and create-new.
-- **Docs**: query system, `beech.schema.ts`, RBAC, Trash/soft delete/GDPR purge, field localization, media presets, `@beechcms/testing` harness; ultra-wide responsive docs layout.
+**Design system**
+- Design system contract (`_config/design_system.html`) and a design-token lint, with rules for motion, chart palette and status tints.
+- Applied across `apps/dashboard`: chart palette, coral signal colour, status tints, builder colours, softer light greys, grey active item, firmer input edge.
+- `StatusBadge` used for recent content statuses.
 
-### Upgrade notes
+**Navigation**
+- Inset sidebar with icon rail, shared page layout and faster navigation (#943).
+- Collapsible sidebar groups, pinned settings and a toggle with tooltip.
+- Studio section between Main and Content.
 
-- Coming from 0.8.x: run `beech schema audit`, then `beech schema migrate` if it reports legacy tag/choice seeds. The seed registry now tolerates (quarantines) seeds that fail validation instead of failing to load.
+**BeechPal command palette** (#961)
+- Search, actions, notes and pins; new `users.ui_prefs` column (migration `0044`) holds per-user UI preferences, validated against `uiPreferencesSchema` from `@beechcms/core`.
+- Single settings registry feeds both the settings dialog and the palette; the content type builder opens from Cmd-K (new / edit).
+
+**Content type editor** (#949)
+- Creation wizard (General → Fields → Dashboard) with starter templates, drafts that survive a reload and a live sidebar preview; fields are added by typing a name and picking a type, alias derived from the name.
+- Danger zone for stored content types: Maintenance (search index rebuild, orphan columns) and Field operations (rename, change type, drop), with the impact stated up front and server refusals mirrored as disabled options with a reason. Deleting the whole content type is the footer's red button and asks for the slug.
+- Field badges: required, localized (translation icon), privacy tier (globe = public).
+- Moved out of Settings into a Studio page.
+
+**Settings**
+- Discord-style sidebar: families, search, bookmarks that stay unfolded until the parent is clicked again, log out; tabs merged into Preferences and Team.
+- My account, Site and Users & roles rebuilt as sections and rows; order Users → Roles → Invitations; Appearance, Language, Notifications, Connected apps and Storage in the same style.
+- Photo circle doubles as the change button with a remove back to initials; password fields get the login eye and strength bar.
+- Sessions and activity lists scroll after 3 / 5 rows; revoke shows on hover; lists scroll in `ScrollArea` past five rows.
+- Dialog fades in over 220 ms and out 20% quicker.
+
+**Activity log**
+- Wider action/entity vocabulary and a `logActivity` helper that records request origin; index on entity (migration `0043`).
+- Recorded: sign-ins (IP and place), account and settings changes, people, roles, invitations, connected apps, layout, views and automations; trash, purge, restore, publish, discard, import and media deletes are distinct events.
+- Recent activity reads as sentences for every kind of event; the dashboard feed only shows content, media and schema work.
+
+**Content views**
+- Table: grouped table scrolls inside with sticky headers, groups animated and persisted; redesigned Layout & style settings; column-header context menu; long cells grow to a cap then wrap, with a themed horizontal scroll.
+- Kanban: tinted columns, dynamic card height, card display options.
+- Relation labels resolved in gallery and kanban card titles.
+
+**Other**
+- Demo data: entry timestamps spread over the last week, brand palette for option colours.
+- `ContentRepository.exists()`, used by `draftGuard` (#861).
+- Docs: BeechPal sprint documents, activity events, settings history, `limitBytes`; contributing guide updated.
 
 ### Changed
 
-- Public API and engine reorganized into vertical slices (#456, #450); `ContentListPage` and `DataTable` refactored (#376).
-- Dead code checks and removal (#714); removed dead `seed-ddl-destructive` module (#527).
-- MinIO replaced in Docker stack/CI (dead images).
-- Test fixtures made resilient to system seeds and schema bumps.
+- **Removed LaTeX/KaTeX formula support** from the rich text editor (#813).
+- System seeds (`import_jobs`) are hidden from `GET /api/seeds` and the Content Types page; the seeds router refuses mutation of system seeds by slug (#947).
+- Content type dialog: sliding tab underline, directional content animation, 220 ms fade in / 176 ms out; outside click asks before discarding unsaved edits while the close button closes deliberately.
+- Charts redraw once after a resize instead of every frame.
+- Editor toolbar: one icon family, steady buttons, keycap tooltips; platform-aware shortcut hint (⌘ on macOS, Ctrl elsewhere) and squared `Kbd` keys.
+- `core`: `resolveCandidateIds` returns branches with ids (#946).
+- Tooling: `pnpm type-check` exits 0 and the husky pre-push type check is workspace-wide (#944, #948, #951); blocking type-check of every package including tests in CI; `fast-uri` 3.1.9.
 
 ### Fixed
 
-**Dashboard / views**
-- Kanban: blank position treated as unpositioned (#758), one card slot per branch (#757), exact query key in cache (#753), `activeFilters` passed through (#755), read-only users can open cards (#756), tag swap guarded by OCC (#476).
-- Gallery: pagination wired (#748), retry image on URL change (#751), folder key cap (#750), TipTap plain-text extraction (#747).
-- Toolbar: conditional-format rule kept (#741), menus close on selection (#740), search bar opens with active query (#739).
-- Views: date group precision (#761), autosave retry (#762), RFC 9457 problem slug (#760).
-- Dashboard widgets: empty builder columns as drop target (#769), end-of-day presets (#768), seed-gated queries (#767), setup checklist link (#766), new widgets kept on layout save (#764), QuickDraftWidget effective seed (#765).
-- Seed builder: form resync with Danger Zone (#774), navigation blocker (#771).
-- Settings: storage pagination (#773), media scanning for richtext/json/avatars (#736), orphaned media cleanup (#676), paginated storage orphans (#613).
-- Entry editor: sends `If-Match`, distinguishes update/slug conflicts (#474), surfaces draft validation (#517).
+- Orphan columns: the `<alias>_bidx` blind-index column of a confidential field was reported as orphan and could be dropped from the Danger zone.
+- Entry editor: layout ghosts match the real controls; tag remove overlay sized to the chip; the dialog toolbar stays out of the animated wrapper.
+- Recent content widget: unused import dropped, statuses use `StatusBadge`.
+- Settings: `pnpm type-check` regression, activity endpoint now sends `entity_id`, Users & roles keep their column headers, timezone selector scrolls with `ScrollArea`, password eye swaps instantly.
 
-**Content & seeds**
-- Atomic DDL + definitions commit (#555); media staged before hard delete (#618); repeater subfield ids and media purge (#776, #777); seed route hardening (#619); orphan column drops (#617); `displayNameAlias` kept valid (#615); lossy retype rejected (#524); indexes/FTS triggers dropped before `DROP COLUMN` (#523); FTS rebuild on searchable branch (#525); reserved-word/duplicate alias checks on rename (#526, #539).
-- Draft saves: version guard (#475), encrypt-privacy fields (#579), title visibility (#578).
-- Import: deterministic chunk slug (#477), `objectKey` namespace binding (#571); bulk set validation (#572); bulk array-relation writes vs trashed rows (#467).
-- Required localized branch handling on update (#438, #440); richtext/localized non-flat sets (#464); repeater required sub-fields (#444); validation low-severity findings (#445).
+### Accessibility
 
-**Search**
-- `deleted_at IS NULL` in FTS/search/backref queries (#465, #466); richtext body text indexing (#451); serialized R2 index compilation (#609); public index gated (#607); default page size on bad limit (#608); manifest schema alignment (#407).
+- Content type dialog: tabs, lists and footers use native elements and Radix primitives; labels and hints bound to controls; manifest-owned seeds inert instead of only click-proof; field type picker is a `ToggleGroup` with arrow-key navigation.
+- Settings: semantic, autofill-friendly My account markup.
 
-**Automations**
-- `edit_field` and `create_entry` sanitization (#471, #744); trigger conditions on cron batch actions (#557); `set_variable` result exposure and strict filter handling (#558, #559); per-sink escaping and JSON-escaped webhooks (#562, #563); seed-scoped template refs (#564); GET webhooks omit body (#742); rematerialization keeps seed/pin (#745); low-severity cron/proto-key fixes (#565).
+### Known gaps
 
-**Misc**
-- CLI: Wrangler without shell parsing (#518), CRLF normalization (#478), `beech dev` flag merge, `.dev.vars` check, CPU slot in `beech test` (#653), Windows path tests (#647).
-- MCP: supervisor restart races (#473), resource bundling cache (#496), unresolvable private dependency no longer shipped (#463).
-- Client: chained `where()` merged per field (#472).
-- Rate limiter: persisted registry, bounded buckets (#453–#458, #634).
-- Webhooks: QStash redelivery dedupe (#586); notification ETag from content (#582); email template HTML escaping (#479).
-- DB: RBAC/`is_active` moved out of already-applied base migration (#462); legacy role backfill (#512).
-- Media: signature/URL-extension handling (#531, #452); scale variants on effective ceiling (#593).
+Not yet on the new design language or not finished. Planned before 1.0:
 
-### Security
-
-- Hidden/masked field leaks closed in content, drafts, widgets and backrefs; default filter/sort/search off for hidden fields (#514, #570, #581, #566, #513, #469).
-- Developer-account protection enforced server-side (#515); inactive accounts gated on custom routes and OAuth (#574, #480).
-- OAuth refresh-token reuse detection revokes family (#516); token endpoint limiter keyed on credential hash (#587); revoke sessions on password change (#611).
-- Password reset: atomic token redemption (#589, #590), non-object bodies and inactive accounts rejected, latency equalised (#591).
-- RBAC: last-global-admin invariant enforced in-statement (#596), scope-aware role edit/delete (#595), atomic invitation redeem, SuperAdmin granted atomically on setup (#602).
-- Hash fields use keyed HMAC (#521, #600); `PRIVACY_MASTER_KEY` fail-closed (#568); encrypted filters rejected (#522, #584).
-- Public API: filter policy on relation subqueries (#631), `publicEdit:false` enforced (#625), time-trap token atomic claim (#627), internal error details redacted (#621), caller-supplied bucket keys never deleted (#624).
-- Uploads: proxied multipart fallback refused in production (#594); atomic upload registration (#592).
-- `sanitizeHtml`, `media()` host check, prototype-pollution lookups, DoS pre-check depth, layout size caps (#519, #520, #576, #605, #443).
-- Dependency patches for audit findings (#733–#735; axios, hono, sharp, fast-uri, MCP SDK, follow-redirects).
+- **Placeholder pages**: Analytics, Scheduled and Create new render a static "this page will…" box with an untranslated English description (`pages/analytics.tsx`, `pages/scheduled.tsx`, `pages/create-new.tsx`).
+- **Auth and onboarding** (login, setup, forgot / reset password, accept invite): only small edits so far (~50 lines changed in total), not yet rebuilt in the new style.
+- **Rich text editor**: toolbar polish only (icons, tooltips); no redesign.
+- **Import / export, drafts, bulk edit**: light touches only (~100 lines changed in total).

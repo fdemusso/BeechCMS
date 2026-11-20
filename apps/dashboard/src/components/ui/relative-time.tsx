@@ -40,7 +40,7 @@ export function RelativeTime({ value, className }: RelativeTimeProps) {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className={className}>{rel}</span>
+          <time dateTime={new Date(epochMs).toISOString()} className={className}>{rel}</time>
         </TooltipTrigger>
         <TooltipContent side="top">{abs}</TooltipContent>
       </Tooltip>

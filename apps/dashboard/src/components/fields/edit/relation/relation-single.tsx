@@ -253,7 +253,7 @@ export function SingleRelationEdit({
                 type="button"
                 aria-label={translate("content.editor.relation.clear")}
                 onClick={handleClear}
-                className="flex items-center rounded-sm opacity-60 hover:opacity-100 hover:bg-muted px-0.5"
+                className="flex items-center rounded-control opacity-60 hover:opacity-100 hover:bg-muted px-0.5"
               >
                 <X className="size-3.5" />
               </button>

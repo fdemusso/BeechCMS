@@ -17,6 +17,6 @@ export type GeneralSettings = InferResponseType<Settings['$get']>
 export type UpdateGeneralSettingsPayload = InferRequestType<Settings['$put']>['json']
 
 export type SettingsTab =
-  | 'profile' | 'interface' | 'security' | 'storage' | 'notifications'
-  | 'general' | 'content-types' | 'connected-apps'
-  | 'users' | 'roles' | 'invitations'
+  | 'account' | 'notifications' | 'connected-apps'
+  | 'appearance' | 'language'
+  | 'site' | 'people' | 'storage'

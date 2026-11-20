@@ -24,9 +24,9 @@ describe('resolveCandidateIds', () => {
       { alias: 'name', label: 'Name', type: 'text' },
     ] }
 
-    const resolved = resolveCandidateIds(candidate, stored)
+    const resolved = resolveCandidateIds(candidate, stored).branches
 
-    expect(resolved.branches.map(b => [b.alias, b.id])).toEqual([['tier', 'br_01'], ['name', 'br_c1']])
+    expect(resolved.map(b => [b.alias, b.id])).toEqual([['tier', 'br_01'], ['name', 'br_c1']])
   })
 
   it('reuses stored repeater sub-field ids by alias and mints for new sub-fields', () => {

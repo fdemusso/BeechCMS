@@ -54,6 +54,9 @@ the match scoped.
 - `apps/dashboard/src/features/dashboard/builder/dashboard-builder-dialog.tsx:127` — no `transition` utility is
   used; `duration-200` only sets `--tw-duration`, which the `animate-in` / `fade-in-0` keyframe animation
   reads. Removing it would change the open/close animation timing, not narrow a transition.
+- `apps/dashboard/src/features/seed-builder/components/SeedFormDialog.tsx` — same pattern: the
+  `data-open:duration-[220ms]` / `data-closed:duration-[176ms]` pair only sets `--tw-duration` for the dialog's
+  `animate-in` / `animate-out` fade, there is no `transition` utility to narrow.
 
 ## react-doctor/no-prop-callback-in-effect
 

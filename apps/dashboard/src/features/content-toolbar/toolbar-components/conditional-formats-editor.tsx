@@ -3,19 +3,28 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { Bold, ChevronDown, ChevronUp, Eye, EyeOff, Italic, Plus, Trash2, Underline, X } from '@/components/icons'
+import { Bold, ChevronDown, ChevronUp, EyeOff, Italic, Palette, Plus, Trash2, Underline, X } from '@/components/icons'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Toggle } from "@/components/ui/toggle"
+import { Switch } from "@/components/ui/switch"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Field, FieldLabel } from "@/components/ui/field"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuPortal,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
   Select,
@@ -24,12 +33,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { ReactNode } from "react"
 import type { ConditionalFormatRule, ConditionalFormatTone } from "@/lib/conditional-format"
 import {
   getConditionalFormatCellClass,
   getConditionalFormatRowClass,
 } from "@/lib/conditional-format"
+import { cn } from "@/lib/utils"
 import { FilterConditionInput } from "./filter-condition-input"
 import {
   CONDITIONAL_TONE_OPTIONS,
@@ -41,83 +50,113 @@ import {
 import type { FilterOperator, ToolbarFilterCondition } from "../shared"
 import type { FormattableColumn } from "../toolbar-hooks/use-toolbar-filters"
 
-interface ConditionalFormatsEditorProps {
+interface ConditionalColorsSubmenuProps {
   readonly enabled: boolean
   readonly formattableColumns: FormattableColumn[]
   readonly conditionalFormats: ConditionalFormatRule[]
-  readonly activeConditionalRule: ConditionalFormatRule | null
-  readonly isConditionalEditorOpen: boolean
-  readonly setIsConditionalEditorOpen: (open: boolean) => void
   readonly setActiveConditionalRuleId: (ruleId: string | null) => void
+  readonly setIsConditionalEditorOpen: (open: boolean) => void
   readonly addConditionalFormatRule: (columnId: string) => void
-  readonly updateConditionalRule: (ruleId: string, patch: Partial<ConditionalFormatRule>) => void
-  readonly updateConditionalTextStyles: (ruleId: string, nextStyles: string[]) => void
-  readonly removeConditionalRule: (ruleId: string) => void
-  readonly moveConditionalRule: (ruleId: string, dir: -1 | 1) => void
-  readonly updateConditionalCondition: (
-    ruleId: string,
-    conditionId: string,
-    patch: Partial<Pick<ToolbarFilterCondition, "op" | "value">>
-  ) => void
-  readonly addConditionalCondition: (ruleId: string) => void
-  readonly removeConditionalCondition: (ruleId: string, conditionId: string) => void
-  readonly availableTagsByColumnId: Record<string, string[]>
+  /** Closes the whole settings menu: the rule editor is a dialog, it opens on top of nothing. */
+  readonly onClose: () => void
 }
 
-interface ConditionalRulesEmptyStateProps {
-  readonly formattableColumns: FormattableColumn[]
-  readonly addConditionalFormatRule: (columnId: string) => void
-}
-
-function ConditionalRulesEmptyState({
+/** "Conditional colors" entry of the settings menu: the rule list and "Add rule". Editing happens in `ConditionalRuleDialog`. */
+export function ConditionalColorsSubmenu({
+  enabled,
   formattableColumns,
-  addConditionalFormatRule,
-}: ConditionalRulesEmptyStateProps) {
-  const { t } = useTranslation()
-  return (
-    <div className="flex min-h-52 flex-col items-center justify-center gap-3 rounded-md border border-dashed">
-      <div className="text-sm text-muted-foreground">{t("toolbar.conditionalFormats.noRules")}</div>
-      <ColumnPicker columns={formattableColumns} onSelect={addConditionalFormatRule} compact />
-    </div>
-  )
-}
-
-interface ConditionalRulesListProps {
-  readonly conditionalFormats: ConditionalFormatRule[]
-  readonly setActiveConditionalRuleId: (ruleId: string | null) => void
-  readonly setIsConditionalEditorOpen: (open: boolean) => void
-}
-
-function ConditionalRulesList({
   conditionalFormats,
   setActiveConditionalRuleId,
   setIsConditionalEditorOpen,
-}: ConditionalRulesListProps) {
+  addConditionalFormatRule,
+  onClose,
+}: ConditionalColorsSubmenuProps) {
+  const { t } = useTranslation()
   return (
-    <div className="space-y-2">
-      {conditionalFormats.map((rule, idx) => (
-        <button
-          key={rule.id}
-          type="button"
-          className="flex h-14 w-full overflow-hidden rounded-md border text-left transition-colors hover:bg-muted/40"
-          onClick={() => {
-            setActiveConditionalRuleId(rule.id)
-            setIsConditionalEditorOpen(true)
-          }}
-        >
-          <div className={`w-1/3 ${getConditionalToneStripClass(rule.tone)}`} />
-          <div className="flex flex-1 items-center justify-between px-3">
-            <span className="truncate text-sm">{rule.label || rule.group.label}</span>
-            <span className="text-[10px] text-muted-foreground">#{idx + 1}</span>
-          </div>
-        </button>
-      ))}
-    </div>
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <Palette className="size-4" />
+        <span className="flex-1">{t("toolbar.settings.conditionalColors")}</span>
+        {conditionalFormats.length > 0 && (
+          <span className="text-xs text-muted-foreground tabular-nums">{conditionalFormats.length}</span>
+        )}
+      </DropdownMenuSubTrigger>
+      <DropdownMenuPortal>
+        <DropdownMenuSubContent className="w-64">
+          {!enabled ? (
+            <DropdownMenuLabel>{t("toolbar.conditionalFormats.notAvailable")}</DropdownMenuLabel>
+          ) : (
+            <>
+              {conditionalFormats.length === 0 ? (
+                <DropdownMenuLabel>{t("toolbar.conditionalFormats.noRules")}</DropdownMenuLabel>
+              ) : (
+                <>
+                  <DropdownMenuLabel>{t("toolbar.conditionalFormats.rules")}</DropdownMenuLabel>
+                  {conditionalFormats.map((rule) => (
+                    <DropdownMenuItem
+                      key={rule.id}
+                      onSelect={() => {
+                        setActiveConditionalRuleId(rule.id)
+                        setIsConditionalEditorOpen(true)
+                        onClose()
+                      }}
+                    >
+                      <span
+                        aria-hidden
+                        className={cn("size-2 shrink-0 rounded-full", getConditionalToneStripClass(rule.tone))}
+                      />
+                      <span className={cn("flex-1 truncate", !rule.enabled && "text-muted-foreground")}>
+                        {rule.label || rule.group.label}
+                      </span>
+                      {!rule.enabled && <EyeOff className="size-3.5 shrink-0 text-muted-foreground" />}
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Plus className="size-4" />
+                  {t("toolbar.conditionalFormats.addRule")}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent className="w-64">
+                    <DropdownMenuLabel>{t("toolbar.conditionalFormats.choose.column")}</DropdownMenuLabel>
+                    {formattableColumns.length === 0 ? (
+                      <DropdownMenuLabel className="font-normal">
+                        {t("toolbar.conditionalFormats.noColumns")}
+                      </DropdownMenuLabel>
+                    ) : (
+                      <ScrollArea className="max-h-56">
+                        {formattableColumns.map((col) => (
+                          <DropdownMenuItem
+                            key={col.columnId}
+                            onSelect={() => {
+                              addConditionalFormatRule(col.columnId)
+                              onClose()
+                            }}
+                          >
+                            <span className="flex-1 truncate">{col.label}</span>
+                            <span className="text-xs text-muted-foreground">{col.type}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </ScrollArea>
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+            </>
+          )}
+        </DropdownMenuSubContent>
+      </DropdownMenuPortal>
+    </DropdownMenuSub>
   )
 }
 
-interface ConditionalRuleEditorProps {
-  readonly activeConditionalRule: ConditionalFormatRule
+interface ConditionalRuleDialogProps {
+  readonly rule: ConditionalFormatRule | null
+  readonly open: boolean
+  readonly onOpenChange: (open: boolean) => void
   readonly conditionalFormats: ConditionalFormatRule[]
   readonly updateConditionalRule: (ruleId: string, patch: Partial<ConditionalFormatRule>) => void
   readonly moveConditionalRule: (ruleId: string, dir: -1 | 1) => void
@@ -130,12 +169,14 @@ interface ConditionalRuleEditorProps {
   readonly addConditionalCondition: (ruleId: string) => void
   readonly removeConditionalCondition: (ruleId: string, conditionId: string) => void
   readonly updateConditionalTextStyles: (ruleId: string, nextStyles: string[]) => void
-  readonly setIsConditionalEditorOpen: (open: boolean) => void
   readonly availableTagsByColumnId: Record<string, string[]>
 }
 
-function ConditionalRuleEditor({
-  activeConditionalRule,
+/** Edits one conditional-color rule: name, target, conditions and style. */
+export function ConditionalRuleDialog({
+  rule,
+  open,
+  onOpenChange,
   conditionalFormats,
   updateConditionalRule,
   moveConditionalRule,
@@ -144,399 +185,211 @@ function ConditionalRuleEditor({
   addConditionalCondition,
   removeConditionalCondition,
   updateConditionalTextStyles,
-  setIsConditionalEditorOpen,
   availableTagsByColumnId,
-}: ConditionalRuleEditorProps) {
+}: ConditionalRuleDialogProps) {
   const { t } = useTranslation()
+  if (!rule) return null
+  const index = conditionalFormats.findIndex((r) => r.id === rule.id)
+  const ops = getOperatorOptions(rule.group.type, t)
+  const textStyles = rule.textStyles ?? []
+
   return (
-    <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
-      <div className="flex items-center justify-between">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs"
-          onClick={() => setIsConditionalEditorOpen(false)}
-        >
-          {t("toolbar.conditionalFormats.rulesList")}
-        </Button>
-        <span className="text-[11px] text-muted-foreground">{t("toolbar.conditionalFormats.editRule")}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <Toggle
-          pressed={activeConditionalRule.enabled}
-          onPressedChange={(pressed) =>
-            updateConditionalRule(activeConditionalRule.id, {
-              enabled: pressed,
-            })
-          }
-          variant="outline"
-          size="sm"
-          aria-label={t("toolbar.conditionalFormats.toggleRule")}
-          className="h-7 w-7 px-0"
-        >
-          {activeConditionalRule.enabled ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
-        </Toggle>
-        <Input
-          value={activeConditionalRule.label ?? ""}
-          onChange={(e) =>
-            updateConditionalRule(activeConditionalRule.id, {
-              label: e.target.value,
-            })
-          }
-          className="h-7 text-xs"
-          placeholder={t("toolbar.conditionalFormats.ruleName")}
-        />
-        <div className="ml-auto flex items-center gap-1">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-4 overflow-y-auto sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="font-heading text-xl font-bold">
+            {t("toolbar.conditionalFormats.editRule")}
+          </DialogTitle>
+          <DialogDescription>{t("toolbar.conditionalFormats.hint")}</DialogDescription>
+        </DialogHeader>
+
+        <div className="flex items-end gap-2">
+          <Field className="flex-1">
+            <FieldLabel htmlFor="conditional-rule-name">{t("toolbar.conditionalFormats.ruleName")}</FieldLabel>
+            <Input
+              id="conditional-rule-name"
+              value={rule.label ?? ""}
+              onChange={(e) => updateConditionalRule(rule.id, { label: e.target.value })}
+              placeholder={rule.group.label}
+            />
+          </Field>
           <Button
             type="button"
             variant="ghost"
-            size="icon-xs"
-            className="h-7 w-7"
-            onClick={() => moveConditionalRule(activeConditionalRule.id, -1)}
-            disabled={conditionalFormats.findIndex((r) => r.id === activeConditionalRule.id) === 0}
+            size="icon"
+            onClick={() => moveConditionalRule(rule.id, -1)}
+            disabled={index === 0}
             aria-label={t("toolbar.conditionalFormats.moveUp")}
           >
-            <ChevronUp className="size-3.5" />
+            <ChevronUp className="size-4" />
           </Button>
           <Button
             type="button"
             variant="ghost"
-            size="icon-xs"
-            className="h-7 w-7"
-            onClick={() => moveConditionalRule(activeConditionalRule.id, 1)}
-            disabled={
-              conditionalFormats.findIndex((r) => r.id === activeConditionalRule.id) ===
-              conditionalFormats.length - 1
-            }
+            size="icon"
+            onClick={() => moveConditionalRule(rule.id, 1)}
+            disabled={index === conditionalFormats.length - 1}
             aria-label={t("toolbar.conditionalFormats.moveDown")}
           >
-            <ChevronDown className="size-3.5" />
+            <ChevronDown className="size-4" />
           </Button>
           <Button
             type="button"
             variant="ghost"
-            size="icon-xs"
-            className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => removeConditionalRule(activeConditionalRule.id)}
+            size="icon"
+            className="text-status-danger-foreground hover:bg-status-danger-soft hover:text-status-danger-foreground"
+            onClick={() => removeConditionalRule(rule.id)}
             aria-label={t("toolbar.conditionalFormats.deleteRule")}
           >
-            <Trash2 className="size-3.5" />
+            <Trash2 className="size-4" />
           </Button>
         </div>
-      </div>
 
-      <div className="space-y-1">
-        <div className="text-xs font-medium">{t("toolbar.conditionalFormats.applyTo")}</div>
-        <div className="inline-flex rounded-md border p-0.5">
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className={
-              activeConditionalRule.target === "field"
-                ? "h-7 px-3 text-xs bg-black text-white hover:bg-black/90 hover:text-white"
-                : "h-7 px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-            }
-            onClick={() => updateConditionalRule(activeConditionalRule.id, { target: "field" })}
+        <Field orientation="horizontal">
+          <Switch
+            id="conditional-rule-enabled"
+            checked={rule.enabled}
+            onCheckedChange={(checked) => updateConditionalRule(rule.id, { enabled: checked })}
+          />
+          <FieldLabel htmlFor="conditional-rule-enabled">{t("toolbar.conditionalFormats.toggleRule")}</FieldLabel>
+        </Field>
+
+        <Field>
+          <FieldLabel>{t("toolbar.conditionalFormats.applyTo")}</FieldLabel>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={rule.target}
+            onValueChange={(value) => {
+              if (value === "field" || value === "element") updateConditionalRule(rule.id, { target: value })
+            }}
+            className="justify-start"
           >
-            {t("toolbar.conditionalFormats.field")}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className={
-              activeConditionalRule.target === "element"
-                ? "h-7 px-3 text-xs bg-black text-white hover:bg-black/90 hover:text-white"
-                : "h-7 px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-            }
-            onClick={() => updateConditionalRule(activeConditionalRule.id, { target: "element" })}
-          >
-            {t("toolbar.conditionalFormats.element")}
-          </Button>
-        </div>
-      </div>
+            <ToggleGroupItem value="field">{t("toolbar.conditionalFormats.field")}</ToggleGroupItem>
+            <ToggleGroupItem value="element">{t("toolbar.conditionalFormats.element")}</ToggleGroupItem>
+          </ToggleGroup>
+        </Field>
 
-      <div className="space-y-1">
-        <div className="text-xs font-medium">{t("toolbar.conditionalFormats.useColorIf")}</div>
-        <div className="h-8 rounded-md border bg-muted/20 px-2 text-xs flex items-center">
-          <span className="truncate">{activeConditionalRule.group.label}</span>
-        </div>
-      </div>
+        <Field>
+          <FieldLabel>
+            {t("toolbar.conditionalFormats.condition.heading")}
+            <span className="font-normal text-muted-foreground">· {rule.group.label}</span>
+          </FieldLabel>
+          <div className="flex flex-col gap-2">
+            {rule.group.conditions.map((cond) => (
+              <div key={cond.id} className="flex items-center gap-2">
+                <Select
+                  value={cond.op}
+                  onValueChange={(v) =>
+                    updateConditionalCondition(rule.id, cond.id, {
+                      op: v as FilterOperator,
+                      value: v === "is_empty" || v === "is_not_empty" ? null : cond.value,
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-40" aria-label={t("toolbar.conditionalFormats.operator")}>
+                    <SelectValue placeholder={t("toolbar.conditionalFormats.operator")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ops.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {operatorRequiresValue(cond.op) ? (
+                  <FilterConditionInput
+                    type={rule.group.type}
+                    value={cond.value}
+                    onChange={(value) => updateConditionalCondition(rule.id, cond.id, { value })}
+                    selectOptions={rule.group.selectOptions ?? []}
+                    availableTags={availableTagsByColumnId[rule.columnId] ?? []}
+                    className="h-8 flex-1"
+                    textClassName="text-sm"
+                  />
+                ) : (
+                  <div className="flex-1" />
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t("toolbar.conditionalFormats.removeCondition")}
+                  disabled={rule.group.conditions.length <= 1}
+                  onClick={() => removeConditionalCondition(rule.id, cond.id)}
+                >
+                  <X className="size-4" />
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start"
+              disabled={rule.group.conditions.length >= MAX_CONDITIONS_PER_FILTER}
+              onClick={() => addConditionalCondition(rule.id)}
+            >
+              <Plus className="size-4" />
+              {t("toolbar.conditionalFormats.addCondition")}
+            </Button>
+          </div>
+        </Field>
 
-      <div className="flex flex-col gap-2">
-        {activeConditionalRule.group.conditions.map((cond) => {
-          const ops = getOperatorOptions(activeConditionalRule.group.type, t)
-          const showValueInput = operatorRequiresValue(cond.op)
-
-          return (
-            <div key={cond.id} className="flex items-center gap-2">
-              <Select
-                value={cond.op}
-                onValueChange={(v) =>
-                  updateConditionalCondition(activeConditionalRule.id, cond.id, {
-                    op: v as FilterOperator,
-                    value: v === "is_empty" || v === "is_not_empty" ? null : cond.value,
-                  })
+        <Field>
+          <FieldLabel>{t("toolbar.conditionalFormats.style.heading")}</FieldLabel>
+          <div className="flex flex-col gap-3 rounded-lg border border-border p-3">
+            <div
+              className={cn(
+                "flex min-h-12 items-center rounded-control border border-border px-3",
+                rule.target === "element" && getConditionalFormatRowClass(rule.tone, textStyles)
+              )}
+            >
+              <span
+                className={
+                  rule.target === "field" ? getConditionalFormatCellClass(rule.tone, textStyles) : "font-medium"
                 }
               >
-                <SelectTrigger size="sm" className="h-8 w-36 text-xs">
-                  <SelectValue placeholder={t("toolbar.conditionalFormats.operator")} />
+                {t("toolbar.conditionalFormats.default")}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <Select
+                value={rule.tone}
+                onValueChange={(v) => updateConditionalRule(rule.id, { tone: v as ConditionalFormatTone })}
+              >
+                <SelectTrigger className="w-44" aria-label={t("toolbar.conditionalFormats.colorPreset")}>
+                  <SelectValue placeholder={t("toolbar.conditionalFormats.colorPreset")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {ops.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
+                  {CONDITIONAL_TONE_OPTIONS.map((toneOption) => (
+                    <SelectItem key={toneOption.value} value={toneOption.value}>
+                      {t(`toolbar.conditionalFormats.tone.${toneOption.value}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-
-              {showValueInput ? (
-                <FilterConditionInput
-                  type={activeConditionalRule.group.type}
-                  value={cond.value}
-                  onChange={(value) =>
-                    updateConditionalCondition(activeConditionalRule.id, cond.id, { value })
-                  }
-                  selectOptions={activeConditionalRule.group.selectOptions ?? []}
-                  availableTags={availableTagsByColumnId[activeConditionalRule.columnId] ?? []}
-                  className="h-8 flex-1"
-                  textClassName="text-xs"
-                />
-              ) : (
-                <div className="h-8 flex-1" />
-              )}
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                className="h-8 w-8"
-                aria-label={t("toolbar.conditionalFormats.removeCondition")}
-                disabled={activeConditionalRule.group.conditions.length <= 1}
-                onClick={() => removeConditionalCondition(activeConditionalRule.id, cond.id)}
+              <ToggleGroup
+                variant="outline"
+                type="multiple"
+                value={textStyles}
+                onValueChange={(value) => updateConditionalTextStyles(rule.id, value)}
               >
-                <X className="size-3.5" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                className="h-8 w-8"
-                aria-label={t("toolbar.conditionalFormats.addCondition")}
-                disabled={activeConditionalRule.group.conditions.length >= MAX_CONDITIONS_PER_FILTER}
-                onClick={() => addConditionalCondition(activeConditionalRule.id)}
-              >
-                <Plus className="size-3.5" />
-              </Button>
+                <ToggleGroupItem value="bold" aria-label={t("toolbar.conditionalFormats.bold")}>
+                  <Bold className="size-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="italic" aria-label={t("toolbar.conditionalFormats.italic")}>
+                  <Italic className="size-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="underline" aria-label={t("toolbar.conditionalFormats.underline")}>
+                  <Underline className="size-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
-          )
-        })}
-      </div>
-
-      <div className="space-y-1 pt-1">
-        <div className="text-xs font-medium">{t("toolbar.conditionalFormats.formatStyle")}</div>
-        <div className="rounded-md border border-dashed p-2">
-          <div
-            className={`flex min-h-12 items-center rounded-md border px-3 ${
-              activeConditionalRule.target === "element"
-                ? getConditionalFormatRowClass(
-                    activeConditionalRule.tone,
-                    activeConditionalRule.textStyles ?? []
-                  )
-                : ""
-            }`}
-          >
-            <span
-              className={
-                activeConditionalRule.target === "field"
-                  ? getConditionalFormatCellClass(
-                      activeConditionalRule.tone,
-                      activeConditionalRule.textStyles ?? []
-                    )
-                  : "font-medium"
-              }
-            >
-              {t("toolbar.conditionalFormats.default")}
-            </span>
           </div>
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <Select
-              value={activeConditionalRule.tone}
-              onValueChange={(v) =>
-                updateConditionalRule(activeConditionalRule.id, {
-                  tone: v as ConditionalFormatTone,
-                })
-              }
-            >
-              <SelectTrigger size="sm" className="h-8 w-40 text-xs">
-                <SelectValue placeholder={t("toolbar.conditionalFormats.colorPreset")} />
-              </SelectTrigger>
-              <SelectContent>
-                {CONDITIONAL_TONE_OPTIONS.map((toneOption) => (
-                  <SelectItem key={toneOption.value} value={toneOption.value}>
-                    {toneOption.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <ToggleGroup
-              variant="outline"
-              type="multiple"
-              value={activeConditionalRule.textStyles ?? []}
-              onValueChange={(value) => updateConditionalTextStyles(activeConditionalRule.id, value)}
-            >
-              <ToggleGroupItem value="bold" aria-label={t("toolbar.conditionalFormats.bold")}>
-                <Bold className="size-4" />
-              </ToggleGroupItem>
-              <ToggleGroupItem value="italic" aria-label={t("toolbar.conditionalFormats.italic")}>
-                <Italic className="size-4" />
-              </ToggleGroupItem>
-              <ToggleGroupItem value="underline" aria-label={t("toolbar.conditionalFormats.underline")}>
-                <Underline className="size-4" />
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export function ConditionalFormatsEditor({
-  enabled,
-  formattableColumns,
-  conditionalFormats,
-  activeConditionalRule,
-  isConditionalEditorOpen,
-  setIsConditionalEditorOpen,
-  setActiveConditionalRuleId,
-  addConditionalFormatRule,
-  updateConditionalRule,
-  updateConditionalTextStyles,
-  removeConditionalRule,
-  moveConditionalRule,
-  updateConditionalCondition,
-  addConditionalCondition,
-  removeConditionalCondition,
-  availableTagsByColumnId,
-}: ConditionalFormatsEditorProps) {
-  const { t } = useTranslation()
-
-  if (!enabled) {
-    return <div className="text-sm text-muted-foreground">{t("toolbar.conditionalFormats.notAvailable")}</div>
-  }
-
-  let content: ReactNode
-  if (isConditionalEditorOpen) {
-    if (activeConditionalRule) {
-      content = (
-        <ConditionalRuleEditor
-          activeConditionalRule={activeConditionalRule}
-          conditionalFormats={conditionalFormats}
-          updateConditionalRule={updateConditionalRule}
-          moveConditionalRule={moveConditionalRule}
-          removeConditionalRule={removeConditionalRule}
-          updateConditionalCondition={updateConditionalCondition}
-          addConditionalCondition={addConditionalCondition}
-          removeConditionalCondition={removeConditionalCondition}
-          updateConditionalTextStyles={updateConditionalTextStyles}
-          setIsConditionalEditorOpen={setIsConditionalEditorOpen}
-          availableTagsByColumnId={availableTagsByColumnId}
-        />
-      )
-    } else {
-      content = (
-        <div className="px-0 py-6 text-center text-sm text-muted-foreground">
-          {t("toolbar.conditionalFormats.selectRule")}
-        </div>
-      )
-    }
-  } else if (conditionalFormats.length === 0) {
-    content = (
-      <ConditionalRulesEmptyState
-        formattableColumns={formattableColumns}
-        addConditionalFormatRule={addConditionalFormatRule}
-      />
-    )
-  } else {
-    content = (
-      <ConditionalRulesList
-        conditionalFormats={conditionalFormats}
-        setActiveConditionalRuleId={setActiveConditionalRuleId}
-        setIsConditionalEditorOpen={setIsConditionalEditorOpen}
-      />
-    )
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <DropdownMenuLabel className="px-0 py-0 text-sm font-semibold text-foreground">
-          Regole dei colori condizionali
-        </DropdownMenuLabel>
-        <ColumnPicker columns={formattableColumns} onSelect={addConditionalFormatRule} />
-      </div>
-
-      <div className="text-[11px] text-muted-foreground">
-        Le regole si applicano dall’alto verso il basso.
-      </div>
-
-      <DropdownMenuSeparator />
-      {content}
-    </div>
-  )
-}
-
-interface ColumnPickerProps {
-  readonly columns: FormattableColumn[]
-  readonly onSelect: (columnId: string) => void
-  readonly compact?: boolean
-}
-
-function ColumnPicker({ columns, onSelect, compact = false }: ColumnPickerProps) {
-  const { t } = useTranslation()
-  return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className={compact ? "h-8" : "h-8 w-8 px-0"}
-          aria-label={t("toolbar.conditionalFormats.addRule")}
-        >
-          <Plus className="size-4" />
-          {compact ? t("toolbar.conditionalFormats.add") : null}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64 p-2">
-        <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-          {t("toolbar.conditionalFormats.chooseColumn")}
-        </DropdownMenuLabel>
-        <ScrollArea className="max-h-56 pr-2">
-          {columns.length === 0 ? (
-            <div className="py-2 text-center text-xs text-muted-foreground">
-              {t("toolbar.conditionalFormats.noColumns")}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1 py-1">
-              {columns.map((col) => (
-                <DropdownMenuItem
-                  key={col.columnId}
-                  className="h-8 justify-between px-2 text-xs"
-                  onSelect={() => onSelect(col.columnId)}
-                >
-                  <span className="truncate">{col.label}</span>
-                  <span className="text-[10px] text-muted-foreground uppercase">{col.type}</span>
-                </DropdownMenuItem>
-              ))}
-            </div>
-          )}
-        </ScrollArea>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </Field>
+      </DialogContent>
+    </Dialog>
   )
 }

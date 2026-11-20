@@ -18,6 +18,6 @@ export interface EntryEditorDialogProps {
 
 export function EntryEditorDialog(props: Readonly<EntryEditorDialogProps>) {
   const { schemaSlug, entryId, isDraftContext, open, onClose, readonly, onSaved, defaultValues } = props
-  const vm = useEntryEditorDialog({ schemaSlug, entryId, isDraftContext, onClose, readonly, onSaved, defaultValues })
+  const vm = useEntryEditorDialog({ schemaSlug, entryId, isDraftContext, onClose, readonly, onSaved, defaultValues, open })
   return <SchemaFormShell vm={vm} open={open} />
 }

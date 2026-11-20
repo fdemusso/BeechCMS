@@ -19,7 +19,7 @@
   "scripts": {
     "build": "tsc",
     "lint": "eslint .",
-    "type-check": "tsc -p tsconfig.json --noEmit"
+    "type-check": "tsc -p tsconfig.typecheck.json"
   },
   "dependencies": {
     "@beechcms/core": "workspace:^0.9.6"

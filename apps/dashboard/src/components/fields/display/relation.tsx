@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useState } from "react"
+import { useState, type SyntheticEvent } from "react"
 import { useTranslation } from "react-i18next"
 import { resolveRelationAvatar } from "@beechcms/core"
 import { useFieldsConfig } from "../context"
@@ -164,6 +164,10 @@ function MultipleRelation({ targetSlug, value, labelAlias, avatarAlias, compact,
 // Main component
 // ============================================================================
 
+function stopPropagation(e: SyntheticEvent) {
+  e.stopPropagation()
+}
+
 /**
  * Field Renderer: Relation Display Component.
  * Renders read-only relations and opens the detail dialog on click. The avatar is opt-in per relation
@@ -203,14 +207,25 @@ export function RelationDisplay({ branch, value, options }: FieldDisplayProps) {
     <>
       {content}
       {selectedId && targetSlug && (
-        <components.EntryEditorDialog
-          schemaSlug={targetSlug}
-          entryId={selectedId}
-          isDraftContext={false}
-          open={true}
-          onClose={() => setSelectedId(null)}
-          readonly={true}
-        />
+        // The dialog is portaled, but React events still bubble to the host (a table cell/row): there a click
+        // moves focus to the table, Radix reads that as focus leaving the dialog and closes it. Keep them here.
+        <div
+          role="presentation"
+          className="contents"
+          onClick={stopPropagation}
+          onDoubleClick={stopPropagation}
+          onMouseDown={stopPropagation}
+          onContextMenu={stopPropagation}
+        >
+          <components.EntryEditorDialog
+            schemaSlug={targetSlug}
+            entryId={selectedId}
+            isDraftContext={false}
+            open={true}
+            onClose={() => setSelectedId(null)}
+            readonly={true}
+          />
+        </div>
       )}
     </>
   )

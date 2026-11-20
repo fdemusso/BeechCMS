@@ -146,7 +146,7 @@ export function CronSchedulerUi({ triggerIndex }: CronSchedulerUiProps) {
               )}
             >
               <Icon className={cn('size-4 mb-1.5 transition-transform', isActive ? 'scale-110' : '')} />
-              <span className="text-[11px] text-center leading-tight">
+              <span className="text-xs text-center leading-tight">
                 {t(`automations.editor.cron.${p.labelKey}`)}
               </span>
             </button>
@@ -155,10 +155,10 @@ export function CronSchedulerUi({ triggerIndex }: CronSchedulerUiProps) {
       </div>
 
       {state.preset !== 'hourly' && state.preset !== 'advanced' && (
-        <div className="mt-3 p-3 rounded-lg bg-secondary/30 dark:bg-secondary/10 border border-secondary flex flex-wrap items-center gap-4 animate-in fade-in-50 duration-200">
+        <div className="mt-3 p-3 rounded-lg bg-secondary/30 dark:bg-secondary/10 border border-secondary flex flex-wrap items-center gap-4 animate-in fade-in-50 duration-(--duration-enter)">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-medium text-muted-foreground">
-              {t('automations.editor.cron.timeLabel')}
+            <label className="text-xs font-medium text-muted-foreground">
+              {t('automations.editor.cron.time.label')}
             </label>
             <div className="flex items-center gap-1">
               <Select value={state.hour} onValueChange={(v) => updateSchedule({ hour: v })}>
@@ -187,8 +187,8 @@ export function CronSchedulerUi({ triggerIndex }: CronSchedulerUiProps) {
 
           {state.preset === 'weekly' && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-medium text-muted-foreground">
-                {t('automations.editor.cron.dayOfWeekLabel')}
+              <label className="text-xs font-medium text-muted-foreground">
+                {t('automations.editor.cron.dayOfWeek.label')}
               </label>
               <Select value={state.dayOfWeek} onValueChange={(v) => updateSchedule({ dayOfWeek: v })}>
                 <SelectTrigger className="h-8 w-32 text-xs bg-background">
@@ -205,8 +205,8 @@ export function CronSchedulerUi({ triggerIndex }: CronSchedulerUiProps) {
 
           {state.preset === 'monthly' && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-medium text-muted-foreground">
-                {t('automations.editor.cron.dayOfMonthLabel')}
+              <label className="text-xs font-medium text-muted-foreground">
+                {t('automations.editor.cron.dayOfMonth.label')}
               </label>
               <Select value={state.dayOfMonth} onValueChange={(v) => updateSchedule({ dayOfMonth: v })}>
                 <SelectTrigger className="h-8 w-20 text-xs bg-background">
@@ -224,23 +224,23 @@ export function CronSchedulerUi({ triggerIndex }: CronSchedulerUiProps) {
       )}
 
       {state.preset === 'advanced' && (
-        <div className="mt-3 p-3 rounded-lg bg-secondary/30 dark:bg-secondary/10 border border-secondary animate-in fade-in-50 duration-200">
+        <div className="mt-3 p-3 rounded-lg bg-secondary/30 dark:bg-secondary/10 border border-secondary animate-in fade-in-50 duration-(--duration-enter)">
           <Input
             {...register(cronField as any)}
             placeholder="0 9 * * 1"
             className="h-8 text-sm font-mono bg-background"
           />
           {cronError && (
-            <p className="mt-1 text-xs text-destructive">{t(cronError.message ?? '')}</p>
+            <p className="mt-1 text-xs text-status-danger-foreground">{t(cronError.message ?? '')}</p>
           )}
-          <p className="mt-1.5 text-[10px] text-muted-foreground leading-relaxed">
-            {t('automations.editor.cronHint')}
+          <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
+            {t('automations.editor.cron.hint')}
           </p>
         </div>
       )}
 
       {state.preset !== 'advanced' && cronError && (
-        <p className="mt-1.5 text-xs text-destructive px-1">{t(cronError.message ?? '')}</p>
+        <p className="mt-1.5 text-xs text-status-danger-foreground px-1">{t(cronError.message ?? '')}</p>
       )}
     </div>
   )

@@ -31,7 +31,7 @@ describe("password-strength utilities", () => {
     const score = passwordStrength("Abc123xyz")
     expect(score).toBeGreaterThanOrEqual(40)
     expect(score).toBeLessThan(70)
-    expect(getStrengthColor(score)).toBe("bg-amber-500")
+    expect(getStrengthColor(score)).toBe("bg-status-warning")
     expect(getStrengthLabelKey(score)).toBe("strengthFair")
   })
 
@@ -39,7 +39,7 @@ describe("password-strength utilities", () => {
     // 16+ chars, uppercase, lowercase, numbers, symbols, high entropy
     const score = passwordStrength("K8#mQ9!vL2$pX5@zR")
     expect(score).toBeGreaterThanOrEqual(70)
-    expect(getStrengthColor(score)).toBe("bg-green-500")
+    expect(getStrengthColor(score)).toBe("bg-status-live")
     expect(getStrengthLabelKey(score)).toBe("strengthStrong")
   })
 

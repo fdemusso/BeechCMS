@@ -7,7 +7,7 @@ import type { ContentRepository, Seed, SelectOptions } from '@beechcms/core'
 const PAGE_SIZE = 1000
 
 /** Keeps one run inside the isolate's memory budget; a seed larger than this is processed partially. */
-export const MAX_AUTOMATION_ROWS = 10_000
+const MAX_AUTOMATION_ROWS = 10_000
 
 /** Reads every row `options` selects, page by page, up to MAX_AUTOMATION_ROWS. */
 export async function findAllEntries(

@@ -47,9 +47,9 @@ export function useContentLanguages() {
     try {
       // Only the two locale keys: the General form owns the other settings and is saved separately.
       await updateSettings.mutateAsync({ locales, defaultLocale })
-      toast.success(t("settings.contentLanguages.savedSuccess"))
+      toast.success(t("settings.contentLanguages.saved.success"))
     } catch (err) {
-      toast.error((isApiError(err) ? err.data?.detail : undefined) ?? t("settings.contentLanguages.savedError"))
+      toast.error((isApiError(err) ? err.data?.detail : undefined) ?? t("settings.contentLanguages.saved.error"))
     }
   }
 

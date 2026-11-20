@@ -6,7 +6,6 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { permissionsHeldAnywhere, type Permission, type RoleRecord } from "@beechcms/core"
-import { Search } from "@/components/icons"
 import {
   Dialog,
   DialogContent,
@@ -15,15 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { IconPicker } from "@/components/ui/icon-picker"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { usePermissions } from "@/features/shared"
-import { resolveIcon, ICON_NAMES } from "@/lib/icon-registry"
 import { cn } from "@/lib/utils"
 import { useCreateRole, useUpdateRole } from "../hooks/use-rbac"
 import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
@@ -45,8 +42,6 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
   const [name, setName] = React.useState(role?.name ?? "")
   const [description, setDescription] = React.useState(role?.description ?? "")
   const [icon, setIcon] = React.useState(role?.icon ?? "Users")
-  const [iconPickerOpen, setIconPickerOpen] = React.useState(false)
-  const [iconSearch, setIconSearch] = React.useState("")
   const [permissions, setPermissions] = React.useState<Permission[]>(role?.permissions ?? [])
   const [error, setError] = React.useState<string | null>(null)
 
@@ -59,23 +54,14 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
       setName(role?.name ?? "")
       setDescription(role?.description ?? "")
       setIcon(role?.icon ?? "Users")
-      setIconPickerOpen(false)
-      setIconSearch("")
       setPermissions(role?.permissions ?? [])
       setError(null)
     }
   }
 
-  const uniqueIconNames = React.useMemo(() => Array.from(new Set(ICON_NAMES)), [])
-  const filteredIcons = React.useMemo(() => {
-    const q = iconSearch.trim().toLowerCase()
-    if (!q) return uniqueIconNames
-    return uniqueIconNames.filter((item) => item.toLowerCase().includes(q))
-  }, [uniqueIconNames, iconSearch])
-
-  const SelectedIcon = resolveIcon(icon || "Users")
   const heldAnywhere = React.useMemo(() => permissionsHeldAnywhere(effective), [effective])
   const permissionSet = React.useMemo(() => new Set(permissions), [permissions])
+  const hasUnheldPermission = PERMISSION_GROUPS.some((group) => group.permissions.some((permission) => !heldAnywhere.has(permission)))
 
   const togglePermission = (permission: Permission) => {
     setPermissions((current) =>
@@ -99,7 +85,7 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
       } else {
         await createRole.mutateAsync(payload)
       }
-      toast.success(t("rbac.roles.saveSuccess", "Role saved"))
+      toast.success(t("rbac.roles.save.success", "Role saved"))
       onOpenChange(false)
     } catch (err) {
       const code = rbacErrorCode(err)
@@ -127,96 +113,41 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
             <Field>
               <FieldLabel htmlFor="rf-name">{t("rbac.roles.name", "Name")}</FieldLabel>
               <div className="flex items-center gap-2">
-                <Popover
-                  modal={true}
-                  open={iconPickerOpen}
-                  onOpenChange={(next) => {
-                    setIconPickerOpen(next)
-                    if (!next) setIconSearch("")
-                  }}
-                >
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="size-9 shrink-0 rounded-md border-border/80 hover:bg-accent flex items-center justify-center cursor-pointer"
-                      aria-label={t("rbac.roles.selectIcon", "Select icon")}
-                      title={t("rbac.roles.selectIcon", "Select icon")}
-                    >
-                      <SelectedIcon className="size-4 text-foreground" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" sideOffset={4} className="w-64 p-2.5">
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        <Input
-                          placeholder={t("rbac.roles.searchIcons", "Search icons...")}
-                          value={iconSearch}
-                          onChange={(e) => setIconSearch(e.target.value)}
-                          className="h-8 pl-8 text-xs"
-                          autoFocus
-                        />
-                      </div>
-                      <ScrollArea className="h-48" onWheel={(e) => e.stopPropagation()}>
-                        <div className="grid grid-cols-6 gap-1 p-0.5 pr-2.5">
-                          {filteredIcons.map((iconName) => {
-                            const IconComp = resolveIcon(iconName)
-                            const isSelected = (icon || "Users") === iconName
-                            return (
-                              <button
-                                key={iconName}
-                                type="button"
-                                onClick={() => {
-                                  setIcon(iconName)
-                                  setIconPickerOpen(false)
-                                  setIconSearch("")
-                                }}
-                                title={iconName}
-                                className={cn(
-                                  "size-8 rounded-md flex items-center justify-center transition-colors cursor-pointer",
-                                  isSelected
-                                    ? "bg-primary text-primary-foreground shadow-xs"
-                                    : "hover:bg-accent text-muted-foreground hover:text-foreground"
-                                )}
-                              >
-                                <IconComp className="size-4" />
-                              </button>
-                            )
-                          })}
-                          {filteredIcons.length === 0 && (
-                            <p className="col-span-6 text-center text-xs text-muted-foreground py-4">
-                              {t("rbac.roles.noIconsFound", "No icons found")}
-                            </p>
-                          )}
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <IconPicker
+                  value={icon}
+                  onChange={setIcon}
+                  ariaLabel={t("rbac.roles.selectIcon", "Select icon")}
+                  searchPlaceholder={t("rbac.roles.searchIcons", "Search icons...")}
+                  emptyLabel={t("rbac.roles.noIconsFound", "No icons found")}
+                />
 
-                <Input id="rf-name" required maxLength={32} value={name} onChange={(e) => setName(e.target.value)} className="flex-1" />
+                <Input id="rf-name" name="role-name" autoComplete="off" required maxLength={32} value={name} onChange={(e) => setName(e.target.value)} className="flex-1" />
               </div>
             </Field>
             <Field>
               <FieldLabel htmlFor="rf-description">{t("rbac.roles.description", "Description")}</FieldLabel>
               <Input
                 id="rf-description"
+                name="role-description"
+                autoComplete="off"
                 maxLength={50}
                 value={description ?? ""}
                 onChange={(e) => setDescription(e.target.value)}
               />
             </Field>
-            <Field>
-              <FieldLabel>{t("rbac.roles.permissions", "Permissions")}</FieldLabel>
+            {/* A fieldset, so a screen reader says which group a checkbox is in: "Permissions, Content, read". */}
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium">{t("rbac.roles.permissions.label", "Permissions")}</legend>
+              {hasUnheldPermission && (
+                <p id="rf-permissions-hint" className="text-sm text-muted-foreground">{t("rbac.roles.permissions.hint")}</p>
+              )}
               <TooltipProvider delayDuration={100} disableHoverableContent>
                 <div className="grid grid-cols-2 gap-4">
                   {PERMISSION_GROUPS.map((group) => (
-                    <div key={group.id}>
-                      <span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                    <fieldset key={group.id}>
+                      <legend className="block text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
                         {t(group.titleKey, group.defaultTitle)}
-                      </span>
+                      </legend>
                       <div className="space-y-2">
                         {group.permissions.map((permission) => {
                           const disabled = !heldAnywhere.has(permission)
@@ -231,6 +162,7 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
                               <Checkbox
                                 checked={permissionSet.has(permission)}
                                 disabled={disabled}
+                                aria-describedby={disabled ? "rf-permissions-hint" : undefined}
                                 onCheckedChange={() => togglePermission(permission)}
                               />
                               {permission.replace(/^content:/, "").replace(/_/g, " ")}
@@ -245,16 +177,16 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
                           )
                         })}
                       </div>
-                    </div>
+                    </fieldset>
                   ))}
                 </div>
               </TooltipProvider>
-            </Field>
+            </fieldset>
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
           <DialogFooter className="mt-4">
             <Button type="submit" disabled={!name || permissions.length === 0 || createRole.isPending || updateRole.isPending}>
-              {t("common.save", "Save")}
+              {t("common.action.save", "Save")}
             </Button>
           </DialogFooter>
         </form>

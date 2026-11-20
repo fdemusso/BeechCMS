@@ -25,14 +25,14 @@ export interface ArchetypeProps {
   readonly align?: 'left' | 'center'
 }
 
-const FilterPill = () => <Skeleton className="h-7 w-24 rounded-md" />
+const FilterPill = () => <Skeleton className="h-7 w-24 rounded-control" />
 
 // ── stat ────────────────────────────────────────────────────────────────────
 
 export function StatGhost({ seed, shell }: ArchetypeProps) {
   const [wide] = seededSeries(seed, 1, 55, 85)
   return (
-    <div className="flex h-full min-h-[132px] w-full flex-col justify-between rounded-2xl border bg-card/60 p-5">
+    <div className="flex h-full min-h-[132px] w-full flex-col justify-between rounded-lg border bg-card/60 p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-2.5">
           <p className="truncate font-heading text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -40,7 +40,7 @@ export function StatGhost({ seed, shell }: ArchetypeProps) {
           </p>
           <Skeleton className="h-8 min-w-16" style={{ width: `${wide}%` }} />
         </div>
-        <Skeleton className="size-10 shrink-0 rounded-xl" />
+        <Skeleton className="size-10 shrink-0 rounded-lg" />
       </div>
       <div className="mt-6 flex items-end justify-between">
         <Skeleton className="h-3 w-28" />
@@ -95,7 +95,7 @@ export function ChartGhost({ seed, variant, shell }: ArchetypeProps) {
         {kind === 'bar' ? (
           <div className="absolute inset-0 flex items-end gap-2 px-1">
             {bars.map((h, i) => (
-              <Skeleton key={i} className="flex-1 rounded-t-md rounded-b-none" style={{ height: `${h}%` }} />
+              <Skeleton key={i} className="flex-1 rounded-t-control rounded-b-none" style={{ height: `${h}%` }} />
             ))}
           </div>
         ) : (
@@ -151,7 +151,7 @@ export function PieGhost({ seed, shell }: ArchetypeProps) {
         <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
           {shares.map((_, i) => (
             <div key={i} className="flex items-center gap-1.5">
-              <Skeleton className="size-2 shrink-0 rounded-[2px]" />
+              <Skeleton /* design-ok: micro element (≤20px), the contract has no radius level below rounded-control */ className="size-2 shrink-0 rounded-[2px]" />
               <Skeleton className="h-2.5 w-10" />
               <Skeleton className="h-2.5 w-5" />
             </div>
@@ -254,7 +254,7 @@ export function ActionsGhost({ shell }: ArchetypeProps) {
       <div className="grid grid-cols-2 gap-3">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="flex h-20 flex-col items-center justify-center gap-2 rounded-lg bg-foreground/[0.03]">
-            <Skeleton className="size-6 rounded-md" />
+            <Skeleton className="size-6 rounded-control" />
             <Skeleton className="h-2.5 w-16" />
           </div>
         ))}

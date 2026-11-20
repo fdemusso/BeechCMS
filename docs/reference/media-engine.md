@@ -213,11 +213,12 @@ Deletes the object from storage, removes its tracking row from `media_objects`, 
 
 ## Storage diagnostics — `GET /api/settings/storage`
 
-The authenticated settings route returns storage usage (`totalBytes`, `fileCount`) and a page of tracked media files that are not referenced by content. Supply `offset` (default `0`) and `limit` (default `50`, maximum `50`) to browse orphan files. Both parameters must be non-negative safe integers, and `limit` must be at least `1`; invalid values return `400 settings-storage-invalid-pagination`.
+The authenticated settings route returns storage usage (`totalBytes`, `fileCount`), the allowance it is read against (`limitBytes`) and a page of tracked media files that are not referenced by content. Supply `offset` (default `0`) and `limit` (default `50`, maximum `50`) to browse orphan files. Both parameters must be non-negative safe integers, and `limit` must be at least `1`; invalid values return `400 settings-storage-invalid-pagination`.
 
 ```json
 {
   "totalBytes": 510,
+  "limitBytes": 10737418240,
   "fileCount": 51,
   "orphans": [{ "key": "media/example.png", "filename": "example.png", "mime_type": "image/png", "size_bytes": 10, "uploaded_by": "user-id", "created_at": 1700000000 }],
   "orphanTotal": 51,
@@ -227,7 +228,7 @@ The authenticated settings route returns storage usage (`totalBytes`, `fileCount
 }
 ```
 
-`orphanTotal` and `orphanBytes` cover the full tracked media library, while `orphans` contains only the requested page. Request the next page with `offset + orphanLimit` while that value is less than `orphanTotal`. The route scans tracked media to compute exact totals on each request; its response size remains bounded by `limit`.
+`limitBytes` is not a capacity: R2 has no size cap of its own. It is the monthly free allowance of the Cloudflare plan (10 GB), the one reference the dashboard storage widget, the health check and the Storage settings share. `totalBytes` is the sum of the files the CMS tracks, not a measurement of the bucket. `orphanTotal` and `orphanBytes` cover the full tracked media library, while `orphans` contains only the requested page. Request the next page with `offset + orphanLimit` while that value is less than `orphanTotal`. The route scans tracked media to compute exact totals on each request; its response size remains bounded by `limit`.
 
 A file counts as referenced when a `file` field of any registered seed points to it, in a live entry or in an unpublished draft. References outside `file` fields (for example rich text embeds or external sites) are not detected. The report is therefore a list of candidates to review, and nothing is deleted automatically.
 

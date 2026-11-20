@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /** One rejected field in a 400/422 body. */
-export interface ApiErrorField {
+interface ApiErrorField {
   field?: string
   message?: string
   expected?: string

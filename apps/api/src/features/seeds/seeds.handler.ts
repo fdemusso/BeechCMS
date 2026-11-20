@@ -16,7 +16,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import type { Branch, Seed } from '@beechcms/core'
-import { planFtsRebuild, SYSTEM_COLUMNS } from '@beechcms/core'
+import { isSystemSeedSlug, planFtsRebuild } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import { zodJson } from '../../shared/utils/zod-json'
 import type { Env, Variables } from '../../types'
@@ -30,6 +30,7 @@ import {
   assignMissingBranchIds,
   validateAndApplySeedDef,
   validateIncomingBranches,
+  definedColumns,
 } from './seeds.helpers'
 import { destructiveApp } from './seeds.destructive'
 import { mcpApp } from './seeds.mcp'
@@ -48,9 +49,13 @@ export const seedsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
   .route('/', mcpApp)
 
   /**
-   * Lists all seed records (both active and soft-deleted).
+   * Lists all user-manageable seed records (both active and soft-deleted).
    *
    * @remarks
+   * System seeds (`SYSTEM_SEED_SLUGS`, e.g. `import_jobs`) are omitted: they are platform
+   * machinery, not content types an admin manages. This is the only seeds route that filters them;
+   * `GET /api/seeds/:slug` still resolves one by slug, and `/api/schema` (the runtime registry)
+   * is unaffected.
    * Requires `manage_seeds` at the global scope (route table).
    * Emits the current `X-Schema-Version` response header carrying `seed_meta.registry_version`
    * for optimistic concurrency control (OCC) aware clients.
@@ -60,7 +65,7 @@ export const seedsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
    */
   .get('/', async (context) => {
     const repo = context.get('seedRepository')
-    const records = await repo.listAll()
+    const records = (await repo.listAll()).filter(record => !isSystemSeedSlug(record.slug))
     context.header('X-Schema-Version', String(await repo.getRegistryVersion()))
     return context.json(records, 200)
   })
@@ -262,8 +267,8 @@ export const seedsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
    * Identifies orphaned database columns that exist in the physical table but are absent from the seed definition.
    *
    * @remarks
-   * Compares physical SQLite table columns (`content_<slug>`) against core `SYSTEM_COLUMNS`
-   * and defined branch aliases.
+   * Compares physical SQLite table columns (`content_<slug>`) against the columns the definition accounts for
+   * (system columns, branch aliases, and the `<alias>_bidx` blind index of encrypted branches).
    *
    * @route GET /api/seeds/:slug/orphans
    * @param slug - Seed slug identifier.
@@ -278,13 +283,8 @@ export const seedsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
     const dbCols = await schemaMutator.getColumns(`content_${slug}`)
     if (!dbCols) return context.json({ orphans: [] as string[] }, 200)
 
-    const knownAliases = new Set([
-      ...SYSTEM_COLUMNS,
-      ...existing.definition.branches
-        .filter((b: Branch) => !(b.type === 'relation' && b.multiple === true))
-        .map((b: Branch) => b.alias),
-    ])
-    const orphans = [...dbCols].filter((col: string) => !knownAliases.has(col))
+    const known = definedColumns(existing.definition)
+    const orphans = [...dbCols].filter((col: string) => !known.has(col))
     return context.json({ orphans }, 200)
   })
 

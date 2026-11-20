@@ -2,15 +2,19 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useRef, useCallback } from "react"
+import { useRef, useCallback, useEffect } from "react"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useThrottle<T extends (...args: any[]) => void>(
   callback: T,
   delay: number
 ): (...args: Parameters<T>) => void {
-  const lastRan = useRef(Date.now())
+  const lastRan = useRef(0)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    lastRan.current = Date.now()
+  }, [])
 
   return useCallback(
     (...args: Parameters<T>) => {

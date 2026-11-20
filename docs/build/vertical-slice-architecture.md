@@ -137,7 +137,7 @@ import { DeleteSeedDialog } from '@/features/seed-builder/components/DeleteSeedD
 
 Mirroring the backend Thin Handler Pattern, route-level pages in `apps/dashboard/src/pages/` are strictly **composition roots**:
 - Extract router parameters and query strings (`useParams`, `useSearchParams`).
-- Render the outermost shell layout (`SidebarProvider`, `SiteHeader`, `AppSidebar`, `SidebarInset`).
+- Render the outermost shell layout (`AppShell`: `SidebarProvider`, `AppSidebar`, `SidebarInset`).
 - Delegate domain logic, UI state, and views to feature-scoped hooks and components.
 - **Rule**: Page files must remain thin (< 150 lines) and avoid inlining complex filtering algorithms, table computations, or inline dialog trees.
 

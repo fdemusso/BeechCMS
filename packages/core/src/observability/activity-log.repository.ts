@@ -48,6 +48,11 @@ export interface ActivityLogListOptions {
   entitySlug?: string
   /** Authorization filter applied in the query, before `limit`. */
   visibility?: ActivityLogVisibility
+  /**
+   * Restrict the result to these entity types. A feed shown to people other than the actor (the dashboard
+   * widget) must name the types it may show: sign-ins, password changes and the like are the actor's own.
+   */
+  entityTypes?: readonly EntityType[]
   /** Hard upper bound on the number of rows returned. */
   limit: number
 }
@@ -59,6 +64,14 @@ export interface CountSinceOptions {
   sinceTimestamp: number
   /** Authorization filter applied in the query. */
   visibility?: ActivityLogVisibility
+}
+
+/** The actor of the most recent authoring activity recorded for one content entry. */
+export interface ContentLastWriter {
+  /** The content entry id (`activity_logs.entity_id`). */
+  entryId: string
+  userName: string | null
+  userEmail: string
 }
 
 export interface IActivityLogRepository {
@@ -80,4 +93,12 @@ export interface IActivityLogRepository {
    * is one call so the repository contract stays narrow and deterministic.
    */
   countSince(options: CountSinceOptions): Promise<number>
+
+  /**
+   * For each id in `entryIds`, the actor of its most recent `create`, `update` or `publish` row with
+   * `entityType = 'content'`. Ids with no such row are absent from the result; order is unspecified.
+   * Keyed on the entry id alone: public-API writes store the entry slug, not the seed slug, in
+   * `entitySlug`. An empty `entryIds` resolves to `[]`.
+   */
+  lastContentWriters(entryIds: readonly string[]): Promise<ContentLastWriter[]>
 }

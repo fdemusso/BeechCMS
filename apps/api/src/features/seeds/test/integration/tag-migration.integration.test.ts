@@ -15,7 +15,6 @@ import {
   introspectSeedDefinitions,
   planTagMigration,
   tagMigrationStatements,
-  type Branch,
   type SchemaQueryExecutor,
 } from '@beechcms/core'
 import { createBeechApp } from '../../../../factory'
@@ -46,7 +45,7 @@ describe('tag contract migration — integration (real D1)', () => {
   async function storeLegacyStatusOption(): Promise<void> {
     const row = await harness.db.prepare("SELECT definition FROM seeds WHERE slug = 'posts'").first<{ definition: string }>()
     if (!row) throw new Error('posts seed missing')
-    const definition = JSON.parse(row.definition) as { branches: Array<Branch & { options?: unknown }> }
+    const definition = JSON.parse(row.definition) as { branches: Array<Record<string, unknown>> }
     definition.branches = definition.branches.map(branch =>
       branch.alias === 'internal_note' ? { ...branch, options: ['draft', 'live'] } : branch)
     await harness.db.prepare("UPDATE seeds SET definition = ? WHERE slug = 'posts'").bind(JSON.stringify(definition)).run()

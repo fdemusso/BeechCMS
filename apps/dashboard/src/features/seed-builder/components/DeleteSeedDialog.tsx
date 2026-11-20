@@ -38,7 +38,7 @@ export function DeleteSeedDialog({ seed, open, onOpenChange }: DeleteSeedDialogP
     if (!seed) return
     deleteMutation.mutate(seed.slug, {
       onSuccess: () => {
-        toast.success(t("seedBuilder.delete.successToast", { label: seed.definition.label }))
+        toast.success(t("seedBuilder.delete.success.toast", { label: seed.definition.label }))
         onOpenChange(false)
       },
       onError: (err) => {
@@ -65,18 +65,18 @@ export function DeleteSeedDialog({ seed, open, onOpenChange }: DeleteSeedDialogP
             <div className="space-y-2 text-sm">
               <p>{t("seedBuilder.delete.description")}</p>
               <p className="font-medium">{t("seedBuilder.delete.dataRetained")}</p>
-              <p className="text-muted-foreground">{t("seedBuilder.delete.dangerZoneHint")}</p>
+              <p className="text-muted-foreground">{t("seedBuilder.delete.dangerZone.hint")}</p>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.action.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            variant="destructive"
             disabled={deleteMutation.isPending}
           >
-            {deleteMutation.isPending ? t("common.deleting") : t("seedBuilder.delete.confirm")}
+            {deleteMutation.isPending ? t("common.deleting") : t("common.action.delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -12,13 +12,57 @@ import { useKanbanColumnQuery } from '../hooks/use-kanban-column-query'
 import { useKanbanBoard } from '../utils/use-kanban-board'
 import { useKanbanDrag } from '../utils/use-kanban-drag'
 import { buildKanbanCardDisplayModel } from '../utils/kanban-card-display'
-import { KANBAN_COLUMN_WIDTH_PX, KANBAN_CARD_HEIGHT_PX, KANBAN_COLUMN_PADDING_PX } from '../constants'
-import type { ContentKanbanProps, KanbanBoardConfig, KanbanCardDisplayModel } from '../types'
+import { KANBAN_COLUMN_WIDTH_PX, KANBAN_COLUMN_PADDING_PX } from '../constants'
+import type { ContentKanbanProps, KanbanBoardConfig, KanbanCardDisplayModel, KanbanCardOptions } from '../types'
 import type { ContentListWithMeta } from '@/lib/content-api'
 import { NO_ELEMENT_FORMATTER, type ElementFormatter } from '@/lib/conditional-format'
 
 // For now canEdit defaults to true; integrate with permission system when available
 const DEFAULT_CAN_EDIT = true
+
+/** Nearest ancestor that clips or scrolls its content: the board must end inside it, not at the window edge. */
+function clippingAncestor(node: HTMLElement): HTMLElement | null {
+  for (let el = node.parentElement; el; el = el.parentElement) {
+    const { overflowY } = getComputedStyle(el)
+    if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'hidden' || overflowY === 'clip') return el
+  }
+  return null
+}
+
+/** Gap between the toolbar above the board and the board itself, so the bottom margin can mirror it. */
+function gapAboveBoard(node: HTMLElement): number {
+  for (let el: HTMLElement | null = node; el; el = el.parentElement) {
+    const prev = el.previousElementSibling
+    if (prev) return Math.max(8, Math.min(64, Math.round(node.getBoundingClientRect().top - prev.getBoundingClientRect().bottom)))
+  }
+  return 16
+}
+
+/**
+ * Publishes --kanban-board-max: the height from the board's top to the bottom of its clipping container
+ * (or the window), minus the same gap that separates the board from the toolbar. Kept current on resize
+ * and layout shifts, so the board always fits the page and only the columns' card lists scroll.
+ */
+function useBoardMaxHeight(ref: React.RefObject<HTMLDivElement | null>): void {
+  React.useLayoutEffect(() => {
+    const node = ref.current
+    if (!node) return
+    const update = () => {
+      const top = node.getBoundingClientRect().top
+      const bottomEdge = Math.min(window.innerHeight, clippingAncestor(node)?.getBoundingClientRect().bottom ?? window.innerHeight)
+      const max = Math.max(240, Math.floor(bottomEdge - top - gapAboveBoard(node)))
+      node.style.setProperty('--kanban-board-max', `${max}px`)
+    }
+    update()
+    window.addEventListener('resize', update)
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
+    observer?.observe(document.body)
+    return () => {
+      window.removeEventListener('resize', update)
+      observer?.disconnect()
+    }
+  })
+}
 
 interface ColumnProps {
   seedSlug: string
@@ -35,6 +79,8 @@ interface ColumnProps {
   pendingCards: Map<string, { destColValue: string | null; position: string; axisValue: string | null }>
   cardConfig?: import('@beechcms/core').KanbanCardConfig
   formatElement: ElementFormatter
+  cardOptions: KanbanCardOptions
+  tinted: boolean
   onToggleCollapse: () => void
   onEdit: (id: string) => void
   onCreateEntry?: () => void
@@ -42,7 +88,7 @@ interface ColumnProps {
 
 function KanbanColumnConnected({
   seedSlug, seed, axisBranch, col, config, activeFilters, search, collapsed,
-  canEdit, canCreate, sortActive, pendingCards, cardConfig, formatElement,
+  canEdit, canCreate, sortActive, pendingCards, cardConfig, formatElement, cardOptions, tinted,
   onToggleCollapse, onEdit, onCreateEntry,
 }: ColumnProps) {
   const fetchState = useKanbanColumnQuery(seedSlug, axisBranch, col, config, activeFilters, search, seed, cardConfig, formatElement)
@@ -161,6 +207,8 @@ function KanbanColumnConnected({
       colValue={col.value}
       label={col.label}
       color={col.color}
+      tinted={tinted}
+      cardOptions={cardOptions}
       fetchState={fetchState}
       cards={cards}
       collapsed={collapsed}
@@ -199,6 +247,15 @@ export function ContentKanban({
 
   const columns = useKanbanColumns(axisBranch, kanbanConfig)
 
+  const cardOptions = React.useMemo<KanbanCardOptions>(() => ({
+    size: kanbanConfig.cardSize ?? 'comfortable',
+    wrapTitle: kanbanConfig.wrapTitle ?? true,
+    showFieldLabels: kanbanConfig.showFieldLabels ?? true,
+  }), [kanbanConfig.cardSize, kanbanConfig.wrapTitle, kanbanConfig.showFieldLabels])
+
+  // Conditional formats paint the cards: a tinted column behind them would clash, so the tint steps aside.
+  const tinted = (kanbanConfig.colorColumns ?? true) && formatElement === NO_ELEMENT_FORMATTER
+
   const [collapsed, setCollapsed] = React.useState<Set<string>>(
     () => new Set(kanbanConfig.collapsedColumnValues),
   )
@@ -210,6 +267,9 @@ export function ContentKanban({
     setCollapsed(next)
     setKanbanConfig({ ...kanbanConfig, collapsedColumnValues: [...next] })
   }, [collapsed, kanbanConfig, setKanbanConfig])
+
+  const boardRef = React.useRef<HTMLDivElement>(null)
+  useBoardMaxHeight(boardRef)
 
   const { state: boardState, dispatch } = useKanbanBoard()
   const [touchDragActive, setTouchDragActive] = React.useState(false)
@@ -232,7 +292,7 @@ export function ContentKanban({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-muted-foreground text-sm">Caricamento…</div>
+        <div className="text-muted-foreground text-sm">{t('kanban.board.loading')}</div>
       </div>
     )
   }
@@ -242,8 +302,8 @@ export function ContentKanban({
       <div className="flex flex-col items-center justify-center gap-4 py-16">
         <p className="text-muted-foreground text-sm">
           {compat.reason === 'drafts-enabled'
-            ? 'Kanban non disponibile per i seed con bozze abilitate.'
-            : 'Nessun campo compatibile trovato per la vista Kanban.'}
+            ? t('kanban.board.draftsEnabled')
+            : t('kanban.board.noCompatibleField')}
         </p>
       </div>
     )
@@ -285,12 +345,15 @@ export function ContentKanban({
         }}
       >
         <div
-          className="flex gap-6 overflow-x-auto pb-4"
+          ref={boardRef}
+          className="overflow-x-auto"
           style={{
             display: 'grid',
             gridAutoFlow: 'column',
             gridAutoColumns: `${KANBAN_COLUMN_WIDTH_PX}px`,
-            justifyContent: 'center',
+            gap: KANBAN_COLUMN_PADDING_PX * 2,
+            justifyContent: 'start',
+            maxHeight: 'var(--kanban-board-max, calc(100vh - 14rem))',
             touchAction: touchDragActive ? 'none' : 'pan-y',
           }}
         >
@@ -304,6 +367,8 @@ export function ContentKanban({
                 axisBranch={axisBranch}
                 cardConfig={cardConfig}
                 formatElement={formatElement}
+                cardOptions={cardOptions}
+                tinted={tinted}
                 col={col}
                 config={kanbanConfig}
                 activeFilters={activeFilters}
@@ -326,15 +391,16 @@ export function ContentKanban({
         <DragOverlay>
           {activeCard ? (
             <div 
-              className="rotate-1 opacity-95" 
-              style={{ width: KANBAN_COLUMN_WIDTH_PX - (2 * KANBAN_COLUMN_PADDING_PX), height: KANBAN_CARD_HEIGHT_PX, boxSizing: 'border-box' }}
+              className="rotate-1 opacity-95"
+              style={{ width: KANBAN_COLUMN_WIDTH_PX - (2 * KANBAN_COLUMN_PADDING_PX), boxSizing: 'border-box' }}
             >
               <KanbanCard 
                 model={activeCard} 
                 canEdit={false} 
                 sortActive={false} 
                 onEdit={() => {}} 
-                isDragging={false} 
+                isDragging={false}
+                options={cardOptions}
               />
             </div>
           ) : null}

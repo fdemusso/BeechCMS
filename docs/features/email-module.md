@@ -14,7 +14,7 @@ Built as an extensible vertical slice, it decouples template rendering, branding
 The email slice enforces a clean separation of concerns:
 - **Zero Provider Coupling**: The rest of BeechCMS interacts only with `features/email/index.ts` and knows nothing about HTML rendering or third-party APIs.
 - **Unified Branding**: A shared `shell.ts` layout acts as the single source of truth for email styling, logos, and button design.
-- **Multilingual by Design**: Email copy is strongly typed and automatically matches the user's dashboard language preference (`en`, `it`, etc.).
+- **Multilingual by Design**: Email copy is strongly typed and follows the language the dashboard sends (`en`, `it`). Any other language, including the dashboard's own `es`, `de` and `fr`, is sent in English until a template exists for it.
 
 | Goal | Relevant File |
 | :--- | :--- |
@@ -96,6 +96,15 @@ Safely converts untrusted request input into a valid `EmailLocale`:
 const locale = resolveEmailLocale(requestBody.locale) // Returns 'en' | 'it'
 ```
 
+The input is trimmed, lowercased and reduced to its base language (the part before the first `-` or `_`) before it is looked up, so the lookup never throws and never returns an empty value:
+
+| Input | Result |
+| :--- | :--- |
+| `'it'`, `'it-IT'`, `'it_IT'`, `'IT'` | `'it'` |
+| `'en'`, `' en-GB '` | `'en'` |
+| `'es'`, `'de'`, `'fr'`, `'de-AT'` (no template yet) | `'en'` |
+| `undefined`, `null`, a number, `''`, `'xx'` | `'en'` |
+
 ## EmailProvider Contract
 
 Every email transport implements the lightweight `EmailProvider` interface:
@@ -156,8 +165,9 @@ const COPY: Record<EmailLocale, { subject: string; title: string; body: string; 
 
 ## Multilingual Support
 
-- **Frontend Sync**: The React dashboard automatically passes the active user's language (`i18n.language`) when triggering password recovery.
-- **Fallback Handling**: `resolveEmailLocale()` ensures unsupported locales fall back cleanly to English (`'en'`).
+- **Frontend Sync**: The React dashboard automatically passes the active user's language (`i18n.language`, for example `it`, `de` or the regional `it-IT`) when triggering password recovery, a password reset or an invitation.
+- **Dashboard languages vs email languages**: The dashboard interface speaks `en`, `it`, `es`, `de` and `fr`; emails currently exist in `en` and `it` only. A user working in Spanish, German or French receives English emails until the matching templates are added.
+- **Fallback Handling**: `resolveEmailLocale()` first reduces a regional tag to its base language, then falls back cleanly to English (`'en'`) for any language without a template.
 - **Zero Database Storage**: Locale preferences are passed ephemerally in request headers or body payloads.
 
 ## Environment Variables
@@ -233,6 +243,9 @@ function createProvider(apiKey: string): EmailProvider {
 
 1. Add the new locale code in `email.types.ts` (`export const SUPPORTED_EMAIL_LOCALES = ['en', 'it', 'es'] as const`).
 2. TypeScript will automatically highlight every `templates/*.ts` file that requires the new language key in its `COPY` dictionary.
+3. Write the copy with the dashboard's terminology so a user sees the same words in the app and in the inbox. The rules in `apps/dashboard/src/locales/glossary.json` apply to emails too: `hard_dnt` terms (`Beech`, `BeechCMS`, `Webhook`, `Slug`, `Seed`, …) stay verbatim, and `soft_dnt` terms follow the guidance for that language. Reuse the dashboard's formal or informal address (tú, Sie, vous).
+4. Update `email.types.test.ts`: the language moves from the "falls back to `en`" cases to the supported ones.
+5. Keep the list of supported languages in this page, in [Auth endpoints](/reference/auth-endpoints) and in [RBAC API](/reference/rbac-api) in sync.
 
 ### Customizing Visual Styles
 

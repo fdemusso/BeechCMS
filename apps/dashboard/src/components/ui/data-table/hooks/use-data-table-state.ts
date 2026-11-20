@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useCollapsedGroups } from "./use-collapsed-groups"
 import * as React from "react"
 import {
   getCoreRowModel,
@@ -15,7 +16,6 @@ import {
   type ColumnOrderState,
   type ColumnSizingState,
   type GroupingState,
-  type ExpandedState,
   type PaginationState,
   type RowSelectionState,
   type SortingState,
@@ -199,7 +199,13 @@ export function useDataTableState<TData, TValue>(
     return { ...columnVisibility, ...Object.fromEntries(grouping.map((id) => [id, false])) }
   }, [columnVisibility, grouping, isGroupingActive])
 
-  const [expanded, setExpanded] = React.useState<ExpandedState>(true)
+  // Groups are open unless the user closed them. TanStack's own expanded state is derived from that list, and only
+  // the list is stored (see useCollapsedGroups); a group toggle goes through `toggleGroup`, not row.toggleExpanded.
+  const { closed: closedGroupIds, toggle: toggleGroup } = useCollapsedGroups(props.collapsedGroupsStorageKey)
+  const expanded = React.useMemo<Record<string, boolean>>(
+    () => Object.fromEntries(closedGroupIds.map((id) => [id, false])),
+    [closedGroupIds]
+  )
 
   const activeDensity = density ?? DEFAULT_DENSITY
   const rowHeight = DENSITY_ROW_HEIGHT[activeDensity]
@@ -217,10 +223,12 @@ export function useDataTableState<TData, TValue>(
   const table = useReactTable({
     data,
     columns,
-    getRowId: (original, index) => {
-      const maybeId = (original as { id?: unknown }).id
-      return typeof maybeId === "string" && maybeId ? maybeId : String(index)
-    },
+    getRowId:
+      props.getRowId ??
+      ((original, index) => {
+        const maybeId = (original as { id?: unknown }).id
+        return typeof maybeId === "string" && maybeId ? maybeId : String(index)
+      }),
     onSortingChange: handleSortingChange,
     onColumnFiltersChange: handleColumnFiltersChange,
     getCoreRowModel: getCoreRowModel(),
@@ -233,7 +241,7 @@ export function useDataTableState<TData, TValue>(
     onRowSelectionChange: handleRowSelectionChange,
     onGlobalFilterChange: setGlobalFilter,
     onGroupingChange: handleGroupingChange,
-    onExpandedChange: setExpanded,
+    getIsRowExpanded: (row) => expanded[row.id] !== false,
     globalFilterFn: "includesString",
     autoResetExpanded: false,
     manualPagination,
@@ -259,18 +267,10 @@ export function useDataTableState<TData, TValue>(
     onPaginationChange: handlePaginationChange,
   })
 
-  // Espandi tutti i gruppi quando il raggruppamento cambia
-  const [prevGrouping, setPrevGrouping] = React.useState(grouping)
-  if (grouping !== prevGrouping) {
-    setPrevGrouping(grouping)
-    if (isGroupingActive) {
-      setExpanded(true)
-    }
-  }
-
   return {
     table,
     isGroupingActive,
+    toggleGroup,
     activeDensity,
     rowHeight,
     cellPadding,

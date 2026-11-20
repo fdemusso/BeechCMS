@@ -18,12 +18,12 @@ export const DEFAULT_PAGE_SIZE = 10
 export const CELL_CLICK_DELAY_MS = 200
 /** Altezza riga condivisa da tutte le tabelle dell'app — riusala per coerenza dimensionale. */
 export const ROW_HEIGHT_PX = 48
-/** Altezza container in modalità virtual scroll (gruppi espansi) */
-export const VIRTUAL_CONTAINER_HEIGHT = "calc(100vh - 280px)"
 
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+  /** Stable id of a row. Defaults to the row's string `id` field, then its index. */
+  getRowId?: (row: TData) => string
   initialHiddenColumns?: string[]
   /**
    * Calcolo styling per riga eseguito una volta sola e poi riusato per tutte le celle.
@@ -41,7 +41,12 @@ export interface DataTableProps<TData, TValue> {
    * Se fornito, abilita il menu contestuale (tasto destro) sulle celle della riga.
    * La funzione deve rendere SOLO gli items del menu (content interno).
    */
-  renderRowContextMenuContent?: (row: TData) => React.ReactNode
+  renderRowContextMenuContent?: (row: TData, columnId: string) => React.ReactNode
+  /**
+   * Se fornito, abilita il menu contestuale (tasto destro) sulle intestazioni di colonna.
+   * Rende SOLO gli items; ritorna null per non mostrare il menu su quella colonna.
+   */
+  renderHeaderContextMenuContent?: (columnId: string) => React.ReactNode
   /** Colonne escluse dal menu contestuale (default: select, actions). */
   rowContextMenuExcludedColumnIds?: string[]
   /** Selezione righe controllata dall'esterno (chiavi: rowId). */
@@ -64,6 +69,8 @@ export interface DataTableProps<TData, TValue> {
   /** Callback quando cambia la visibilità delle colonne (in modalità controllata). */
   onColumnVisibilityChange?: (visibility: VisibilityState) => void
   /** Numero di righe per pagina controllato dall'esterno (opzionale). */
+  /** Where the closed groups are remembered (localStorage). Without it they last until the table unmounts. */
+  collapsedGroupsStorageKey?: string
   pageSize?: number
   /** Callback quando cambia il numero di righe per pagina (in modalità controllata). */
   onPageSizeChange?: (size: number) => void
@@ -107,8 +114,8 @@ export interface DataTableProps<TData, TValue> {
   onColumnOrderChange?: (order: string[]) => void
   /** Densità righe (default: "normal"). */
   density?: TableDensity
-  /** Single-click activation of a cell value (e.g. click-to-filter). Feature-agnostic. */
-  onCellActivate?: (columnId: string, row: TData) => void
+  /** Single-click activation of a cell value (e.g. click-to-copy). Receives the cell element so callers can read what it displays. Feature-agnostic. */
+  onCellActivate?: (columnId: string, row: TData, cell: HTMLElement) => void
   /** Column ids that must NOT trigger onCellActivate (interactive columns). */
   cellActivateExcludedColumnIds?: string[]
 }

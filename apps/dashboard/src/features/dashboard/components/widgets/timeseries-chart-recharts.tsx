@@ -28,11 +28,15 @@ interface TimeseriesChartRechartsProps {
   chartConfig: ChartConfig
 }
 
-/** Recharts rendering split out so it can be `React.lazy`-loaded. */
+/**
+ * Recharts rendering split out so it can be `React.lazy`-loaded.
+ * ChartContainer defaults to `aspect-video`, which made the chart height follow its width (~600px on wide screens);
+ * `aspect-auto` lets the row height decide, with `min-h-48` as the floor.
+ */
 export default function TimeseriesChartRecharts({ kind, data, color, chartConfig }: TimeseriesChartRechartsProps) {
   if (kind === "bar") {
     return (
-      <ChartContainer config={chartConfig} className="h-full w-full">
+      <ChartContainer config={chartConfig} className="aspect-auto h-full min-h-48 w-full">
         <BarChart data={data}>
           <CartesianGrid vertical={false} strokeDasharray="3 3" />
           <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
@@ -45,7 +49,7 @@ export default function TimeseriesChartRecharts({ kind, data, color, chartConfig
 
   if (kind === "area") {
     return (
-      <ChartContainer config={chartConfig} className="h-full w-full">
+      <ChartContainer config={chartConfig} className="aspect-auto h-full min-h-48 w-full">
         <AreaChart data={data}>
           <CartesianGrid vertical={false} strokeDasharray="3 3" />
           <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
@@ -57,7 +61,7 @@ export default function TimeseriesChartRecharts({ kind, data, color, chartConfig
   }
 
   return (
-    <ChartContainer config={chartConfig} className="h-full w-full">
+    <ChartContainer config={chartConfig} className="aspect-auto h-full min-h-48 w-full">
       <LineChart data={data}>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />

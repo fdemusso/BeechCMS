@@ -32,7 +32,7 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
   const { can } = usePermissions()
   const canDelete = can("content:delete", seed.slug)
 
-  const titleKey = resolvedMode === "trash" ? "content.deleteDialog.trashTitle" : "content.deleteDialog.purgeTitle"
+  const titleKey = resolvedMode === "trash" ? "content.deleteDialog.trash.title" : "content.deleteDialog.purge.title"
   const singleKey = resolvedMode === "trash" ? "content.deleteDialog.trashSingle" : "content.deleteDialog.purgeSingle"
   const multipleKey = resolvedMode === "trash" ? "content.deleteDialog.trashMultiple" : "content.deleteDialog.purgeMultiple"
   const confirmKey = resolvedMode === "trash" ? "content.deleteDialog.trashConfirm" : "content.deleteDialog.purgeConfirm"
@@ -55,10 +55,10 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
           </DialogDescription>
         </DialogHeader>
         {resolvedMode === "purge" && (
-          <p className="text-sm text-destructive">{t("content.deleteDialog.purgeWarning")}</p>
+          <p className="text-sm text-status-danger-foreground">{t("content.deleteDialog.purgeWarning")}</p>
         )}
         {error && (
-          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          <div className="rounded-control bg-destructive/10 p-3 text-sm text-status-danger-foreground">
             {error}
           </div>
         )}
@@ -69,7 +69,7 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
             onClick={() => onOpenChange(false)}
             disabled={isDeleting}
           >
-            {t("common.cancel")}
+            {t("common.action.cancel")}
           </Button>
           {canDelete ? (
             <Button
@@ -89,7 +89,7 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
                     variant="destructive"
                     disabled
                   >
-                    {t("common.delete")}
+                    {t("common.action.delete")}
                   </Button>
                 </span>
               </TooltipTrigger>

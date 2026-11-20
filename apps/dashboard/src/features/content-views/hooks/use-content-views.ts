@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { queryOptions, useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import type { ContentView } from "@beechcms/core"
@@ -19,13 +19,20 @@ import {
 
 export const CONTENT_VIEWS_QUERY_KEY = (slug: string) => ["content-views", slug] as const
 
-export function useContentViews(slug: string | undefined) {
-  return useQuery({
-    queryKey: CONTENT_VIEWS_QUERY_KEY(slug ?? ""),
-    queryFn: () => fetchContentViews(slug ?? ""),
-    enabled: Boolean(slug),
+const contentViewsQueryOptions = (slug: string) =>
+  queryOptions({
+    queryKey: CONTENT_VIEWS_QUERY_KEY(slug),
+    queryFn: () => fetchContentViews(slug),
     staleTime: 30_000,
   })
+
+/** Starts (or reuses) the views fetch ahead of the page that reads it. Rejects like the query does. */
+export function prefetchContentViews(queryClient: QueryClient, slug: string): Promise<ContentView[]> {
+  return queryClient.fetchQuery(contentViewsQueryOptions(slug))
+}
+
+export function useContentViews(slug: string | undefined) {
+  return useQuery({ ...contentViewsQueryOptions(slug ?? ""), enabled: Boolean(slug) })
 }
 
 export function useCreateContentView(slug: string) {

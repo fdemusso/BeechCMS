@@ -24,8 +24,8 @@ export function ViewEmptyState({ typeLabel, onCreate }: ViewEmptyStateProps) {
           <EmptyMedia variant="icon">
             <Layer className="size-5" />
           </EmptyMedia>
-          <EmptyTitle>{t("content.views.emptyTitle", { label: typeLabel })}</EmptyTitle>
-          <EmptyDescription>{t("content.views.emptyDescription", { label: typeLabel })}</EmptyDescription>
+          <EmptyTitle>{t("content.views.empty.title", { label: typeLabel })}</EmptyTitle>
+          <EmptyDescription>{t("content.views.empty.description", { label: typeLabel })}</EmptyDescription>
         </EmptyHeader>
         {onCreate && (
           <EmptyContent>

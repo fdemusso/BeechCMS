@@ -59,9 +59,10 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Internationalisation (i18n)**
     - `i18next` `^26.0.6`, `react-i18next` `^17.0.4`, `i18next-browser-languagedetector` `^8.2.1`
     - Setup: `apps/dashboard/src/lib/i18n.ts` — initialized before render via `import '@/lib/i18n'` in `main.tsx`.
-    - Supported languages: `en` (default), `it`. Dictionaries at `apps/dashboard/src/locales/{en,it}.json` (namespaced: `common`, `dashboard`, `editor`, `settings`).
-    - Language preference persisted in `localStorage` under key `beech_language`. Changing language in Settings → Interfaccia applies **immediately** via `i18n.changeLanguage()`.
-    - Language switcher UI component: `apps/dashboard/src/components/ui/language-switcher.tsx`.
+    - Supported languages: `en` (default and fallback), `it`, `es`, `de`, `fr`, all bundled statically. Dictionaries at `apps/dashboard/src/locales/{en,it,es,de,fr}.json`, English is the source. Keys follow `<domain>.<surface>.<element>.<role>` (camelCase, max 5 levels); generic verbs live in `common.action.*`; plurals use native i18next suffixes (`_one`, `_other`, plus `_many` in `es`/`fr`).
+    - `apps/dashboard/src/locales/glossary.json` lists the terms that must stay verbatim (`hard_dnt`) and the per-language guidance for loanwords (`soft_dnt`). `locales.test.ts` runs key parity, `{{variable}}`/`<tag>` parity, glossary, interpolation and key-convention checks against all five files; `locale-keys.test.ts` fails when code names a key missing from `en.json`.
+    - Language preference persisted in `localStorage` under key `beech_language`. Changing language in Settings → Language (a `Select` of native names, `useDashboardLanguage`) applies **immediately** via `i18n.changeLanguage()`, and `<html lang>` follows it. Date-fns locales and the calendar come from `apps/dashboard/src/lib/date-locale.ts`.
+    - Transactional emails (`apps/api/src/shared/email`) support `en` and `it` only; `resolveEmailLocale()` reduces regional tags to their base language and falls back to `en`.
     - **Must not** use i18n for content data (Seed/Branch values) — only for dashboard UI strings.
   - **Rich text**
     - TipTap (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/pm`): `^3.22.4`

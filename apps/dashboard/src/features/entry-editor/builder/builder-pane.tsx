@@ -150,7 +150,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
       onClose()
     } catch (err) {
       const body = isApiError(err) ? err.data : null
-      toast.error(body?.detail ?? body?.title ?? t('layoutBuilder.saveError'))
+      toast.error(body?.detail ?? body?.title ?? t('layoutBuilder.save.error'))
     } finally {
       setIsSaving(false)
     }
@@ -163,7 +163,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
       queryClient.invalidateQueries({ queryKey: ['schema'] })
       toast.success(t('layoutBuilder.resetDone'))
     } catch {
-      toast.error(t('layoutBuilder.saveError'))
+      toast.error(t('layoutBuilder.save.error'))
     } finally {
       setShowResetConfirm(false)
     }
@@ -275,7 +275,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
               variant="outline"
               size="icon"
               className={FOOTER_RADIUS}
-              aria-label={t('common.back')}
+              aria-label={t('common.action.back')}
               onClick={onClose}
               disabled={isDragging}
             >
@@ -288,7 +288,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
             </Button>
             <Button type="button" variant="outline" className={`${FOOTER_RADIUS} font-normal`} onClick={handleSave} disabled={!isDirty || isSaving || isDragging}>
               {isSaving && <Loader2 className="size-4 animate-spin" />}
-              {t('layoutBuilder.save')}
+              {t('common.action.save')}
             </Button>
           </ButtonGroup>
         </ButtonGroup>
@@ -298,7 +298,7 @@ export function BuilderPane({ seed, branchById, onClose, onDraggingChange }: Rea
       <ConfirmDialog
         open={showResetConfirm}
         onOpenChange={setShowResetConfirm}
-        title={t('layoutBuilder.resetConfirmTitle')}
+        title={t('layoutBuilder.resetConfirm.title')}
         description={t('layoutBuilder.resetConfirmDesc')}
         onConfirm={handleResetConfirmed}
       />
@@ -336,7 +336,7 @@ function TabPill({ tab, ...rest }: Readonly<TabPillProps>) {
       dragType="tab"
       maxLength={LAYOUT_TAB_LABEL_MAX}
       labels={{
-        defaultBadge: t('layoutBuilder.defaultTabBadge'),
+        defaultBadge: t('layoutBuilder.defaultTab.badge'),
         rename: t('layoutBuilder.tabMenu.rename'),
         setDefault: t('layoutBuilder.tabMenu.setDefault'),
         delete: t('layoutBuilder.tabMenu.delete'),

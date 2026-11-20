@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
+import { logActivity, requestOrigin } from '../../shared/services/activity-log/log-activity'
 import type { Context } from 'hono'
 import type { AppEnv } from '../../types'
 import type { ZodJsonInput } from '../../shared/utils/zod-json'
@@ -77,6 +78,13 @@ export async function requestPasswordReset(
   if (!registeredUser || !registeredUser.isActive) {
     return context.json({ success: true }, 200)
   }
+
+  // The account owner can see that someone asked, and from where; the requester learns nothing from it.
+  logActivity(context, {
+    action: 'update', entityType: 'user', entityId: registeredUser.id,
+    details: { op: 'password-reset-requested', ...requestOrigin(context) },
+    actor: { id: registeredUser.id, email: registeredUser.email, name: [registeredUser.name, registeredUser.surname].filter(Boolean).join(' ') || null },
+  })
 
   const passwordResetTokenRepository = context.get('passwordResetTokenRepository')
   const idGenerator = context.get('idGenerator')

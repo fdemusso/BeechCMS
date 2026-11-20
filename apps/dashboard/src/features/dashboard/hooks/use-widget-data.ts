@@ -11,12 +11,3 @@ export {
   useWidgetDistribution,
   useWidgetList,
 } from "@beechcms/widget-sdk"
-export type {
-  WidgetAggregateResponse,
-  WidgetGrowthResponse,
-  WidgetTimeseriesResponse,
-  WidgetDistributionResponse,
-  WidgetListEntry,
-  WidgetListResponse,
-  WidgetListParams,
-} from "@beechcms/widget-sdk"

@@ -14,7 +14,7 @@ describe("LocalizedOptionsForm", () => {
     const onChange = vi.fn()
     render(<LocalizedOptionsForm branch={branch} onChange={onChange} isExisting={false} />)
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "Localized" }))
+    fireEvent.click(screen.getByRole("switch", { name: "Localized" }))
 
     expect(onChange).toHaveBeenCalledOnce()
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ localized: true }))
@@ -25,7 +25,7 @@ describe("LocalizedOptionsForm", () => {
     const onChange = vi.fn()
     render(<LocalizedOptionsForm branch={branch} onChange={onChange} isExisting={false} />)
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "Localized" }))
+    fireEvent.click(screen.getByRole("switch", { name: "Localized" }))
 
     expect(onChange.mock.calls[0][0]).not.toHaveProperty("localized")
   })
@@ -52,7 +52,7 @@ describe("LocalizedOptionsForm", () => {
         <LocalizedOptionsForm branch={branch} onChange={vi.fn()} subField={subField} isExisting={false} />
       )
 
-      expect(screen.getByRole("checkbox", { name: "Localized" })).toBeDisabled()
+      expect(screen.getByRole("switch", { name: "Localized" })).toBeDisabled()
 
       unmount()
     }
@@ -71,7 +71,7 @@ describe("LocalizedOptionsForm", () => {
     const branch: Branch = { id: "br_01", alias: "title", label: "Title", type: "text", localized: true }
     render(<LocalizedOptionsForm branch={branch} onChange={vi.fn()} isExisting tableEmpty={false} />)
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "Localized" }))
+    fireEvent.click(screen.getByRole("switch", { name: "Localized" }))
 
     expect(screen.getByRole("status")).toBeInTheDocument()
   })

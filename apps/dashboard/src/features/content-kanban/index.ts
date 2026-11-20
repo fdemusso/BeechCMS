@@ -4,7 +4,6 @@ export { KanbanSettingsSection } from './components/kanban-settings-section'
 
 export type {
   KanbanCardDisplayModel,
-  KanbanColumnModel,
   KanbanColumnFetchState,
   KanbanBoardConfig,
   ContentKanbanProps,

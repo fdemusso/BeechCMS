@@ -68,7 +68,7 @@ function EmptyTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="empty-title"
-      className={cn("text-lg font-medium tracking-tight", className)}
+      className={cn("font-heading text-xl font-bold tracking-tight", className)}
       {...props}
     />
   )
@@ -127,12 +127,12 @@ function SmallCta({
         <img
           src={svgPath}
           alt=""
-          className="w-64 h-auto opacity-80 transition-transform duration-300 ease-in-out hover:scale-105 cursor-pointer"
+          className="w-64 h-auto opacity-80 transition-transform ease-in-out hover:scale-105 cursor-pointer"
         />
       </EmptyMedia>
       {hasText && (
         <EmptyHeader>
-          <EmptyTitle className="text-3xl font-semibold">
+          <EmptyTitle className="text-5xl font-bold">
             {title}
           </EmptyTitle>
         </EmptyHeader>

@@ -88,14 +88,26 @@ export interface ViewEntryActions {
  * The one props contract every View Type renderer receives. A renderer controls only its own content area: it
  * renders inside the toolbar's view viewport and never sets outer margins, width or page chrome.
  */
+/** What a renderer may offer on a column: the toolbar's Group and Conditional colors, one click away. */
+export interface ViewColumnActions {
+  canGroupBy(columnId: string): boolean
+  canFormat(columnId: string): boolean
+  /** Adds a conditional-color rule on the column and opens its editor. */
+  addConditionalRule(columnId: string): void
+}
+
 export interface ViewRendererProps {
   readonly seed: Seed
   readonly slug: string
+  /** The view instance being shown: per-view UI state (e.g. closed groups) is remembered under it. */
+  readonly viewId: string
   readonly query: ViewQueryState
   readonly layout: ViewLayout
   /** Evaluates the instance's conditional formats for one Element. Renderers map the result to their own visuals. */
   readonly formatElement: ElementFormatter
   readonly entries: ViewEntryActions
+  /** Column-header shortcuts to Group and Conditional colors. Absent when the host offers none. */
+  readonly columnActions?: ViewColumnActions
   /** True while the instance's config autosave is in flight. */
   readonly isSaving: boolean
   /** The View Type's own configuration dialog, hosted by its renderer and opened from its settings section. */

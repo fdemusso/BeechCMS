@@ -60,7 +60,7 @@ export function WebhookForm({ index, triggerSeedSlug }: WebhookFormProps) {
           className="h-8 text-sm"
         />
         {actionErrors?.url && (
-          <p className="mt-1 text-xs text-destructive">{t(actionErrors.url.message)}</p>
+          <p className="mt-1 text-xs text-status-danger-foreground">{t(actionErrors.url.message)}</p>
         )}
       </div>
 
@@ -103,12 +103,12 @@ export function WebhookForm({ index, triggerSeedSlug }: WebhookFormProps) {
           <div key={field.id} className="flex gap-2 mb-1">
             <Input
               {...register(`actions.${index}.headers.${hIdx}.key` as any)}
-              placeholder={t('automations.actions.webhookHeaderKeyPlaceholder')}
+              placeholder={t('automations.actions.webhookHeaderKey.placeholder')}
               className="h-7 text-xs"
             />
             <Input
               {...register(`actions.${index}.headers.${hIdx}.value` as any)}
-              placeholder={t('automations.actions.webhookHeaderValuePlaceholder')}
+              placeholder={t('automations.actions.webhookHeaderValue.placeholder')}
               className="h-7 text-xs"
             />
             <Button
@@ -126,13 +126,13 @@ export function WebhookForm({ index, triggerSeedSlug }: WebhookFormProps) {
 
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1 block">
-          {t('automations.actions.webhookBody')} *
+          {t('automations.actions.webhookBody.label')} *
         </label>
         <Controller
           control={control}
           name={`actions.${index}.body_template` as any}
           render={({ field }) => (
-            <React.Suspense fallback={<div className="h-40 w-full animate-pulse rounded-md bg-muted/50 border border-input" />}>
+            <React.Suspense fallback={<div className="h-40 w-full animate-pulse rounded-control bg-muted/50 border border-input" />}>
               <LazyJsonCodeEditor
                 id={`webhook-body-${index}`}
                 value={field.value ?? ''}
@@ -143,13 +143,13 @@ export function WebhookForm({ index, triggerSeedSlug }: WebhookFormProps) {
           )}
         />
         {actionErrors?.body_template && (
-          <p className="mt-1 text-xs text-destructive">{t(actionErrors.body_template.message)}</p>
+          <p className="mt-1 text-xs text-status-danger-foreground">{t(actionErrors.body_template.message)}</p>
         )}
-        <p className="mt-1 text-[10px] text-muted-foreground">{t('automations.actions.templateHint')}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t('automations.actions.templateHint', { example: '{{fieldAlias}}' })}</p>
       </div>
 
-      <div className="rounded-md bg-muted/50 border border-border px-3 py-2 text-[10px] text-muted-foreground">
-        {t('automations.actions.webhookSecretHint')}
+      <div className="rounded-control bg-muted/50 border border-border px-3 py-2 text-xs text-muted-foreground">
+        {t('automations.actions.webhookSecret.hint')}
       </div>
     </div>
   )

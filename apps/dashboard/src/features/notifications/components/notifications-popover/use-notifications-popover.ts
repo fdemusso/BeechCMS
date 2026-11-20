@@ -101,6 +101,8 @@ export function useNotificationsPopover() {
 
   return {
     notifications: filteredNotifications,
+    /** Whether any notification exists, regardless of the active filter (so the popover does not resize on filter change). */
+    hasNotifications: notifications.length > 0,
     isLoading,
     filter,
     setFilter,

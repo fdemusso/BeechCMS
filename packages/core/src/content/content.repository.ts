@@ -248,6 +248,12 @@ export interface ContentRepository {
   findById(seed: Seed, id: string, options?: { trashed?: TrashedMode }): Promise<Record<string, any>>
 
   /**
+   * Cheap existence probe by id: no row is loaded or decrypted.
+   * Same `trashed` visibility as {@link ContentRepository.findById}.
+   */
+  exists(seed: Seed, id: string, options?: { trashed?: TrashedMode }): Promise<boolean>
+
+  /**
    * Finds a single entry by its unique slug.
    * Throws EntryNotFoundError if not found.
    */

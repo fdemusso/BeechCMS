@@ -4,4 +4,4 @@
 
 export { ConsentPage } from './pages/consent-page'
 export { ConnectedAppsTab } from './components/connected-apps-tab'
-export type { ConnectedApp, OAuthScope, AuthorizationRequestMetadata } from './types/oauth.types'
+export type { ConnectedApp, AuthorizationRequestMetadata } from './types/oauth.types'

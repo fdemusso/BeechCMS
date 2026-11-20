@@ -9,6 +9,7 @@ import type { LayoutSection, LayoutTab, LayoutColumn } from "@beechcms/core"
 import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import { FieldEdit, FieldLabelRow } from "@/components/fields"
 import type { RendererBranchMap, RendererLocalization } from "./layout-renderer"
 
@@ -50,6 +51,16 @@ function gridClassFor(columnCount: number): string {
   }
 }
 
+/** Text a read-only field shows: input/textarea/select value when it is a native control, else the rendered text. */
+function readFieldDisplayText(container: HTMLElement): string {
+  const control = container.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+    "input:not([type=hidden]), textarea, select"
+  )
+  if (control instanceof HTMLSelectElement) return (control.selectedOptions[0]?.textContent ?? "").trim()
+  if (control && control.type !== "checkbox" && control.type !== "radio") return control.value.trim()
+  return (container.innerText ?? container.textContent ?? "").trim()
+}
+
 /** Properties for the {@link ColumnRenderer} helper component. */
 interface ColumnRendererProps {
   /** The column schema layout containing field lists. */
@@ -82,10 +93,25 @@ function ColumnRenderer({
 }: ColumnRendererProps) {
   const { t: translate } = useTranslation()
 
+  // Disabled controls swallow clicks, so they are made click-through (see the wrapper class) and the click lands here.
+  const handleReadOnlyFieldClick = React.useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (window.getSelection()?.toString()) return
+      if ((e.target as HTMLElement).closest("a, button:not(:disabled), [role='button']")) return
+      const text = readFieldDisplayText(e.currentTarget)
+      if (!text) return
+      navigator.clipboard.writeText(text).then(
+        () => toast.success(translate("content.editor.valueCopied")),
+        () => toast.error(translate("common.copyFailed"))
+      )
+    },
+    [translate]
+  )
+
   if (column.fields.length === 0) {
     return (
       <div className="text-sm text-muted-foreground italic py-2">
-        {translate("content.editor.emptyColumn")}
+        {translate("content.editor.empty.column")}
       </div>
     )
   }
@@ -113,25 +139,32 @@ function ColumnRenderer({
                 ) : (
                   branch.label
                 )}
-                {branch.requiredOnCreate && <Asterisk className="inline size-3 text-destructive" />}
+                {branch.requiredOnCreate && <Asterisk className="inline size-3 text-status-danger-foreground" />}
                 {localizedState && localization && (
-                  <span className="ml-1 rounded border px-1 text-[10px] font-medium uppercase text-muted-foreground">
+                  <span className="ml-1 rounded border px-1 text-xs font-medium uppercase text-muted-foreground">
                     {localization.activeLocale}
                   </span>
                 )}
               </Label>
             }
           >
-            <FieldEdit
-              // TipTap and CodeMirror keep internal state and ignore a null value: remount per locale so each
-              // language opens on its own value instead of the previous language's text.
-              key={localizedState && localization ? localization.activeLocale : undefined}
-              branch={branch as any}
-              value={formData[branch.alias]}
-              onChange={(value) => onChange(branch.alias, value)}
-              disabled={isReadOnly}
-              readOnly={isReadOnly || Boolean((branch as unknown as { readOnly?: boolean }).readOnly)}
-            />
+            <div
+              // Click-to-copy is a pointer shortcut on top of the field; real controls inside keep their own keyboard behaviour.
+              role="presentation"
+              className={isReadOnly ? "cursor-pointer [&_:disabled]:pointer-events-none" : undefined}
+              onClick={isReadOnly ? handleReadOnlyFieldClick : undefined}
+            >
+              <FieldEdit
+                // TipTap and CodeMirror keep internal state and ignore a null value: remount per locale so each
+                // language opens on its own value instead of the previous language's text.
+                key={localizedState && localization ? localization.activeLocale : undefined}
+                branch={branch as any}
+                value={formData[branch.alias]}
+                onChange={(value) => onChange(branch.alias, value)}
+                disabled={isReadOnly}
+                readOnly={isReadOnly || Boolean((branch as unknown as { readOnly?: boolean }).readOnly)}
+              />
+            </div>
             {localizedState?.isMissing && localization && (
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span>
@@ -153,7 +186,7 @@ function ColumnRenderer({
               </div>
             )}
             {fieldErrors[branch.alias] && (
-              <p className="text-xs text-destructive">{fieldErrors[branch.alias]}</p>
+              <p className="text-xs text-status-danger-foreground">{fieldErrors[branch.alias]}</p>
             )}
           </FieldLabelRow>
         )
@@ -214,7 +247,7 @@ function SectionRenderer({
               aria-expanded={!isCollapsed}
             >
               <ChevronDown
-                className={`size-4 transition-transform duration-200 ${
+                className={`size-4 transition-transform duration-(--duration-enter) ${
                   isCollapsed ? "-rotate-90" : ""
                 }`}
               />
