@@ -31,7 +31,7 @@ The coarse gate cannot be the final check: the scope of an administrative reques
 | `GET /api/rbac/roles` | `manage_users` or `manage_roles` |
 | `POST/PUT/DELETE /api/rbac/roles…` | `manage_roles` |
 
-**Not OAuth-reachable.** `OAUTH_SCOPE_ROUTES` does not list `/api/rbac/*` and `oauthScopeMiddleware()` is fail-closed, so an OAuth access token is refused `403 insufficient_scope` before reaching the slice.
+**OAuth-reachable with `users:read` / `users:write`.** The scope only lets the token reach the route; the administration rights above still apply to the token's owner. Role, assignment and deactivation calls are `destructive` and become pending intents that the user must approve when requested with an OAuth token; `POST /api/rbac/users` (password) is human-only and answers `403 insufficient_scope`.
 
 **404 over 403.** When the caller holds administrative authority but not over *this* target, the answer is `404 not-found`, not `403`. A `403` would be an enumeration oracle for accounts, assignments and invitations outside the caller's perimeter.
 

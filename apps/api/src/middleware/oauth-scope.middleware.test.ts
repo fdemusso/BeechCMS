@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { Hono } from 'hono'
-import type { OAuthScope } from '@beechcms/core'
+import { OAUTH_SCOPES, type OAuthScope } from '@beechcms/core'
 import { oauthScopeMiddleware, resolveRequiredScope } from './oauth-scope.middleware'
 import type { Env, Variables, OAuthGrantContext } from '../types'
 
@@ -67,17 +67,13 @@ describe('oauthScopeMiddleware', () => {
     ['POST', '/api/content/articles'],
     ['GET', '/api/settings'],
     ['GET', '/api/search?q=x'],
-    ['PUT', '/api/schema/articles/layout'],
-    ['DELETE', '/api/seeds/articles'],
-    ['GET', '/api/seeds/articles/orphans'],
     ['POST', '/api/seeds/articles/branches'],
-    ['POST', '/api/seeds/articles/fts/rebuild'],
     ['GET', '/api/dashboard-layout'],
     ['GET', '/api/automations'],
     ['GET', '/api/widget'],
   ]
 
-  it.each(defaultDenyPaths)('default-deny: %s %s -> 403 with maximal grant', async (method, path) => {
+  it.each(defaultDenyPaths)('1.x grant refused on %s %s', async (method, path) => {
     const app = buildApp(grant(['schema:read', 'schema:write']))
     const res = await app.request(path, { method })
     expect(res.status).toBe(403)
@@ -89,6 +85,59 @@ describe('oauthScopeMiddleware', () => {
     expect(post.status).toBe(403)
     const get = await app.request('/api/seeds', { method: 'GET' })
     expect(get.status).toBe(200)
+  })
+})
+
+describe('oauthScopeMiddleware (v2 catalog gate)', () => {
+  const jsonRequest = (method: string, body: string): RequestInit => ({
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  })
+
+  it.each([
+    ['content:read', 'GET', '/api/content/posts'],
+    ['media:read', 'GET', '/api/upload/download-url/a.png'],
+    ['users:read', 'GET', '/api/rbac/users'],
+  ] as const)('allows %s on %s %s', async (scope, method, path) => {
+    const app = buildApp(grant([scope]))
+
+    const res = await app.request(path, { method })
+
+    expect(res.status).toBe(200)
+  })
+
+  it('refuses a write with a read-only content grant and names the missing scope', async () => {
+    const app = buildApp(grant(['content:read']))
+
+    const res = await app.request('/api/content/posts', jsonRequest('POST', '{"status":"draft"}'))
+
+    expect(res.status).toBe(403)
+    expect(await res.json()).toMatchObject({ error: 'insufficient_scope' })
+    expect(res.headers.get('WWW-Authenticate')).toContain('scope="content:write"')
+  })
+
+  it.each([
+    ['PUT', '/api/settings/password'],
+    ['POST', '/api/content/posts/e1/rotate-field'],
+    ['POST', '/api/rbac/users'],
+  ])('refuses the excluded operation %s %s whatever the grant', async (method, path) => {
+    const app = buildApp(grant([...OAUTH_SCOPES]))
+
+    const res = await app.request(path, { method })
+
+    expect(res.status).toBe(403)
+    expect(await res.json()).toMatchObject({ error: 'insufficient_scope' })
+    expect(res.headers.get('WWW-Authenticate')).toBe('Bearer error="insufficient_scope"')
+  })
+
+  it('lets a destructive operation through to the next layer when the scope matches', async () => {
+    // Risk is the intent gate's concern, after RBAC.
+    const app = buildApp(grant(['schema:write']))
+
+    const res = await app.request('/api/seeds/articles', { method: 'DELETE' })
+
+    expect(res.status).toBe(200)
   })
 })
 
@@ -104,7 +153,11 @@ describe('resolveRequiredScope', () => {
   })
 
   it('returns null for unlisted routes', () => {
-    expect(resolveRequiredScope('GET', '/api/seeds/articles/orphans')).toBeNull()
+    expect(resolveRequiredScope('GET', '/api/nope')).toBeNull()
     expect(resolveRequiredScope('PUT', '/api/schema')).toBeNull()
+  })
+
+  it('returns null for an excluded operation', () => {
+    expect(resolveRequiredScope('PUT', '/api/settings/password')).toBeNull()
   })
 })

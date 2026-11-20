@@ -2,8 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import type { OAuthScope } from './scopes.js'
-import { GLOBAL_SCOPE } from '../rbac/permissions.js'
-import { hasPermission } from '../rbac/evaluate.js'
+import type { Permission } from '../rbac/permissions.js'
+import { permissionsHeldAnywhere } from '../rbac/evaluate.js'
 import type { EffectivePermissions } from '../rbac/types.js'
 
 /** Outcome of a role arbitration. `deniedScopes` is empty when fully granted. */
@@ -49,25 +49,51 @@ export class AllowAllRoleGuard implements IRoleGuard {
 }
 
 /**
- * Production guard: only a holder of `manage_seeds` at {@link GLOBAL_SCOPE} may delegate
- * authority to an OAuth/MCP client.
+ * RBAC authority that makes each OAuth scope usable, derived from the route rules of the
+ * scope's `agent` operations: `'authenticated'` when at least one of them is open to any
+ * active account, otherwise the permissions (any one, at any scope) those routes demand.
+ * Kept in sync with PROTECTED_ROUTES by apps/api/src/factory.operations-parity.test.ts.
+ */
+export const SCOPE_GRANT_REQUIREMENTS: Readonly<Record<OAuthScope, readonly Permission[] | 'authenticated'>> = {
+  'schema:read': 'authenticated',
+  'schema:write': ['manage_seeds'],
+  'content:read': 'authenticated',
+  'content:write': 'authenticated',
+  'content:delete': ['content:delete'],
+  'media:read': ['content:read'],
+  'media:write': ['content:create', 'content:delete'],
+  'automations:read': ['content:read'],
+  'automations:write': ['content:delete', 'content:update'],
+  'users:read': ['manage_roles', 'manage_users'],
+  'users:write': ['manage_roles', 'manage_users'],
+  'settings:read': 'authenticated',
+  'settings:write': 'authenticated',
+  'analytics:read': 'authenticated',
+  'agent:read': 'authenticated',
+  'agent:approve': 'authenticated',
+}
+
+/**
+ * Production guard: grants each requested scope whose {@link SCOPE_GRANT_REQUIREMENTS}
+ * the owner meets on at least one RBAC scope. Delegation requires the authority it delegates,
+ * evaluated per OAuth scope, so the outcome is a partial grant.
  *
- * Every OAuth scope in this system (`schema:read`, `schema:write`) drives seed-schema
- * routes, which the route gate refuses to anyone without `manage_seeds@*`. So the question
- * this guard answers is the same one the `/api/seeds/*` rows ask: delegation requires the
- * authority it delegates. `manage_users@*` alone no longer suffices.
- *
- * A seed-scoped collaborator therefore cannot mint an MCP token, no matter which
- * scopes the client requests. Denial is all-or-nothing: there is no partial grant.
+ * RBAC remains the runtime authority (`permissionMiddleware`); this guard only refuses scopes
+ * the owner could never use. Never grants a scope that was not requested.
  */
 export class PermissionRoleGuard implements IRoleGuard {
   async arbitrate(
     effective: EffectivePermissions,
     requestedScopes: readonly OAuthScope[],
   ): Promise<ScopeGrantDecision> {
-    if (!hasPermission(effective, 'manage_seeds', GLOBAL_SCOPE)) {
-      return { grantedScopes: [], deniedScopes: [...requestedScopes] }
+    const held = permissionsHeldAnywhere(effective)
+    const grantedScopes: OAuthScope[] = []
+    const deniedScopes: OAuthScope[] = []
+    for (const scope of requestedScopes) {
+      const requirement = SCOPE_GRANT_REQUIREMENTS[scope]
+      const isGranted = requirement === 'authenticated' || requirement.some(permission => held.has(permission))
+      ;(isGranted ? grantedScopes : deniedScopes).push(scope)
     }
-    return { grantedScopes: [...requestedScopes], deniedScopes: [] }
+    return { grantedScopes, deniedScopes }
   }
 }

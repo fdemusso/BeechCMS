@@ -2419,6 +2419,9 @@
       "scope": {
         "granted": {
           "badge": "Ya concedido"
+        },
+        "denied": {
+          "badge": "No disponible para tu rol"
         }
       },
       "redirectNotice": "Tras aprobar, volverás a {{uri}}.",
@@ -2433,10 +2436,43 @@
       },
       "scopes": {
         "schema:read": "Leer tus tipos de contenido y el esquema (incluidos los planes de migración en simulación)",
-        "schema:write": "Aplicar migraciones de esquema que cambian tus tipos de contenido"
+        "schema:write": "Aplicar migraciones de esquema que cambian tus tipos de contenido",
+        "content:read": "Leer las entradas de tus tipos de contenido",
+        "content:write": "Crear y editar entradas; publicar requiere tu confirmación",
+        "content:delete": "Mover entradas a la papelera o eliminarlas definitivamente, cuando confirmes",
+        "media:read": "Ver y descargar los archivos de tu biblioteca multimedia",
+        "media:write": "Subir archivos multimedia; eliminarlos requiere tu confirmación",
+        "automations:read": "Ver tus automatizaciones y su historial de ejecuciones",
+        "automations:write": "Crear, editar y ejecutar automatizaciones",
+        "users:read": "Ver usuarios, roles e invitaciones",
+        "users:write": "Gestionar usuarios, roles e invitaciones, cuando confirmes",
+        "settings:read": "Leer los ajustes de tu sitio",
+        "settings:write": "Cambiar los ajustes de tu sitio, cuando confirmes",
+        "analytics:read": "Ver analíticas y estadísticas",
+        "agent:read": "Ver las acciones que tu agente espera que confirmes y rechazarlas",
+        "agent:approve": "Ejecutar una acción después de que la confirmes en tu cliente de IA"
       },
       "required": "Obligatorio",
-      "disclaimer": "Los permisos son necesarios para la integración con MCP. Puedes revocar el acceso en cualquier momento en Ajustes > Apps conectadas."
+      "disclaimer": "La app nunca supera tu propio rol. Puedes revocar el acceso en cualquier momento en Ajustes > Apps conectadas.",
+      "template": {
+        "legend": "Nivel de acceso",
+        "read": {
+          "label": "Lectura",
+          "description": "Ver todo, no cambiar nada"
+        },
+        "editor": {
+          "label": "Editor",
+          "description": "Lectura, más crear, editar y eliminar contenido y multimedia"
+        },
+        "admin": {
+          "label": "Administrador",
+          "description": "Editor, más automatizaciones, usuarios y ajustes"
+        },
+        "developer": {
+          "label": "Desarrollador",
+          "description": "Todo lo solicitado, incluidos los cambios de esquema"
+        }
+      }
     },
     "apps": {
       "application": "Aplicación",

@@ -156,7 +156,7 @@ const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'PUT',    pattern: /^\/api\/content\/([^/]+)\/[^/]+\/draft$/,  requirement: perm('content:update', 'capture1') },
   { method: 'DELETE', pattern: /^\/api\/content\/([^/]+)\/[^/]+\/draft$/,  requirement: perm('content:update', 'capture1') },
   { method: 'POST',   pattern: /^\/api\/content\/([^/]+)\/[^/]+\/draft\/publish$/, requirement: perm('content:update', 'capture1') },
-  { method: 'PATCH',  pattern: /^\/api\/content\/([^/]+)\/[^/]+\/kanban-(move|position)$/, requirement: perm('content:update', 'capture1') },
+  { method: 'PATCH',  pattern: /^\/api\/content\/([^/]+)\/[^/]+\/kanban-move$/, requirement: perm('content:update', 'capture1') },
   { method: 'POST',   pattern: /^\/api\/content\/([^/]+)\/[^/]+\/rotate-field$/, requirement: perm('content:update', 'capture1') },
   { method: 'GET',    pattern: /^\/api\/content\/([^/]+)\/[^/]+$/,         requirement: perm('content:read',   'capture1') },
   { method: 'PUT',    pattern: /^\/api\/content\/([^/]+)\/[^/]+$/,         requirement: perm('content:update', 'capture1') },
@@ -197,6 +197,12 @@ const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'POST',   pattern: /^\/api\/rbac\/invitations$/,                         requirement: anyScope('manage_users') },
   { method: 'POST',   pattern: /^\/api\/rbac\/invitations\/[^/]+\/regenerate$/,      requirement: anyScope('manage_users') },
   { method: 'DELETE', pattern: /^\/api\/rbac\/invitations\/[^/]+$/,                  requirement: anyScope('manage_users') },
+
+  // --- agent intents: own intents only, checked in the handler
+  { method: 'GET',    pattern: /^\/api\/agent\/intents$/,                    requirement: AUTHED },
+  { method: 'GET',    pattern: /^\/api\/agent\/intents\/[^/]+$/,             requirement: AUTHED },
+  { method: 'POST',   pattern: /^\/api\/agent\/intents\/[^/]+\/approve$/,    requirement: AUTHED },
+  { method: 'POST',   pattern: /^\/api\/agent\/intents\/[^/]+\/reject$/,     requirement: AUTHED },
 ]
 
 /** Resolves the rule for a request, plus the scope its pattern captured. */

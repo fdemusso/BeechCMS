@@ -2405,6 +2405,9 @@
       "scope": {
         "granted": {
           "badge": "Already granted"
+        },
+        "denied": {
+          "badge": "Not available for your role"
         }
       },
       "redirectNotice": "After approving you will be sent back to {{uri}}.",
@@ -2419,10 +2422,43 @@
       },
       "scopes": {
         "schema:read": "Read your content types and schema (including dry-run migration plans)",
-        "schema:write": "Apply schema migrations that change your content types"
+        "schema:write": "Apply schema migrations that change your content types",
+        "content:read": "Read entries in your content types",
+        "content:write": "Create and edit entries; publishing needs your confirmation",
+        "content:delete": "Move entries to the trash or delete them permanently, when you confirm",
+        "media:read": "View and download files in your media library",
+        "media:write": "Upload media files; deleting them needs your confirmation",
+        "automations:read": "View your automations and their run history",
+        "automations:write": "Create, edit and run automations",
+        "users:read": "View users, roles and invitations",
+        "users:write": "Manage users, roles and invitations, when you confirm",
+        "settings:read": "Read your site settings",
+        "settings:write": "Change your site settings, when you confirm",
+        "analytics:read": "View analytics and statistics",
+        "agent:read": "See the actions your agent is waiting for you to confirm, and reject them",
+        "agent:approve": "Run an action after you confirm it in your AI client"
       },
       "required": "Required",
-      "disclaimer": "Permissions are required for the MCP integration. You can revoke access at any time in Settings > Connected apps."
+      "disclaimer": "The app never exceeds your own role. You can revoke access at any time in Settings > Connected apps.",
+      "template": {
+        "legend": "Access level",
+        "read": {
+          "label": "Read",
+          "description": "View everything, change nothing"
+        },
+        "editor": {
+          "label": "Editor",
+          "description": "Read, plus create, edit and delete content and media"
+        },
+        "admin": {
+          "label": "Administrator",
+          "description": "Editor, plus automations, users and settings"
+        },
+        "developer": {
+          "label": "Developer",
+          "description": "Everything requested, including schema changes"
+        }
+      }
     },
     "apps": {
       "application": "Application",

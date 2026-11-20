@@ -351,9 +351,26 @@ SQLite virtual tables (`fts5`) cannot be modified using standard `ALTER TABLE AD
 
 ## Permission Model & Known Limitations
 
-Every route used by `@beechcms/mcp` sits behind `authMiddleware({ acceptOAuth: true })`, which accepts both the dashboard access JWT and OAuth 2.1 access tokens. Immediately after it, `oauthScopeMiddleware()` applies a **fail-closed** scope gate: an OAuth token reaches only the routes explicitly listed in `OAUTH_SCOPE_ROUTES`, and only with the required scope.
+Every route used by `@beechcms/mcp` sits behind `authMiddleware({ acceptOAuth: true })`, which accepts both the dashboard access JWT and OAuth 2.1 access tokens. Immediately after it, `oauthScopeMiddleware()` applies a **fail-closed** scope gate driven by `OPERATION_CATALOG`:
 
-Every `/api/seeds` route also requires `manage_seeds` at `*` from the route gate (`GET /api/schema` needs only authentication). The OAuth consent screen issues a grant only to an account holding `manage_seeds` at `*` (`PermissionRoleGuard`). A seed-scoped collaborator cannot mint an MCP token.
+- A request the catalog does not list, or lists as `excluded` (password, sessions, profile, secret rotation, direct seed writes, user creation), is refused `403 insufficient_scope` whatever the token holds.
+- Otherwise the token must carry the operation's scope (`schema:*`, `content:*`, `media:*`, `automations:*`, `users:*`, `settings:*`, `analytics:read`, `agent:*`).
+- Risk is enforced **after RBAC**, by the agent intent gate: with an OAuth token, a `destructive` request (hard delete, purge, role changes) always, and a `publish` request (site settings, publishing content) in `production`, answers `202` with a pending intent instead of running. The stored request runs once when it is approved via `POST /api/agent/intents/:id/approve` (scope `agent:approve`, granted to the `beech-mcp` client only) or from the dashboard, as its owner and with RBAC checked again. An intent expires after 10 minutes. In `development` a `publish` request runs immediately.
+
+The intent endpoints act on the caller's own intents only:
+
+| Method | Route | Scope | Purpose |
+|---|---|---|---|
+| `GET` | `/api/agent/intents` | `agent:read` | List your pending intents |
+| `GET` | `/api/agent/intents/:id` | `agent:read` | Read one intent, with its stored request body |
+| `POST` | `/api/agent/intents/:id/approve` | `agent:approve` | Run the stored request once; the request body is ignored |
+| `POST` | `/api/agent/intents/:id/reject` | `agent:read` | Discard the intent without running it |
+
+The gate protects against mistakes and prompt injection, not against a hostile agent with full shell access.
+
+The scope never replaces RBAC: the effective permission of a token is the granted scopes **intersected with the owner's RBAC**, and `permissionMiddleware()` still answers `403 forbidden` for what the owner cannot do. The consent screen issues a **partial grant** (`PermissionRoleGuard`): each requested scope is granted only if the owner holds the authority behind it (`SCOPE_GRANT_REQUIREMENTS`); the rest are listed as `deniedScopes` and never issued. For example, `schema:write` needs `manage_seeds`, so an editor can authorize an agent for content without ever receiving `schema:write`. Every `/api/seeds` route still requires `manage_seeds` at `*` from the route gate.
+
+The five routes used by the 1.x MCP tools keep their scopes:
 
 | Method | Route | Required scope | Tools |
 |---|---|---|---|
@@ -363,7 +380,7 @@ Every `/api/seeds` route also requires `manage_seeds` at `*` from the route gate
 | `POST` | `/api/seeds/:slug/mcp-plan` | `schema:read` | `beech_schema_plan` (dry-run — computes but writes nothing) |
 | `POST` | `/api/seeds/:slug/mcp-apply` | `schema:write` | `beech_schema_apply` |
 
-Requesting `BEECH_OAUTH_SCOPE=schema:read` therefore yields a genuinely read-only agent: it can inspect, validate, and plan, but `beech_schema_apply` fails with `403 insufficient_scope`. Any protected route *not* in the table above is unreachable with an OAuth token regardless of scope.
+Requesting `BEECH_OAUTH_SCOPE=schema:read` therefore yields a genuinely read-only agent: it can inspect, validate, and plan, but `beech_schema_apply` fails with `403 insufficient_scope`. Other catalogued routes are reachable with their own scope, subject to the rules above.
 
 ---
 
@@ -374,6 +391,9 @@ Requesting `BEECH_OAUTH_SCOPE=schema:read` therefore yields a genuinely read-onl
 | **400** | `invalid-json` | Malformed JSON, invalid slug characters, or non-integer `expectedVersion`. | Fix payload syntax. Do not retry identical request. |
 | **401** | `unauthorized` | Cached grant expired and the silent refresh retry also failed. | Re-authorize in the browser; clear `~/.beechcms/mcp-tokens.json` if it persists. |
 | **403** | `forbidden` / `insufficient_scope` | The account lacks `manage_seeds` at `*`, or the OAuth token's scope does not cover the route (e.g. `schema:read` calling `mcp-apply`). | Authorize with an account whose role carries `manage_seeds` at `*` (SuperAdmin does), or re-authorize with a wider `BEECH_OAUTH_SCOPE`. |
+| **202** | `intent pending` | The call is a destructive operation (or a publish in production): it was stored as an intent and did not run. | Ask the user to confirm it, then approve the intent. |
+| **409** | `intent_expired` / `intent_not_pending` | The intent is older than 10 minutes, or was already approved, rejected or run. | Repeat the original request to create a new intent. |
+| **413** | `intent_body_too_large` | The request body of a risky call exceeds the 256 KiB an intent may store. | Send a smaller body. |
 | **409** | `conflict` | Registry version mismatch (`expectedVersion` ≠ current database version). | Discard old plan, call `beech_schema_plan` again, and review new diff. |
 | **422** | `destructive-change-not-supported` | Candidate attempts to drop, rename, or retype a field. | Reject request or guide developer to dedicated endpoints. |
 | **422** | `validation-failed` | Syntax or relational schema validation error. | Correct candidate structure according to `@beechcms/core` rules. |

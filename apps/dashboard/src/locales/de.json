@@ -2405,6 +2405,9 @@
       "scope": {
         "granted": {
           "badge": "Bereits gewährt"
+        },
+        "denied": {
+          "badge": "Für Ihre Rolle nicht verfügbar"
         }
       },
       "redirectNotice": "Nach der Freigabe werden Sie zu {{uri}} zurückgeleitet.",
@@ -2419,10 +2422,43 @@
       },
       "scopes": {
         "schema:read": "Ihre Inhaltstypen und das Schema lesen (einschließlich Dry-Run-Migrationspläne)",
-        "schema:write": "Schemamigrationen anwenden, die Ihre Inhaltstypen ändern"
+        "schema:write": "Schemamigrationen anwenden, die Ihre Inhaltstypen ändern",
+        "content:read": "Einträge Ihrer Inhaltstypen lesen",
+        "content:write": "Einträge erstellen und bearbeiten; Veröffentlichen erfordert Ihre Bestätigung",
+        "content:delete": "Einträge in den Papierkorb verschieben oder endgültig löschen, wenn Sie bestätigen",
+        "media:read": "Dateien Ihrer Medienbibliothek ansehen und herunterladen",
+        "media:write": "Mediendateien hochladen; Löschen erfordert Ihre Bestätigung",
+        "automations:read": "Ihre Automatisierungen und deren Ausführungsverlauf ansehen",
+        "automations:write": "Automatisierungen erstellen, bearbeiten und ausführen",
+        "users:read": "Benutzer, Rollen und Einladungen ansehen",
+        "users:write": "Benutzer, Rollen und Einladungen verwalten, wenn Sie bestätigen",
+        "settings:read": "Ihre Website-Einstellungen lesen",
+        "settings:write": "Ihre Website-Einstellungen ändern, wenn Sie bestätigen",
+        "analytics:read": "Analysen und Statistiken ansehen",
+        "agent:read": "Aktionen sehen, die dein Agent von dir bestätigen lassen will, und sie ablehnen",
+        "agent:approve": "Eine Aktion ausführen, nachdem du sie in deinem KI-Client bestätigt hast"
       },
       "required": "Erforderlich",
-      "disclaimer": "Die Berechtigungen sind für die MCP-Integration erforderlich. Sie können den Zugriff jederzeit unter Einstellungen > Verbundene Apps widerrufen."
+      "disclaimer": "Die App geht nie über Ihre eigene Rolle hinaus. Sie können den Zugriff jederzeit unter Einstellungen > Verbundene Apps widerrufen.",
+      "template": {
+        "legend": "Zugriffsebene",
+        "read": {
+          "label": "Lesen",
+          "description": "Alles ansehen, nichts ändern"
+        },
+        "editor": {
+          "label": "Editor",
+          "description": "Lesen, plus Inhalte und Medien erstellen, bearbeiten und löschen"
+        },
+        "admin": {
+          "label": "Administrator",
+          "description": "Editor, plus Automatisierungen, Benutzer und Einstellungen"
+        },
+        "developer": {
+          "label": "Entwickler",
+          "description": "Alles Angefragte, einschließlich Schemaänderungen"
+        }
+      }
     },
     "apps": {
       "application": "Anwendung",

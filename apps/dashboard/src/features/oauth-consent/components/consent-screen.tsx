@@ -2,16 +2,20 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { formatScopes } from '@beechcms/core'
 import { toast } from 'sonner'
 import { Loader } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useOptionalAuth } from '@/lib/auth-context'
 import { useSubmitConsent } from '../hooks/use-oauth-consent'
+import { CONSENT_TEMPLATES, defaultTemplate, templateScopes, type ConsentTemplateId } from '../lib/consent-templates'
 import type { AuthorizationRequestMetadata, ConsentDecisionBody } from '../types/oauth.types'
 
 /** Reads one OAuth request parameter, defaulting to '' when the query string lacks it. */
@@ -19,12 +23,13 @@ function readParam(params: URLSearchParams, key: string): string {
   return params.get(key) ?? ''
 }
 
-function buildConsentBody(params: URLSearchParams, approved: boolean): ConsentDecisionBody {
+/** Builds the consent POST body; `scope` overrides the URL scope string (the template's grant on Allow). */
+function buildConsentBody(params: URLSearchParams, approved: boolean, scope = readParam(params, 'scope')): ConsentDecisionBody {
   return {
     response_type: readParam(params, 'response_type'),
     client_id: readParam(params, 'client_id'),
     redirect_uri: readParam(params, 'redirect_uri'),
-    scope: readParam(params, 'scope'),
+    scope,
     state: readParam(params, 'state'),
     code_challenge: readParam(params, 'code_challenge'),
     code_challenge_method: readParam(params, 'code_challenge_method'),
@@ -42,10 +47,17 @@ export function ConsentScreen({ metadata, params }: ConsentScreenProps) {
   const auth = useOptionalAuth()
   const user = auth?.user
   const submitConsent = useSubmitConsent()
+  const templateLegendId = useId()
+  const [templateId, setTemplateId] = useState<ConsentTemplateId>(
+    () => defaultTemplate(metadata.requestedScopes, metadata.deniedScopes).id,
+  )
+  const selectedTemplate = CONSENT_TEMPLATES.find(template => template.id === templateId) ?? CONSENT_TEMPLATES[0]
+  const grantedScopes = templateScopes(selectedTemplate, metadata.requestedScopes, metadata.deniedScopes)
 
   const decide = async (approved: boolean) => {
     try {
-      const { redirectTo } = await submitConsent.mutateAsync(buildConsentBody(params, approved))
+      const body = approved ? buildConsentBody(params, true, formatScopes(grantedScopes)) : buildConsentBody(params, false)
+      const { redirectTo } = await submitConsent.mutateAsync(body)
       window.location.assign(redirectTo)
     } catch {
       toast.error(t('oauth.consent.submit.error'))
@@ -91,9 +103,38 @@ export function ConsentScreen({ metadata, params }: ConsentScreenProps) {
         </CardHeader>
 
         <CardContent className="space-y-3 pt-0">
+          {/* Template picker */}
+          <div className="space-y-2">
+            <p id={templateLegendId} className="text-sm font-medium">
+              {t('oauth.consent.template.legend')}
+            </p>
+            <RadioGroup
+              aria-labelledby={templateLegendId}
+              value={templateId}
+              onValueChange={(value) => setTemplateId(value as ConsentTemplateId)}
+              className="grid-cols-1 gap-2 sm:grid-cols-2"
+            >
+              {CONSENT_TEMPLATES.map((template) => (
+                <RadioGroupItem
+                  key={template.id}
+                  value={template.id}
+                  disabled={templateScopes(template, metadata.requestedScopes, metadata.deniedScopes).length === 0}
+                  className="flex-col items-start justify-start gap-0.5 text-left"
+                >
+                  <span className="text-sm font-medium">{t(`oauth.consent.template.${template.id}.label`)}</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {t(`oauth.consent.template.${template.id}.description`)}
+                  </span>
+                </RadioGroupItem>
+              ))}
+            </RadioGroup>
+          </div>
+
           {/* Scopes list */}
           <div className="space-y-2">
             {metadata.requestedScopes.map((scope) => {
+              const denied = metadata.deniedScopes.includes(scope)
+              const granted = grantedScopes.includes(scope)
               const alreadyGranted = !metadata.newScopes.includes(scope)
               return (
                 <div
@@ -102,7 +143,7 @@ export function ConsentScreen({ metadata, params }: ConsentScreenProps) {
                 >
                   <div className="pt-0.5 shrink-0">
                     <Checkbox
-                      checked
+                      checked={granted}
                       disabled
                       aria-label={scope}
                       className="pointer-events-none data-checked:bg-primary"
@@ -114,11 +155,17 @@ export function ConsentScreen({ metadata, params }: ConsentScreenProps) {
                       <Badge variant="secondary" className="font-mono text-xs px-1.5 py-0">
                         {scope}
                       </Badge>
-                      {alreadyGranted ? (
+                      {denied && (
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 text-muted-foreground">
+                          {t('oauth.consent.scope.denied.badge')}
+                        </Badge>
+                      )}
+                      {granted && alreadyGranted && (
                         <Badge variant="outline" className="text-xs px-1.5 py-0 text-muted-foreground">
                           {t('oauth.consent.scope.granted.badge')}
                         </Badge>
-                      ) : (
+                      )}
+                      {granted && !alreadyGranted && (
                         <Badge variant="outline" className="text-xs px-1.5 py-0 border-primary/30 text-foreground font-normal">
                           {t('oauth.consent.required')}
                         </Badge>
@@ -155,7 +202,7 @@ export function ConsentScreen({ metadata, params }: ConsentScreenProps) {
           </Button>
           <Button
             size="sm"
-            disabled={submitConsent.isPending}
+            disabled={submitConsent.isPending || grantedScopes.length === 0}
             onClick={() => decide(true)}
           >
             {submitConsent.isPending && <Loader className="size-3.5 animate-spin mr-1.5" />}

@@ -2419,6 +2419,9 @@
       "scope": {
         "granted": {
           "badge": "Déjà accordé"
+        },
+        "denied": {
+          "badge": "Non disponible pour votre rôle"
         }
       },
       "redirectNotice": "Après approbation, vous serez redirigé vers {{uri}}.",
@@ -2433,10 +2436,43 @@
       },
       "scopes": {
         "schema:read": "Lire vos types de contenu et le schéma (y compris les plans de migration en simulation)",
-        "schema:write": "Appliquer des migrations de schéma qui modifient vos types de contenu"
+        "schema:write": "Appliquer des migrations de schéma qui modifient vos types de contenu",
+        "content:read": "Lire les entrées de vos types de contenu",
+        "content:write": "Créer et modifier des entrées ; la publication nécessite votre confirmation",
+        "content:delete": "Déplacer des entrées dans la corbeille ou les supprimer définitivement, lorsque vous confirmez",
+        "media:read": "Consulter et télécharger les fichiers de votre médiathèque",
+        "media:write": "Téléverser des fichiers ; leur suppression nécessite votre confirmation",
+        "automations:read": "Consulter vos automatisations et leur historique d’exécution",
+        "automations:write": "Créer, modifier et exécuter des automatisations",
+        "users:read": "Consulter les utilisateurs, les rôles et les invitations",
+        "users:write": "Gérer les utilisateurs, les rôles et les invitations, lorsque vous confirmez",
+        "settings:read": "Lire les paramètres de votre site",
+        "settings:write": "Modifier les paramètres de votre site, lorsque vous confirmez",
+        "analytics:read": "Consulter les analyses et les statistiques",
+        "agent:read": "Voir les actions que votre agent attend de vous faire confirmer, et les refuser",
+        "agent:approve": "Exécuter une action après que vous l'avez confirmée dans votre client IA"
       },
       "required": "Obligatoire",
-      "disclaimer": "Les autorisations sont nécessaires à l’intégration MCP. Vous pouvez révoquer l’accès à tout moment dans Paramètres > Apps connectées."
+      "disclaimer": "L’application ne dépasse jamais votre propre rôle. Vous pouvez révoquer l’accès à tout moment dans Paramètres > Apps connectées.",
+      "template": {
+        "legend": "Niveau d’accès",
+        "read": {
+          "label": "Lecture",
+          "description": "Tout consulter, rien modifier"
+        },
+        "editor": {
+          "label": "Éditeur",
+          "description": "Lecture, plus création, modification et suppression de contenus et de médias"
+        },
+        "admin": {
+          "label": "Administrateur",
+          "description": "Éditeur, plus automatisations, utilisateurs et paramètres"
+        },
+        "developer": {
+          "label": "Développeur",
+          "description": "Tout ce qui est demandé, y compris les modifications du schéma"
+        }
+      }
     },
     "apps": {
       "application": "Application",

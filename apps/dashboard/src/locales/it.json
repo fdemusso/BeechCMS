@@ -2405,6 +2405,9 @@
       "scope": {
         "granted": {
           "badge": "Già concesso"
+        },
+        "denied": {
+          "badge": "Non disponibile per il tuo ruolo"
         }
       },
       "redirectNotice": "Dopo l'approvazione verrai reindirizzato a {{uri}}.",
@@ -2419,10 +2422,43 @@
       },
       "scopes": {
         "schema:read": "Leggi i tuoi content type e lo schema (inclusi i piani di migrazione dry-run)",
-        "schema:write": "Applica migrazioni dello schema che modificano i tuoi content type"
+        "schema:write": "Applica migrazioni dello schema che modificano i tuoi content type",
+        "content:read": "Leggi le voci dei tuoi content type",
+        "content:write": "Crea e modifica voci; la pubblicazione richiede la tua conferma",
+        "content:delete": "Sposta le voci nel cestino o eliminale definitivamente, quando confermi",
+        "media:read": "Visualizza e scarica i file della tua libreria multimediale",
+        "media:write": "Carica file multimediali; l'eliminazione richiede la tua conferma",
+        "automations:read": "Visualizza le tue automazioni e la cronologia delle esecuzioni",
+        "automations:write": "Crea, modifica ed esegui automazioni",
+        "users:read": "Visualizza utenti, ruoli e inviti",
+        "users:write": "Gestisci utenti, ruoli e inviti, quando confermi",
+        "settings:read": "Leggi le impostazioni del tuo sito",
+        "settings:write": "Modifica le impostazioni del tuo sito, quando confermi",
+        "analytics:read": "Visualizza analisi e statistiche",
+        "agent:read": "Vedi le azioni che il tuo agente attende di farti confermare e rifiutale",
+        "agent:approve": "Esegui un'azione dopo che la confermi nel tuo client AI"
       },
       "required": "Obbligatorio",
-      "disclaimer": "I permessi sono obbligatori per l'integrazione MCP. Puoi revocare l'accesso in qualsiasi momento da Impostazioni > App connesse."
+      "disclaimer": "L'app non supera mai il tuo ruolo. Puoi revocare l'accesso in qualsiasi momento da Impostazioni > App connesse.",
+      "template": {
+        "legend": "Livello di accesso",
+        "read": {
+          "label": "Lettura",
+          "description": "Visualizza tutto, non modifica nulla"
+        },
+        "editor": {
+          "label": "Editor",
+          "description": "Lettura, più creazione, modifica ed eliminazione di contenuti e media"
+        },
+        "admin": {
+          "label": "Amministratore",
+          "description": "Editor, più automazioni, utenti e impostazioni"
+        },
+        "developer": {
+          "label": "Sviluppatore",
+          "description": "Tutto ciò che è richiesto, comprese le modifiche allo schema"
+        }
+      }
     },
     "apps": {
       "application": "Applicazione",
