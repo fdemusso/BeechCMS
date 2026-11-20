@@ -57,6 +57,19 @@ A locale code is an ISO 639 language (2–3 lowercase letters), optionally follo
 
 Until you save a language list, the project behaves as mono-lingual: its only content locale is the dashboard's **Default Language** (`defaultLanguage`, falling back to `en`). Once you save `locales`, content languages no longer follow the dashboard UI language.
 
+### Interface language vs content languages
+
+Two settings share the word "language" and are independent:
+
+| | Interface language | Content languages |
+| :--- | :--- | :--- |
+| **What it translates** | The dashboard's own labels, messages and dates | The text, richtext and json fields of your entries |
+| **Where to set it** | **Settings → Language** (per browser, applied immediately) | **Settings → Site → Content languages** (project-wide) |
+| **Available values** | `en`, `it`, `es`, `de`, `fr` | Any locale code (see above) |
+| **Stored in** | `localStorage` (`beech_language`) | Site settings |
+
+The interface language also drives date, relative-time and calendar formatting. The site's **Default Language** (`defaultLanguage`) is still limited to `it` and `en`. Transactional emails use the interface language when a template exists for it (`en`, `it`) and English otherwise; see the [Email module](/features/email-module#multilingual-support).
+
 ---
 
 ## Marking a Field as Localized
