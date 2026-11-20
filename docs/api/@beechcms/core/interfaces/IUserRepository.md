@@ -172,6 +172,25 @@ Retrieves a user by their unique identifier, or null if not found.
 
 ***
 
+### findUiPreferences()
+
+> **findUiPreferences**(`userId`): `Promise`&lt;`string` \| `null`&gt;
+
+The user's stored UI preferences container (`users.ui_prefs`) as a raw JSON string, or null when the
+user does not exist. Parsing and defaults belong to `parseStoredUiPreferences`.
+
+#### Parameters
+
+##### userId
+
+`string`
+
+#### Returns
+
+`Promise`&lt;`string` \| `null`&gt;
+
+***
+
 ### listAccounts()
 
 > **listAccounts**(`page`): `Promise`&lt;[`AccountSummary`](AccountSummary.md)[]&gt;
@@ -310,3 +329,26 @@ Updates the user's display name, surname, and/or email address.
 #### Returns
 
 `Promise`&lt;`void`&gt;
+
+***
+
+### updateUiPreferences()
+
+> **updateUiPreferences**(`userId`, `preferencesJson`): `Promise`&lt;`boolean`&gt;
+
+Replaces the user's UI preferences container with `preferencesJson`, already validated against
+`uiPreferencesSchema`. Returns false when no user row matched, so nothing was written.
+
+#### Parameters
+
+##### userId
+
+`string`
+
+##### preferencesJson
+
+`string`
+
+#### Returns
+
+`Promise`&lt;`boolean`&gt;

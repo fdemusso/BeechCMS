@@ -152,6 +152,35 @@ Discards the pending draft.
 
 ***
 
+### exists()
+
+> **exists**(`seed`, `id`, `options?`): `Promise`&lt;`boolean`&gt;
+
+Cheap existence probe by id: no row is loaded or decrypted.
+Same `trashed` visibility as [ContentRepository.findById](#findbyid).
+
+#### Parameters
+
+##### seed
+
+[`Seed`](Seed.md)
+
+##### id
+
+`string`
+
+##### options?
+
+###### trashed?
+
+[`TrashedMode`](../type-aliases/TrashedMode.md)
+
+#### Returns
+
+`Promise`&lt;`boolean`&gt;
+
+***
+
 ### existsSlug()
 
 > **existsSlug**(`seed`, `slug`, `excludeId?`): `Promise`&lt;`boolean`&gt;
