@@ -234,7 +234,7 @@ export function SettingsMenu({
                   {t("toolbar.filter.label")}
                 </DropdownMenuLabel>
                 <Input
-                  placeholder={t("toolbar.filter.searchPlaceholder")}
+                  placeholder={t("toolbar.filter.search.placeholder")}
                   value={filterColumnSearchTerm}
                   onChange={(e) => setFilterColumnSearchTerm(e.target.value)}
                   className="h-8 text-sm"
@@ -288,7 +288,7 @@ export function SettingsMenu({
                   </DropdownMenuLabel>
                   <div className="flex items-center gap-2">
                     <Input
-                      placeholder={t("toolbar.sort.searchPlaceholder")}
+                      placeholder={t("toolbar.sort.search.placeholder")}
                       value={sortColumnSearchTerm}
                       onChange={(e) => setSortColumnSearchTerm(e.target.value)}
                       className="h-8 flex-1 text-sm"

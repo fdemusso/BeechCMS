@@ -82,9 +82,9 @@ export function useGeneralTabLogic() {
         },
         trashRetentionDays: retention,
       })
-      toast.success(t('settings.general.savedSuccess'))
+      toast.success(t('settings.general.saved.success'))
     } catch (err) {
-      const detail = (isApiError(err) ? err.data?.detail : undefined) ?? t('settings.general.savedError')
+      const detail = (isApiError(err) ? err.data?.detail : undefined) ?? t('settings.general.saved.error')
       toast.error(detail)
     }
   }

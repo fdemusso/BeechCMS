@@ -60,9 +60,9 @@ function ProfileSection() {
         surname,
         email: email || undefined,
       })
-      toast.success(t('settings.profile.savedSuccess'))
+      toast.success(t('settings.profile.saved.success'))
     } catch (err) {
-      const detail = (isApiError(err) ? err.data?.detail : undefined) ?? t('settings.profile.savedError')
+      const detail = (isApiError(err) ? err.data?.detail : undefined) ?? t('settings.profile.saved.error')
       toast.error(detail)
     }
   }
@@ -72,9 +72,9 @@ function ProfileSection() {
     if (!file) return
     try {
       await updateAvatar.mutateAsync(file)
-      toast.success(t('settings.profile.avatarSuccess'))
+      toast.success(t('settings.profile.avatar.success'))
     } catch {
-      toast.error(t('settings.profile.avatarError'))
+      toast.error(t('settings.profile.avatar.error'))
     }
     e.target.value = ''
   }
@@ -84,14 +84,14 @@ function ProfileSection() {
       await removeAvatar.mutateAsync()
       toast.success(t('settings.profile.avatarRemoved'))
     } catch {
-      toast.error(t('settings.profile.avatarRemoveError'))
+      toast.error(t('settings.profile.avatarRemove.error'))
     }
   }
 
   const photoBusy = updateAvatar.isPending || removeAvatar.isPending
 
   return (
-    <SettingsSection id="profile" title={t('settings.profile.infoTitle')} description={t('settings.profile.infoDesc')}>
+    <SettingsSection id="profile" title={t('settings.profile.info.title')} description={t('settings.profile.infoDesc')}>
       {isLoading ? (
         <div role="status" className="flex items-center justify-center py-12">
           <Loader2 aria-hidden className="size-6 animate-spin text-muted-foreground" />
@@ -103,7 +103,7 @@ function ProfileSection() {
           aria-describedby={sectionDescriptionDomId('profile')}
           aria-busy={updateProfile.isPending}
         >
-          <SettingsRow label={t('settings.profile.photoLabel')} controlClassName="sm:w-auto">
+          <SettingsRow label={t('settings.profile.photo.label')} controlClassName="sm:w-auto">
             <div className="relative w-fit sm:ml-auto">
               {/* The circle is the button: hovering or focusing it reveals the camera over the photo. */}
               <button
@@ -152,29 +152,29 @@ function ProfileSection() {
             </div>
           </SettingsRow>
 
-          <SettingsRow label={t('settings.profile.nameLabel')} htmlFor="profile-name">
+          <SettingsRow label={t('settings.profile.name.label')} htmlFor="profile-name">
             <Input
               id="profile-name"
               name="given-name"
               autoComplete="given-name"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder={t('settings.profile.namePlaceholder')}
+              placeholder={t('settings.profile.name.placeholder')}
             />
           </SettingsRow>
 
-          <SettingsRow label={t('settings.profile.surnameLabel')} htmlFor="profile-surname">
+          <SettingsRow label={t('settings.profile.surname.label')} htmlFor="profile-surname">
             <Input
               id="profile-surname"
               name="family-name"
               autoComplete="family-name"
               value={surname}
               onChange={e => setSurname(e.target.value)}
-              placeholder={t('settings.profile.surnamePlaceholder')}
+              placeholder={t('settings.profile.surname.placeholder')}
             />
           </SettingsRow>
 
-          <SettingsRow label={t('settings.profile.emailLabel')} htmlFor="profile-email">
+          <SettingsRow label={t('settings.profile.email.label')} htmlFor="profile-email">
             <Input
               id="profile-email"
               name="email"
@@ -183,7 +183,7 @@ function ProfileSection() {
               required
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder={t('settings.profile.emailPlaceholder')}
+              placeholder={t('settings.profile.email.placeholder')}
             />
           </SettingsRow>
 
@@ -227,18 +227,18 @@ function PasswordSection() {
     }
     try {
       await changePassword.mutateAsync({ currentPassword, newPassword })
-      toast.success(t('settings.profile.passwordSuccess'))
+      toast.success(t('settings.profile.password.success'))
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
     } catch (err) {
-      const detail = (isApiError(err) ? err.data?.detail : undefined) ?? t('settings.profile.passwordError')
+      const detail = (isApiError(err) ? err.data?.detail : undefined) ?? t('settings.profile.password.error')
       toast.error(detail)
     }
   }
 
   return (
-    <SettingsSection id="password" title={t('settings.profile.passwordTitle')} description={t('settings.profile.passwordDesc')}>
+    <SettingsSection id="password" title={t('settings.profile.password.title')} description={t('settings.profile.passwordDesc')}>
       <form
         onSubmit={handleChangePassword}
         aria-describedby={sectionDescriptionDomId('password')}

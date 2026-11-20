@@ -45,9 +45,9 @@ export function NewEntryButton({ canCreate, onCreate, seedLabel }: NewEntryButto
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-72">
-          <DropdownMenuLabel>{t("toolbar.newEntry.templatesTitle", { label: seedLabel })}</DropdownMenuLabel>
+          <DropdownMenuLabel>{t("toolbar.newEntry.templates.title", { label: seedLabel })}</DropdownMenuLabel>
           <p className="px-2 pb-2 text-sm text-muted-foreground">
-            {t("toolbar.newEntry.templatesDescription")}
+            {t("toolbar.newEntry.templates.description")}
           </p>
           <DropdownMenuSeparator />
           {/* Templates are not implemented yet: the entry stays visible and only notifies the user. */}

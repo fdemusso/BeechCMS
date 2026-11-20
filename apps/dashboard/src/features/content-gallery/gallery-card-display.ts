@@ -154,7 +154,7 @@ export function buildGalleryCardDisplayModel(
   })
 
   const ariaLabel = title
-    ? t("gallery.openDetailAriaLabel", { title })
+    ? t("gallery.openDetail.ariaLabel", { title })
     : t("gallery.openDetailAriaLabelFallback", { id: entry.id })
 
   const slotColumnId: Partial<Record<GalleryCardSlot, string>> = {

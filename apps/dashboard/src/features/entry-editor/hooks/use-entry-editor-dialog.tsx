@@ -316,7 +316,7 @@ export function useEntryEditorDialog({
   const reloadDraft = async () => {
     const [live, draft] = await Promise.all([refetchEntry(), refetchDraft()])
     if (live.isError || draft.isError || !live.data) {
-      toast.error(t("content.editor.saveError"))
+      toast.error(t("content.editor.save.error"))
       return
     }
     setFormData({ ...live.data.data, ...draft.data })
@@ -332,7 +332,7 @@ export function useEntryEditorDialog({
     if (apiError?.status === 400 && apiError.data?.errors?.length) {
       const errors = apiError.data.errors as ApiFieldError[]
       setFieldErrors(foldFieldErrors(errors, seedBranches))
-      toast.error(t("content.editor.validationError", { count: errors.length }))
+      toast.error(t("content.editor.validation.error", { count: errors.length }))
       return
     }
     const code = contentErrorCode(err)
@@ -343,7 +343,7 @@ export function useEntryEditorDialog({
       const publishConflict = code === CONTENT_ERROR_CODES.DRAFT_PUBLISH_CONFLICT
       toast.error(apiError.data?.detail || t("content.editor.updateConflict"), {
         action: {
-          label: t(publishConflict ? "content.editor.discardDraft" : "content.editor.reload"),
+          label: t(publishConflict ? "content.editor.discardDraft.label" : "content.editor.reload"),
           onClick: () => {
             if (publishConflict) setShowDiscardConfirm(true)
             else void reloadDraft()
@@ -352,7 +352,7 @@ export function useEntryEditorDialog({
       })
       return
     }
-    toast.error(err instanceof Error ? err.message : t("content.editor.saveError"))
+    toast.error(err instanceof Error ? err.message : t("content.editor.save.error"))
   }
 
   const handlePublishDraft = async () => {
@@ -360,7 +360,7 @@ export function useEntryEditorDialog({
     setFieldErrors({})
     try {
       await publishDraft({ slug: schemaSlug, id: entryId })
-      toast.success(t("content.editor.draftPublishSuccess"))
+      toast.success(t("content.editor.draftPublish.success"))
       hasJustSavedRef.current = true
       if (effectiveDraftContext) {
         navigate("/drafts")
@@ -376,7 +376,7 @@ export function useEntryEditorDialog({
     if (!schemaSlug || !entryId) return
     try {
       await discardDraft({ slug: schemaSlug, id: entryId })
-      toast.success(t("content.editor.draftDiscardSuccess"))
+      toast.success(t("content.editor.draftDiscard.success"))
       if (effectiveDraftContext) {
         hasJustSavedRef.current = true
         navigate("/drafts")
@@ -384,7 +384,7 @@ export function useEntryEditorDialog({
         onClose()
       }
     } catch {
-      toast.error(t("content.editor.saveError"))
+      toast.error(t("content.editor.save.error"))
     } finally {
       setShowDiscardConfirm(false)
     }
@@ -494,14 +494,14 @@ export function useEntryEditorDialog({
   const hasInvalidJson = (): boolean => {
     const jsonValidation = validateEntryJsonFields(branches, formData)
     if (!jsonValidation.isValid) {
-      toast.error(t("content.editor.jsonError", { field: jsonValidation.errorFieldLabel }))
+      toast.error(t("content.editor.json.error", { field: jsonValidation.errorFieldLabel }))
       return true
     }
     const invalidTranslation = localeConfig
       ? findInvalidLocalizedJson(seedBranches, formData, touchedLocales, localeConfig)
       : null
     if (invalidTranslation) {
-      toast.error(t("content.editor.jsonError", {
+      toast.error(t("content.editor.json.error", {
         field: `${invalidTranslation.label} (${invalidTranslation.locale.toUpperCase()})`,
       }))
       return true
@@ -520,7 +520,7 @@ export function useEntryEditorDialog({
       const payload = buildPayload()
       const ifMatch = !isCreate && entryData?.updated_at != null ? String(entryData.updated_at) : undefined
       const result = await saveContent({ slug: schemaSlug, id: isCreate ? undefined : entryId, data: payload, ifMatch })
-      toast.success(isCreate ? t("content.editor.createdSuccess") : t("content.editor.savedSuccess"))
+      toast.success(isCreate ? t("content.editor.created.success") : t("content.editor.saved.success"))
       setIsDirty(false)
       hasJustSavedRef.current = true
       onSaved?.({
@@ -552,11 +552,11 @@ export function useEntryEditorDialog({
         const errors = apiError.data?.errors as ApiFieldError[] | undefined
         if (errors && errors.length > 0) {
           setFieldErrors(foldFieldErrors(errors, seedBranches))
-          toast.error(t("content.editor.validationError", { count: errors.length }))
+          toast.error(t("content.editor.validation.error", { count: errors.length }))
           return
         }
       }
-      toast.error(err instanceof Error ? err.message : t("content.editor.saveError"))
+      toast.error(err instanceof Error ? err.message : t("content.editor.save.error"))
     }
   }
 
@@ -572,7 +572,7 @@ export function useEntryEditorDialog({
       delete draftPayload.slug
       delete draftPayload.status
       await saveDraft({ slug: schemaSlug, id: entryId, data: draftPayload })
-      toast.success(t("content.editor.draftSaveSuccess"))
+      toast.success(t("content.editor.draftSave.success"))
       setIsDirty(false)
       hasJustSavedRef.current = true
       if (effectiveDraftContext) {
@@ -623,7 +623,7 @@ export function useEntryEditorDialog({
   } else if (isCreate) {
     saveLabel = t("common.create")
   } else {
-    saveLabel = t("content.editor.save")
+    saveLabel = t("common.action.save")
   }
 
   const fieldStates = React.useMemo(

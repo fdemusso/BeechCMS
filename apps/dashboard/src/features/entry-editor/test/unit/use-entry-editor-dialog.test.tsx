@@ -121,7 +121,7 @@ describe("useEntryEditorDialog", () => {
     await act(async () => operation === "save" ? result.current.handleSubmit({ preventDefault() {} } as SyntheticEvent<HTMLFormElement>) : result.current.handlePublishDraft())
 
     expect(result.current.fieldErrors.title).toBe("Invalid title")
-    expect(toast.error).toHaveBeenCalledWith("content.editor.validationError")
+    expect(toast.error).toHaveBeenCalledWith("content.editor.validation.error")
     expect(onClose).not.toHaveBeenCalled()
   })
 
@@ -131,7 +131,7 @@ describe("useEntryEditorDialog", () => {
 
     await act(async () => operation === "save" ? result.current.handleSubmit({ preventDefault() {} } as SyntheticEvent<HTMLFormElement>) : result.current.handlePublishDraft())
 
-    expect(toast.error).toHaveBeenCalledWith(detail, { action: { label: operation === "save" ? "content.editor.reload" : "content.editor.discardDraft", onClick: expect.any(Function) } })
+    expect(toast.error).toHaveBeenCalledWith(detail, { action: { label: operation === "save" ? "content.editor.reload" : "content.editor.discardDraft.label", onClick: expect.any(Function) } })
     expect(onClose).not.toHaveBeenCalled()
     expect(mocked.discard).not.toHaveBeenCalled()
   })
@@ -170,7 +170,7 @@ describe("useEntryEditorDialog", () => {
 
     await act(async () => operation === "save" ? result.current.handleSubmit({ preventDefault() {} } as SyntheticEvent<HTMLFormElement>) : result.current.handlePublishDraft())
 
-    expect(toast.error).toHaveBeenCalledWith("content.editor.saveError")
+    expect(toast.error).toHaveBeenCalledWith("content.editor.save.error")
     expect(onClose).not.toHaveBeenCalled()
   })
 

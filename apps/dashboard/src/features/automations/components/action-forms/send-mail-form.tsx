@@ -22,13 +22,13 @@ export function SendMailForm({ index }: SendMailFormProps) {
     <div className="flex flex-col gap-3">
       <div>
         <label htmlFor={`${baseId}-to`} className="text-xs font-medium text-muted-foreground mb-1 block">
-          {t('automations.actions.mailTo')} *
+          {t('automations.actions.mailTo.label')} *
         </label>
         <Input
           id={`${baseId}-to`}
           {...register(`actions.${index}.to` as any)}
           type="email"
-          placeholder={t('automations.actions.mailToPlaceholder')}
+          placeholder={t('automations.actions.mailTo.placeholder')}
           className="h-8 text-sm"
         />
         {actionErrors?.to && (
@@ -38,12 +38,12 @@ export function SendMailForm({ index }: SendMailFormProps) {
 
       <div>
         <label htmlFor={`${baseId}-subject`} className="text-xs font-medium text-muted-foreground mb-1 block">
-          {t('automations.actions.mailSubject')} *
+          {t('automations.actions.mailSubject.label')} *
         </label>
         <Input
           id={`${baseId}-subject`}
           {...register(`actions.${index}.subject_template` as any)}
-          placeholder={t('automations.actions.mailSubjectPlaceholder', { example: '{{title}}' })}
+          placeholder={t('automations.actions.mailSubject.placeholder', { example: '{{title}}' })}
           className="h-8 text-sm"
         />
         {actionErrors?.subject_template && (
@@ -54,13 +54,13 @@ export function SendMailForm({ index }: SendMailFormProps) {
 
       <div>
         <label htmlFor={`${baseId}-body`} className="text-xs font-medium text-muted-foreground mb-1 block">
-          {t('automations.actions.mailBody')} *
+          {t('automations.actions.mailBody.label')} *
         </label>
         <textarea
           id={`${baseId}-body`}
           {...register(`actions.${index}.body_template` as any)}
           rows={4}
-          placeholder={t('automations.actions.mailBodyPlaceholder', { example: '{{title}}' })}
+          placeholder={t('automations.actions.mailBody.placeholder', { example: '{{title}}' })}
           className="w-full rounded-control border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
         {actionErrors?.body_template && (

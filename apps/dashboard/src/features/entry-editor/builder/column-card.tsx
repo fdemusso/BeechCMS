@@ -247,7 +247,7 @@ export const ColumnCard = React.memo(function ColumnCard({
       zoneId={dragIds.zone(tabId, sectionId, columnId)}
       itemCount={fields.length}
       reorderable={reorderable}
-      dragLabel={translate('layoutBuilder.dragColumn')}
+      dragLabel={translate('layoutBuilder.drag.column')}
       // As small and quiet as the strip beside a field, and unrelated to the dashboard builder's handle.
       handleClassName="-top-2 rounded-control px-2 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground"
       handleIconClassName="size-4 rotate-90"

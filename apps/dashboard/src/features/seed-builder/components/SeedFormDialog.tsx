@@ -53,8 +53,8 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
   const labelInputRef = React.useRef<HTMLInputElement>(null)
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const title = editRecord
-    ? t("seedBuilder.editor.editTitle", { label: editRecord.definition.label })
-    : t("seedBuilder.editor.createTitle")
+    ? t("seedBuilder.editor.edit.title", { label: editRecord.definition.label })
+    : t("seedBuilder.editor.create.title")
 
   /**
    * Enter never submits by accident from a text input: it moves to the next input marked `data-enter-next`
@@ -113,7 +113,7 @@ export function SeedFormDialog({ open, editRecord, activeSeedsForRelation, taken
           </DialogHeader>
           <Button type="button" variant="ghost" size="icon-sm" className="absolute top-2 right-2" onClick={onClose}>
             <X />
-            <span className="sr-only">{t("common.close")}</span>
+            <span className="sr-only">{t("common.action.close")}</span>
           </Button>
 
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={form.handleSubmit} onKeyDown={handleFormKeyDown}>

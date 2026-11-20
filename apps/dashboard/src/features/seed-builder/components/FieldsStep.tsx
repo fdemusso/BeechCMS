@@ -150,7 +150,7 @@ export function FieldsStep({
         <Input
           data-enter-next=""
           value={name}
-          placeholder={t("seedBuilder.fields.addPlaceholder")}
+          placeholder={t("seedBuilder.fields.add.placeholder")}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
             if (e.key !== "Enter" || e.nativeEvent.isComposing) return
@@ -193,7 +193,7 @@ export function FieldsStep({
         </ToggleGroup>
         <Button type="button" variant="outline" onClick={addField} disabled={!name.trim()}>
           <Plus className="size-4" />
-          {t("seedBuilder.fields.add")}
+          {t("seedBuilder.fields.add.label")}
         </Button>
       </div>
 

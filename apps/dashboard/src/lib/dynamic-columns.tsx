@@ -416,7 +416,7 @@ export function generateColumns(
                     className="text-status-danger-foreground focus:text-status-danger-foreground"
                     disabled={!canDelete}
                   >
-                    {translate("common.delete")}
+                    {translate("common.action.delete")}
                     <DropdownMenuShortcut>Del</DropdownMenuShortcut>
                   </DropdownMenuItem>
                 </>
@@ -447,7 +447,7 @@ export function generateColumns(
                     className="text-status-danger-foreground focus:text-status-danger-foreground"
                     disabled={!canDelete}
                   >
-                    {translate("common.delete")}
+                    {translate("common.action.delete")}
                     <DropdownMenuShortcut>Del</DropdownMenuShortcut>
                   </DropdownMenuItem>
                 </>

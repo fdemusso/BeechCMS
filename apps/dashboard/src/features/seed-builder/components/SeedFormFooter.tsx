@@ -46,8 +46,8 @@ export function SeedFormFooter({ form, editRecord, onDelete }: SeedFormFooterPro
       <footer className={FOOTER_CLASS}>
         <p id="sf-delete-hint" className="text-xs text-muted-foreground">
           {editRecord.source === "code"
-            ? t("seedBuilder.dangerZone.hardDelete.manifestHint")
-            : t("seedBuilder.dangerZone.hardDelete.footerHint")}
+            ? t("seedBuilder.dangerZone.hardDelete.manifest.hint")
+            : t("seedBuilder.dangerZone.hardDelete.footer.hint")}
         </p>
         <Button
           type="button"
@@ -57,7 +57,7 @@ export function SeedFormFooter({ form, editRecord, onDelete }: SeedFormFooterPro
           onClick={onDelete}
         >
           <Trash2 className="size-4" />
-          {t("seedBuilder.dangerZone.hardDelete.footerButton")}
+          {t("seedBuilder.dangerZone.hardDelete.footer.button")}
         </Button>
       </footer>
     )
@@ -69,7 +69,7 @@ export function SeedFormFooter({ form, editRecord, onDelete }: SeedFormFooterPro
       <div className="flex items-center gap-3">
         {isCreate && form.step !== SEED_FORM_STEPS[0] && (
           <Button type="button" variant="outline" onClick={form.goBack}>
-            {t("seedBuilder.editor.back")}
+            {t("common.action.back")}
           </Button>
         )}
       </div>
@@ -87,7 +87,7 @@ export function SeedFormFooter({ form, editRecord, onDelete }: SeedFormFooterPro
           </Button>
         ) : (
           <Button type="submit" disabled={!form.canSubmit}>
-            {isCreate ? t("common.create") : t("common.save")}
+            {isCreate ? t("common.create") : t("common.action.save")}
           </Button>
         )}
       </div>

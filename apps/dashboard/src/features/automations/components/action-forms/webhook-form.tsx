@@ -103,12 +103,12 @@ export function WebhookForm({ index, triggerSeedSlug }: WebhookFormProps) {
           <div key={field.id} className="flex gap-2 mb-1">
             <Input
               {...register(`actions.${index}.headers.${hIdx}.key` as any)}
-              placeholder={t('automations.actions.webhookHeaderKeyPlaceholder')}
+              placeholder={t('automations.actions.webhookHeaderKey.placeholder')}
               className="h-7 text-xs"
             />
             <Input
               {...register(`actions.${index}.headers.${hIdx}.value` as any)}
-              placeholder={t('automations.actions.webhookHeaderValuePlaceholder')}
+              placeholder={t('automations.actions.webhookHeaderValue.placeholder')}
               className="h-7 text-xs"
             />
             <Button
@@ -126,7 +126,7 @@ export function WebhookForm({ index, triggerSeedSlug }: WebhookFormProps) {
 
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1 block">
-          {t('automations.actions.webhookBody')} *
+          {t('automations.actions.webhookBody.label')} *
         </label>
         <Controller
           control={control}
@@ -149,7 +149,7 @@ export function WebhookForm({ index, triggerSeedSlug }: WebhookFormProps) {
       </div>
 
       <div className="rounded-control bg-muted/50 border border-border px-3 py-2 text-xs text-muted-foreground">
-        {t('automations.actions.webhookSecretHint')}
+        {t('automations.actions.webhookSecret.hint')}
       </div>
     </div>
   )

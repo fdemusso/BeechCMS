@@ -85,7 +85,7 @@ function ColumnRenderer({
   if (column.fields.length === 0) {
     return (
       <div className="text-sm text-muted-foreground italic py-2">
-        {translate("content.editor.emptyColumn")}
+        {translate("content.editor.empty.column")}
       </div>
     )
   }

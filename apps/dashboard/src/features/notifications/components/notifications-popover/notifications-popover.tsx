@@ -152,7 +152,7 @@ function NotificationCard({
           onClick={() => onDelete(notification.id)}
         >
           <Trash2 className="size-4" />
-          {t("notifications.delete")}
+          {t("common.action.delete")}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

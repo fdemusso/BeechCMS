@@ -514,7 +514,7 @@ function ColumnPicker({ columns, onSelect, compact = false }: ColumnPickerProps)
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64 p-2">
         <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-          {t("toolbar.conditionalFormats.chooseColumn")}
+          {t("toolbar.conditionalFormats.choose.column")}
         </DropdownMenuLabel>
         <ScrollArea className="max-h-56 pr-2">
           {columns.length === 0 ? (

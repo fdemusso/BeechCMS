@@ -50,7 +50,7 @@ export function ForgotPasswordPage() {
           <CardContent className="p-6 md:p-8">
             {submitted ? (
               <div className="flex flex-col items-center gap-4 text-center">
-                <h1 className="font-heading text-2xl font-bold">{t("forgotPassword.successTitle")}</h1>
+                <h1 className="font-heading text-2xl font-bold">{t("forgotPassword.success.title")}</h1>
                 <p className="text-muted-foreground text-balance text-sm">
                   {t("forgotPassword.successDesc")}
                 </p>

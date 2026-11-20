@@ -41,14 +41,14 @@ export function EditFieldForm({ index, seedBranches }: EditFieldFormProps) {
     <div className="flex flex-col gap-3">
       <div>
         <label htmlFor={fieldId} className="text-xs font-medium text-muted-foreground mb-1 block">
-          {t('automations.actions.editField')} *
+          {t('automations.actions.editField.label')} *
         </label>
         <Select
           value={field ?? ''}
           onValueChange={handleFieldChange}
         >
           <SelectTrigger id={fieldId} size="sm" className="h-8 text-sm">
-            <SelectValue placeholder={t('automations.actions.editFieldPlaceholder')} />
+            <SelectValue placeholder={t('automations.actions.editField.placeholder')} />
           </SelectTrigger>
           <SelectContent>
             {seedBranches.map((b) => (
@@ -65,7 +65,7 @@ export function EditFieldForm({ index, seedBranches }: EditFieldFormProps) {
 
       <div>
         <label htmlFor={valueId} className="text-xs font-medium text-muted-foreground mb-1 block">
-          {t('automations.actions.editValue')}
+          {t('automations.actions.editValue.label')}
         </label>
         <AutomationValueInput
           id={valueId}

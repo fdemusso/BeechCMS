@@ -60,7 +60,7 @@ export function TimeseriesChartConfigPanel({
         seedSlug={config.seedSlug}
         value={config.groupColumn}
         onChange={(groupColumn) => onChange({ ...config, groupColumn })}
-        label={t("dashboard.builder.config.groupColumn")}
+        label={t("dashboard.builder.config.group.column")}
       />
       <TextField
         label={t("dashboard.builder.config.color")}

@@ -58,7 +58,7 @@ const SectionMenu = React.memo(function SectionMenu({
       {/* The toggles keep the menu open so several flags can be set in a row. */}
       <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(tabId, sectionId, 'hideLabel') }}>
         <Check className={hideLabel ? 'opacity-100' : 'opacity-0'} />
-        {t('layoutBuilder.sectionMenu.hideLabel')}
+        {t('layoutBuilder.sectionMenu.hide.label')}
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(tabId, sectionId, 'hideBorder') }}>
         <Check className={hideBorder ? 'opacity-100' : 'opacity-0'} />
@@ -142,7 +142,7 @@ export const SectionCard = React.memo(function SectionCard({
       dragId={dragIds.section(tabId, sectionId)}
       label={section.label}
       labelMax={LAYOUT_SECTION_LABEL_MAX}
-      noLabelText={t('layoutBuilder.noLabel')}
+      noLabelText={t('layoutBuilder.no.label')}
       dragHandleLabel={t('layoutBuilder.dragSection')}
       countText={t('layoutBuilder.fieldCount', { count: fieldCount })}
       removeConfirmText={`${t('layoutBuilder.sectionMenu.remove')}?`}

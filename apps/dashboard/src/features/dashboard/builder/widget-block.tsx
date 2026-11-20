@@ -281,11 +281,11 @@ export const WidgetBlock = React.memo(function WidgetBlock({
       <div
         ref={setNodeRef}
         style={style}
-        title={t('dashboard.builder.widget.lockedHint')}
+        title={t('dashboard.builder.widget.locked.hint')}
         className="flex items-center gap-2 rounded-lg border border-dashed bg-muted px-3 py-3 text-sm text-muted-foreground"
       >
         <Lock className="size-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate">{t('dashboard.builder.widget.locked')}</span>
+        <span className="min-w-0 flex-1 truncate">{t('dashboard.builder.widget.locked.label')}</span>
       </div>
     )
   }

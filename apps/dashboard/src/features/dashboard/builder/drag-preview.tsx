@@ -21,7 +21,7 @@ function SectionPreview({ info }: { readonly info: DragPreviewInfo }) {
       <div className="flex items-center gap-2 px-3 py-2">
         <GripDots className="size-4 text-muted-foreground/60" />
         <span className={`flex-1 text-sm font-medium ${info.label ? '' : 'italic text-muted-foreground'}`}>
-          {info.label || t('dashboard.builder.section.noLabel')}
+          {info.label || t('dashboard.builder.section.no.label')}
         </span>
         <Badge variant="secondary" className="text-xs">
           {t('dashboard.builder.section.widgetCount', { count: widgetCount })}

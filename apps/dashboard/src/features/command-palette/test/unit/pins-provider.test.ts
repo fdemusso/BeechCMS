@@ -168,8 +168,8 @@ describe("createPinsProvider", () => {
 
     expect(unavailable).toMatchObject({
       id: "pin:content:open:deleted",
-      label: "commandPalette.pins.unavailableLabel",
-      description: "commandPalette.pins.unavailableHint:content:open:deleted",
+      label: "commandPalette.pins.unavailable.label",
+      description: "commandPalette.pins.unavailable.hint:content:open:deleted",
       icon: PinOff,
       disabledReason: null,
     })

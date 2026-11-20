@@ -60,8 +60,8 @@ export function SetupChecklistWidget({ variant = "full" }: SetupChecklistWidgetP
   }> = [
     {
       done: data.systemTablesOk,
-      label: t("dashboard.setupChecklist.systemTables"),
-      hint: t("dashboard.setupChecklist.systemTablesHint"),
+      label: t("dashboard.setupChecklist.systemTables.label"),
+      hint: t("dashboard.setupChecklist.systemTables.hint"),
     },
     {
       done: data.seedsCount > 0,
@@ -74,7 +74,7 @@ export function SetupChecklistWidget({ variant = "full" }: SetupChecklistWidgetP
     },
     {
       done: data.contentTablesOk,
-      label: t("dashboard.setupChecklist.contentTables"),
+      label: t("dashboard.setupChecklist.contentTables.label"),
       action: !data.contentTablesOk
         ? { label: "npx beech seed:load --local", command: "npx beech seed:load --local" }
         : undefined,

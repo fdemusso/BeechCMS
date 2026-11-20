@@ -111,7 +111,7 @@ function FilterPill({
           aria-label={t("toolbar.filter.ariaLabel", { label: group.label })}
           action={{
             icon: <Trash2 className="size-3.5" />,
-            label: t("toolbar.filter.removeColumn"),
+            label: t("toolbar.filter.remove.column"),
             tone: "destructive",
             onClick: () => removeColumnFilters(group.columnId),
           }}

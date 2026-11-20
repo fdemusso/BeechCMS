@@ -44,7 +44,7 @@ export function UserFormDialog({ open, onOpenChange }: UserFormDialogProps) {
     setError(null)
     try {
       await createUser.mutateAsync({ email, password, name: name || null, surname: surname || null })
-      toast.success(t("rbac.users.createSuccess", "Account created"))
+      toast.success(t("rbac.users.create.success", "Account created"))
       reset()
       onOpenChange(false)
     } catch (err) {
@@ -61,8 +61,8 @@ export function UserFormDialog({ open, onOpenChange }: UserFormDialogProps) {
     <Dialog open={open} onOpenChange={(next) => { if (!next) reset(); onOpenChange(next) }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("rbac.users.create", "Create account")}</DialogTitle>
-          <DialogDescription>{t("rbac.users.zeroTrustHint", "The account is created with no role and no access until assigned.")}</DialogDescription>
+          <DialogTitle>{t("rbac.users.create.label", "Create account")}</DialogTitle>
+          <DialogDescription>{t("rbac.users.zeroTrust.hint", "The account is created with no role and no access until assigned.")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <FieldGroup>
@@ -87,7 +87,7 @@ export function UserFormDialog({ open, onOpenChange }: UserFormDialogProps) {
           </FieldGroup>
           <DialogFooter className="mt-4">
             <Button type="submit" disabled={!email || !password || createUser.isPending}>
-              {t("rbac.users.create", "Create account")}
+              {t("rbac.users.create.label", "Create account")}
             </Button>
           </DialogFooter>
         </form>

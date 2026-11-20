@@ -33,7 +33,7 @@ export function createCalculatorProvider(deps: { t: TFunction }): PaletteProvide
           id: "calc:result",
           section: t("commandPalette.calculator"),
           label: t("commandPalette.calculatorResult", { expression: query, result }),
-          description: t("commandPalette.copyHint"),
+          description: t("commandPalette.copy.hint"),
           icon: Calculator,
           score: EXACT_MATCH_SCORE,
           perform: { kind: "copy", value: result },

@@ -184,8 +184,8 @@ function useSeedSubmit({ editRecord, isCreate, isLastStep, canSubmit, goNext, fo
         await create.mutateAsync(seed)
       }
       toast.success(editRecord
-        ? t("seedBuilder.editor.updateSuccess", { label: seed.label })
-        : t("seedBuilder.editor.createSuccess", { label: seed.label }))
+        ? t("seedBuilder.editor.update.success", { label: seed.label })
+        : t("seedBuilder.editor.create.success", { label: seed.label }))
       setIsDirty(false)
       onClose()
     } catch {

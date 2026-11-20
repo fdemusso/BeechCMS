@@ -226,10 +226,10 @@ export function SectionShell({
                 setShowRemoveConfirm(false)
               }}
             >
-              {t('common.confirm')}
+              {t('common.action.confirm')}
             </Button>
             <Button type="button" variant="ghost" size="sm" onClick={() => setShowRemoveConfirm(false)}>
-              {t('common.cancel')}
+              {t('common.action.cancel')}
             </Button>
           </div>
         )}

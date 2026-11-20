@@ -35,7 +35,7 @@ export function TimezoneSelect({ value, onValueChange, id }: TimezoneSelectProps
           className="w-full justify-between font-normal h-8 border-input bg-transparent text-sm dark:bg-input/30"
         >
           <span className="truncate">
-            {value ? getTimezoneLabel(value) : t('setup.timezonePlaceholder')}
+            {value ? getTimezoneLabel(value) : t('setup.timezone.placeholder')}
           </span>
           <ChevronsUpDown className="pointer-events-none size-4 shrink-0 text-muted-foreground" />
         </Button>
@@ -43,7 +43,7 @@ export function TimezoneSelect({ value, onValueChange, id }: TimezoneSelectProps
       <PopoverContent id={popoverId} className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
           <CommandInput
-            placeholder={t('setup.searchTimezonePlaceholder')}
+            placeholder={t('setup.searchTimezone.placeholder')}
             onValueChange={() => {
               if (viewportRef.current) {
                 viewportRef.current.scrollTop = 0

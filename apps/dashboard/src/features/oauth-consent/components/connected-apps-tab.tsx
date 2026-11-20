@@ -48,9 +48,9 @@ function AppRow({ app, onRevoke }: { app: ConnectedApp; onRevoke: (clientId: str
     setPending(true)
     try {
       await onRevoke(app.clientId)
-      toast.success(t('oauth.apps.revokeSuccess'))
+      toast.success(t('oauth.apps.revoke.success'))
     } catch {
-      toast.error(t('oauth.apps.revokeError'))
+      toast.error(t('oauth.apps.revoke.error'))
     } finally {
       setPending(false)
     }
@@ -91,12 +91,12 @@ function AppRow({ app, onRevoke }: { app: ConnectedApp; onRevoke: (clientId: str
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{t('oauth.apps.revokeTitle')}</AlertDialogTitle>
+              <AlertDialogTitle>{t('oauth.apps.revoke.title')}</AlertDialogTitle>
               <AlertDialogDescription>{t('oauth.apps.revokeDesc', { client: app.name })}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-              <AlertDialogAction onClick={handleRevoke}>{t('common.confirm')}</AlertDialogAction>
+              <AlertDialogCancel>{t('common.action.cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={handleRevoke}>{t('common.action.confirm')}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -124,9 +124,9 @@ export function ConnectedAppsTab() {
       ) : !apps?.length ? (
         <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('oauth.apps.empty')}</p>
       ) : (
-        <SettingsScroll label={t('oauth.apps.listLabel')} rowRem={SETTINGS_TABLE_ROW_REM} headerRem={SETTINGS_TABLE_HEAD_REM}>
+        <SettingsScroll label={t('oauth.apps.list.label')} rowRem={SETTINGS_TABLE_ROW_REM} headerRem={SETTINGS_TABLE_HEAD_REM}>
           {/* The table must not scroll on its own, or the header could not stay above the rows. */}
-          <Table containerClassName="overflow-visible" aria-label={t('oauth.apps.listLabel')}>
+          <Table containerClassName="overflow-visible" aria-label={t('oauth.apps.list.label')}>
             <TableHeader className="sticky top-0 z-10 bg-[var(--settings-page-bg)]">
               <TableRow>
                 <TableHead>{t('oauth.apps.application')}</TableHead>

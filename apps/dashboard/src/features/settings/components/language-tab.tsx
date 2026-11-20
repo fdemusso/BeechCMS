@@ -20,8 +20,8 @@ export function LanguageTab() {
   }
 
   return (
-    <SettingsSection id="language" title={t('settings.interface.langTitle')} description={t('settings.interface.langDesc')}>
-      <SettingsRow label={t('settings.interface.langRowLabel')} labelId={LANG_LABEL_ID} controlClassName="sm:w-64">
+    <SettingsSection id="language" title={t('settings.interface.lang.title')} description={t('settings.interface.langDesc')}>
+      <SettingsRow label={t('settings.interface.langRow.label')} labelId={LANG_LABEL_ID} controlClassName="sm:w-64">
         <RadioGroup
           aria-labelledby={LANG_LABEL_ID}
           value={language}

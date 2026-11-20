@@ -74,7 +74,7 @@ export const SectionCard = React.memo(function SectionCard({
       dragId={dragIds.section(pageId, section.id)}
       label={section.label}
       labelMax={DASHBOARD_SECTION_LABEL_MAX}
-      noLabelText={t('dashboard.builder.section.noLabel')}
+      noLabelText={t('dashboard.builder.section.no.label')}
       dragHandleLabel={t('dashboard.builder.section.dragHandle')}
       countText={t('dashboard.builder.section.widgetCount', { count: widgetCount })}
       removeConfirmText={t('dashboard.builder.section.removeConfirm')}
@@ -92,7 +92,7 @@ export const SectionCard = React.memo(function SectionCard({
           {/* The toggles keep the menu open so several flags can be set in a row. */}
           <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(pageId, section.id, 'hideLabel') }}>
             <Check className={section.hideLabel ? 'opacity-100' : 'opacity-0'} />
-            {t('dashboard.builder.section.hideLabel')}
+            {t('dashboard.builder.section.hide.label')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={(event) => { event.preventDefault(); ops.toggleSectionFlag(pageId, section.id, 'collapsible') }}>
             <Check className={section.collapsible ? 'opacity-100' : 'opacity-0'} />

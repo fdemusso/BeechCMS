@@ -48,7 +48,7 @@ export function ConsentScreen({ metadata, params }: ConsentScreenProps) {
       const { redirectTo } = await submitConsent.mutateAsync(buildConsentBody(params, approved))
       window.location.assign(redirectTo)
     } catch {
-      toast.error(t('oauth.consent.submitError'))
+      toast.error(t('oauth.consent.submit.error'))
     }
   }
 

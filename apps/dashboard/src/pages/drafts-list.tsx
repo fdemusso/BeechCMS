@@ -205,7 +205,7 @@ function ActionsCell({ row }: Readonly<{ row: { original: DraftSummary } }>) {
             <AlertDialogDescription>{t("drafts.discardConfirm")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.action.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={async () => {

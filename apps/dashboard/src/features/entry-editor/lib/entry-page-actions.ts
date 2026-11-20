@@ -42,7 +42,7 @@ export const ENTRY_EDITOR_HOST_ID = "entry-editor"
 
 function saveLabelKey({ effectiveDraftContext, isDraftContext, isCreate }: EntryPageActionsInput): string {
   if (effectiveDraftContext || (isDraftContext && isCreate)) return "content.editor.saveDraft"
-  return isCreate ? "common.create" : "content.editor.save"
+  return isCreate ? "common.create" : "common.action.save"
 }
 
 /** What the editor offers the palette right now; null while the form is not on screen. Pure. */
@@ -74,7 +74,7 @@ export function buildEntryPageActions(input: EntryPageActionsInput): PageActionD
       requires: { permission: "content:update", scope: schemaSlug },
       unavailableReason: busyReason,
       confirm: {
-        title: t("content.editor.publishConfirmTitle"),
+        title: t("content.editor.publishConfirm.title"),
         description: t("content.editor.publishConfirmDesc"),
       },
       perform: { kind: "run", run: handlers.publishDraft },
@@ -84,7 +84,7 @@ export function buildEntryPageActions(input: EntryPageActionsInput): PageActionD
   if (canMutate && (input.hasSaveDropdown || (!input.effectiveDraftContext && input.hasPendingDraftNotice))) {
     actions.push({
       id: "discard-draft",
-      label: t("content.editor.discardDraft"),
+      label: t("content.editor.discardDraft.label"),
       icon: Undo,
       requires: { permission: "content:update", scope: schemaSlug },
       unavailableReason: busyReason,
@@ -95,7 +95,7 @@ export function buildEntryPageActions(input: EntryPageActionsInput): PageActionD
   if (canMutate && !isCreate && !input.effectiveDraftContext) {
     actions.push({
       id: "delete",
-      label: t("common.delete"),
+      label: t("common.action.delete"),
       icon: Trash2,
       requires: { permission: "content:delete", scope: schemaSlug },
       unavailableReason: hasRestrictedRefs ? t("backrefs.deleteBlocked", { count: "?" }) : busyReason,

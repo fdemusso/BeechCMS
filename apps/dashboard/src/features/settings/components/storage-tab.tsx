@@ -123,16 +123,16 @@ export function StorageTab() {
 
   return (
     <div className="space-y-10">
-      <SettingsSection id="usage" title={t('settings.storage.usageTitle')} description={t('settings.storage.usageDesc')}>
+      <SettingsSection id="usage" title={t('settings.storage.usage.title')} description={t('settings.storage.usageDesc')}>
         <SettingsReadouts>
-          <SettingsReadout label={t('settings.storage.usedLabel')}>
+          <SettingsReadout label={t('settings.storage.used.label')}>
             <span className="text-2xl font-medium tabular-nums">{formatBytes(stats?.totalBytes ?? 0)}</span>
           </SettingsReadout>
-          <SettingsReadout label={t('settings.storage.filesLabel')}>
+          <SettingsReadout label={t('settings.storage.files.label')}>
             {t('settings.storage.fileCount', { count: stats?.fileCount ?? 0 })}
           </SettingsReadout>
           {stats?.orphanTotal ? (
-            <SettingsReadout label={t('settings.storage.orphansLabel')}>
+            <SettingsReadout label={t('settings.storage.orphans.label')}>
               <Badge variant="secondary">
                 {t('settings.storage.orphanCount', { count: stats.orphanTotal })} · {formatBytes(stats.orphanBytes)}
               </Badge>
@@ -140,29 +140,29 @@ export function StorageTab() {
           ) : null}
         </SettingsReadouts>
         <SettingsRow
-          label={t('settings.storage.progressLabel', { limit: allowance })}
+          label={t('settings.storage.progress.label', { limit: allowance })}
           description={t('settings.storage.referenceVisual', { limit: allowance })}
         >
           <div className="flex items-center gap-3">
-            <Progress value={usagePercent} className="h-2" aria-label={t('settings.storage.progressLabel', { limit: allowance })} />
+            <Progress value={usagePercent} className="h-2" aria-label={t('settings.storage.progress.label', { limit: allowance })} />
             <span className="w-12 shrink-0 text-right text-sm tabular-nums text-muted-foreground">{usagePercent.toFixed(1)}%</span>
           </div>
         </SettingsRow>
       </SettingsSection>
 
-      <SettingsSection id="orphans" title={t('settings.storage.orphansTitle')} description={t('settings.storage.orphansDesc')}>
+      <SettingsSection id="orphans" title={t('settings.storage.orphans.title')} description={t('settings.storage.orphansDesc')}>
         {!stats?.orphanTotal ? (
           <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('settings.storage.noOrphans')}</p>
         ) : (
-          <SettingsScroll label={t('settings.storage.orphansListLabel')} rowRem={SETTINGS_TABLE_ROW_REM} headerRem={SETTINGS_TABLE_HEAD_REM}>
+          <SettingsScroll label={t('settings.storage.orphansList.label')} rowRem={SETTINGS_TABLE_ROW_REM} headerRem={SETTINGS_TABLE_HEAD_REM}>
             {/* The table must not scroll on its own, or the header could not stay above the rows. */}
-            <Table containerClassName="overflow-visible" aria-label={t('settings.storage.orphansListLabel')}>
+            <Table containerClassName="overflow-visible" aria-label={t('settings.storage.orphansList.label')}>
               <TableHeader className="sticky top-0 z-10 bg-[var(--settings-page-bg)]">
                 <TableRow>
-                  <TableHead className="w-10"><span className="sr-only">{t('settings.storage.selectColumn')}</span></TableHead>
-                  <TableHead>{t('settings.storage.fileColumn')}</TableHead>
-                  <TableHead>{t('settings.storage.typeColumn')}</TableHead>
-                  <TableHead className="text-right">{t('settings.storage.sizeColumn')}</TableHead>
+                  <TableHead className="w-10"><span className="sr-only">{t('settings.storage.select.column')}</span></TableHead>
+                  <TableHead>{t('settings.storage.file.column')}</TableHead>
+                  <TableHead>{t('settings.storage.type.column')}</TableHead>
+                  <TableHead className="text-right">{t('settings.storage.size.column')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -198,12 +198,12 @@ export function StorageTab() {
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>{t('settings.storage.deleteTitle', { count: selectedKeys.size })}</AlertDialogTitle>
+                  <AlertDialogTitle>{t('settings.storage.delete.title', { count: selectedKeys.size })}</AlertDialogTitle>
                   <AlertDialogDescription>{t('settings.storage.deleteDesc')}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete} disabled={deleteOrphans.isPending}>{t('common.delete')}</AlertDialogAction>
+                  <AlertDialogCancel>{t('common.action.cancel')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete} disabled={deleteOrphans.isPending}>{t('common.action.delete')}</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -211,7 +211,7 @@ export function StorageTab() {
         )}
 
         {stats && (stats.orphanTotal > stats.orphanLimit || offset > 0) && (
-          <nav aria-label={t('settings.storage.pagesLabel')} className="flex items-center justify-between gap-3 pt-4">
+          <nav aria-label={t('settings.storage.pages.label')} className="flex items-center justify-between gap-3 pt-4">
             <Button type="button" variant="outline" disabled={offset === 0} onClick={() => goToOffset(Math.max(0, offset - stats.orphanLimit))}>
               {t('common.previous')}
             </Button>

@@ -89,10 +89,10 @@ export function BulkEditPickStep({
       </Select>
       <DialogFooter>
         <Button variant="outline" onClick={onCancel}>
-          {translate("common.cancel")}
+          {translate("common.action.cancel")}
         </Button>
         <Button onClick={onNext} disabled={!selectedAlias}>
-          {translate("common.confirm")}
+          {translate("common.action.confirm")}
         </Button>
       </DialogFooter>
     </div>
@@ -155,9 +155,9 @@ export function BulkEditValueStep({
       <FieldEdit branch={selectedBranch} value={fieldValue} onChange={onFieldValueChange} />
       <DialogFooter>
         <Button variant="outline" onClick={onBack}>
-          {translate("common.back")}
+          {translate("common.action.back")}
         </Button>
-        <Button onClick={onNext}>{translate("common.confirm")}</Button>
+        <Button onClick={onNext}>{translate("common.action.confirm")}</Button>
       </DialogFooter>
     </div>
   )
@@ -204,10 +204,10 @@ export function BulkEditConfirmStep({
       </ul>
       <DialogFooter>
         <Button variant="outline" onClick={onBack}>
-          {translate("common.back")}
+          {translate("common.action.back")}
         </Button>
         <Button onClick={onConfirm} disabled={isPending}>
-          {translate("common.confirm")}
+          {translate("common.action.confirm")}
         </Button>
       </DialogFooter>
     </div>
@@ -284,7 +284,7 @@ export function BulkEditResultStep({
         </div>
       )}
       <DialogFooter>
-        <Button onClick={onClose}>{translate("common.close")}</Button>
+        <Button onClick={onClose}>{translate("common.action.close")}</Button>
       </DialogFooter>
     </div>
   )

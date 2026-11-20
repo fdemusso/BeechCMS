@@ -39,7 +39,7 @@ export function GalleryFolderCard({ seed, group, onOpen, style, onEdit }: Galler
       <button
         type="button"
         onClick={() => onOpen(group.key)}
-        aria-label={t("gallery.folders.openAriaLabel", { label, count: formatItemCount(t, group.models.length, seed) })}
+        aria-label={t("gallery.folders.open.ariaLabel", { label, count: formatItemCount(t, group.models.length, seed) })}
         className={GALLERY_CARD_SURFACE_CLASS}
       >
         <div className={cn("flex h-36 w-full items-center justify-center bg-gradient-to-br", colors?.banner ?? "from-muted/40 to-muted/80")}>
@@ -73,7 +73,7 @@ export function GalleryFolderCard({ seed, group, onOpen, style, onEdit }: Galler
         <button
           type="button"
           onClick={onEdit}
-          aria-label={t("gallery.folders.edit.openAriaLabel", { label })}
+          aria-label={t("gallery.folders.edit.open.ariaLabel", { label })}
           className="absolute right-2 top-2 flex size-7 cursor-pointer items-center justify-center rounded-control bg-background/80 text-muted-foreground opacity-0 shadow-sm backdrop-blur-sm transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/folder:opacity-100"
         >
           <Edit className="size-3.5" />

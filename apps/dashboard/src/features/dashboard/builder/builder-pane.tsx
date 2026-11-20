@@ -99,7 +99,7 @@ function BuilderFooter({
           variant="outline"
           size="icon"
           className={FOOTER_RADIUS}
-          aria-label={t('common.back')}
+          aria-label={t('common.action.back')}
           onClick={onClose}
           disabled={isDragging}
         >
@@ -137,7 +137,7 @@ function BuilderFooter({
           disabled={!isDirty || isSaving || isDragging || firstSaveBlocked}
         >
           {isSaving && <Loader2 className="size-4 animate-spin" />}
-          {t('dashboard.builder.save')}
+          {t('common.action.save')}
         </Button>
       </ButtonGroup>
     </ButtonGroup>
@@ -332,7 +332,7 @@ export function BuilderPane({
       <ConfirmDialog
         open={showResetConfirm}
         onOpenChange={setShowResetConfirm}
-        title={t('dashboard.builder.resetConfirmTitle')}
+        title={t('dashboard.builder.resetConfirm.title')}
         description={t('dashboard.builder.resetConfirmDesc')}
         confirmVariant="destructive"
         onConfirm={() => { setShowResetConfirm(false); onReset() }}

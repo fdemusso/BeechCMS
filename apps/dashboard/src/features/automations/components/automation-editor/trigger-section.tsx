@@ -50,7 +50,7 @@ export function TriggerSection({ seedBranches }: TriggerSectionProps) {
         <div className="flex size-6 items-center justify-center rounded-full bg-muted">
           <Zap className="size-3.5 text-foreground" />
         </div>
-        <span className="text-sm font-medium">{t('automations.editor.triggerLabel')}</span>
+        <span className="text-sm font-medium">{t('automations.editor.trigger.label')}</span>
       </div>
 
       <div className="flex flex-col gap-2">

@@ -32,7 +32,7 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
   const { can } = usePermissions()
   const canDelete = can("content:delete", seed.slug)
 
-  const titleKey = resolvedMode === "trash" ? "content.deleteDialog.trashTitle" : "content.deleteDialog.purgeTitle"
+  const titleKey = resolvedMode === "trash" ? "content.deleteDialog.trash.title" : "content.deleteDialog.purge.title"
   const singleKey = resolvedMode === "trash" ? "content.deleteDialog.trashSingle" : "content.deleteDialog.purgeSingle"
   const multipleKey = resolvedMode === "trash" ? "content.deleteDialog.trashMultiple" : "content.deleteDialog.purgeMultiple"
   const confirmKey = resolvedMode === "trash" ? "content.deleteDialog.trashConfirm" : "content.deleteDialog.purgeConfirm"
@@ -69,7 +69,7 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
             onClick={() => onOpenChange(false)}
             disabled={isDeleting}
           >
-            {t("common.cancel")}
+            {t("common.action.cancel")}
           </Button>
           {canDelete ? (
             <Button
@@ -89,7 +89,7 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
                     variant="destructive"
                     disabled
                   >
-                    {t("common.delete")}
+                    {t("common.action.delete")}
                   </Button>
                 </span>
               </TooltipTrigger>

@@ -142,7 +142,7 @@ describe("config-fields", () => {
         value="a"
         options={[
           { value: "a", labelKey: "common.add" },
-          { value: "b", labelKey: "common.save" },
+          { value: "b", labelKey: "common.action.save" },
         ]}
         onChange={onChange}
       />,

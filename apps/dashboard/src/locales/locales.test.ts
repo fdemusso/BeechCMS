@@ -91,7 +91,37 @@ describe("dashboard locales parity and coverage", () => {
       const i18n = i18next.createInstance()
       await i18n.init({ lng: "en", resources: { en: { translation: en } }, interpolation: { escapeValue: false } })
       expect(i18n.t("automations.actions.templateHint", { example: "{{fieldAlias}}" })).toBe("Use {{fieldAlias}} to insert field values")
-      expect(i18n.t("automations.actions.mailSubjectPlaceholder", { example: "{{title}}" })).toBe("New entry: {{title}}")
+      expect(i18n.t("automations.actions.mailSubject.placeholder", { example: "{{title}}" })).toBe("New entry: {{title}}")
+    })
+  })
+
+  describe("key conventions", () => {
+    const enFlat = flatten(en)
+    const itFlat = flatten(itJson)
+    const GENERIC_VERBS = ["save", "cancel", "close", "back", "confirm", "delete"] as const
+
+    it("no key is nested deeper than 5 levels (<domain>.<surface>.<element>.<role>)", () => {
+      const tooDeep = Object.keys(enFlat).filter((key) => key.split(".").length > 5)
+      expect(tooDeep).toEqual([])
+    })
+
+    it("the generic UI verbs live in common.action and nowhere else", () => {
+      for (const verb of GENERIC_VERBS) {
+        const home = `common.action.${verb}`
+        expect(enFlat[home], home).toBeTruthy()
+        expect(itFlat[home], home).toBeTruthy()
+        const copies = Object.keys(enFlat).filter(
+          (key) => key !== home && enFlat[key] === enFlat[home] && itFlat[key] === itFlat[home]
+        )
+        expect(copies, `copies of ${home}`).toEqual([])
+      }
+    })
+
+    it("literal {{...}} template tokens stay untouched in the automation hints", () => {
+      const actions = en.automations.actions as Record<string, string>
+      expect(actions.hintFixed).toContain("{{varname}}")
+      expect(actions.hintCollection).toContain("{{varname.firstone.field}}")
+      expect(actions.filterTemplateHint).toContain("{{this.field}}")
     })
   })
 })

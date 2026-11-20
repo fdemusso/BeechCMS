@@ -76,7 +76,7 @@ export function UsersSection() {
       action={
         <Button size="sm" onClick={() => setCreateOpen(true)}>
           <Plus aria-hidden className="size-4" />
-          {t("rbac.users.create", "Create account")}
+          {t("rbac.users.create.label", "Create account")}
         </Button>
       }
     >

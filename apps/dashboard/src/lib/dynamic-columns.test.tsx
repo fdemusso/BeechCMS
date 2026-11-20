@@ -294,7 +294,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
         const m: any = {
           "common.openMenu": "Open menu",
           "content.actions.label": "Actions",
-          "common.delete": "Delete",
+          "common.action.delete": "Delete",
           "common.edit": "Edit",
           "content.actions.copyId": "Copy ID",
           "common.copied": "ID copied"
@@ -363,7 +363,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
 
       const seed = makeSeed({ branches: [] })
       const entry = makeEntry("id-1", {})
-      const t = (k: string) => (k === "common.delete" || k === "common.openMenu") ? (k === "common.delete" ? "Delete" : "Open menu") : k
+      const t = (k: string) => (k === "common.action.delete" || k === "common.openMenu") ? (k === "common.action.delete" ? "Delete" : "Open menu") : k
       const cols = generateColumns(seed, vi.fn(), onDelete, undefined, ["id-1", "id-2"], onBulkDelete, undefined, t)
 
       render(<DataTable columns={cols} data={[entry]} />)

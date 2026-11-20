@@ -122,8 +122,8 @@ export function FolderEditDialog({ open, onClose, defaultLabel, style, onSave }:
         </div>
         <DialogFooter>
           <Button variant="destructive" className="mr-auto" onClick={handleReset}>{t("gallery.folders.edit.reset")}</Button>
-          <Button variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
-          <Button onClick={handleSave}>{t("common.save")}</Button>
+          <Button variant="outline" onClick={onClose}>{t("common.action.cancel")}</Button>
+          <Button onClick={handleSave}>{t("common.action.save")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

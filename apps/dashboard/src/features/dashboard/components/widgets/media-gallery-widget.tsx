@@ -242,7 +242,7 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
           isDeletingPending={deleteMutation.isPending}
           deletingVariables={deleteMutation.variables}
           onOpen={onOpen}
-          emptyTitle={t("dashboard.widgets.mediaGallery.emptyTitle")}
+          emptyTitle={t("dashboard.widgets.mediaGallery.empty.title")}
           emptyDesc={t("dashboard.widgets.mediaGallery.emptyDesc")}
         />
       )
@@ -258,7 +258,7 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
             deleteUnusedMutation.mutate(key)
           }
         }}
-        emptyTitle={t("dashboard.widgets.mediaGallery.allInUseTitle")}
+        emptyTitle={t("dashboard.widgets.mediaGallery.allInUse.title")}
         emptyDesc={t("dashboard.widgets.mediaGallery.allInUseDesc")}
       />
     )

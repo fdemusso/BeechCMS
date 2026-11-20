@@ -22,7 +22,7 @@ export function PaletteFooter({ page, items }: PaletteFooterProps) {
   const selectedId = useCommandState((state) => state.value)
 
   if (page !== "root") {
-    return <div data-slot="palette-footer" className={FOOTER_CLASS}>{t("commandPalette.backHint")}</div>
+    return <div data-slot="palette-footer" className={FOOTER_CLASS}>{t("commandPalette.back.hint")}</div>
   }
 
   const selected = items.find((item) => item.id === selectedId)
@@ -39,7 +39,7 @@ export function PaletteFooter({ page, items }: PaletteFooterProps) {
         </KbdGroup>
       </span>
       <span className="flex items-center gap-1.5">
-        {t("commandPalette.actionsHint")}
+        {t("commandPalette.actions.hint")}
         <KbdGroup>
           <Kbd>⇧</Kbd>
           <Kbd>↵</Kbd>

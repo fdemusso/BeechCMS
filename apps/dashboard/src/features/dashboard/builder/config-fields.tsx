@@ -162,10 +162,10 @@ export function SeedSelect({ value, onChange, label }: SeedSelectProps) {
   const readableSeeds = (seeds ?? []).filter((seed) => can('content:read', seed.slug))
 
   return (
-    <FieldRow label={label ?? t('dashboard.builder.config.seed')}>
+    <FieldRow label={label ?? t('dashboard.builder.config.seed.label')}>
       <Select value={value || undefined} onValueChange={onChange}>
         <SelectTrigger className="w-full">
-          <SelectValue placeholder={t('dashboard.builder.config.seedPlaceholder')} />
+          <SelectValue placeholder={t('dashboard.builder.config.seed.placeholder')} />
         </SelectTrigger>
         <SelectContent>
           {readableSeeds.map((seed) => (

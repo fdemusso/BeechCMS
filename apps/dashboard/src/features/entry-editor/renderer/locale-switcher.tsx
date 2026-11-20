@@ -30,7 +30,7 @@ export interface LocaleSwitcherProps {
  */
 export function LocaleSwitcher({ locales, defaultLocale, activeLocale, completion, onLocaleChange }: LocaleSwitcherProps) {
   const { t } = useTranslation()
-  const switcherLabel = t("content.editor.localization.switcherLabel")
+  const switcherLabel = t("content.editor.localization.switcher.label")
 
   return (
     <Select value={activeLocale} onValueChange={onLocaleChange}>

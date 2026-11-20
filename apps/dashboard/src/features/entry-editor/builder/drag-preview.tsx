@@ -31,7 +31,7 @@ function SectionPreview({ info }: { readonly info: DragPreviewInfo }) {
       <div className="flex items-center gap-2 px-3 py-2">
         <GripDots className="size-4 text-muted-foreground/60" />
         <span className={`flex-1 text-sm font-medium ${info.label ? '' : 'italic text-muted-foreground'}`}>
-          {info.label || t('layoutBuilder.noLabel')}
+          {info.label || t('layoutBuilder.no.label')}
         </span>
         <Badge variant="secondary" className="text-xs">
           {t('layoutBuilder.fieldCount', { count: fieldCount })}

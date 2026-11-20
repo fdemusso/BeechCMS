@@ -14,7 +14,7 @@ export function CurrencySelect({ value, onValueChange, id }: CurrencySelectProps
   return (
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger id={id} className="w-full">
-        <SelectValue placeholder={t('setup.currencyPlaceholder')} />
+        <SelectValue placeholder={t('setup.currency.placeholder')} />
       </SelectTrigger>
       <SelectContent position="popper">
         {CURRENCIES.map((c) => (

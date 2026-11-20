@@ -41,7 +41,7 @@ export function DisplayNamePicker({ branches, value, onChange, id }: DisplayName
           className="w-full justify-between font-normal"
         >
           <span className="truncate">
-            {current ? current.label || current.alias : t("seedBuilder.editor.displayNameAliasPlaceholder")}
+            {current ? current.label || current.alias : t("seedBuilder.editor.displayNameAlias.placeholder")}
           </span>
           <ChevronsUpDown className="pointer-events-none size-4 shrink-0 text-muted-foreground" />
         </Button>

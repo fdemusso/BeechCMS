@@ -108,7 +108,7 @@ export function AcceptInvitePage() {
       } else if (code === "validation-failed") {
         setError(t("acceptInvite.tooShort"))
       } else {
-        setError(t("acceptInvite.genericError"))
+        setError(t("acceptInvite.generic.error"))
       }
     } finally {
       setIsSubmitting(false)
@@ -143,13 +143,13 @@ export function AcceptInvitePage() {
                   <Input id="ai-surname" value={surname} onChange={(e) => setSurname(e.target.value)} />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="ai-password">{t("acceptInvite.password")}</FieldLabel>
+                  <FieldLabel htmlFor="ai-password">{t("acceptInvite.password.label")}</FieldLabel>
                   <div className="relative">
                     <Input
                       id="ai-password"
                       type={isPasswordVisible ? "text" : "password"}
                       autoComplete="new-password"
-                      placeholder={t("acceptInvite.passwordPlaceholder", { defaultValue: t("setup.passwordPlaceholder") })}
+                      placeholder={t("acceptInvite.password.placeholder", { defaultValue: t("setup.password.placeholder") })}
                       value={password}
                       className={cn("pr-10", error ? "border-destructive" : "")}
                       onChange={(e) => { setPassword(e.target.value); setError(null) }}
@@ -177,13 +177,13 @@ export function AcceptInvitePage() {
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="ai-confirm">{t("acceptInvite.confirm")}</FieldLabel>
+                  <FieldLabel htmlFor="ai-confirm">{t("acceptInvite.confirm.label")}</FieldLabel>
                   <div className="relative">
                     <Input
                       id="ai-confirm"
                       type={isConfirmVisible ? "text" : "password"}
                       autoComplete="new-password"
-                      placeholder={t("acceptInvite.confirmPlaceholder", { defaultValue: t("setup.confirmPlaceholder") })}
+                      placeholder={t("acceptInvite.confirm.placeholder", { defaultValue: t("setup.confirm.placeholder") })}
                       value={confirm}
                       className={cn("pr-10", error ? "border-destructive" : "")}
                       onChange={(e) => { setConfirm(e.target.value); setError(null) }}

@@ -14,10 +14,10 @@ export function fieldBadges(branch: Branch, t: TFunction): IconBadgeItem[] {
   const tier = resolveClassification(branch).classification
   return [
     ...(branch.requiredOnCreate === true
-      ? [{ id: "required", icon: Star, label: t("seedBuilder.branchEditor.required") }]
+      ? [{ id: "required", icon: Star, label: t("seedBuilder.branchEditor.required.label") }]
       : []),
     ...(branch.localized === true
-      ? [{ id: "localized", icon: Language, label: t("seedBuilder.branchEditor.localized") }]
+      ? [{ id: "localized", icon: Language, label: t("seedBuilder.branchEditor.localized.label") }]
       : []),
     { id: "tier", icon: CLASSIFICATION_ICONS[tier], label: t(`seedBuilder.policies.classification_${tier}`) },
   ]

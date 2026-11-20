@@ -28,7 +28,7 @@ export function createConversionsProvider(deps: { t: TFunction }): PaletteProvid
       case "storage":
         return t("commandPalette.conversionHint.storage")
       case "color":
-        return t("commandPalette.copyHint")
+        return t("commandPalette.copy.hint")
       case "unix-seconds":
         return t("commandPalette.conversionHint.unixSeconds")
       case "unix-millis":

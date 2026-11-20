@@ -31,7 +31,7 @@ export function ActionsSection({ seedBranches, seedSlug }: ActionsSectionProps) 
         <div className="flex size-6 items-center justify-center rounded-full bg-muted">
           <Play className="size-3.5 text-foreground" />
         </div>
-        <span className="text-sm font-medium">{t('automations.editor.actionsLabel')}</span>
+        <span className="text-sm font-medium">{t('automations.editor.actions.label')}</span>
       </div>
 
       {fields.length === 0 && (

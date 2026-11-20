@@ -239,9 +239,9 @@ function GalleryFolderList({
           <EmptyMedia variant="icon">
             <FolderAdd className="size-5" />
           </EmptyMedia>
-          <EmptyTitle>{t("gallery.folders.emptyTitle")}</EmptyTitle>
+          <EmptyTitle>{t("gallery.folders.empty.title")}</EmptyTitle>
           <EmptyDescription>
-            {t("gallery.folders.emptyDescription")}
+            {t("gallery.folders.empty.description")}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -350,7 +350,7 @@ export function ContentGallery({
           <GalleryGrid models={openGroup.models} onOpen={onEdit} />
         </section>
       ) : (
-        <section aria-label={t("gallery.folders.sectionAriaLabel")}>
+        <section aria-label={t("gallery.folders.section.ariaLabel")}>
           <GalleryPathBar
             rootLabel={rootLabel}
             countText={formatItemCount(t, data.length, seed)}

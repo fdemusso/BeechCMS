@@ -178,8 +178,8 @@ export function InvitationsSection() {
                             <AlertDialogDescription>{t("rbac.invitations.revokeWarning", "This invitation link will stop working.")}</AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => revoke.mutate(invitation.id)}>{t("common.confirm")}</AlertDialogAction>
+                            <AlertDialogCancel>{t("common.action.cancel")}</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => revoke.mutate(invitation.id)}>{t("common.action.confirm")}</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>

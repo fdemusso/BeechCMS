@@ -40,8 +40,8 @@ export function ContentLanguagesSection() {
         </div>
       ) : (
         <>
-          <SettingsScroll label={t("settings.contentLanguages.listLabel")} rowRem={SETTINGS_TABLE_ROW_REM}>
-          <ul aria-label={t("settings.contentLanguages.listLabel")} aria-describedby="content-languages-kept-hint">
+          <SettingsScroll label={t("settings.contentLanguages.list.label")} rowRem={SETTINGS_TABLE_ROW_REM}>
+          <ul aria-label={t("settings.contentLanguages.list.label")} aria-describedby="content-languages-kept-hint">
             {state.locales.map((code) => {
               const language = contentLanguageName(code, i18n.language)
               const isDefault = code === state.defaultLocale
@@ -54,7 +54,7 @@ export function ContentLanguagesSection() {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {isDefault ? (
-                      <Badge>{t("settings.contentLanguages.defaultBadge")}</Badge>
+                      <Badge>{t("settings.contentLanguages.default.badge")}</Badge>
                     ) : (
                       <Button
                         type="button"
@@ -87,7 +87,7 @@ export function ContentLanguagesSection() {
           <p role="status" className="sr-only">{t("settings.contentLanguages.count", { count: state.locales.length })}</p>
 
           <p id="content-languages-kept-hint" className="border-b border-border py-3 text-sm text-muted-foreground">
-            {t("settings.contentLanguages.keptOnRemoveHint")}
+            {t("settings.contentLanguages.keptOnRemove.hint")}
           </p>
 
           <form
@@ -103,7 +103,7 @@ export function ContentLanguagesSection() {
                   id="content-language-add"
                   name="content-language"
                   value={state.draft}
-                  placeholder={t("settings.contentLanguages.addPlaceholder")}
+                  placeholder={t("settings.contentLanguages.add.placeholder")}
                   onChange={(e) => actions.setDraft(e.target.value)}
                   autoComplete="off"
                   autoCapitalize="off"
@@ -113,7 +113,7 @@ export function ContentLanguagesSection() {
                   aria-describedby={state.draftError ? "content-language-add-error" : undefined}
                 />
                 <Button type="submit" variant="outline">
-                  {t("settings.contentLanguages.add")}
+                  {t("settings.contentLanguages.add.label")}
                 </Button>
               </div>
               {state.draftError && (

@@ -56,11 +56,11 @@ export function RelationOptionsForm({
     <div className="space-y-2 rounded-[calc(var(--radius-control)+9px)] border p-2">
       <p className="px-1 text-xs font-medium">{t("seedBuilder.branchEditor.relationOptions")}</p>
       <div className="space-y-1">
-        <Label htmlFor={`${uid}-targetSeed`} className="px-1 text-xs">{t("seedBuilder.branchEditor.targetSeed")}</Label>
+        <Label htmlFor={`${uid}-targetSeed`} className="px-1 text-xs">{t("seedBuilder.branchEditor.targetSeed.label")}</Label>
         {/* A new target invalidates the avatar source: it names a field of the previous target. */}
         <Select value={branch.targetSeed ?? ""} onValueChange={v => onChange({ ...branch, targetSeed: v, avatarSource: undefined })}>
           <SelectTrigger id={`${uid}-targetSeed`}>
-            <SelectValue placeholder={t("seedBuilder.branchEditor.targetSeedPlaceholder")} />
+            <SelectValue placeholder={t("seedBuilder.branchEditor.targetSeed.placeholder")} />
           </SelectTrigger>
           <SelectContent>
             {activeSeedsForRelation.map(s => (
@@ -94,7 +94,7 @@ export function RelationOptionsForm({
         </Select>
       </div>
       <div className="space-y-1">
-        <Label htmlFor={`${uid}-avatarSource`} className="px-1 text-xs">{t("seedBuilder.branchEditor.avatarSource")}</Label>
+        <Label htmlFor={`${uid}-avatarSource`} className="px-1 text-xs">{t("seedBuilder.branchEditor.avatarSource.label")}</Label>
         <Select
           value={branch.avatarSource ?? NO_AVATAR}
           onValueChange={v => set("avatarSource", v === NO_AVATAR ? undefined : v)}
@@ -114,7 +114,7 @@ export function RelationOptionsForm({
         <p id={`${uid}-avatarHint`} className="px-1 text-xs text-muted-foreground">
           {t(branch.targetSeed && avatarCandidates.length === 0
             ? "seedBuilder.branchEditor.avatarSourceUnavailable"
-            : "seedBuilder.branchEditor.avatarSourceHint")}
+            : "seedBuilder.branchEditor.avatarSource.hint")}
         </p>
       </div>
     </div>
@@ -295,7 +295,7 @@ export function TagOptionsForm({ branch, onChange }: TagOptionsFormProps) {
       </div>
 
       {options.length === 0 && (
-        <p className="px-1 text-xs text-muted-foreground">{t("seedBuilder.branchEditor.freeTagsHint")}</p>
+        <p className="px-1 text-xs text-muted-foreground">{t("seedBuilder.branchEditor.freeTags.hint")}</p>
       )}
 
       {options.map((option, index) => (
@@ -591,7 +591,7 @@ export function PoliciesOptionsForm({
               })}
             </section>
             <section className="space-y-1.5 border-t pt-3">
-              <p className="font-medium">{t("seedBuilder.policies.flagsTitle")}</p>
+              <p className="font-medium">{t("seedBuilder.policies.flags.title")}</p>
               {POLICY_FLAGS.map((pol) => {
                 const Icon = POLICY_FLAG_ICONS[pol]
                 return (
@@ -627,7 +627,7 @@ export function PoliciesOptionsForm({
           </ButtonGroup>
 
           {/* Switches: each one stays pressed while on */}
-          <ButtonGroup aria-label={t("seedBuilder.policies.flagsTitle")}>
+          <ButtonGroup aria-label={t("seedBuilder.policies.flags.title")}>
             {POLICY_FLAGS.map((pol) => (
               <PolicyKey
                 key={pol}
@@ -726,7 +726,7 @@ export function LocalizedOptionsForm({
 
   let hint: ReactNode = (
     <Trans
-      i18nKey="seedBuilder.branchEditor.localizedHint"
+      i18nKey="seedBuilder.branchEditor.localized.hint"
       components={{
         languages: onOpenLanguages ? (
           <button type="button" onClick={onOpenLanguages} className="underline underline-offset-2 hover:text-foreground" />
@@ -742,7 +742,7 @@ export function LocalizedOptionsForm({
   return (
     <div className="space-y-1 border-t pt-3">
       <div className="flex min-h-8 items-center justify-between gap-3">
-        <Label htmlFor={checkboxId} className="text-xs">{t("seedBuilder.branchEditor.localized")}</Label>
+        <Label htmlFor={checkboxId} className="text-xs">{t("seedBuilder.branchEditor.localized.label")}</Label>
         <Switch
           id={checkboxId}
           checked={branch.localized === true}

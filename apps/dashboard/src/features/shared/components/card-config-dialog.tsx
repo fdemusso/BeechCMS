@@ -130,8 +130,8 @@ export function CardConfigDialog({ open, onClose, seed, config, onSave, mediaBra
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={handleSave}>{t('common.save')}</Button>
+          <Button variant="outline" onClick={onClose}>{t('common.action.cancel')}</Button>
+          <Button onClick={handleSave}>{t('common.action.save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

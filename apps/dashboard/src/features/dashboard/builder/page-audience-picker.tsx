@@ -64,7 +64,7 @@ export function PageAudiencePicker({ roleIds, onChange }: PageAudiencePickerProp
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">{t("dashboard.builder.audience.label")}</span>
         {isPending && <Skeleton className="h-6 w-16" />}
-        {isError && <span className="text-xs text-muted-foreground">{t("dashboard.builder.audience.loadError")}</span>}
+        {isError && <span className="text-xs text-muted-foreground">{t("dashboard.builder.audience.load.error")}</span>}
         {badgeRoles.length > 0 && <RoleBadgeGroup roles={badgeRoles} max={3} />}
         <Popover open={open} onOpenChange={setOpen}>
           <Tooltip>
@@ -76,7 +76,7 @@ export function PageAudiencePicker({ roleIds, onChange }: PageAudiencePickerProp
               </PopoverTrigger>
             </TooltipTrigger>
             <TooltipContent side="top">
-              {roleIds.length === 0 ? t("dashboard.builder.audience.everyoneHint") : triggerLabel}
+              {roleIds.length === 0 ? t("dashboard.builder.audience.everyone.hint") : triggerLabel}
             </TooltipContent>
           </Tooltip>
           <PopoverContent className="w-64 p-0" align="end">

@@ -58,7 +58,7 @@ function HardDeleteForm({ seed, onOpenChange, onDeleted }: HardDeleteFormProps) 
   async function handleDelete() {
     try {
       await hardDelete.mutateAsync({ slug, confirm })
-      toast.success(t("seedBuilder.dangerZone.hardDelete.successToast", { slug }))
+      toast.success(t("seedBuilder.dangerZone.hardDelete.success.toast", { slug }))
       onOpenChange(false)
       onDeleted?.()
     } catch { /* the hook shows the error toast */ }
@@ -80,14 +80,14 @@ function HardDeleteForm({ seed, onOpenChange, onDeleted }: HardDeleteFormProps) 
         }}
       >
         <Label htmlFor="hard-delete-confirm" className="text-xs">
-          {t("seedBuilder.dangerZone.hardDelete.confirmLabel", { slug })}
+          {t("seedBuilder.dangerZone.hardDelete.confirm.label", { slug })}
         </Label>
         <div className="flex gap-2">
           <Input
             id="hard-delete-confirm"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            placeholder={t("seedBuilder.dangerZone.hardDelete.confirmPlaceholder")}
+            placeholder={t("seedBuilder.dangerZone.hardDelete.confirm.placeholder")}
             className="font-mono text-xs"
             autoComplete="off"
           />
@@ -103,7 +103,7 @@ function HardDeleteForm({ seed, onOpenChange, onDeleted }: HardDeleteFormProps) 
         </div>
         <DialogFooter className="pt-2">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            {t("common.cancel")}
+            {t("common.action.cancel")}
           </Button>
           <Button type="submit" variant="destructive" disabled={confirm !== slug || hardDelete.isPending}>
             <Trash2 className="size-4" />
