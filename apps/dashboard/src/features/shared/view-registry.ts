@@ -91,6 +91,8 @@ export interface ViewEntryActions {
 export interface ViewRendererProps {
   readonly seed: Seed
   readonly slug: string
+  /** The view instance being shown: per-view UI state (e.g. closed groups) is remembered under it. */
+  readonly viewId: string
   readonly query: ViewQueryState
   readonly layout: ViewLayout
   /** Evaluates the instance's conditional formats for one Element. Renderers map the result to their own visuals. */

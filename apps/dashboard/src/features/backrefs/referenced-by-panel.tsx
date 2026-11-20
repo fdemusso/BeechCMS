@@ -23,6 +23,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useFieldsConfig } from '@/components/fields/context'
+import { useRelationIdentity } from '@/components/fields/display/relation-identity'
 import { useBackrefs, useBackrefsGroup } from './hooks/use-backrefs'
 import type { BackrefGroup, BackrefItem } from './api'
 
@@ -139,6 +141,27 @@ function GroupDialog({ targetSlug, targetId, group, open, onOpenChange }: GroupD
 // Single item row
 // ---------------------------------------------------------------------------
 
+/**
+ * The row label. A seed may name its entries after a single relation branch (a subscription named after its
+ * customer): the API then returns the related entry's id, which is resolved to that entry's own display name.
+ */
+function ItemLabel({ item, sourceSlug }: { item: BackrefItem; sourceSlug: string }) {
+  const { useSchema } = useFieldsConfig()
+  const { data: seeds } = useSchema()
+  const sourceSeed = seeds?.find((seed) => seed.slug === sourceSlug)
+  const displayBranch = sourceSeed?.branches.find((b) => b.alias === sourceSeed.displayNameAlias)
+  const relation = displayBranch?.type === 'relation' && !displayBranch.multiple ? displayBranch : undefined
+  const targetSlug = relation?.targetSeed
+  const targetSeed = seeds?.find((seed) => seed.slug === targetSlug)
+  const identity = useRelationIdentity(
+    targetSlug ?? '',
+    targetSlug ? item.displayName : null,
+    targetSeed?.displayNameAlias ?? 'title',
+  )
+  if (targetSlug && item.displayName) return <>{identity.label}</>
+  return <>{item.displayName ?? item.id}</>
+}
+
 function ItemRow({ item, sourceSlug, locale }: { item: BackrefItem; sourceSlug: string; locale: Locale }) {
   return (
     <tr className="border-b last:border-0 hover:bg-muted/30">
@@ -147,7 +170,7 @@ function ItemRow({ item, sourceSlug, locale }: { item: BackrefItem; sourceSlug: 
           to={`/content/${sourceSlug}/${item.id}`}
           className="flex items-center gap-1 hover:opacity-80 transition-opacity font-medium"
         >
-          {item.displayName ?? item.id}
+          <ItemLabel item={item} sourceSlug={sourceSlug} />
           <ExternalLink className="size-3 text-muted-foreground" />
         </Link>
       </td>

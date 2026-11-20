@@ -19,7 +19,7 @@ export type { DataTableProps } from "./types"
 function DataTableInner<TData, TValue>(
   props: Readonly<DataTableProps<TData, TValue>>
 ) {
-  const { table, isGroupingActive, rowHeight, cellPadding } = useDataTableState(props)
+  const { table, isGroupingActive, toggleGroup, rowHeight, cellPadding } = useDataTableState(props)
 
   const selectionEnabled = props.rowSelection !== undefined || !!props.onRowSelectionChange
   const selection = useDataTableSelection(table, {
@@ -45,6 +45,7 @@ function DataTableInner<TData, TValue>(
         <DataTableBody
           table={table}
           isGroupingActive={isGroupingActive}
+          onToggleGroup={toggleGroup}
           rowHeight={rowHeight}
           cellPadding={cellPadding}
           props={props}

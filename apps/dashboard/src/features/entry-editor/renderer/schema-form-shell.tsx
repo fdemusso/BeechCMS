@@ -229,7 +229,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                     onClick={() => vm.setIsReadOnly?.(false)}
                   >
                     <Pencil className="size-4" />
-                    <span className="sr-only">Passa alla modalità modifica</span>
+                    <span className="sr-only">{t("content.editor.switchToEdit")}</span>
                   </Button>
                 </TooltipTrigger>
               ) : (
@@ -242,13 +242,13 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                       disabled
                     >
                       <Pencil className="size-4" />
-                      <span className="sr-only">Passa alla modalità modifica</span>
+                      <span className="sr-only">{t("content.editor.switchToEdit")}</span>
                     </Button>
                   </span>
                 </TooltipTrigger>
               )}
               <TooltipContent side="bottom">
-                {canUpdate ? "Passa alla modalità modifica" : "Manca il permesso 'content:update'"}
+                {canUpdate ? t("content.editor.switchToEdit") : t("content.editor.noUpdatePermission")}
               </TooltipContent>
             </Tooltip>
           )}

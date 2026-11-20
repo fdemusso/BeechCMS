@@ -12,7 +12,7 @@ import { ContentTableView } from "./ContentTableView"
 import { toTableRowStyles } from "./table-row-styles"
 
 /** The Table View Type's renderer: owns column/grouping derivation, the harness owns layout state. */
-function ContentTableRenderer({ seed, slug, query, layout, formatElement, entries }: ViewRendererProps) {
+function ContentTableRenderer({ seed, slug, viewId, query, layout, formatElement, entries }: ViewRendererProps) {
   const { t } = useTranslation()
   const { can } = usePermissions()
 
@@ -60,6 +60,7 @@ function ContentTableRenderer({ seed, slug, query, layout, formatElement, entrie
       getRowStyles={getRowStyles}
       rowSelection={entries.rowSelection}
       onRowSelectionChange={entries.setRowSelection}
+      collapsedGroupsStorageKey={tableConfig.grouping[0] ? `beech:groups-closed:${slug}:${viewId}:${tableConfig.grouping[0]}` : undefined}
       grouping={tableConfig.grouping}
       onGroupingChange={tableConfig.handleGroupingChange}
       pageSize={query.pageSize}
@@ -80,7 +81,7 @@ function ContentTableRenderer({ seed, slug, query, layout, formatElement, entrie
       onDelete={entries.handleDelete}
       onBulkDelete={entries.handleBulkDelete}
       onCreate={entries.handleCreate}
-      onCellActivate={query.applyCellFilter}
+      onCellFilter={query.applyCellFilter}
     />
   )
 }

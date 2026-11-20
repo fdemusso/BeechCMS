@@ -58,6 +58,10 @@ export interface DataTableRowProps<TData, TValue> {
   cellPadding: string
   props: Readonly<DataTableProps<TData, TValue>>
   selection: DataTableSelection
+  /** Grouped mode: the row fades in when its group opens, and out (still mounted) while the group closes. */
+  motion?: "enter" | "exit"
+  /** Called when a row's exit animation ends, with the id of the group it belongs to. */
+  onExitEnd?: (groupId: string) => void
 }
 
 function DataTableRowInner<TData, TValue>({
@@ -66,6 +70,8 @@ function DataTableRowInner<TData, TValue>({
   cellPadding,
   props,
   selection,
+  motion,
+  onExitEnd,
 }: DataTableRowProps<TData, TValue>) {
   const {
     getRowStyles,
@@ -108,10 +114,13 @@ function DataTableRowInner<TData, TValue>({
         ROW_SEPARATOR_CLASS,
         "transition-colors",
         FOCUSED_ROW_CLASS,
+        motion === "enter" && "animate-in fade-in-0 slide-in-from-top-1 duration-(--duration-enter) motion-reduce:animate-none",
+        motion === "exit" && "pointer-events-none animate-out fade-out-0 slide-out-to-top-1 [animation-fill-mode:forwards] duration-(--duration-exit)",
         onRowDoubleClick && "cursor-pointer select-none",
         rowStyles?.rowClassName ?? getRowClassName?.(row.original)
       )}
       style={{ height: rowHeight }}
+      onAnimationEnd={motion === "exit" && row.parentId ? () => onExitEnd?.(row.parentId as string) : undefined}
       onMouseDown={selection.handleRowMouseDown}
       onClickCapture={(e) => {
         if (selection.handleRowClickCapture(row.id, e) && cellClickTimerRef.current) {
@@ -121,6 +130,7 @@ function DataTableRowInner<TData, TValue>({
       onClick={(e) => selection.handleRowClick(row.id, e)}
       onDoubleClick={() => {
         if (cellClickTimerRef.current) window.clearTimeout(cellClickTimerRef.current)
+        selection.cancelPendingRowClick()
         onRowDoubleClick?.(row.original)
       }}
     >
@@ -143,11 +153,14 @@ function DataTableRowInner<TData, TValue>({
           if (!canActivateCell) return
           // Selected rows are being worked on: a single click must not trigger click-to-filter.
           if (row.getIsSelected()) return
+          // The user is selecting text natively: leave the selection alone.
+          if (window.getSelection()?.toString()) return
           if (e.target === e.currentTarget || !isClickOnCellContent(e.currentTarget, e.clientX, e.clientY)) return
           if ((e.target as HTMLElement).closest("button, a, input, [role='button'], [data-no-cell-filter]")) return
+          const cellElement = e.currentTarget
           if (cellClickTimerRef.current) window.clearTimeout(cellClickTimerRef.current)
           cellClickTimerRef.current = window.setTimeout(() => {
-            onCellActivate?.(cell.column.id, row.original)
+            onCellActivate?.(cell.column.id, row.original, cellElement)
           }, CELL_CLICK_DELAY_MS)
         }
 
@@ -174,7 +187,7 @@ function DataTableRowInner<TData, TValue>({
               </TableCell>
             </ContextMenuTrigger>
             <ContextMenuContent>
-              {renderRowContextMenuContent(row.original)}
+              {renderRowContextMenuContent(row.original, cell.column.id)}
             </ContextMenuContent>
           </ContextMenu>
         )

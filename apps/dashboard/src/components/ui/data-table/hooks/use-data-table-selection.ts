@@ -4,19 +4,26 @@
 
 import * as React from "react"
 import type { Row, RowSelectionState, Table } from "@tanstack/react-table"
+import { CELL_CLICK_DELAY_MS } from "../types"
 
 function focusRoot(el: Element) {
   el.closest<HTMLElement>("[data-datatable-root]")?.focus({ preventScroll: true })
 }
 
 const EDITABLE_SELECTOR = "input, textarea, select, [contenteditable='true']"
+const INTERACTIVE_SELECTOR = "button, a, input, [role='button'], [role='checkbox'], [role='menuitem']"
 
 export interface DataTableSelection {
   focusedRowId: string | null
   /** Capture-phase row click: handles shift/ctrl/cmd combos. Returns true if consumed. */
   handleRowClickCapture: (rowId: string, e: React.MouseEvent) => boolean
-  /** Bubble-phase plain row click: only moves anchor + focus. */
+  /**
+   * Bubble-phase plain row click: selects the row (like the arrow keys) after a short delay, so a double
+   * click can cancel it with `cancelPendingRowClick` instead of being preceded by a selection re-render.
+   */
   handleRowClick: (rowId: string, e: React.MouseEvent) => void
+  /** Drops a plain row click that is still waiting out its delay (double click, modifier click, keyboard). */
+  cancelPendingRowClick: () => void
   handleRowMouseDown: (e: React.MouseEvent) => void
   handleKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void
 }
@@ -32,6 +39,7 @@ export interface DataTableSelectionOptions<TData> {
 
 /**
  * Standard list-selection shortcuts for DataTable:
+ * - Click: select only that row (clicks on buttons, links and checkboxes are left alone)
  * - Shift+click: range from anchor (Ctrl/Cmd+Shift+click adds the range)
  * - Ctrl/Cmd+click: toggle one row
  * - Arrows: move focus + select; Shift+Arrows extend; Ctrl/Cmd+Arrows move focus only
@@ -47,6 +55,12 @@ export function useDataTableSelection<TData>(
   { enabled, rowHeight, onRowActivate, onDeleteRows }: DataTableSelectionOptions<TData>
 ): DataTableSelection {
   const anchorRef = React.useRef<string | null>(null)
+  const pendingClickRef = React.useRef<number | null>(null)
+  const cancelPendingRowClick = React.useCallback(() => {
+    if (pendingClickRef.current !== null) window.clearTimeout(pendingClickRef.current)
+    pendingClickRef.current = null
+  }, [])
+  React.useEffect(() => cancelPendingRowClick, [cancelPendingRowClick])
   // Esc clears the selection but must keep the focused row (second Esc drops it).
   const [keepFocusOnEmpty, setKeepFocusOnEmpty] = React.useState(false)
   const [focusedRowId, setFocusedRowId] = React.useState<string | null>(null)
@@ -93,6 +107,8 @@ export function useDataTableSelection<TData>(
       if (!enabled) return false
       const toggle = e.metaKey || e.ctrlKey
       if (!e.shiftKey && !toggle) return false
+      // A modifier click replaces a plain click that has not applied yet.
+      cancelPendingRowClick()
       if ((e.target as HTMLElement).closest("a")) return false
 
       e.preventDefault()
@@ -123,17 +139,32 @@ export function useDataTableSelection<TData>(
       setFocusedRowId(rowId)
       return true
     },
-    [enabled, focusedRowId, getLeafRows, selectRange, table]
+    [enabled, cancelPendingRowClick, focusedRowId, getLeafRows, selectRange, table]
   )
 
   const handleRowClick = React.useCallback(
     (rowId: string, e: React.MouseEvent) => {
       if (!enabled) return
       focusRoot(e.currentTarget)
-      anchorRef.current = rowId
-      setFocusedRowId(rowId)
+      // Interactive controls (checkbox, row actions, links) keep their own behaviour.
+      if ((e.target as HTMLElement).closest(INTERACTIVE_SELECTOR)) {
+        anchorRef.current = rowId
+        setFocusedRowId(rowId)
+        return
+      }
+      // Selecting re-renders the table. Waiting out the double-click window keeps that re-render from
+      // landing between the two clicks of a double click, which cancels this call.
+      cancelPendingRowClick()
+      pendingClickRef.current = window.setTimeout(() => {
+        pendingClickRef.current = null
+        anchorRef.current = rowId
+        setFocusedRowId(rowId)
+        // Same as moving onto the row with the arrow keys: it becomes the only selected row.
+        if (!getLeafRows().some((r) => r.id === rowId)) return
+        table.setRowSelection({ [rowId]: true })
+      }, CELL_CLICK_DELAY_MS)
     },
-    [enabled]
+    [enabled, cancelPendingRowClick, getLeafRows, table]
   )
 
   // Stops the browser from starting a text selection on shift+click.
@@ -155,6 +186,7 @@ export function useDataTableSelection<TData>(
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLElement>) => {
       if (!enabled) return
+      cancelPendingRowClick()
       const target = e.target as HTMLElement
       // Portals (menus, dialogs) bubble React events through the table: ignore them.
       if (!e.currentTarget.contains(target)) return
@@ -326,8 +358,8 @@ export function useDataTableSelection<TData>(
           break
       }
     },
-    [enabled, focusedRowId, getLeafRows, onDeleteRows, onRowActivate, rowHeight, selectRange, table]
+    [enabled, cancelPendingRowClick, focusedRowId, getLeafRows, onDeleteRows, onRowActivate, rowHeight, selectRange, table]
   )
 
-  return { focusedRowId, handleRowClickCapture, handleRowClick, handleRowMouseDown, handleKeyDown }
+  return { focusedRowId, handleRowClickCapture, handleRowClick, cancelPendingRowClick, handleRowMouseDown, handleKeyDown }
 }

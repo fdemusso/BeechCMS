@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useCollapsedGroups } from "./use-collapsed-groups"
 import * as React from "react"
 import {
   getCoreRowModel,
@@ -199,7 +200,13 @@ export function useDataTableState<TData, TValue>(
     return { ...columnVisibility, ...Object.fromEntries(grouping.map((id) => [id, false])) }
   }, [columnVisibility, grouping, isGroupingActive])
 
-  const [expanded, setExpanded] = React.useState<ExpandedState>(true)
+  // Groups are open unless the user closed them. TanStack's own expanded state is derived from that list, and only
+  // the list is stored (see useCollapsedGroups); a group toggle goes through `toggleGroup`, not row.toggleExpanded.
+  const { closed: closedGroupIds, toggle: toggleGroup } = useCollapsedGroups(props.collapsedGroupsStorageKey)
+  const expanded = React.useMemo<ExpandedState>(
+    () => Object.fromEntries(closedGroupIds.map((id) => [id, false])),
+    [closedGroupIds]
+  )
 
   const activeDensity = density ?? DEFAULT_DENSITY
   const rowHeight = DENSITY_ROW_HEIGHT[activeDensity]
@@ -233,7 +240,7 @@ export function useDataTableState<TData, TValue>(
     onRowSelectionChange: handleRowSelectionChange,
     onGlobalFilterChange: setGlobalFilter,
     onGroupingChange: handleGroupingChange,
-    onExpandedChange: setExpanded,
+    getIsRowExpanded: (row) => expanded[row.id as keyof typeof expanded] !== false,
     globalFilterFn: "includesString",
     autoResetExpanded: false,
     manualPagination,
@@ -259,18 +266,10 @@ export function useDataTableState<TData, TValue>(
     onPaginationChange: handlePaginationChange,
   })
 
-  // Espandi tutti i gruppi quando il raggruppamento cambia
-  const [prevGrouping, setPrevGrouping] = React.useState(grouping)
-  if (grouping !== prevGrouping) {
-    setPrevGrouping(grouping)
-    if (isGroupingActive) {
-      setExpanded(true)
-    }
-  }
-
   return {
     table,
     isGroupingActive,
+    toggleGroup,
     activeDensity,
     rowHeight,
     cellPadding,

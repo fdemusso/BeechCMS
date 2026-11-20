@@ -22,22 +22,25 @@ import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import { TableHead, TableRow } from "@/components/ui/table"
 import { fixedColumnStyle, FIXED_COLUMN_CLASS, isFixedColumn, resizableColumnStyle } from "../fixed-column"
-import { COLUMN_SEPARATOR_CLASS } from "../styles"
+import { COLUMN_SEPARATOR_CLASS, STICKY_HEADER_CLASS } from "../styles"
 
 interface DataTableHeaderProps<TData> {
   table: TanstackTable<TData>
   enableColumnResizing?: boolean
   /** Horizontal drag of header cells. Columns that cannot be hidden (select, actions) stay put. */
   enableColumnReorder?: boolean
+  /** Header cells stay at the top of the scroll area (grouped mode scrolls inside the table). */
+  stickyHeader?: boolean
 }
 
 interface HeaderCellProps<TData> {
   header: Header<TData, unknown>
   enableColumnResizing?: boolean
   sortable: boolean
+  sticky?: boolean
 }
 
-function HeaderCell<TData>({ header, enableColumnResizing, sortable }: HeaderCellProps<TData>) {
+function HeaderCell<TData>({ header, enableColumnResizing, sortable, sticky }: HeaderCellProps<TData>) {
   const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: header.column.id,
@@ -50,7 +53,8 @@ function HeaderCell<TData>({ header, enableColumnResizing, sortable }: HeaderCel
       {...(sortable ? listeners : undefined)}
       aria-roledescription={sortable ? attributes["aria-roledescription"] : undefined}
       style={{
-        ...(enableColumnResizing ? { position: "relative", ...resizableColumnStyle(header.column) } : undefined),
+        // Inline `position` beats the sticky class, so a sticky header has to say so here. Sticky also anchors the resize handle.
+        ...(enableColumnResizing ? { position: sticky ? "sticky" : "relative", ...resizableColumnStyle(header.column) } : undefined),
         ...fixedColumnStyle(header.column),
         ...(sortable && transform ? { transform: `translate3d(${transform.x}px, 0, 0)` } : undefined),
         ...(isDragging ? { zIndex: 10, opacity: 0.85 } : undefined),
@@ -58,7 +62,7 @@ function HeaderCell<TData>({ header, enableColumnResizing, sortable }: HeaderCel
       className={cn(
         COLUMN_SEPARATOR_CLASS,
         isFixedColumn(header.column) && FIXED_COLUMN_CLASS,
-        "bg-border/40",
+        sticky ? STICKY_HEADER_CLASS : "bg-border/40",
         sortable && "cursor-grab select-none touch-none",
         isDragging && "cursor-grabbing bg-muted shadow-sm"
       )}
@@ -87,6 +91,7 @@ function DataTableHeaderInner<TData>({
   table,
   enableColumnResizing,
   enableColumnReorder,
+  stickyHeader,
 }: DataTableHeaderProps<TData>) {
   // Distance constraint: a plain click (sort) never turns into a drag.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
@@ -122,6 +127,7 @@ function DataTableHeaderInner<TData>({
           header={header}
           enableColumnResizing={enableColumnResizing}
           sortable={reorderableIds.includes(header.column.id)}
+          sticky={stickyHeader}
         />
       ))}
     </TableRow>

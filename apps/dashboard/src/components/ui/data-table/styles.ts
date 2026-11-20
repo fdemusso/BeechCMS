@@ -29,3 +29,25 @@ export const COLUMN_SEPARATOR_CLASS = "border-r border-border/60 last:border-r-0
 export const TAIL_SEPARATOR_CLASS =
   // design-ok: 1px inset hairline, the contract has no shadow tokens (#undecided)
   "shadow-[inset_0_1px_0_0_color-mix(in_oklab,var(--color-border)_60%,transparent)]"
+
+/**
+ * Header cell that stays put while the rows scroll under it (grouped mode). Sticky cells need an opaque background
+ * (the normal header tint is translucent, rows would show through) so the tint is painted over `bg-background`.
+ * With collapsed borders a sticky cell loses its own border, so the bottom hairline is an inset shadow.
+ */
+export const STICKY_HEADER_CLASS =
+  // design-ok: opaque tint = translucent border token over the page background, no opaque token exists (#undecided)
+  "sticky top-0 z-20 bg-background bg-[linear-gradient(color-mix(in_oklab,var(--color-border)_40%,transparent),color-mix(in_oklab,var(--color-border)_40%,transparent))] shadow-[inset_0_-1px_0_0_var(--color-border)]"
+
+/** Group header cell pinned right under the sticky column header (offset = `--dt-header-h`, set by DataTableBody). */
+export const STICKY_GROUP_CLASS =
+  // design-ok: same opaque-tint trick as STICKY_HEADER_CLASS, for the group row (#undecided)
+  "sticky top-[calc(var(--dt-header-h,0px)-1px)] z-10 bg-background bg-[linear-gradient(color-mix(in_oklab,var(--color-muted)_60%,transparent),color-mix(in_oklab,var(--color-muted)_60%,transparent))] shadow-[inset_0_-1px_0_0_color-mix(in_oklab,var(--color-border)_60%,transparent)]"
+
+/**
+ * Grouped table: separate borders so each cell owns its edges (a collapsed border is the table's and does not stick).
+ * The row divider moves from the <tr> (ignored when borders are separate) to the cells; the last row of the last
+ * group has none, the frame draws that edge.
+ */
+export const GROUPED_TABLE_CLASS =
+  "border-separate border-spacing-0 [&_td]:border-b [&_td]:border-border/60 [&_tbody:last-child_tr:last-child_td]:border-b-0"

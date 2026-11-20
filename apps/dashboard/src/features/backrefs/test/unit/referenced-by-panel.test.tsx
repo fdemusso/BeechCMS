@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { BackrefsResponse } from '@/features/backrefs/api'
+import { FieldsProvider, type FieldsContextType } from '@/components/fields/context'
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -76,6 +77,18 @@ function buildQC() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } })
 }
 
+let mockSeeds: unknown[] = []
+let mockFetchById: (slug: string, id: string) => Promise<{ id: string; data: Record<string, unknown> }> =
+  async (_slug, id) => ({ id, data: {} })
+
+const fieldsConfig = {
+  useSchema: () => ({ data: mockSeeds }),
+  useLocaleConfig: () => undefined,
+  fetchById: (slug: string, id: string) => mockFetchById(slug, id),
+  queryKeys: { detail: (slug: string, id: string) => ['detail', slug, id] },
+  components: {},
+} as unknown as FieldsContextType
+
 function renderPanel(props: {
   targetSlug?: string
   targetId?: string
@@ -84,11 +97,13 @@ function renderPanel(props: {
   const qc = buildQC()
   return render(
     <QueryClientProvider client={qc}>
-      <ReferencedByPanel
-        targetSlug={props.targetSlug ?? 'team'}
-        targetId={props.targetId ?? 'ada-1'}
-        onRestrictsChange={props.onRestrictsChange}
-      />
+      <FieldsProvider value={fieldsConfig}>
+        <ReferencedByPanel
+          targetSlug={props.targetSlug ?? 'team'}
+          targetId={props.targetId ?? 'ada-1'}
+          onRestrictsChange={props.onRestrictsChange}
+        />
+      </FieldsProvider>
     </QueryClientProvider>,
   )
 }
@@ -134,6 +149,7 @@ const restrictsGroupResponse: BackrefsResponse = {
 describe('ReferencedByPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSeeds = []
   })
 
   it('renders nothing when API returns empty groups', () => {
@@ -289,5 +305,35 @@ describe('buildBackrefMap', () => {
     ]
     const map = buildBackrefMap(seeds as any)
     expect(map.get('tags')![0].relationship).toBe('multi')
+  })
+
+  it('shows the related entry name when the source seed is named after a relation', async () => {
+    mockSeeds = [
+      {
+        slug: 'subscriptions',
+        displayNameAlias: 'customer_id',
+        branches: [{ alias: 'customer_id', type: 'relation', targetSeed: 'customers', multiple: false }],
+      },
+      { slug: 'customers', displayNameAlias: 'name', branches: [{ alias: 'name', type: 'text' }] },
+    ]
+    mockFetchById = async (_slug, id) => ({ id, data: { name: 'Elisa Colombo' } })
+    mockFetchBackrefs.mockReturnValue({
+      groups: [{
+        sourceSlug: 'subscriptions',
+        sourceLabel: 'Subscriptions',
+        branchAlias: 'customer_id',
+        branchLabel: 'Customer',
+        relationship: 'single',
+        restricts: false,
+        total: 1,
+        items: [{ id: 'sub-1', displayName: 'cust-1', status: 'published', updated_at: 1000 }],
+      }],
+    } satisfies BackrefsResponse)
+
+    renderPanel({ targetSlug: 'customers', targetId: 'cust-1' })
+    fireEvent.click(screen.getByText('Referenced by'))
+
+    expect(await screen.findByText('Elisa Colombo')).toBeTruthy()
+    expect(screen.queryByText('cust-1')).toBeNull()
   })
 })

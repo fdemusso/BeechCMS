@@ -51,6 +51,11 @@ export interface ContentListQueryInitialState {
   filters?: ToolbarFiltersState
   sort?: { id: string; desc: boolean } | null
   pageSize?: number
+  /**
+   * Grouping runs client-side, so a grouped view needs every row, not one page: while set, the list loads the first
+   * `fetchAllLimit` rows in one request and `pageSize` only sizes the table. Capped by the API (100 per request).
+   */
+  fetchAllLimit?: number
 }
 
 /** Condition id of the `?status=` URL prefilter. That filter is a navigation lens, never part of a saved view. */
@@ -61,6 +66,7 @@ export function useContentListQuery(
   seed: Seed | null,
   initial?: ContentListQueryInitialState
 ) {
+  const fetchAllLimit = initial?.fetchAllLimit
   const [pageIndex, setPageIndex] = React.useState(0)
   const ROWS_PER_PAGE = 10
   const [pageSize, setPageSize] = React.useState<number>(initial?.pageSize ?? ROWS_PER_PAGE)
@@ -100,8 +106,8 @@ export function useContentListQuery(
     isLoading: isListLoading, 
     error: listError,
   } = useContentList(slug, buildContentListParams({
-    pageIndex,
-    pageSize,
+    pageIndex: fetchAllLimit ? 0 : pageIndex,
+    pageSize: fetchAllLimit ?? pageSize,
     search: debouncedSearch,
     sorting,
     filters: toolbarFilters,

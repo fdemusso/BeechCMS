@@ -881,7 +881,8 @@
       "empty": {
         "title": "Qui non c'è nulla"
       },
-      "emptyCreateFirst": "Crea il tuo primo {{label}}"
+      "emptyCreateFirst": "Crea il tuo primo {{label}}",
+      "cellCopied": "Valore copiato"
     },
     "views": {
       "add": "Aggiungi vista",
@@ -979,6 +980,9 @@
         "error": "Il campo \"{{field}}\" deve contenere JSON valido"
       },
       "emptyTab": "Nessun campo in questa tab.",
+      "switchToEdit": "Passa alla modalità modifica",
+      "noUpdatePermission": "Manca il permesso 'content:update'",
+      "valueCopied": "Valore copiato",
       "empty": {
         "column": "Vuoto"
       },
@@ -1060,7 +1064,8 @@
     },
     "actions": {
       "label": "Azioni",
-      "copyId": "Copia ID"
+      "copyId": "Copia ID",
+      "filterByValue": "Filtra per questo valore"
     },
     "table": {
       "status": "Stato",

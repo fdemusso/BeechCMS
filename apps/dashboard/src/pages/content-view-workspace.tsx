@@ -18,6 +18,9 @@ import { downloadExport, readProblem } from "@/features/content-transfer"
 import { compileElementFormatter, type ConditionalFormatRule } from "@/lib/conditional-format"
 import { viewRegistry } from "./view-registry"
 
+/** The content list API caps one request at 100 rows. */
+const GROUPED_FETCH_LIMIT = 100
+
 export interface ContentViewWorkspaceProps {
   seed: Seed
   slug: string
@@ -68,8 +71,14 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
     [slug, t],
   )
 
-  const query = useContentListQuery(slug, seed, { filters: initial.filters, sort: initial.sort, pageSize: initial.pageSize })
   const layout = useViewLayoutState(initial, seed)
+  const query = useContentListQuery(slug, seed, {
+    filters: initial.filters,
+    sort: initial.sort,
+    pageSize: initial.pageSize,
+    // A grouped table groups client-side: it needs all the rows, not just the current page.
+    fetchAllLimit: view.type === "table" && layout.groupBy ? GROUPED_FETCH_LIMIT : undefined,
+  })
 
   const config = React.useMemo(
     () =>
@@ -206,6 +215,7 @@ export function ContentViewWorkspace({ seed, slug, view, switcherViews, creatabl
           <definition.Renderer
             seed={seed}
             slug={slug}
+            viewId={view.id}
             query={query}
             layout={layout}
             formatElement={formatElement}

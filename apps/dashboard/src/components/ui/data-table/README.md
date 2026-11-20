@@ -13,7 +13,7 @@ DataTable (index.tsx)
 │     └─ ScrollArea                scroll orizzontale; verticale solo in modalità raggruppata
 │        └─ <table>
 │           ├─ <thead>  DataTableHeader  celle con sfondo proprio + separatori colonna
-│           └─ <tbody>  DataTableRow | DataTableGroupRow | spacer virtuali | righe segnaposto
+│           └─ <tbody>  DataTableRow | DataTableGroupRow | righe segnaposto
 └─ DataTablePagination (components/data-table-pagination.tsx)   ← fuori dal frame
 ```
 
@@ -62,12 +62,15 @@ la linea sotto l'ultima riga la disegna l'elemento di coda (`TAIL_SEPARATOR_CLAS
 con zero spazio libero è alto 0px e non raddoppia il bordo del frame. *Test:* "closes the rows with a line…".
 
 ## Modalità raggruppata (grouping attivo)
-Paginazione disattivata (`pageSize` = infinito), righe virtualizzate con `@tanstack/react-virtual`:
-il `<tbody>` contiene due righe-spacer (`VirtualSpacerRow`) che sostituiscono le righe fuori schermo.
-L'altezza è limitata da `VIRTUAL_CONTAINER_HEIGHT` e lo scroll è quello dello `ScrollArea`.
+Paginazione disattivata nel footer. La lista a monte carica tutte le righe filtrate (tetto API: 100), i gruppi
+partono **aperti**. Niente virtualizzazione: sono poche righe e lo sticky nativo resta semplice.
+L'altezza dello `ScrollArea` (fissa se il dataset riempie una pagina, altrimenti solo tetto) è la stessa di una pagina piena senza raggruppamento:
+altezza header misurata + `pageSize` × `rowHeight`. Lo scroll avviene **dentro** la tabella, mai sulla pagina.
+Header colonne (`STICKY_HEADER_CLASS`) e header del gruppo corrente (`STICKY_GROUP_CLASS`, offset `--dt-header-h`)
+restano fissi: le celle sticky hanno sfondo opaco e il bordo inferiore è un'ombra interna (con
+`border-collapse` una cella sticky perde il bordo).
 
 ## Prestazioni
 - `DataTableRow` e `DataTablePagination` sono `React.memo`: passare loro prop stabili (callback con
   `useCallback`, insiemi con `useMemo`); una prop nuova a ogni render annulla il memo.
 - Il totale righe del footer attraversa tutte le righe: è calcolato solo se `selectedCount > 0`.
-- Il virtualizer è sempre istanziato ma con `count: 0` fuori dalla modalità raggruppata (costo nullo).

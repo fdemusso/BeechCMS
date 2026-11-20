@@ -881,7 +881,8 @@
       "empty": {
         "title": "There isn't anything here"
       },
-      "emptyCreateFirst": "Create your first {{label}}"
+      "emptyCreateFirst": "Create your first {{label}}",
+      "cellCopied": "Value copied"
     },
     "views": {
       "add": "Add view",
@@ -979,6 +980,9 @@
         "error": "Field \"{{field}}\" must contain valid JSON"
       },
       "emptyTab": "No fields in this tab yet.",
+      "switchToEdit": "Switch to edit mode",
+      "noUpdatePermission": "You don't have the 'content:update' permission",
+      "valueCopied": "Value copied",
       "empty": {
         "column": "Empty"
       },
@@ -1060,7 +1064,8 @@
     },
     "actions": {
       "label": "Actions",
-      "copyId": "Copy ID"
+      "copyId": "Copy ID",
+      "filterByValue": "Filter by this value"
     },
     "table": {
       "status": "Status",

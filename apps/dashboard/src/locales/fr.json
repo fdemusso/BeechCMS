@@ -886,7 +886,8 @@
       "empty": {
         "title": "Il n’y a rien ici"
       },
-      "emptyCreateFirst": "Créez votre premier {{label}}"
+      "emptyCreateFirst": "Créez votre premier {{label}}",
+      "cellCopied": "Valeur copiée"
     },
     "views": {
       "add": "Ajouter une vue",
@@ -985,6 +986,9 @@
         "error": "Le champ « {{field}} » doit contenir du JSON valide"
       },
       "emptyTab": "Cet onglet ne contient pas encore de champs.",
+      "switchToEdit": "Passer en mode édition",
+      "noUpdatePermission": "La permission 'content:update' est manquante",
+      "valueCopied": "Valeur copiée",
       "empty": {
         "column": "Vide"
       },
@@ -1070,7 +1074,8 @@
     },
     "actions": {
       "label": "Actions",
-      "copyId": "Copier l’ID"
+      "copyId": "Copier l’ID",
+      "filterByValue": "Filtrer par cette valeur"
     },
     "table": {
       "status": "Statut",
