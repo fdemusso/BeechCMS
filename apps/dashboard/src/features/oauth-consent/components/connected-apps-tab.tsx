@@ -133,7 +133,7 @@ export function ConnectedAppsTab() {
                 <TableHead>{t('oauth.apps.permissions')}</TableHead>
                 <TableHead>{t('oauth.apps.granted')}</TableHead>
                 <TableHead>{t('oauth.apps.status')}</TableHead>
-                <TableHead className="text-right">{t('common.actions', 'Actions')}</TableHead>
+                <TableHead className="text-right">{t('content.actions.label')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -95,7 +95,7 @@ export function RolesSection() {
                 <TableHead className="w-[200px]">{t("rbac.roles.name", "Name")}</TableHead>
                 <TableHead className="max-w-[320px]">{t("rbac.roles.description", "Description")}</TableHead>
                 <TableHead className="w-[130px]">{t("rbac.roles.permissions.label", "Permissions")}</TableHead>
-                {canManageRoles && <TableHead className="w-[100px] text-right">{t("common.actions", "Actions")}</TableHead>}
+                {canManageRoles && <TableHead className="w-[100px] text-right">{t("content.actions.label")}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>

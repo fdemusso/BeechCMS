@@ -14,11 +14,17 @@ if (typeof window !== "undefined") {
 if (!i18n.isInitialized) {
   const itTranslations = await import("@/locales/it.json")
   const enTranslations = await import("@/locales/en.json")
+  const esTranslations = await import("@/locales/es.json")
+  const deTranslations = await import("@/locales/de.json")
+  const frTranslations = await import("@/locales/fr.json")
   i18n.use(initReactI18next).init({
     lng: "en",
     resources: {
       it: { translation: itTranslations.default },
       en: { translation: enTranslations.default },
+      es: { translation: esTranslations.default },
+      de: { translation: deTranslations.default },
+      fr: { translation: frTranslations.default },
     },
     fallbackLng: "en",
     interpolation: { escapeValue: false },

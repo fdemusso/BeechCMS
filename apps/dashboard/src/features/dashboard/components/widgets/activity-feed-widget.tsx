@@ -5,7 +5,7 @@
 import { useTranslation } from "react-i18next"
 import { Activity, Plus, Edit as Pencil, Trash2, Upload } from '@/components/icons'
 import { formatDistanceToNow } from "date-fns"
-import { it as itLocale, enUS, type Locale } from "date-fns/locale"
+import { dateFnsLocaleFor } from "@/lib/date-locale"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -23,8 +23,6 @@ export interface ActivityFeedWidgetProps {
   limit?: number
   title?: string
 }
-
-const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
 
 const ACTION_ICONS: Record<string, React.ElementType> = {
   create: Plus,
@@ -52,7 +50,7 @@ function initials(name?: string | null, email?: string): string {
 
 export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: ActivityFeedWidgetProps) {
   const { t, i18n } = useTranslation()
-  const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
+  const dateFnsLocale = dateFnsLocaleFor(i18n.language)
   const widgetTitle = title || t("dashboard.widgets.activityFeed.title")
 
   function relativeTime(ts: number | null): string {

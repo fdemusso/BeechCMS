@@ -5,7 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { formatDistanceToNow } from "date-fns"
-import { it as itLocale, enUS, type Locale } from "date-fns/locale"
+import { dateFnsLocaleFor } from "@/lib/date-locale"
 import { ClipboardList, Send } from '@/components/icons'
 import { rpc } from "@/lib/rpc"
 import { Badge } from "@/components/ui/badge"
@@ -27,8 +27,6 @@ export interface PendingDraftsWidgetProps {
   title?: string
 }
 
-const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
-
 function entryTitle(entry: ContentEntry): string {
   for (const val of Object.values(entry.data)) {
     if (typeof val === "string" && val.trim()) return val
@@ -38,7 +36,7 @@ function entryTitle(entry: ContentEntry): string {
 
 export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, title }: PendingDraftsWidgetProps) {
   const { t, i18n } = useTranslation()
-  const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
+  const dateFnsLocale = dateFnsLocaleFor(i18n.language)
   const widgetTitle = title || t("dashboard.widgets.pendingDrafts.title")
   const queryClient = useQueryClient()
   const { data, isLoading, isError, refetch } = useQuery({

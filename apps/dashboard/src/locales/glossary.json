@@ -1,51 +1,208 @@
 {
   "hard_dnt": [
-    { "term": "Slug", "reason": "URL identifier; universal CMS term." },
-    { "term": "Seed", "reason": "BeechCMS primitive for a content-type definition. Domain term, not the botanical word." },
-    { "term": "Webhook", "reason": "Integration protocol primitive." },
-    { "term": "API", "reason": "Acronym." },
-    { "term": "URL", "reason": "Acronym." },
-    { "term": "ID", "reason": "Identifier acronym." },
-    { "term": "JSON", "reason": "Data format." },
-    { "term": "CSV", "reason": "Data format." },
-    { "term": "PDF", "reason": "File format." },
-    { "term": "PNG", "reason": "File format." },
-    { "term": "WebP", "reason": "File format." },
-    { "term": "SEO", "reason": "Acronym." },
-    { "term": "UTC", "reason": "Time standard." },
-    { "term": "Cron", "reason": "Scheduler syntax name; translate only the surrounding words." },
-    { "term": "R2", "reason": "Cloudflare product name." },
-    { "term": "D1", "reason": "Cloudflare product name." },
-    { "term": "Cloudflare", "reason": "Brand." },
-    { "term": "QStash", "reason": "Upstash product name." },
-    { "term": "MCP", "reason": "Protocol acronym." },
-    { "term": "Beech", "reason": "Product brand." },
-    { "term": "BeechCMS", "reason": "Product brand." },
-    { "term": "Kanban", "reason": "Established method name, used as a view-type name." }
+    {
+      "term": "Slug",
+      "reason": "URL identifier; universal CMS term."
+    },
+    {
+      "term": "Seed",
+      "reason": "BeechCMS primitive for a content-type definition. Domain term, not the botanical word."
+    },
+    {
+      "term": "Webhook",
+      "reason": "Integration protocol primitive."
+    },
+    {
+      "term": "API",
+      "reason": "Acronym."
+    },
+    {
+      "term": "URL",
+      "reason": "Acronym."
+    },
+    {
+      "term": "ID",
+      "reason": "Identifier acronym."
+    },
+    {
+      "term": "JSON",
+      "reason": "Data format."
+    },
+    {
+      "term": "CSV",
+      "reason": "Data format."
+    },
+    {
+      "term": "PDF",
+      "reason": "File format."
+    },
+    {
+      "term": "PNG",
+      "reason": "File format."
+    },
+    {
+      "term": "WebP",
+      "reason": "File format."
+    },
+    {
+      "term": "SEO",
+      "reason": "Acronym."
+    },
+    {
+      "term": "UTC",
+      "reason": "Time standard."
+    },
+    {
+      "term": "Cron",
+      "reason": "Scheduler syntax name; translate only the surrounding words."
+    },
+    {
+      "term": "R2",
+      "reason": "Cloudflare product name."
+    },
+    {
+      "term": "D1",
+      "reason": "Cloudflare product name."
+    },
+    {
+      "term": "Cloudflare",
+      "reason": "Brand."
+    },
+    {
+      "term": "QStash",
+      "reason": "Upstash product name."
+    },
+    {
+      "term": "MCP",
+      "reason": "Protocol acronym."
+    },
+    {
+      "term": "Beech",
+      "reason": "Product brand."
+    },
+    {
+      "term": "BeechCMS",
+      "reason": "Product brand."
+    },
+    {
+      "term": "Kanban",
+      "reason": "Established method name, used as a view-type name."
+    },
+    {
+      "term": "Studio",
+      "reason": "Module name (Sanity-style); a proper noun kept in every locale."
+    }
   ],
   "soft_dnt": [
-    { "term": "Dashboard", "it_usage": "Kept in EN", "translation_note": "FR: 'Tableau de bord'. DE: 'Dashboard'. ES: 'Panel'. pt-BR: 'Painel'." },
-    { "term": "Layout", "it_usage": "Kept in EN (4 of 6)", "translation_note": "FR: 'Mise en page'. DE: 'Layout'. ES: 'Diseño'. pt-BR: 'Layout'." },
-    { "term": "Widget", "it_usage": "Kept in EN", "translation_note": "Keep 'Widget' in FR, DE, ES, pt-BR; low risk." },
-    { "term": "Storage", "it_usage": "Kept in EN (5 of 6)", "translation_note": "FR: 'Stockage'. DE: 'Speicher'. ES: 'Almacenamiento'. pt-BR: 'Armazenamento'." },
-    { "term": "Template", "it_usage": "Kept in EN (2 of 3)", "translation_note": "FR: 'Modèle'. DE: 'Vorlage'. ES: 'Plantilla'. pt-BR: 'Modelo'." },
-    { "term": "Media", "it_usage": "Kept in EN", "translation_note": "FR: 'Médias'. DE: 'Medien'. ES: 'Medios'. pt-BR: 'Mídia'." },
-    { "term": "Feed", "it_usage": "Kept in EN", "translation_note": "FR: 'Flux'. DE/ES/pt-BR: 'Feed'. View-type name." },
-    { "term": "Timeline", "it_usage": "Kept in EN", "translation_note": "FR: 'Chronologie'. DE: 'Zeitleiste'. ES: 'Cronología'. pt-BR: 'Linha do tempo'." },
-    { "term": "Tag", "it_usage": "Kept in EN", "translation_note": "Universal in all target locales." },
-    { "term": "Studio", "it_usage": "Kept in EN", "translation_note": "Module name; keep everywhere, treat as proper noun." },
-    { "term": "Badge", "it_usage": "Kept in EN", "translation_note": "UI component name only; FR/DE keep 'Badge'." },
-    { "term": "Slider", "it_usage": "Kept in EN", "translation_note": "Field-type name. FR: 'Curseur'. DE: 'Schieberegler'." },
-    { "term": "Stepper", "it_usage": "Kept in EN", "translation_note": "Field-type name. FR: 'Incrémenteur'. DE: 'Stepper'." },
-    { "term": "Input", "it_usage": "Kept in EN", "translation_note": "Field-type name. FR: 'Champ'. DE: 'Eingabe'." },
-    { "term": "Alias", "it_usage": "Kept in EN", "translation_note": "Field alias; universal." },
-    { "term": "Header", "it_usage": "EN only for HTTP headers; 'Intestazione' elsewhere", "translation_note": "Keep EN for HTTP headers (webhooks); translate for page/table headers." },
-    { "term": "Schema", "it_usage": "Kept in EN", "translation_note": "FR: 'Schéma'. DE: 'Schema'. ES: 'Esquema'. pt-BR: 'Esquema'." },
-    { "term": "Account", "it_usage": "Kept in EN", "translation_note": "FR: 'Compte'. DE: 'Konto'. ES: 'Cuenta'. pt-BR: 'Conta'." },
-    { "term": "Email", "it_usage": "Kept in EN", "translation_note": "FR: 'E-mail'. DE: 'E-Mail'. ES: 'Correo'. pt-BR: 'E-mail'." },
-    { "term": "Password", "it_usage": "Kept in EN", "translation_note": "FR: 'Mot de passe'. DE: 'Passwort'. ES: 'Contraseña'. pt-BR: 'Senha'." },
-    { "term": "File", "it_usage": "Kept in EN", "translation_note": "FR: 'Fichier'. DE: 'Datei'. ES: 'Archivo'. pt-BR: 'Arquivo'." },
-    { "term": "Team", "it_usage": "Kept in EN", "translation_note": "FR: 'Équipe'. DE: 'Team'. ES: 'Equipo'. pt-BR: 'Equipe'." },
-    { "term": "Video", "it_usage": "Kept in EN", "translation_note": "FR: 'Vidéo'. DE: 'Video'. ES: 'Vídeo'. pt-BR: 'Vídeo'." }
+    {
+      "term": "Dashboard",
+      "it_usage": "Kept in EN",
+      "translation_note": "FR: 'Tableau de bord'. DE: 'Dashboard'. ES: 'Panel'. pt-BR: 'Painel'."
+    },
+    {
+      "term": "Layout",
+      "it_usage": "Kept in EN (4 of 6)",
+      "translation_note": "FR: 'Mise en page'. DE: 'Layout'. ES: 'Diseño'. pt-BR: 'Layout'."
+    },
+    {
+      "term": "Widget",
+      "it_usage": "Kept in EN",
+      "translation_note": "Keep 'Widget' in FR, DE, ES, pt-BR; low risk."
+    },
+    {
+      "term": "Storage",
+      "it_usage": "Kept in EN (5 of 6)",
+      "translation_note": "FR: 'Stockage'. DE: 'Speicher'. ES: 'Almacenamiento'. pt-BR: 'Armazenamento'."
+    },
+    {
+      "term": "Template",
+      "it_usage": "Kept in EN (2 of 3)",
+      "translation_note": "FR: 'Modèle'. DE: 'Vorlage'. ES: 'Plantilla'. pt-BR: 'Modelo'."
+    },
+    {
+      "term": "Media",
+      "it_usage": "Kept in EN",
+      "translation_note": "FR: 'Médias'. DE: 'Medien'. ES: 'Medios'. pt-BR: 'Mídia'."
+    },
+    {
+      "term": "Feed",
+      "it_usage": "Kept in EN",
+      "translation_note": "FR: 'Flux'. DE/ES/pt-BR: 'Feed'. View-type name."
+    },
+    {
+      "term": "Timeline",
+      "it_usage": "Kept in EN",
+      "translation_note": "FR: 'Chronologie'. DE: 'Zeitleiste'. ES: 'Cronología'. pt-BR: 'Linha do tempo'."
+    },
+    {
+      "term": "Tag",
+      "it_usage": "Kept in EN",
+      "translation_note": "Universal in all target locales."
+    },
+    {
+      "term": "Badge",
+      "it_usage": "Kept in EN",
+      "translation_note": "UI component name only; FR/DE keep 'Badge'."
+    },
+    {
+      "term": "Slider",
+      "it_usage": "Kept in EN",
+      "translation_note": "Field-type name. FR: 'Curseur'. DE: 'Schieberegler'."
+    },
+    {
+      "term": "Stepper",
+      "it_usage": "Kept in EN",
+      "translation_note": "Field-type name. FR: 'Incrémenteur'. DE: 'Stepper'."
+    },
+    {
+      "term": "Input",
+      "it_usage": "Kept in EN",
+      "translation_note": "Field-type name. FR: 'Champ'. DE: 'Eingabe'."
+    },
+    {
+      "term": "Alias",
+      "it_usage": "Kept in EN",
+      "translation_note": "Field alias; universal."
+    },
+    {
+      "term": "Header",
+      "it_usage": "EN only for HTTP headers; 'Intestazione' elsewhere",
+      "translation_note": "Keep EN for HTTP headers (webhooks); translate for page/table headers."
+    },
+    {
+      "term": "Schema",
+      "it_usage": "Kept in EN",
+      "translation_note": "FR: 'Schéma'. DE: 'Schema'. ES: 'Esquema'. pt-BR: 'Esquema'."
+    },
+    {
+      "term": "Account",
+      "it_usage": "Kept in EN",
+      "translation_note": "FR: 'Compte'. DE: 'Konto'. ES: 'Cuenta'. pt-BR: 'Conta'."
+    },
+    {
+      "term": "Email",
+      "it_usage": "Kept in EN",
+      "translation_note": "FR: 'E-mail'. DE: 'E-Mail'. ES: 'Correo'. pt-BR: 'E-mail'."
+    },
+    {
+      "term": "Password",
+      "it_usage": "Kept in EN",
+      "translation_note": "FR: 'Mot de passe'. DE: 'Passwort'. ES: 'Contraseña'. pt-BR: 'Senha'."
+    },
+    {
+      "term": "File",
+      "it_usage": "Kept in EN",
+      "translation_note": "FR: 'Fichier'. DE: 'Datei'. ES: 'Archivo'. pt-BR: 'Arquivo'."
+    },
+    {
+      "term": "Team",
+      "it_usage": "Kept in EN",
+      "translation_note": "FR: 'Équipe'. DE: 'Team'. ES: 'Equipo'. pt-BR: 'Equipe'."
+    },
+    {
+      "term": "Video",
+      "it_usage": "Kept in EN",
+      "translation_note": "FR: 'Vidéo'. DE: 'Video'. ES: 'Vídeo'. pt-BR: 'Vídeo'."
+    }
   ]
 }

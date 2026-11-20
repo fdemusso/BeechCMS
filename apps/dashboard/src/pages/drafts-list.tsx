@@ -5,7 +5,7 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate, Link } from "react-router-dom"
 import { formatDistanceToNow } from "date-fns"
-import { it as itLocale, enUS, type Locale } from "date-fns/locale"
+import { dateFnsLocaleFor } from "@/lib/date-locale"
 import type { ColumnDef, SortingState, VisibilityState } from "@tanstack/react-table"
 import { More as MoreHorizontal } from '@/components/icons'
 import { toast } from "sonner"
@@ -54,8 +54,6 @@ import {
 } from "@/features/drafts"
 import { useSchema } from "@/features/schema"
 import { matchesFilterGroupStrict } from "@/lib/filter-dsl"
-
-const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
 
 async function gravatarUrl(email: string): Promise<string> {
   const normalized = email.trim().toLowerCase()
@@ -231,7 +229,7 @@ function ActionsCell({ row }: Readonly<{ row: { original: DraftSummary } }>) {
 export function DraftsListPage() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
+  const dateFnsLocale = dateFnsLocaleFor(i18n.language)
   const { can } = usePermissions()
 
   const { data, isLoading, isError, refetch } = useGlobalDrafts()

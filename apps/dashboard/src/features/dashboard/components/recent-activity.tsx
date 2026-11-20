@@ -5,21 +5,16 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatDistanceToNow } from "date-fns"
-import { it as itLocale, enUS, type Locale } from "date-fns/locale"
+import { dateFnsLocaleFor } from "@/lib/date-locale"
 import { useTranslation } from "react-i18next"
 import { useRecentActivity } from "../hooks/use-dashboard-stats"
 import { activityTarget } from "../utils/activity-target"
 import { ActivitySentence } from "./activity-sentence"
 
-const DATE_FNS_LOCALE: Record<string, Locale> = {
-  it: itLocale,
-  en: enUS,
-}
-
 export function RecentActivity() {
   const { data: activities = [], isLoading } = useRecentActivity()
   const { t, i18n } = useTranslation()
-  const dateLocale = DATE_FNS_LOCALE[i18n.language] ?? itLocale
+  const dateLocale = dateFnsLocaleFor(i18n.language)
 
   return (
     <Card className="col-span-2 border-none bg-background/50 backdrop-blur-sm">

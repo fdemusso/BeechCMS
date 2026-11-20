@@ -4,6 +4,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import i18n from "@/lib/i18n"
 import { SETTINGS_ENTRIES } from "../lib/settings-registry"
 
@@ -54,26 +55,36 @@ describe("Appearance markup", () => {
 })
 
 describe("Language markup", () => {
-  it("is one section named for what it changes, with a named radio group inside", () => {
+  it("is one section named for what it changes, with a labelled select inside", () => {
     render(<LanguageTab />)
     expect(screen.getByRole("region", { name: "Language" }).id).toBe("settings-section-language")
-    expect(screen.getByRole("radiogroup", { name: "Interface language" })).toBeInTheDocument()
+    expect(screen.getByRole("combobox", { name: "Interface language" })).toBeInTheDocument()
   })
 
-  it("names each language in itself and marks it with its own lang", () => {
+  it("shows the current language in itself, with its code", () => {
     render(<LanguageTab />)
-    const italian = screen.getByRole("radio", { name: "Italiano" })
-    const english = screen.getByRole("radio", { name: "English" })
-    expect(italian).toHaveAttribute("lang", "it")
-    expect(english).toHaveAttribute("lang", "en")
-    expect(english).toBeChecked()
+    expect(screen.getByRole("combobox", { name: "Interface language" })).toHaveTextContent("English (en)")
   })
 
-  it("switches the dashboard language the moment one is chosen", () => {
+  it("offers every dashboard language named in itself and marked with its own lang", async () => {
+    render(<LanguageTab />)
+    await userEvent.click(screen.getByRole("combobox", { name: "Interface language" }))
+    const options = await screen.findAllByRole("option")
+    expect(options.map((option) => [option.textContent, option.getAttribute("lang")])).toEqual([
+      ["English (en)", "en"],
+      ["Italiano (it)", "it"],
+      ["Español (es)", "es"],
+      ["Deutsch (de)", "de"],
+      ["Français (fr)", "fr"],
+    ])
+  })
+
+  it("switches the dashboard language the moment one is chosen", async () => {
     const change = vi.spyOn(i18n, "changeLanguage").mockResolvedValue((() => "") as never)
     render(<LanguageTab />)
-    fireEvent.click(screen.getByRole("radio", { name: "Italiano" }))
-    expect(change).toHaveBeenCalledWith("it")
+    await userEvent.click(screen.getByRole("combobox", { name: "Interface language" }))
+    await userEvent.click(await screen.findByRole("option", { name: "Español (es)" }))
+    expect(change).toHaveBeenCalledWith("es")
     change.mockRestore()
   })
 })

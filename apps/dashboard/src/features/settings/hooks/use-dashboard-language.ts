@@ -6,10 +6,13 @@ import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-/** Dashboard UI languages, each named in itself. */
+/** Dashboard UI languages, each named in itself; `value` is the locale code of its file in `src/locales`. */
 export const DASHBOARD_LANGUAGES = [
-  { value: 'it', label: 'Italiano' },
   { value: 'en', label: 'English' },
+  { value: 'it', label: 'Italiano' },
+  { value: 'es', label: 'Español' },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'fr', label: 'Français' },
 ] as const
 
 export type DashboardLanguage = (typeof DASHBOARD_LANGUAGES)[number]['value']
@@ -28,7 +31,9 @@ export function useDashboardLanguage(): DashboardLanguageControl {
   const setLanguage = useCallback(
     (lang: DashboardLanguage) => {
       void i18n.changeLanguage(lang)
-      toast.success(lang === 'it' ? t('settings.interface.langChangedIt') : t('settings.interface.langChangedEn'))
+      const { label } = DASHBOARD_LANGUAGES.find((candidate) => candidate.value === lang)!
+      // `lng` words the toast in the language just chosen: `t` is still bound to the one being left.
+      toast.success(t('settings.interface.langChanged', { lng: lang, language: label }))
     },
     [i18n, t],
   )

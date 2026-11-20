@@ -331,7 +331,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                 fieldErrors={fieldErrors}
                 onChange={handleInputChange}
                 dangerZoneSlot={capabilities.dangerZone && !isCreate ? dangerZoneSlot : undefined}
-                dangerZoneLabel={t("content.editor.tabs.dangerZone", "Danger Zone")}
+                dangerZoneLabel={t("content.editor.tabs.dangerZone")}
                 activeTabId={activeTabId}
                 onActiveTabChange={setActiveTabId}
                 isReadOnly={vm.isReadOnly}

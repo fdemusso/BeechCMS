@@ -1,0 +1,2626 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "action": {
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "back": "Retour",
+      "close": "Fermer",
+      "confirm": "Confirmer"
+    },
+    "saving": "Enregistrement...",
+    "deleting": "Suppression...",
+    "edit": "Modifier",
+    "create": "Créer",
+    "noResults": "Aucun résultat",
+    "error": "Erreur",
+    "retry": "Réessayer",
+    "copied": "ID copié",
+    "copyFailed": "Échec de la copie",
+    "openMenu": "Ouvrir le menu",
+    "selectAll": "Tout sélectionner",
+    "selectRow": "Sélectionner la ligne",
+    "yes": "Oui",
+    "no": "Non",
+    "previous": "Précédent",
+    "selectedOfTotal_one": "{{selected}} sur {{total}} sélectionné",
+    "selectedOfTotal_many": "{{selected}} sur {{total}} sélectionnés",
+    "selectedOfTotal_other": "{{selected}} sur {{total}} sélectionnés",
+    "next": "Suivant"
+  },
+  "status": {
+    "published": "Publié",
+    "draft": "Brouillon",
+    "scheduled": "Planifié",
+    "failed": "Échec",
+    "archived": "Archivé"
+  },
+  "dashboard": {
+    "greeting": {
+      "morning": "Bonjour",
+      "afternoon": "Bon après-midi",
+      "evening": "Bonsoir",
+      "night": "Bonne nuit",
+      "subtitle": "Voici ce qui s’est passé aujourd’hui dans votre espace de travail."
+    },
+    "recentActivity": {
+      "title": "Activité récente",
+      "loading": "Chargement de l’activité...",
+      "empty": "Aucune activité récente enregistrée",
+      "entry": {
+        "create": {
+          "sentence": "<user>{{user}}</user> a créé <target>{{target}}</target>"
+        },
+        "update": {
+          "sentence": "<user>{{user}}</user> a modifié <target>{{target}}</target>"
+        },
+        "delete": {
+          "sentence": "<user>{{user}}</user> a supprimé <target>{{target}}</target>"
+        },
+        "upload": {
+          "sentence": "<user>{{user}}</user> a téléversé <target>{{target}}</target>"
+        },
+        "trash": {
+          "sentence": "<user>{{user}}</user> a déplacé <target>{{target}}</target> dans la Corbeille"
+        },
+        "restore": {
+          "sentence": "<user>{{user}}</user> a restauré <target>{{target}}</target>"
+        },
+        "purge": {
+          "sentence": "<user>{{user}}</user> a supprimé définitivement <target>{{target}}</target>"
+        },
+        "publish": {
+          "sentence": "<user>{{user}}</user> a publié <target>{{target}}</target>"
+        },
+        "discard_draft": {
+          "sentence": "<user>{{user}}</user> a abandonné un brouillon de <target>{{target}}</target>"
+        },
+        "import": {
+          "sentence": "<user>{{user}}</user> a importé <target>{{target}}</target>"
+        },
+        "bulk_update": {
+          "sentence": "<user>{{user}}</user> a modifié <target>{{target}}</target> en masse"
+        }
+      }
+    },
+    "contentPulse": {
+      "noContent": "Aucun contenu trouvé.",
+      "totalDistribution": "Répartition totale",
+      "entries": "{{count}} entrées",
+      "items": "{{count}} éléments"
+    },
+    "widgets": {
+      "activityFeed": {
+        "title": "Activité récente",
+        "empty": "Aucun journal d’activité"
+      },
+      "quickDraft": {
+        "title": "Nouveau brouillon",
+        "createDraft": "Créer un brouillon rapide",
+        "creating": "Création…",
+        "create": "Créer",
+        "draftCreated": "Brouillon créé !",
+        "type": "Type",
+        "errorCreating": "Erreur lors de la création",
+        "fieldLabels": {
+          "title": "Titre",
+          "name": "Nom",
+          "author": "Auteur",
+          "description": "Description"
+        }
+      },
+      "recentContent": {
+        "title": "Contenus récents",
+        "viewAll": "Tout voir →",
+        "noContent": "Aucun contenu",
+        "noContentDesc": "Créez le premier contenu pour le voir ici"
+      },
+      "pendingDrafts": {
+        "title": "Brouillons en attente",
+        "viewAll": "Tout voir",
+        "caption_one": "brouillon en attente",
+        "caption_many": "de brouillons en attente",
+        "caption_other": "brouillons en attente",
+        "noPending": "Aucun brouillon en attente",
+        "publish": "Publier"
+      },
+      "publicationStats": {
+        "today": "Aujourd’hui",
+        "week": "Semaine",
+        "month": "Mois",
+        "total": {
+          "caption": "Contenu total"
+        }
+      },
+      "storage": {
+        "title": "Stockage R2",
+        "gauge": {
+          "caption": "utilisé"
+        },
+        "summary": {
+          "caption": "Total : {{total}} Go"
+        },
+        "noData": "Aucune donnée de stockage"
+      },
+      "error": {
+        "message": "Erreur de chargement",
+        "retry": "Réessayer"
+      },
+      "stat": {
+        "total": {
+          "title": "Contenus totaux",
+          "description": "Toutes les collections"
+        },
+        "visitors": {
+          "title": "Visiteurs uniques",
+          "description": "30 derniers jours (Edge)"
+        },
+        "traffic": {
+          "title": "Trafic total",
+          "description": "Bande passante Edge"
+        },
+        "storage": {
+          "description": "{{percentage}} % sur {{total}} Go"
+        },
+        "formula": {
+          "defaultLabel": "Statistique"
+        }
+      },
+      "chart": {
+        "empty": {
+          "title": "Pas encore de données",
+          "description": "Il n’y a pas assez de données pour tracer ce graphique"
+        },
+        "more": "+{{count}} de plus"
+      },
+      "dateFilter": {
+        "label": "Période",
+        "presets": {
+          "all": "Toute la période",
+          "week": "Cette semaine",
+          "month": "30 derniers jours",
+          "year": "12 derniers mois",
+          "thisMonth": "Ce mois-ci",
+          "lastMonth": "Mois dernier",
+          "thisYear": "Cette année",
+          "custom": "Période personnalisée"
+        }
+      },
+      "dataTable": {
+        "empty": {
+          "title": "Aucune entrée",
+          "description": "Cette collection n’a pas encore d’entrées"
+        }
+      },
+      "mediaGallery": {
+        "title": "Galerie de médias",
+        "all": "Tous",
+        "unused": "Inutilisés",
+        "allInUse": {
+          "title": "Bravo !"
+        },
+        "allInUseDesc": "Tous vos fichiers sont utilisés.",
+        "empty": {
+          "title": "Aucun média"
+        },
+        "emptyDesc": "Téléversez des fichiers pour les voir ici"
+      }
+    },
+    "widgetRegistry": {
+      "unknown": {
+        "sentence": "Widget inconnu : <code>{{type}}</code>"
+      },
+      "disabled": "Widget non disponible dans cette version",
+      "widgets": {
+        "stat": {
+          "label": "Statistique"
+        },
+        "recentActivity": {
+          "label": "Activité récente"
+        },
+        "systemHealth": {
+          "label": "État du système"
+        },
+        "contentPulse": {
+          "label": "Pouls du contenu"
+        },
+        "aiInsights": {
+          "label": "Analyses IA"
+        },
+        "quickActions": {
+          "label": "Actions rapides"
+        },
+        "recentContent": {
+          "label": "Contenus récents"
+        },
+        "quickDraft": {
+          "label": "Brouillon rapide"
+        },
+        "pendingDrafts": {
+          "label": "Brouillons en attente"
+        },
+        "publicationStats": {
+          "label": "Statistiques de publication"
+        },
+        "siteStatus": {
+          "label": "État du site"
+        },
+        "storage": {
+          "label": "Stockage"
+        },
+        "mediaGallery": {
+          "label": "Galerie de médias"
+        },
+        "activityFeed": {
+          "label": "Flux d’activité"
+        },
+        "setupChecklist": {
+          "label": "Liste de configuration"
+        },
+        "lineChart": {
+          "label": "Graphique en courbes"
+        },
+        "barChart": {
+          "label": "Graphique en barres"
+        },
+        "areaChart": {
+          "label": "Graphique en aires"
+        },
+        "pieChart": {
+          "label": "Graphique circulaire"
+        },
+        "dataTable": {
+          "label": "Tableau de données"
+        },
+        "text": {
+          "label": "Texte"
+        }
+      }
+    },
+    "setupChecklist": {
+      "title": "Liste de configuration",
+      "allDone": "Projet prêt : toutes les étapes de configuration sont terminées",
+      "systemTables": {
+        "label": "Base de données initialisée",
+        "hint": "Exécuter : npx beech init --db --local"
+      },
+      "seeds": "{{count}} type(s) de contenu actif(s)",
+      "seedsNone": "Aucun type de contenu configuré dans la base de données",
+      "seedsAction": "Lire le guide des seeds",
+      "contentTables": {
+        "label": "Tables de contenu créées"
+      },
+      "adminAccount": "Compte administrateur créé",
+      "adminAction": "Aller à l’assistant de configuration",
+      "firstContent": "Première entrée de contenu",
+      "firstContentAction": "Créer la première entrée"
+    },
+    "empty": {
+      "title": "Rien à afficher pour l’instant",
+      "description": "Aucun onglet de tableau de bord n’est disponible pour vos rôles et autorisations."
+    },
+    "builder": {
+      "customize": "Personnaliser",
+      "title": "Éditeur de tableau de bord",
+      "saved": "Mise en page du tableau de bord enregistrée.",
+      "firstSaveNeedsRoles": "Seule une personne qui gère les rôles peut créer la première mise en page du tableau de bord.",
+      "conflict": {
+        "title": "La mise en page a été modifiée par quelqu’un d’autre"
+      },
+      "conflictDesc": "Un autre éditeur a enregistré le tableau de bord après que vous l’avez ouvert. Rechargez la dernière version, puis appliquez de nouveau vos modifications. Vos modifications non enregistrées seront perdues.",
+      "save": {
+        "error": "Impossible d’enregistrer la mise en page du tableau de bord."
+      },
+      "reset": "Réinitialiser",
+      "resetDone": "Tableau de bord réinitialisé par défaut.",
+      "resetConfirm": {
+        "title": "Rétablir les valeurs par défaut ?"
+      },
+      "resetConfirmDesc": "Cela supprime la mise en page personnalisée du tableau de bord. La mise en page par défaut sera utilisée.",
+      "showPreview": "Afficher l’aperçu",
+      "hidePreview": "Masquer l’aperçu",
+      "warnNoCrossPageSection": "Déplacez les sections au sein de leur page.",
+      "errorMoveWidget": "Impossible de déplacer le widget vers cette page.",
+      "page": {
+        "add": "Ajouter une page",
+        "rename": "Renommer la page",
+        "delete": "Supprimer la page",
+        "default": {
+          "badge": "Page par défaut"
+        },
+        "setDefault": "Définir par défaut",
+        "newPage": "Nouvelle page"
+      },
+      "audience": {
+        "label": "Visible par",
+        "everyone": {
+          "hint": "Tout le monde · Ajouter un rôle"
+        },
+        "add": "Ajouter un rôle",
+        "search": "Rechercher des rôles…",
+        "empty": "Aucun rôle trouvé.",
+        "deletedRole": "Rôle supprimé",
+        "load": {
+          "error": "Impossible de charger les rôles."
+        }
+      },
+      "section": {
+        "add": "Ajouter une section",
+        "no": {
+          "label": "Sans libellé"
+        },
+        "rename": "Renommer",
+        "hide": {
+          "label": "Masquer le libellé"
+        },
+        "collapsible": "Repliable",
+        "columns": "Colonnes",
+        "duplicate": "Dupliquer",
+        "remove": "Retirer",
+        "widgetCount_one": "{{count}} widget",
+        "widgetCount_many": "{{count}} de widgets",
+        "widgetCount_other": "{{count}} widgets",
+        "widgetCount": "{{count}} widgets",
+        "removeConfirm": "Retirer cette section et ses widgets ?",
+        "dragHandle": "Faites glisser pour déplacer la section"
+      },
+      "widget": {
+        "add": "Ajouter un widget",
+        "configure": "Configurer",
+        "moveToPage": "Déplacer vers la page…",
+        "remove": "Retirer",
+        "needsSetup": "Configuration requise",
+        "duplicate": "Dupliquer",
+        "replaceWith": "Remplacer par…",
+        "rename": "Renommer",
+        "tooNarrow": "Ce widget fonctionne mieux dans une colonne plus large.",
+        "warnFull": "Cette colonne est pleine.",
+        "search": {
+          "placeholder": "Rechercher des widgets…"
+        },
+        "noResults": "Aucun widget trouvé.",
+        "locked": {
+          "label": "Widget indisponible",
+          "hint": "Vous ne pouvez pas voir les données de ce widget. Il reste à sa place."
+        }
+      },
+      "picker": {
+        "categories": {
+          "stats": "Statistiques",
+          "charts": "Graphiques",
+          "content": "Contenu",
+          "system": "Système",
+          "custom": "Personnalisé"
+        }
+      },
+      "config": {
+        "title": "Titre",
+        "noOptions": "Ce widget n’a aucune option configurable.",
+        "seed": {
+          "label": "Type de contenu",
+          "placeholder": "Sélectionner un type de contenu…"
+        },
+        "column": "Colonne",
+        "columnPlaceholder": "Sélectionner une colonne…",
+        "window": "Fenêtre de temps",
+        "windowWeek": "Semaine dernière",
+        "windowMonth": "Mois dernier",
+        "windowYear": "Année dernière",
+        "windowAll": "Toute la période",
+        "formula": "Formule",
+        "formulaOps": {
+          "count": "Nombre",
+          "sum": "Somme",
+          "avg": "Moyenne",
+          "min": "Minimum",
+          "max": "Maximum",
+          "countWhere": "Nombre où",
+          "percentageOf": "Pourcentage de"
+        },
+        "matchValue": "Valeur à comparer",
+        "numerator": "Colonne du numérateur",
+        "denominator": "Colonne du dénominateur",
+        "statKey": "Statistique",
+        "showTrend": "Afficher la tendance",
+        "group": {
+          "column": "Regrouper par colonne"
+        },
+        "color": "Couleur",
+        "donut": "Style anneau",
+        "limit": "Limite",
+        "columns": {
+          "label": "Colonnes",
+          "placeholder": "Noms de colonnes séparés par des virgules (toutes si vide)"
+        },
+        "pageSize": "Taille de page",
+        "orderBy": {
+          "column": "Trier par"
+        },
+        "orderDirection": "Sens du tri",
+        "content": "Contenu",
+        "align": "Alignement",
+        "variant": "Variante",
+        "totalBytes": "Capacité totale (octets)",
+        "variants": {
+          "list": "Liste",
+          "cards": "Cartes",
+          "minimal": "Minimale",
+          "expanded": "Étendue",
+          "counter": "Compteur",
+          "trio": "Trio",
+          "single": "Unique",
+          "badge": "Badge",
+          "pillRow": "Rangée de pastilles",
+          "bar": "Barre",
+          "gauge": "Jauge",
+          "grid": "Grille",
+          "unused": "Inutilisés uniquement",
+          "feed": "Flux",
+          "compact": "Compacte",
+          "full": "Complète",
+          "left": "Gauche",
+          "center": "Centre",
+          "asc": "Croissant",
+          "desc": "Décroissant"
+        }
+      },
+      "warnPageLimit": "Un tableau de bord peut avoir au maximum 8 pages.",
+      "warnSectionLimit": "Une page peut avoir au maximum 50 sections.",
+      "warnColumnFull": "Cette colonne est pleine.",
+      "column": {
+        "drag": "Faites glisser pour déplacer la colonne"
+      }
+    }
+  },
+  "editor": {
+    "bold": "Gras",
+    "italic": "Italique",
+    "underline": "Souligné",
+    "strikethrough": "Barré",
+    "inlineCode": "Code en ligne",
+    "clearFormatting": "Effacer la mise en forme",
+    "moreFormatting": "Plus de mise en forme",
+    "textColor": "Couleur du texte",
+    "undo": "Annuler (Mod+Z)",
+    "redo": "Rétablir (Mod+Y)",
+    "insertElements": "Insérer des éléments",
+    "textStyles": "Styles de texte",
+    "normalText": "Texte normal",
+    "heading1": "Titre 1",
+    "heading2": "Titre 2",
+    "heading3": "Titre 3",
+    "heading4": "Titre 4",
+    "heading5": "Titre 5",
+    "heading6": "Titre 6",
+    "numberedList": "Liste numérotée",
+    "bulletList": "Liste à puces",
+    "blockCode": "Bloc de code",
+    "blockquote": "Citation",
+    "divider": "Séparateur",
+    "listMenu": "Liste"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "groups": {
+      "account": "Compte",
+      "experience": "Expérience",
+      "workspace": "Espace de travail"
+    },
+    "tabs": {
+      "account": "Mon compte",
+      "appearance": "Apparence",
+      "language": "Langue",
+      "site": "Site",
+      "people": "Utilisateurs et rôles",
+      "storage": "Stockage",
+      "notifications": "Notifications",
+      "connectedApps": "Apps connectées"
+    },
+    "sections": {
+      "profile": "Profil",
+      "password": "Mot de passe",
+      "sessions": "Sessions actives",
+      "activity": "Activité récente",
+      "theme": "Thème",
+      "lists": "Listes",
+      "identity": "Identité du site",
+      "regional": "Valeurs régionales",
+      "contentLanguages": "Langues du contenu",
+      "trash": "Corbeille",
+      "users": "Utilisateurs",
+      "invitations": "Invitations",
+      "roles": "Rôles",
+      "usage": "Utilisation",
+      "orphans": "Fichiers orphelins"
+    },
+    "search": "Rechercher des paramètres…",
+    "clearSearch": "Effacer la recherche",
+    "noResults": "Aucun paramètre trouvé",
+    "description": "Gérez votre compte, vos préférences et l’espace de travail.",
+    "resultsCount_one": "{{count}} paramètre trouvé",
+    "resultsCount_many": "{{count}} de paramètres trouvés",
+    "resultsCount_other": "{{count}} paramètres trouvés",
+    "nav": {
+      "label": "Catégories de paramètres"
+    },
+    "logout": "Se déconnecter",
+    "notifications": {
+      "title": "Notifications dans l’app",
+      "description": "Choisissez les événements pour lesquels recevoir des notifications.",
+      "saved": "Préférences de notifications enregistrées",
+      "error": "Erreur lors de l’enregistrement",
+      "contentCreate": {
+        "label": "Nouveau contenu",
+        "description": "Lorsqu’une nouvelle entrée est créée"
+      },
+      "contentUpdate": {
+        "label": "Contenu modifié",
+        "description": "Lorsqu’une entrée est mise à jour ou qu’un brouillon est publié"
+      },
+      "contentDelete": {
+        "label": "Contenu supprimé",
+        "description": "Lorsqu’une entrée est supprimée définitivement"
+      },
+      "mediaUpload": {
+        "label": "Médias téléversés",
+        "description": "Lorsqu’un nouveau fichier est téléversé dans la médiathèque"
+      }
+    },
+    "storage": {
+      "used": {
+        "label": "Espace utilisé"
+      },
+      "files": {
+        "label": "Fichiers stockés"
+      },
+      "orphans": {
+        "label": "Fichiers orphelins",
+        "title": "Fichiers orphelins"
+      },
+      "progress": {
+        "label": "Part du quota gratuit ({{limit}})"
+      },
+      "file": {
+        "column": "Fichier"
+      },
+      "type": {
+        "column": "Type"
+      },
+      "size": {
+        "column": "Taille"
+      },
+      "select": {
+        "column": "Choisir"
+      },
+      "pages": {
+        "label": "Pages de fichiers orphelins"
+      },
+      "orphansList": {
+        "label": "Fichiers orphelins"
+      },
+      "usage": {
+        "title": "Utilisation du stockage"
+      },
+      "usageDesc": "Espace occupé par les fichiers téléversés sur R2.",
+      "orphansDesc": "Fichiers téléversés qu’aucun champ fichier de contenu ne référence, ni en ligne ni en brouillon. Vérifiez avant de supprimer : un fichier peut encore servir ailleurs.",
+      "fileCount": "{{count}} fichiers au total",
+      "referenceVisual": "Cloudflare R2 n’a pas de limite de taille propre : {{limit}} est le quota gratuit mensuel de l’offre, utilisé ici comme référence. Au-delà, le stockage est facturé.",
+      "noOrphans": "Aucun fichier orphelin trouvé",
+      "orphanCount": "{{count}} fichiers orphelins",
+      "pageRange": "{{start}}–{{end}} sur {{total}}",
+      "loadFailed": "Impossible de charger les informations de stockage",
+      "selectOrphan": "Sélectionner {{filename}}",
+      "deleteSelected": "Supprimer {{count}} sélectionnés",
+      "delete": {
+        "title": "Supprimer {{count}} fichiers définitivement ?"
+      },
+      "deleteDesc": "Les fichiers sont retirés du stockage et ne peuvent pas être récupérés. Si un fichier sélectionné est de nouveau référencé ou n’est plus suivi, rien n’est supprimé.",
+      "deleted": "{{count}} fichiers supprimés",
+      "deleteFailed": "Impossible de supprimer les fichiers sélectionnés. La liste a été actualisée : vérifiez-la et réessayez."
+    },
+    "profile": {
+      "info": {
+        "title": "Informations du profil"
+      },
+      "infoDesc": "Mettez à jour votre nom, votre e-mail et votre photo de profil.",
+      "photo": {
+        "label": "Photo"
+      },
+      "removePhoto": "Supprimer la photo",
+      "avatarRemoved": "Photo de profil supprimée",
+      "avatarRemove": {
+        "error": "Erreur lors de la suppression de la photo"
+      },
+      "changePhoto": "Changer la photo",
+      "name": {
+        "label": "Prénom",
+        "placeholder": "Votre prénom"
+      },
+      "surname": {
+        "label": "Nom",
+        "placeholder": "Votre nom"
+      },
+      "email": {
+        "label": "E-mail",
+        "placeholder": "email@exemple.fr"
+      },
+      "saveChanges": "Enregistrer les modifications",
+      "password": {
+        "title": "Changer le mot de passe",
+        "success": "Mot de passe mis à jour",
+        "error": "Le mot de passe actuel est incorrect"
+      },
+      "passwordDesc": "Choisissez un mot de passe sûr d’au moins 8 caractères.",
+      "currentPassword": "Mot de passe actuel",
+      "newPassword": "Nouveau mot de passe",
+      "confirmPassword": "Confirmer le mot de passe",
+      "updatePassword": "Mettre à jour le mot de passe",
+      "saved": {
+        "success": "Profil mis à jour",
+        "error": "Erreur lors de l’enregistrement"
+      },
+      "passwordMismatch": "Les nouveaux mots de passe ne correspondent pas",
+      "avatar": {
+        "success": "Photo de profil mise à jour",
+        "error": "Erreur lors du téléversement de la photo"
+      }
+    },
+    "general": {
+      "siteDefaults": {
+        "title": "Valeurs par défaut du site"
+      },
+      "siteDefaultsDesc": "Définissez la langue, le fuseau horaire et la devise par défaut du site.",
+      "companyInfo": {
+        "title": "Informations sur l’entreprise"
+      },
+      "companyInfoDesc": "Informations légales et de contact de l’entreprise propriétaire du site.",
+      "siteTitleLabel": "Titre du site / Nom de l’entreprise",
+      "siteTitlePlaceholder": "p. ex. Acme Corp",
+      "companyWebsite": {
+        "label": "Site web de l’entreprise",
+        "placeholder": "https://acme.com"
+      },
+      "companyAbbreviation": {
+        "label": "Abréviation de l’entreprise",
+        "placeholder": "p. ex. ACM"
+      },
+      "language": {
+        "label": "Langue par défaut",
+        "placeholder": "Sélectionner la langue par défaut"
+      },
+      "timezone": {
+        "label": "Fuseau horaire par défaut"
+      },
+      "currency": {
+        "label": "Devise par défaut"
+      },
+      "saved": {
+        "success": "Paramètres du site enregistrés avec succès",
+        "error": "Erreur lors de l’enregistrement des paramètres"
+      },
+      "saveChanges": "Enregistrer les modifications",
+      "trash": {
+        "title": "Corbeille"
+      },
+      "trashDesc": "Durée pendant laquelle les entrées supprimées restent dans la Corbeille avant d’être effacées. Un type de contenu peut la remplacer.",
+      "trashRetention": {
+        "label": "Rétention (jours)",
+        "hint": "0 = ne jamais effacer automatiquement."
+      },
+      "trashRetentionInvalid": "La rétention doit être un nombre entier compris entre 0 et {{max}}."
+    },
+    "contentLanguages": {
+      "title": "Langues du contenu",
+      "description": "Langues dans lesquelles votre contenu peut être traduit. La langue par défaut s’affiche partout où une traduction manque.",
+      "makeDefaultAria": "Définir {{language}} comme langue par défaut",
+      "removeAria": "Retirer {{language}} des langues du contenu",
+      "list": {
+        "label": "Langues du contenu utilisées"
+      },
+      "count_one": "{{count}} langue",
+      "count_many": "{{count}} de langues",
+      "count_other": "{{count}} langues",
+      "default": {
+        "badge": "Par défaut"
+      },
+      "makeDefault": "Définir par défaut",
+      "addLabel": "Ajouter une langue",
+      "add": {
+        "placeholder": "p. ex. en, fr, pt-BR",
+        "label": "Ajouter"
+      },
+      "keptOnRemove": {
+        "hint": "Retirer une langue ne supprime jamais ses traductions : elles restent stockées et reviennent si vous la rajoutez."
+      },
+      "errors": {
+        "invalid": "Utilisez un code de langue tel que \"en\", \"fr\" ou \"pt-BR\".",
+        "duplicate": "Cette langue figure déjà dans la liste.",
+        "limit": "Vous pouvez ajouter jusqu’à 50 langues."
+      },
+      "save": "Enregistrer les langues",
+      "saved": {
+        "success": "Langues du contenu enregistrées",
+        "error": "Erreur lors de l’enregistrement des langues du contenu"
+      }
+    },
+    "activity": {
+      "actions": {
+        "create": "Créé",
+        "update": "Modifié",
+        "delete": "Supprimé",
+        "upload": "Téléversé",
+        "bulk_update": "Modification en masse",
+        "security_alert": "Alerte de sécurité",
+        "trash": "Déplacé dans la corbeille",
+        "restore": "Restauré",
+        "purge": "Supprimé définitivement",
+        "publish": "Publié",
+        "discard_draft": "Brouillon abandonné",
+        "import": "Importé",
+        "revoke": "Révoqué",
+        "accept": "Accepté",
+        "authorize": "Autorisé",
+        "login": "Connecté",
+        "login_failed": "Échec de connexion",
+        "logout": "Déconnecté"
+      },
+      "entities": {
+        "content": "Contenu",
+        "media": "Médias",
+        "seed": "Type de contenu",
+        "user": "Compte",
+        "role": "Rôle",
+        "assignment": "Attribution de rôle",
+        "invitation": "Invitation",
+        "settings": "Paramètres du site",
+        "session": "Session",
+        "auth": "Accès",
+        "app": "App connectée",
+        "automation": "Automatisation",
+        "layout": "Mise en page du tableau de bord",
+        "view": "Vue"
+      },
+      "ops": {
+        "profile": "Profil mis à jour",
+        "password": "Mot de passe modifié",
+        "avatar-set": "Photo modifiée",
+        "avatar-removed": "Photo supprimée",
+        "notifications": "Préférences de notifications modifiées",
+        "create": "Compte créé",
+        "activate": "Compte activé",
+        "deactivate": "Compte désactivé",
+        "setup": "Configuration initiale terminée",
+        "password-reset-requested": "Réinitialisation du mot de passe demandée",
+        "password-reset": "Mot de passe réinitialisé",
+        "site": "Paramètres du site modifiés",
+        "regenerate": "Lien d’invitation régénéré",
+        "enable": "Automatisation activée",
+        "disable": "Automatisation désactivée",
+        "reset": "Mise en page réinitialisée",
+        "kanban-move": "Déplacé vers une autre colonne",
+        "rotate-field": "Valeur du champ renouvelée",
+        "orphans": "Fichiers orphelins supprimés",
+        "fts-rebuild": "Index de recherche reconstruit",
+        "hard-delete-start": "Suppression définitive lancée",
+        "mcp-apply": "Schéma appliqué (MCP)",
+        "drop-branch": "Champ supprimé",
+        "drop-orphan": "Colonne orpheline supprimée",
+        "rename-branch": "Champ renommé",
+        "retype-branch": "Type de champ modifié",
+        "draft-saved": "Brouillon enregistré"
+      },
+      "reasons": {
+        "wrong-password": "Mot de passe incorrect",
+        "inactive": "Compte désactivé"
+      },
+      "entries": "{{count}} entrées",
+      "orphans": "{{count}} fichiers orphelins",
+      "detail": {
+        "fields": "Champs : {{fields}}"
+      },
+      "sessionsRevoked": "autres sessions déconnectées",
+      "scope": {
+        "all": "Tout le contenu"
+      }
+    },
+    "security": {
+      "sessions": {
+        "title": "Sessions actives"
+      },
+      "sessionsDesc": "Sessions de connexion actuellement ouvertes pour votre compte.",
+      "sessionActive": "Session active",
+      "sessionInfo": "Créée le {{created}} · Expire le {{expires}}",
+      "revokeSessionAria": "Révoquer la session créée le {{created}}",
+      "revoke": {
+        "title": "Révoquer la session ?",
+        "success": "Session révoquée",
+        "error": "Erreur lors de la révocation de la session"
+      },
+      "revokeDesc": "Cette session sera déconnectée immédiatement.",
+      "revokeConfirm": "Révoquer",
+      "noSessions": "Aucune session active",
+      "activity": {
+        "title": "Activité récente"
+      },
+      "activityDesc": "Dernières actions effectuées dans le CMS avec votre compte.",
+      "noActivity": "Aucune activité enregistrée"
+    },
+    "interface": {
+      "themeRow": {
+        "label": "Jeu de couleurs"
+      },
+      "langRow": {
+        "label": "Langue de l’interface"
+      },
+      "theme": {
+        "title": "Thème"
+      },
+      "themeDesc": "Choisissez l’apparence visuelle de l’interface.",
+      "themeLight": "Clair",
+      "themeDark": "Sombre",
+      "themeSystem": "Système",
+      "lang": {
+        "title": "Langue"
+      },
+      "langDesc": "Langue de l’interface. Appliquée immédiatement.",
+      "rows": {
+        "title": "Contenus par page",
+        "label": "Lignes par page"
+      },
+      "rowsDesc": "Nombre d’éléments affichés dans les listes de contenu.",
+      "rowsSaved": "Préférence enregistrée : appliquée au prochain chargement",
+      "rows10": "10 lignes",
+      "rows20": "20 lignes",
+      "rows50": "50 lignes",
+      "rows100": "100 lignes",
+      "langChanged": "Langue changée en {{language}}"
+    }
+  },
+  "content": {
+    "list": {
+      "subtitle": "Gérer le contenu de « {{slug}} »",
+      "table": "Tableau",
+      "gallery": "Galerie",
+      "kanban": "Kanban",
+      "empty": {
+        "title": "Il n’y a rien ici"
+      },
+      "emptyCreateFirst": "Créez votre premier {{label}}"
+    },
+    "views": {
+      "add": "Ajouter une vue",
+      "delete": "Supprimer la vue",
+      "deleteConfirm": {
+        "title": "Supprimer cette vue ?",
+        "description": "« {{label}} » sera supprimée pour tous ceux qui ont accès à ce type de contenu. Les entrées ne sont pas affectées."
+      },
+      "tabs": {
+        "label": "Vues"
+      },
+      "picker": {
+        "title": "Ajouter une nouvelle vue"
+      },
+      "types": {
+        "chart": "Graphique",
+        "board": "Board",
+        "list": "Liste",
+        "calendar": "Calendrier",
+        "map": "Carte",
+        "timeline": "Chronologie",
+        "feed": "Flux",
+        "form": "Formulaire"
+      },
+      "empty": {
+        "title": "Aucune vue {{label}} pour l’instant",
+        "description": "Créez une vue pour afficher ce contenu sous forme de {{label}}."
+      },
+      "emptyCreate": "Créez votre première vue",
+      "errors": {
+        "loadFailed": "Impossible de charger les vues de ce type de contenu",
+        "createFailed": "Impossible de créer la vue",
+        "saveFailed": "Impossible d’enregistrer la vue",
+        "deleteFailed": "Impossible de supprimer la vue",
+        "lastTable": "Un type de contenu doit conserver au moins une vue Tableau",
+        "reorderFailed": "Impossible d’enregistrer l’ordre des vues"
+      }
+    },
+    "editor": {
+      "newEntry": "Nouveau {{label}}",
+      "editEntry": "Modifier {{label}}",
+      "saving": "Enregistrement...",
+      "status": "Statut",
+      "placeholder": "Écrivez votre contenu ici...",
+      "writeField": "Écrire {{field}}...",
+      "selectDate": "Sélectionner une date",
+      "pendingDraftNotice": "Cette entrée a un brouillon en attente.",
+      "draftModeNotice": "Modification du brouillon en attente : les changements ne seront en ligne qu’après publication.",
+      "saveDraft": "Enregistrer le brouillon",
+      "editDraft": "Modifier le brouillon",
+      "publishDraft": "Publier le brouillon",
+      "publishConfirm": {
+        "title": "Publier ce brouillon ?"
+      },
+      "publishConfirmDesc": "Le brouillon remplace la version en ligne de cette entrée.",
+      "busy": "Attendez la fin de l’opération en cours",
+      "discardDraft": {
+        "label": "Abandonner le brouillon",
+        "title": "Abandonner le brouillon en attente"
+      },
+      "discardDraftDesc": "Cela supprimera définitivement le brouillon en attente. L’entrée publiée reste inchangée. Cette action est irréversible.",
+      "draftPublish": {
+        "success": "Brouillon publié avec succès"
+      },
+      "draftSave": {
+        "success": "Brouillon enregistré"
+      },
+      "draftDiscard": {
+        "success": "Brouillon en attente abandonné"
+      },
+      "unsaved": {
+        "title": "Modifications non enregistrées"
+      },
+      "unsavedDesc": "Vous avez des modifications non enregistrées. Si vous quittez maintenant, elles seront perdues. Voulez-vous continuer ?",
+      "stay": "Rester",
+      "exitWithout": "Quitter sans enregistrer",
+      "seedNotFound": "Seed « {{slug}} » introuvable.",
+      "saved": {
+        "success": "Modifications enregistrées"
+      },
+      "created": {
+        "success": "Entrée créée"
+      },
+      "slugDuplicate": "Ce Slug existe déjà pour ce schéma",
+      "updateConflict": "Cette entrée a été modifiée ailleurs : rechargez pour voir la dernière version",
+      "reload": "Recharger",
+      "save": {
+        "error": "Erreur lors de l’enregistrement"
+      },
+      "validation": {
+        "error_one": "{{count}} champ a une erreur de validation : vérifiez les champs mis en évidence",
+        "error_many": "{{count}} de champs ont des erreurs de validation : vérifiez les champs mis en évidence",
+        "error_other": "{{count}} champs ont des erreurs de validation : vérifiez les champs mis en évidence"
+      },
+      "json": {
+        "error": "Le champ « {{field}} » doit contenir du JSON valide"
+      },
+      "emptyTab": "Cet onglet ne contient pas encore de champs.",
+      "empty": {
+        "column": "Vide"
+      },
+      "localization": {
+        "switcher": {
+          "label": "Langue du contenu"
+        },
+        "default": {
+          "badge": "Par défaut"
+        },
+        "missing": "Pas encore de valeur en {{locale}} : les lecteurs en {{locale}} voient une langue de repli.",
+        "copyFromDefault": "Copier depuis la langue par défaut ({{locale}})"
+      },
+      "relation": {
+        "placeholder": "Sélectionner une entrée liée…",
+        "search": "Rechercher…",
+        "clear": "Effacer la sélection",
+        "empty": "Aucun résultat",
+        "loading": "Chargement…"
+      },
+      "relationMulti": {
+        "add": "Ajouter…",
+        "dragHandle": "Faites glisser pour réorganiser",
+        "remove": "Retirer",
+        "selectedItems": "Éléments sélectionnés",
+        "selectedCount": "{{count}} sélectionnés",
+        "loadMore": "Charger plus",
+        "done": "Terminé"
+      },
+      "name": "Nom",
+      "updated": "Mis à jour",
+      "tabs": {
+        "dangerZone": "Zone de danger"
+      }
+    },
+    "trash": {
+      "open": "Corbeille",
+      "title": "Corbeille — {{type}}",
+      "back": "Retour à la liste",
+      "deletedAt": "Supprimé",
+      "retention": "Rétention",
+      "daysLeft_one": "{{count}} jour restant",
+      "daysLeft_many": "{{count}} de jours restants",
+      "daysLeft_other": "{{count}} jours restants",
+      "neverPurged": "Conservé indéfiniment",
+      "empty": "La Corbeille est vide",
+      "restore": "Restaurer",
+      "purge": "Supprimer définitivement",
+      "selectedCount_one": "{{count}} entrée sélectionnée",
+      "selectedCount_many": "{{count}} d’entrées sélectionnées",
+      "selectedCount_other": "{{count}} entrées sélectionnées",
+      "restored": "Entrée restaurée",
+      "restoredRenamed": "Entrée restaurée avec le Slug « {{slug}} » : le Slug d’origine était déjà pris.",
+      "purged": "Entrée supprimée définitivement",
+      "partialFailure_one": "{{count}} entrée n’a pas pu être traitée",
+      "partialFailure_many": "{{count}} d’entrées n’ont pas pu être traitées",
+      "partialFailure_other": "{{count}} entrées n’ont pas pu être traitées"
+    },
+    "deleteDialog": {
+      "trash": {
+        "title": "Déplacer dans la Corbeille"
+      },
+      "trashSingle": "Déplacer cette entrée « {{type}} » dans la Corbeille ? Vous pourrez la restaurer plus tard.",
+      "trashMultiple": "Déplacer {{count}} entrées « {{type}} » dans la Corbeille ? Vous pourrez les restaurer plus tard.",
+      "trashConfirm": "Déplacer dans la Corbeille",
+      "purge": {
+        "title": "Supprimer définitivement"
+      },
+      "purgeSingle": "Supprimer définitivement cette entrée « {{type}} » ?",
+      "purgeMultiple": "Supprimer définitivement {{count}} entrées « {{type}} » ?",
+      "purgeWarning": "Cette action est irréversible. Les médias joints sont supprimés et la suppression est enregistrée de façon permanente : l’entrée reste supprimée même après une restauration de la base de données.",
+      "purgeConfirm": "Supprimer définitivement",
+      "bulkTrashed_one": "{{count}} entrée déplacée dans la Corbeille",
+      "bulkTrashed_many": "{{count}} d’entrées déplacées dans la Corbeille",
+      "bulkTrashed_other": "{{count}} entrées déplacées dans la Corbeille",
+      "bulkPartialFailure": "{{count}} entrées sur {{total}} n’ont pas pu être déplacées dans la Corbeille. Confirmez pour réessayer."
+    },
+    "undoDelete": {
+      "trashed": "Déplacé dans la Corbeille",
+      "undo": "Annuler",
+      "deleteFailed": "Impossible de supprimer l’entrée",
+      "restoreFailed": "Impossible d’annuler : l’entrée est toujours dans la Corbeille"
+    },
+    "actions": {
+      "label": "Actions",
+      "copyId": "Copier l’ID"
+    },
+    "table": {
+      "status": "Statut",
+      "pendingDraft": "Brouillon en attente",
+      "itemCount_one": "{{count}} élément",
+      "itemCount_many": "{{count}} d’éléments",
+      "itemCount_other": "{{count}} éléments",
+      "created": "Créé",
+      "updated": "Dernière modification",
+      "slug": "Slug"
+    }
+  },
+  "toolbar": {
+    "search": {
+      "placeholder": "Rechercher...",
+      "ariaLabel": "Rechercher",
+      "close": "Fermer la recherche",
+      "open": "Ouvrir la recherche",
+      "unavailable": "La recherche n’est pas disponible pour ce type de contenu"
+    },
+    "sort": {
+      "tooltip": "Trier",
+      "label": "Trier par colonne",
+      "search": {
+        "placeholder": "Rechercher une colonne..."
+      },
+      "noColumns": "Aucune colonne trouvée",
+      "invertOrder": "Inverser l’ordre"
+    },
+    "filter": {
+      "tooltip": "Filtres",
+      "label": "Filtrer par colonne",
+      "search": {
+        "placeholder": "Rechercher une colonne..."
+      },
+      "noColumns": "Aucune colonne trouvée",
+      "ariaLabel": "Filtrer {{label}}",
+      "filtersOn": "Filtres sur « {{label}} »",
+      "remove": {
+        "column": "Retirer la colonne des filtres"
+      },
+      "addFilter": "Ajouter un filtre",
+      "removeAll": "Tout retirer",
+      "removeCondition": "Retirer la condition",
+      "operator": "Opérateur"
+    },
+    "newEntry": {
+      "moreOptions": "Modèles",
+      "templates": {
+        "title": "Modèles pour {{label}}",
+        "description": "Créez un modèle d’entrée réutilisable pour ce type de contenu."
+      },
+      "newTemplate": "Nouveau modèle",
+      "missingPermission": "Vous n’avez pas la permission de créer des entrées ici"
+    },
+    "filterBanner": {
+      "message": "Les filtres sont enregistrés automatiquement pour tous ceux qui peuvent voir cette vue.",
+      "clearAll": "Effacer tous les filtres",
+      "dismiss": "Compris"
+    },
+    "settings": {
+      "selectAxisField": "Sélectionnez un champ de regroupement des cartes dans le menu des paramètres (icône d’engrenage) en haut à droite.",
+      "tooltip": "Paramètres de la vue",
+      "title": "Paramètres de la vue",
+      "viewName": "Nom de la vue",
+      "quickActions": "Actions rapides",
+      "filter": "Filtrer",
+      "sort": "Trier",
+      "layoutStyle": "Mise en page et style",
+      "group": "Regrouper",
+      "groupBy": "Regrouper par colonne",
+      "noGrouping": "Aucun regroupement",
+      "recommended": "Recommandé",
+      "state": {
+        "active": {
+          "badge": "Actif"
+        }
+      },
+      "display": "Affichage",
+      "columnSearch": "Rechercher une colonne...",
+      "noColumns": "Aucune colonne trouvée",
+      "decreaseRows": "Moins de lignes",
+      "increaseRows": "Plus de lignes",
+      "rows": "Lignes",
+      "density": "Densité",
+      "densityCompact": "Compacte",
+      "densityNormal": "Normale",
+      "densityComfortable": "Confortable",
+      "resize": {
+        "column": "Redimensionner la colonne"
+      },
+      "conditionalColors": "Couleurs conditionnelles",
+      "visibleColumns": "Colonnes visibles",
+      "columnVisibility": "Visibilité des colonnes",
+      "otherFields": "Autres champs",
+      "manyGroups": "Peut générer de nombreux groupes",
+      "day": "Jour",
+      "year": "Année",
+      "month": "Mois"
+    },
+    "conditionalFormats": {
+      "noRules": "Aucune règle",
+      "add": "Ajouter",
+      "moveUp": "Monter",
+      "moveDown": "Descendre",
+      "deleteRule": "Supprimer la règle",
+      "ruleName": "Nom de la règle",
+      "removeCondition": "Retirer la condition",
+      "addCondition": "Ajouter une condition",
+      "operator": "Opérateur",
+      "colorPreset": "Couleur prédéfinie",
+      "bold": "Gras",
+      "italic": "Italique",
+      "underline": "Souligné",
+      "addRule": "Ajouter une règle",
+      "rulesList": "Liste des règles",
+      "editRule": "Modifier la règle",
+      "toggleRule": "Activer/désactiver la règle",
+      "applyTo": "Appliquer à",
+      "field": "Champ",
+      "element": "Élément entier",
+      "condition": {
+        "heading": "Condition de couleur"
+      },
+      "style": {
+        "heading": "Style de mise en forme"
+      },
+      "default": "Par défaut",
+      "notAvailable": "Configuration indisponible",
+      "selectRule": "Sélectionnez une règle dans la liste.",
+      "choose": {
+        "column": "Choisir une colonne"
+      },
+      "noColumns": "Aucune colonne disponible"
+    },
+    "operators": {
+      "eq": "Est égal à",
+      "is_not_empty": "N’est pas vide",
+      "is_empty": "Est vide",
+      "gt": "Supérieur à",
+      "lt": "Inférieur à",
+      "gte": "Supérieur ou égal",
+      "lte": "Inférieur ou égal",
+      "contains": "Contient"
+    },
+    "conditionInput": {
+      "value": "Valeur...",
+      "choose": "Choisir...",
+      "tag": "Tag...",
+      "true": "Vrai",
+      "false": "Faux"
+    },
+    "automation": "Automatisation"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "all": "Toutes",
+    "new": "Nouvelles",
+    "noNotifications": "Aucune notification",
+    "noNotificationsNew": "Vous n’avez aucune nouvelle notification.",
+    "noNotificationsAll": "Aucune notification à afficher.",
+    "markSeen": "Marquer comme lue",
+    "markUnseen": "Marquer comme non lue",
+    "ariaLabel": "Notifications",
+    "unreadCount": "Vous avez {{count}} notifications non lues",
+    "noUnread": "Aucune notification non lue"
+  },
+  "commandPalette": {
+    "navigate": "Naviguer",
+    "contents": "Contenus",
+    "create": "Créer",
+    "tools": "Outils",
+    "calculator": "Calculatrice",
+    "conversion": "Conversion",
+    "calculatorResult": "{{expression}} = {{result}}",
+    "conversionResult": "{{from}} = {{to}}",
+    "copy": {
+      "hint": "Entrée pour copier"
+    },
+    "copied": "{{value}} copié",
+    "conversionHint": {
+      "css": "Base {{base}}px · Entrée pour copier",
+      "storage": "1 KB = 1000 B, 1 KiB = 1024 B · Entrée pour copier",
+      "unixSeconds": "Secondes Unix, UTC · Entrée pour copier",
+      "unixMillis": "Millisecondes Unix, UTC · Entrée pour copier"
+    },
+    "goTo": "Aller à {{label}}…",
+    "allSeeds": "Tous les seeds…",
+    "chooseType": "Créer dans…",
+    "recentSection": "Récents",
+    "createIn": "Créer dans {{label}}",
+    "chooseSeed": "Choisir un Seed",
+    "newContent": "Nouveau contenu…",
+    "changeTheme": "Changer de thème",
+    "searching": "Recherche…",
+    "untitledEntry": "Sans titre",
+    "settings": "Paramètres",
+    "settingsAll": "Paramètres…",
+    "schema": "Modèle de données",
+    "newContentType": "Nouveau type de contenu…",
+    "editContentType": "Modifier le type de contenu…",
+    "editSchemaOf": "Modifier le schéma de {{label}}",
+    "chooseContentType": "Choisir un type de contenu",
+    "placeholderEditSchema": "Quel type de contenu modifier ?",
+    "placeholderSettings": "Quels paramètres ouvrir ?",
+    "requiresPermission": "Nécessite la permission {{permission}}",
+    "placeholderRoot": "Rechercher des actions, du contenu, des seeds…",
+    "placeholderSeeds": "Aller à quel seed ?",
+    "placeholderCreate": "Créer du contenu dans quel seed ?",
+    "back": {
+      "hint": "← Retour arrière pour revenir"
+    },
+    "copyId": "Copier l’ID",
+    "actions": {
+      "hint": "Actions"
+    },
+    "placeholderActions": "Choisir une action…",
+    "placeholderShortcuts": "Filtrer les raccourcis…",
+    "noResults": "Aucun résultat",
+    "ariaLabel": "Palette de commandes globale",
+    "notes": {
+      "section": "Notes rapides",
+      "compose": "Nouvelle note",
+      "save": "Enregistrer la note : {{text}}",
+      "browserOnly": "Enregistrée uniquement dans ce navigateur",
+      "typeToSave": "Saisissez la note après #",
+      "tooLong": "Trop longue : {{length}}/{{max}} caractères",
+      "full": "{{max}} notes enregistrées : supprimez-en une pour en enregistrer une nouvelle",
+      "unavailable": "Impossible d’enregistrer les notes : le stockage du navigateur est indisponible",
+      "saved": "Note enregistrée uniquement dans ce navigateur",
+      "saveFailed": "Note non enregistrée : le navigateur a refusé de la stocker",
+      "delete": "Supprimer la note",
+      "deleted": "Note supprimée",
+      "undo": "Annuler",
+      "restored": "Note restaurée",
+      "deleteFailed": "Note non supprimée : le navigateur a refusé la modification"
+    },
+    "pins": {
+      "section": "Épinglés",
+      "pin": "Épingler en haut",
+      "unpin": "Désépingler",
+      "pinned": "Épinglé : {{label}}",
+      "unpinned": "Désépinglé : {{label}}",
+      "full": "{{max}} éléments épinglés : désépinglez-en un pour en épingler un autre",
+      "saveFailed": "Épingles non enregistrées : réessayez. Votre liste est inchangée",
+      "unavailable": {
+        "label": "Élément indisponible",
+        "hint": "{{id}} · Entrée retire l’épingle"
+      }
+    },
+    "context": {
+      "targetGone": "La page a changé avant votre confirmation : rien n’a été fait"
+    },
+    "preferences": {
+      "section": "Préférences",
+      "switchLanguage": "Passer le tableau de bord en {{language}}",
+      "notify": "Notifications : {{event}}"
+    },
+    "system": {
+      "section": "Système",
+      "status": "État du système",
+      "statusHealthy": "Dans les quotas · Stockage {{storage}} % · Base de données {{database}} %",
+      "statusWarning": "Proche d’un quota · Stockage {{storage}} % · Base de données {{database}} %",
+      "statusUnavailable": "Impossible de lire l’état du système"
+    },
+    "shortcuts": {
+      "title": "Raccourcis clavier",
+      "global": "Partout",
+      "palette": "Dans la palette",
+      "prefixes": "Préfixes",
+      "togglePalette": "Ouvrir ou fermer la palette",
+      "quickCreate": "Créer du contenu",
+      "toggleSidebar": "Afficher ou masquer la barre latérale",
+      "toggleTheme": "Basculer entre thème clair et sombre",
+      "newSeed": "Créer un type de contenu",
+      "run": "Exécuter la ligne sélectionnée",
+      "firstAction": "Exécuter la première action de la ligne",
+      "rowActions": "Afficher les actions de la ligne",
+      "back": "Retour (saisie vide)",
+      "close": "Retour ou fermer",
+      "prefixSystem": "Commandes et préférences système",
+      "prefixCalculator": "Calculatrice",
+      "prefixNotes": "Notes rapides",
+      "prefixContent": "Rechercher uniquement du contenu"
+    }
+  },
+  "gallery": {
+    "noItems": "Aucun élément à afficher",
+    "noItemsDesc": "Aucun contenu n’est disponible pour cette vue galerie.",
+    "untitled": "Sans titre",
+    "preview": "Aperçu",
+    "imageUnavailable": "Image indisponible",
+    "openDetail": {
+      "ariaLabel": "Ouvrir le détail : {{title}}"
+    },
+    "openDetailAriaLabelFallback": "Ouvrir le détail de l’entrée {{id}}",
+    "folders": {
+      "section": {
+        "ariaLabel": "Dossiers"
+      },
+      "empty": {
+        "title": "Vous n’avez pas encore de dossiers",
+        "description": "Ajoutez la première photo et définissez sa catégorie : les dossiers apparaîtront ici."
+      },
+      "uncategorized": "Autres photos",
+      "itemCount": "{{count}} {{label}}",
+      "open": {
+        "ariaLabel": "Ouvrir le dossier {{label}}, {{count}}"
+      },
+      "edit": {
+        "title": "Personnaliser le dossier",
+        "label": "Nom",
+        "description": "Description",
+        "color": "Couleur",
+        "icon": "Icône",
+        "reset": "Réinitialiser",
+        "open": {
+          "ariaLabel": "Modifier le dossier {{label}}"
+        },
+        "colors": {
+          "slate": "Ardoise",
+          "red": "Rouge",
+          "orange": "Orange",
+          "amber": "Ambre",
+          "green": "Vert",
+          "teal": "Sarcelle",
+          "blue": "Bleu",
+          "violet": "Violet",
+          "pink": "Rose"
+        },
+        "icons": {
+          "Folder": "Dossier",
+          "Star": "Étoile",
+          "Heart": "Cœur",
+          "Image": "Image",
+          "Camera": "Appareil photo",
+          "Calendar": "Calendrier",
+          "Tag": "Tag",
+          "Bookmark": "Signet",
+          "Home": "Maison",
+          "Gift": "Cadeau",
+          "Video": "Vidéo",
+          "Music": "Musique",
+          "Book": "Livre",
+          "Flag": "Drapeau",
+          "Briefcase": "Mallette",
+          "Users": "Personnes",
+          "Sun": "Soleil",
+          "Crown": "Couronne"
+        }
+      }
+    }
+  },
+  "siteHeader": {
+    "new": "Nouveau"
+  },
+  "sidebar": {
+    "search": "Rechercher…",
+    "navigation": "Principal",
+    "contents": "Contenus",
+    "drafts": "Brouillons",
+    "contentGroup": "Contenu",
+    "createNew": "Créer",
+    "scheduled": "Planifiés",
+    "analytics": "Analyses",
+    "studio": "Studio",
+    "disabled": {
+      "createContent": "Vous ne pouvez pas créer de contenu ici"
+    }
+  },
+  "drafts": {
+    "title": "Brouillons",
+    "subtitle": "Tous les brouillons en attente de votre contenu",
+    "columns": {
+      "seed": "Type",
+      "name": "Nom",
+      "updatedAt": "Dernière modification",
+      "user": "Modifié par"
+    },
+    "actions": {
+      "edit": "Modifier",
+      "publish": "Publier",
+      "discard": "Abandonner",
+      "create": "Nouveau brouillon"
+    },
+    "selectType": "Sélectionner le type de contenu",
+    "empty": "Aucun brouillon en attente",
+    "discardConfirm": "Abandonner ce brouillon ? Cette action est irréversible.",
+    "published": "Brouillon publié",
+    "discarded": "Brouillon abandonné",
+    "error": "Échec de l’action"
+  },
+  "media": {
+    "imageLink": "Lien de l’image",
+    "removeImage": "Retirer l’image",
+    "errorNotImage": "Sélectionnez une image (JPG, PNG, WebP, GIF)",
+    "errorHttps": "L’URL doit commencer par https://",
+    "errorNotRenderable": "URL non affichable comme image",
+    "upload": "Téléverser un fichier"
+  },
+  "login": {
+    "hidePassword": "Masquer le mot de passe",
+    "showPassword": "Afficher le mot de passe",
+    "signingIn": "Connexion...",
+    "forgotPassword": "Mot de passe oublié ?"
+  },
+  "forgotPassword": {
+    "title": "Mot de passe oublié",
+    "desc": "Saisissez votre adresse e-mail et nous vous enverrons un lien de réinitialisation.",
+    "email": "E-mail",
+    "emailRequired": "Saisissez votre e-mail",
+    "emailInvalid": "Adresse e-mail invalide",
+    "send": "Envoyer le lien de réinitialisation",
+    "sending": "Envoi...",
+    "backToLogin": "Retour à la connexion",
+    "success": {
+      "title": "Consultez votre boîte de réception"
+    },
+    "successDesc": "Si un compte existe pour cet e-mail, vous recevrez bientôt un lien de réinitialisation."
+  },
+  "resetPassword": {
+    "title": "Définir un nouveau mot de passe",
+    "desc": "Choisissez un mot de passe sûr d’au moins 8 caractères.",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "reset": "Réinitialiser le mot de passe",
+    "resetting": "Réinitialisation...",
+    "mismatch": "Les mots de passe ne correspondent pas",
+    "tooShort": "Le mot de passe doit contenir au moins 8 caractères",
+    "tooLong": "Le mot de passe ne peut pas dépasser 128 caractères",
+    "invalidToken": "Ce lien de réinitialisation est invalide ou a expiré",
+    "invalidLink": {
+      "title": "Lien invalide",
+      "label": "Ce lien de réinitialisation n’est pas valide. Demandez-en un nouveau."
+    },
+    "requestNew": "Demander un nouveau lien",
+    "success": "Mot de passe réinitialisé avec succès",
+    "generic": {
+      "error": "Une erreur s’est produite. Veuillez réessayer."
+    }
+  },
+  "errorPage": {
+    "title": "Oups, une erreur s’est produite",
+    "backHome": "Retour à l’accueil",
+    "unknown": "Erreur inconnue"
+  },
+  "automations": {
+    "panel": {
+      "title": "Automatisations",
+      "new": {
+        "button": "Nouvelle automatisation"
+      },
+      "empty": {
+        "title": "Aucune automatisation",
+        "description": "Créez la première automatisation pour ce type de contenu"
+      },
+      "emptyAction": "Créer une automatisation",
+      "toggle": {
+        "ariaLabel": "Activer/désactiver l’automatisation"
+      }
+    },
+    "editor": {
+      "name": {
+        "placeholder": "Nom de l’automatisation"
+      },
+      "subtitle": "Pour toutes les entrées de {{seed}}",
+      "trigger": {
+        "label": "Quand"
+      },
+      "actions": {
+        "label": "Faire"
+      },
+      "addCondition": "Ajouter une condition",
+      "addAction": "+ Ajouter une action",
+      "enable": {
+        "button": "Activer"
+      },
+      "noActions": "Aucune action pour l’instant. Ajoutez-en une ci-dessous.",
+      "triggerSelect": {
+        "placeholder": "Choisir un déclencheur..."
+      },
+      "addTrigger": "Ajouter un déclencheur",
+      "search": {
+        "placeholder": "Rechercher..."
+      },
+      "cron": {
+        "hint": "Format Cron : minute heure jour mois jour de la semaine — p. ex. 0 9 * * 1 = tous les lundis à 9:00",
+        "title": "Fréquence",
+        "presetHourly": "Toutes les heures",
+        "presetDaily": "Quotidienne",
+        "presetWeekly": "Hebdomadaire",
+        "presetMonthly": "Mensuelle",
+        "presetAdvanced": "Cron / Avancé",
+        "time": {
+          "label": "Heure d’exécution (UTC)"
+        },
+        "dayOfWeek": {
+          "label": "Jour de la semaine"
+        },
+        "dayOfMonth": {
+          "label": "Jour du mois"
+        },
+        "days": {
+          "0": "Dimanche",
+          "1": "Lundi",
+          "2": "Mardi",
+          "3": "Mercredi",
+          "4": "Jeudi",
+          "5": "Vendredi",
+          "6": "Samedi"
+        }
+      },
+      "conditionField": "Champ",
+      "defaultName": "Automatisation de {{name}}",
+      "errors": {
+        "nameRequired": "Le nom est obligatoire",
+        "actionsMin": "Au moins une action est requise",
+        "triggersMin": "Au moins un déclencheur est requis",
+        "triggerEventRequired": "Sélectionnez un événement pour ce déclencheur",
+        "cronRequired": "L’expression Cron est obligatoire",
+        "urlRequired": "L’URL est obligatoire",
+        "urlInvalid": "URL invalide",
+        "emailRequired": "L’e-mail est obligatoire",
+        "emailInvalid": "E-mail invalide",
+        "subjectRequired": "L’objet est obligatoire",
+        "bodyRequired": "Le corps est obligatoire",
+        "fieldRequired": "Le champ est obligatoire",
+        "seedRequired": "Le Seed est obligatoire",
+        "variableNameInvalid": "Le nom de la variable doit être alphanumérique avec des underscores",
+        "variableNameReserved": "Ce nom est réservé par le moteur de modèles",
+        "webhookHttpsRequired": "Seules les URL HTTPS sont autorisées",
+        "webhookPrivateHostBlocked": "Les hôtes privés, loopback et link-local ne sont pas autorisés"
+      }
+    },
+    "triggers": {
+      "create": "Entrée créée",
+      "update": "Entrée mise à jour",
+      "delete": "Entrée supprimée",
+      "cron": "Planifié (Cron)"
+    },
+    "ops": {
+      "eq": "est égal à",
+      "neq": "n’est pas égal à",
+      "contains": "contient",
+      "gt": "supérieur à",
+      "lt": "inférieur à",
+      "isempty": "est vide",
+      "isnotempty": "n’est pas vide"
+    },
+    "actions": {
+      "webhook": "Webhook",
+      "send_mail": "Envoyer un e-mail",
+      "edit_field": "Modifier le champ",
+      "create_entry": "Créer une entrée",
+      "templateHint": "Utilisez {{example}} pour insérer des valeurs de champ",
+      "webhookUrl": "URL",
+      "webhookMethod": "Méthode HTTP",
+      "webhookHeaders": "Headers",
+      "webhookBody": {
+        "label": "Modèle du corps"
+      },
+      "webhookSecret": {
+        "hint": "Beech signe chaque requête avec HMAC-SHA256 dans le header X-BeechCMS-Signature. Définissez WEBHOOK_SECRET dans le worker pour activer la signature. Vérifiez la signature côté récepteur avant de traiter le payload."
+      },
+      "addHeader": "Ajouter un header",
+      "webhookHeaderKey": {
+        "placeholder": "Header"
+      },
+      "webhookHeaderValue": {
+        "placeholder": "Valeur"
+      },
+      "mailTo": {
+        "label": "À",
+        "placeholder": "destinataire@exemple.fr"
+      },
+      "mailSubject": {
+        "label": "Objet",
+        "placeholder": "Nouvelle entrée : {{example}}"
+      },
+      "mailBody": {
+        "label": "Corps",
+        "placeholder": "Bonjour,\n\nUne nouvelle entrée a été créée : {{example}}"
+      },
+      "editField": {
+        "label": "Champ",
+        "placeholder": "Choisir un champ..."
+      },
+      "editValue": {
+        "label": "Valeur"
+      },
+      "targetSeed": {
+        "label": "Seed cible",
+        "placeholder": "Choisir un seed..."
+      },
+      "fieldMap": "Correspondance des champs",
+      "fieldMapTarget": "Champ cible",
+      "fieldMapSource": "Champ source",
+      "addFieldMap": "Ajouter une correspondance",
+      "set_variable": "Définir une variable",
+      "variableName": {
+        "label": "Nom de la variable",
+        "hint": "Lettres, chiffres et underscores uniquement. P. ex. : client, commandes_actives"
+      },
+      "source": {
+        "label": "Source",
+        "placeholder": "Choisir une table ou coller un ID..."
+      },
+      "triggerSeed": {
+        "badge": "Ce seed"
+      },
+      "useAsFixedId": "Utiliser « {{value}} » comme ID fixe",
+      "fixedId": {
+        "badge": "ID : {{id}}"
+      },
+      "column": "Colonne (facultatif)",
+      "columnAll": "— toutes les colonnes —",
+      "filters": "Filtres",
+      "noFilters": "Aucun filtre. Tous les enregistrements seront chargés.",
+      "filterTemplateHint": "Les valeurs peuvent utiliser des modèles : {{this.field}}, {{variable.field}}",
+      "templateHintTitle": "Accès au modèle",
+      "hintCollection": "{{varname}}                          → objet complet\n{{varname.firstone.field}}           → champ du premier enregistrement\n{{varname.count}}                    → nombre de lignes\n{{varname.sum.field}}                → somme de la colonne\n{{varname.count.(status=active)}}    → nombre filtré",
+      "hintFixed": "{{varname}}                          → objet entier (ou null)\n{{varname.field}}                    → valeur de la colonne"
+    },
+    "toast": {
+      "created": "Automatisation créée",
+      "updated": "Automatisation mise à jour",
+      "deleted": "Automatisation supprimée",
+      "toggled": "Automatisation mise à jour",
+      "error": "Échec de l’opération"
+    },
+    "when": {
+      "and": "ET",
+      "or": "OU",
+      "not": "NON",
+      "addCondition": "Ajouter une condition",
+      "removeGroup": "Retirer le groupe",
+      "wrapGroup": "Grouper avec une alternative",
+      "field": {
+        "placeholder": "Champ..."
+      },
+      "customRef": "Référence personnalisée...",
+      "value": {
+        "placeholder": "Valeur..."
+      },
+      "true": "Vrai",
+      "false": "Faux",
+      "chooseDate": "Choisir une date...",
+      "chooseTag": "Choisir une valeur...",
+      "ops": {
+        "eq": "est égal à",
+        "neq": "n’est pas égal à",
+        "gt": "supérieur à",
+        "gte": "supérieur ou égal",
+        "lt": "inférieur à",
+        "lte": "inférieur ou égal",
+        "contains": "contient",
+        "startswith": "commence par",
+        "endswith": "se termine par",
+        "in": "est dans la liste",
+        "notin": "n’est pas dans la liste",
+        "isempty": "est vide",
+        "isnotempty": "n’est pas vide",
+        "matches": "correspond à la regex"
+      }
+    }
+  },
+  "backrefs": {
+    "title": "Référencé par",
+    "summary_one": "1 entrée y fait référence",
+    "summary_many": "{{count}} d’entrées y font référence",
+    "summary_other": "{{count}} entrées y font référence",
+    "showAll": "Afficher les {{count}}",
+    "deleteBlocked": "Suppression impossible : {{count}} entrées dépendent de cet enregistrement"
+  },
+  "bulkEdit": {
+    "trigger": "Modifier la sélection",
+    "title": "Modifier {{count}} entrées",
+    "pickField": "Choisir un champ à mettre à jour",
+    "mode": {
+      "replace": "Remplacer",
+      "add": "Ajouter",
+      "remove": "Retirer"
+    },
+    "confirm": "Mettre à jour {{count}} entrées ?",
+    "executing": "Mise à jour…",
+    "successAll": "{{count}} entrées mises à jour",
+    "successPartial": "{{updated}} sur {{total}} mises à jour. {{failed}} ont échoué.",
+    "downloadReport": "Télécharger le rapport d’échecs"
+  },
+  "setup": {
+    "title": "Bienvenue dans Beech CMS",
+    "subtitle": "Configurez votre espace de travail en quelques étapes.",
+    "step1": {
+      "title": "Paramètres du site"
+    },
+    "step2": {
+      "title": "Identifiants administrateur"
+    },
+    "step3": {
+      "title": "Configuration finale"
+    },
+    "language": {
+      "label": "Langue par défaut"
+    },
+    "timezone": {
+      "label": "Fuseau horaire",
+      "placeholder": "Sélectionner le fuseau horaire"
+    },
+    "searchTimezone": {
+      "placeholder": "Rechercher un fuseau horaire..."
+    },
+    "noTimezoneFound": "Aucun fuseau horaire trouvé.",
+    "currency": {
+      "label": "Devise",
+      "placeholder": "Sélectionner la devise"
+    },
+    "devAlert": {
+      "title": "Environnement de développement détecté"
+    },
+    "devAlertDesc": "Vous configurez Beech en mode développeur.",
+    "switchToNormal": "Passer à la configuration normale",
+    "switchToDeveloper": "Passer à la configuration développeur",
+    "name": {
+      "label": "Prénom",
+      "placeholder": "Votre prénom"
+    },
+    "surname": {
+      "label": "Nom",
+      "placeholder": "Votre nom"
+    },
+    "email": {
+      "label": "E-mail",
+      "placeholder": "admin@exemple.fr"
+    },
+    "password": {
+      "label": "Mot de passe",
+      "placeholder": "8 caractères minimum"
+    },
+    "confirm": {
+      "label": "Confirmer le mot de passe",
+      "placeholder": "Répétez le mot de passe"
+    },
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
+    "strengthWeak": "Faible",
+    "strengthFair": "Moyen",
+    "strengthStrong": "Fort",
+    "services": {
+      "title": "Services détectés"
+    },
+    "serviceMail": "E-mail",
+    "serviceQstash": "QStash",
+    "serviceActive": "Actif",
+    "serviceInactive": "Non configuré",
+    "loadDemo": {
+      "label": "Charger du contenu de démonstration dans la base de données"
+    },
+    "companyName": {
+      "label": "Nom de l’entreprise",
+      "placeholder": "Acme Corp"
+    },
+    "companyWebsite": {
+      "label": "Site web de l’entreprise",
+      "placeholder": "https://exemple.fr"
+    },
+    "companyAbbreviation": {
+      "label": "Abréviation (facultatif)",
+      "placeholder": "ACM"
+    },
+    "buttonNext": "Suivant",
+    "buttonFinish": "Terminer la configuration",
+    "loadingAccount": "Création de votre compte…",
+    "loadingDemo": "Chargement des données de démonstration…",
+    "errorFallback": "La configuration a échoué. Veuillez réessayer.",
+    "passwordMismatch": "Les mots de passe ne correspondent pas.",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères.",
+    "emailInvalid": "Veuillez saisir une adresse e-mail valide.",
+    "companyNameRequired": "Le nom de l’entreprise est obligatoire.",
+    "companyWebsiteRequired": "Veuillez saisir une URL valide pour le site web."
+  },
+  "layoutBuilder": {
+    "editLayout": "Modifier la mise en page",
+    "reset": "Réinitialiser",
+    "resetConfirm": {
+      "title": "Rétablir les valeurs par défaut ?"
+    },
+    "resetConfirmDesc": "Cela supprime la mise en page personnalisée. La mise en page par défaut sera utilisée.",
+    "resetDone": "Mise en page réinitialisée par défaut.",
+    "saved": "Mise en page enregistrée.",
+    "save": {
+      "error": "Impossible d’enregistrer la mise en page."
+    },
+    "addSection": "Ajouter une section",
+    "addField": "Ajouter un champ",
+    "dragHandle": "Faites glisser pour déplacer le champ",
+    "removeField": "Retirer de la mise en page",
+    "drag": {
+      "column": "Faites glisser pour déplacer la colonne"
+    },
+    "dragSection": "Faites glisser pour déplacer la section",
+    "addTab": "Ajouter un onglet",
+    "searchFields": "Rechercher des champs…",
+    "noFields": "Aucun champ disponible.",
+    "no": {
+      "label": "Sans libellé"
+    },
+    "fieldCount_one": "{{count}} champ",
+    "fieldCount_many": "{{count}} de champs",
+    "fieldCount_other": "{{count}} champs",
+    "fieldCount": "{{count}} champs",
+    "sectionMenu": {
+      "rename": "Renommer",
+      "hide": {
+        "label": "Masquer le libellé"
+      },
+      "hideBorder": "Masquer la bordure",
+      "collapsible": "Repliable",
+      "columns": "Colonnes",
+      "remove": "Retirer"
+    },
+    "tabMenu": {
+      "rename": "Renommer l’onglet",
+      "setDefault": "Définir par défaut",
+      "delete": "Supprimer l’onglet"
+    },
+    "warnFullWidth": "{{label}} nécessite une section dédiée pleine largeur.",
+    "warnNoCrossTabSection": "Déplacez les sections au sein de leur onglet.",
+    "warnFullWidthColumns": "Cette section contient un champ pleine largeur. Le nombre de colonnes ne peut pas être modifié.",
+    "defaultTab": {
+      "badge": "Par défaut"
+    }
+  },
+  "fields": {
+    "tags": {
+      "empty": "Aucune valeur sélectionnée",
+      "menu": {
+        "title": "Choisir parmi les options"
+      },
+      "allSelected": "Toutes les options sont déjà sélectionnées.",
+      "add": "Choisir une valeur",
+      "remove": "Retirer {{value}}",
+      "notInOptions": "{{value}} — absent des options"
+    },
+    "restricted": "Restreint",
+    "relation": {
+      "moreItems": "{{count}} de plus"
+    },
+    "repeater": {
+      "addItem": "Ajouter un élément",
+      "removeItem": "Retirer l’élément",
+      "dragHandle": "Faites glisser pour réorganiser",
+      "emptyState": "Aucun élément pour l’instant. Utilisez « Ajouter un élément » pour commencer.",
+      "item": "Élément",
+      "itemsCount": "{{count}} élément",
+      "itemsCount_many": "{{count}} d’éléments",
+      "itemsCount_other": "{{count}} éléments"
+    }
+  },
+  "seedBuilder": {
+    "page": {
+      "subtitle": "Gérez vos types de contenu définis à l’exécution.",
+      "new": {
+        "button": "Nouveau type de contenu"
+      },
+      "showDeleted": "Afficher les supprimés",
+      "nav": {
+        "title": "Types de contenu"
+      }
+    },
+    "table": {
+      "label": "Libellé",
+      "slug": "Slug",
+      "branches": "Champs",
+      "source": "Source",
+      "status": "Statut",
+      "actions": "Actions",
+      "sourceCode": "Défini dans le code",
+      "sourceRuntime": "Créé ici",
+      "statusActive": "Actif",
+      "statusDeleted": "Supprimé",
+      "deleted": "Supprimé"
+    },
+    "editor": {
+      "create": {
+        "title": "Nouveau type de contenu",
+        "success": "« {{label}} » créé avec succès."
+      },
+      "edit": {
+        "title": "Modifier — {{label}}"
+      },
+      "tabGeneral": "Général",
+      "tabFields": "Champs",
+      "tabDashboard": "Tableau de bord",
+      "slug": "Slug",
+      "label": "Libellé",
+      "labelPlaceholder": "Article",
+      "labelPlural": {
+        "label": "Libellé (pluriel)",
+        "placeholder": "Articles"
+      },
+      "displayNameAlias": {
+        "label": "Champ du nom affiché",
+        "placeholder": "Sélectionner un champ"
+      },
+      "displayNameSearch": "Rechercher des champs…",
+      "displayNameEmpty": "Aucun champ trouvé.",
+      "allowPublicRead": "Lire",
+      "allowPublicPost": "Créer",
+      "allowPublicEdit": "Modifier",
+      "allowDrafts": "Activer les brouillons",
+      "dashGroup": "Groupe de la barre latérale",
+      "dashOrder": {
+        "label": "Ordre de tri",
+        "hint": "Les nombres les plus petits viennent en premier dans le groupe. Vide signifie en dernier (99)."
+      },
+      "dashHidden": "Masquer de la barre latérale",
+      "dash": {
+        "description": "Description"
+      },
+      "dashDescriptionPlaceholder": "Courte infobulle affichée dans la barre latérale",
+      "dashViewsSection": "Vues autorisées",
+      "dashGroupSearch": "Rechercher ou créer un groupe…",
+      "group": {
+        "default": {
+          "badge": "Par défaut"
+        }
+      },
+      "dashGroupCreate": "Créer « {{name}} »",
+      "dashPreview": "Aperçu dans la barre latérale",
+      "dashPreviewNew": "Nouveau type de contenu",
+      "dashPreviewMore": "{{count}} de plus",
+      "dashPreviewHidden": "Masqué : il n’apparaîtra pas dans la barre latérale.",
+      "viewGroups": {
+        "browse": "Parcourir",
+        "organize": "Organiser",
+        "plan": "Temps et lieu",
+        "insight": "Analyse et saisie"
+      },
+      "selectIcon": "Sélectionner une icône",
+      "searchIcons": "Rechercher des icônes...",
+      "noIconsFound": "Aucune icône trouvée",
+      "publicAccess": {
+        "title": "Accès public",
+        "description": "Pour les visiteurs anonymes, via l’API publique. Seuls les champs publics sont exposés."
+      },
+      "publicAccessRbacNote": "Les utilisateurs connectés suivent leurs rôles, pas ces interrupteurs.",
+      "dangerZoneToggle": "Zone de danger",
+      "next": "Suivant",
+      "footer": {
+        "next": {
+          "hint": "Appuyez sur <kbd>{{shortcut}}</kbd> pour continuer"
+        },
+        "save": {
+          "hint": "Appuyez sur <kbd>{{shortcut}}</kbd> pour enregistrer"
+        }
+      },
+      "slugTaken": "Ce slug est déjà utilisé.",
+      "update": {
+        "success": "« {{label}} » mis à jour avec succès."
+      },
+      "hints": {
+        "slug": "Identifiant unique de ce type de contenu. Il devient le nom de la table de base de données (content_slug) et sert dans les URL. Ne peut plus être modifié après la création.",
+        "allowPublicRead": "Tout le monde peut lire les entrées.",
+        "allowPublicPost": "Tout le monde peut soumettre de nouvelles entrées.",
+        "allowPublicEdit": "Tout le monde peut modifier les entrées existantes.",
+        "allowDrafts": "Active une table de brouillons parallèle. Les éditeurs peuvent enregistrer des versions non publiées et les promouvoir manuellement en contenu publié."
+      }
+    },
+    "branchEditor": {
+      "required": {
+        "label": "Obligatoire"
+      },
+      "hint": "Aide",
+      "hintPlaceholder": "Texte d’aide sous le champ",
+      "issues": {
+        "alias": "Alias invalide",
+        "reserved": "Alias réservé",
+        "duplicate": "Alias en double",
+        "target": "Choisir une cible"
+      },
+      "newField": "Nouveau champ",
+      "alias": "Alias",
+      "aliasReadOnly": {
+        "hint": "Un champ enregistré se renomme depuis l’onglet Zone de danger."
+      },
+      "type": "Type",
+      "typeReadOnly": {
+        "hint": "Un champ enregistré change de type depuis l’onglet Zone de danger."
+      },
+      "label": "Libellé",
+      "labelPlaceholder": "Libellé du champ",
+      "repeaterFields": "Champs du répéteur",
+      "minItems": "Nombre minimal d’éléments",
+      "maxItems": "Nombre maximal d’éléments",
+      "addSubField": "Ajouter un champ",
+      "relationOptions": "Options de relation",
+      "targetSeed": {
+        "label": "Type de contenu cible",
+        "placeholder": "Sélectionner un type de contenu"
+      },
+      "multiple": "Valeurs multiples",
+      "onDelete": "À la suppression",
+      "onDeleteCascade": "Cascade : supprimer les entrées liées",
+      "onDeleteRestrict": "Restreindre : bloquer la suppression si lié",
+      "onDeleteSetNull": "Mettre à null : effacer la référence",
+      "avatarSource": {
+        "label": "Image d’avatar",
+        "hint": "Champ image de la cible affiché comme avatar. À défaut, les initiales du nom affiché sont utilisées."
+      },
+      "avatarSourceNone": "Aucun avatar",
+      "avatarSourceUnavailable": "Le seed cible n’a pas de champ image unique. Ajoutez-en un pour l’utiliser comme avatar.",
+      "numberOptions": "Options numériques",
+      "min": "Min.",
+      "max": "Max.",
+      "step": "Pas",
+      "control": "Contrôle",
+      "control_input": "Champ",
+      "control_slider": "Curseur",
+      "control_rating": "Notation",
+      "control_stepper": "Incrémenteur",
+      "fileOptions": "Options de fichier",
+      "fileAccept": "Fichiers acceptés",
+      "fileAccept_any": "Tout fichier",
+      "fileAccept_image": "Images uniquement",
+      "fileAccept_document": "Documents uniquement",
+      "options": "Options",
+      "optionValue": "Valeur",
+      "optionColor": "Couleur",
+      "addOption": "Ajouter une option",
+      "removeOption": "Retirer l’option",
+      "moveOptionUp": "Monter",
+      "moveOptionDown": "Descendre",
+      "freeTags": {
+        "hint": "Aucune option : tout libellé court est accepté (tags libres, jusqu’à 10 par champ, 25 caractères chacun)."
+      },
+      "policies": "Politiques",
+      "localized": {
+        "label": "Localisé",
+        "hint": "Les éditeurs remplissent ce champ une fois par langue de contenu. Gérez-les dans <languages>Langues du contenu</languages>."
+      },
+      "localizedBlockedSubField": "Les sous-champs d’un répéteur ne peuvent pas être localisés.",
+      "localizedBlockedClassification": "Les champs confidentiels et restreints sont stockés chiffrés ou hachés : ils ne peuvent donc pas être localisés.",
+      "localizedDisableWarning": "Les traductions existantes restent stockées. Tant que vous ne réactivez pas la localisation, ce champ les affiche comme texte brut."
+    },
+    "policies": {
+      "classification": "Classification des données",
+      "classification_public": "Public",
+      "classification_public_desc": "Stockage en clair, exposé dans l’API publique, consultable et triable.",
+      "classification_internal": "Interne",
+      "classification_internal_desc": "Stockage en clair, masqué dans l’API publique, accessible aux utilisateurs authentifiés.",
+      "classification_confidential": "Confidentiel",
+      "classification_confidential_desc": "Chiffré au repos (AES-256-GCM), masqué dans l’API publique, filtrable par index aveugle.",
+      "classification_restricted": "Restreint",
+      "classification_restricted_desc": "Haché au repos (SHA-256), masqué dans toutes les API, sans recherche ni tri.",
+      "classification_locked_entries": "Confidentiel et Restreint ne sont disponibles que lorsque la table n’a aucune entrée.",
+      "classification_locked_encrypted": "Les colonnes chiffrées ne peuvent pas être déchiffrées ni converties lorsque la table contient des entrées.",
+      "classification_locked_restricted": "Les colonnes hachées ne peuvent pas être déchiffrées ni converties lorsque la table contient des entrées.",
+      "help": "À propos de la confidentialité",
+      "flags": {
+        "title": "Options"
+      },
+      "search": "Recherche plein texte",
+      "filter": "Filtrable",
+      "sort": "Triable",
+      "public": "Exposé dans l’API publique"
+    },
+    "fields": {
+      "add": {
+        "label": "Ajouter",
+        "placeholder": "Nom du champ, puis Entrée"
+      },
+      "empty": "Aucun champ pour l’instant. Saisissez un nom ci-dessus.",
+      "select": "Sélectionnez un champ pour le modifier."
+    },
+    "templates": {
+      "title": "Commencer à partir de",
+      "person": {
+        "name": "Personne",
+        "last_name": "Nom",
+        "first_name": "Prénom",
+        "email": "E-mail",
+        "phone": "Téléphone",
+        "birth_date": "Date de naissance",
+        "tax_id": "Numéro fiscal",
+        "address": "Adresse",
+        "city": "Ville",
+        "country": "Pays",
+        "photo": "Photo",
+        "relationship": "Relation",
+        "marketing_consent": "Consentement marketing",
+        "notes": "Notes"
+      },
+      "event": {
+        "name": "Événement",
+        "title": "Titre",
+        "description": "Description",
+        "start_at": "Début",
+        "end_at": "Fin",
+        "all_day": "Toute la journée",
+        "location": "Lieu",
+        "event_status": "Statut",
+        "capacity": "Capacité",
+        "contact_name": "Nom du contact",
+        "contact_email": "E-mail du contact",
+        "contact_phone": "Téléphone du contact"
+      },
+      "article": {
+        "name": "Article",
+        "title": "Titre",
+        "excerpt": "Extrait",
+        "cover": "Image de couverture",
+        "body": "Corps",
+        "author": "Auteur",
+        "published_at": "Publié le",
+        "categories": "Catégories"
+      },
+      "contact": {
+        "name": "Demande de contact",
+        "subject": "Objet",
+        "sender": "Nom",
+        "email": "E-mail",
+        "message": "Message",
+        "reason": "Motif",
+        "state": "Statut"
+      }
+    },
+    "fieldTypes": {
+      "text": "Texte",
+      "richtext": "Texte enrichi",
+      "number": "Nombre",
+      "boolean": "Booléen",
+      "date": "Date",
+      "json": "JSON",
+      "tags": "Tags",
+      "file": "Fichier / Médias",
+      "relation": "Relation",
+      "repeater": "Répéteur"
+    },
+    "delete": {
+      "title": "Supprimer « {{label}} » ?",
+      "description": "Cela masque le type de contenu du tableau de bord et de l’API.",
+      "dataRetained": "Ses données ne sont PAS supprimées : la table est conservée et peut être récupérée en recréant le type avec le même slug.",
+      "dangerZone": {
+        "hint": "La suppression définitive sera disponible dans la Zone de danger."
+      },
+      "success": {
+        "toast": "« {{label}} » supprimé."
+      },
+      "referenceConflict": "Suppression impossible : d’autres types de contenu référencent celui-ci.",
+      "referencedBy": "Référencé par : {{seeds}}"
+    },
+    "errors": {
+      "createFailed": "Impossible de créer le type de contenu",
+      "updateFailed": "Impossible de mettre à jour le type de contenu",
+      "deleteFailed": "Impossible de supprimer le type de contenu"
+    },
+    "purge": {
+      "button": "Purger définitivement",
+      "title": "Supprimer {{label}} définitivement",
+      "description": "Ce type de contenu a été supprimé de façon logique. La purge supprime définitivement ses tables et ses médias."
+    },
+    "dangerZone": {
+      "manifest": {
+        "title": "Géré par beech.schema.ts.",
+        "body": "Modifiez le manifeste et réappliquez-le pour changer des champs ou supprimer ce type. Seul l’index de recherche peut être reconstruit ici."
+      },
+      "maintenance": {
+        "title": "Maintenance",
+        "safe": {
+          "badge": "Sûr"
+        },
+        "subtitle": "Aucune donnée n’est perdue. À utiliser quand quelque chose semble désynchronisé."
+      },
+      "ftsRebuild": {
+        "title": "Index de recherche",
+        "description": "Reconstruit l’index plein texte et ses triggers à partir des champs texte actuels.",
+        "button": "Reconstruire",
+        "success": {
+          "toast": "Index de recherche reconstruit."
+        }
+      },
+      "orphans": {
+        "title": "Colonnes orphelines",
+        "description": "Colonnes toujours dans la base de données mais absentes de la définition.",
+        "empty": "Aucune colonne orpheline.",
+        "review": "Examiner",
+        "hide": "Masquer",
+        "drop": {
+          "button": "Supprimer"
+        },
+        "refresh": {
+          "button": "Actualiser"
+        },
+        "success": {
+          "toast": "Colonne « {{column}} » supprimée."
+        }
+      },
+      "fieldOps": {
+        "title": "Opérations sur les champs",
+        "writes": {
+          "badge": "Modifie la BDD"
+        },
+        "subtitle": "Choisissez un champ, puis l’action. Les options indisponibles en indiquent la raison.",
+        "empty": "Ce type de contenu n’a pas encore de champs enregistrés.",
+        "rename": "Renommer",
+        "retype": "Changer le type",
+        "drop": "Supprimer"
+      },
+      "blocked": {
+        "displayName": "ce champ est le nom affiché du type de contenu.",
+        "displayNameLink": "Choisir un autre champ →",
+        "repeater": "les champs répéteur ne peuvent pas changer de type.",
+        "multiRelation": "une relation multiple vit dans une table de jonction : il n’y a donc pas de colonne dont changer le type.",
+        "localized": "ce champ est localisé. Désactivez d’abord la localisation, puis changez le type."
+      },
+      "rename": {
+        "newAlias": {
+          "label": "Nouvel alias"
+        },
+        "impact": {
+          "title": "Renomme la colonne de la base de données et reconstruit la recherche."
+        },
+        "impactBody": "Les automatisations qui référencent l’ancien alias devront être mises à jour ; vous saurez lesquelles.",
+        "button": "Renommer le champ",
+        "success": {
+          "toast": "« {{alias}} » renommé en « {{newAlias}} »."
+        },
+        "automationWarning": "{{count}} automatisation(s) référencent l’ancien alias et pourraient ne plus fonctionner : {{ids}}"
+      },
+      "retype": {
+        "newType": {
+          "label": "Nouveau type"
+        },
+        "impact": {
+          "title": "Convertit chaque valeur stockée."
+        },
+        "impactBody": "Si une valeur ne peut pas être convertie sans perte, le changement est refusé et rien n’est modifié.",
+        "button": "Changer le type",
+        "success": {
+          "toast": "« {{alias}} » est maintenant {{newType}}."
+        }
+      },
+      "dropField": {
+        "impact": {
+          "title": "Supprime la colonne et toutes ses données."
+        },
+        "impactBody": "Les valeurs de ce champ sont perdues pour chaque entrée et ne peuvent pas être restaurées.",
+        "confirm": {
+          "placeholder": "Saisissez {{expected}} ici"
+        },
+        "button": "Supprimer le champ",
+        "success": {
+          "toast": "Champ « {{alias}} » supprimé."
+        }
+      },
+      "hardDelete": {
+        "fillSlug": "Saisissez {{slug}}",
+        "footer": {
+          "button": "Supprimer le type de contenu",
+          "hint": "Supprimer le type de contenu retire ses entrées, ses tables et ses médias."
+        },
+        "manifest": {
+          "hint": "Géré par beech.schema.ts : retirez-le du manifeste pour le supprimer."
+        },
+        "title": "Supprimer {{label}} définitivement",
+        "description": "Masque immédiatement ce type de contenu, puis supprime ses tables et ses médias en arrière-plan. Cette action est irréversible.",
+        "impactEntries": "Toutes ses entrées",
+        "impactFields": "{{count}} champs et leurs tables, brouillons compris",
+        "impactMedia": "Les fichiers médias stockés pour lui",
+        "confirm": {
+          "label": "Saisissez « {{slug}} » pour confirmer",
+          "placeholder": "Saisissez le slug pour confirmer"
+        },
+        "button": "Supprimer définitivement",
+        "success": {
+          "toast": "Suppression de « {{slug}} » lancée. Le nettoyage des médias est en attente."
+        }
+      },
+      "errors": {
+        "hardDeleteFailed": "Échec de la suppression définitive",
+        "dropColumnFailed": "Échec de la suppression",
+        "renameFailed": "Échec du renommage",
+        "retypeFailed": "Échec du changement de type",
+        "ftsRebuildFailed": "Échec de la reconstruction de l’index de recherche"
+      }
+    }
+  },
+  "kanban": {
+    "cardConfig": {
+      "title": "Mise en page de la carte",
+      "mediaSlot": "Média",
+      "headerSlot": "En-tête",
+      "subtitleSlot": "Sous-titre",
+      "metadataSlot": "Métadonnées",
+      "noField": "Aucun champ",
+      "openConfig": "Configurer la mise en page de la carte"
+    }
+  },
+  "oauth": {
+    "consent": {
+      "title": "{{client}} souhaite accéder à BeechCMS",
+      "subtitle": "Vérifiez les autorisations avant d’accorder l’accès.",
+      "scope": {
+        "granted": {
+          "badge": "Déjà accordé"
+        }
+      },
+      "redirectNotice": "Après approbation, vous serez redirigé vers {{uri}}.",
+      "approve": "Autoriser l’accès",
+      "deny": "Refuser",
+      "error": {
+        "title": "Cette demande d’autorisation n’est pas valide"
+      },
+      "backToDashboard": "Retour au tableau de bord",
+      "submit": {
+        "error": "Impossible de terminer l’autorisation"
+      },
+      "scopes": {
+        "schema:read": "Lire vos types de contenu et le schéma (y compris les plans de migration en simulation)",
+        "schema:write": "Appliquer des migrations de schéma qui modifient vos types de contenu"
+      },
+      "required": "Obligatoire",
+      "disclaimer": "Les autorisations sont nécessaires à l’intégration MCP. Vous pouvez révoquer l’accès à tout moment dans Paramètres > Apps connectées."
+    },
+    "apps": {
+      "application": "Application",
+      "permissions": "Autorisations",
+      "granted": "Autorisée",
+      "status": "Statut",
+      "active": "Active",
+      "revokeFor": "Révoquer l’accès de {{client}}",
+      "list": {
+        "label": "Apps connectées"
+      },
+      "title": "Apps connectées",
+      "description": "Applications que vous avez autorisées à accéder à BeechCMS en votre nom.",
+      "empty": "Aucune app connectée",
+      "noTokens": {
+        "badge": "Aucun token actif"
+      },
+      "revoke": {
+        "title": "Révoquer l’accès ?",
+        "success": "Accès révoqué",
+        "error": "Erreur lors de la révocation de l’accès"
+      },
+      "revokeDesc": "{{client}} perdra immédiatement l’accès. Tout token actif sera invalidé."
+    }
+  },
+  "rbac": {
+    "users": {
+      "description": "Toutes les personnes qui peuvent se connecter et les rôles qu’elles détiennent.",
+      "noAccess": "Aucun accès",
+      "inactive": "Inactif",
+      "statusFor": "Compte actif : {{email}}",
+      "manageRolesOf": "Gérer les rôles de {{email}}",
+      "title": "Utilisateurs",
+      "create": {
+        "label": "Créer un compte",
+        "success": "Compte créé"
+      },
+      "email": "E-mail",
+      "name": "Prénom",
+      "surname": "Nom",
+      "password": "Mot de passe",
+      "status": "Statut",
+      "roles": "Rôles",
+      "you": "Vous",
+      "manageRoles": "Gérer les rôles",
+      "zeroTrust": {
+        "hint": "Le compte est créé sans rôle et sans accès tant qu’aucun rôle n’est attribué."
+      },
+      "cannotDeactivateSelf": "Vous ne pouvez pas désactiver votre propre compte"
+    },
+    "roles": {
+      "section": {
+        "description": "Ce que permet chaque rôle. Attribuez un rôle à une personne pour lui donner accès."
+      },
+      "editFor": "Modifier le rôle {{name}}",
+      "deleteFor": "Supprimer le rôle {{name}}",
+      "system": {
+        "hint": "Un rôle système est intégré et ne peut être ni modifié ni supprimé.",
+        "label": "Système"
+      },
+      "permissions": {
+        "hint": "Les autorisations grisées sont celles que vous ne détenez pas vous-même : vous ne pouvez donc pas les accorder.",
+        "label": "Autorisations"
+      },
+      "title": "Rôles",
+      "create": "Créer un rôle",
+      "edit": "Modifier le rôle",
+      "delete": "Supprimer le rôle",
+      "name": "Nom",
+      "description": "Description",
+      "selectIcon": "Sélectionner une icône",
+      "searchIcons": "Rechercher des icônes...",
+      "noIconsFound": "Aucune icône trouvée",
+      "deleteWarning": "Toutes les attributions via ce rôle sont supprimées en cascade.",
+      "save": {
+        "success": "Rôle enregistré"
+      },
+      "morePermissions": "+{{count}} de plus",
+      "moreRoles": "+{{count}} de plus",
+      "groupContent": "Contenu",
+      "groupSystem": "Système"
+    },
+    "invitations": {
+      "description": "Invitations envoyées jusqu’ici et si elles ont été acceptées.",
+      "empty": "Aucune invitation pour l’instant.",
+      "copyLinkFor": "Copier le lien d’invitation de {{email}}",
+      "regenerateFor": "Régénérer l’invitation de {{email}}",
+      "revokeFor": "Révoquer l’invitation de {{email}}",
+      "title": "Invitations",
+      "invite": "Inviter",
+      "status": "Statut",
+      "expires": "Expire",
+      "regenerate": "Régénérer",
+      "revoke": "Révoquer",
+      "emailSent": "Invitation envoyée par e-mail",
+      "revokeWarning": "Ce lien d’invitation cessera de fonctionner.",
+      "copyLink": "Copier le lien d’invitation",
+      "linkCopied": "Lien d’invitation copié",
+      "statuses": {
+        "pending": "En attente",
+        "accepted": "Acceptée",
+        "expired": "Expirée"
+      }
+    },
+    "assignments": {
+      "removeFor": "Retirer {{role}} sur {{scope}}",
+      "roleLabel": "Rôle à attribuer",
+      "scopeLabel": "Où il s’applique",
+      "list": "Rôles détenus",
+      "title": "Rôles de {{email}}",
+      "add": "Ajouter",
+      "role": "Rôle",
+      "scope": "Périmètre",
+      "inactiveScope": "Périmètre inactif",
+      "empty": "Aucune attribution pour l’instant"
+    },
+    "scope": {
+      "global": "Tous les seeds (global)",
+      "none": "Aucun périmètre disponible",
+      "select": "Sélectionner un périmètre"
+    },
+    "permissions": {
+      "content:read": "Lire le contenu",
+      "content:create": "Créer du contenu",
+      "content:update": "Mettre à jour le contenu",
+      "content:delete": "Supprimer le contenu",
+      "manage_users": "Gérer les utilisateurs",
+      "manage_roles": "Gérer les rôles",
+      "manage_layout": "Gérer la mise en page du tableau de bord",
+      "manage_seeds": "Gérer les types de contenu",
+      "view_analytics": "Voir les analyses"
+    },
+    "errors": {
+      "generic": "Une erreur s’est produite. Veuillez réessayer.",
+      "escalation-refused": "Vous ne pouvez pas accorder une autorité que vous ne détenez pas.",
+      "email-taken": "Cet e-mail est déjà enregistré.",
+      "role-name-taken": "Ce nom de rôle est déjà utilisé.",
+      "system-role-immutable": "Les rôles système ne peuvent pas être modifiés.",
+      "last-global-admin": "Cela laisserait la plateforme sans administrateur global actif.",
+      "invitation-already-used": "Cette invitation a déjà été utilisée."
+    }
+  },
+  "acceptInvite": {
+    "title": "Accepter l’invitation",
+    "invitation": {
+      "sentence": "Vous avez été invité comme {{role}} sur {{scope}}"
+    },
+    "invalidOrExpired": "Ce lien d’invitation est invalide ou a expiré.",
+    "password": {
+      "label": "Mot de passe",
+      "placeholder": "8 caractères minimum"
+    },
+    "confirm": {
+      "label": "Confirmer le mot de passe",
+      "placeholder": "Répétez le mot de passe"
+    },
+    "mismatch": "Les mots de passe ne correspondent pas",
+    "tooShort": "Le mot de passe doit contenir au moins 8 caractères",
+    "tooLong": "Le mot de passe ne peut pas dépasser 128 caractères",
+    "strengthWeak": "Faible",
+    "strengthFair": "Moyen",
+    "strengthStrong": "Fort",
+    "submit": "Activer le compte",
+    "success": "Compte activé. Vous pouvez maintenant vous connecter.",
+    "accountExists": "Un compte existe déjà avec cet e-mail. Connectez-vous plutôt.",
+    "generic": {
+      "error": "Une erreur s’est produite. Veuillez réessayer."
+    }
+  },
+  "transfer": {
+    "menu": {
+      "tooltip": "Exporter / Importer",
+      "exportGroup": "Exporter",
+      "csvDisabled": "CSV désactivé : {{branches}} ne peuvent pas être représentés en colonnes plates",
+      "import": "Importer…"
+    },
+    "export": {
+      "errors": {
+        "unknown": "Échec de l’export"
+      }
+    },
+    "import": {
+      "title": "Importer dans {{label}}",
+      "description": "Téléversez un fichier CSV ou NDJSON pour insérer de nouvelles entrées.",
+      "format": {
+        "label": "Format"
+      },
+      "csvDisabled": "CSV désactivé : {{branches}} ne peuvent pas être représentés en colonnes plates",
+      "file": {
+        "label": "Fichier"
+      },
+      "startUpload": "Téléverser et lancer l’import",
+      "uploading": "Téléversement et lancement de la tâche d’import…",
+      "openJobPage": "Ouvrir la page complète de la tâche",
+      "presignPermissionWarning": "Le téléversement d’un fichier d’import nécessite actuellement la permission globale de création de contenu.",
+      "errors": {
+        "unknown": "Échec de l’import",
+        "storageNotConfigured": "Le téléversement direct n’est pas configuré sur ce déploiement. Demandez à un administrateur de configurer les identifiants de l’API S3 de R2."
+      }
+    },
+    "job": {
+      "page": {
+        "title": "Tâche d’import"
+      },
+      "loading": "Chargement de la tâche…",
+      "rowsRead": "Lignes lues",
+      "insertedRows": "Insérées",
+      "failedRows": "Échecs",
+      "state": {
+        "pending": "En attente",
+        "processing": "En cours",
+        "completed": "Terminée",
+        "failed": "Échec"
+      },
+      "errorTable": {
+        "row": "Ligne",
+        "field": "Champ",
+        "code": "Code",
+        "message": "Message",
+        "capped": "{{count}} échecs supplémentaires ne sont pas listés"
+      },
+      "errors": {
+        "forbidden": "Vous n’êtes pas autorisé à voir cette tâche",
+        "notFound": "Cette tâche est introuvable",
+        "unknown": "Impossible de charger la tâche"
+      }
+    }
+  }
+}

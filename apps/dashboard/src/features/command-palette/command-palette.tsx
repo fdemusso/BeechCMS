@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { formatDistanceToNow } from "date-fns"
-import { it as itLocale, enUS, type Locale } from "date-fns/locale"
+import { dateFnsLocaleFor } from "@/lib/date-locale"
 import { useNavigate } from "react-router-dom"
 import { useTheme } from "@/lib/theme"
 import { ChevronRight } from '@/components/icons'
@@ -63,8 +63,6 @@ import { PaletteList } from "./_parts/palette-list"
 import { PaletteFooter } from "./_parts/palette-footer"
 
 const NO_SEEDS: Seed[] = []
-
-const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
 
 export interface CommandPaletteProps {
   /** Providers assembled outside the slice (composition root); rendered after the built-ins. */
@@ -189,7 +187,7 @@ export function CommandPalette({ hostProviders, onOpenChange, onNewSeed }: Comma
     (unixSeconds: number) =>
       formatDistanceToNow(new Date(unixSeconds * 1000), {
         addSuffix: true,
-        locale: DATE_FNS_LOCALE[i18n.language] ?? enUS,
+        locale: dateFnsLocaleFor(i18n.language),
       }),
     [i18n.language],
   )

@@ -103,7 +103,7 @@ export function InvitationsSection() {
                 <TableHead>{t("rbac.assignments.scope", "Scope")}</TableHead>
                 <TableHead>{t("rbac.invitations.status", "Status")}</TableHead>
                 <TableHead>{t("rbac.invitations.expires", "Expires")}</TableHead>
-                <TableHead className="text-right">{t("common.actions", "Actions")}</TableHead>
+                <TableHead className="text-right">{t("content.actions.label")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

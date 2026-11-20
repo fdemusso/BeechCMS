@@ -5,7 +5,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { formatDistanceToNow } from "date-fns"
-import { it as itLocale, enUS, type Locale } from "date-fns/locale"
+import { dateFnsLocaleFor } from "@/lib/date-locale"
 import { Clock, Image as FileImage } from '@/components/icons'
 import { rpc } from "@/lib/rpc"
 import { Badge } from "@/components/ui/badge"
@@ -18,8 +18,6 @@ import { WidgetEmpty } from "./_parts/widget-empty"
 import { WidgetError } from "./_parts/widget-error"
 import { Link } from "react-router-dom"
 import { ScrollArea } from "@/components/ui/scroll-area"
-
-const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
 
 export interface RecentContentWidgetProps {
   seedSlug: string
@@ -59,7 +57,7 @@ function entryImageUrl(entry: ContentEntry): string | null {
 
 export function RecentContentWidget({ seedSlug, variant = "list", title }: RecentContentWidgetProps) {
   const { t, i18n } = useTranslation()
-  const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
+  const dateFnsLocale = dateFnsLocaleFor(i18n.language)
   const widgetTitle = title || t("dashboard.widgets.recentContent.title")
 
   function relativeTime(ts: number | null): string {

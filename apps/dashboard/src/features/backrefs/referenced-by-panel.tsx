@@ -7,7 +7,8 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ChevronDown, Export as ExternalLink, Loader as Loader2 } from '@/components/icons'
 import { formatDistanceToNow } from 'date-fns'
-import { it as itLocale, enUS, type Locale } from 'date-fns/locale'
+import type { Locale } from 'date-fns/locale'
+import { dateFnsLocaleFor } from '@/lib/date-locale'
 import {
   Collapsible,
   CollapsibleContent,
@@ -31,7 +32,7 @@ import type { BackrefGroup, BackrefItem } from './api'
 
 function useLocaleForDate(): Locale {
   const { i18n } = useTranslation()
-  return i18n.language.startsWith('it') ? itLocale : enUS
+  return dateFnsLocaleFor(i18n.language)
 }
 
 function RelativeTime({ timestamp, locale }: { timestamp: number | null; locale: Locale }) {
@@ -93,9 +94,9 @@ function GroupDialog({ targetSlug, targetId, group, open, onOpenChange }: GroupD
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-muted-foreground">
-                  <th className="py-2 pl-3 text-left font-medium">{t('content.editor.name', 'Name')}</th>
+                  <th className="py-2 pl-3 text-left font-medium">{t('content.editor.name')}</th>
                   <th className="py-2 text-left font-medium">{t('content.editor.status', 'Status')}</th>
-                  <th className="py-2 pr-3 text-right font-medium">{t('content.editor.updated', 'Updated')}</th>
+                  <th className="py-2 pr-3 text-right font-medium">{t('content.editor.updated')}</th>
                 </tr>
               </thead>
               <tbody>

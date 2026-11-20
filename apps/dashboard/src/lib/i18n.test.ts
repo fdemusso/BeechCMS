@@ -10,11 +10,15 @@ describe("document language", () => {
     await i18n.changeLanguage("en")
   })
 
-  it("follows the language of the dashboard, so a screen reader pronounces the page in it", async () => {
-    await i18n.changeLanguage("it")
-    expect(document.documentElement.lang).toBe("it")
+  it.each(["it", "es", "de", "fr", "en"])("follows the language of the dashboard (%s), so a screen reader pronounces the page in it", async (language) => {
+    await i18n.changeLanguage(language)
 
-    await i18n.changeLanguage("en")
-    expect(document.documentElement.lang).toBe("en")
+    expect(document.documentElement.lang).toBe(language)
+  })
+
+  it("uses the base language of a regional tag", async () => {
+    await i18n.changeLanguage("de-AT")
+
+    expect(document.documentElement.lang).toBe("de")
   })
 })
