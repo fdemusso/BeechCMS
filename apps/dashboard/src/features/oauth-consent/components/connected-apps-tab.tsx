@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useConnectedApps, useRevokeConnectedApp } from '../hooks/use-oauth-consent'
 import type { ConnectedApp } from '../types/oauth.types'
+import { PendingAgentActionsSection } from './pending-agent-actions-section'
 
 // Re-declared locally: the settings slice's formatDate is not shared across
 // feature slices (VSA boundary — see the sprint's VETO audit).
@@ -106,7 +107,8 @@ function AppRow({ app, onRevoke }: { app: ConnectedApp; onRevoke: (clientId: str
 }
 
 /**
- * The applications the person authorized, as a table with its columns named: which application, what it may do,
+ * Two sections. First the agent actions waiting for approval, since that is what needs attention. Then the
+ * applications the person authorized, as a table with its columns named: which application, what it may do,
  * since when, whether it holds a live token, and the button that ends its access. Five rows show before it scrolls.
  */
 export function ConnectedAppsTab() {
@@ -115,39 +117,42 @@ export function ConnectedAppsTab() {
   const revokeConnectedApp = useRevokeConnectedApp()
 
   return (
-    <SettingsSection id="connected-apps" title={t('oauth.apps.title')} description={t('oauth.apps.description')}>
-      {isLoading ? (
-        <div role="status" className="space-y-3 py-4">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
-          <span className="sr-only">{t('common.loading')}</span>
-        </div>
-      ) : !apps?.length ? (
-        <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('oauth.apps.empty')}</p>
-      ) : (
-        <SettingsScroll label={t('oauth.apps.list.label')} rowRem={SETTINGS_TABLE_ROW_REM} headerRem={SETTINGS_TABLE_HEAD_REM}>
-          {/* The table must not scroll on its own, or the header could not stay above the rows. */}
-          <Table containerClassName="overflow-visible" aria-label={t('oauth.apps.list.label')}>
-            <TableHeader className="sticky top-0 z-10 bg-[var(--settings-page-bg)]">
-              <TableRow>
-                <TableHead>{t('oauth.apps.application')}</TableHead>
-                <TableHead>{t('oauth.apps.permissions')}</TableHead>
-                <TableHead>{t('oauth.apps.granted')}</TableHead>
-                <TableHead>{t('oauth.apps.status')}</TableHead>
-                <TableHead className="text-right">{t('content.actions.label')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {apps.map((app) => (
-                <AppRow
-                  key={app.clientId}
-                  app={app}
-                  onRevoke={(clientId) => revokeConnectedApp.mutateAsync(clientId)}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </SettingsScroll>
-      )}
-    </SettingsSection>
+    <div className="space-y-10">
+      <PendingAgentActionsSection />
+      <SettingsSection id="connected-apps" title={t('oauth.apps.title')} description={t('oauth.apps.description')}>
+        {isLoading ? (
+          <div role="status" className="space-y-3 py-4">
+            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+            <span className="sr-only">{t('common.loading')}</span>
+          </div>
+        ) : !apps?.length ? (
+          <p className="border-b border-border py-4 text-sm text-muted-foreground">{t('oauth.apps.empty')}</p>
+        ) : (
+          <SettingsScroll label={t('oauth.apps.list.label')} rowRem={SETTINGS_TABLE_ROW_REM} headerRem={SETTINGS_TABLE_HEAD_REM}>
+            {/* The table must not scroll on its own, or the header could not stay above the rows. */}
+            <Table containerClassName="overflow-visible" aria-label={t('oauth.apps.list.label')}>
+              <TableHeader className="sticky top-0 z-10 bg-[var(--settings-page-bg)]">
+                <TableRow>
+                  <TableHead>{t('oauth.apps.application')}</TableHead>
+                  <TableHead>{t('oauth.apps.permissions')}</TableHead>
+                  <TableHead>{t('oauth.apps.granted')}</TableHead>
+                  <TableHead>{t('oauth.apps.status')}</TableHead>
+                  <TableHead className="text-right">{t('content.actions.label')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {apps.map((app) => (
+                  <AppRow
+                    key={app.clientId}
+                    app={app}
+                    onRevoke={(clientId) => revokeConnectedApp.mutateAsync(clientId)}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </SettingsScroll>
+        )}
+      </SettingsSection>
+    </div>
   )
 }

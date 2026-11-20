@@ -529,7 +529,9 @@
       "invitations": "Invitations",
       "roles": "Roles",
       "usage": "Usage",
-      "orphans": "Orphan files"
+      "orphans": "Orphan files",
+      "agentActions": "Pending agent actions",
+      "connectedApps": "Connected apps"
     },
     "search": "Search settings…",
     "clearSearch": "Clear search",
@@ -774,7 +776,8 @@
         "app": "Connected app",
         "automation": "Automation",
         "layout": "Dashboard layout",
-        "view": "View"
+        "view": "View",
+        "intent": "Agent action"
       },
       "ops": {
         "profile": "Profile updated",
@@ -803,7 +806,10 @@
         "drop-orphan": "Orphan column removed",
         "rename-branch": "Field renamed",
         "retype-branch": "Field type changed",
-        "draft-saved": "Draft saved"
+        "draft-saved": "Draft saved",
+        "intent": "Requested by an agent",
+        "approve": "Approved",
+        "reject": "Rejected"
       },
       "reasons": {
         "wrong-password": "Wrong password",
@@ -812,7 +818,8 @@
       "entries": "{{count}} entries",
       "orphans": "{{count}} orphan files",
       "detail": {
-        "fields": "Fields: {{fields}}"
+        "fields": "Fields: {{fields}}",
+        "resultStatus": "Result: HTTP {{status}}"
       },
       "sessionsRevoked": "other sessions signed out",
       "scope": {
@@ -2482,6 +2489,46 @@
         "error": "Error revoking access"
       },
       "revokeDesc": "{{client}} will immediately lose access. Any active token is invalidated."
+    },
+    "intents": {
+      "title": "Pending agent actions",
+      "description": "Actions an AI agent asked to run on your behalf. Nothing runs until you approve it; a request expires 10 minutes after it was made.",
+      "empty": "No actions are waiting for you",
+      "loadError": "Could not load the pending actions",
+      "list": {
+        "label": "Pending agent actions"
+      },
+      "columns": {
+        "action": "Action",
+        "app": "Application",
+        "risk": "Risk",
+        "expires": "Expires"
+      },
+      "risk": {
+        "publish": "Publishes",
+        "destructive": "Destructive"
+      },
+      "review": "Review",
+      "reviewFor": "Review {{action}}",
+      "approve": "Approve and run",
+      "reject": "Reject",
+      "dialog": {
+        "description": "{{app}} asked to run this action. It runs once, as you, only if you approve it.",
+        "request": "Request",
+        "requestedAt": "Requested",
+        "body": "Request body",
+        "noBody": "No request body",
+        "loadError": "Could not load this request"
+      },
+      "toast": {
+        "executed": "Action approved and run",
+        "failed": "The action ran but failed (HTTP {{status}})",
+        "rejected": "Action rejected",
+        "expired": "This request has expired. Ask the agent to try again.",
+        "notPending": "This request was already approved or rejected.",
+        "notFound": "This request no longer exists.",
+        "error": "Could not complete the action"
+      }
     }
   },
   "rbac": {

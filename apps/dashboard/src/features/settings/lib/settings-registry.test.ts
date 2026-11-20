@@ -55,6 +55,10 @@ describe("settings registry", () => {
     expect(sectionIds("people", gates)).toEqual(["users", "roles", "invitations"])
   })
 
+  it("Connected apps bookmarks pending agent actions, then the apps, for every caller", () => {
+    expect(sectionIds("connected-apps", none)).toEqual(["agent-actions", "connected-apps"])
+  })
+
   it("old links to merged or renamed tabs resolve to the tab that took them over", () => {
     expect(resolveSettingsTab("profile")).toBe("account")
     expect(resolveSettingsTab("security")).toBe("account")

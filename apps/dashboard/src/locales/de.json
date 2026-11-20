@@ -529,7 +529,9 @@
       "invitations": "Einladungen",
       "roles": "Rollen",
       "usage": "Nutzung",
-      "orphans": "Verwaiste Dateien"
+      "orphans": "Verwaiste Dateien",
+      "agentActions": "Ausstehende Agentenaktionen",
+      "connectedApps": "Verbundene Apps"
     },
     "search": "Einstellungen durchsuchen…",
     "clearSearch": "Suche löschen",
@@ -774,7 +776,8 @@
         "app": "Verbundene App",
         "automation": "Automatisierung",
         "layout": "Dashboard-Layout",
-        "view": "Ansicht"
+        "view": "Ansicht",
+        "intent": "Agentenaktion"
       },
       "ops": {
         "profile": "Profil aktualisiert",
@@ -803,7 +806,10 @@
         "drop-orphan": "Verwaiste Spalte entfernt",
         "rename-branch": "Feld umbenannt",
         "retype-branch": "Feldtyp geändert",
-        "draft-saved": "Entwurf gespeichert"
+        "draft-saved": "Entwurf gespeichert",
+        "intent": "Von einem Agenten angefragt",
+        "approve": "Genehmigt",
+        "reject": "Abgelehnt"
       },
       "reasons": {
         "wrong-password": "Falsches Passwort",
@@ -812,7 +818,8 @@
       "entries": "{{count}} Einträge",
       "orphans": "{{count}} verwaiste Dateien",
       "detail": {
-        "fields": "Felder: {{fields}}"
+        "fields": "Felder: {{fields}}",
+        "resultStatus": "Ergebnis: HTTP {{status}}"
       },
       "sessionsRevoked": "andere Sitzungen abgemeldet",
       "scope": {
@@ -2482,6 +2489,46 @@
         "error": "Fehler beim Widerrufen des Zugriffs"
       },
       "revokeDesc": "{{client}} verliert sofort den Zugriff. Jedes aktive Token wird ungültig."
+    },
+    "intents": {
+      "title": "Ausstehende Agentenaktionen",
+      "description": "Aktionen, die ein KI-Agent in Ihrem Namen ausführen wollte. Nichts wird ausgeführt, bevor Sie zustimmen; eine Anfrage läuft 10 Minuten nach ihrer Erstellung ab.",
+      "empty": "Keine Aktionen warten auf Sie",
+      "loadError": "Die ausstehenden Aktionen konnten nicht geladen werden",
+      "list": {
+        "label": "Ausstehende Agentenaktionen"
+      },
+      "columns": {
+        "action": "Aktion",
+        "app": "Anwendung",
+        "risk": "Risiko",
+        "expires": "Läuft ab"
+      },
+      "risk": {
+        "publish": "Veröffentlicht",
+        "destructive": "Destruktiv"
+      },
+      "review": "Prüfen",
+      "reviewFor": "{{action}} prüfen",
+      "approve": "Genehmigen und ausführen",
+      "reject": "Ablehnen",
+      "dialog": {
+        "description": "{{app}} wollte diese Aktion ausführen. Sie wird einmalig in Ihrem Namen ausgeführt, nur wenn Sie zustimmen.",
+        "request": "Anfrage",
+        "requestedAt": "Angefragt",
+        "body": "Anfragetext",
+        "noBody": "Kein Anfragetext",
+        "loadError": "Diese Anfrage konnte nicht geladen werden"
+      },
+      "toast": {
+        "executed": "Aktion genehmigt und ausgeführt",
+        "failed": "Die Aktion wurde ausgeführt, ist aber fehlgeschlagen (HTTP {{status}})",
+        "rejected": "Aktion abgelehnt",
+        "expired": "Diese Anfrage ist abgelaufen. Bitten Sie den Agenten, es erneut zu versuchen.",
+        "notPending": "Diese Anfrage wurde bereits genehmigt oder abgelehnt.",
+        "notFound": "Diese Anfrage existiert nicht mehr.",
+        "error": "Die Aktion konnte nicht abgeschlossen werden"
+      }
     }
   },
   "rbac": {

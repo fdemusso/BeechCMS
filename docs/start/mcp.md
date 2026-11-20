@@ -113,6 +113,9 @@ In Cursor, open **Settings > Features > MCP**, click **Add New MCP Server**, or 
 > The MCP server authenticates via the OAuth 2.1 authorization-code flow with PKCE, not a password. On first use it opens your system browser to `/oauth/authorize`; after you log in and approve the consent screen, the server exchanges the code for a short-lived access token and a refresh token, cached at `~/.beechcms/mcp-tokens.json` (mode `0600`). Later tool calls silently reuse or refresh that token. Revoke access any time from **Settings → Connected apps** in the dashboard — the next tool call re-opens the browser to re-authorize.
 
 > [!NOTE]
+> An action the agent may not run on its own waits under **Settings → Connected apps → Pending agent actions**, where you can review its request body and approve or reject it within 10 minutes.
+
+> [!NOTE]
 > **Local dev**: the dashboard runs on Vite (`:5173`) while the API runs on `wrangler dev --port 8789`. Set `BEECH_AUTH_URL=http://localhost:5173` alongside `BEECH_API_URL=http://127.0.0.1:8789` — the Worker cannot serve the consent screen itself in dev.
 
 ### Troubleshooting

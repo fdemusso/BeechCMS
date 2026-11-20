@@ -98,8 +98,11 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   },
   {
     id: "connected-apps", groupId: "account", labelKey: "settings.tabs.connectedApps", defaultLabel: "Connected apps", icon: Key,
-    keywords: ["app collegate", "oauth", "mcp", "token", "authorized", "integrazioni"],
-    sections: [],
+    keywords: ["app collegate", "oauth", "mcp", "token", "authorized", "integrazioni", "agente", "agent", "azioni", "approva", "approve", "conferma", "confirm", "intent"],
+    sections: [
+      section("agent-actions", "settings.sections.agentActions", "Pending agent actions"),
+      section("connected-apps", "settings.sections.connectedApps", "Connected apps"),
+    ],
     isVisible: () => true,
   },
   {

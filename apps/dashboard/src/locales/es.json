@@ -532,7 +532,9 @@
       "invitations": "Invitaciones",
       "roles": "Roles",
       "usage": "Uso",
-      "orphans": "Archivos huérfanos"
+      "orphans": "Archivos huérfanos",
+      "agentActions": "Acciones de agente pendientes",
+      "connectedApps": "Aplicaciones conectadas"
     },
     "search": "Buscar ajustes…",
     "clearSearch": "Borrar búsqueda",
@@ -779,7 +781,8 @@
         "app": "App conectada",
         "automation": "Automatización",
         "layout": "Diseño del panel",
-        "view": "Vista"
+        "view": "Vista",
+        "intent": "Acción de agente"
       },
       "ops": {
         "profile": "Perfil actualizado",
@@ -808,7 +811,10 @@
         "drop-orphan": "Columna huérfana eliminada",
         "rename-branch": "Campo renombrado",
         "retype-branch": "Tipo de campo cambiado",
-        "draft-saved": "Borrador guardado"
+        "draft-saved": "Borrador guardado",
+        "intent": "Solicitada por un agente",
+        "approve": "Aprobada",
+        "reject": "Rechazada"
       },
       "reasons": {
         "wrong-password": "Contraseña incorrecta",
@@ -817,7 +823,8 @@
       "entries": "{{count}} entradas",
       "orphans": "{{count}} archivos huérfanos",
       "detail": {
-        "fields": "Campos: {{fields}}"
+        "fields": "Campos: {{fields}}",
+        "resultStatus": "Resultado: HTTP {{status}}"
       },
       "sessionsRevoked": "otras sesiones cerradas",
       "scope": {
@@ -2496,6 +2503,46 @@
         "error": "Error al revocar el acceso"
       },
       "revokeDesc": "{{client}} perderá el acceso de inmediato. Cualquier token activo quedará invalidado."
+    },
+    "intents": {
+      "title": "Acciones de agente pendientes",
+      "description": "Acciones que un agente de IA pidió ejecutar en tu nombre. Nada se ejecuta hasta que lo apruebes; una solicitud caduca 10 minutos después de hacerse.",
+      "empty": "No hay acciones esperándote",
+      "loadError": "No se pudieron cargar las acciones pendientes",
+      "list": {
+        "label": "Acciones de agente pendientes"
+      },
+      "columns": {
+        "action": "Acción",
+        "app": "Aplicación",
+        "risk": "Riesgo",
+        "expires": "Caduca"
+      },
+      "risk": {
+        "publish": "Publica",
+        "destructive": "Destructiva"
+      },
+      "review": "Revisar",
+      "reviewFor": "Revisar {{action}}",
+      "approve": "Aprobar y ejecutar",
+      "reject": "Rechazar",
+      "dialog": {
+        "description": "{{app}} pidió ejecutar esta acción. Se ejecuta una sola vez, como tú, solo si la apruebas.",
+        "request": "Solicitud",
+        "requestedAt": "Solicitada",
+        "body": "Cuerpo de la solicitud",
+        "noBody": "Sin cuerpo de solicitud",
+        "loadError": "No se pudo cargar esta solicitud"
+      },
+      "toast": {
+        "executed": "Acción aprobada y ejecutada",
+        "failed": "La acción se ejecutó pero falló (HTTP {{status}})",
+        "rejected": "Acción rechazada",
+        "expired": "Esta solicitud ha caducado. Pide al agente que lo intente de nuevo.",
+        "notPending": "Esta solicitud ya fue aprobada o rechazada.",
+        "notFound": "Esta solicitud ya no existe.",
+        "error": "No se pudo completar la acción"
+      }
     }
   },
   "rbac": {

@@ -529,7 +529,9 @@
       "invitations": "Inviti",
       "roles": "Ruoli",
       "usage": "Utilizzo",
-      "orphans": "File orfani"
+      "orphans": "File orfani",
+      "agentActions": "Azioni dell'agente in attesa",
+      "connectedApps": "App collegate"
     },
     "search": "Cerca nelle impostazioni…",
     "clearSearch": "Cancella ricerca",
@@ -774,7 +776,8 @@
         "app": "App collegata",
         "automation": "Automazione",
         "layout": "Layout della dashboard",
-        "view": "Vista"
+        "view": "Vista",
+        "intent": "Azione dell'agente"
       },
       "ops": {
         "profile": "Profilo aggiornato",
@@ -803,7 +806,10 @@
         "drop-orphan": "Colonna orfana rimossa",
         "rename-branch": "Campo rinominato",
         "retype-branch": "Tipo di campo cambiato",
-        "draft-saved": "Bozza salvata"
+        "draft-saved": "Bozza salvata",
+        "intent": "Richiesta da un agente",
+        "approve": "Approvata",
+        "reject": "Rifiutata"
       },
       "reasons": {
         "wrong-password": "Password errata",
@@ -812,7 +818,8 @@
       "entries": "{{count}} voci",
       "orphans": "{{count}} file orfani",
       "detail": {
-        "fields": "Campi: {{fields}}"
+        "fields": "Campi: {{fields}}",
+        "resultStatus": "Risultato: HTTP {{status}}"
       },
       "sessionsRevoked": "altre sessioni chiuse",
       "scope": {
@@ -2482,6 +2489,46 @@
         "error": "Errore nella revoca dell'accesso"
       },
       "revokeDesc": "{{client}} perderà immediatamente l'accesso. Ogni token attivo viene invalidato."
+    },
+    "intents": {
+      "title": "Azioni dell'agente in attesa",
+      "description": "Azioni che un agente AI ha chiesto di eseguire per tuo conto. Nulla viene eseguito finché non lo approvi; una richiesta scade 10 minuti dopo essere stata fatta.",
+      "empty": "Nessuna azione in attesa di te",
+      "loadError": "Impossibile caricare le azioni in attesa",
+      "list": {
+        "label": "Azioni dell'agente in attesa"
+      },
+      "columns": {
+        "action": "Azione",
+        "app": "Applicazione",
+        "risk": "Rischio",
+        "expires": "Scade"
+      },
+      "risk": {
+        "publish": "Pubblica",
+        "destructive": "Distruttiva"
+      },
+      "review": "Verifica",
+      "reviewFor": "Verifica {{action}}",
+      "approve": "Approva ed esegui",
+      "reject": "Rifiuta",
+      "dialog": {
+        "description": "{{app}} ha chiesto di eseguire questa azione. Viene eseguita una sola volta, a tuo nome, solo se la approvi.",
+        "request": "Richiesta",
+        "requestedAt": "Richiesta il",
+        "body": "Corpo della richiesta",
+        "noBody": "Nessun corpo della richiesta",
+        "loadError": "Impossibile caricare questa richiesta"
+      },
+      "toast": {
+        "executed": "Azione approvata ed eseguita",
+        "failed": "L'azione è stata eseguita ma è fallita (HTTP {{status}})",
+        "rejected": "Azione rifiutata",
+        "expired": "Questa richiesta è scaduta. Chiedi all'agente di riprovare.",
+        "notPending": "Questa richiesta è già stata approvata o rifiutata.",
+        "notFound": "Questa richiesta non esiste più.",
+        "error": "Impossibile completare l'azione"
+      }
     }
   },
   "rbac": {

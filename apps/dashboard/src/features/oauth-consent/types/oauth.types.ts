@@ -13,3 +13,12 @@ export type ConsentDecisionBody = InferRequestType<typeof rpc.oauth.authorize.co
 
 /** One row of `GET /oauth/consents`. */
 export type ConnectedApp = InferResponseType<typeof rpc.oauth.consents.$get>[number]
+
+/** One row of `GET /api/agent/intents`. Times are Unix seconds. */
+export type AgentIntent = InferResponseType<typeof rpc.api.agent.intents.$get>['intents'][number]
+
+/** `GET /api/agent/intents/:id`: the row plus the stored request body (JSON, raw text, or null). */
+export type AgentIntentDetail = InferResponseType<(typeof rpc.api.agent.intents)[':id']['$get']>['intent']
+
+/** `POST /api/agent/intents/:id/approve`: the decided intent and the replay outcome. */
+export type AgentIntentApproval = InferResponseType<(typeof rpc.api.agent.intents)[':id']['approve']['$post']>
