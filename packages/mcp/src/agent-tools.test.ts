@@ -128,6 +128,29 @@ describe('agent tools', () => {
       expect(result.results[0].message).toContain('500')
     })
 
+    it('a non-JSON 200 on one approval is reported as error and the next intent is still approved', async () => {
+      routeIntents(
+        { [FIRST_ID]: intentBody(FIRST_ID), [SECOND_ID]: intentBody(SECOND_ID) },
+        id => (id === FIRST_ID ? new Response('<html>proxy</html>', { status: 200 }) : approved()),
+      )
+
+      const result = await beechConfirm({ intentIds: [FIRST_ID, SECOND_ID] }, deps)
+
+      expect(result.status).toBe('decided')
+      expect(result.results.map(item => item.outcome)).toEqual(['error', 'executed'])
+      expect(result.results[0].resultStatus).toBe(200)
+      expect(result.results[0].message).toContain('check the dashboard before retrying')
+    })
+
+    it('a rejection never reads the decision body', async () => {
+      elicit.mockResolvedValue({ action: 'accept', decision: 'reject' })
+      routeIntents({ [FIRST_ID]: intentBody(FIRST_ID) }, () => new Response('not json', { status: 200 }))
+
+      const result = await beechConfirm({ intentIds: [FIRST_ID] }, deps)
+
+      expect(result.results.map(item => item.outcome)).toEqual(['rejected'])
+    })
+
     it('a long replay body is cut to 2000 characters', async () => {
       routeIntents(
         { [FIRST_ID]: intentBody(FIRST_ID) },

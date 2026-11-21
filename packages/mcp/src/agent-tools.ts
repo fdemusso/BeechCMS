@@ -275,7 +275,7 @@ function failedDecisionItem(item: ConfirmItemResult, method: Method, path: strin
   return { ...item, outcome: 'error', message: describeFailure(method, path, status, body) }
 }
 
-/** Posts one decision, never throwing on transport or HTTP failure. */
+/** Posts one decision, never throwing on transport, HTTP or body-parse failure. */
 async function decide(deps: AgentToolDeps, item: ConfirmItemResult, decision: 'approve' | 'reject'): Promise<ConfirmItemResult> {
   const path = `/api/agent/intents/${item.id}/${decision}`
   let response: Response
@@ -289,7 +289,19 @@ async function decide(deps: AgentToolDeps, item: ConfirmItemResult, decision: 'a
   }
   if (decision === 'reject') return { ...item, outcome: 'rejected' }
 
-  const { result } = await readJson<ReplayBody>(response, 'POST', path)
+  let result: ReplayBody['result']
+  try {
+    ;({ result } = await readJson<ReplayBody>(response, 'POST', path))
+  } catch (error) {
+    // A 200 means the server already replayed the request: report it, never retry blindly.
+    const reason = error instanceof Error ? error.message : String(error)
+    return {
+      ...item,
+      outcome: 'error',
+      resultStatus: response.status,
+      message: `${reason}. The server answered 200, so the action probably ran: check the dashboard before retrying.`,
+    }
+  }
   return {
     ...item,
     outcome: result.status < 400 ? 'executed' : 'failed',
@@ -347,7 +359,7 @@ async function loadIntent(
  *
  * @param input - `intentIds`: 1..20 distinct intent ids.
  * @param deps - Injected I/O.
- * @throws {AgentToolError} For invalid ids (before any request) or a non-JSON 2xx answer.
+ * @throws {AgentToolError} For invalid ids (before any request) or a non-JSON 2xx answer on a detail read.
  */
 export async function beechConfirm(input: { intentIds: unknown }, deps: AgentToolDeps): Promise<ConfirmResult> {
   const ids = parseIntentIds(input.intentIds)
