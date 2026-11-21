@@ -22,6 +22,25 @@ export type ElicitOutcome =
   | { action: 'cancel' }
   | { action: 'unsupported' }
 
+/** Structural subset of the MCP SDK ElicitResult; declared here so this module never imports the SDK. */
+export interface ElicitAnswer {
+  action: string
+  content?: Record<string, unknown>
+}
+
+/**
+ * Maps a client's elicitation answer to the only outcomes {@link beechConfirm} acts on. Fails closed: an accepted
+ * answer without a valid decision, or an unknown action, is a cancel. Never throws, never returns `unsupported`.
+ *
+ * @param answer - The client's elicitation answer.
+ */
+export function mapElicitResult(answer: ElicitAnswer): ElicitOutcome {
+  if (answer.action === 'decline') return { action: 'decline' }
+  if (answer.action !== 'accept') return { action: 'cancel' }
+  const decision = answer.content?.decision
+  return decision === 'approve' || decision === 'reject' ? { action: 'accept', decision } : { action: 'cancel' }
+}
+
 export interface AgentToolDeps {
   /** Authenticated request; resolves with the final Response whatever its status (ApiClient.send). */
   send(method: 'GET' | 'POST', path: string, body?: unknown): Promise<Response>

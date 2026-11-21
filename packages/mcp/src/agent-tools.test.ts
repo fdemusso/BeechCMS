@@ -2,7 +2,14 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { AgentToolError, beechConfirm, beechWhoami, type AgentToolDeps, type ElicitOutcome } from './agent-tools.js'
+import {
+  AgentToolError,
+  beechConfirm,
+  beechWhoami,
+  mapElicitResult,
+  type AgentToolDeps,
+  type ElicitOutcome,
+} from './agent-tools.js'
 import { CONFIRM_BODY_PREVIEW_CHARS, CONFIRM_RESULT_PREVIEW_CHARS } from './constants.js'
 
 const NOW_SECONDS = 1_800_000_000
@@ -84,7 +91,7 @@ describe('agent tools', () => {
       expect(bodyLine).toBe(`   body: ${JSON.stringify(longBody).slice(0, CONFIRM_BODY_PREVIEW_CHARS)}…`)
     })
 
-    it('an accepted dialog without a decision is treated as cancelled and sends no decision request', async () => {
+    it('a cancelled dialog sends no decision request', async () => {
       routeIntents({ [FIRST_ID]: intentBody(FIRST_ID) }, approved)
       const withoutDecision: ElicitOutcome = { action: 'cancel' }
       elicit.mockResolvedValue(withoutDecision)
@@ -130,6 +137,50 @@ describe('agent tools', () => {
       const result = await beechConfirm({ intentIds: [FIRST_ID] }, deps)
 
       expect(result.results[0].resultBody).toBe('y'.repeat(CONFIRM_RESULT_PREVIEW_CHARS))
+    })
+  })
+
+  describe('mapElicitResult', () => {
+    it('an accepted approve maps to accept with decision approve', () => {
+      const outcome = mapElicitResult({ action: 'accept', content: { decision: 'approve' } })
+
+      expect(outcome).toEqual({ action: 'accept', decision: 'approve' })
+    })
+
+    it('an accepted reject maps to accept with decision reject', () => {
+      const outcome = mapElicitResult({ action: 'accept', content: { decision: 'reject' } })
+
+      expect(outcome).toEqual({ action: 'accept', decision: 'reject' })
+    })
+
+    it('an accepted answer without a decision maps to cancel', () => {
+      const outcome = mapElicitResult({ action: 'accept' })
+
+      expect(outcome).toEqual({ action: 'cancel' })
+    })
+
+    it('an accepted answer with an unknown decision maps to cancel', () => {
+      const outcome = mapElicitResult({ action: 'accept', content: { decision: 'yes' } })
+
+      expect(outcome).toEqual({ action: 'cancel' })
+    })
+
+    it('a non-string decision maps to cancel', () => {
+      const outcome = mapElicitResult({ action: 'accept', content: { decision: true } })
+
+      expect(outcome).toEqual({ action: 'cancel' })
+    })
+
+    it('decline maps to decline', () => {
+      const outcome = mapElicitResult({ action: 'decline' })
+
+      expect(outcome).toEqual({ action: 'decline' })
+    })
+
+    it('an unknown action maps to cancel', () => {
+      const outcome = mapElicitResult({ action: 'later' })
+
+      expect(outcome).toEqual({ action: 'cancel' })
     })
   })
 

@@ -37,6 +37,7 @@ import {
   beechConfirm,
   beechIntents,
   beechWhoami,
+  mapElicitResult,
   type AgentToolDeps,
   type ElicitOutcome,
 } from './agent-tools.js'
@@ -132,8 +133,9 @@ const DECISION_FORM_SCHEMA = {
 }
 
 /**
- * Adapts the server's elicitation to {@link ElicitOutcome}. Clients without form elicitation resolve `unsupported`;
- * other transport failures reject and become the `elicitation_failed` fallback.
+ * Adapts the server's elicitation to {@link ElicitOutcome}. The answer is mapped by {@link mapElicitResult}
+ * (fail closed). Clients without form elicitation resolve `unsupported`; other transport failures reject and
+ * become the `elicitation_failed` fallback.
  *
  * @param message - Dialog text built from server-stored intents.
  */
@@ -144,9 +146,7 @@ async function elicitDecision(message: string): Promise<ElicitOutcome> {
       { mode: 'form', message, requestedSchema: DECISION_FORM_SCHEMA },
       { timeout: CONFIRM_ELICIT_TIMEOUT_MS },
     )
-    if (result.action !== 'accept') return { action: result.action }
-    const decision = result.content?.decision
-    return decision === 'approve' || decision === 'reject' ? { action: 'accept', decision } : { action: 'cancel' }
+    return mapElicitResult(result)
   } catch (error) {
     if (error instanceof Error && error.message.includes('does not support')) return { action: 'unsupported' }
     throw error
