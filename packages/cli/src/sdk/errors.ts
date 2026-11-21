@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
+/** Registered symbol: identical across every bundled copy of this module. */
+export const BEECH_SDK_ERROR_BRAND: unique symbol = Symbol.for('beechcms.sdk.error')
+
 /** Failure of an SDK call: an API error answer, an unreachable API, or a helper-level refusal. */
 export class BeechSdkError extends Error {
   readonly name = 'BeechSdkError'
@@ -15,6 +18,12 @@ export class BeechSdkError extends Error {
     readonly body: unknown,
   ) {
     super(message)
+    Object.defineProperty(this, BEECH_SDK_ERROR_BRAND, { value: true, enumerable: false })
+  }
+
+  /** Brand check, so errors thrown by another bundled copy of this class still match. */
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return typeof value === 'object' && value !== null && (value as Record<symbol, unknown>)[BEECH_SDK_ERROR_BRAND] === true
   }
 }
 

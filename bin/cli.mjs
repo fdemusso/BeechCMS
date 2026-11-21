@@ -5,7 +5,7 @@ import pc from 'picocolors'
 
 let [,, command, ...args] = process.argv
 
-if (command && args[0] && !args[0].startsWith('-') && ['db', 'seed', 'schema', 'types', 'dev', 'generate', 'mailpit'].includes(command)) {
+if (command && args[0] && !args[0].startsWith('-') && ['db', 'seed', 'schema', 'types', 'dev', 'generate', 'mailpit', 'agent'].includes(command)) {
   command = `${command}:${args.shift()}`
 }
 
@@ -56,6 +56,8 @@ const COMMANDS = {
   'doctor':         cmdDoctor,
   'setup:cloudflare': cmdSetupCloudflare,
   'setup:cf':         cmdSetupCloudflare,
+  'run':              cmdRun,
+  'agent:setup':      cmdAgentSetup,
 }
 
 function help() {
@@ -146,6 +148,17 @@ function help() {
     ${pc.cyan('deploy')}          Compile, test, deploy to Cloudflare environment
       --skip-check    Skip /admin reachability check
     ${pc.cyan('doctor')}          Execute React diagnostics check on Dashboard
+
+  ${pc.bold('8. Agent Scripts')}
+    ${pc.cyan('run <name|path>')} Run a .beech/scripts/<name>.ts script through the typed SDK
+      --arg <k=v>     Pass a string argument to the script (repeatable)
+      --dry-run       Record writes without sending them
+      --json          Print the report as one JSON document
+      --out <file>    Also write the JSON report to a file
+      --api-url <url> API origin
+    ${pc.cyan('agent setup')}     Write .mcp.json entry, agent skill, scripts README and example script
+      --force         Overwrite files that differ from the templates
+      --api-url <url> API origin written to .mcp.json
 `)
 }
 
@@ -272,6 +285,19 @@ async function cmdSchemaApply(args) {
   const yes         = args.includes('--yes') || args.includes('-y')
   const { schemaApply } = await import('@beechcms/cli')
   await schemaApply({ manifest, apiUrl, yes })
+}
+
+async function cmdRun(args) {
+  const { run } = await import('@beechcms/cli')
+  await run(args)
+}
+
+async function cmdAgentSetup(args) {
+  const force  = args.includes('--force')
+  const apiIdx = args.indexOf('--api-url')
+  const apiUrl = apiIdx !== -1 ? args[apiIdx + 1] : undefined
+  const { agentSetup } = await import('@beechcms/cli')
+  await agentSetup({ force, apiUrl })
 }
 
 async function cmdGenerateTypes(args) {

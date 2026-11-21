@@ -55,3 +55,9 @@ export { forms } from './commands/forms.js'
 export type { FormsOptions } from './commands/forms.js'
 export { setupCloudflare } from './commands/setup-cloudflare.js'
 export type { SetupCloudflareOptions } from './commands/setup-cloudflare.js'
+
+// Agent scripts:
+export { run, parseRunArgs } from './commands/run.js'
+export type { RunOptions } from './commands/run.js'
+export { agentSetup } from './commands/agent-setup.js'
+export type { AgentSetupOptions } from './commands/agent-setup.js'

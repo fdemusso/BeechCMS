@@ -154,4 +154,15 @@ describe('SDK invocation', () => {
     expect(entry).toEqual({ id: 'e1' })
     expect(requests).toHaveLength(1)
   })
+
+  it('an invalid JSON answer is journaled as an error record before BeechSdkError invalid_json is thrown', async () => {
+    const { transport } = recordingTransport(new Response('{not json', { status: 200, headers: JSON_HEADERS }))
+    const { sdk, journal } = createBeechSdk({ transport })
+
+    const failure = await sdk.content.get('posts', 'e1').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(BeechSdkError)
+    expect(failure).toMatchObject({ code: 'invalid_json', status: 200, operationId: 'content.get' })
+    expect(journal.calls).toEqual([expect.objectContaining({ operationId: 'content.get', outcome: 'error', status: 200 })])
+  })
 })

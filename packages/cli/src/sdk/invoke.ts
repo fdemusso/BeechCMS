@@ -129,7 +129,13 @@ export function createInvoker(options: BeechSdkOptions): SdkInvoker {
       throw error
     }
 
-    const parsed = await parseBody(response, operationId)
+    let parsed: unknown
+    try {
+      parsed = await parseBody(response, operationId)
+    } catch (error) {
+      calls.push({ ...record, outcome: 'error', status: response.status })
+      throw error
+    }
     if (response.status === 202 && isAgentIntentPendingResponse(parsed)) {
       pendingIntents.push(parsed.intent)
       calls.push({ ...record, outcome: 'pending', status: response.status })
