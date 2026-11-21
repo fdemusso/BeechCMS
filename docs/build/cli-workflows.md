@@ -239,6 +239,8 @@ An agent (or you) writes a TypeScript script against the typed `beech` SDK; `bee
 
 `--json` prints exactly one document on stdout; `console.log` inside a script goes to `logs`.
 
+For the full agent workflow (setup, consent, approvals), see [Working with an Agent Locally](/build/local-agent).
+
 #### RunReport
 
 | Field | Meaning |
@@ -253,7 +255,7 @@ An agent (or you) writes a TypeScript script against the typed `beech` SDK; `bee
 | `error` | `{ code, message, status, operationId }` or `null`. Codes: SDK/API codes, `script_load_failed`, `sdk_unresolved`, `invalid_script`, `script_error`, `result_not_serializable`. |
 | `logs` | Lines from `context.log` and `console.log` (first 500). |
 | `calls` | Every SDK call in order, with `outcome` `executed`, `pending`, `dry-run` or `error`. |
-| `pendingIntents` | Actions that did not run and wait for approval in Dashboard → Agent actions. |
+| `pendingIntents` | Actions that did not run and wait for approval: ask the agent to call `beech_confirm`, or use Dashboard → Settings → Connected apps → Pending agent actions. |
 
 Exit codes: `0` for `ok`, including pending intents; `1` for `error` or a usage error. A script can never approve an intent: the CLI OAuth client lacks `agent:approve` and the SDK has no approve method.
 

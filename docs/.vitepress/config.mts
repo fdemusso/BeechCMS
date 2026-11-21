@@ -109,6 +109,7 @@ export default defineConfig({
           text: 'Tooling & Architecture',
           items: [
             { text: 'CLI Workflows', link: '/build/cli-workflows' },
+            { text: 'Working with an Agent Locally', link: '/build/local-agent' },
             { text: 'Vertical Slice Architecture', link: '/build/vertical-slice-architecture' }
           ]
         }
