@@ -46,8 +46,9 @@ Scripts are TypeScript files in \`.beech/scripts/\`. They call the CMS through t
 
 ## Pending intents
 
-A pending intent did not run. Tell the human what is waiting and that it is approved in Dashboard → Agent actions.
-Never try to approve it: no script, scope or flag can.
+A pending intent did not run. Call the beech_confirm MCP tool with the ids from pendingIntents: the human approves
+or rejects in one dialog. If it returns an instruction instead, relay it to the human. Never try to approve another
+way: no script, scope or flag can.
 
 ## Rules
 
@@ -79,8 +80,9 @@ pnpm beech run <name> --arg key=value
 
 ## Approval
 
-Some writes wait for a human instead of running. They appear in the report as \`pendingIntents\` and are approved in
-Dashboard → Agent actions.
+Some writes wait for a human instead of running. They appear in the report as \`pendingIntents\`; the agent asks you to
+approve them in a dialog (\`beech_confirm\`), or you decide in Dashboard → Settings → Connected apps → Pending agent
+actions.
 
 - \`ENV=development\`: only destructive operations need approval.
 - \`ENV=production\`: publishing needs approval as well.

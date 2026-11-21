@@ -255,4 +255,5 @@ export const OPERATION_CATALOG: readonly OperationSpec[] = [
   agent('intents.get', 'GET', '/api/agent/intents/:id', 'agent:read', 'read', 'Read one agent intent', DOCS_MCP),
   agent('intents.approve', 'POST', '/api/agent/intents/:id/approve', 'agent:approve', 'write', 'Approve an agent intent and run it once', DOCS_MCP),
   agent('intents.reject', 'POST', '/api/agent/intents/:id/reject', 'agent:read', 'write', 'Reject an agent intent', DOCS_MCP),
+  agent('intents.session', 'GET', '/api/agent/session', 'agent:read', 'read', 'Read the calling agent session: scopes, environment and confirmation policy', DOCS_MCP),
 ]

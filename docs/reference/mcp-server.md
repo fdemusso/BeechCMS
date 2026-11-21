@@ -361,6 +361,7 @@ The intent endpoints act on the caller's own intents only:
 
 | Method | Route | Scope | Purpose |
 |---|---|---|---|
+| `GET` | `/api/agent/session` | `agent:read` | Your token's client, scopes, environment, confirmation policy and schema version |
 | `GET` | `/api/agent/intents` | `agent:read` | List your pending intents |
 | `GET` | `/api/agent/intents/:id` | `agent:read` | Read one intent, with its stored request body |
 | `POST` | `/api/agent/intents/:id/approve` | `agent:approve` | Run the stored request once; the request body is ignored |

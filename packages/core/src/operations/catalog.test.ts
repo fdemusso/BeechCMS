@@ -116,7 +116,7 @@ describe('OPERATION_CATALOG', () => {
 
     const risks = intentOperations.map(operation => resolveOperationRisk(operation, { query: {}, body: undefined }))
 
-    expect(intentOperations).toHaveLength(4)
+    expect(intentOperations).toHaveLength(5)
     expect(risks.filter(risk => risk === 'publish' || risk === 'destructive')).toEqual([])
   })
 })

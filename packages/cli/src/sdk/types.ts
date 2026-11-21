@@ -157,6 +157,7 @@ export interface IntentsNamespace {
   list(): Promise<SdkJson>
   get(id: string): Promise<SdkJson>
   reject(id: string): Promise<WriteOutcome<SdkJson>>
+  session(): Promise<SdkJson>
 }
 
 export interface DraftsNamespace {

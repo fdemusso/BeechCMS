@@ -199,6 +199,7 @@ const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'DELETE', pattern: /^\/api\/rbac\/invitations\/[^/]+$/,                  requirement: anyScope('manage_users') },
 
   // --- agent intents: own intents only, checked in the handler
+  { method: 'GET',    pattern: /^\/api\/agent\/session$/,                   requirement: AUTHED },
   { method: 'GET',    pattern: /^\/api\/agent\/intents$/,                    requirement: AUTHED },
   { method: 'GET',    pattern: /^\/api\/agent\/intents\/[^/]+$/,             requirement: AUTHED },
   { method: 'POST',   pattern: /^\/api\/agent\/intents\/[^/]+\/approve$/,    requirement: AUTHED },

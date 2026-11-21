@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { AgentIntentRecord, AgentIntentRisk, AgentIntentStatus, OperationMethod } from '@beechcms/core'
+import type { AgentEnvironment, AgentIntentRecord, AgentIntentRisk, AgentIntentStatus, OAuthScope, OperationMethod } from '@beechcms/core'
 
 /** Most pending intents one listing returns. */
 export const AGENT_INTENT_LIST_LIMIT = 50
@@ -29,6 +29,18 @@ export interface AgentIntentView {
   expiresAt: number
   decidedAt: number | null
   result: { status: number; body: unknown } | null
+}
+
+/** API shape of `GET /api/agent/session`. `clientId`/`scopes` are null for the dashboard JWT. */
+export interface AgentSessionView {
+  userId: string
+  clientId: string | null
+  scopes: OAuthScope[] | null
+  environment: AgentEnvironment
+  /** Whether an OAuth request of this risk becomes an intent here (`requiresConfirmation`). */
+  confirmation: { publish: boolean; destructive: boolean }
+  /** `seed_meta.registry_version`, the value `X-Schema-Version` carries. */
+  schemaVersion: number
 }
 
 /** Detail adds the stored request body: parsed JSON when it parses, else the raw text, `null` when absent. */

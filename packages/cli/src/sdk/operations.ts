@@ -163,6 +163,7 @@ export const SDK_OPERATIONS = {
     list: 'intents.list',
     get: 'intents.get',
     reject: 'intents.reject',
+    session: 'intents.session',
   },
 } as const satisfies SdkOperationMap
 

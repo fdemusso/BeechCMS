@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono, type ExecutionContext } from 'hono'
-import { OPERATION_CATALOG } from '@beechcms/core'
+import { OPERATION_CATALOG, agentEnvironment, requiresConfirmation } from '@beechcms/core'
 import type { AppEnv } from '../../types'
 import { publicProblem } from '../../public/errors/problem-details'
 import { logActivity } from '../../shared/services/activity-log/log-activity'
@@ -13,6 +13,7 @@ import {
   AGENT_INTENT_ERRORS,
   AGENT_INTENT_LIST_LIMIT,
   MAX_INTENT_RESULT_BYTES,
+  type AgentSessionView,
   toIntentDetailView,
   toIntentView,
   truncateUtf8,
@@ -30,6 +31,23 @@ const OPERATION_GONE_STATUS = 410
  * Registered as one method chain so `AppType` carries the response types to the dashboard.
  */
 const agentIntentsApp = new Hono<AppEnv>()
+  /** GET /session: the caller's client, frozen scopes, environment, confirmation policy and schema version. */
+  .get('/session', async (c) => {
+    const grant = c.get('oauthGrant')
+    const environment = agentEnvironment(c.env.ENV)
+    const view: AgentSessionView = {
+      userId: c.get('jwtPayload').sub,
+      clientId: grant?.clientId ?? null,
+      scopes: grant?.scope ?? null,
+      environment,
+      confirmation: {
+        publish: requiresConfirmation('publish', environment),
+        destructive: requiresConfirmation('destructive', environment),
+      },
+      schemaVersion: await c.get('seedRepository').getRegistryVersion(),
+    }
+    return c.json(view, 200)
+  })
   /** GET /intents: the caller's pending, unexpired intents, newest first. */
   .get('/intents', async (c) => {
     const records = await c.get('agentIntentRepository').listPending(

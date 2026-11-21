@@ -273,4 +273,46 @@ describe('agent intents — flow (real D1)', () => {
     expect(response.status).toBe(200)
     expect(await intentRows()).toEqual([])
   })
+
+  describe('GET /api/agent/session', () => {
+    type SessionBody = {
+      userId: string
+      clientId: string | null
+      scopes: string[] | null
+      environment: string
+      confirmation: { publish: boolean; destructive: boolean }
+      schemaVersion: number
+    }
+
+    it('an OAuth token sees its client, its frozen scopes and the development policy', async () => {
+      const response = await app.request('/api/agent/session', { headers: bearer(confirmToken) }, env())
+
+      expect(response.status).toBe(200)
+      const body = await response.json<SessionBody>()
+      expect(body.clientId).toBe(MCP_CLIENT_ID)
+      expect([...(body.scopes ?? [])].sort()).toEqual(['agent:approve', 'agent:read'])
+      expect(body.environment).toBe('development')
+      expect(body.confirmation).toEqual({ publish: false, destructive: true })
+      const registry = await db.prepare("SELECT value FROM seed_meta WHERE id = 'registry_version'").first<{ value: string }>()
+      expect(body.schemaVersion).toBe(Number(registry?.value))
+    })
+
+    it('the dashboard JWT sees null client and scopes', async () => {
+      const response = await app.request('/api/agent/session', { headers: bearer(adminToken) }, env())
+
+      expect(response.status).toBe(200)
+      const body = await response.json<SessionBody>()
+      expect(body.clientId).toBeNull()
+      expect(body.scopes).toBeNull()
+    })
+
+    it('production requires confirmation for publish as well', async () => {
+      const response = await app.request('/api/agent/session', { headers: bearer(scriptToken) }, { ...TEST_ENV, ENV: 'production', DB: db })
+
+      expect(response.status).toBe(200)
+      const body = await response.json<SessionBody>()
+      expect(body.environment).toBe('production')
+      expect(body.confirmation).toEqual({ publish: true, destructive: true })
+    })
+  })
 })

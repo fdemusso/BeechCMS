@@ -1,8 +1,10 @@
 # @beechcms/mcp
 
-BeechCMS AI Control Plane — a Stdio MCP server that lets IDE agents inspect and safely evolve
-BeechCMS content schemas through the Botanical Engine's Admin API. It never touches D1 directly:
-every write goes through `POST /api/seeds/:slug/mcp-plan` and `POST /api/seeds/:slug/mcp-apply`.
+BeechCMS Agent Control Plane (2.0) — a Stdio MCP server that lets IDE agents inspect and safely evolve
+BeechCMS content schemas through the Botanical Engine's Admin API, discover the operation catalog
+(`beech_whoami`, `beech_search`) and get human approval for risky actions in one dialog (`beech_intents`,
+`beech_confirm`). It never touches D1 directly: every write goes through the API, e.g.
+`POST /api/seeds/:slug/mcp-plan` and `POST /api/seeds/:slug/mcp-apply`.
 
 ## Install & configure
 
@@ -36,7 +38,7 @@ that token — no password ever touches the MCP client config.
 | `BEECH_API_URL` | No | `.dev.vars` → `http://localhost:8787` | Token endpoint + REST API origin. |
 | `BEECH_AUTH_URL` | No | `BEECH_API_URL` | Origin the browser opens for `/oauth/authorize`. Must be the **dashboard** origin in local dev (Vite, `:5173`). |
 | `BEECH_OAUTH_CLIENT_ID` | No | `beech-mcp` | Must match the client row from migration `0039`. |
-| `BEECH_OAUTH_SCOPE` | No | `schema:read schema:write` | Set to `schema:read` for a read-only agent. |
+| `BEECH_OAUTH_SCOPE` | No | `schema:read schema:write settings:read agent:read agent:approve` | Scopes requested at consent. |
 | `BEECH_OAUTH_TIMEOUT_MS` | No | `180000` | Browser round-trip budget. |
 | `BEECH_TOKEN_CACHE` | No | `~/.beechcms/mcp-tokens.json` | Cache override (tests, containers). |
 
@@ -55,6 +57,12 @@ To revoke access, open **Settings → Connected apps** in the dashboard and revo
 | `403 insufficient_scope` | Cached token is narrower than the tool needs — revoke and re-authorize with a wider `BEECH_OAUTH_SCOPE`. |
 | Authorization timed out | Browser consent was not completed within `BEECH_OAUTH_TIMEOUT_MS` — re-run the tool. |
 
+### Scopes
+
+The server requests `schema:read schema:write settings:read agent:read agent:approve`
+(`MCP_OAUTH_SCOPE`). A grant cached by a 1.x server lacks `agent:read`: it is replaced by one new consent on first
+use, announced by a single line on stderr.
+
 ## Tools
 
 | Tool | Input | Output | Errors |
@@ -65,6 +73,10 @@ To revoke access, open **Settings → Connected apps** in the dashboard and revo
 | `beech_schema_validate` | `{ candidate }` | `{ issues: { slug, fatal, messages }[] }` | — (local, no D1 write) |
 | `beech_schema_plan` | `{ slug, candidate }` | `{ planId, classification, requiresConfirmation, applicable, blockedReasons, statements, ftsRebuildNeeded, expectedVersion, issues, expiresInSeconds }` | 400, 401, 403 |
 | `beech_schema_apply` | `{ planId }` | `{ slug, newVersion, ftsRebuilt, warning? }` | unknown/expired/used planId, destructive classification, 409 drift, 401, 403 |
+| `beech_whoami` | `{}` | `{ user, permissions, environment, confirmation, schemaVersion, mcp, scripts, apiUrl, pendingActionsUrl }` | 401, 403 |
+| `beech_search` | `{ query, detail?, limit? }` | `{ query, detail, scriptScopesKnown, operations[], docs[] }` | invalid `query`/`detail` |
+| `beech_intents` | `{}` | `{ intents: { id, operationId, risk, summary, expiresAt, expiresInSeconds }[], pendingActionsUrl }` | 401, 403 |
+| `beech_confirm` | `{ intentIds }` (1-20) | `{ status, decision, results[], pendingActionsUrl, instruction, reason }` | invalid `intentIds` |
 
 ## Permission model
 
