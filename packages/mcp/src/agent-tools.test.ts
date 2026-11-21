@@ -91,6 +91,16 @@ describe('agent tools', () => {
       expect(bodyLine).toBe(`   body: ${JSON.stringify(longBody).slice(0, CONFIRM_BODY_PREVIEW_CHARS)}…`)
     })
 
+    it('the dialog tells the human to set Decision before accepting, without preselecting a decision', async () => {
+      routeIntents({ [FIRST_ID]: intentBody(FIRST_ID) }, approved)
+
+      await beechConfirm({ intentIds: [FIRST_ID] }, deps)
+
+      const message = elicit.mock.calls[0][0]
+      expect(message).toContain('set Decision first')
+      expect(message).toContain('Accept does nothing while Decision is empty')
+    })
+
     it('a cancelled dialog sends no decision request', async () => {
       routeIntents({ [FIRST_ID]: intentBody(FIRST_ID) }, approved)
       const withoutDecision: ElicitOutcome = { action: 'cancel' }

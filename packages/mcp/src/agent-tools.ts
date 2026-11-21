@@ -264,6 +264,8 @@ function buildDialogMessage(shown: readonly IntentBody[], now: number): string {
     }
   })
   lines.push('approve runs each action once with your permissions; reject discards them.')
+  // The Decision field is required and starts empty: clients keep Accept inert until it is set, with no hint why.
+  lines.push('To answer, set Decision first (terminal: → opens the field, ↑/↓ choose, Enter confirms), then Accept. Accept does nothing while Decision is empty.')
   return lines.join('\n')
 }
 
