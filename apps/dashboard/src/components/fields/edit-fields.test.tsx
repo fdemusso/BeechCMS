@@ -43,6 +43,14 @@ describe("BooleanEdit", () => {
     render(<BooleanEdit branch={branch} value={false} onChange={vi.fn()} />)
     expect(screen.getByText("My Field")).toBeInTheDocument()
   })
+
+  it("la riga ha l'altezza di un input e centra il checkbox, così si allinea a un input accanto", () => {
+    render(<BooleanEdit branch={branch} value={false} onChange={vi.fn()} />)
+
+    const row = screen.getByRole("checkbox").parentElement
+
+    expect(row).toHaveClass("h-8", "items-center")
+  })
 })
 
 describe("NumberEdit", () => {
