@@ -52,6 +52,14 @@
         "@beechcms/dashboard"
       ]
     },
+    "evals": {
+      "entry": [
+        "src/**/*.test.ts"
+      ],
+      "project": [
+        "**/*.ts"
+      ]
+    },
     "packages/mcp": {
       "entry": [
         "scripts/*.mjs"

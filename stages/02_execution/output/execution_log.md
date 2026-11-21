@@ -1,56 +1,46 @@
-# Execution Log — McpDocs (sprint 09)
+# Execution log — AgentEvals
 
-Branch: `feature/mcp-docs` (cut from `feature/mcp2`). No commit made.
+## SECTION 6 — Acceptance criteria
 
-## SECTION 6 — ACCEPTANCE CRITERIA
+- [x] `evals/` private workspace `@beechcms/agent-evals`, listed in `pnpm-workspace.yaml`; `pnpm eval:agent` runs it.
+- [x] `src/types.ts` exports the T1 types verbatim; `EvalReport.version` is `1`.
+- [x] No `any`, `enum`, `namespace`; relative imports end in `.ts`; `node src/cli.ts --task nope` exits 2 naming `--task`, nothing booted.
+- [x] Harness never calls `/approve` (`grep approve evals/src`: report note text, `agent:approve` filter, consent `approved: true`).
+- [x] No `~/.beechcms` access: guard in `mintGrants`; `mcp-tokens.json` mtime stayed `Nov 21 12:07` (before all runs). No before-checksum existed.
+- [x] Agent cwd under `os.tmpdir()`; `--strict-mcp-config`, `--setting-sources project,local`; v1 `--tools ""`.
+- [x] Fresh DB per run on 8798; `lsof -i :8798` empty after exit.
+- [x] Eight tasks match T9 (ids, order, verbatim prompts, same prompt for v1/v2).
+- [x] Every check pure, pass + fail tested; tasks 7-8 fail with `destroyed without approval`.
+- [x] `SCRIPT_GRANT_SCOPE === CLI_OAUTH_SCOPE` pinned in `grants.test.ts`; MCP scope imported.
+- [x] Unit tests follow `testing_conventions.md`.
+- [x] type-check, test, `pnpm lint` pass.
+- [x] `evals/reports/20261121-1757/report.{json,md}` from a real full run: 16 results, none `harness_error`, all with turns, tokens, verdict. Not committed (stage contract: no own commits).
+- [x] No change under `apps/`, `packages/`, `docs/`, `scripts/`, `e2e/` (`docs/Sprints/McpDocs/` was untracked before this stage).
 
-- [x] `mapElicitResult` and `ElicitAnswer` exported from `agent-tools.ts` with the Task 1 signatures; `elicitDecision()` returns `mapElicitResult(result)`; unknown `action` → `cancel`.
-- [x] `agent-tools.ts` imports only `./constants.js` (`grep "^import"` → one import, from `./constants.js`; `@beechcms/core` not needed by the new code).
-- [x] Misnamed test renamed (`a cancelled dialog sends no decision request`); 7 `mapElicitResult` tests exist and pass; `pnpm --filter @beechcms/mcp test` green (63/63).
-- [x] `docs-fact-check.mjs` check 5 exists; fails on missing/unknown tool name (negative check below); passes on final tree.
-- [x] `docs/reference/mcp-server.md`: 13 tools, "13 tools" sentence, 2.0 default scope, `beech_confirm` statuses and 8 item outcomes, two OAuth clients, 1.x upgrade path; no claim that destructive operations are impossible through the agent (danger-zone table states they are intents).
-- [x] `docs/build/local-agent.md` exists with the 8 Task 5 sections, is in the sidebar, and is in `packages/mcp/resources/manifest.json`.
-- [x] `docs/start/mcp.md` leads with `npx beech agent setup`; no "copy `SKILL.md` into project rules" advice.
-- [x] `packages/mcp/README.md` lists 13 tools.
-- [x] Approval only via `beech_confirm` or the dashboard in every doc; residual-risk sentence present in `mcp-server.md` and `local-agent.md`.
-- [x] Spot-check against sources: tool names/annotations (`tool-definitions.ts`), scope strings and `CONFIRM_*` limits (`constants.ts`), CLI scopes (`OAUTH_SCOPES` minus `agent:approve`), stderr line (`client.ts` `dropLegacyGrant`), intent log rows (`agent-intents.handler.ts:L112,L145`, `agent-intent-gate.middleware.ts:L131`), SDK methods `content.list`, `content.delete` (`purge: 'true'`), `media.uploadFile` (`packages/cli/src/sdk/types.ts`), `latest-entries.ts` quoted verbatim from `EXAMPLE_SCRIPT_TEMPLATE`.
-- [x] No change to any `package.json`, `SKILL.md`, `tool-definitions.ts`, `constants.ts`, core, api, dashboard or cli source.
-- [x] No `any` in changed TypeScript; SPDX headers intact.
-- [x] SECTION 5 commands pass (coverage caveat below).
+## SECTION 5 — Validation output
 
-## SECTION 5 — VALIDATION
+- `pnpm install` → ok, lockfile has `evals` importer.
+- `pnpm --filter @beechcms/agent-evals type-check` → clean.
+- `pnpm --filter @beechcms/agent-evals test` → 6 files, 50 tests passed.
+- `pnpm lint` → 20/20 tasks successful.
+- `pnpm exec knip` → no finding in `evals/`.
+- `pnpm beech test --diff` → `PASS Tests: every selected test run passed`. `FAIL Coverage: 5/45 files below threshold`: files are `apps/api` agent-intents code from earlier sprints (diff is against `devs`, which lacks sprints 05-09), none from this sprint.
+- Smoke (`--task schema-add-branch`): both variants pass, v2 init lists `beechcms` `connected`.
+- Full baseline: v1 2/8, v2 8/8 (median turns 5 vs 15, median input tokens 21 199 vs 223 111, cost 0.294 vs 0.8394 USD).
+- `graphify update .` → graph rebuilt.
 
-```
-pnpm --filter @beechcms/mcp type-check   → tsc --noEmit, exit 0
-pnpm --filter @beechcms/mcp test         → Test Files 9 passed (9), Tests 63 passed (63)
-pnpm --filter @beechcms/mcp build        → bundle-resources: wrote 860 resources; dist/index.js 59.5kb
-grep -c "local-agent.md" packages/mcp/resources/manifest.json   → 2
-pnpm docs:check                          → checks 1-5 pass, exit 0
-  ✓ 5. All 13 MCP tools are documented; no unknown beech_* tool names in MCP docs.
-pnpm lint                                → Tasks: 19 successful, 19 total
-pnpm beech test --diff                   → Test Files 101 passed, Tests 761 passed (integration); PASS: every selected test run passed
-graphify update .                        → 20392 nodes, 48337 edges, 1053 communities
-```
+## Deviations from the plan (planning should absorb)
 
-Coverage-gate caveat (sprints 07-08 rule: `devs` lacks sprints 05-08, report without fixing): LOW files are outside this sprint's diff — `apps/api/src/features/agent-intents/agent-intents.handler.ts` (3.4%) and `agent-intents.view.ts` (25.0%). Gate exit 2 comes from them only.
+1. `@beechcms/testing` dist cannot load under Node ESM (extensionless re-exports). `stack.ts`/`tasks.ts` import `packages/testing/src/seeds/canonical.{seeds,data}.ts` by relative path; `@beechcms/testing` devDependency dropped.
+2. Preflight checks `apps/dashboard/dist/admin/index.html` (not `dist/index.html`); `preflight` is `async` (uses `fetch`).
+3. `wrangler.log` path comes from env `BEECH_EVAL_RUN_DIR` set by `cli.ts` (signature `startFreshStack(repoRoot)` unchanged).
+4. `grants.test.ts` imports `cli-control-plane`, a vitest alias to `packages/cli/src/lib/control-plane.ts` plus a `.d.ts` stub for tsc (strict flags fire inside `packages/cli` otherwise).
+5. Entry slugs shortened (`bulk-tag-<n>`, `author-rpt-<n>`, `trash-rst-<n>`, `purge-<n>`): `slugify` truncates to 15 chars, so `eval-<task>-<n>` collided.
+6. `GET /api/content/:slug` items are `{ id, slug, status, data: {alias: …} }`, not flat; `listEntries` flattens `data`.
+7. knip: un-exported constants nothing imports (`V1_GRANT_SCOPE`, stack constants, `defineTask`, `PreparedTask`); removed redundant `src/cli.ts` entry from the `evals` knip block.
+8. The rejection entry in `stages/01_sprint_planning/output/rejections.md` (2026-11-21) was resolved by items 1-2 and 4.
 
-## Negative check — fact-check 5 (not committed)
+## Findings (product, out of scope)
 
-Renamed every `` `beech_whoami` `` → `` `beech_whoamii` `` in `docs/reference/mcp-server.md`, ran `pnpm docs:check`:
-
-```
-✖ MCP tool "beech_whoami" is registered in tool-definitions.ts but missing from reference/mcp-server.md
-✖ docs/reference/mcp-server.md mentions unknown MCP tool "beech_whoamii"
-✖ DOCUMENTATION FACT-CHECK FAILED with 2 issue(s).   → exit 1
-```
-
-Reverted from backup; `pnpm docs:check` → exit 0. `grep -c whoamii` → 0.
-
-## Read-through
-
-Anchors linked from the new docs exist: `mcp-server.md#upgrading-from-1-x`, `#approval-lifecycle-beech-confirm`, `#environment-variables`, `#permission-model-known-limitations`, `cli-workflows.md#runreport`, `local-agent.md#setup`. Not rendered with `pnpm docs:dev`; checked by heading grep.
-
-## Notes
-
-- Reverse check in fact-check 5 dedupes per file + token (one error per unknown token per file), so the negative run yields exactly one forward and one reverse error.
-- Docs state `beech_confirm` timeout maps to `fallback` / `elicitation_failed` (elicit promise rejects); not exercised by a test.
+- v1 fails all six non-schema tasks (no tool for content, trash or intents), as `expectV1: no` predicted.
+- On the two schema tasks both variants pass: v2 used 1.5x-2.8x the input tokens of v1 (67k vs 45k, 143k vs 52k) with similar turns (5 vs 6, 11 vs 9).

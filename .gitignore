@@ -54,6 +54,8 @@ coverage/
 e2e/.auth/
 e2e/.wrangler-e2e/
 e2e/test-results/
+evals/.runs/
+evals/.wrangler-evals/
 
 # Python
 venv/

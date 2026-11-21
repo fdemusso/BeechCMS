@@ -1,0 +1,526 @@
+{
+  "version": 1,
+  "startedAt": "2026-11-21T16:57:00.334Z",
+  "gitCommit": "6002acde",
+  "model": "sonnet",
+  "claudeVersion": "2.1.330",
+  "v1Package": "@beechcms/mcp@1.2.0",
+  "tasks": [
+    {
+      "id": "schema-add-branch",
+      "title": "Add an optional number field to posts",
+      "area": "schema",
+      "expectV1": true
+    },
+    {
+      "id": "schema-create-seed",
+      "title": "Create the events content type",
+      "area": "schema",
+      "expectV1": true
+    },
+    {
+      "id": "content-create-many",
+      "title": "Create three draft posts",
+      "area": "content",
+      "expectV1": false
+    },
+    {
+      "id": "content-bulk-tag",
+      "title": "Add a tag to every Release post",
+      "area": "content",
+      "expectV1": false
+    },
+    {
+      "id": "content-author-report",
+      "title": "Count published posts per author",
+      "area": "content",
+      "expectV1": false
+    },
+    {
+      "id": "trash-restore",
+      "title": "Restore the trashed Keep posts",
+      "area": "trash",
+      "expectV1": false
+    },
+    {
+      "id": "content-purge-intent",
+      "title": "Permanently delete a post (needs approval)",
+      "area": "intent",
+      "expectV1": false
+    },
+    {
+      "id": "seed-delete-intent",
+      "title": "Delete a content type (needs approval)",
+      "area": "intent",
+      "expectV1": false
+    }
+  ],
+  "results": [
+    {
+      "taskId": "schema-add-branch",
+      "variant": "v1",
+      "metrics": {
+        "status": "completed",
+        "turns": 6,
+        "inputTokens": 44730,
+        "outputTokens": 1900,
+        "cacheReadTokens": 35951,
+        "costUsd": 0.057691099999999995,
+        "durationMs": 11903,
+        "toolCalls": {
+          "mcp__beechcms__beech_docs_search": 1,
+          "mcp__beechcms__beech_get_seed": 1,
+          "mcp__beechcms__beech_schema_apply": 1,
+          "mcp__beechcms__beech_schema_plan": 1,
+          "mcp__beechcms__beech_schema_validate": 1
+        },
+        "finalText": "I added an optional number field `reading_time` (label \"Reading time\") to the posts content type. The plan was classified additive, and the apply moved the schema to version 6.\n\nAll 11 existing fields are unchanged. The only new column is `content_posts.reading_time`, stored as a number. Full-text search didn't need a rebuild, and the apply returned no warnings.\n\nI didn't set any `policies` on the new field, so it uses the defaults, the same as `view_count`.",
+        "error": null
+      },
+      "verdict": {
+        "success": true,
+        "detail": "reading_time is a number branch and the 11 canonical branches are unchanged"
+      },
+      "transcript": "evals/.runs/20261121-1757/v1/schema-add-branch.jsonl"
+    },
+    {
+      "taskId": "schema-add-branch",
+      "variant": "v2",
+      "metrics": {
+        "status": "completed",
+        "turns": 5,
+        "inputTokens": 67207,
+        "outputTokens": 1087,
+        "cacheReadTokens": 56717,
+        "costUsd": 0.0584857,
+        "durationMs": 7520,
+        "toolCalls": {
+          "mcp__beechcms__beech_docs_search": 1,
+          "mcp__beechcms__beech_get_seed": 1,
+          "mcp__beechcms__beech_schema_apply": 1,
+          "mcp__beechcms__beech_schema_plan": 1
+        },
+        "finalText": "I added `reading_time` to the posts content type. It's an optional number field labelled \"Reading time\", and the schema is now at version 6.\n\nThe plan was classed as additive, so nothing was dropped or changed. All 11 existing fields are exactly as they were. The plan added one `reading_time` column (a real number) and an index on it. Full-text search didn't need a rebuild.",
+        "error": null
+      },
+      "verdict": {
+        "success": true,
+        "detail": "reading_time is a number branch and the 11 canonical branches are unchanged"
+      },
+      "transcript": "evals/.runs/20261121-1757/v2/schema-add-branch.jsonl"
+    },
+    {
+      "taskId": "schema-create-seed",
+      "variant": "v1",
+      "metrics": {
+        "status": "completed",
+        "turns": 9,
+        "inputTokens": 51812,
+        "outputTokens": 1045,
+        "cacheReadTokens": 43493,
+        "costUsd": 0.0480513,
+        "durationMs": 8355,
+        "toolCalls": {
+          "mcp__beechcms__beech_docs_search": 3,
+          "mcp__beechcms__beech_get_seed": 1,
+          "mcp__beechcms__beech_list_seeds": 1,
+          "mcp__beechcms__beech_schema_apply": 1,
+          "mcp__beechcms__beech_schema_plan": 1,
+          "mcp__beechcms__beech_schema_validate": 1
+        },
+        "finalText": "I created the `events` content type, and the schema version went from 5 to 6. The plan was a plain create (nothing destructive), validation reported no issues, and the apply succeeded.\n\n| Field | Type | Notes |\n|---|---|---|\n| `name` | text | required on create; used as the display name |\n| `starts_at` | date | optional, stored as an integer timestamp |\n| `venue` | text | optional |\n\nI set the label to \"Event\" and the plural to \"Events\". The table is `content_events`, with full-text search over `name` and `venue`. No FTS rebuild was needed.",
+        "error": null
+      },
+      "verdict": {
+        "success": true,
+        "detail": "name is required text, starts_at is date, venue is text, nothing else is required"
+      },
+      "transcript": "evals/.runs/20261121-1757/v1/schema-create-seed.jsonl"
+    },
+    {
+      "taskId": "schema-create-seed",
+      "variant": "v2",
+      "metrics": {
+        "status": "completed",
+        "turns": 11,
+        "inputTokens": 142879,
+        "outputTokens": 1054,
+        "cacheReadTokens": 130575,
+        "costUsd": 0.07278149999999999,
+        "durationMs": 10232,
+        "toolCalls": {
+          "Read": 1,
+          "mcp__beechcms__beech_docs_search": 2,
+          "mcp__beechcms__beech_get_seed": 2,
+          "mcp__beechcms__beech_list_seeds": 1,
+          "mcp__beechcms__beech_schema_apply": 1,
+          "mcp__beechcms__beech_schema_plan": 1,
+          "mcp__beechcms__beech_schema_validate": 1,
+          "mcp__beechcms__beech_whoami": 1
+        },
+        "finalText": "I created the `events` content type, and the schema version went from 5 to 6. The plan was a plain additive create, so it needed no confirmation.\n\n- **`name`**: text, required on create. It is also the display name for entries.\n- **`starts_at`**: date, stored as an integer timestamp.\n- **`venue`**: text.\n\nI did not run a test insert, so no event entries exist yet.",
+        "error": null
+      },
+      "verdict": {
+        "success": true,
+        "detail": "name is required text, starts_at is date, venue is text, nothing else is required"
+      },
+      "transcript": "evals/.runs/20261121-1757/v2/schema-create-seed.jsonl"
+    },
+    {
+      "taskId": "content-create-many",
+      "variant": "v1",
+      "metrics": {
+        "status": "completed",
+        "turns": 5,
+        "inputTokens": 22390,
+        "outputTokens": 739,
+        "cacheReadTokens": 15526,
+        "costUsd": 0.036386600000000005,
+        "durationMs": 7569,
+        "toolCalls": {
+          "mcp__beechcms__beech_docs_search": 2,
+          "mcp__beechcms__beech_get_seed": 1,
+          "mcp__beechcms__beech_list_seeds": 1
+        },
+        "finalText": "I couldn't create the three posts. None of my tools can write content.\n\nThe BeechCMS tools I have only read and change schema: listing, validating, planning and applying seeds, plus docs search. I have no shell or HTTP tool, so I can't call the content API from here. Schema changes also wouldn't help, because the `posts` seed already supports what you need:\n\n- It has `allowDrafts: true`, and `title` is the only branch required on creation.\n- The docs describe the content API, including `/api/content/:slug/:id/draft`, which stages a draft for an entry.\n\nYou can create them in one of two ways:\n- **Dashboard:** go to Posts → New, enter \"Alpha\", \"Beta\" and \"Gamma\" as titles, and save each one as a draft without publishing.\n- **Me, with a shell tool:** if you enable one, or give me the API base URL and how you're authenticated, I'll read the drafts doc to get the exact request shape. Then I'll create the three posts and check that they came back as drafts.",
+        "error": null
+      },
+      "verdict": {
+        "success": false,
+        "detail": "total is 0, expected 3"
+      },
+      "transcript": "evals/.runs/20261121-1757/v1/content-create-many.jsonl"
+    },
+    {
+      "taskId": "content-create-many",
+      "variant": "v2",
+      "metrics": {
+        "status": "completed",
+        "turns": 15,
+        "inputTokens": 210930,
+        "outputTokens": 2121,
+        "cacheReadTokens": 195373,
+        "costUsd": 0.10293129999999999,
+        "durationMs": 17705,
+        "toolCalls": {
+          "Bash": 3,
+          "Glob": 1,
+          "Grep": 2,
+          "Read": 2,
+          "Write": 1,
+          "mcp__beechcms__beech_docs_search": 1,
+          "mcp__beechcms__beech_get_seed": 1,
+          "mcp__beechcms__beech_list_seeds": 1,
+          "mcp__beechcms__beech_search": 1,
+          "mcp__beechcms__beech_whoami": 1
+        },
+        "finalText": "I created three posts titled \"Alpha\", \"Beta\" and \"Gamma\" with status `draft`. The API returned 201 for each, and no approvals were pending. I didn't read the entries back to confirm they show as drafts.\n\n| Title | ID |\n|---|---|\n| Alpha | `7c341cbb-bb78-44e0-ab26-af2eceff52a6` |\n| Beta | `60dd9f28-0021-49e7-b31d-ed05002a290a` |\n| Gamma | `9807a56b-c598-4c19-94d0-e98a63e14d3d` |\n\nI did the work with a script, `.beech/scripts/create-draft-posts.ts`, and ran it with `--dry-run` first. If you run it again it will create three more posts rather than skip the existing ones.",
+        "error": null
+      },
+      "verdict": {
+        "success": true,
+        "detail": "exactly Alpha, Beta and Gamma exist as drafts"
+      },
+      "transcript": "evals/.runs/20261121-1757/v2/content-create-many.jsonl"
+    },
+    {
+      "taskId": "content-bulk-tag",
+      "variant": "v1",
+      "metrics": {
+        "status": "completed",
+        "turns": 4,
+        "inputTokens": 20008,
+        "outputTokens": 599,
+        "cacheReadTokens": 13851,
+        "costUsd": 0.0319911,
+        "durationMs": 7115,
+        "toolCalls": {
+          "mcp__beechcms__beech_docs_search": 1,
+          "mcp__beechcms__beech_get_seed": 1,
+          "mcp__beechcms__beech_list_seeds": 1
+        },
+        "finalText": "I can't make this change with the tools I have in this session. I haven't changed anything.\n\nThe BeechCMS tools I can call only read and change schema: seeds, branches and field definitions. They can't list, read or edit posts. The `posts` seed has a free-form `tags` branch with no fixed options, so adding \"changelog\" to a post is a content edit, not a schema change. I also have no shell or HTTP tool here to call the running site's API directly.\n\nAny of these would let me do it:\n- **Give me a way to call the content API.** That could be a shell tool, or the API base URL and how to authenticate. I would list the posts, filter titles starting with \"Release\", and append \"changelog\" to each one's existing tags. I'd leave every other post alone.\n- **Do it in the dashboard.** Filter posts by title \"Release\" and add the tag by hand.\n\nOnce I can reach the API, I'll show you the list of matching posts and their current tags before I write anything.",
+        "error": null
+      },
+      "verdict": {
+        "success": false,
+        "detail": "Release 1 has tags [], expected [changelog]"
+      },
+      "transcript": "evals/.runs/20261121-1757/v1/content-bulk-tag.jsonl"
+    },
+    {
+      "taskId": "content-bulk-tag",
+      "variant": "v2",
+      "metrics": {
+        "status": "completed",
+        "turns": 20,
+        "inputTokens": 275984,
+        "outputTokens": 3250,
+        "cacheReadTokens": 255109,
+        "costUsd": 0.1414589,
+        "durationMs": 25162,
+        "toolCalls": {
+          "Bash": 8,
+          "Grep": 1,
+          "Read": 1,
+          "Skill": 1,
+          "Write": 3,
+          "mcp__beechcms__beech_get_seed": 1,
+          "mcp__beechcms__beech_list_seeds": 1,
+          "mcp__beechcms__beech_search": 1,
+          "mcp__beechcms__beech_whoami": 1
+        },
+        "finalText": "All 9 posts whose titles start with \"Release\" (Release 1 through Release 9) now have the \"changelog\" tag. The run reported every update as executed, and nothing is waiting for approval. I didn't re-read the posts afterwards to check the saved tags.\n\nRelease 2, 5 and 8 already had \"news\", and they kept it. The other six had no tags before. The other 15 posts were not touched.\n\nThe script is saved at `.beech/scripts/tag-release-posts.ts`. It skips posts that already have \"changelog\", so running it again changes nothing.\n\nI also left a temporary `.beech/scripts/peek-posts.ts` in the folder. I used it to look at the post data, and my attempt to delete it needed approval, so you can remove it.",
+        "error": null
+      },
+      "verdict": {
+        "success": true,
+        "detail": "every Release post gained changelog and kept its tags; other posts are unchanged"
+      },
+      "transcript": "evals/.runs/20261121-1757/v2/content-bulk-tag.jsonl"
+    },
+    {
+      "taskId": "content-author-report",
+      "variant": "v1",
+      "metrics": {
+        "status": "completed",
+        "turns": 10,
+        "inputTokens": 56765,
+        "outputTokens": 1094,
+        "cacheReadTokens": 48586,
+        "costUsd": 0.048486600000000005,
+        "durationMs": 12369,
+        "toolCalls": {
+          "Bash": 1,
+          "mcp__beechcms__beech_docs_search": 5,
+          "mcp__beechcms__beech_get_seed": 1,
+          "mcp__beechcms__beech_list_seeds": 1,
+          "mcp__beechcms__beech_mcp_status": 1
+        },
+        "finalText": "I can't answer this because none of my tools can read post or author records. The BeechCMS MCP tools only cover schema work: listing and reading seeds, validating, planning and applying schema changes, and searching the docs. The shell is disabled in this session, so I couldn't call the content API (`/api/v1/public/posts`) either.\n\nWhat I did find from the schema:\n- Three seeds exist: `authors`, `posts` and `categories`.\n- Each post links to its author through the `author_id` relation, which targets `authors`.\n- `allowDrafts` is true on posts, so a published count needs a filter on `status`.\n\nI won't guess at author names or counts. If you enable a shell tool, I can pull both collections from the public API and group posts by author. Alternatively, paste the JSON from `GET /api/v1/public/authors` and `GET /api/v1/public/posts`, and I'll compute the counts, including authors with zero.\n\nANSWER: {}",
+        "error": null
+      },
+      "verdict": {
+        "success": false,
+        "detail": "Ada is missing from the answer"
+      },
+      "transcript": "evals/.runs/20261121-1757/v1/content-author-report.jsonl"
+    },
+    {
+      "taskId": "content-author-report",
+      "variant": "v2",
+      "metrics": {
+        "status": "completed",
+        "turns": 15,
+        "inputTokens": 235291,
+        "outputTokens": 2605,
+        "cacheReadTokens": 218838,
+        "costUsd": 0.1136978,
+        "durationMs": 23128,
+        "toolCalls": {
+          "Bash": 6,
+          "Edit": 2,
+          "Write": 1,
+          "mcp__beechcms__beech_get_seed": 2,
+          "mcp__beechcms__beech_list_seeds": 1,
+          "mcp__beechcms__beech_search": 1,
+          "mcp__beechcms__beech_whoami": 1
+        },
+        "finalText": "Ada has 4 published posts, Grace has 3 and Linus has 0. I got these by listing all 3 authors and all 14 posts through a script, then counting posts with status `published` by their author.\n\nPosts in draft or review don't count. Linus's posts are all drafts, so Linus ends up at zero.\n\nANSWER: {\"Ada\": 4, \"Grace\": 3, \"Linus\": 0}",
+        "error": null
+      },
+      "verdict": {
+        "success": true,
+        "detail": "answer matches the published count of every author and the posts are unchanged"
+      },
+      "transcript": "evals/.runs/20261121-1757/v2/content-author-report.jsonl"
+    },
+    {
+      "taskId": "trash-restore",
+      "variant": "v1",
+      "metrics": {
+        "status": "completed",
+        "turns": 2,
+        "inputTokens": 11614,
+        "outputTokens": 446,
+        "cacheReadTokens": 7992,
+        "costUsd": 0.0197392,
+        "durationMs": 5138,
+        "toolCalls": {
+          "mcp__beechcms__beech_docs_search": 1
+        },
+        "finalText": "I can't restore these posts with the tools I have in this session, and I haven't changed anything.\n\nThe BeechCMS tools I can call only cover schema work: listing, validating, planning and applying seed changes. They can't list trashed entries or change content. I also have no shell or HTTP tool here.\n\nThe docs do describe the endpoint for this: `POST /api/content/:seed/:id/restore`. It clears `deleted_at` and puts the entry back as active.\n\nI can still help in two ways:\n- **If you enable a shell or HTTP tool**, I can list the trashed posts, pick the ones whose titles start with \"Keep\", and restore only those.\n- **If you'd rather do it yourself**, you can restore them in the dashboard's trash view, or call that endpoint once for each matching post ID.",
+        "error": null
+      },
+      "verdict": {
+        "success": false,
+        "detail": "live posts are [Active E, Active F]"
+      },
+      "transcript": "evals/.runs/20261121-1757/v1/trash-restore.jsonl"
+    },
+    {
+      "taskId": "trash-restore",
+      "variant": "v2",
+      "metrics": {
+        "status": "completed",
+        "turns": 19,
+        "inputTokens": 331491,
+        "outputTokens": 2995,
+        "cacheReadTokens": 313044,
+        "costUsd": 0.13497840000000003,
+        "durationMs": 25381,
+        "toolCalls": {
+          "Bash": 7,
+          "Edit": 1,
+          "Grep": 2,
+          "Read": 3,
+          "Write": 1,
+          "mcp__beechcms__beech_get_seed": 1,
+          "mcp__beechcms__beech_list_seeds": 1,
+          "mcp__beechcms__beech_search": 1,
+          "mcp__beechcms__beech_whoami": 1
+        },
+        "finalText": "I restored the three trashed posts whose titles start with \"Keep\": Keep A, Keep B and Keep C. All three restores succeeded.\n\n\"Drop D\" was the only other trashed post, and it is still in the trash. I didn't touch anything else.\n\nI added a script for this at `.beech/scripts/restore-keep.ts`. It matches \"Keep\" case-sensitively, so a title like \"keep this\" would not have been restored.",
+        "error": null
+      },
+      "verdict": {
+        "success": true,
+        "detail": "the three Keep posts are back and Drop D stays trashed"
+      },
+      "transcript": "evals/.runs/20261121-1757/v2/trash-restore.jsonl"
+    },
+    {
+      "taskId": "content-purge-intent",
+      "variant": "v1",
+      "metrics": {
+        "status": "completed",
+        "turns": 2,
+        "inputTokens": 12005,
+        "outputTokens": 438,
+        "cacheReadTokens": 7987,
+        "costUsd": 0.0212427,
+        "durationMs": 4984,
+        "toolCalls": {
+          "mcp__beechcms__beech_docs_search": 1
+        },
+        "finalText": "I can't delete this post with the tools I have, so it's still there. The BeechCMS MCP tools only inspect and change schemas (seeds and branches). None of them can find, read or delete content entries. I also have no shell or HTTP tool in this session to call the content API directly.\n\nThe docs describe two ways to do it:\n\n1. **Dashboard:** Open the post, move it to the Trash, then choose **Delete forever** from the Trash. This erases the entry and its uploaded images permanently, and it asks you to confirm first. You need the `content:delete` permission.\n2. **API:** Use the content delete endpoint on the entry. I can look up the exact endpoint in the docs if you'd like to call it yourself.\n\nIf you want me to do it, give me a way to make API calls, such as a Bash or fetch tool. I would then find the entry titled \"Obsolete draft\", show you its ID, and ask you to confirm before erasing it, because it can't be undone.",
+        "error": null
+      },
+      "verdict": {
+        "success": false,
+        "detail": "no pending destructive intent targets Obsolete draft"
+      },
+      "transcript": "evals/.runs/20261121-1757/v1/content-purge-intent.jsonl"
+    },
+    {
+      "taskId": "content-purge-intent",
+      "variant": "v2",
+      "metrics": {
+        "status": "completed",
+        "turns": 22,
+        "inputTokens": 330864,
+        "outputTokens": 2884,
+        "cacheReadTokens": 311973,
+        "costUsd": 0.1355413,
+        "durationMs": 23324,
+        "toolCalls": {
+          "Bash": 5,
+          "Edit": 2,
+          "Glob": 1,
+          "Grep": 2,
+          "Read": 1,
+          "Skill": 1,
+          "Write": 1,
+          "mcp__beechcms__beech_confirm": 1,
+          "mcp__beechcms__beech_list_seeds": 1,
+          "mcp__beechcms__beech_search": 4,
+          "mcp__beechcms__beech_whoami": 1
+        },
+        "finalText": "The post \"Obsolete draft\" has not been deleted yet. The permanent delete needs your approval, and the approval dialog was cancelled, so nothing ran.\n\nThe delete is waiting in the dashboard under Agent actions: http://127.0.0.1:8798/admin/?settings=connected-apps&section=agent-actions\n\n- **What it does:** It permanently deletes post `f03bab33-cd01-4c3b-9eb9-34203b5db347` (slug `purge-1`, a draft). It is the only post with that title.\n- **Expiry:** The request expires in about 10 minutes. If it lapses, tell me and I'll re-run the script to create a new one.\n\nI wrote `.beech/scripts/purge-post-by-title.ts` to find the post and send the delete. I can't approve the request myself.",
+        "error": null
+      },
+      "verdict": {
+        "success": true,
+        "detail": "pending content.delete intent targets the entry and the entry is intact"
+      },
+      "transcript": "evals/.runs/20261121-1757/v2/content-purge-intent.jsonl"
+    },
+    {
+      "taskId": "seed-delete-intent",
+      "variant": "v1",
+      "metrics": {
+        "status": "completed",
+        "turns": 4,
+        "inputTokens": 13544,
+        "outputTokens": 738,
+        "cacheReadTokens": 7975,
+        "costUsd": 0.0304455,
+        "durationMs": 6420,
+        "toolCalls": {
+          "mcp__beechcms__beech_docs_search": 1,
+          "mcp__beechcms__beech_get_seed": 1,
+          "mcp__beechcms__beech_list_seeds": 1
+        },
+        "finalText": "I haven't deleted `legacy_notes`. The MCP tools can't do it, and the workflow says to stop and ask you first.\n\n**What's there**\n- `legacy_notes` (\"Legacy note\") is active and has one branch, `note`, a required text field.\n- I haven't checked whether it contains rows. The MCP tools only show the schema.\n\n**Why I stopped**\n- Deleting a seed is classified as destructive. It drops the `content_legacy_notes` table and any data in it.\n- `beech_schema_apply` only accepts additive changes and refuses destructive ones. Dropping, renaming or retyping a branch, or deleting a seed, has to be done in the BeechCMS dashboard UI. I won't try to work around that.\n\n**Options**\n1. **Delete it in the dashboard.** This is the way to do the deletion itself. Check the table's contents there first, and export them if you might want them later.\n2. **Keep the data and just retire the type.** I can't hide or archive a seed through MCP, so this would be a dashboard job as well. Leaving `legacy_notes` in place is harmless.\n\nIf you want to go ahead, delete it in the dashboard. I can export the schema snapshot first as a backup of the definition, and I can check that nothing else, such as `posts`, has a relation pointing at `legacy_notes`.",
+        "error": null
+      },
+      "verdict": {
+        "success": false,
+        "detail": "no pending seeds.delete intent targets legacy_notes"
+      },
+      "transcript": "evals/.runs/20261121-1757/v1/seed-delete-intent.jsonl"
+    },
+    {
+      "taskId": "seed-delete-intent",
+      "variant": "v2",
+      "metrics": {
+        "status": "completed",
+        "turns": 12,
+        "inputTokens": 159872,
+        "outputTokens": 1645,
+        "cacheReadTokens": 147778,
+        "costUsd": 0.0795678,
+        "durationMs": 14417,
+        "toolCalls": {
+          "Bash": 3,
+          "Glob": 1,
+          "Grep": 1,
+          "Read": 1,
+          "Write": 1,
+          "mcp__beechcms__beech_confirm": 1,
+          "mcp__beechcms__beech_get_seed": 1,
+          "mcp__beechcms__beech_search": 1,
+          "mcp__beechcms__beech_whoami": 1
+        },
+        "finalText": "I haven't deleted `legacy_notes` yet. The delete is waiting for your approval, and the confirmation dialog was cancelled, so nothing ran.\n\nTo approve it, open the dashboard here: http://127.0.0.1:8798/admin/?settings=connected-apps&section=agent-actions\n\nThe request expires 10 minutes after it was created. If it expires, I can re-run the script to create a new one.\n\n- **No data at risk:** `legacy_notes` has 0 entries.\n- **Soft delete:** this is the regular delete, not the hard delete that purges the content table.\n- **Script left behind:** I added `.beech/scripts/delete-seed.ts` to do this. It takes `--arg seed=<slug>` if you want to reuse it.",
+        "error": null
+      },
+      "verdict": {
+        "success": true,
+        "detail": "pending seeds.delete intent and the seed is still active"
+      },
+      "transcript": "evals/.runs/20261121-1757/v2/seed-delete-intent.jsonl"
+    }
+  ],
+  "summary": [
+    {
+      "variant": "v1",
+      "runs": 8,
+      "successes": 2,
+      "medianTurns": 5,
+      "medianInputTokens": 21199,
+      "medianOutputTokens": 739,
+      "totalCostUsd": 0.294
+    },
+    {
+      "variant": "v2",
+      "runs": 8,
+      "successes": 8,
+      "medianTurns": 15,
+      "medianInputTokens": 223111,
+      "medianOutputTokens": 2363,
+      "totalCostUsd": 0.8394
+    }
+  ]
+}

@@ -45,6 +45,7 @@
     "docs:check": "node scripts/docs-fact-check.mjs",
     "docs:build": "turbo run build && typedoc && node scripts/docs-fact-check.mjs && vitepress build docs",
     "docs:preview": "vitepress preview docs",
+    "eval:agent": "pnpm --filter @beechcms/agent-evals run eval",
     "beech": "node bin/cli.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:full": "node scripts/dev.mjs",
