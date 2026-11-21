@@ -23,9 +23,9 @@ export function createApiClientTransport(options: { apiUrl?: string } = {}): Sdk
 
   return {
     baseUrl: client.baseUrl,
-    async send({ method, path, body }: SdkRequest): Promise<Response> {
+    async send({ method, path, body, headers }: SdkRequest): Promise<Response> {
       try {
-        return await client.send(method, path, body)
+        return await client.send(method, path, body, headers)
       } catch (error) {
         if (error instanceof BeechClientError) {
           if (error.status === 401) throw new BeechSdkError(error.message, 401, SDK_ERROR_CODES.UNAUTHORIZED, '', null)

@@ -21,7 +21,7 @@ import type { BeechSdkOptions, SdkCallRecord, SdkClock, SdkJournal, SdkQuery, Wr
 
 /** Internal. One SDK call: builds the request from the catalog, applies dry-run, maps the answer. */
 export interface SdkInvoker {
-  call(operationId: string, pathParams: readonly string[], input: { query?: SdkQuery; body?: unknown }): Promise<unknown>
+  call(operationId: string, pathParams: readonly string[], input: { query?: SdkQuery; body?: unknown; headers?: Record<string, string> }): Promise<unknown>
   readonly journal: SdkJournal
   readonly options: Required<Pick<BeechSdkOptions, 'dryRun'>> & { fetch: typeof fetch; clock: SdkClock }
 }
@@ -96,7 +96,7 @@ export function createInvoker(options: BeechSdkOptions): SdkInvoker {
   const pendingIntents: AgentIntentPending[] = []
   const dryRun = options.dryRun ?? false
 
-  async function call(operationId: string, pathParams: readonly string[], input: { query?: SdkQuery; body?: unknown }): Promise<unknown> {
+  async function call(operationId: string, pathParams: readonly string[], input: { query?: SdkQuery; body?: unknown; headers?: Record<string, string> }): Promise<unknown> {
     const operation = AGENT_OPERATIONS.get(operationId)
     if (operation === undefined || operationId in SDK_OMITTED_OPERATIONS) {
       throw new Error(`${operationId} is not an SDK-callable agent operation`)
@@ -120,7 +120,7 @@ export function createInvoker(options: BeechSdkOptions): SdkInvoker {
 
     let response: Response
     try {
-      response = await options.transport.send({ method: operation.method, path, body: input.body })
+      response = await options.transport.send({ method: operation.method, path, body: input.body, headers: input.headers })
     } catch (error) {
       calls.push({ ...record, outcome: 'error', status: null })
       if (error instanceof BeechSdkError) {

@@ -44,7 +44,13 @@ export interface SdkJournal {
   readonly pendingIntents: readonly AgentIntentPending[]
 }
 
-export interface SdkRequest { method: OperationMethod; path: string; body?: unknown }
+export interface SdkRequest { method: OperationMethod; path: string; body?: unknown; headers?: Record<string, string> }
+
+/**
+ * Optimistic-concurrency precondition for the operations that refuse to run without one (the dashboard layout).
+ * `ifMatch` is the `updatedAt` the script read; `null` means "only if nothing is stored yet" (`If-None-Match: *`).
+ */
+export interface SdkPreconditionOptions { ifMatch: number | string | null }
 export interface SdkTransport { send(request: SdkRequest): Promise<Response> }
 
 /** Time source for polling; injected so tests never sleep. */
@@ -201,8 +207,9 @@ export interface SchemaNamespace {
 export interface LayoutNamespace {
   get(query?: SdkQuery): Promise<SdkJson>
   roles(query?: SdkQuery): Promise<SdkJson>
-  update(body?: SdkBody): Promise<WriteOutcome<SdkJson>>
-  reset(query?: SdkQuery): Promise<WriteOutcome<SdkJson>>
+  /** Needs the `updatedAt` from `get()` as `ifMatch`; a stale version answers 409 `layout-conflict`. */
+  update(body: SdkBody, options: SdkPreconditionOptions): Promise<WriteOutcome<SdkJson>>
+  reset(options: SdkPreconditionOptions): Promise<WriteOutcome<SdkJson>>
 }
 
 export interface UsersNamespace {

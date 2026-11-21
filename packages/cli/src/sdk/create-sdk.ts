@@ -9,8 +9,8 @@
 import { OPERATION_CATALOG } from '@beechcms/core'
 import { createHelpers } from './helpers.js'
 import { createInvoker } from './invoke.js'
-import { SDK_OPERATIONS } from './operations.js'
-import type { BeechSdk, BeechSdkOptions, SdkJournal, SdkQuery, SeedRegistryShape } from './types.js'
+import { PRECONDITION_OPERATIONS, SDK_OPERATIONS } from './operations.js'
+import type { BeechSdk, BeechSdkOptions, SdkJournal, SdkPreconditionOptions, SdkQuery, SeedRegistryShape } from './types.js'
 
 export interface BeechSdkHandle<R> {
   sdk: BeechSdk<R>
@@ -24,14 +24,34 @@ const QUERY_METHODS: ReadonlySet<string> = new Set(['GET', 'DELETE'])
 
 const OPERATIONS_BY_ID = new Map(OPERATION_CATALOG.map(operation => [operation.id, operation]))
 
+/** `ifMatch` becomes `If-Match: "<updatedAt>"`; `null` becomes `If-None-Match: *` (write only while nothing is stored). */
+function preconditionHeaders(options: SdkPreconditionOptions): Record<string, string> {
+  return options.ifMatch === null ? { 'If-None-Match': '*' } : { 'If-Match': `"${options.ifMatch}"` }
+}
+
+function isPreconditionOptions(value: unknown): value is SdkPreconditionOptions {
+  return typeof value === 'object' && value !== null && 'ifMatch' in value
+}
+
 function buildMethod(invoker: ReturnType<typeof createInvoker>, operationId: string): SdkMethod {
   const operation = OPERATIONS_BY_ID.get(operationId)
   if (operation === undefined) throw new Error(`${operationId} is not in the operation catalog`)
   const pathParamCount = operation.path.match(PATH_PARAM_PATTERN)?.length ?? 0
   const takesQuery = QUERY_METHODS.has(operation.method)
 
+  const needsPrecondition = PRECONDITION_OPERATIONS.has(operationId)
+
   return (...args) => {
     const pathParams = args.slice(0, pathParamCount).map(String)
+    if (needsPrecondition) {
+      // A DELETE has no body and these methods take no query, so the options sit right after the path params.
+      const body = takesQuery ? undefined : args[pathParamCount]
+      const options = args[pathParamCount + (takesQuery ? 0 : 1)]
+      if (!isPreconditionOptions(options)) {
+        return Promise.reject(new Error(`${operationId} needs { ifMatch }: the updatedAt read with get(), or null when nothing is stored yet`))
+      }
+      return invoker.call(operationId, pathParams, { body, headers: preconditionHeaders(options) })
+    }
     const extra = args[pathParamCount]
     return invoker.call(operationId, pathParams, takesQuery ? { query: extra as SdkQuery | undefined } : { body: extra })
   }

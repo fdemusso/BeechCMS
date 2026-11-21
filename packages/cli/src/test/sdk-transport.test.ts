@@ -53,4 +53,13 @@ describe('createApiClientTransport', () => {
 
     await expect(failure).rejects.toMatchObject({ name: 'BeechSdkError', status: 0, code: 'unreachable' })
   })
+
+  it('hands the request headers to the API client', async () => {
+    sendSpy.mockResolvedValueOnce(new Response('{}', { status: 200 }))
+    const transport = createApiClientTransport()
+
+    await transport.send({ method: 'PUT', path: '/api/dashboard-layout', body: {}, headers: { 'If-Match': '"7"' } })
+
+    expect(sendSpy).toHaveBeenCalledWith('PUT', '/api/dashboard-layout', {}, { 'If-Match': '"7"' })
+  })
 })

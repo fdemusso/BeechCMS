@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { OPERATION_CATALOG, matchOperation, type AgentOperationSpec } from '@beechcms/core'
 import { createBeechSdk } from '../sdk/create-sdk.js'
-import { SDK_OMITTED_OPERATIONS, SDK_OPERATIONS } from '../sdk/operations.js'
+import { PRECONDITION_OPERATIONS, SDK_OMITTED_OPERATIONS, SDK_OPERATIONS } from '../sdk/operations.js'
 import type { SdkRequest, SdkTransport } from '../sdk/types.js'
 
 const SDK_SOURCE_DIR = join(import.meta.dirname, '..', 'sdk')
@@ -32,7 +32,10 @@ describe('SDK method map', () => {
 
   function argumentsFor(operation: AgentOperationSpec): unknown[] {
     const pathParams = (operation.path.match(/:[A-Za-z_]+/g) ?? []).map((_, index) => `p${index}`)
-    return operation.method === 'GET' || operation.method === 'DELETE' ? pathParams : [...pathParams, {}]
+    const hasBody = operation.method !== 'GET' && operation.method !== 'DELETE'
+    // A precondition operation takes `{ ifMatch }` last, and a DELETE of one has no query before it.
+    if (PRECONDITION_OPERATIONS.has(operation.id)) return hasBody ? [...pathParams, {}, { ifMatch: 1 }] : [...pathParams, { ifMatch: 1 }]
+    return hasBody ? [...pathParams, {}] : pathParams
   }
 
   it('every agent operation is an SDK method or a reasoned omission', () => {

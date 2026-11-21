@@ -167,6 +167,13 @@ export const SDK_OPERATIONS = {
   },
 } as const satisfies SdkOperationMap
 
+/**
+ * Operations the API refuses without an optimistic-concurrency precondition (428). Their SDK method takes
+ * `{ ifMatch }` as its last argument and turns it into `If-Match` / `If-None-Match`. For a DELETE there is no
+ * query argument: the options come first.
+ */
+export const PRECONDITION_OPERATIONS: ReadonlySet<string> = new Set(['layout.update', 'layout.reset'])
+
 /** Agent operations deliberately without an SDK method, with the reason. Exactly these two. */
 export const SDK_OMITTED_OPERATIONS: Readonly<Record<string, string>> = {
   'intents.approve': 'Scripts never approve their own intents; approval is a human dialog in the MCP server (ROADMAP §4.5).',

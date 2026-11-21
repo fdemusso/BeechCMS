@@ -165,4 +165,63 @@ describe('SDK invocation', () => {
     expect(failure).toMatchObject({ code: 'invalid_json', status: 200, operationId: 'content.get' })
     expect(journal.calls).toEqual([expect.objectContaining({ operationId: 'content.get', outcome: 'error', status: 200 })])
   })
+
+  describe('layout preconditions', () => {
+    it('layout.update sends the updatedAt it was given as a quoted If-Match', async () => {
+      const { requests, transport } = recordingTransport()
+      const { sdk } = createBeechSdk({ transport })
+
+      await sdk.layout.update({ version: 1, pages: [] }, { ifMatch: 1767225600 })
+
+      expect(requests[0]).toMatchObject({ method: 'PUT', path: '/api/dashboard-layout', body: { version: 1, pages: [] }, headers: { 'If-Match': '"1767225600"' } })
+    })
+
+    it('layout.update with ifMatch null sends If-None-Match: * for a first save', async () => {
+      const { requests, transport } = recordingTransport()
+      const { sdk } = createBeechSdk({ transport })
+
+      await sdk.layout.update({ version: 1, pages: [] }, { ifMatch: null })
+
+      expect(requests[0].headers).toEqual({ 'If-None-Match': '*' })
+    })
+
+    it('layout.reset sends no body and its precondition header', async () => {
+      const { requests, transport } = recordingTransport()
+      const { sdk } = createBeechSdk({ transport })
+
+      await sdk.layout.reset({ ifMatch: 5 })
+
+      expect(requests[0]).toMatchObject({ method: 'DELETE', path: '/api/dashboard-layout', headers: { 'If-Match': '"5"' } })
+      expect(requests[0].body).toBeUndefined()
+    })
+
+    it('layout.update without a precondition is refused before any request', async () => {
+      const { requests, transport } = recordingTransport()
+      const { sdk } = createBeechSdk({ transport })
+
+      const failure = (sdk.layout.update as (body: unknown) => Promise<unknown>)({ version: 1, pages: [] })
+
+      await expect(failure).rejects.toThrow('needs { ifMatch }')
+      expect(requests).toHaveLength(0)
+    })
+
+    it('a stale precondition answers 409 layout-conflict as a BeechSdkError', async () => {
+      const { transport } = recordingTransport(jsonResponse({ type: 'layout-conflict', detail: 'stale' }, 409))
+      const { sdk } = createBeechSdk({ transport })
+
+      const failure = await sdk.layout.update({ version: 1, pages: [] }, { ifMatch: 1 }).catch((error: unknown) => error)
+
+      expect(failure).toMatchObject({ name: 'BeechSdkError', status: 409, code: 'layout-conflict' })
+    })
+
+    it('dry-run records the write without sending the precondition request', async () => {
+      const { requests, transport } = recordingTransport()
+      const { sdk } = createBeechSdk({ transport, dryRun: true })
+
+      const outcome = await sdk.layout.update({ version: 1, pages: [] }, { ifMatch: 1 })
+
+      expect(outcome.kind).toBe('dry-run')
+      expect(requests).toHaveLength(0)
+    })
+  })
 })

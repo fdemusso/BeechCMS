@@ -30,8 +30,11 @@ export interface ApiResponse<T> {
 
 export interface ApiClient {
   request<T = unknown>(method: string, path: string, body?: unknown): Promise<ApiResponse<T>>
-  /** Authenticated request with refresh-on-401 and transient retries; returns the final Response whatever its status. */
-  send(method: string, path: string, body?: unknown): Promise<Response>
+  /**
+   * Authenticated request with refresh-on-401 and transient retries; returns the final Response whatever its status.
+   * `headers` adds request headers (for example `If-Match`); `Content-Type` and `Authorization` always win.
+   */
+  send(method: string, path: string, body?: unknown, headers?: Record<string, string>): Promise<Response>
   readonly baseUrl: string
 }
 
@@ -114,11 +117,11 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     }
   }
 
-  async function rawFetch(method: string, path: string, accessToken: string, body?: unknown): Promise<Response> {
+  async function rawFetch(method: string, path: string, accessToken: string, body?: unknown, extraHeaders?: Record<string, string>): Promise<Response> {
     try {
       return await fetch(`${config.baseUrl}${path}`, {
         method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        headers: { ...extraHeaders, 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: body !== undefined ? JSON.stringify(body) : undefined,
       })
     } catch (error) {
@@ -129,13 +132,13 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     }
   }
 
-  async function send(method: string, path: string, body?: unknown): Promise<Response> {
+  async function send(method: string, path: string, body?: unknown, headers?: Record<string, string>): Promise<Response> {
     let accessToken = await getAccessToken()
-    let response = await rawFetch(method, path, accessToken, body)
+    let response = await rawFetch(method, path, accessToken, body, headers)
 
     if (response.status === 401) {
       accessToken = await getAccessToken(true)
-      response = await rawFetch(method, path, accessToken, body)
+      response = await rawFetch(method, path, accessToken, body, headers)
       if (response.status === 401) {
         throw new BeechClientError(
           'Authorization failed. Run any Beech tool again to re-authorize in the browser, or revoke and re-grant the client from Settings → Connected apps.',
@@ -146,7 +149,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
 
     for (let attempt = 0; isRetryableStatus(response.status) && attempt < MAX_TRANSIENT_RETRIES; attempt++) {
       await sleep(RETRY_BASE_DELAY_MS * 2 ** attempt + Math.random() * RETRY_BASE_DELAY_MS)
-      response = await rawFetch(method, path, accessToken, body)
+      response = await rawFetch(method, path, accessToken, body, headers)
     }
 
     return response
