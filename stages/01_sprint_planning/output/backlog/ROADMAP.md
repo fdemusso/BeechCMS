@@ -1,6 +1,6 @@
 # `@beechcms/mcp` 2.0 — Agent Control Plane (ROADMAP)
 
-> Stato: **sprint 03-05b DONE, sprint 06 PLANNED** · Data: 2026-11-21 · Base:
+> Stato: **sprint 03-08 DONE, sprint 09 PLANNED** · Data: 2026-11-21 · Base:
 > `@beechcms/mcp@1.2.0`, `api@0.10.0`
 > Obiettivo: l'agente di un developer che lavora in locale può fare tutto ciò che l'utente fa
 > dalla dashboard, entro il suo RBAC, scrivendo script TypeScript invece di chiamare un tool alla
@@ -210,6 +210,48 @@ I conteggi sono stime fatte a mano: quelli esatti escono dal catalog nello sprin
 >   anche da `beech schema *`, per non avere due grant con scope diversi sulla stessa chiave di cache.
 > - `@beechcms/cli/sdk` esporta solo tipi, `BeechSdkError` e le guardie; `createBeechSdk` resta interno fino allo
 >   sprint 07.
+>
+> **Decisioni della pianificazione dello sprint 07** (fonte di verità: `BeechRun.md`):
+> - `RunReport` versionato (`version: 1`), chiavi in ordine fisso: `version, script, status, dryRun, apiUrl,
+>   durationMs, result, error, logs, calls, pendingIntents`. Esportato come tipo da `@beechcms/cli/sdk`: sprint 08 e
+>   09 lo leggono. Exit 0 anche con intent in attesa, 1 solo per `status: 'error'`.
+> - Ogni errore dopo la risoluzione del path produce comunque un report con le chiamate già fatte; `console.log`
+>   dello script finisce nei `logs`, così `--json` su stdout resta un solo documento.
+> - `BeechSdkError` riconosciuto con `instanceof` anche tra i due bundle (`dist/index.js` e `dist/sdk/index.js`)
+>   tramite `Symbol.for` + `Symbol.hasInstance`.
+> - `beech agent setup` scrive `.mcp.json` (voce `beechcms` con `npx -y @beechcms/mcp`), la skill
+>   `.claude/skills/beechcms-scripts/SKILL.md`, `.beech/scripts/README.md`, l'esempio read-only
+>   `latest-entries.ts`, e aggiunge `@beechcms/cli` alle devDependencies se manca (nei siti non è risolvibile:
+>   lo scaffold dipende solo da `@beechcms/cms`). Idempotente; mai sovrascrive senza `--force`; mai lancia
+>   l'installer. La skill indica solo la dashboard per approvare: `beech_confirm` arriva nello sprint 08.
+>
+> **Decisioni della pianificazione dello sprint 08** (fonte di verità: `Mcp2.md`):
+> - Nuova operazione di sola lettura `intents.session` = `GET /api/agent/session` (`agent:read`, `read`, RBAC `AUTHED`):
+>   `userId`, `clientId`, `scopes` del token, `environment`, `confirmation { publish, destructive }`, `schemaVersion`.
+>   Motivo: `ENV` e gli scope congelati nel token sono verità del server non esposte altrove, e `GET /api/seeds` (versione
+>   schema) richiede `manage_seeds@*`. Catalog: 147 operazioni (111 `agent`); l'SDK guadagna `beech.intents.session()`.
+> - Scope del client `beech-mcp`: `MCP_OAUTH_SCOPE` = `schema:read schema:write settings:read agent:read agent:approve`.
+>   Un grant 1.x in cache (senza `agent:read`) viene scartato all'avvio: un solo nuovo consenso.
+> - `beech_search` filtra sull'esposizione `agent` e sugli scope del grant in cache degli script (`beech-mcp-cli`), non
+>   sull'RBAC per seed (le regole RBAC non sono in core; il server le applica comunque, `beech_whoami` le mostra). Il
+>   metodo SDK è `beech.<id>`; `intents.approve` e `media.upload` hanno `sdk: null` con nota.
+> - `beech_confirm`: un solo dialog e una sola decisione (approve/reject) per tutti gli intent mostrati; il testo è
+>   costruito solo dagli intent salvati sul server, mai dagli argomenti dell'agente. Decline, cancel, client senza
+>   elicitation o errore **non** approvano e **non** rifiutano: gli intent restano pending e l'agente riceve
+>   l'istruzione con `<origine auth>/admin/?settings=connected-apps&section=agent-actions`. Timeout dialog 10 min (= TTL).
+> - Versione letta da `package.json` a runtime; il bump a `2.0.0` lo fa `pnpm release`. `planId` resta in memoria
+>   (stdio = un processo; serve lato server solo al remoto §4.8). Niente `outputSchema`/`structuredContent`.
+>
+> **Decisioni della pianificazione dello sprint 09** (fonte di verità: `McpDocs.md`):
+> - La riga 09 `DocsEvals` si divide: **09 McpDocs** (documentazione, validata da `pnpm docs:check`) e **10 AgentEvals**
+>   (suite v1 vs v2, validata da esecuzioni reali di un agente con stack attivo e consenso OAuth umano). Validazioni
+>   indipendenti; le eval misurano agenti che leggono i docs nuovi.
+> - `mcp-server.md` mantiene il nome file (10 righe del catalog `DOCS_MCP` e 4 pagine lo linkano). La guida nuova è
+>   `docs/build/local-agent.md`, così finisce nei resource bundled senza toccare `bundle-resources.mjs`.
+> - Nuovo check 5 in `scripts/docs-fact-check.mjs`: ogni nome in `TOOLS` appare in `mcp-server.md`, e nessun
+>   `beech_*` sconosciuto in `mcp-server.md`, `start/mcp.md`, `build/local-agent.md`.
+> - La mappatura della risposta di elicitation esce da `index.ts` in `mapElicitResult()` (`agent-tools.ts`), testata
+>   in unit: un `action` sconosciuto diventa `cancel` (nota 1 della review dello sprint 08). Nessun'altra modifica al codice.
 >
 > **Smoke test API dello sprint 05** (2026-11-20, `pnpm beech dev` su `localhost:8789`, consensi OAuth reali di
 > `beech-mcp-cli` e `beech-mcp`): **12/12 controlli passati** una volta corretti due errori dello script di prova.
@@ -675,12 +717,14 @@ successivo.
 | 04 | **OAuthScopesV2** | DONE | scope v2 in core (`OAUTH_SCOPES` = `OPERATION_SCOPES` del catalog); `oauth-scope.middleware` legge dal catalog; rimuove il ramo morto `kanban-position` da `PROTECTED_ROUTES`; migration che aggiorna `oauth_clients.allowed_scopes`; template di consenso in dashboard | Token `content:read` non scrive; un token più largo dell'RBAC resta limitato dall'RBAC; token 1.x `schema:*` continuano a funzionare |
 | 05 | **AgentIntents** | DONE | scope `agent:read`/`agent:approve`; migration `0046_agent_intents` (+ `allowed_scopes`); rimozione del guard interim `confirmation_required` dello sprint 04; repository; middleware `agentIntentGate`; endpoint `/api/agent/intents`; replay lato server; activity log | Nessuna `destructive` eseguita con token OAuth senza approve; intent scaduto, riusato o di un altro utente rifiutato; policy dev/prod rispettata; JWT dashboard invariato |
 | 05b | **AgentIntentsDashboard** | DONE | sezione dashboard "Azioni agente in attesa" (lista, anteprima, Approva/Rifiuta via JWT); etichette activity log per `intent` | Un intent creato da un token OAuth si approva o rifiuta dalla dashboard; design-token check pulito; 5 locale |
-| 06 | **ScriptSdk** | PLANNED | SDK `beech` in `packages/cli/src/sdk/` + export `@beechcms/cli/sdk`: metodi per tutte le operazioni `agent`, tipi per-seed, `IntentPending`, helper, dry-run | Test di parità SDK ↔ catalog; test helper (upload, import, paginazione) contro D1 di test |
-| 07 | **BeechRun** | PENDING | `beech run`, `defineScript`, `.beech/scripts`, `beech agent setup` | Script d'esempio gira contro `pnpm beech dev`; `--dry-run` non scrive niente; output JSON stabile |
-| 08 | **Mcp2** | PENDING | `@beechcms/mcp@2.0.0`: whoami/search/intents/confirm con elicitation, fallback dashboard, versione corretta, SKILL.md riscritto | In Claude Code un intent viene approvato da dialog; con elicitation rifiutata o non supportata, l'agente riceve l'istruzione di fallback |
-| 09 | **DocsEvals** | PENDING | `docs/reference/mcp-server.md`, guida "agente in locale", suite di task v1 vs v2 | Report su turni, token e successo per task |
+| 06 | **ScriptSdk** | DONE | SDK `beech` in `packages/cli/src/sdk/` + export `@beechcms/cli/sdk`: metodi per tutte le operazioni `agent`, tipi per-seed, `IntentPending`, helper, dry-run | Test di parità SDK ↔ catalog; test helper (upload, import, paginazione) contro D1 di test |
+| 07 | **BeechRun** | DONE | `beech run`, `defineScript`, `.beech/scripts`, `beech agent setup` | Script d'esempio gira contro `pnpm beech dev`; `--dry-run` non scrive niente; output JSON stabile |
+| 08 | **Mcp2** | DONE | `@beechcms/mcp@2.0.0`: whoami/search/intents/confirm con elicitation, fallback dashboard, versione corretta, SKILL.md riscritto | In Claude Code un intent viene approvato da dialog; con elicitation rifiutata o non supportata, l'agente riceve l'istruzione di fallback |
+| 09 | **McpDocs** | PLANNED | riscrittura `docs/reference/mcp-server.md` (13 tool, `beech_confirm`, due client OAuth, upgrade 1.x), guida `docs/build/local-agent.md`, `docs/start/mcp.md` e README MCP aggiornati; check 5 di `docs-fact-check.mjs` (parità tool ↔ docs); `mapElicitResult` testabile | `pnpm docs:check` fallisce se un tool manca o un nome è sconosciuto; la guida è nei resource `beechcms-docs://`; nessun doc dice che il distruttivo è impossibile via agente |
+| 10 | **AgentEvals** | PENDING | suite di task v1 (`@beechcms/mcp@1.2.0`, solo tool schema) vs v2 (MCP 2.0 + `beech run`), harness headless che registra turni, token e successo per task; verifica dello stato via API | Report su turni, token e successo per task; ogni task ha un controllo di successo automatico |
 
-Dipendenze: 03 → 04 → 05 → 05b → 08; 06 parte dopo 03; 07 dopo 06; 09 dopo 07 e 08.
+Dipendenze: 03 → 04 → 05 → 05b → 08; 06 parte dopo 03; 07 dopo 06; 09 dopo 07 e 08; 10 dopo 09 (gli agenti v2 leggono i
+docs nuovi via `beech_docs_search`).
 
 ---
 
