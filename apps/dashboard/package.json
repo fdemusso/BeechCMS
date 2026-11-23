@@ -16,8 +16,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.10.0",
-    "@beechcms/widget-sdk": "workspace:^0.10.0",
+    "@beechcms/core": "workspace:^0.10.1",
+    "@beechcms/widget-sdk": "workspace:^0.10.1",
     "@codemirror/lang-json": "^6.0.1",
     "@codemirror/language": "^6.10.8",
     "@codemirror/lint": "^6.8.4",
@@ -71,7 +71,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@beechcms/api": "workspace:^0.10.0",
+    "@beechcms/api": "workspace:^0.10.1",
     "@beechcms/testing": "workspace:*",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.1.18",
