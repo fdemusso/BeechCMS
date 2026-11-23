@@ -9,6 +9,7 @@ import { Check, SortV as ChevronsUpDown, X } from '@/components/icons'
 
 import { useFieldsConfig } from "../../context"
 import { useRelationLabel } from "../../relation-label"
+import { useRelationIdentity } from "../../display/relation-identity"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,8 +27,6 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
-/** Stale time for relation details query (5 minutes). */
-const RELATION_STALE_MS = 5 * 60 * 1000
 /** Debounce time for server-side autocomplete search (250ms). */
 const SEARCH_DEBOUNCE_MS = 250
 /** Maximum number of search results to fetch in one search query. */
@@ -63,26 +62,6 @@ interface SingleRelationEditProps {
 type FieldsConfig = ReturnType<typeof useFieldsConfig>
 type RelationEntry = Awaited<ReturnType<FieldsConfig["searchRelations"]>>[number]
 type RelationLabelOf = ReturnType<typeof useRelationLabel>
-
-/** Fetches the currently selected entry and derives its display label. */
-function useSelectedRelationLabel(
-  targetSlug: string | undefined,
-  selectedId: string | null,
-  labelOf: RelationLabelOf,
-  labelAlias: string,
-): string {
-  const { fetchById, queryKeys } = useFieldsConfig()
-  const { data: selectedEntry } = useQuery({
-    queryKey: queryKeys.detail(targetSlug ?? "", selectedId ?? ""),
-    queryFn: () => fetchById(targetSlug!, selectedId!),
-    enabled: Boolean(targetSlug && selectedId),
-    staleTime: RELATION_STALE_MS,
-  })
-
-  return selectedEntry
-    ? String(labelOf(selectedEntry?.data, labelAlias) ?? selectedId)
-    : selectedId ?? ""
-}
 
 /** Runs the debounced server-side autocomplete search while the popover is open. */
 function useRelationSearch(
@@ -207,7 +186,7 @@ export function SingleRelationEdit({
     : branch.requiredOnUpdate === true
   const showClear = !isRequired && selectedId !== null
 
-  const selectedLabel = useSelectedRelationLabel(targetSlug, selectedId, labelOf, labelAlias)
+  const selectedLabel = useRelationIdentity(targetSlug ?? "", selectedId, labelAlias).label
   const { entries, isFetching: isListFetching } = useRelationSearch(targetSlug, open, search)
 
   const handleSelect = React.useCallback(

@@ -13,7 +13,7 @@ const mocked = vi.hoisted(() => ({ schema: vi.fn() }))
 
 vi.mock("@/lib/rpc", () => ({ rpc: { api: { schema: { $get: mocked.schema } } } }))
 
-import { useSchema } from "@/features/shared/hooks/use-schema"
+import { schemaQueryOptions, useSchema } from "@/features/shared/hooks/use-schema"
 
 const [keptSeed, deletedSeed] = CANONICAL_SEEDS
 
@@ -36,5 +36,11 @@ describe("useSchema", () => {
 
     await waitFor(() => expect(getSeed(deletedSeed.slug)).toBeNull())
     expect(getSeed(keptSeed.slug)).not.toBeNull()
+  })
+
+  it("re-reads the schema on window focus even while it is still fresh", () => {
+    const options = schemaQueryOptions()
+
+    expect(options.refetchOnWindowFocus).toBe("always")
   })
 })
