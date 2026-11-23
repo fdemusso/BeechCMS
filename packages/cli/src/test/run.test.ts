@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
+import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { RUN_CONSOLE_RESULT_LIMIT, parseRunArgs, renderRunReport, resolveScriptPath } from '../commands/run.js'
 import { CliError } from '../lib/d1-context.js'
@@ -57,15 +58,15 @@ describe('resolveScriptPath', () => {
   it('a bare name resolves to .beech/scripts/<name>.ts under cwd', () => {
     const path = resolveScriptPath('demo', cwd, () => true)
 
-    expect(path).toBe('/project/.beech/scripts/demo.ts')
+    expect(path).toBe(resolve(cwd, '.beech/scripts/demo.ts'))
   })
 
   it('a value with a slash or a .ts suffix resolves against cwd', () => {
     const withSlash = resolveScriptPath('tools/demo.ts', cwd, () => true)
     const withSuffix = resolveScriptPath('demo.ts', cwd, () => true)
 
-    expect(withSlash).toBe('/project/tools/demo.ts')
-    expect(withSuffix).toBe('/project/demo.ts')
+    expect(withSlash).toBe(resolve(cwd, 'tools/demo.ts'))
+    expect(withSuffix).toBe(resolve(cwd, 'demo.ts'))
   })
 
   it('a missing file throws CliError naming the relative path', () => {

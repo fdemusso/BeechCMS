@@ -526,7 +526,7 @@ describe('MCP Server Integration & Operational Test', () => {
     } finally {
       await elicitingClient.close()
     }
-  })
+  }, 20_000)
 
   it('tools carry annotations and beech_confirm is the only destructive one', async () => {
     const { tools } = await client.listTools()

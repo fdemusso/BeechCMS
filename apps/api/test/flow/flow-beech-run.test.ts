@@ -7,6 +7,7 @@
  * Runs real fixture scripts through the default dynamic import of `runScript` against the in-process API.
  */
 
+import { fileURLToPath } from 'node:url'
 import { describe, it, expect, beforeEach } from 'vitest'
 import { FixedClock, UUID_V4_PATTERN } from '@beechcms/testing'
 import { createBeechApp } from '../../src/factory'
@@ -44,7 +45,7 @@ describe('beech run — flow (real D1)', () => {
 
   /** Runs `fixtures/scripts/<name>.ts` through the default `importScript`. */
   function runFixture(name: string, overrides: Partial<Pick<RunScriptInput, 'args' | 'dryRun'>> = {}): Promise<RunReport> {
-    const scriptPath = new URL(`../fixtures/scripts/${name}.ts`, import.meta.url).pathname
+    const scriptPath = fileURLToPath(new URL(`../fixtures/scripts/${name}.ts`, import.meta.url))
     return runScript({
       scriptPath,
       displayPath: `fixtures/scripts/${name}.ts`,
