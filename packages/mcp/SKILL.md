@@ -23,10 +23,19 @@ Write `.beech/scripts/<task>.ts` with `defineScript` and run `pnpm beech run <ta
 writes). Read `result`, `calls` and `pendingIntents` from the report. One tool call per operation is the wrong
 pattern for more than a couple of calls.
 
+`beech.layout.update(body, { ifMatch })` and `beech.layout.reset({ ifMatch })` take `{ ifMatch }` as the last argument:
+the `updatedAt` read with `beech.layout.get()`, or `null` for a first save (which needs `manage_roles` at `*`). A stale
+value answers 409 `layout-conflict`: read again and re-apply the edit.
+
 ## 4. Approval
 `pendingIntents` did not run. Call `beech_confirm` with their ids: the human sees one dialog built from what the
 server stored and approves or rejects. On `declined`, `cancelled` or `fallback`, relay `instruction` verbatim and
 stop. Never retry a declined confirm in a loop. Never try to approve another way.
+
+The dialog has a required `Decision` field that starts empty, and Accept does nothing until it is set. Tell the human
+to set it (terminal client: `→` opens the field, `↑`/`↓` choose, `Enter` confirms) and then press Accept; Accept with
+`reject` rejects. Several intents share one decision and run in `intentIds` order. A result with `outcome: "failed"`
+means the approved request was refused: the intent is spent, so fix the cause and run the script again.
 
 ## 5. Schema: Inspect → Validate → Plan → Apply
 - Seed slugs match `^[a-z0-9_]+$`. Branch ids match `^br_[A-Za-z0-9]+$` and are assigned by the server — never

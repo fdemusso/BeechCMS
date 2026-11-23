@@ -259,6 +259,28 @@ For the full agent workflow (setup, consent, approvals), see [Working with an Ag
 
 Exit codes: `0` for `ok`, including pending intents; `1` for `error` or a usage error. A script can never approve an intent: the CLI OAuth client lacks `agent:approve` and the SDK has no approve method.
 
+#### Writes that need `ifMatch`
+
+`beech.layout.update(body, { ifMatch })` and `beech.layout.reset({ ifMatch })` change the Dashboard Composer layout, which the API only writes against the version the caller read. `ifMatch` is the `updatedAt` returned by `beech.layout.get()`, or `null` for a first save (nothing stored yet, sent as `If-None-Match: *`). The SDK refuses a call without it before any request is sent (`layout.update needs { ifMatch }`); a raw HTTP call without a precondition header is answered `428`.
+
+```ts
+import { defineScript } from '@beechcms/cli/sdk'
+
+interface StoredLayout { layout: { version: number; pages: unknown[] } | null; updatedAt: number | null }
+
+// Read the layout, then write it back under the version just read. Put your edit in place of `pages`.
+// Run: pnpm beech run layout-roundtrip --dry-run --json
+export default defineScript(async (beech) => {
+  const { layout, updatedAt } = (await beech.layout.get()) as StoredLayout
+  if (layout === null) throw new Error('nothing stored yet: a first save uses { ifMatch: null }')
+
+  const outcome = await beech.layout.update({ ...layout, pages: layout.pages }, { ifMatch: updatedAt })
+  return outcome.kind
+})
+```
+
+If another writer saved in between, the call fails with `BeechSdkError` status `409` and code `layout-conflict`: run `get()` again and re-apply the edit. A first save, and any change to the tab structure, needs `manage_roles` at `*`; see [Dashboard Layout API](/reference/dashboard-layout#who-may-do-what).
+
 ---
 
 ## Monorepo Contributor Infrastructure
