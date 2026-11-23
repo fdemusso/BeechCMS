@@ -9,7 +9,7 @@
  * 1. POST /api/content/articoli with a valid author_id → 201 persisted
  * 2. POST /api/content/articoli with a non-existent author_id → 422 relation-target-not-found
  * 3. DELETE /api/content/team/:id with SET NULL → 200, article.author_id becomes NULL
- * 4. DELETE /api/content/team/:id with RESTRICT → 409 relation-in-use
+ * 4. DELETE /api/content/team/:id?purge=true with RESTRICT → 409 relation-in-use
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
@@ -225,18 +225,17 @@ describe('Flow: Relations — RESTRICT', () => {
     token = await login(app, db)
   })
 
-  // Regression guard: FK actions fire at purge, never at soft delete.
+  // Regression guard: the purge is still refused by the foreign key. The parent is seeded already
+  // trashed because the API no longer lets a referenced RESTRICT parent reach the Trash (the soft
+  // delete is refused with the same 409, see soft-delete-restrict.integration.test.ts); this is the
+  // state data trashed before that guard existed is in.
   it('4. purging a trashed team member with RESTRICT while referenced → 409 relation-in-use', async () => {
     await db.prepare(
-      `INSERT INTO content_team (id, slug, status, name) VALUES (?, ?, 'published', ?)`
-    ).bind(TEAM_ID_2, 'member-restrict', 'Carol').run()
+      `INSERT INTO content_team (id, slug, status, name, deleted_at) VALUES (?, ?, 'published', ?, ?)`
+    ).bind(TEAM_ID_2, 'member-restrict', 'Carol', 1700000000).run()
     await db.prepare(
       `INSERT INTO content_articoli (id, slug, status, title, author_id) VALUES (?, ?, 'draft', ?, ?)`
     ).bind('art-0002-0000-4000-8000-000000000002', 'article-carol', 'Article about Carol', TEAM_ID_2).run()
-    await app.request(`/api/content/team/${TEAM_ID_2}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` },
-    }, { ...TEST_ENV, DB: db })
 
     const delRes = await app.request(`/api/content/team/${TEAM_ID_2}?purge=true`, {
       method: 'DELETE',
