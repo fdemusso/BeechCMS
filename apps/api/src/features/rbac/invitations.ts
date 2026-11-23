@@ -37,6 +37,12 @@ function buildInviteUrl(context: AppContext, token: string): string {
   return `${baseUrl}/admin/accept-invite?token=${token}`
 }
 
+/** The link is a working credential (the accept route is public), so an OAuth caller never receives it:
+ *  the invitee gets it by email, and only the dashboard session may copy it by hand. */
+function inviteLinkFor(context: AppContext, inviteUrl: string): { inviteUrl: string } | Record<never, never> {
+  return context.get('oauthGrant') ? {} : { inviteUrl }
+}
+
 /**
  * Copied structurally from `password-reset/request.ts:96-126`, including the
  * `executionCtx` fallback that keeps tests working outside a Workers runtime.
@@ -151,7 +157,7 @@ export const createInvitationHandler = async (context: JsonContext<typeof create
   })
 
   logActivity(context, { action: 'create', entityType: 'invitation', entityId: id, details: { email, role: role.name, scope } })
-  return context.json({ id, email, roleId, scope, expiresAt, inviteUrl }, 201)
+  return context.json({ id, email, roleId, scope, expiresAt, ...inviteLinkFor(context, inviteUrl) }, 201)
 }
 
 /**
@@ -269,7 +275,7 @@ export const regenerateInvitationHandler = async (context: AppContext) => {
   })
 
   logActivity(context, { action: 'update', entityType: 'invitation', entityId: invitationId, details: { op: 'regenerate', email: row.email, role: role.name, scope: row.scope } })
-  return context.json({ id: invitationId, expiresAt, inviteUrl }, 200)
+  return context.json({ id: invitationId, expiresAt, ...inviteLinkFor(context, inviteUrl) }, 200)
 }
 
 /**

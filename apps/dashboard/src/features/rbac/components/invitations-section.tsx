@@ -53,7 +53,8 @@ export function InvitationsSection() {
   const handleRegenerate = async (invitationId: string) => {
     try {
       const result = await regenerate.mutateAsync(invitationId)
-      setPendingLinks((prev) => ({ ...prev, [invitationId]: result.inviteUrl }))
+      const { inviteUrl } = result
+      if (inviteUrl) setPendingLinks((prev) => ({ ...prev, [invitationId]: inviteUrl }))
       toast.success(t("rbac.invitations.emailSent", "Invitation emailed"))
     } catch (err) {
       const code = rbacErrorCode(err)
@@ -196,7 +197,9 @@ export function InvitationsSection() {
       <InviteDialog
         open={inviteOpen}
         onOpenChange={setInviteOpen}
-        onInvited={(id, inviteUrl) => setPendingLinks((prev) => ({ ...prev, [id]: inviteUrl }))}
+        onInvited={(id, inviteUrl) => {
+          if (inviteUrl) setPendingLinks((prev) => ({ ...prev, [id]: inviteUrl }))
+        }}
       />
     </SettingsSection>
   )
