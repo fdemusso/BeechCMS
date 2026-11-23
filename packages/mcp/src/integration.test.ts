@@ -9,7 +9,23 @@ import { resolve, join } from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { Seed } from '@beechcms/core'
+import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { writeGrant } from '@beechcms/api-client'
+import { MCP_OAUTH_SCOPE } from './constants.js'
+import { MCP_SERVER_VERSION } from './version.js'
+
+const PENDING_INTENT_ID = '3f2b8c1e-5a47-4d0e-9b6a-1c2d3e4f5a6b'
+
+interface ToolPayload {
+  content: { type: string; text: string }[]
+  isError?: boolean
+}
+
+interface ConfirmPayload {
+  status: string
+  reason: string | null
+  results: { id: string; outcome: string }[]
+}
 
 describe('MCP Server Integration & Operational Test', () => {
   let server: http.Server
@@ -18,6 +34,7 @@ describe('MCP Server Integration & Operational Test', () => {
   let transport: StdioClientTransport
   let tokenCacheDir: string
   let tokenCachePath: string
+  let approveCalls = 0
 
   let registryVersion = 3
   const activeSeeds: Seed[] = [
@@ -59,6 +76,32 @@ describe('MCP Server Integration & Operational Test', () => {
           res.end(JSON.stringify({ status: 401, title: 'Unauthorized', detail: 'Invalid or missing token' }))
           return
         }
+      }
+
+      if (url.pathname === `/api/agent/intents/${PENDING_INTENT_ID}` && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          intent: {
+            id: PENDING_INTENT_ID,
+            operationId: 'seeds.delete',
+            risk: 'destructive',
+            summary: 'Delete a seed: DELETE /api/seeds/articles',
+            status: 'pending',
+            expiresAt: Math.floor(Date.now() / 1000) + 600,
+            body: null,
+          },
+        }))
+        return
+      }
+
+      if (url.pathname === `/api/agent/intents/${PENDING_INTENT_ID}/approve` && req.method === 'POST') {
+        approveCalls++
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          intent: { id: PENDING_INTENT_ID, status: 'executed' },
+          result: { status: 200, body: { success: true } },
+        }))
+        return
       }
 
       if (url.pathname === '/api/seeds' && req.method === 'GET') {
@@ -173,7 +216,7 @@ describe('MCP Server Integration & Operational Test', () => {
     writeGrant(apiUrl, 'beech-mcp', {
       accessToken: 'test-valid-jwt',
       refreshToken: 'test-refresh-token',
-      scope: 'schema:read schema:write',
+      scope: MCP_OAUTH_SCOPE,
       expiresAt: Date.now() + 3_600_000,
     })
 
@@ -203,8 +246,10 @@ describe('MCP Server Integration & Operational Test', () => {
     const tools = await client.listTools()
     const names = tools.tools.map(t => t.name).sort()
     expect(names).toEqual([
+      'beech_confirm',
       'beech_docs_search',
       'beech_get_seed',
+      'beech_intents',
       'beech_list_seeds',
       'beech_mcp_reload',
       'beech_mcp_status',
@@ -212,6 +257,8 @@ describe('MCP Server Integration & Operational Test', () => {
       'beech_schema_export',
       'beech_schema_plan',
       'beech_schema_validate',
+      'beech_search',
+      'beech_whoami',
     ])
   })
 
@@ -220,7 +267,7 @@ describe('MCP Server Integration & Operational Test', () => {
     expect(res.isError).toBeFalsy()
     const parsed = JSON.parse(res.content[0].text)
     expect(parsed.name).toBe('beechcms-mcp')
-    expect(parsed.version).toBe('0.1.0')
+    expect(parsed.version).toBe(MCP_SERVER_VERSION)
     expect(typeof parsed.pid).toBe('number')
     expect(typeof parsed.bundleHash).toBe('string')
     expect(typeof parsed.resourceCount).toBe('number')
@@ -325,6 +372,26 @@ describe('MCP Server Integration & Operational Test', () => {
     expect(invalidSlugParsed.issues.some((i: any) => i.fatal && i.messages.some((m: string) => m.includes('slug')))).toBe(true)
   })
 
+  it('beech_schema_validate warns, without blocking, about a dashboard.icon outside the dashboard icon set', async () => {
+    const candidate = {
+      slug: 'articles',
+      label: 'Articles',
+      dashboard: { icon: 'Cars' },
+      branches: [
+        { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+        { id: 'br_02', alias: 'content', label: 'Content', type: 'richtext' },
+      ],
+    }
+
+    const res = (await client.callTool({ name: 'beech_schema_validate', arguments: { candidate } })) as { isError?: boolean; content: Array<{ text: string }> }
+
+    expect(res.isError).toBeFalsy()
+    const { issues } = JSON.parse(res.content[0].text) as { issues: Array<{ fatal: boolean; messages: string[] }> }
+    expect(issues).toHaveLength(1)
+    expect(issues[0].fatal).toBe(false)
+    expect(issues[0].messages[0]).toContain('Closest: Car')
+  })
+
   it('performs full plan -> apply lifecycle for additive change', async () => {
     const candidate = {
       slug: 'articles',
@@ -417,5 +484,57 @@ describe('MCP Server Integration & Operational Test', () => {
     const applyParsed = JSON.parse(applyRes.content[0].text)
     expect(applyParsed.error).toContain('Registry version mismatch')
     expect(applyParsed.error).toContain('Re-run beech_schema_plan; the previous plan has been discarded.')
+  })
+
+  it('beech_confirm without elicitation support returns the dashboard fallback', async () => {
+    approveCalls = 0
+
+    const res = (await client.callTool({ name: 'beech_confirm', arguments: { intentIds: [PENDING_INTENT_ID] } })) as ToolPayload
+
+    expect(res.isError).toBeFalsy()
+    const parsed = JSON.parse(res.content[0].text) as ConfirmPayload
+    expect(parsed.status).toBe('fallback')
+    expect(parsed.reason).toBe('elicitation_unsupported')
+    expect(approveCalls).toBe(0)
+  })
+
+  it('beech_confirm round-trips an elicitation through the supervisor and approves', async () => {
+    approveCalls = 0
+    const elicitingClient = new Client(
+      { name: 'eliciting-test-client', version: '1.0.0' },
+      { capabilities: { elicitation: {} } },
+    )
+    elicitingClient.setRequestHandler(ElicitRequestSchema, async () => ({
+      action: 'accept',
+      content: { decision: 'approve' },
+    }))
+    const elicitingTransport = new StdioClientTransport({
+      command: 'node',
+      args: [resolve(__dirname, '../dist/index.js')],
+      env: { ...process.env, BEECH_API_URL: apiUrl, BEECH_TOKEN_CACHE: tokenCachePath },
+    })
+    await elicitingClient.connect(elicitingTransport)
+
+    try {
+      const res = (await elicitingClient.callTool({ name: 'beech_confirm', arguments: { intentIds: [PENDING_INTENT_ID] } })) as ToolPayload
+
+      expect(res.isError).toBeFalsy()
+      const parsed = JSON.parse(res.content[0].text) as ConfirmPayload
+      expect(parsed.status).toBe('decided')
+      expect(parsed.results).toMatchObject([{ id: PENDING_INTENT_ID, outcome: 'executed' }])
+      expect(approveCalls).toBe(1)
+    } finally {
+      await elicitingClient.close()
+    }
+  }, 20_000)
+
+  it('tools carry annotations and beech_confirm is the only destructive one', async () => {
+    const { tools } = await client.listTools()
+
+    const withoutAnnotations = tools.filter(tool => tool.annotations === undefined).map(tool => tool.name)
+    const destructive = tools.filter(tool => tool.annotations?.destructiveHint === true).map(tool => tool.name)
+
+    expect(withoutAnnotations).toEqual([])
+    expect(destructive).toEqual(['beech_confirm'])
   })
 })

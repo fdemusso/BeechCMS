@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { OAUTH_SCOPES, formatScopes } from "@beechcms/core"
 import { ConsentScreen } from "./consent-screen"
 import type { AuthorizationRequestMetadata } from "../types/oauth.types"
 
@@ -26,6 +27,7 @@ const metadata: AuthorizationRequestMetadata = {
   client: { clientId: "beech-mcp-cli", name: "Beech MCP CLI" },
   requestedScopes: ["schema:read", "schema:write"],
   newScopes: ["schema:write"],
+  deniedScopes: [],
   consentRequired: true,
   redirectUri: "http://127.0.0.1:8976/callback",
   state: "abc123",
@@ -41,12 +43,12 @@ const params = new URLSearchParams({
   code_challenge_method: "S256",
 })
 
-function renderScreen() {
+function renderScreen(screenMetadata: AuthorizationRequestMetadata = metadata, screenParams: URLSearchParams = params) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <ConsentScreen metadata={metadata} params={params} />
+        <ConsentScreen metadata={screenMetadata} params={screenParams} />
       </MemoryRouter>
     </QueryClientProvider>
   )
@@ -94,5 +96,70 @@ describe("ConsentScreen", () => {
     await waitFor(() => expect(mocked.submitConsent).toHaveBeenCalled())
     expect(mocked.submitConsent.mock.calls[0][0]).toEqual(expect.objectContaining({ approved: false }))
     await waitFor(() => expect(assignMock).toHaveBeenCalledWith("http://127.0.0.1:8976/callback?error=access_denied&state=abc123"))
+  })
+  describe("template picker", () => {
+    const allScopesMetadata: AuthorizationRequestMetadata = {
+      ...metadata,
+      requestedScopes: [...OAUTH_SCOPES],
+      newScopes: [...OAUTH_SCOPES],
+    }
+    const withScope = (scope: string) => new URLSearchParams({ ...Object.fromEntries(params), scope })
+
+    async function postedScope() {
+      await waitFor(() => expect(mocked.submitConsent).toHaveBeenCalled())
+      return (mocked.submitConsent.mock.calls[0][0] as { scope: string }).scope
+    }
+
+    beforeEach(() => {
+      mocked.submitConsent.mockResolvedValue({ redirectTo: "http://127.0.0.1:8976/callback?code=xyz" })
+    })
+
+    it("preselects the smallest template that covers the request", () => {
+      renderScreen(
+        { ...metadata, requestedScopes: ["content:read", "content:write"], newScopes: ["content:read", "content:write"] },
+        withScope("content:read content:write"),
+      )
+
+      expect(screen.getByRole("radio", { name: /^Editor/ })).toHaveAttribute("aria-checked", "true")
+    })
+
+    it("posts only the selected template scopes on Allow", async () => {
+      renderScreen(allScopesMetadata, withScope(formatScopes(OAUTH_SCOPES)))
+      fireEvent.click(screen.getByRole("radio", { name: /^Read/ }))
+
+      fireEvent.click(screen.getByText("Allow access"))
+
+      expect(await postedScope()).toBe(
+        "schema:read content:read media:read automations:read users:read settings:read analytics:read agent:read agent:approve",
+      )
+    })
+
+    it("posts the original scope string on Deny", async () => {
+      renderScreen(allScopesMetadata, withScope(formatScopes(OAUTH_SCOPES)))
+      fireEvent.click(screen.getByRole("radio", { name: /^Read/ }))
+
+      fireEvent.click(screen.getByText("Deny"))
+
+      expect(await postedScope()).toBe(formatScopes(OAUTH_SCOPES))
+    })
+
+    it("marks a denied scope as not available and never posts it", async () => {
+      renderScreen({ ...metadata, newScopes: ["schema:read"], deniedScopes: ["schema:write"] })
+
+      fireEvent.click(screen.getByText("Allow access"))
+
+      expect(screen.getByText("Not available for your role")).toBeInTheDocument()
+      expect(await postedScope()).toBe("schema:read")
+    })
+
+    it("disables templates and Allow when nothing would be granted", () => {
+      renderScreen(
+        { ...metadata, requestedScopes: ["schema:write"], newScopes: [], deniedScopes: ["schema:write"] },
+        withScope("schema:write"),
+      )
+
+      screen.getAllByRole("radio").forEach(radio => expect(radio).toBeDisabled())
+      expect(screen.getByRole("button", { name: /Allow access/ })).toBeDisabled()
+    })
   })
 })

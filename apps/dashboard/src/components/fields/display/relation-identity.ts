@@ -3,6 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { useQuery } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
+import { isApiError } from "@/lib/http/api-error"
 import { useFieldsConfig } from "../context"
 import { useRelationLabel } from "../relation-label"
 
@@ -10,13 +12,15 @@ import { useRelationLabel } from "../relation-label"
 const RELATION_STALE_MS = 5 * 60 * 1000
 
 export interface RelationIdentity {
-  /** Display name of the related entry; the id when the entry has none. */
+  /** Display name of the related entry; the id when the entry has none; a placeholder when it is not readable. */
   readonly label: string
   /** Avatar text when there is no image: initials of the display name, else the last two characters of the id. */
   readonly initials: string
   /** Avatar image URL, or null when the relation has no avatar source or the entry has no image. */
   readonly imageUrl: string | null
   readonly isLoading: boolean
+  /** True when the server refused the entry (403): the caller cannot read it, so `label` is a neutral placeholder. */
+  readonly isForbidden: boolean
 }
 
 /** 1-2 uppercase characters: the first letters of the first and last word. */
@@ -35,7 +39,7 @@ export function initialsOf(text: string): string {
  * @param rawLabel The entry's display-name value as stored (any type).
  * @param avatarValue The entry's avatar-source value, when the relation configures one.
  */
-export function toRelationIdentity(id: string, rawLabel: unknown, avatarValue?: unknown): Omit<RelationIdentity, "isLoading"> {
+export function toRelationIdentity(id: string, rawLabel: unknown, avatarValue?: unknown): Omit<RelationIdentity, "isLoading" | "isForbidden"> {
   let text = ""
   if (typeof rawLabel === "string") text = rawLabel
   else if (typeof rawLabel === "number") text = rawLabel.toString()
@@ -62,7 +66,8 @@ export function useRelationIdentity(
 ): RelationIdentity {
   const { fetchById, queryKeys } = useFieldsConfig()
   const labelOf = useRelationLabel(targetSlug)
-  const { data: entry, isLoading } = useQuery({
+  const { t: translate } = useTranslation()
+  const { data: entry, isLoading, error } = useQuery({
     queryKey: queryKeys.detail(targetSlug, id ?? ""),
     queryFn: () => fetchById(targetSlug, id!),
     enabled: Boolean(targetSlug && id),
@@ -74,5 +79,9 @@ export function useRelationIdentity(
     labelOf(entry?.data, labelAlias),
     avatarAlias ? entry?.data?.[avatarAlias] : undefined,
   )
-  return { ...identity, isLoading }
+  // A refused detail request is not a missing label: showing the raw id would read as corrupt data.
+  if (isApiError(error) && error.status === 403) {
+    return { label: translate("common.recordNotAccessible"), initials: "?", imageUrl: null, isLoading: false, isForbidden: true }
+  }
+  return { ...identity, isLoading, isForbidden: false }
 }

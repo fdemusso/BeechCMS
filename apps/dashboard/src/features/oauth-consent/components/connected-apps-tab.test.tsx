@@ -15,6 +15,10 @@ vi.mock("../api/oauth.api", () => ({
   oauthApi: {
     getConnectedApps: (...args: unknown[]) => getConnectedAppsMock(...args),
     revokeConnectedApp: (...args: unknown[]) => revokeConnectedAppMock(...args),
+    listAgentIntents: () => Promise.resolve([]),
+    getAgentIntent: vi.fn(),
+    approveAgentIntent: vi.fn(),
+    rejectAgentIntent: vi.fn(),
   },
 }))
 
@@ -83,5 +87,15 @@ describe("ConnectedAppsTab", () => {
 
     await waitFor(() => expect(revokeConnectedAppMock).toHaveBeenCalled())
     expect(revokeConnectedAppMock.mock.calls[0][0]).toBe("beech-mcp-cli")
+  })
+
+  it("renders the pending agent actions section above the connected apps", async () => {
+    getConnectedAppsMock.mockResolvedValue([APP])
+
+    renderTab()
+
+    const pending = await screen.findByRole("region", { name: "Pending agent actions" })
+    const connected = screen.getByRole("region", { name: "Connected apps" })
+    expect(pending.compareDocumentPosition(connected) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })

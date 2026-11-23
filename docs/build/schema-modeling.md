@@ -64,7 +64,7 @@ A `Seed` is the top-level content type definition. Only `slug`, `label`, `displa
 
 ```jsonc
 {
-  "icon": "Users",          // Lucide icon name. Default: 'Folder'.
+  "icon": "Users",          // A name from the dashboard icon list (not Lucide). Default: 'Folder'.
   "group": "CRM",           // Sidebar section label. Ungrouped seeds share "Contents".
   "order": 10,              // Sort order within the group, lower = higher. Default: 99.
   "hidden": false,          // Hide from sidebar nav. Default: false.
@@ -73,6 +73,8 @@ A `Seed` is the top-level content type definition. Only `slug`, `label`, `displa
   "views": ["table", "gallery", "kanban"]  // Content-manager views authorized for this seed. Default: ['table'].
 }
 ```
+
+`icon` is a name from the dashboard's own icon set (icons from the `reicon-react` kit, not Lucide). The list is `DASHBOARD_ICON_NAMES` in `@beechcms/core`; agents find it with `beech_docs_search "icon"` (`reference/icons`). Any other name renders the default `Folder` icon, and `beech_schema_validate` and `beech_schema_plan` return a non-fatal warning that names the closest valid icons. Seeds already stored with an unknown name keep working and keep showing the folder until you edit them.
 
 ---
 

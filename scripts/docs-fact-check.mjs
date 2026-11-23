@@ -272,6 +272,51 @@ if (existsSync(vitepressConfigPath)) {
 }
 
 // -------------------------------------------------------------
+// 5. Fact-Checking MCP Tools Parity
+// -------------------------------------------------------------
+header('5. Fact-Checking MCP Tools vs docs/reference/mcp-server.md')
+
+const mcpToolsPath = resolve(ROOT_DIR, 'packages/mcp/src/tool-definitions.ts')
+const mcpReferencePath = resolve(DOCS_DIR, 'reference/mcp-server.md')
+const mcpDocPaths = [mcpReferencePath, resolve(DOCS_DIR, 'start/mcp.md'), resolve(DOCS_DIR, 'build/local-agent.md')]
+
+const mcpToolNames = existsSync(mcpToolsPath)
+  ? [...readFileSync(mcpToolsPath, 'utf-8').matchAll(/name:\s*'(beech_[a-z_]+)'/g)].map((m) => m[1])
+  : []
+
+if (mcpToolNames.length === 0) {
+  error('Could not read MCP tool names from packages/mcp/src/tool-definitions.ts')
+} else {
+  const knownTools = new Set(mcpToolNames)
+  const failuresBefore = failureCount
+
+  if (existsSync(mcpReferencePath)) {
+    const reference = readFileSync(mcpReferencePath, 'utf-8')
+    for (const tool of mcpToolNames) {
+      if (!reference.includes(`\`${tool}\``)) {
+        error(`MCP tool "${tool}" is registered in tool-definitions.ts but missing from reference/mcp-server.md`)
+      }
+    }
+  }
+
+  for (const docPath of mcpDocPaths) {
+    const docLabel = relative(ROOT_DIR, docPath)
+    if (!existsSync(docPath)) {
+      error(`${docLabel} is required by the MCP docs but does not exist`)
+      continue
+    }
+    const mentioned = new Set(readFileSync(docPath, 'utf-8').match(/\bbeech_[a-z_]*[a-z]\b/g) ?? [])
+    for (const token of mentioned) {
+      if (!knownTools.has(token)) error(`${docLabel} mentions unknown MCP tool "${token}"`)
+    }
+  }
+
+  if (failureCount === failuresBefore) {
+    success(`All ${mcpToolNames.length} MCP tools are documented; no unknown beech_* tool names in MCP docs.`)
+  }
+}
+
+// -------------------------------------------------------------
 // Summary
 // -------------------------------------------------------------
 console.log('\n' + pc.bold('====================================================='))

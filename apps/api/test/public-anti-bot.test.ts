@@ -304,6 +304,8 @@ describe('Public Form Security & Anti-Bot Defense', () => {
     })
 
     it('rejects submissions with elapsed time < 1.5s (instant bot submission)', async () => {
+      // Freeze the clock so a slow machine cannot push the elapsed time past the 1.5s threshold.
+      vi.useFakeTimers({ toFake: ['Date'], now: new Date() })
       const t0 = Math.floor(Date.now() / 1000) // 0s ago
       const token = await generateTimeTrapToken(SECRET, t0)
 
@@ -317,6 +319,7 @@ describe('Public Form Security & Anti-Bot Defense', () => {
           _timeTrapToken: token,
         }),
       }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
+      vi.useRealTimers()
 
       expect(res.status).toBe(422)
       const body = await res.json<{ type: string }>()

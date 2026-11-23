@@ -31,7 +31,7 @@ The coarse gate cannot be the final check: the scope of an administrative reques
 | `GET /api/rbac/roles` | `manage_users` or `manage_roles` |
 | `POST/PUT/DELETE /api/rbac/roles…` | `manage_roles` |
 
-**Not OAuth-reachable.** `OAUTH_SCOPE_ROUTES` does not list `/api/rbac/*` and `oauthScopeMiddleware()` is fail-closed, so an OAuth access token is refused `403 insufficient_scope` before reaching the slice.
+**OAuth-reachable with `users:read` / `users:write`.** The scope only lets the token reach the route; the administration rights above still apply to the token's owner. Role, assignment and deactivation calls are `destructive` and become pending intents that the user must approve when requested with an OAuth token; `POST /api/rbac/users` (password) is human-only and answers `403 insufficient_scope`.
 
 **404 over 403.** When the caller holds administrative authority but not over *this* target, the answer is `404 not-found`, not `403`. A `403` would be an enumeration oracle for accounts, assignments and invitations outside the caller's perimeter.
 
@@ -139,7 +139,7 @@ The full catalogue, system roles included (they are assignable). Readable by `ma
 {
   "name": "Blog Editor",
   "description": "Writes and publishes on the blog seed.",
-  "icon": "Pencil",
+  "icon": "Briefcase",
   "permissions": ["content:read", "content:create", "content:update"]
 }
 ```
@@ -148,7 +148,7 @@ The full catalogue, system roles included (they are assignable). Readable by `ma
 |---|---|
 | `name` | trimmed, 1–80 chars, UNIQUE |
 | `description` | optional/nullable, ≤ 400 chars |
-| `icon` | optional/nullable, ≤ 64 chars — lucide icon name rendered by the dashboard |
+| `icon` | optional/nullable, ≤ 64 chars — dashboard icon name (see `reference/icons`); unknown names render a folder |
 | `permissions` | **at least one**, each from the closed vocabulary; a role granting nothing is a footgun, not a use case |
 
 | Status | Condition |
@@ -232,7 +232,7 @@ Refused `409 last-global-admin` when the assignment is at `*`, its role carries 
 An invitation **is a deferred assignment**: it carries a pre-assigned `(role, scope)` pair and is subject to exactly the same two anti-escalation checks as `POST /api/rbac/assignments`.
 
 - **TTL**: 72 hours.
-- **Hash-only at rest**: the row stores `sha256hex(token)`; the plaintext exists once, inside the email.
+- **Hash-only at rest**: the row stores `sha256hex(token)`; the plaintext exists once, inside the email. The create and regenerate responses also carry `inviteUrl` for a dashboard session, but never for an OAuth caller (agent, script): the accept route is public, so the link alone would create an account.
 - **No ghost account**: no `users` row is created at invite time. The account is materialised at redemption — which is why regeneration reuses the row instead of recreating anything.
 - **One pending per email**: `supersedePending()` deletes the address's unredeemed invitations before every issue, so a reissued invitation never lingers as `accepted`.
 - **Status is derived**, never stored: `used_at` set → `accepted`; unset and past `expires_at` → `expired`; otherwise `pending`.

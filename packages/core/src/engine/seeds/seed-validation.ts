@@ -11,6 +11,7 @@ import { sortSeedsByDependencies } from './seed-registry.js'
 import { isImageMediaBranch } from '../../dashboard-layout/seed-layout.js'
 import { tagOptionsIssues } from './tag-options.js'
 import { SQL_RESERVED_WORDS } from '../sql-reserved-words.js'
+import { DEFAULT_DASHBOARD_ICON, closestDashboardIconNames, isDashboardIconName } from './dashboard-icons.js'
 
 const BRANCH_ID_RE = /^br_[A-Za-z0-9]+$/
 
@@ -419,6 +420,22 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
   for (const seed of seeds) {
     const messages = seed.branches.flatMap(branch => tagOptionsIssues(branch))
     if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })
+  }
+
+  // ── Warning 19: dashboard.icon outside the dashboard icon set ───────────────
+  // Not fatal: the dashboard still renders the default icon, so existing seeds keep working.
+  for (const seed of seeds) {
+    const icon = seed.dashboard?.icon
+    if (typeof icon !== 'string' || icon === '' || isDashboardIconName(icon)) continue
+    result.push({
+      slug: seed.slug,
+      messages: [
+        `dashboard.icon '${icon}' is not a dashboard icon name; the dashboard shows '${DEFAULT_DASHBOARD_ICON}' instead. ` +
+        `Closest: ${closestDashboardIconNames(icon).join(', ')}. ` +
+        `Valid names: DASHBOARD_ICON_NAMES in @beechcms/core, or beech_docs_search "icon".`,
+      ],
+      fatal: false,
+    })
   }
 
   return result

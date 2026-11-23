@@ -25,9 +25,9 @@ import {
  * decision (`hasPermission` / `canGrant`), because the scope of an administrative
  * request lives in the BODY or in the target's assignments, not in the URL.
  *
- * NOT OAuth-reachable: `OAUTH_SCOPE_ROUTES` does not list `/api/rbac/*`, and
- * `oauthScopeMiddleware()` is fail-closed, so an access token is refused 403
- * `insufficient_scope` before reaching here.
+ * OAuth-reachable through `OPERATION_CATALOG`: `users:read` / `users:write` tokens reach the
+ * non-excluded `/api/rbac/*` operations; excluded ones (e.g. `POST /api/rbac/users`) are refused
+ * 403 `insufficient_scope` by `oauthScopeMiddleware()` before reaching here.
  *
  * Route order matters for `/users/:userId`: the literal sub-paths are registered first.
  *

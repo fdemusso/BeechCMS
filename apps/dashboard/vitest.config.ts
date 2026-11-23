@@ -21,6 +21,8 @@ export default defineConfig({
     environment: "happy-dom",
     include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["./src/test/setup.ts"],
+    // Heavy dialog suites render slowly under parallel turbo workers and overrun the 5s default.
+    testTimeout: 20_000,
     server: {
       deps: {
         inline: ["fractional-indexing"],

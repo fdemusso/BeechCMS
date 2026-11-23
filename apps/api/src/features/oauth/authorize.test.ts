@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, beforeEach } from 'vitest'
+import type { IRoleGuard } from '@beechcms/core'
 import { createBeechApp } from '../../factory'
 import { D1TestDatabase } from '../../../test/helpers/d1-test-database'
 import { seedTestUsers } from '../../../test/helpers/seed-fixtures'
@@ -61,6 +62,27 @@ describe('OAuth authorize handlers', () => {
       expect(url.pathname).toBe('/admin/oauth/consent')
       expect(url.search.slice(1)).toBe(query)
     })
+
+    // Regression guard: the CLI opens the API origin, which serves no dashboard assets in local dev.
+    // A relative Location kept the browser there on a blank page; APP_URL is the dashboard origin.
+    it('redirects to the APP_URL dashboard origin when it differs from the request origin', async () => {
+      const query = authorizeQuery()
+
+      const res = await app.request(`http://localhost:8789/oauth/authorize?${query}`, { redirect: 'manual' }, { ...TEST_ENV, DB: db, APP_URL: 'http://localhost:5173' })
+
+      expect(res.status).toBe(302)
+      const url = new URL(res.headers.get('Location')!)
+      expect(url.origin).toBe('http://localhost:5173')
+      expect(url.pathname).toBe('/admin/oauth/consent')
+      expect(url.search.slice(1)).toBe(query)
+    })
+
+    it('keeps a relative Location when APP_URL is the request origin', async () => {
+      const res = await app.request(`http://localhost:5173/oauth/authorize?${authorizeQuery()}`, { redirect: 'manual' }, { ...TEST_ENV, DB: db, APP_URL: 'http://localhost:5173' })
+
+      expect(res.status).toBe(302)
+      expect(res.headers.get('Location')!.startsWith('/admin/oauth/consent?')).toBe(true)
+    })
   })
 
   describe('GET /oauth/authorize/request', () => {
@@ -106,6 +128,52 @@ describe('OAuth authorize handlers', () => {
       const thirdBody = await third.json<{ consentRequired: boolean; newScopes: string[] }>()
       expect(thirdBody.consentRequired).toBe(true)
       expect(thirdBody.newScopes).toEqual(['schema:write'])
+    })
+  })
+
+  describe('GET /oauth/authorize/request (denied scopes)', () => {
+    const denySchemaWriteGuard: IRoleGuard = {
+      arbitrate: async (_effective, requested) => ({
+        grantedScopes: requested.filter(scope => scope !== 'schema:write'),
+        deniedScopes: requested.filter(scope => scope === 'schema:write'),
+      }),
+    }
+
+    it('lists the scopes the role guard refuses in deniedScopes', async () => {
+      const token = await login()
+      const guardedApp = createBeechApp({ seeds: [], roleGuard: denySchemaWriteGuard })
+
+      const res = await guardedApp.request(`/oauth/authorize/request?${authorizeQuery({ scope: 'schema:read schema:write' })}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(200)
+      const body = await res.json<{ deniedScopes: string[]; newScopes: string[] }>()
+      expect(body.deniedScopes).toEqual(['schema:write'])
+      expect(body.newScopes).toEqual(['schema:read'])
+    })
+
+    it('leaves denied scopes out of newScopes so they never force a prompt', async () => {
+      const token = await login()
+      const guardedApp = createBeechApp({ seeds: [], roleGuard: denySchemaWriteGuard })
+      await app.request('/oauth/authorize/consent', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          response_type: 'code', client_id: CLIENT_ID, redirect_uri: REDIRECT_URI,
+          scope: 'schema:read', state: 'state123', code_challenge: CODE_CHALLENGE,
+          code_challenge_method: 'S256', approved: true,
+        }),
+      }, { ...TEST_ENV, DB: db })
+
+      const res = await guardedApp.request(`/oauth/authorize/request?${authorizeQuery({ scope: 'schema:read schema:write' })}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(200)
+      const body = await res.json<{ newScopes: string[]; consentRequired: boolean }>()
+      expect(body.newScopes).toEqual([])
+      expect(body.consentRequired).toBe(false)
     })
   })
 

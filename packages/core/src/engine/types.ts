@@ -220,7 +220,10 @@ export interface Branch {
 
 /** Dashboard-specific config embedded in a Seed. All fields optional — defaults applied by the dashboard. */
 export interface DashboardSeedConfig {
-  /** Lucide icon name (string, resolved to component client-side). Default: 'Folder'. */
+  /**
+   * Icon name from `DASHBOARD_ICON_NAMES` (a reicon-react icon, resolved to a component client-side).
+   * Any other name renders the default 'Folder' and draws a non-fatal validation warning.
+   */
   icon?: string
   /** Sidebar group label. Ungrouped seeds share a single 'Contents' section. */
   group?: string

@@ -1,110 +1,71 @@
 # @beechcms/mcp
 
-BeechCMS AI Control Plane — a Stdio MCP server that lets IDE agents inspect and safely evolve
-BeechCMS content schemas through the Botanical Engine's Admin API. It never touches D1 directly:
-every write goes through `POST /api/seeds/:slug/mcp-plan` and `POST /api/seeds/:slug/mcp-apply`.
+BeechCMS Agent Control Plane (2.0): a stdio MCP server that tells an agent who it acts as and which operations exist
+(`beech_whoami`, `beech_search`), gets human approval for risky actions in one dialog (`beech_intents`,
+`beech_confirm`) and lets it evolve content schemas additively through the Botanical Engine (`beech_schema_*`).
+Bulk work runs as `beech run` scripts, not as tool calls. The server never touches D1: every request goes through
+the authenticated BeechCMS API.
 
-## Install & configure
+## Install
+
+In a site project:
 
 ```bash
-pnpm --filter @beechcms/mcp build
+npx beech agent setup
 ```
 
-Add it to your MCP client config (e.g. `.mcp.json`, `claude_desktop_config.json`):
+It writes the `.mcp.json` entry, the agent skill and the `.beech/scripts/` folder. Or add the server by hand to your
+MCP client config (`.mcp.json`, `claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "beechcms": {
-      "command": "node",
-      "args": ["/absolute/path/to/packages/mcp/dist/index.js"],
-      "env": {
-        "BEECH_API_URL": "http://localhost:8787"
-      }
+      "command": "npx",
+      "args": ["-y", "@beechcms/mcp"],
+      "env": { "BEECH_API_URL": "http://localhost:8789" }
     }
   }
 }
 ```
 
-On first use, the server opens your system browser to `/oauth/authorize`, you log in and
-approve the "BeechCMS MCP Server" consent screen, and the resulting token pair is cached at
-`~/.beechcms/mcp-tokens.json` (mode `0600`). Every later tool call reuses or silently refreshes
-that token — no password ever touches the MCP client config.
-
-| Variable | Required | Default | Purpose |
-|---|---|---|---|
-| `BEECH_API_URL` | No | `.dev.vars` → `http://localhost:8787` | Token endpoint + REST API origin. |
-| `BEECH_AUTH_URL` | No | `BEECH_API_URL` | Origin the browser opens for `/oauth/authorize`. Must be the **dashboard** origin in local dev (Vite, `:5173`). |
-| `BEECH_OAUTH_CLIENT_ID` | No | `beech-mcp` | Must match the client row from migration `0039`. |
-| `BEECH_OAUTH_SCOPE` | No | `schema:read schema:write` | Set to `schema:read` for a read-only agent. |
-| `BEECH_OAUTH_TIMEOUT_MS` | No | `180000` | Browser round-trip budget. |
-| `BEECH_TOKEN_CACHE` | No | `~/.beechcms/mcp-tokens.json` | Cache override (tests, containers). |
-
-**Local dev**: set `BEECH_AUTH_URL=http://localhost:5173` (the dashboard's Vite origin) alongside
-`BEECH_API_URL=http://127.0.0.1:8789` (`wrangler dev --port 8789`) — the Worker cannot serve the
-consent screen itself in dev.
-
-To revoke access, open **Settings → Connected apps** in the dashboard and revoke
-"BeechCMS MCP Server"; the next tool call re-opens the browser to re-authorize.
-
-### Troubleshooting
-
-| Symptom | Cause |
-|---|---|
-| `400 invalid_client` | Migration `0039_oauth_client_beech_mcp.sql` not applied — run `pnpm beech db:migrate`. |
-| `403 insufficient_scope` | Cached token is narrower than the tool needs — revoke and re-authorize with a wider `BEECH_OAUTH_SCOPE`. |
-| Authorization timed out | Browser consent was not completed within `BEECH_OAUTH_TIMEOUT_MS` — re-run the tool. |
+On first use the server opens your browser for an OAuth consent (PKCE, no password in the config). The token is
+cached at `~/.beechcms/mcp-tokens.json`; revoke it under **Settings → Connected apps**. In local dev set
+`BEECH_AUTH_URL=http://localhost:5173` (the dashboard origin) next to `BEECH_API_URL`.
 
 ## Tools
 
-| Tool | Input | Output | Errors |
-|---|---|---|---|
-| `beech_list_seeds` | `{}` | `{ seeds: { slug, label, status, branchCount, updatedAt }[], schemaVersion }` | 401 |
-| `beech_get_seed` | `{ slug }` | Full `SeedRecord` | 404 |
-| `beech_schema_export` | `{}` | Full registry snapshot (definitions + layouts) | 401 |
-| `beech_schema_validate` | `{ candidate }` | `{ issues: { slug, fatal, messages }[] }` | — (local, no D1 write) |
-| `beech_schema_plan` | `{ slug, candidate }` | `{ planId, classification, requiresConfirmation, applicable, blockedReasons, statements, ftsRebuildNeeded, expectedVersion, issues, expiresInSeconds }` | 400, 401, 403 |
-| `beech_schema_apply` | `{ planId }` | `{ slug, newVersion, ftsRebuilt, warning? }` | unknown/expired/used planId, destructive classification, 409 drift, 401, 403 |
+13 tools, all prefixed `beech_`:
 
-## Permission model
+| Tool | Purpose |
+|---|---|
+| `beech_whoami` | User, permissions, scopes, `ENV` and approval policy |
+| `beech_search` | Search the operation catalog and docs; returns the SDK method per operation |
+| `beech_docs_search` | Full-text search over the bundled `beechcms-docs://` resources |
+| `beech_intents` | List your pending intents |
+| `beech_confirm` | Ask the human to approve or reject pending intents in one dialog |
+| `beech_list_seeds` | List seed summaries and the schema version |
+| `beech_get_seed` | Fetch one seed definition |
+| `beech_schema_export` | Export the full schema registry |
+| `beech_schema_validate` | Validate a candidate seed offline |
+| `beech_schema_plan` | Compute DDL and safety classification on the server |
+| `beech_schema_apply` | Apply a planned, additive change |
+| `beech_mcp_status` | Inspect the running server |
+| `beech_mcp_reload` | Refresh bundled resources and notify the client |
 
-Every route lives behind `apiProtected` (JWT Bearer, `authMiddleware()`) and the
-`manage_seeds`-at-`*` route gate on `/api/seeds/*`. The OAuth consent requires the same
-permission. **Known limitation**: read-only tools (`beech_list_seeds`, `beech_get_seed`) need
-`manage_seeds` at `*` like the write tools, because the gate covers `/api/seeds/*` as a whole.
-The OAuth scope (`schema:read` / `schema:write`) is the only read/write split. A scoped
-service-token subsystem is tracked as a follow-up (Issue #328), not part of this release.
+## Scopes
 
-## Failure semantics
+The server requests `schema:read schema:write settings:read agent:read agent:approve` (override with
+`BEECH_OAUTH_SCOPE`). It is the only OAuth client that can approve intents; `beech run` uses `beech-mcp-cli`, which
+never can.
 
-| Status | Meaning | Agent action |
-|---|---|---|
-| 400 | Bad input (bad slug, non-object candidate, non-integer `expectedVersion`) | Fix the input, do not retry blindly |
-| 401 | Auth failed after one refresh-and-retry attempt | Re-run any Beech tool to re-authorize in the browser |
-| 403 | Account lacks `manage_seeds` at `*` | Ask an administrator for a role carrying `manage_seeds` at `*` |
-| 409 | Registry drift — another writer moved `registry_version` | Re-run `beech_schema_plan` |
-| 422 | Validation failure, destructive intent, or DDL failure | Show the developer the detail; do not retry the same candidate |
-| connection refused | API unreachable | `pnpm beech dev` |
+## Upgrading from 1.x
 
-## Worked agent session
+A grant cached by a 1.x server lacks `agent:read`. 2.0 drops it once, prints
+`BeechCMS MCP 2.0 needs new permissions: your browser opens for consent on the next call.` on stderr, and asks for
+one new consent. The schema tools behave as before.
 
-```
-1. beech_schema_validate({ candidate: { slug: "products", label: "Product", branches: [...] } })
-   → { issues: [] }
+## Documentation
 
-2. beech_schema_plan({ slug: "products", candidate: { ... } })
-   → { planId: "b3f1...", classification: "create", applicable: true,
-       statements: ["CREATE TABLE content_products (...)", ...],
-       expectedVersion: 4, expiresInSeconds: 600 }
-
-3. beech_schema_apply({ planId: "b3f1..." })
-   → { slug: "products", newVersion: 5, ftsRebuilt: false }
-
-4. beech_schema_plan({ slug: "products", candidate: { ...same, branches: [...prev, { alias: "price", type: "number" }] } })
-   → { planId: "9a02...", classification: "additive", applicable: true,
-       statements: ["ALTER TABLE content_products ADD COLUMN price REAL"],
-       expectedVersion: 5, expiresInSeconds: 600 }
-
-5. beech_schema_apply({ planId: "9a02..." })
-   → { slug: "products", newVersion: 6, ftsRebuilt: false }
-```
+- [MCP Server reference](../../docs/reference/mcp-server.md): tools, scopes, approval lifecycle, failure matrix.
+- [Working with an Agent Locally](../../docs/build/local-agent.md): setup, scripts, approvals, security model.

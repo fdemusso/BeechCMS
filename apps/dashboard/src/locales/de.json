@@ -14,6 +14,7 @@
     "edit": "Bearbeiten",
     "create": "Erstellen",
     "noResults": "Keine Ergebnisse",
+    "recordNotAccessible": "Datensatz nicht zugänglich",
     "error": "Fehler",
     "retry": "Erneut versuchen",
     "copied": "ID kopiert",
@@ -529,7 +530,9 @@
       "invitations": "Einladungen",
       "roles": "Rollen",
       "usage": "Nutzung",
-      "orphans": "Verwaiste Dateien"
+      "orphans": "Verwaiste Dateien",
+      "agentActions": "Ausstehende Agentenaktionen",
+      "connectedApps": "Verbundene Apps"
     },
     "search": "Einstellungen durchsuchen…",
     "clearSearch": "Suche löschen",
@@ -774,7 +777,8 @@
         "app": "Verbundene App",
         "automation": "Automatisierung",
         "layout": "Dashboard-Layout",
-        "view": "Ansicht"
+        "view": "Ansicht",
+        "intent": "Agentenaktion"
       },
       "ops": {
         "profile": "Profil aktualisiert",
@@ -803,7 +807,10 @@
         "drop-orphan": "Verwaiste Spalte entfernt",
         "rename-branch": "Feld umbenannt",
         "retype-branch": "Feldtyp geändert",
-        "draft-saved": "Entwurf gespeichert"
+        "draft-saved": "Entwurf gespeichert",
+        "intent": "Von einem Agenten angefragt",
+        "approve": "Genehmigt",
+        "reject": "Abgelehnt"
       },
       "reasons": {
         "wrong-password": "Falsches Passwort",
@@ -812,7 +819,8 @@
       "entries": "{{count}} Einträge",
       "orphans": "{{count}} verwaiste Dateien",
       "detail": {
-        "fields": "Felder: {{fields}}"
+        "fields": "Felder: {{fields}}",
+        "resultStatus": "Ergebnis: HTTP {{status}}"
       },
       "sessionsRevoked": "andere Sitzungen abgemeldet",
       "scope": {
@@ -2405,6 +2413,9 @@
       "scope": {
         "granted": {
           "badge": "Bereits gewährt"
+        },
+        "denied": {
+          "badge": "Für Ihre Rolle nicht verfügbar"
         }
       },
       "redirectNotice": "Nach der Freigabe werden Sie zu {{uri}} zurückgeleitet.",
@@ -2419,10 +2430,43 @@
       },
       "scopes": {
         "schema:read": "Ihre Inhaltstypen und das Schema lesen (einschließlich Dry-Run-Migrationspläne)",
-        "schema:write": "Schemamigrationen anwenden, die Ihre Inhaltstypen ändern"
+        "schema:write": "Schemamigrationen anwenden, die Ihre Inhaltstypen ändern",
+        "content:read": "Einträge Ihrer Inhaltstypen lesen",
+        "content:write": "Einträge erstellen und bearbeiten; Veröffentlichen erfordert Ihre Bestätigung",
+        "content:delete": "Einträge in den Papierkorb verschieben oder endgültig löschen, wenn Sie bestätigen",
+        "media:read": "Dateien Ihrer Medienbibliothek ansehen und herunterladen",
+        "media:write": "Mediendateien hochladen; Löschen erfordert Ihre Bestätigung",
+        "automations:read": "Ihre Automatisierungen und deren Ausführungsverlauf ansehen",
+        "automations:write": "Automatisierungen erstellen, bearbeiten und ausführen",
+        "users:read": "Benutzer, Rollen und Einladungen ansehen",
+        "users:write": "Benutzer, Rollen und Einladungen verwalten, wenn Sie bestätigen",
+        "settings:read": "Ihre Website-Einstellungen lesen",
+        "settings:write": "Ihre Website-Einstellungen ändern, wenn Sie bestätigen",
+        "analytics:read": "Analysen und Statistiken ansehen",
+        "agent:read": "Aktionen sehen, die dein Agent von dir bestätigen lassen will, und sie ablehnen",
+        "agent:approve": "Eine Aktion ausführen, nachdem du sie in deinem KI-Client bestätigt hast"
       },
       "required": "Erforderlich",
-      "disclaimer": "Die Berechtigungen sind für die MCP-Integration erforderlich. Sie können den Zugriff jederzeit unter Einstellungen > Verbundene Apps widerrufen."
+      "disclaimer": "Die App geht nie über Ihre eigene Rolle hinaus. Sie können den Zugriff jederzeit unter Einstellungen > Verbundene Apps widerrufen.",
+      "template": {
+        "legend": "Zugriffsebene",
+        "read": {
+          "label": "Lesen",
+          "description": "Alles ansehen, nichts ändern"
+        },
+        "editor": {
+          "label": "Editor",
+          "description": "Lesen, plus Inhalte und Medien erstellen, bearbeiten und löschen"
+        },
+        "admin": {
+          "label": "Administrator",
+          "description": "Editor, plus Automatisierungen, Benutzer und Einstellungen"
+        },
+        "developer": {
+          "label": "Entwickler",
+          "description": "Alles Angefragte, einschließlich Schemaänderungen"
+        }
+      }
     },
     "apps": {
       "application": "Anwendung",
@@ -2446,6 +2490,46 @@
         "error": "Fehler beim Widerrufen des Zugriffs"
       },
       "revokeDesc": "{{client}} verliert sofort den Zugriff. Jedes aktive Token wird ungültig."
+    },
+    "intents": {
+      "title": "Ausstehende Agentenaktionen",
+      "description": "Aktionen, die ein KI-Agent in Ihrem Namen ausführen wollte. Nichts wird ausgeführt, bevor Sie zustimmen; eine Anfrage läuft 10 Minuten nach ihrer Erstellung ab.",
+      "empty": "Keine Aktionen warten auf Sie",
+      "loadError": "Die ausstehenden Aktionen konnten nicht geladen werden",
+      "list": {
+        "label": "Ausstehende Agentenaktionen"
+      },
+      "columns": {
+        "action": "Aktion",
+        "app": "Anwendung",
+        "risk": "Risiko",
+        "expires": "Läuft ab"
+      },
+      "risk": {
+        "publish": "Veröffentlicht",
+        "destructive": "Destruktiv"
+      },
+      "review": "Prüfen",
+      "reviewFor": "{{action}} prüfen",
+      "approve": "Genehmigen und ausführen",
+      "reject": "Ablehnen",
+      "dialog": {
+        "description": "{{app}} wollte diese Aktion ausführen. Sie wird einmalig in Ihrem Namen ausgeführt, nur wenn Sie zustimmen.",
+        "request": "Anfrage",
+        "requestedAt": "Angefragt",
+        "body": "Anfragetext",
+        "noBody": "Kein Anfragetext",
+        "loadError": "Diese Anfrage konnte nicht geladen werden"
+      },
+      "toast": {
+        "executed": "Aktion genehmigt und ausgeführt",
+        "failed": "Die Aktion wurde ausgeführt, ist aber fehlgeschlagen (HTTP {{status}})",
+        "rejected": "Aktion abgelehnt",
+        "expired": "Diese Anfrage ist abgelaufen. Bitten Sie den Agenten, es erneut zu versuchen.",
+        "notPending": "Diese Anfrage wurde bereits genehmigt oder abgelehnt.",
+        "notFound": "Diese Anfrage existiert nicht mehr.",
+        "error": "Die Aktion konnte nicht abgeschlossen werden"
+      }
     }
   },
   "rbac": {

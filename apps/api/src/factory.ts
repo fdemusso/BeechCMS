@@ -15,6 +15,7 @@ import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import { authMiddleware } from './middleware/auth.middleware'
 import { oauthScopeMiddleware } from './middleware/oauth-scope.middleware'
 import { permissionMiddleware, requireActiveAccount } from './middleware/permission.middleware'
+import { agentIntentGate } from './middleware/agent-intent-gate.middleware'
 import { webhooksApp } from './features/webhooks'
 import { serveMediaHandler } from './features/upload'
 import {
@@ -225,13 +226,15 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   const apiProtected = new Hono<{ Bindings: Env; Variables: Variables }>()
   // Accepts the dashboard admin JWT and, additionally, OAuth 2.1 access tokens.
   apiProtected.use('*', authMiddleware({ acceptOAuth: true }))
-  // Fail-closed: an OAuth token reaches only the routes listed in OAUTH_SCOPE_ROUTES.
+  // Fail-closed: an OAuth token reaches only non-excluded OPERATION_CATALOG operations.
   // Must stay immediately after authMiddleware — it consumes the `oauthGrant` it sets.
   apiProtected.use('*', oauthScopeMiddleware())
-  // Fail-closed RBAC gate. Runs last of the three: authentication has produced a
-  // subject, the OAuth scope allowlist has already refused off-limits tokens, and this
+  // Fail-closed RBAC gate. Runs before the intent gate: authentication has produced a
+  // subject, the OAuth scope gate has already refused off-limits tokens, and this
   // decides what the subject may do on the scope named by the route.
   apiProtected.use('*', permissionMiddleware())
+  // Order is load-bearing: after RBAC (an intent is only stored for something the user may do), before the routes.
+  apiProtected.use('*', agentIntentGate({ dispatch: async (request, env, executionCtx) => app.fetch(request, env, executionCtx) }))
 
   // The feature routers and their order live in routes.ts, next to `AppType`.
   apiProtected.route('/', protectedRoutes)

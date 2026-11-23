@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
 import { CANONICAL_USERS, createTestHarness, type TestClient, type TestHarness } from '@beechcms/testing'
-import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME } from '@beechcms/core'
+import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME, sha256hex } from '@beechcms/core'
 import { createBeechApp } from '../../../../factory'
 import { __resetSeedRegistryCache } from '../../../../shared/services/cache/seed-registry-cache'
 
@@ -93,6 +93,51 @@ describe('rbac invitations — integration (real D1)', () => {
       expect(response.status).toBe(200)
       const { invitations } = await response.json<{ invitations: { id: string; status: string }[] }>()
       expect(invitations.map(({ id, status }) => ({ id, status }))).toEqual([{ id, status: 'accepted' }])
+    })
+  })
+
+  describe('dashboard session', () => {
+    it('still returns the invite link on regenerate so it can be copied by hand', async () => {
+      const id = await issue()
+
+      const response = await admin.post(`/api/rbac/invitations/${id}/regenerate`)
+
+      expect(response.status).toBe(200)
+      expect(await response.json<{ inviteUrl: string }>()).toMatchObject({ inviteUrl: expect.stringContaining('/admin/accept-invite?token=') })
+    })
+  })
+
+  describe('OAuth caller (agent / script)', () => {
+    const OAUTH_TOKEN = 'a'.repeat(64)
+    let agent: TestClient
+
+    beforeEach(async () => {
+      await env.DB.prepare('DELETE FROM oauth_tokens').run()
+      await env.DB.prepare('DELETE FROM oauth_clients').run()
+      await env.DB.prepare(
+        `INSERT INTO oauth_clients (client_id, name, redirect_uris, allowed_scopes) VALUES ('agent-client', 'Agent', '[]', 'users:write')`,
+      ).run()
+      await env.DB.prepare(
+        `INSERT INTO oauth_tokens (id, token_hash, token_type, client_id, user_id, scope, authorization_code_hash, expires_at)
+         VALUES ('tok-1', ?, 'access', 'agent-client', ?, 'users:write', 'code-hash', ?)`,
+      ).bind(await sha256hex(OAUTH_TOKEN), CANONICAL_USERS.admin.id, harness.clock.nowSeconds() + 3600).run()
+      agent = harness.anonymous().withHeaders({ Authorization: `Bearer ${OAUTH_TOKEN}` })
+    })
+
+    it('does not return the plaintext invite link when issuing an invitation', async () => {
+      const response = await agent.post('/api/rbac/invitations', { email: CANONICAL_USERS.viewer.email, roleId, scope: GLOBAL_SCOPE })
+
+      expect(response.status).toBe(201)
+      expect(await response.json()).not.toHaveProperty('inviteUrl')
+    })
+
+    it('does not return the plaintext invite link when regenerating an invitation', async () => {
+      const id = await issue()
+
+      const response = await agent.post(`/api/rbac/invitations/${id}/regenerate`)
+
+      expect(response.status).toBe(200)
+      expect(await response.json()).not.toHaveProperty('inviteUrl')
     })
   })
 })

@@ -3,7 +3,14 @@
 // See LICENSE in the repository root for license terms.
 
 import { rpc } from '@/lib/rpc'
-import type { AuthorizationRequestMetadata, ConsentDecisionBody, ConnectedApp } from '../types/oauth.types'
+import type {
+  AgentIntent,
+  AgentIntentApproval,
+  AgentIntentDetail,
+  AuthorizationRequestMetadata,
+  ConsentDecisionBody,
+  ConnectedApp,
+} from '../types/oauth.types'
 
 /**
  * The authorization server lives at `/oauth/*`, outside `/api`; `rpc` is rooted at '/', so
@@ -33,5 +40,24 @@ export const oauthApi = {
   revokeConnectedApp: async (clientId: string): Promise<void> => {
     // `hc` does not encode path params.
     await rpc.oauth.consents[':clientId'].$delete({ param: { clientId: encodeURIComponent(clientId) } })
+  },
+  listAgentIntents: async (): Promise<AgentIntent[]> => {
+    const response = await rpc.api.agent.intents.$get()
+    return (await response.json()).intents
+  },
+
+  getAgentIntent: async (id: string): Promise<AgentIntentDetail> => {
+    const response = await rpc.api.agent.intents[':id'].$get({ param: { id: encodeURIComponent(id) } })
+    return (await response.json()).intent
+  },
+
+  approveAgentIntent: async (id: string): Promise<AgentIntentApproval> => {
+    const response = await rpc.api.agent.intents[':id'].approve.$post({ param: { id: encodeURIComponent(id) } })
+    return response.json()
+  },
+
+  rejectAgentIntent: async (id: string): Promise<AgentIntent> => {
+    const response = await rpc.api.agent.intents[':id'].reject.$post({ param: { id: encodeURIComponent(id) } })
+    return (await response.json()).intent
   },
 }

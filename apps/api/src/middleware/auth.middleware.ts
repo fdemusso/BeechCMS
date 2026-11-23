@@ -7,6 +7,7 @@ import type { Context, Next } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { sha256hex, type JwtClaims } from '@beechcms/core'
 import type { Env, Variables } from '../types'
+import { readIntentReplay } from '../shared/agent-intents/replay'
 
 /** Standard JSON payload returned for unauthorized requests. */
 const UNAUTHORIZED_JSON = JSON.stringify({ error: 'Unauthorized' })
@@ -61,6 +62,16 @@ export interface AuthMiddlewareOptions {
   acceptOAuth?: boolean
 }
 
+/** The claims an OAuth request presents: the resource owner's own, never elevated ones. */
+function claimsFromUser(user: { id: string; email: string; name?: string | null; surname?: string | null }): JwtClaims {
+  return {
+    sub: user.id,
+    email: user.email,
+    name: user.name ?? undefined,
+    surname: user.surname ?? undefined,
+  }
+}
+
 /**
  * Authentication middleware for API routes.
  *
@@ -69,6 +80,8 @@ export interface AuthMiddlewareOptions {
  * - When {@link AuthMiddlewareOptions.acceptOAuth} is `true` and the token is a 64-character hex string,
  *   looks up the active access token record via `oauthTokenRepository` and hydrates user claims from `userRepository`.
  *   Populates `jwtPayload` and sets `oauthGrant` in the Hono context.
+ * - When `acceptOAuth` is `true` and the request env carries an in-process intent replay (set only by the approve
+ *   handler), skips the `Authorization` header and authenticates as the intent owner with the replay's grant.
  * - Otherwise, delegates verification to the `ITokenService` injected in context, setting `jwtPayload` and
  *   clearing `oauthGrant` (`null`).
  * - Emits HTTP 401 Unauthorized for missing, malformed, expired, or invalid tokens without exposing failure details.
@@ -81,6 +94,18 @@ export function authMiddleware(options: AuthMiddlewareOptions = {}) {
   const acceptOAuth = options.acceptOAuth === true
 
   return async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next): Promise<Response | void> => {
+    const replay = acceptOAuth ? readIntentReplay(c.env) : null
+    if (replay) {
+      const owner = await c.get('userRepository').findById(replay.userId)
+      if (!owner || !owner.isActive) {
+        throw new HTTPException(401, { res: invalidTokenResponse() })
+      }
+      c.set('jwtPayload', claimsFromUser(owner))
+      c.set('oauthGrant', { clientId: replay.clientId, userId: replay.userId, scope: replay.scope })
+      await next()
+      return
+    }
+
     const authHeader = c.req.header('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       throw new HTTPException(401, { res: unauthorizedResponse() })
@@ -106,14 +131,7 @@ export function authMiddleware(options: AuthMiddlewareOptions = {}) {
         throw new HTTPException(401, { res: invalidTokenResponse() })
       }
 
-      const claims: JwtClaims = {
-        sub: user.id,
-        email: user.email,
-        name: user.name ?? undefined,
-        surname: user.surname ?? undefined,
-      }
-
-      c.set('jwtPayload', claims)
+      c.set('jwtPayload', claimsFromUser(user))
       c.set('oauthGrant', { clientId: record.clientId, userId: record.userId, scope: record.scope })
       await next()
       return

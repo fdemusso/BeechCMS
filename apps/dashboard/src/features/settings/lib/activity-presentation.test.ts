@@ -86,9 +86,20 @@ describe("describeActivity", () => {
     expect(assigned).toMatchObject({ title: "ada@example.com · Editor", detail: "Role assignment · All content" })
   })
 
+  it("names an agent action by its operation, says what happened to it and, once run, its result", () => {
+    const requested = describeActivity(entry({ action: "create", entity_type: "intent", entity_id: "i1" }, { op: "intent", operationId: "seeds.delete", risk: "destructive", clientId: "beech-mcp-cli" }), t)
+    expect(requested).toMatchObject({ title: "seeds.delete", detail: "Agent action · Requested by an agent" })
+
+    const approved = describeActivity(entry({ action: "authorize", entity_type: "intent", entity_id: "i1" }, { op: "approve", operationId: "seeds.delete", resultStatus: 200 }), t)
+    expect(approved.detail).toBe("Agent action · Approved · Result: HTTP 200")
+
+    const rejected = describeActivity(entry({ action: "revoke", entity_type: "intent", entity_id: "i1" }, { op: "reject", operationId: "seeds.delete" }), t)
+    expect(rejected.detail).toBe("Agent action · Rejected")
+  })
+
   it("covers every action and entity the API can write, in both languages", () => {
     const actions = ["create", "update", "delete", "upload", "bulk_update", "security_alert", "trash", "restore", "purge", "publish", "discard_draft", "import", "revoke", "accept", "authorize", "login", "login_failed", "logout"]
-    const entities = ["content", "media", "seed", "user", "role", "assignment", "invitation", "settings", "session", "auth", "app", "automation", "layout", "view"]
+    const entities = ["content", "media", "seed", "user", "role", "assignment", "invitation", "settings", "session", "auth", "app", "automation", "layout", "view", "intent"]
     for (const action of actions) {
       const key = `settings.activity.actions.${action}`
       expect(t(key), `en ${action}`).not.toBe(key)

@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/api",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/factory.d.ts",
@@ -35,7 +35,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.10.0",
+    "@beechcms/core": "workspace:^0.10.1",
     "aws4fetch": "^1.0.20",
     "bcryptjs": "^3.0.3",
     "hono": "^4.13.11",

@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/cli",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "type": "module",
   "files": [
     "dist",
@@ -8,10 +8,14 @@
   ],
   "main": "dist/index.js",
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/index.js",
+    "./sdk": {
+      "types": "./dist/sdk/index.d.ts",
+      "import": "./dist/sdk/index.js"
+    }
   },
   "scripts": {
-    "build": "tsc --noEmit && esbuild src/index.ts --bundle --external:@beechcms/core --external:@clack/prompts --external:picocolors --platform=node --format=esm --outfile=dist/index.js",
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --external:@beechcms/core --external:@clack/prompts --external:picocolors --platform=node --format=esm --outfile=dist/index.js && tsc -p tsconfig.sdk.json && esbuild src/sdk/index.ts --bundle --external:@beechcms/core --platform=node --format=esm --outfile=dist/sdk/index.js",
     "dev": "esbuild src/index.ts --bundle --external:@beechcms/core --external:@clack/prompts --external:picocolors --platform=node --format=esm --outfile=dist/index.js --watch",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
@@ -20,7 +24,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.10.0",
+    "@beechcms/core": "workspace:^0.10.1",
     "@clack/prompts": "^1.8.1",
     "picocolors": "^1.1.1",
     "wrangler": "^4.100.0"

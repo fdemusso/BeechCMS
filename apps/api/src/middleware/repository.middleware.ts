@@ -36,8 +36,9 @@ import { D1RoleRepository } from '../shared/db/repositories/d1-role.repository'
 import { D1RoleAssignmentRepository } from '../shared/db/repositories/d1-role-assignment.repository'
 import { D1BackrefRepository } from '../shared/db/repositories/d1-backref.repository'
 import { D1InvitationRepository } from '../shared/db/repositories/d1-invitation.repository'
+import { D1AgentIntentRepository } from '../shared/db/repositories/d1-agent-intent.repository'
 import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService, UnconfiguredPrivacyService, PermissionRoleGuard } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISeedMediaPurgeRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, IRoleRepository, IRoleAssignmentRepository, IInvitationRepository, IDeletionLedger, IContentViewRepository, IBackrefRepository, BeechBucket } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISeedMediaPurgeRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, IRoleRepository, IRoleAssignmentRepository, IInvitationRepository, IAgentIntentRepository, IDeletionLedger, IContentViewRepository, IBackrefRepository, BeechBucket } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations/engine/automation-runner'
 import { D1AutomationRepository } from '../shared/db/repositories/automations.repository.d1'
@@ -83,6 +84,7 @@ interface RepositoryOverrides {
   roleRepository?: IRoleRepository
   roleAssignmentRepository?: IRoleAssignmentRepository
   invitationRepository?: IInvitationRepository
+  agentIntentRepository?: IAgentIntentRepository
   backrefRepository?: IBackrefRepository
   hooks?: BeechHooks
   privacyService?: IPrivacyService
@@ -188,6 +190,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('roleRepository', overrides?.roleRepository ?? new D1RoleRepository(database, resolvedIdGenerator))
     context.set('roleAssignmentRepository', overrides?.roleAssignmentRepository ?? new D1RoleAssignmentRepository(database, resolvedIdGenerator))
     context.set('invitationRepository', overrides?.invitationRepository ?? new D1InvitationRepository(database, resolvedIdGenerator))
+    context.set('agentIntentRepository', overrides?.agentIntentRepository ?? new D1AgentIntentRepository(database, resolvedIdGenerator))
     context.set('backrefRepository', overrides?.backrefRepository ?? new D1BackrefRepository(database))
     await next()
   })

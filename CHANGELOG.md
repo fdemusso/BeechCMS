@@ -1,6 +1,52 @@
 # Changelog
 
-## [Unreleased] — 0.10 candidate
+## MCP 2.0 — 2026-11-23
+
+`@beechcms/mcp@2.0.0` turns the MCP server from a set of schema tools into an **agent control plane**: an agent can see who it is and what it may do, search the whole operation catalog, and ask the owner to approve anything destructive or publishing, without ever approving for itself. Released with `core`, `api`, `cli`, `widget-sdk` and `cms` at `0.10.1`. Base: `@beechcms/mcp@1.2.0`. Two migrations (`0045`, `0046`).
+
+### Highlights
+
+- **Agent intents** — destructive requests, and publishes in production, made by an OAuth agent are no longer refused with `403 confirmation_required`. The API stores them as an intent (`agent_intents`, migration `0046`), answers `202`, and runs the stored request once the owner approves. Intents expire after 10 minutes.
+- **New MCP tools** — `beech_whoami`, `beech_search`, `beech_intents` and `beech_confirm` sit next to the existing schema tools. `beech_confirm` shows one dialog built from the intents the server stored, so an agent cannot reword what the owner approves.
+- **Script SDK and `beech run`** — a typed SDK over the operation catalog (`@beechcms/cli/sdk`) and a runner for scripts kept in the project.
+- **Measured** — an eval harness runs eight tasks against `@beechcms/mcp@1.2.0` and the working tree: **v1 passes 2 of 8, v2 passes 8 of 8**.
+
+### Breaking
+
+- **OAuth scopes v2** (migration `0045`). Grants issued under the 1.x scopes are dropped once, so every MCP client signs in again after upgrading.
+- Agent requests that used to receive `403 confirmation_required` now receive `202` with a pending intent. Clients must treat `202` as "waiting for the owner", not as success.
+- `agent:approve` is held only by `beech-mcp`. Other OAuth clients, including the CLI, cannot approve intents.
+
+### Added
+
+**MCP** (`@beechcms/mcp`)
+- `beech_whoami`: client, frozen scopes, environment policy and schema version, from the new `GET /api/agent/session`.
+- `beech_search`: finds operations in the catalog by what they do.
+- `beech_intents` and `beech_confirm`: list pending intents and ask the owner. Decline, cancel, an unsupported client or a failure never approve or reject, and return the dashboard link instead.
+- Tool annotations, the real package version in the handshake, and a rewritten `SKILL.md` and README.
+
+**API** (`@beechcms/api`)
+- Intent gate after RBAC, with `POST /api/agent/intents/:id/approve` and reject; the stored request replays through the full middleware chain.
+- Operation catalog and consent templates for the agent scopes.
+
+**CLI** (`@beechcms/cli`)
+- `@beechcms/cli/sdk`: `BeechSdk` covering 108 operations, checked against `OPERATION_CATALOG` in CI. Writes return a `WriteOutcome` (executed, pending intent or dry run). Helpers: `listAll`, `uploadFile`, `importFile`, `waitForImport`.
+- `beech run <name|path>` runs `.beech/scripts/<name>.ts` and prints a versioned report (`--json`, `--out`, `--dry-run`, `--arg`).
+- `beech agent setup` writes the `.mcp.json` entry, the agent skill, a scripts README and an example script. It is idempotent and never overwrites without `--force`.
+
+**Dashboard**
+- Pending agent actions section, an intent review dialog, and connected-apps and activity updates.
+
+**Docs**
+- MCP server reference rewritten, a local-agent guide, the confirm dialog `Decision` field, and `ifMatch` for `layout.update` / `layout.reset` (#976).
+
+### Fixed
+
+- `beech_confirm`: a `200` with an unreadable body on approve no longer aborts the loop and hides intents already executed. It is reported as an error item and the rest are still decided.
+- Dashboard: a table wider than 2200px no longer stretches the app shell and leaves a gap on the left.
+- Dashboard: one icon list for registry, validation and docs (#978, #980).
+
+## 0.10 — 2026-11-23
 
 Covers work on `devs` not yet on `master` (2026-11-04 → 2026-11-20, ~60 commits, 5 locale files, 2 migrations). Base: `core@0.9.9`, `api@0.9.11`, `dashboard@0.9.10`.
 

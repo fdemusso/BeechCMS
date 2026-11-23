@@ -29,7 +29,7 @@ export type EntityType =
   | 'content' | 'media' | 'seed'
   | 'user' | 'role' | 'assignment' | 'invitation'
   | 'settings' | 'session' | 'auth' | 'app'
-  | 'automation' | 'layout' | 'view'
+  | 'automation' | 'layout' | 'view' | 'intent'
 
 /**
  * Identifies the human (or machine) actor that triggered the event.

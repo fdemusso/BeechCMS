@@ -36,6 +36,7 @@ import { rbacApp } from './features/rbac'
 import { notificationsApp } from './features/notifications'
 import { automationsApp } from './features/automations/api/automations.handler'
 import { statsApp } from './features/stats'
+import { agentIntentsApp } from './features/agent-intents'
 import { backrefsApp } from './features/backrefs'
 import { searchRouter } from './features/search'
 import { uploadRoutes } from './features/upload'
@@ -66,6 +67,7 @@ export const protectedRoutes = new Hono<AppEnv>()
   .route('/dashboard-layout', dashboardLayoutApp)
   .route('/seeds', seedsApp)
   .route('/rbac', rbacApp)
+  .route('/agent', agentIntentsApp)
   .route('/content', notificationsApp)
   .route('/content', statsApp)
   .route('/content', rotateFieldApp)

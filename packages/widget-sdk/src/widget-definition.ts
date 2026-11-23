@@ -19,7 +19,7 @@ export interface WidgetDefinition<TConfig = unknown> {
   /** i18n key for the picker (built-ins); plain string allowed (custom). */
   labelKey: string
   descriptionKey?: string
-  /** Lucide icon name for the picker. */
+  /** Dashboard icon name for the picker (a reicon-react icon name, not a Lucide one); unknown names render a folder. */
   icon?: string
   category: 'stats' | 'charts' | 'content' | 'system' | 'custom'
   /** Schema with `.catch()`/`.optional()` so partial configs always parse. */

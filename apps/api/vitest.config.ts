@@ -33,6 +33,8 @@ export default defineConfig({
           // test/ = cross-slice HTTP flow suites + Docker-backed suites (Sprint 2 layout).
           include: ['test/**/*.test.ts', ...DOCKER_BOUND_SUITES],
           exclude: [...SHARED_EXCLUDE],
+          // Real D1 + bcrypt + S3 under 8 turbo workers can exceed the 5s default (Windows especially).
+          testTimeout: 30_000,
           globalSetup: ['./test/docker-precheck.runner.ts', './test/global-setup.ts'],
         },
       },

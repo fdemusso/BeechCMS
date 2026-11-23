@@ -149,7 +149,7 @@ Typed client packages and generated API reference.
 <div style="border: 1px solid var(--vp-c-border); border-radius: 8px; padding: 18px; background: var(--vp-c-bg-elv);">
   <h3 style="margin-top: 0;"><a href="/reference/mcp-server">MCP Server (@beechcms/mcp)</a></h3>
   <p style="color: var(--vp-c-text-2); font-size: 0.9rem;">
-    Stdio-based AI Control Plane enabling IDE coding agents to inspect, validate, plan, and apply schema changes through the Botanical Engine.
+    Stdio AI control plane: agent session and operation search, human approval of risky actions, and additive schema evolution through the Botanical Engine.
   </p>
 </div>
 

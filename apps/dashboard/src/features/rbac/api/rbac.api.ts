@@ -82,12 +82,12 @@ export const rbacApi = {
       return { rows: invitations, nextOffset }
     }),
 
-  createInvitation: async (payload: CreateInvitationPayload): Promise<{ id: string; expiresAt: number; inviteUrl: string }> => {
+  createInvitation: async (payload: CreateInvitationPayload): Promise<{ id: string; expiresAt: number; inviteUrl?: string }> => {
     const response = await rpc.api.rbac.invitations.$post({ json: payload })
     return response.json()
   },
 
-  regenerateInvitation: async (invitationId: string): Promise<{ id: string; expiresAt: number; inviteUrl: string }> => {
+  regenerateInvitation: async (invitationId: string): Promise<{ id: string; expiresAt: number; inviteUrl?: string }> => {
     const response = await rpc.api.rbac.invitations[":invitationId"].regenerate.$post({ param: { invitationId } })
     return response.json()
   },

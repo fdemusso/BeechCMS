@@ -31,6 +31,8 @@ Commands are categorized by operational scope:
 | `npx beech schema migrate` (`beech schema:migrate`) | Consumer | Moves seeds saved before 0.9 to the closed-vocabulary `tags` contract: `text` + `options` becomes single-choice `tags` (stored strings wrapped into arrays), string `options` become `{ value, color }`. Dry run by default (exits 1 while work is pending); `--apply` writes. Idempotent. | `--apply`, `--remote`, `--db <name>` |
 | `npx beech schema plan` (`beech schema:plan`) | Consumer | Shows the DDL and the definition-only changes applying `beech.schema.ts` would make; unchanged seeds print `(no change)`. Writes nothing. Exits 1 when a seed cannot be applied. | `--manifest <file>`, `--api-url <url>` |
 | `npx beech schema apply` (`beech schema:apply`) | Consumer | Applies `beech.schema.ts` through the control plane (`mcp-plan` / `mcp-apply`). Additive only. Skips seeds whose definition already matches. | `--manifest <file>`, `--api-url <url>`, `-y`/`--yes` |
+| `npx beech run <name\|path>` (`beech run`) | Consumer | Runs `.beech/scripts/<name>.ts` through the typed `beech` SDK as the signed-in user and prints a `RunReport`. Exits 1 when the script fails; pending intents alone exit 0. | `--arg <k=v>` (repeatable), `--dry-run`, `--json`, `--out <file>`, `--api-url <url>` |
+| `npx beech agent setup` (`beech agent:setup`) | Consumer | Writes the `beechcms` entry in `.mcp.json`, the agent skill, `.beech/scripts/README.md`, an example script, and adds `@beechcms/cli` to `devDependencies`. Idempotent; never overwrites a differing file without `--force`. | `--force`, `--api-url <url>` |
 | `npx beech forms` | Consumer | Interactive wizard generating React, Vue, Svelte, or Web Component forms. | `--seed <slug>`, `--framework <name>`, `--mode <create\|edit>`, `--out <path>`, `--yes`, `--json` (aliases: `form`, `forms:add`) |
 | `npx beech setup:cloudflare` | Consumer | 1-step Cloudflare edge provisioning (D1, R2, S3 secrets). | `--name <name>`, `--yes` (alias: `setup:cf`) |
 | `npx beech deploy` | Consumer | Deploys Worker and embedded admin dashboard to Cloudflare. | `--skip-check`, `--skip-seed` |
@@ -225,6 +227,59 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 ```
+
+### 7. Agent Scripts
+
+An agent (or you) writes a TypeScript script against the typed `beech` SDK; `beech run` executes it with your own permissions and prints one report. Requires Node ≥ 22.18 (native type stripping).
+
+1. `npx beech agent setup`: creates `.beech/scripts/`, the agent skill and the `.mcp.json` entry, and adds `@beechcms/cli` to `devDependencies` (install afterwards).
+2. Write `.beech/scripts/<name>.ts` with `defineScript` from `@beechcms/cli/sdk`.
+3. `npx beech run <name> --dry-run --json`: records every write in `calls` and sends none.
+4. `npx beech run <name> --arg key=value --json`: runs it for real.
+
+`--json` prints exactly one document on stdout; `console.log` inside a script goes to `logs`.
+
+For the full agent workflow (setup, consent, approvals), see [Working with an Agent Locally](/build/local-agent).
+
+#### RunReport
+
+| Field | Meaning |
+|-------|---------|
+| `version` | Report format version (`1`). |
+| `script` | Script path relative to the working directory. |
+| `status` | `ok` or `error`. |
+| `dryRun` | True under `--dry-run`. |
+| `apiUrl` | API the script ran against. |
+| `durationMs` | Run time. |
+| `result` | The script's JSON return value; `null` on error. |
+| `error` | `{ code, message, status, operationId }` or `null`. Codes: SDK/API codes, `script_load_failed`, `sdk_unresolved`, `invalid_script`, `script_error`, `result_not_serializable`. |
+| `logs` | Lines from `context.log` and `console.log` (first 500). |
+| `calls` | Every SDK call in order, with `outcome` `executed`, `pending`, `dry-run` or `error`. |
+| `pendingIntents` | Actions that did not run and wait for approval: ask the agent to call `beech_confirm`, or use Dashboard → Settings → Connected apps → Pending agent actions. |
+
+Exit codes: `0` for `ok`, including pending intents; `1` for `error` or a usage error. A script can never approve an intent: the CLI OAuth client lacks `agent:approve` and the SDK has no approve method.
+
+#### Writes that need `ifMatch`
+
+`beech.layout.update(body, { ifMatch })` and `beech.layout.reset({ ifMatch })` change the Dashboard Composer layout, which the API only writes against the version the caller read. `ifMatch` is the `updatedAt` returned by `beech.layout.get()`, or `null` for a first save (nothing stored yet, sent as `If-None-Match: *`). The SDK refuses a call without it before any request is sent (`layout.update needs { ifMatch }`); a raw HTTP call without a precondition header is answered `428`.
+
+```ts
+import { defineScript } from '@beechcms/cli/sdk'
+
+interface StoredLayout { layout: { version: number; pages: unknown[] } | null; updatedAt: number | null }
+
+// Read the layout, then write it back under the version just read. Put your edit in place of `pages`.
+// Run: pnpm beech run layout-roundtrip --dry-run --json
+export default defineScript(async (beech) => {
+  const { layout, updatedAt } = (await beech.layout.get()) as StoredLayout
+  if (layout === null) throw new Error('nothing stored yet: a first save uses { ifMatch: null }')
+
+  const outcome = await beech.layout.update({ ...layout, pages: layout.pages }, { ifMatch: updatedAt })
+  return outcome.kind
+})
+```
+
+If another writer saved in between, the call fails with `BeechSdkError` status `409` and code `layout-conflict`: run `get()` again and re-apply the edit. A first save, and any change to the tab structure, needs `manage_roles` at `*`; see [Dashboard Layout API](/reference/dashboard-layout#who-may-do-what).
 
 ---
 

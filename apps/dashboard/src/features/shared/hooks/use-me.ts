@@ -26,5 +26,7 @@ export function useMe() {
       return response.json()
     },
     staleTime: 5 * 60 * 1000,
+    // Permissions can change while the tab is open: re-read on return to the tab.
+    refetchOnWindowFocus: "always",
   })
 }

@@ -43,6 +43,7 @@ describe('CLI and Documentation Parity (Fact-Checking)', () => {
       'gen-types': ['gen-types', 'gen:types', 'generate:types', 'gen types typescript'],
       'setup:cloudflare': ['setup:cloudflare', 'setup:cf'],
       dev: ['dev', 'start'],
+      'agent:setup': ['agent:setup', 'agent setup'],
     }
 
     const checkedCommands = new Set<string>()

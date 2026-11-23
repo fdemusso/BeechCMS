@@ -36,6 +36,8 @@ interface AuthorizationRequestMetadata {
   requestedScopes: OAuthScope[]
   /** Scopes not yet covered by pre-existing active consent (only ones needing a prompt). */
   newScopes: OAuthScope[]
+  /** Requested scopes the role guard will refuse for this user; never part of the grant. */
+  deniedScopes: OAuthScope[]
   /** False if an active consent already covers all requested scopes (incremental consent). */
   consentRequired: boolean
   /** Validated client redirection target. */
@@ -56,6 +58,16 @@ async function resolveAndValidate(context: OAuthContext, raw: ReturnType<typeof 
   const client = await context.get('oauthClientRepository').findActiveById(raw.clientId)
   if (!client) return { client: null, validation: null }
   return { client, validation: validateAuthorizationRequest(raw, client) }
+}
+
+/** Origin of a configured URL, or undefined when it is unset or not a valid URL. */
+function parseOrigin(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  try {
+    return new URL(value).origin
+  } catch {
+    return undefined
+  }
 }
 
 /**
@@ -92,11 +104,13 @@ export async function authorizeHandler(context: OAuthContext): Promise<Response>
     return context.redirect(buildErrorRedirect(validation!.redirectUri, validation!.error, validation!.description, validation!.state), 302)
   }
 
-  // Relative Location: resolves against the origin the *browser* used. In production
-  // the Worker serves the dashboard from ASSETS on its own origin; in local dev the
-  // browser is on the Vite origin proxying /oauth to the Worker, and an absolute
-  // Location would bounce it to the Worker port, which serves no dashboard assets.
-  return context.redirect(`${CONSENT_SCREEN_PATH}?${url.search.slice(1)}`, 302)
+  // Relative Location by default: it resolves against the origin the *browser* used, so a
+  // Vite origin proxying /oauth to the Worker stays on Vite. When the browser hit the Worker
+  // directly (`beech run` opens the API origin) and the dashboard lives on another origin
+  // (APP_URL, local dev), point it there: the Worker serves no dashboard assets in that setup.
+  const consentPath = `${CONSENT_SCREEN_PATH}?${url.search.slice(1)}`
+  const dashboardOrigin = parseOrigin(context.env.APP_URL)
+  return context.redirect(dashboardOrigin && dashboardOrigin !== url.origin ? `${dashboardOrigin}${consentPath}` : consentPath, 302)
 }
 
 /**
@@ -132,12 +146,16 @@ export async function authorizeRequestHandler(context: Context<AppEnv, '/oauth/a
   const userId = context.get('jwtPayload').sub
   const activeConsent = await context.get('oauthConsentRepository').findActive(request.clientId, userId)
   const consentedScopes = activeConsent?.scopes ?? []
-  const newScopes = request.scopes.filter(scope => !consentedScopes.includes(scope))
+  const { deniedScopes } = await context
+    .get('roleGuard')
+    .arbitrate(await resolveEffectivePermissions(context), request.scopes)
+  const newScopes = request.scopes.filter(scope => !consentedScopes.includes(scope) && !deniedScopes.includes(scope))
 
   const metadata: AuthorizationRequestMetadata = {
     client: { clientId: client.clientId, name: client.name },
     requestedScopes: request.scopes,
     newScopes,
+    deniedScopes,
     consentRequired: newScopes.length > 0,
     redirectUri: request.redirectUri,
     state: request.state,

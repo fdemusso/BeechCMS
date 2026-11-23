@@ -48,7 +48,7 @@ importers:
   .:
     dependencies:
       '@beechcms/cli':
-        specifier: workspace:^0.10.0
+        specifier: workspace:^0.10.1
         version: link:packages/cli
       '@clack/prompts':
         specifier: ^1.8.1
@@ -112,7 +112,7 @@ importers:
   apps/api:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.10.0
+        specifier: workspace:^0.10.1
         version: link:../../packages/core
       aws4fetch:
         specifier: ^1.0.20
@@ -167,10 +167,10 @@ importers:
   apps/dashboard:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.10.0
+        specifier: workspace:^0.10.1
         version: link:../../packages/core
       '@beechcms/widget-sdk':
-        specifier: workspace:^0.10.0
+        specifier: workspace:^0.10.1
         version: link:../../packages/widget-sdk
       '@codemirror/lang-json':
         specifier: ^6.0.1
@@ -327,7 +327,7 @@ importers:
         version: 4.6.7
     devDependencies:
       '@beechcms/api':
-        specifier: workspace:^0.10.0
+        specifier: workspace:^0.10.1
         version: link:../api
       '@beechcms/testing':
         specifier: workspace:*
@@ -454,6 +454,24 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
+  evals:
+    devDependencies:
+      '@beechcms/api-client':
+        specifier: workspace:*
+        version: link:../packages/api-client
+      '@beechcms/core':
+        specifier: workspace:*
+        version: link:../packages/core
+      '@types/node':
+        specifier: ^26.5.1
+        version: 26.6.5
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(@vitest/coverage-v8@5.0.5)(happy-dom@21.0.4)(jsdom@30.1.3(@noble/hashes@1.8.0))(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/api-client:
     dependencies:
       '@beechcms/core':
@@ -476,7 +494,7 @@ importers:
   packages/cli:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.10.0
+        specifier: workspace:^0.10.1
         version: link:../core
       '@clack/prompts':
         specifier: ^1.8.1
@@ -507,7 +525,7 @@ importers:
   packages/client:
     devDependencies:
       '@beechcms/core':
-        specifier: workspace:^0.10.0
+        specifier: workspace:^0.10.1
         version: link:../core
       '@types/node':
         specifier: ^26.5.1
@@ -580,7 +598,7 @@ importers:
   packages/forms-react:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.10.0
+        specifier: workspace:^0.10.1
         version: link:../core
     devDependencies:
       '@testing-library/react':
@@ -620,7 +638,7 @@ importers:
   packages/mcp:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.10.0
+        specifier: workspace:^0.10.1
         version: link:../core
       '@modelcontextprotocol/sdk':
         specifier: ^1.31.0
@@ -673,7 +691,7 @@ importers:
   packages/widget-sdk:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.10.0
+        specifier: workspace:^0.10.1
         version: link:../core
       clsx:
         specifier: ^2.1.1

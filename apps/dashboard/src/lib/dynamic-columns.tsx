@@ -60,7 +60,7 @@ export type ContentEntry = Omit<ContentEntryResponse, "data" | "has_pending_draf
 }
 
 /**
- * Maps a schema branch type string to its corresponding Lucide icon component.
+ * Maps a schema branch type string to its corresponding icon component.
  *
  * @param type - The branch type string.
  * @returns The IconComponent React component.

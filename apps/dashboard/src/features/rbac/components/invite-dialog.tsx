@@ -25,7 +25,7 @@ import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
 export interface InviteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onInvited?: (invitationId: string, inviteUrl: string) => void
+  onInvited?: (invitationId: string, inviteUrl: string | undefined) => void
 }
 
 export function InviteDialog({ open, onOpenChange, onInvited }: InviteDialogProps) {
