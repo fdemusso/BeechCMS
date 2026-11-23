@@ -11,7 +11,8 @@ import { publicProblem } from '../../../public/errors/problem-details'
 import {
   logContentActivity,
   dispatchContentAutomation,
-  handleContentDatabaseError
+  handleContentDatabaseError,
+  restrictedByBackrefsProblem
 } from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
@@ -36,6 +37,12 @@ export async function deleteHandler(context: Context<AppEnv, '/:slug/:id', ZodQu
     const actor = { id: jwtPayload.sub, email: jwtPayload.email }
 
     const forcePurge = context.req.valid('query').purge === 'true'
+
+    // The purge is guarded by the foreign key itself; the Trash needs the explicit check.
+    if (!forcePurge) {
+      const restricted = await restrictedByBackrefsProblem(context, seed, entryId)
+      if (restricted) return restricted
+    }
 
     const { row } = forcePurge
       ? await repository.purge(seed, entryId, { actor })
