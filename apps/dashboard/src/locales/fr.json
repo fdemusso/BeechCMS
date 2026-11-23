@@ -14,6 +14,7 @@
     "edit": "Modifier",
     "create": "Créer",
     "noResults": "Aucun résultat",
+    "recordNotAccessible": "Enregistrement inaccessible",
     "error": "Erreur",
     "retry": "Réessayer",
     "copied": "ID copié",

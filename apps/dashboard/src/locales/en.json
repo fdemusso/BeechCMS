@@ -14,6 +14,7 @@
     "edit": "Edit",
     "create": "Create",
     "noResults": "No results",
+    "recordNotAccessible": "Record not accessible",
     "error": "Error",
     "retry": "Retry",
     "copied": "ID copied",
