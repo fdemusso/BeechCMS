@@ -107,7 +107,7 @@ Configure your MCP client (Claude Code, Claude Desktop, Cursor, Antigravity) to 
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `BEECH_API_URL` | No | `http://localhost:8789` | Target BeechCMS API origin (token endpoint + REST API). Matches the port `beech dev` runs Wrangler on. If unset and `.dev.vars` exists in `process.cwd()`, the server extracts `BEECH_API_URL` from that file. |
-| `BEECH_AUTH_URL` | No | `BEECH_API_URL` | Origin the *browser* opens for `/oauth/authorize`. In local dev this must be the **dashboard** origin (`http://localhost:5173`), since the Worker does not serve the consent screen. |
+| `BEECH_AUTH_URL` | No | `BEECH_API_URL` | Origin the *browser* opens for `/oauth/authorize`. In local dev the Worker does not serve the consent screen, so `/oauth/authorize` redirects the browser to the dashboard origin set by the API's `APP_URL` (`http://localhost:5173`); set `BEECH_AUTH_URL` to that origin to skip the redirect. |
 | `BEECH_OAUTH_CLIENT_ID` | No | `beech-mcp` | Must match the OAuth client seeded in D1 (`apps/api/migrations/0000_v040_base.sql`). |
 | `BEECH_OAUTH_SCOPE` | No | `schema:read schema:write settings:read agent:read agent:approve` | Scopes requested at consent. Narrowing it disables the tools that need the dropped scope: without `agent:approve`, `beech_confirm` can only fall back to the dashboard. |
 | `BEECH_OAUTH_TIMEOUT_MS` | No | `180000` | Browser round-trip budget, in milliseconds. |

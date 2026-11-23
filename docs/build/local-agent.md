@@ -134,6 +134,7 @@ The approval dialog protects against mistakes and prompt injection, not against 
 | Outcome `expired` or error `intent_expired` | The intent is older than 10 minutes. | Run the script again to create a new intent. |
 | `403 insufficient_scope` naming a scope | The grant lacks that scope or your role cannot grant it. | Revoke `BeechCMS MCP Server` (or the CLI client) under Connected apps and consent again. |
 | `ECONNREFUSED` | The API is not running. | Run `pnpm beech dev`. |
+| The consent page opens on the API origin (`http://localhost:8789/oauth/authorize?...`) and stays blank | The Worker serves no dashboard in local dev. The API redirects to `APP_URL` (the dashboard origin), so this means `APP_URL` is unset or points at the API. | Set `APP_URL=http://localhost:5173` in `apps/api/.dev.vars`, restart `pnpm beech dev`, or run with `BEECH_AUTH_URL=http://localhost:5173`. |
 
 ## Related
 
