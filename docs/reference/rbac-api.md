@@ -232,7 +232,7 @@ Refused `409 last-global-admin` when the assignment is at `*`, its role carries 
 An invitation **is a deferred assignment**: it carries a pre-assigned `(role, scope)` pair and is subject to exactly the same two anti-escalation checks as `POST /api/rbac/assignments`.
 
 - **TTL**: 72 hours.
-- **Hash-only at rest**: the row stores `sha256hex(token)`; the plaintext exists once, inside the email.
+- **Hash-only at rest**: the row stores `sha256hex(token)`; the plaintext exists once, inside the email. The create and regenerate responses also carry `inviteUrl` for a dashboard session, but never for an OAuth caller (agent, script): the accept route is public, so the link alone would create an account.
 - **No ghost account**: no `users` row is created at invite time. The account is materialised at redemption — which is why regeneration reuses the row instead of recreating anything.
 - **One pending per email**: `supersedePending()` deletes the address's unredeemed invitations before every issue, so a reissued invitation never lingers as `accepted`.
 - **Status is derived**, never stored: `used_at` set → `accepted`; unset and past `expires_at` → `expired`; otherwise `pending`.
