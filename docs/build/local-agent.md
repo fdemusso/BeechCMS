@@ -110,6 +110,16 @@ When a script hits one of these, the call answers `202`, the report lists a pend
 
 On `fallback`, open **Settings → Connected apps → Pending agent actions** (`/admin/?settings=connected-apps&section=agent-actions` on the dashboard origin), review the request body and approve or reject there. Intents expire after 10 minutes; an expired intent is gone and the agent repeats the call to create a new one. The full status and outcome tables are in [Approval Lifecycle](/reference/mcp-server#approval-lifecycle-beech-confirm).
 
+### Answering the dialog
+
+The dialog has one required field, `Decision`, and it starts empty. Until you set it, **Accept does nothing and says nothing**.
+
+1. In Claude Code's terminal client the field shows as `Decision: not set`. Press `→` to open it, `↑`/`↓` to choose `approve` or `reject`, and `Enter` to confirm.
+2. Move to **Accept** and press `Enter`. Accept submits your choice, so Accept with `reject` rejects.
+3. **Decline** decides nothing: the intents stay pending and the agent gets `declined`.
+
+One choice applies to everything the dialog lists, and the actions run in the order the agent listed them. If an approved action fails, its result is `outcome: "failed"` with the server's status and body; that intent is used up, so the agent fixes the cause and runs the script again to create a new one. Details: [Answering the dialog](/reference/mcp-server#answering-the-dialog).
+
 ## What the agent can and cannot do
 
 The effective permission is the **granted scopes intersected with your RBAC**. A scope never grants what your role cannot do, and your role never widens a scope the consent denied. Ask the agent to call `beech_whoami` to see both, per seed.
@@ -131,9 +141,11 @@ The approval dialog protects against mistakes and prompt injection, not against 
 |---------|-------|-----|
 | stderr: `BeechCMS MCP 2.0 needs new permissions: your browser opens for consent on the next call.` | A cached grant from MCP 1.x was dropped. | Make any tool call and approve the consent in the browser. |
 | `beech_confirm` returns `fallback` with `elicitation_unsupported` | The client has no form elicitation. | Approve in Settings → Connected apps → Pending agent actions. |
+| Accept does nothing in the approval dialog | The required `Decision` field is still empty, and the client keeps Accept inert until it is set. | Set `Decision` to `approve` or `reject` (terminal: `→`, `↑`/`↓`, `Enter`), then press Accept. See [Answering the dialog](#answering-the-dialog). |
 | Outcome `expired` or error `intent_expired` | The intent is older than 10 minutes. | Run the script again to create a new intent. |
 | `403 insufficient_scope` naming a scope | The grant lacks that scope or your role cannot grant it. | Revoke `BeechCMS MCP Server` (or the CLI client) under Connected apps and consent again. |
 | `ECONNREFUSED` | The API is not running. | Run `pnpm beech dev`. |
+| The consent page opens on the API origin (`http://localhost:8789/oauth/authorize?...`) and stays blank | The Worker serves no dashboard in local dev. The API redirects to `APP_URL` (the dashboard origin), so this means `APP_URL` is unset or points at the API. | Set `APP_URL=http://localhost:5173` in `apps/api/.dev.vars`, restart `pnpm beech dev`, or run with `BEECH_AUTH_URL=http://localhost:5173`. |
 
 ## Related
 
