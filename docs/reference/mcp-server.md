@@ -467,6 +467,15 @@ Forces an immediate in-memory cache refresh of bundled resources and broadcasts 
 
 The dialog times out after 10 minutes, equal to the intent lifetime: waiting longer cannot succeed.
 
+### Answering the dialog
+
+The dialog asks for one form field, `Decision` (`approve` or `reject`). It is required and **starts empty**, and clients keep the submit button inert until it is set, without saying why. The dialog text ends with the same instruction.
+
+- **Set it first.** In Claude Code's terminal client the field shows as `Decision: not set`, collapsed. Press `→` to open it, `↑`/`↓` to choose, `Enter` to confirm, then move to **Accept** and press `Enter`. Other clients draw the form their own way; the rule is the same: set `Decision`, then submit.
+- **Accept submits your choice.** The choice is the `Decision` value, so Accept with `reject` rejects. **Decline** and dismissing the dialog decide nothing: the intents stay pending (`declined`, `cancelled`). An Accept with no valid decision is treated as `cancelled`.
+- **One decision covers every intent shown.** Several intents in one call run in the order of `intentIds`, so list an action before the one that depends on it (a purge of the child entries before the purge of the parent that they reference). A failing intent does not stop the ones after it.
+- **`failed` means the stored request ran and was refused.** The approved intent answered `400` or above, and `resultStatus` and `resultBody` carry the server's own answer. The intent is spent and cannot be approved again (a second approval answers `not_pending`): fix the cause and run the script again, which creates a new intent.
+
 ### Status
 
 | `status` | Meaning | What ran | What the agent must do |
