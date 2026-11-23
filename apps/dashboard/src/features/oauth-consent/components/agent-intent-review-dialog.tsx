@@ -19,7 +19,7 @@ import { RelativeTime } from '@/components/ui/relative-time'
 import { Skeleton } from '@/components/ui/skeleton'
 import { problemCode } from '@/lib/http/api-error'
 import { useAgentIntent, useApproveAgentIntent, useRejectAgentIntent } from '../hooks/use-oauth-consent'
-import type { AgentIntent } from '../types/oauth.types'
+import type { AgentIntent, AgentIntentDetail } from '../types/oauth.types'
 
 export interface AgentIntentReviewDialogProps {
   /** Intent to review; `null` keeps the dialog closed. */
@@ -96,7 +96,7 @@ function useIntentDecisions(intentId: string | null, onOpenChange: (open: boolea
 
 /** What the dialog shows under its header: loading skeleton, load error, or the intent's request and stored body. */
 function IntentDetails({ intent, isLoading, error }: {
-  readonly intent: AgentIntent | undefined
+  readonly intent: AgentIntentDetail | undefined
   readonly isLoading: boolean
   readonly error: unknown
 }) {
