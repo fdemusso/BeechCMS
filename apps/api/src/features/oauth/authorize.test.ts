@@ -62,6 +62,27 @@ describe('OAuth authorize handlers', () => {
       expect(url.pathname).toBe('/admin/oauth/consent')
       expect(url.search.slice(1)).toBe(query)
     })
+
+    // Regression guard: the CLI opens the API origin, which serves no dashboard assets in local dev.
+    // A relative Location kept the browser there on a blank page; APP_URL is the dashboard origin.
+    it('redirects to the APP_URL dashboard origin when it differs from the request origin', async () => {
+      const query = authorizeQuery()
+
+      const res = await app.request(`http://localhost:8789/oauth/authorize?${query}`, { redirect: 'manual' }, { ...TEST_ENV, DB: db, APP_URL: 'http://localhost:5173' })
+
+      expect(res.status).toBe(302)
+      const url = new URL(res.headers.get('Location')!)
+      expect(url.origin).toBe('http://localhost:5173')
+      expect(url.pathname).toBe('/admin/oauth/consent')
+      expect(url.search.slice(1)).toBe(query)
+    })
+
+    it('keeps a relative Location when APP_URL is the request origin', async () => {
+      const res = await app.request(`http://localhost:5173/oauth/authorize?${authorizeQuery()}`, { redirect: 'manual' }, { ...TEST_ENV, DB: db, APP_URL: 'http://localhost:5173' })
+
+      expect(res.status).toBe(302)
+      expect(res.headers.get('Location')!.startsWith('/admin/oauth/consent?')).toBe(true)
+    })
   })
 
   describe('GET /oauth/authorize/request', () => {

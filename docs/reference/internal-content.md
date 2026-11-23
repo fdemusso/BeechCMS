@@ -308,7 +308,7 @@ Content-Type: application/json
 
 **Rules:**
 - `status` must be `draft | review | published`.
-- `slug` is optional; auto-generated from `displayNameAlias`, `title`, `name`, or a random UUID if absent.
+- `slug` is optional; auto-generated from `displayNameAlias`, `title`, `name`, or a random UUID if absent. A slug is lower-cased, URL-safe, and cut at 80 characters. An explicit `slug` goes through the same rule.
 - Keys must match valid aliases defined in the Seed; unknown aliases return `400 Bad Request`.
 - Required fields (`required_on_create`) must be provided and non-empty.
 

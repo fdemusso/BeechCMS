@@ -3,8 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { EntryNotFoundError, SlugConflictError, HookValidationError, EntryConflictError, type ActivityAction } from '@beechcms/core'
+import { EntryNotFoundError, SlugConflictError, HookValidationError, EntryConflictError, type ActivityAction, type Seed } from '@beechcms/core'
 import { publicProblem, fkProblemOrNull } from '../../../public/errors/problem-details'
+import { D1BackrefRepository } from '../../../shared/db/repositories/d1-backref.repository'
 import { CONTENT_ERRORS } from '../constants'
 import { resolveIfMatch } from '../../../shared/utils/occ'
 import { AppEnv } from '../../../types'
@@ -64,6 +65,41 @@ export function dispatchContentAutomation(
       entry,
     }),
   )
+}
+
+/**
+ * A soft delete is an `UPDATE deleted_at`, so the SQLite foreign key never fires and `RESTRICT` would
+ * guard only the purge. This applies the same rule up front: 409 while an active entry still points
+ * at `id` through a `RESTRICT` relation, `null` when the entry is free to go to the Trash.
+ */
+export async function restrictedByBackrefsProblem(context: Context<AppEnv>, seed: Seed, id: string) {
+  const sources = (context.get('backrefMap').get(seed.slug) ?? []).filter(source => source.restricts)
+  if (sources.length === 0) return null
+
+  const backrefRepository = context.get('backrefRepository') ?? new D1BackrefRepository(context.env.DB)
+  const getSeed = context.get('getSeed')
+
+  const blocking: { field: string; total: number }[] = []
+  for (const source of sources) {
+    const sourceSeed = getSeed(source.sourceSlug)
+    if (!sourceSeed) continue
+    const { total } = await backrefRepository.queryGroup(source, sourceSeed, id, 1, 0)
+    if (total > 0) blocking.push({ field: `${source.sourceSlug}.${source.branchAlias}`, total })
+  }
+  if (blocking.length === 0) return null
+
+  return publicProblem(context, {
+    type: 'https://beechcms.dev/problems/relation-in-use',
+    title: 'Relation In Use',
+    status: 409,
+    detail: 'The record cannot be deleted because it is referenced by one or more related entries.',
+    errors: blocking.map(({ field, total }) => ({
+      field,
+      expected: '0 referencing entries',
+      received: `${total} referencing entries`,
+      message: `${total} active entries in '${field}' still reference this record.`,
+    })),
+  })
 }
 
 export function handleContentDatabaseError(context: Context<AppEnv>, error: unknown) {

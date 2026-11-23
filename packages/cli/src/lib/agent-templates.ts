@@ -50,6 +50,17 @@ A pending intent did not run. Call the beech_confirm MCP tool with the ids from 
 or rejects in one dialog. If it returns an instruction instead, relay it to the human. Never try to approve another
 way: no script, scope or flag can.
 
+The dialog has a required Decision field that starts empty, and Accept does nothing until it is set. Tell the human to
+set it (terminal client: → opens the field, ↑/↓ choose, Enter confirms) and then press Accept. Several intents share one
+decision and run in the order of the ids. An outcome of \`failed\` means the approved request was refused: the intent is
+spent, so fix the cause and run the script again.
+
+## Dashboard layout
+
+\`beech.layout.update(body, { ifMatch })\` and \`beech.layout.reset({ ifMatch })\` take \`{ ifMatch }\` as the last argument:
+the \`updatedAt\` read with \`beech.layout.get()\`, or \`null\` for a first save (needs \`manage_roles\` at \`*\`). A stale value
+answers 409 \`layout-conflict\`: read again and re-apply the edit.
+
 ## Rules
 
 - Use \`import type\` for types and the \`.ts\` extension on relative value imports. No \`enum\` or \`namespace\`.
