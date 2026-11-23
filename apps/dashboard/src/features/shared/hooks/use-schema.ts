@@ -15,6 +15,8 @@ export const schemaQueryOptions = () =>
       return response.json()
     },
     staleTime: 1000 * 60 * 5,
+    // A role change shows on return to the tab, not after staleTime or a reload.
+    refetchOnWindowFocus: "always",
   })
 
 /** Starts (or reuses) the schema fetch ahead of the component that reads it. Rejects like the query does. */

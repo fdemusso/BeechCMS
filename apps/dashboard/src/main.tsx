@@ -18,6 +18,7 @@ import './index.css'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/query-client'
 import { queryCachePersistence } from '@/lib/query-cache-persistence'
+import { watchForbidden } from '@/lib/forbidden-refresh'
 import { ME_QUERY_KEY, schemaQueryOptions } from '@/features/shared'
 import { WidgetSdkProvider } from '@beechcms/widget-sdk'
 import { rpc } from '@/lib/rpc'
@@ -27,6 +28,8 @@ import './widgets.custom'
 
 // Schema and profile survive a reload of this tab: the page starts from them and revalidates in the background.
 queryCachePersistence.start([schemaQueryOptions().queryKey, ME_QUERY_KEY])
+// A 403 means a grant may have landed after the schema and profile were cached: re-read them instead of waiting for staleTime.
+watchForbidden(queryClient, [schemaQueryOptions().queryKey, ME_QUERY_KEY])
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
