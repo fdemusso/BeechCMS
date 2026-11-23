@@ -187,4 +187,83 @@ describe('client', () => {
     await requestB('GET', '/api/seeds')
     expect(writeGrantMock).toHaveBeenCalledWith('http://localhost:8787', 'client-B', FRESH_GRANT)
   })
+
+  describe('send', () => {
+    function freshSend() {
+      return createApiClient(resolveApiConfig({ baseUrl: 'http://localhost:8787' })).send
+    }
+
+    it('send returns a 404 Response without throwing and without reading its body', async () => {
+      readGrantMock.mockReturnValue(FRESH_GRANT)
+      globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ title: 'Not found' }), { status: 404 }))
+      const send = freshSend()
+
+      const response = await send('GET', '/api/content/posts/missing')
+
+      expect(response.status).toBe(404)
+      expect(response.bodyUsed).toBe(false)
+    })
+
+    it('send refreshes once on 401 and returns the retried Response', async () => {
+      readGrantMock.mockReturnValue(FRESH_GRANT)
+      refreshMock.mockResolvedValue({ ...FRESH_GRANT, accessToken: 'access-3' })
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce(new Response('', { status: 401 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      const send = freshSend()
+
+      const response = await send('GET', '/api/seeds')
+
+      expect(response.status).toBe(200)
+      expect(refreshMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('send forwards extra request headers such as If-Match', async () => {
+      readGrantMock.mockReturnValue(FRESH_GRANT)
+      globalThis.fetch = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
+      const send = freshSend()
+
+      await send('PUT', '/api/dashboard-layout', { version: 1, pages: [] }, { 'If-Match': '"1767225600"' })
+
+      const [, init] = vi.mocked(globalThis.fetch).mock.calls[0]
+      expect((init?.headers as Record<string, string>)['If-Match']).toBe('"1767225600"')
+    })
+
+    it('send never lets an extra header replace Authorization or Content-Type', async () => {
+      readGrantMock.mockReturnValue(FRESH_GRANT)
+      globalThis.fetch = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
+      const send = freshSend()
+
+      await send('POST', '/api/seeds', {}, { Authorization: 'Bearer forged', 'Content-Type': 'text/plain' })
+
+      const [, init] = vi.mocked(globalThis.fetch).mock.calls[0]
+      expect(init?.headers).toMatchObject({ Authorization: 'Bearer access-1', 'Content-Type': 'application/json' })
+    })
+
+    it('send keeps the extra headers on the retry after a 401', async () => {
+      readGrantMock.mockReturnValue(FRESH_GRANT)
+      refreshMock.mockResolvedValue({ ...FRESH_GRANT, accessToken: 'access-3' })
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce(new Response('', { status: 401 }))
+        .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      const send = freshSend()
+
+      await send('PUT', '/api/dashboard-layout', {}, { 'If-None-Match': '*' })
+
+      const retryInit = vi.mocked(globalThis.fetch).mock.calls[1][1]
+      expect((retryInit?.headers as Record<string, string>)['If-None-Match']).toBe('*')
+    })
+
+    it('send returns a 202 Response with its body intact', async () => {
+      readGrantMock.mockReturnValue(FRESH_GRANT)
+      const stubbedBody = { jobId: 'j1' }
+      globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(stubbedBody), { status: 202 }))
+      const send = freshSend()
+
+      const response = await send('POST', '/api/content/posts/import', { objectKey: 'k', format: 'csv' })
+
+      expect(response.status).toBe(202)
+      expect(await response.json()).toEqual(stubbedBody)
+    })
+  })
 })

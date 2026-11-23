@@ -5,6 +5,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { ApiError, problemCode } from "@/lib/http/api-error"
 import { oauthApi } from "./oauth.api"
 
 function json(status: number, body: unknown): Response {
@@ -80,5 +81,63 @@ describe("oauthApi", () => {
     const [url, init] = fetchMock.mock.calls[0]
     expect(String(url)).toBe("/oauth/consents/beech%20mcp%2Fcli")
     expect(init?.method).toBe("DELETE")
+  })
+
+  it("listAgentIntents calls GET /api/agent/intents and returns the intents array", async () => {
+    const intents = [{ id: "i1", summary: "Delete seed" }]
+    fetchMock.mockResolvedValueOnce(json(200, { intents }))
+
+    const result = await oauthApi.listAgentIntents()
+
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toBe("/api/agent/intents")
+    expect(init?.method).toBe("GET")
+    expect(result).toEqual(intents)
+  })
+
+  it("getAgentIntent encodes the id in the path and returns the intent", async () => {
+    const intent = { id: "a/b", body: { slug: "posts" } }
+    fetchMock.mockResolvedValueOnce(json(200, { intent }))
+
+    const result = await oauthApi.getAgentIntent("a/b")
+
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toBe("/api/agent/intents/a%2Fb")
+    expect(init?.method).toBe("GET")
+    expect(result).toEqual(intent)
+  })
+
+  it("approveAgentIntent posts to …/approve and returns intent and result", async () => {
+    const approval = { intent: { id: "i1" }, result: { status: 200, body: null } }
+    fetchMock.mockResolvedValueOnce(json(200, approval))
+
+    const result = await oauthApi.approveAgentIntent("i1")
+
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toBe("/api/agent/intents/i1/approve")
+    expect(init?.method).toBe("POST")
+    expect(result).toEqual(approval)
+  })
+
+  it("rejectAgentIntent posts to …/reject and returns the intent", async () => {
+    const intent = { id: "i1", status: "rejected" }
+    fetchMock.mockResolvedValueOnce(json(200, { intent }))
+
+    const result = await oauthApi.rejectAgentIntent("i1")
+
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toBe("/api/agent/intents/i1/reject")
+    expect(init?.method).toBe("POST")
+    expect(result).toEqual(intent)
+  })
+
+  it("a 409 intent_expired rejects with an ApiError whose problem code is intent_expired", async () => {
+    fetchMock.mockResolvedValueOnce(json(409, { type: "https://beechcms.dev/problems/intent_expired", status: 409 }))
+
+    const failure = await oauthApi.approveAgentIntent("i1").catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(ApiError)
+    expect((failure as ApiError).status).toBe(409)
+    expect(problemCode(failure)).toBe("intent_expired")
   })
 })

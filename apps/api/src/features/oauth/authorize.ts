@@ -36,6 +36,8 @@ interface AuthorizationRequestMetadata {
   requestedScopes: OAuthScope[]
   /** Scopes not yet covered by pre-existing active consent (only ones needing a prompt). */
   newScopes: OAuthScope[]
+  /** Requested scopes the role guard will refuse for this user; never part of the grant. */
+  deniedScopes: OAuthScope[]
   /** False if an active consent already covers all requested scopes (incremental consent). */
   consentRequired: boolean
   /** Validated client redirection target. */
@@ -132,12 +134,16 @@ export async function authorizeRequestHandler(context: Context<AppEnv, '/oauth/a
   const userId = context.get('jwtPayload').sub
   const activeConsent = await context.get('oauthConsentRepository').findActive(request.clientId, userId)
   const consentedScopes = activeConsent?.scopes ?? []
-  const newScopes = request.scopes.filter(scope => !consentedScopes.includes(scope))
+  const { deniedScopes } = await context
+    .get('roleGuard')
+    .arbitrate(await resolveEffectivePermissions(context), request.scopes)
+  const newScopes = request.scopes.filter(scope => !consentedScopes.includes(scope) && !deniedScopes.includes(scope))
 
   const metadata: AuthorizationRequestMetadata = {
     client: { clientId: client.clientId, name: client.name },
     requestedScopes: request.scopes,
     newScopes,
+    deniedScopes,
     consentRequired: newScopes.length > 0,
     redirectUri: request.redirectUri,
     state: request.state,

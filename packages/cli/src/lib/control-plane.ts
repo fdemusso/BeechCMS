@@ -11,6 +11,7 @@
  * the verdict back.
  */
 
+import { OAUTH_SCOPES } from '@beechcms/core'
 import type { ManifestSeed } from '@beechcms/core/schema'
 import { createApiClient, resolveApiConfig, BeechClientError, type ApiClient } from '@beechcms/api-client'
 import { CliError } from './d1-context.js'
@@ -20,7 +21,10 @@ import { CliError } from './d1-context.js'
 export const CLI_OAUTH_CLIENT_ID = 'beech-mcp-cli'
 
 /** Registered redirect pathname for {@link CLI_OAUTH_CLIENT_ID}; the port is matched loosely. */
-const CLI_CALLBACK_PATH = '/callback'
+export const CLI_CALLBACK_PATH = '/callback'
+
+/** Every v2 scope except `agent:approve`: scripts can read and reject intents, never approve them (ROADMAP §4.5). */
+export const CLI_OAUTH_SCOPE: string = OAUTH_SCOPES.filter(scope => scope !== 'agent:approve').join(' ')
 
 /** Verbatim response of `POST /api/seeds/:slug/mcp-plan`. */
 export interface McpPlan {
@@ -88,7 +92,7 @@ export function createControlPlane(options: ControlPlaneOptions = {}): ControlPl
   const config = resolveApiConfig({
     baseUrl: options.apiUrl,
     clientId: CLI_OAUTH_CLIENT_ID,
-    scope: 'schema:read schema:write',
+    scope: CLI_OAUTH_SCOPE,
     callbackPath: CLI_CALLBACK_PATH,
   })
   const client: ApiClient = createApiClient(config)

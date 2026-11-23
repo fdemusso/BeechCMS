@@ -158,6 +158,11 @@ export function describeActivity(entry: ActivityEntry, t: Translate): ActivityVi
     case "app":
       return { label, tone, title: text(details.client) ?? entry.entity_id, detail: entityLabel }
 
+    case "intent": {
+      const resultStatus = typeof details.resultStatus === "number" ? t("settings.activity.detail.resultStatus", { status: details.resultStatus }) : null
+      return { label, tone, title: text(details.operationId) ?? entry.entity_id, detail: join([entityLabel, opLabel, resultStatus]) }
+    }
+
     case "role":
     case "automation":
     case "view":

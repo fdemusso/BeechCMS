@@ -15,15 +15,25 @@ const apps = [app(1), app(2, { hasActiveTokens: false }), app(3), app(4), app(5)
 vi.mock("../hooks/use-oauth-consent", () => ({
   useConnectedApps: () => ({ data: apps, isLoading: false }),
   useRevokeConnectedApp: () => ({ mutateAsync: vi.fn() }),
+  usePendingAgentIntents: () => ({ data: [], isLoading: false, isError: false }),
+  useAgentIntent: () => ({ data: undefined, isLoading: false, error: null }),
+  useApproveAgentIntent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRejectAgentIntent: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 import { ConnectedAppsTab } from "./connected-apps-tab"
 
 describe("Connected apps markup", () => {
-  it("is one titled section holding a named table", () => {
+  it("is two titled sections, pending actions first, each with the id its bookmark scrolls to", () => {
     render(<ConnectedAppsTab />)
-    expect(screen.getByRole("region", { name: "Connected apps" }).id).toBe("settings-section-connected-apps")
+    const regions = screen.getAllByRole("region")
+    expect(regions.map((region) => region.id)).toEqual(["settings-section-agent-actions", "settings-section-connected-apps"])
+    expect(screen.getByRole("region", { name: "Pending agent actions" })).toBe(regions[0])
+  })
+
+  it("the connected apps section holds a named table", () => {
+    render(<ConnectedAppsTab />)
     expect(screen.getByRole("table", { name: "Connected apps" })).toBeInTheDocument()
   })
 

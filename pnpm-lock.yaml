@@ -454,6 +454,24 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
+  evals:
+    devDependencies:
+      '@beechcms/api-client':
+        specifier: workspace:*
+        version: link:../packages/api-client
+      '@beechcms/core':
+        specifier: workspace:*
+        version: link:../packages/core
+      '@types/node':
+        specifier: ^26.5.1
+        version: 26.6.5
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(@vitest/coverage-v8@5.0.5)(happy-dom@21.0.4)(jsdom@30.1.3(@noble/hashes@1.8.0))(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/api-client:
     dependencies:
       '@beechcms/core':

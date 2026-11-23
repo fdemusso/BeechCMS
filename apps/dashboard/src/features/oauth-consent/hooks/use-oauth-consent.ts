@@ -9,6 +9,8 @@ const OAUTH_QUERY_KEYS = {
   all: ['oauth'] as const,
   authorizationRequest: (raw: string) => [...OAUTH_QUERY_KEYS.all, 'authorize-request', raw] as const,
   connectedApps: () => [...OAUTH_QUERY_KEYS.all, 'connected-apps'] as const,
+  agentIntents: () => [...OAUTH_QUERY_KEYS.all, 'agent-intents'] as const,
+  agentIntent: (id: string) => [...OAUTH_QUERY_KEYS.all, 'agent-intents', id] as const,
 }
 
 export function useAuthorizationRequest(params: URLSearchParams) {
@@ -40,5 +42,47 @@ export function useRevokeConnectedApp() {
   return useMutation({
     mutationFn: oauthApi.revokeConnectedApp,
     onSuccess: () => qc.invalidateQueries({ queryKey: OAUTH_QUERY_KEYS.connectedApps() }),
+  })
+}
+
+/** Poll interval of the pending list while the section is on screen. Intents live 10 minutes. */
+export const AGENT_INTENTS_REFETCH_MS = 30_000
+
+export function usePendingAgentIntents() {
+  return useQuery({
+    queryKey: OAUTH_QUERY_KEYS.agentIntents(),
+    queryFn: oauthApi.listAgentIntents,
+    staleTime: 0,
+    refetchInterval: AGENT_INTENTS_REFETCH_MS,
+  })
+}
+
+export function useAgentIntent(id: string | null) {
+  return useQuery({
+    queryKey: OAUTH_QUERY_KEYS.agentIntent(id ?? ''),
+    queryFn: () => oauthApi.getAgentIntent(id as string),
+    enabled: id !== null,
+    staleTime: 0,
+    retry: false, // a 404 must show at once
+  })
+}
+
+export function useApproveAgentIntent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => oauthApi.approveAgentIntent(id),
+    onSuccess: (approval) => {
+      // The replayed request may have changed any domain; the client cannot tell which.
+      if (approval.result.status < 400) void qc.invalidateQueries()
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: OAUTH_QUERY_KEYS.agentIntents() }),
+  })
+}
+
+export function useRejectAgentIntent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => oauthApi.rejectAgentIntent(id),
+    onSettled: () => qc.invalidateQueries({ queryKey: OAUTH_QUERY_KEYS.agentIntents() }),
   })
 }

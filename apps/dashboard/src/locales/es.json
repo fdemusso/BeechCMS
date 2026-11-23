@@ -532,7 +532,9 @@
       "invitations": "Invitaciones",
       "roles": "Roles",
       "usage": "Uso",
-      "orphans": "Archivos huérfanos"
+      "orphans": "Archivos huérfanos",
+      "agentActions": "Acciones de agente pendientes",
+      "connectedApps": "Aplicaciones conectadas"
     },
     "search": "Buscar ajustes…",
     "clearSearch": "Borrar búsqueda",
@@ -779,7 +781,8 @@
         "app": "App conectada",
         "automation": "Automatización",
         "layout": "Diseño del panel",
-        "view": "Vista"
+        "view": "Vista",
+        "intent": "Acción de agente"
       },
       "ops": {
         "profile": "Perfil actualizado",
@@ -808,7 +811,10 @@
         "drop-orphan": "Columna huérfana eliminada",
         "rename-branch": "Campo renombrado",
         "retype-branch": "Tipo de campo cambiado",
-        "draft-saved": "Borrador guardado"
+        "draft-saved": "Borrador guardado",
+        "intent": "Solicitada por un agente",
+        "approve": "Aprobada",
+        "reject": "Rechazada"
       },
       "reasons": {
         "wrong-password": "Contraseña incorrecta",
@@ -817,7 +823,8 @@
       "entries": "{{count}} entradas",
       "orphans": "{{count}} archivos huérfanos",
       "detail": {
-        "fields": "Campos: {{fields}}"
+        "fields": "Campos: {{fields}}",
+        "resultStatus": "Resultado: HTTP {{status}}"
       },
       "sessionsRevoked": "otras sesiones cerradas",
       "scope": {
@@ -2419,6 +2426,9 @@
       "scope": {
         "granted": {
           "badge": "Ya concedido"
+        },
+        "denied": {
+          "badge": "No disponible para tu rol"
         }
       },
       "redirectNotice": "Tras aprobar, volverás a {{uri}}.",
@@ -2433,10 +2443,43 @@
       },
       "scopes": {
         "schema:read": "Leer tus tipos de contenido y el esquema (incluidos los planes de migración en simulación)",
-        "schema:write": "Aplicar migraciones de esquema que cambian tus tipos de contenido"
+        "schema:write": "Aplicar migraciones de esquema que cambian tus tipos de contenido",
+        "content:read": "Leer las entradas de tus tipos de contenido",
+        "content:write": "Crear y editar entradas; publicar requiere tu confirmación",
+        "content:delete": "Mover entradas a la papelera o eliminarlas definitivamente, cuando confirmes",
+        "media:read": "Ver y descargar los archivos de tu biblioteca multimedia",
+        "media:write": "Subir archivos multimedia; eliminarlos requiere tu confirmación",
+        "automations:read": "Ver tus automatizaciones y su historial de ejecuciones",
+        "automations:write": "Crear, editar y ejecutar automatizaciones",
+        "users:read": "Ver usuarios, roles e invitaciones",
+        "users:write": "Gestionar usuarios, roles e invitaciones, cuando confirmes",
+        "settings:read": "Leer los ajustes de tu sitio",
+        "settings:write": "Cambiar los ajustes de tu sitio, cuando confirmes",
+        "analytics:read": "Ver analíticas y estadísticas",
+        "agent:read": "Ver las acciones que tu agente espera que confirmes y rechazarlas",
+        "agent:approve": "Ejecutar una acción después de que la confirmes en tu cliente de IA"
       },
       "required": "Obligatorio",
-      "disclaimer": "Los permisos son necesarios para la integración con MCP. Puedes revocar el acceso en cualquier momento en Ajustes > Apps conectadas."
+      "disclaimer": "La app nunca supera tu propio rol. Puedes revocar el acceso en cualquier momento en Ajustes > Apps conectadas.",
+      "template": {
+        "legend": "Nivel de acceso",
+        "read": {
+          "label": "Lectura",
+          "description": "Ver todo, no cambiar nada"
+        },
+        "editor": {
+          "label": "Editor",
+          "description": "Lectura, más crear, editar y eliminar contenido y multimedia"
+        },
+        "admin": {
+          "label": "Administrador",
+          "description": "Editor, más automatizaciones, usuarios y ajustes"
+        },
+        "developer": {
+          "label": "Desarrollador",
+          "description": "Todo lo solicitado, incluidos los cambios de esquema"
+        }
+      }
     },
     "apps": {
       "application": "Aplicación",
@@ -2460,6 +2503,46 @@
         "error": "Error al revocar el acceso"
       },
       "revokeDesc": "{{client}} perderá el acceso de inmediato. Cualquier token activo quedará invalidado."
+    },
+    "intents": {
+      "title": "Acciones de agente pendientes",
+      "description": "Acciones que un agente de IA pidió ejecutar en tu nombre. Nada se ejecuta hasta que lo apruebes; una solicitud caduca 10 minutos después de hacerse.",
+      "empty": "No hay acciones esperándote",
+      "loadError": "No se pudieron cargar las acciones pendientes",
+      "list": {
+        "label": "Acciones de agente pendientes"
+      },
+      "columns": {
+        "action": "Acción",
+        "app": "Aplicación",
+        "risk": "Riesgo",
+        "expires": "Caduca"
+      },
+      "risk": {
+        "publish": "Publica",
+        "destructive": "Destructiva"
+      },
+      "review": "Revisar",
+      "reviewFor": "Revisar {{action}}",
+      "approve": "Aprobar y ejecutar",
+      "reject": "Rechazar",
+      "dialog": {
+        "description": "{{app}} pidió ejecutar esta acción. Se ejecuta una sola vez, como tú, solo si la apruebas.",
+        "request": "Solicitud",
+        "requestedAt": "Solicitada",
+        "body": "Cuerpo de la solicitud",
+        "noBody": "Sin cuerpo de solicitud",
+        "loadError": "No se pudo cargar esta solicitud"
+      },
+      "toast": {
+        "executed": "Acción aprobada y ejecutada",
+        "failed": "La acción se ejecutó pero falló (HTTP {{status}})",
+        "rejected": "Acción rechazada",
+        "expired": "Esta solicitud ha caducado. Pide al agente que lo intente de nuevo.",
+        "notPending": "Esta solicitud ya fue aprobada o rechazada.",
+        "notFound": "Esta solicitud ya no existe.",
+        "error": "No se pudo completar la acción"
+      }
     }
   },
   "rbac": {

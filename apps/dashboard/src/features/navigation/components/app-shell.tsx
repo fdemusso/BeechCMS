@@ -31,7 +31,12 @@ export function AppShell({ children }: AppShellProps) {
         <SidebarReopenTrigger />
         {/* md:m-2 on the inset variant eats 1rem of height. The card edge is the inset variant's own rounded-lg + shadow-sm. */}
         <SidebarInset className="h-svh min-w-0 overflow-hidden md:h-[calc(100svh-1rem)] md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-0">
-          <ScrollArea className="h-full">{children}</ScrollArea>
+          {/* Radix wraps the viewport content in a `display: table` div that grows to the widest child. A wide data
+              table then stretched the whole page, and `content-area-inner` (capped at 2200px, centered) sat in the
+              middle of it. `block` keeps the page as wide as the viewport, so the table scrolls inside its own frame. */}
+          <ScrollArea className="h-full" viewportProps={{ className: "[&>div]:block!" }}>
+            {children}
+          </ScrollArea>
         </SidebarInset>
       </SidebarProvider>
     </div>

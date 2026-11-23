@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, beforeEach } from 'vitest'
+import type { IRoleGuard } from '@beechcms/core'
 import { createBeechApp } from '../../factory'
 import { D1TestDatabase } from '../../../test/helpers/d1-test-database'
 import { seedTestUsers } from '../../../test/helpers/seed-fixtures'
@@ -106,6 +107,52 @@ describe('OAuth authorize handlers', () => {
       const thirdBody = await third.json<{ consentRequired: boolean; newScopes: string[] }>()
       expect(thirdBody.consentRequired).toBe(true)
       expect(thirdBody.newScopes).toEqual(['schema:write'])
+    })
+  })
+
+  describe('GET /oauth/authorize/request (denied scopes)', () => {
+    const denySchemaWriteGuard: IRoleGuard = {
+      arbitrate: async (_effective, requested) => ({
+        grantedScopes: requested.filter(scope => scope !== 'schema:write'),
+        deniedScopes: requested.filter(scope => scope === 'schema:write'),
+      }),
+    }
+
+    it('lists the scopes the role guard refuses in deniedScopes', async () => {
+      const token = await login()
+      const guardedApp = createBeechApp({ seeds: [], roleGuard: denySchemaWriteGuard })
+
+      const res = await guardedApp.request(`/oauth/authorize/request?${authorizeQuery({ scope: 'schema:read schema:write' })}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(200)
+      const body = await res.json<{ deniedScopes: string[]; newScopes: string[] }>()
+      expect(body.deniedScopes).toEqual(['schema:write'])
+      expect(body.newScopes).toEqual(['schema:read'])
+    })
+
+    it('leaves denied scopes out of newScopes so they never force a prompt', async () => {
+      const token = await login()
+      const guardedApp = createBeechApp({ seeds: [], roleGuard: denySchemaWriteGuard })
+      await app.request('/oauth/authorize/consent', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          response_type: 'code', client_id: CLIENT_ID, redirect_uri: REDIRECT_URI,
+          scope: 'schema:read', state: 'state123', code_challenge: CODE_CHALLENGE,
+          code_challenge_method: 'S256', approved: true,
+        }),
+      }, { ...TEST_ENV, DB: db })
+
+      const res = await guardedApp.request(`/oauth/authorize/request?${authorizeQuery({ scope: 'schema:read schema:write' })}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(200)
+      const body = await res.json<{ newScopes: string[]; consentRequired: boolean }>()
+      expect(body.newScopes).toEqual([])
+      expect(body.consentRequired).toBe(false)
     })
   })
 

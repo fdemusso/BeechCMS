@@ -13,6 +13,8 @@
  * - Pre-validate proposed seed definitions in memory (`beech_schema_validate`)
  * - Generate migration plans with DDL and safety classifications (`beech_schema_plan`)
  * - Safely apply additive migration plans with optimistic concurrency (`beech_schema_apply`)
+ * - Report the agent session (`beech_whoami`), search the operation catalog (`beech_search`)
+ * - List and decide pending agent intents through one human dialog (`beech_intents`, `beech_confirm`)
  *
  * @module
  */
@@ -29,7 +31,27 @@ import {
 } from '@modelcontextprotocol/sdk/types.js'
 import type { Seed } from '@beechcms/core'
 import { resolveCandidateIds, validateSeedDefinitions } from '@beechcms/core'
-import { request, BeechClientError } from './client.js'
+import { request, send, apiUrls, scriptGrantScopes, BeechClientError } from './client.js'
+import {
+  AgentToolError,
+  beechConfirm,
+  beechIntents,
+  beechWhoami,
+  mapElicitResult,
+  type AgentToolDeps,
+  type ElicitOutcome,
+} from './agent-tools.js'
+import { searchOperations, type SearchDetail } from './catalog-search.js'
+import {
+  CONFIRM_DECISION_SCHEMA,
+  CONFIRM_ELICIT_TIMEOUT_MS,
+  MCP_SERVER_NAME,
+  SEARCH_DEFAULT_LIMIT,
+  SEARCH_DOCS_LIMIT,
+  SEARCH_MAX_LIMIT,
+} from './constants.js'
+import { TOOLS } from './tool-definitions.js'
+import { MCP_SERVER_VERSION } from './version.js'
 import { savePlan, takePlan } from './plans.js'
 import { listResources, readResource, clearResourceCache, getResourceCount, searchResources } from './resources.js'
 import { computeBundleHash, startSupervisorStdio } from './supervisor.js'
@@ -96,84 +118,52 @@ interface McpPlanResponse {
   issues: { fatal: boolean; messages: string[] }[]
 }
 
+const SEARCH_DETAILS: readonly SearchDetail[] = ['name', 'signature', 'full']
+
+/** Mutable copy of the `as const` decision schema, as the SDK's request type requires. */
+const DECISION_FORM_SCHEMA = {
+  type: 'object' as const,
+  properties: {
+    decision: {
+      ...CONFIRM_DECISION_SCHEMA.properties.decision,
+      enum: [...CONFIRM_DECISION_SCHEMA.properties.decision.enum],
+    },
+  },
+  required: [...CONFIRM_DECISION_SCHEMA.required],
+}
+
 /**
- * Declarations of all Model Context Protocol (MCP) tools supported by BeechCMS.
+ * Adapts the server's elicitation to {@link ElicitOutcome}. The answer is mapped by {@link mapElicitResult}
+ * (fail closed). Clients without form elicitation resolve `unsupported`; other transport failures reject and
+ * become the `elicitation_failed` fallback.
+ *
+ * @param message - Dialog text built from server-stored intents.
  */
-const TOOLS = [
-  {
-    name: 'beech_list_seeds',
-    description: 'List all BeechCMS seed schemas (summaries only) plus the current schema version. Start here for any schema task — bundled beechcms-docs:// MCP resources (API reference, field types, branch policies) are also available via resources/list and are worth checking before proposing a candidate.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  },
-  {
-    name: 'beech_get_seed',
-    description: 'Fetch the full definition of a single seed by slug.',
-    inputSchema: {
-      type: 'object',
-      properties: { slug: { type: 'string' } },
-      required: ['slug'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'beech_schema_export',
-    description: 'Export the full BeechCMS schema registry snapshot (definitions + layouts).',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  },
-  {
-    name: 'beech_schema_validate',
-    description: 'Validate a candidate seed definition against the full active seed set (zero-latency, no D1 write).',
-    inputSchema: {
-      type: 'object',
-      properties: { candidate: { type: 'object' } },
-      required: ['candidate'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'beech_schema_plan',
-    description: 'Server-computes the exact DDL and safety classification for a candidate seed change. Always call before beech_schema_apply. Destructive changes (dropping/renaming/retyping a branch, deleting a seed) are classified but never applicable via MCP — those require the BeechCMS dashboard UI. A definition-only change (tag options, option colors, multiple) produces no DDL: it is reported as definitionChanged: true with the affected aliases in changedBranches, and beech_schema_apply persists it. definitionChanged: false means applying changes nothing. Unsure about a field type or branch policy? Check the beechcms-docs:// resources before building the candidate.',
-    inputSchema: {
-      type: 'object',
-      properties: { slug: { type: 'string' }, candidate: { type: 'object' } },
-      required: ['slug', 'candidate'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'beech_schema_apply',
-    description: 'Atomically applies a previously planned, additive-only schema change. Requires a planId from beech_schema_plan. Refuses any destructive classification (drop/rename/retype branch, delete seed) — use the BeechCMS dashboard UI for those instead.',
-    inputSchema: {
-      type: 'object',
-      properties: { planId: { type: 'string' } },
-      required: ['planId'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'beech_docs_search',
-    description: 'Full-text search over the bundled beechcms-docs:// resources (API reference, field types, branch policies, guides). Use this before proposing a candidate when unsure about a field type, policy, or workflow — cheaper than listing all resources and guessing a URI.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        query: { type: 'string' },
-        limit: { type: 'number', description: 'Max results to return. Defaults to 10.' },
-      },
-      required: ['query'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'beech_mcp_status',
-    description: 'Inspect the active MCP server process, bundle SHA-256 hash, and bundled resource count.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  },
-  {
-    name: 'beech_mcp_reload',
-    description: 'Forces an immediate in-memory cache refresh of bundled resources and broadcasts list_changed notifications to the MCP client without requiring a manual /mcp reconnect.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  },
-]
+async function elicitDecision(message: string): Promise<ElicitOutcome> {
+  if (!server.getClientCapabilities()?.elicitation) return { action: 'unsupported' }
+  try {
+    const result = await server.elicitInput(
+      { mode: 'form', message, requestedSchema: DECISION_FORM_SCHEMA },
+      { timeout: CONFIRM_ELICIT_TIMEOUT_MS },
+    )
+    return mapElicitResult(result)
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('does not support')) return { action: 'unsupported' }
+    throw error
+  }
+}
+
+/** Builds the I/O the agent tools run on from the process-wide client and the server. */
+function agentDeps(): AgentToolDeps {
+  return {
+    send,
+    elicit: elicitDecision,
+    nowSeconds: () => Math.floor(Date.now() / 1000),
+    apiUrl: apiUrls.apiUrl,
+    pendingActionsUrl: apiUrls.pendingActionsUrl,
+    scriptScopes: scriptGrantScopes,
+  }
+}
 
 /**
  * Formats a successful response payload as a standard MCP text content result.
@@ -319,11 +309,39 @@ async function handleTool(name: string, args: Record<string, unknown>) {
       return textResult({ query, results: searchResources(query, limit) })
     }
 
+    case 'beech_whoami':
+      return textResult(await beechWhoami(agentDeps()))
+
+    case 'beech_intents':
+      return textResult(await beechIntents(agentDeps()))
+
+    case 'beech_confirm':
+      return textResult(await beechConfirm({ intentIds: args.intentIds }, agentDeps()))
+
+    case 'beech_search': {
+      const { query } = args
+      if (typeof query !== 'string' || query.trim() === '') return errorResult('query must be a non-empty string.')
+      const detail = args.detail ?? 'signature'
+      if (!SEARCH_DETAILS.includes(detail as SearchDetail)) {
+        return errorResult(`detail must be one of: ${SEARCH_DETAILS.join(', ')}.`)
+      }
+      const requestedLimit = typeof args.limit === 'number' && Number.isFinite(args.limit) ? Math.trunc(args.limit) : SEARCH_DEFAULT_LIMIT
+      const limit = Math.min(SEARCH_MAX_LIMIT, Math.max(1, requestedLimit))
+      const allowedScopes = scriptGrantScopes()
+      return textResult({
+        query,
+        detail,
+        scriptScopesKnown: allowedScopes !== null,
+        operations: searchOperations(query, { detail: detail as SearchDetail, limit, allowedScopes }),
+        docs: searchResources(query, SEARCH_DOCS_LIMIT).map(({ uri, title, snippet }) => ({ uri, title, snippet })),
+      })
+    }
+
     case 'beech_mcp_status': {
       const bundleHash = computeBundleHash([fileURLToPath(import.meta.url)])
       return textResult({
-        name: 'beechcms-mcp',
-        version: '0.1.0',
+        name: MCP_SERVER_NAME,
+        version: MCP_SERVER_VERSION,
         pid: process.pid,
         uptime: Math.round(process.uptime()),
         bundleHash,
@@ -362,7 +380,7 @@ function safeParseProblem(message: string): { status?: number; title?: string; d
  * BeechCMS Model Context Protocol (MCP) server instance.
  */
 const server = new Server(
-  { name: 'beechcms-mcp', version: '0.1.0' },
+  { name: MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
   { capabilities: { tools: { listChanged: true }, resources: { listChanged: true, subscribe: true } } }
 )
 
@@ -372,7 +390,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   try {
     return await handleTool(req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>)
   } catch (error) {
-    const message = error instanceof BeechClientError ? error.message : error instanceof Error ? error.message : String(error)
+    const message = error instanceof BeechClientError || error instanceof AgentToolError || error instanceof Error ? error.message : String(error)
     return errorResult(message)
   }
 })

@@ -14,7 +14,8 @@ export function BooleanEdit({ branch, value, onChange, disabled, readOnly }: Fie
   const checked =
     value === true || value === "true"
   return (
-    <div className="flex items-center space-x-2">
+    // h-8 is the height of every text/number input, so the checkbox centers on the same line as a neighbouring input.
+    <div className="flex h-8 items-center gap-2">
       <Checkbox
         id={branch.alias}
         checked={checked}
