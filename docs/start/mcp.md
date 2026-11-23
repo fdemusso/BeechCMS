@@ -1,6 +1,6 @@
 ---
 title: AI & MCP Setup
-description: Connect an AI agent to BeechCMS: run scripts with your own permissions, get human approval for risky actions, and evolve schemas safely through the MCP server.
+description: "Connect an AI agent to BeechCMS: run scripts with your own permissions, get human approval for risky actions, and evolve schemas safely through the MCP server."
 ---
 
 # AI & MCP Setup

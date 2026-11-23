@@ -16,7 +16,8 @@
     },
     "apps/api": {
       "entry": [
-        "scripts/*.mjs"
+        "scripts/*.mjs",
+        "test/fixtures/scripts/*.ts"
       ],
       "project": [
         "src/**/*.ts",
