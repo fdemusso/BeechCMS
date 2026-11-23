@@ -45,7 +45,7 @@ describe('beech run — flow (real D1)', () => {
 
   /** Runs `fixtures/scripts/<name>.ts` through the default `importScript`. */
   function runFixture(name: string, overrides: Partial<Pick<RunScriptInput, 'args' | 'dryRun'>> = {}): Promise<RunReport> {
-    const scriptPath = fileURLToPath(new URL(`../fixtures/scripts/${name}.ts`, import.meta.url))
+    const scriptPath = fileURLToPath(new URL(`../fixtures/scripts/${name}.ts`, import.meta.url).href)
     return runScript({
       scriptPath,
       displayPath: `fixtures/scripts/${name}.ts`,
