@@ -52,17 +52,11 @@ const PROBLEM_TOASTS: Readonly<Record<string, string>> = {
   intent_not_found: 'oauth.intents.toast.notFound',
 }
 
-/**
- * Review of one waiting agent action: what it would call, its stored request body, and the two decisions.
- * Approving replays the request once, as the signed-in person; the click is the confirmation.
- */
-export function AgentIntentReviewDialog({ intentId, appName, onOpenChange }: AgentIntentReviewDialogProps) {
+/** Approve/reject handlers for one intent; every failure toasts, and the ones the server names also close the dialog. */
+function useIntentDecisions(intentId: string | null, onOpenChange: (open: boolean) => void) {
   const { t } = useTranslation()
-  const { data: intent, isLoading, error } = useAgentIntent(intentId)
   const approve = useApproveAgentIntent()
   const reject = useRejectAgentIntent()
-  const busy = approve.isPending || reject.isPending
-  const decisionsDisabled = busy || !intent
 
   const handleFailure = (failure: unknown) => {
     const toastKey = PROBLEM_TOASTS[problemCode(failure) ?? '']
@@ -97,8 +91,66 @@ export function AgentIntentReviewDialog({ intentId, appName, onOpenChange }: Age
     }
   }
 
-  const body = intent ? formatBody(intent.body) : null
-  const loadErrorKey = problemCode(error) === 'intent_not_found' ? 'oauth.intents.toast.notFound' : 'oauth.intents.dialog.loadError'
+  return { handleApprove, handleReject, approving: approve.isPending, rejecting: reject.isPending }
+}
+
+/** What the dialog shows under its header: loading skeleton, load error, or the intent's request and stored body. */
+function IntentDetails({ intent, isLoading, error }: {
+  readonly intent: AgentIntent | undefined
+  readonly isLoading: boolean
+  readonly error: unknown
+}) {
+  const { t } = useTranslation()
+
+  if (isLoading) {
+    return (
+      <div role="status" className="space-y-3">
+        <Skeleton className="h-5 w-full" />
+        <Skeleton className="h-24 w-full" />
+        <span className="sr-only">{t('common.loading')}</span>
+      </div>
+    )
+  }
+  if (error) {
+    const loadErrorKey = problemCode(error) === 'intent_not_found' ? 'oauth.intents.toast.notFound' : 'oauth.intents.dialog.loadError'
+    return <p role="alert" className="text-sm text-status-danger-foreground">{t(loadErrorKey)}</p>
+  }
+  if (!intent) return null
+
+  const body = formatBody(intent.body)
+  return (
+    <div className="space-y-4">
+      <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 text-sm">
+        <dt className="text-muted-foreground">{t('oauth.intents.dialog.request')}</dt>
+        <dd className="min-w-0 break-all font-mono">{intent.method} {intent.path}</dd>
+        <dt className="text-muted-foreground">{t('oauth.intents.columns.risk')}</dt>
+        <dd><AgentIntentRiskBadge risk={intent.risk} /></dd>
+        <dt className="text-muted-foreground">{t('oauth.intents.dialog.requestedAt')}</dt>
+        <dd><RelativeTime value={intent.createdAt} /></dd>
+        <dt className="text-muted-foreground">{t('oauth.intents.columns.expires')}</dt>
+        <dd><RelativeTime value={intent.expiresAt} /></dd>
+      </dl>
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium">{t('oauth.intents.dialog.body')}</h4>
+        {body === null ? (
+          <p className="text-sm text-muted-foreground">{t('oauth.intents.dialog.noBody')}</p>
+        ) : (
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-muted p-3 font-mono text-xs">{body}</pre>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Review of one waiting agent action: what it would call, its stored request body, and the two decisions.
+ * Approving replays the request once, as the signed-in person; the click is the confirmation.
+ */
+export function AgentIntentReviewDialog({ intentId, appName, onOpenChange }: AgentIntentReviewDialogProps) {
+  const { t } = useTranslation()
+  const { data: intent, isLoading, error } = useAgentIntent(intentId)
+  const { handleApprove, handleReject, approving, rejecting } = useIntentDecisions(intentId, onOpenChange)
+  const decisionsDisabled = approving || rejecting || !intent
 
   return (
     <Dialog open={intentId !== null} onOpenChange={onOpenChange}>
@@ -108,40 +160,11 @@ export function AgentIntentReviewDialog({ intentId, appName, onOpenChange }: Age
           <DialogDescription>{t('oauth.intents.dialog.description', { app: appName })}</DialogDescription>
         </DialogHeader>
 
-        {isLoading ? (
-          <div role="status" className="space-y-3">
-            <Skeleton className="h-5 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <span className="sr-only">{t('common.loading')}</span>
-          </div>
-        ) : error ? (
-          <p role="alert" className="text-sm text-status-danger-foreground">{t(loadErrorKey)}</p>
-        ) : intent ? (
-          <div className="space-y-4">
-            <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 text-sm">
-              <dt className="text-muted-foreground">{t('oauth.intents.dialog.request')}</dt>
-              <dd className="min-w-0 break-all font-mono">{intent.method} {intent.path}</dd>
-              <dt className="text-muted-foreground">{t('oauth.intents.columns.risk')}</dt>
-              <dd><AgentIntentRiskBadge risk={intent.risk} /></dd>
-              <dt className="text-muted-foreground">{t('oauth.intents.dialog.requestedAt')}</dt>
-              <dd><RelativeTime value={intent.createdAt} /></dd>
-              <dt className="text-muted-foreground">{t('oauth.intents.columns.expires')}</dt>
-              <dd><RelativeTime value={intent.expiresAt} /></dd>
-            </dl>
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">{t('oauth.intents.dialog.body')}</h4>
-              {body === null ? (
-                <p className="text-sm text-muted-foreground">{t('oauth.intents.dialog.noBody')}</p>
-              ) : (
-                <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-muted p-3 font-mono text-xs">{body}</pre>
-              )}
-            </div>
-          </div>
-        ) : null}
+        <IntentDetails intent={intent} isLoading={isLoading} error={error} />
 
         <DialogFooter>
           <Button variant="outline" disabled={decisionsDisabled} onClick={handleReject}>
-            {reject.isPending && <Loader2 aria-hidden className="size-4 animate-spin" />}
+            {rejecting && <Loader2 aria-hidden className="size-4 animate-spin" />}
             {t('oauth.intents.reject')}
           </Button>
           <Button
@@ -149,7 +172,7 @@ export function AgentIntentReviewDialog({ intentId, appName, onOpenChange }: Age
             disabled={decisionsDisabled}
             onClick={handleApprove}
           >
-            {approve.isPending && <Loader2 aria-hidden className="size-4 animate-spin" />}
+            {approving && <Loader2 aria-hidden className="size-4 animate-spin" />}
             {t('oauth.intents.approve')}
           </Button>
         </DialogFooter>

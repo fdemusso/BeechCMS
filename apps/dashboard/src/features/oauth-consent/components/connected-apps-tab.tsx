@@ -115,6 +115,13 @@ export function ConnectedAppsTab() {
   const { t } = useTranslation()
   const { data: apps, isLoading } = useConnectedApps()
   const revokeConnectedApp = useRevokeConnectedApp()
+  const columns = [
+    t('oauth.apps.application'),
+    t('oauth.apps.permissions'),
+    t('oauth.apps.granted'),
+    t('oauth.apps.status'),
+    t('content.actions.label'),
+  ]
 
   return (
     <div className="space-y-10">
@@ -133,11 +140,11 @@ export function ConnectedAppsTab() {
             <Table containerClassName="overflow-visible" aria-label={t('oauth.apps.list.label')}>
               <TableHeader className="sticky top-0 z-10 bg-[var(--settings-page-bg)]">
                 <TableRow>
-                  <TableHead>{t('oauth.apps.application')}</TableHead>
-                  <TableHead>{t('oauth.apps.permissions')}</TableHead>
-                  <TableHead>{t('oauth.apps.granted')}</TableHead>
-                  <TableHead>{t('oauth.apps.status')}</TableHead>
-                  <TableHead className="text-right">{t('content.actions.label')}</TableHead>
+                  {columns.map((label, index) => (
+                    <TableHead key={label} className={index === columns.length - 1 ? 'text-right' : undefined}>
+                      {label}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>

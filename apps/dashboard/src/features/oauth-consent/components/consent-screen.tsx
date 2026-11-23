@@ -53,6 +53,9 @@ export function ConsentScreen({ metadata, params }: ConsentScreenProps) {
   )
   const selectedTemplate = CONSENT_TEMPLATES.find(template => template.id === templateId) ?? CONSENT_TEMPLATES[0]
   const grantedScopes = templateScopes(selectedTemplate, metadata.requestedScopes, metadata.deniedScopes)
+  const deniedSet = new Set(metadata.deniedScopes)
+  const grantedSet = new Set(grantedScopes)
+  const newSet = new Set(metadata.newScopes)
 
   const decide = async (approved: boolean) => {
     try {
@@ -133,9 +136,9 @@ export function ConsentScreen({ metadata, params }: ConsentScreenProps) {
           {/* Scopes list */}
           <div className="space-y-2">
             {metadata.requestedScopes.map((scope) => {
-              const denied = metadata.deniedScopes.includes(scope)
-              const granted = grantedScopes.includes(scope)
-              const alreadyGranted = !metadata.newScopes.includes(scope)
+              const denied = deniedSet.has(scope)
+              const granted = grantedSet.has(scope)
+              const alreadyGranted = !newSet.has(scope)
               return (
                 <div
                   key={scope}

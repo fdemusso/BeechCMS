@@ -39,7 +39,9 @@ export function templateScopes(
   requested: readonly OAuthScope[],
   denied: readonly OAuthScope[],
 ): OAuthScope[] {
-  return requested.filter(scope => template.scopes.includes(scope) && !denied.includes(scope))
+  const allowed = new Set<OAuthScope>(template.scopes)
+  const deniedSet = new Set<OAuthScope>(denied)
+  return requested.filter(scope => allowed.has(scope) && !deniedSet.has(scope))
 }
 
 /** The smallest template whose scopes cover every grantable requested scope; `developer` when none does. */
@@ -47,9 +49,12 @@ export function defaultTemplate(
   requested: readonly OAuthScope[],
   denied: readonly OAuthScope[],
 ): ConsentTemplate {
-  const grantable = requested.filter(scope => !denied.includes(scope))
+  const deniedSet = new Set<OAuthScope>(denied)
+  const grantable = requested.filter(scope => !deniedSet.has(scope))
   return (
-    CONSENT_TEMPLATES.find(template => grantable.every(scope => template.scopes.includes(scope))) ??
-    CONSENT_TEMPLATES[CONSENT_TEMPLATES.length - 1]
+    CONSENT_TEMPLATES.find(template => {
+      const allowed = new Set<OAuthScope>(template.scopes)
+      return grantable.every(scope => allowed.has(scope))
+    }) ?? CONSENT_TEMPLATES[CONSENT_TEMPLATES.length - 1]
   )
 }
