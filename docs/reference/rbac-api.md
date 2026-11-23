@@ -139,7 +139,7 @@ The full catalogue, system roles included (they are assignable). Readable by `ma
 {
   "name": "Blog Editor",
   "description": "Writes and publishes on the blog seed.",
-  "icon": "Pencil",
+  "icon": "Briefcase",
   "permissions": ["content:read", "content:create", "content:update"]
 }
 ```
@@ -148,7 +148,7 @@ The full catalogue, system roles included (they are assignable). Readable by `ma
 |---|---|
 | `name` | trimmed, 1–80 chars, UNIQUE |
 | `description` | optional/nullable, ≤ 400 chars |
-| `icon` | optional/nullable, ≤ 64 chars — lucide icon name rendered by the dashboard |
+| `icon` | optional/nullable, ≤ 64 chars — dashboard icon name (see `reference/icons`); unknown names render a folder |
 | `permissions` | **at least one**, each from the closed vocabulary; a role granting nothing is a footgun, not a use case |
 
 | Status | Condition |

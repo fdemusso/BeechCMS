@@ -22,6 +22,7 @@ interface PlanBody {
   changedBranches: string[]
   statements: string[]
   expectedVersion: number
+  issues: Array<{ fatal: boolean; messages: string[] }>
 }
 
 describe('seeds slice — integration (real D1)', () => {
@@ -90,6 +91,21 @@ describe('seeds slice — integration (real D1)', () => {
       expect(body.changedBranches).toEqual(['priority'])
     })
 
+    it('an unknown dashboard.icon keeps the plan applicable and adds a non-fatal warning naming the closest icons', async () => {
+      const stored = await storedPosts()
+      const candidate: Seed = { ...stored, dashboard: { ...stored.dashboard, icon: 'Cars' } }
+
+      const response = await admin.post('/api/seeds/posts/mcp-plan', { candidate })
+
+      expect(response.status).toBe(200)
+      const body = await response.json<PlanBody>()
+      expect(body.applicable).toBe(true)
+      expect(body.issues).toHaveLength(1)
+      expect(body.issues[0].fatal).toBe(false)
+      expect(body.issues[0].messages[0]).toContain("'Cars'")
+      expect(body.issues[0].messages[0]).toContain('Closest: Car')
+    })
+
     it('planning writes nothing: the stored option colors stay as they were', async () => {
       const original = await priorityOptions()
       const candidate = withPriority(await storedPosts(), branch => ({ ...branch, options: recolorHigh(branch.options) }))
@@ -102,6 +118,17 @@ describe('seeds slice — integration (real D1)', () => {
   })
 
   describe('POST /api/seeds/:slug/mcp-apply', () => {
+    it('applying a candidate with an unknown dashboard.icon succeeds and stores the name as written', async () => {
+      const stored = await storedPosts()
+      const candidate: Seed = { ...stored, dashboard: { ...stored.dashboard, icon: 'Cars' } }
+      const plan = await (await admin.post('/api/seeds/posts/mcp-plan', { candidate })).json<PlanBody>()
+
+      const response = await admin.post('/api/seeds/posts/mcp-apply', { candidate, expectedVersion: plan.expectedVersion })
+
+      expect(response.status).toBe(200)
+      expect((await storedPosts()).dashboard?.icon).toBe('Cars')
+    })
+
     it('applying a color change persists it and a new plan of the same candidate reports no change', async () => {
       const candidate = withPriority(await storedPosts(), branch => ({ ...branch, options: recolorHigh(branch.options) }))
       const plan = await (await admin.post('/api/seeds/posts/mcp-plan', { candidate })).json<PlanBody>()

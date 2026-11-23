@@ -33,6 +33,9 @@ stop. Never retry a declined confirm in a loop. Never try to approve another way
   invent one; omit `id` on new branches.
 - Aliases must not collide with the system columns `id`, `created_at`, `updated_at`, `status`.
 - A relation branch must target a slug that already exists.
+- `dashboard.icon` (and a role `icon`) must be a name from the dashboard icon list: `beech_docs_search "icon"`
+  (`reference/icons`). Any other name renders a folder; `beech_schema_validate` and `beech_schema_plan` warn about it
+  for a seed.
 
 0. Before building a candidate, use `beech_docs_search` for anything you are unsure about
    (field types, branch policies, API reference). Do not guess from training data when the

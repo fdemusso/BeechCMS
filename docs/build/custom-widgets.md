@@ -37,7 +37,7 @@ import {
   useWidgetAggregate,
   type DashboardWidgetProps
 } from '@beechcms/widget-sdk'
-import { Activity } from 'lucide-react'
+import { Activity } from 'lucide-react' // your widget's own dependency, unrelated to the dashboard icon names
 
 // 1. Zod schema for widget user configuration
 const configSchema = z.object({
@@ -84,7 +84,7 @@ export default defineWidget<WidgetConfig>({
   type: '@acme/content-growth',
   labelKey: 'Content Growth',
   descriptionKey: 'Tracks total entries created over time',
-  icon: 'Activity',        // Lucide icon NAME (string), not the imported component
+  icon: 'Activity',        // Dashboard icon NAME (string), not the imported component
   category: 'custom',      // 'stats' | 'charts' | 'content' | 'system' | 'custom'
   configSchema,
   defaultConfig: { seedSlug: 'posts', window: 'month' },

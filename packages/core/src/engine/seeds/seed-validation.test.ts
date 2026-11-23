@@ -799,3 +799,42 @@ describe('validateSeedDefinitions', () => {
     expect(issues.map(issue => issue.slug)).toEqual(['bad'])
   })
 })
+
+describe('validateSeedDefinitions dashboard.icon', () => {
+  it('warns, without blocking, when dashboard.icon is not a dashboard icon name', () => {
+    const seeds = [makeSeed({ slug: 'trips', dashboard: { icon: 'ListChecks' } })]
+
+    const issues = validateSeedDefinitions(seeds)
+
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({ slug: 'trips', fatal: false })
+    expect(issues[0].messages[0]).toContain("'ListChecks'")
+    expect(isSeedSetValid(seeds)).toBe(true)
+  })
+
+  it('names the closest valid icons in the warning', () => {
+    const seeds = [makeSeed({ slug: 'fleet', dashboard: { icon: 'Cars' } })]
+
+    const issues = validateSeedDefinitions(seeds)
+
+    expect(issues[0].messages[0]).toContain('Closest: Car')
+  })
+
+  it('raises nothing for a registered icon, a seed without dashboard config, or an unset icon', () => {
+    const seeds = [
+      makeSeed({ slug: 'garage', dashboard: { icon: 'Warehouse' } }),
+      makeSeed({ slug: 'plain' }),
+      makeSeed({ slug: 'grouped', dashboard: { group: 'Ops' } }),
+    ]
+
+    expect(validateSeedDefinitions(seeds)).toEqual([])
+  })
+
+  it('does not treat inherited Object.prototype keys as valid icon names', () => {
+    const seeds = [makeSeed({ slug: 'odd', dashboard: { icon: 'constructor' } })]
+
+    const issues = validateSeedDefinitions(seeds)
+
+    expect(issues.map(issue => issue.slug)).toEqual(['odd'])
+  })
+})

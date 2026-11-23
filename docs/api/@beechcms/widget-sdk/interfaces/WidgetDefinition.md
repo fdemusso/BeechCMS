@@ -60,7 +60,7 @@ Schema with `.catch()`/`.optional()` so partial configs always parse.
 
 > `optional` **icon?**: `string`
 
-Lucide icon name for the picker.
+Dashboard icon name for the picker (a reicon-react icon name, not a Lucide one); unknown names render a folder.
 
 ***
 
