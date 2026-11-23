@@ -114,7 +114,7 @@ Effective authority is the union of every active assignment. Assignments can onl
 
 A role is a reusable, runtime-composable named bundle of permissions. It is a **global object with no scope of its own** — the scope is chosen at assignment time.
 
-Roles carry an optional `icon` (a lucide icon name) rendered by the dashboard alongside the name and a permission-badge list.
+Roles carry an optional `icon` (a dashboard icon name) rendered by the dashboard alongside the name and a permission-badge list.
 
 ### System roles
 
@@ -244,7 +244,7 @@ A table of every administrable account: email, name, role badges, and actions. T
 
 Name (with its icon), description, permission badges, and edit/delete actions — the actions column only renders for `manage_roles` holders.
 
-The role form offers a searchable **lucide icon picker** and permission checkboxes split into **Content** and **System** groups. The System group lists `manage_users`, `manage_roles`, `manage_layout`, `manage_seeds`, `view_analytics`. Permissions you do not hold anywhere (`permissionsHeldAnywhere`) are disabled, so the form cannot submit an escalation. System roles have edit and delete permanently disabled, and deletion warns that every assignment through the role is cascaded away.
+The role form offers a searchable **icon picker** and permission checkboxes split into **Content** and **System** groups. The System group lists `manage_users`, `manage_roles`, `manage_layout`, `manage_seeds`, `view_analytics`. Permissions you do not hold anywhere (`permissionsHeldAnywhere`) are disabled, so the form cannot submit an escalation. System roles have edit and delete permanently disabled, and deletion warns that every assignment through the role is cascaded away.
 
 ### Invitations tab
 

@@ -372,6 +372,26 @@ describe('MCP Server Integration & Operational Test', () => {
     expect(invalidSlugParsed.issues.some((i: any) => i.fatal && i.messages.some((m: string) => m.includes('slug')))).toBe(true)
   })
 
+  it('beech_schema_validate warns, without blocking, about a dashboard.icon outside the dashboard icon set', async () => {
+    const candidate = {
+      slug: 'articles',
+      label: 'Articles',
+      dashboard: { icon: 'Cars' },
+      branches: [
+        { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+        { id: 'br_02', alias: 'content', label: 'Content', type: 'richtext' },
+      ],
+    }
+
+    const res = (await client.callTool({ name: 'beech_schema_validate', arguments: { candidate } })) as { isError?: boolean; content: Array<{ text: string }> }
+
+    expect(res.isError).toBeFalsy()
+    const { issues } = JSON.parse(res.content[0].text) as { issues: Array<{ fatal: boolean; messages: string[] }> }
+    expect(issues).toHaveLength(1)
+    expect(issues[0].fatal).toBe(false)
+    expect(issues[0].messages[0]).toContain('Closest: Car')
+  })
+
   it('performs full plan -> apply lifecycle for additive change', async () => {
     const candidate = {
       slug: 'articles',

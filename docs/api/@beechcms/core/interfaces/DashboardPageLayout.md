@@ -12,7 +12,7 @@
 
 > `optional` **icon?**: `string`
 
-Lucide icon name, same convention as DashboardSeedConfig.icon.
+Icon name, same convention as DashboardSeedConfig.icon (a reicon-react icon, not a Lucide one).
 
 ***
 

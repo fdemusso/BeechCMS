@@ -42,7 +42,7 @@ This high-level system map is designed for onboarding new contributors and for A
     - `@tanstack/react-table`: `^8.21.3`
     - `@tanstack/react-virtual`: `^3.13.23`
     - `next-themes`: `^0.4.6`
-    - `lucide-react`: `^0.564.0`
+    - `reicon-react`
     - Components based on `radix-ui` and shadcn (`shadcn` `^4.0.2`)
     - `sonner`: `^2.0.7` (toast notifications)
     - `recharts`: `^3.8.0` (charts for analytics/widgets)

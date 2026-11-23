@@ -62,7 +62,8 @@ Hide from sidebar navigation. Default: false.
 
 > `optional` **icon?**: `string`
 
-Lucide icon name (string, resolved to component client-side). Default: 'Folder'.
+Icon name from `DASHBOARD_ICON_NAMES` (a reicon-react icon, resolved to a component client-side).
+Any other name renders the default 'Folder' and draws a non-fatal validation warning.
 
 ***
 

@@ -5,6 +5,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { join, relative, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { DASHBOARD_ICON_NAMES, DEFAULT_DASHBOARD_ICON } from '@beechcms/core'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = join(__dirname, '..', '..', '..')
@@ -70,6 +71,21 @@ for (const item of INCLUDE) {
     manifest.push({ uri: `beechcms-docs://${destRel.split('\\').join('/')}`, title, description, file: destRel.split('\\').join('/') })
   }
 }
+
+// Generated from core's DASHBOARD_ICON_NAMES so the list agents read can never drift from the one the control plane checks.
+const ICONS_DOC = 'reference/icons.md'
+const ICONS_TITLE = 'Dashboard icon names'
+const ICONS_DESCRIPTION = 'The icon names accepted by dashboard.icon and a role icon; any other name renders the default Folder icon.'
+writeFileSync(join(OUT_DIR, ICONS_DOC), [
+  `# ${ICONS_TITLE}`,
+  '',
+  '`dashboard.icon` on a seed and `icon` on a role take one of the names below. They are icons from the `reicon-react` kit, not Lucide.',
+  `Any other name renders the default \`${DEFAULT_DASHBOARD_ICON}\` icon. \`beech_schema_validate\` and \`beech_schema_plan\` return a warning for an unknown seed \`dashboard.icon\` and name the closest valid icons.`,
+  '',
+  ...DASHBOARD_ICON_NAMES.map((name) => `- \`${name}\``),
+  '',
+].join('\n'))
+manifest.push({ uri: `beechcms-docs://${ICONS_DOC}`, title: ICONS_TITLE, description: ICONS_DESCRIPTION, file: ICONS_DOC })
 
 manifest.sort((a, b) => a.uri.localeCompare(b.uri))
 writeFileSync(join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2))

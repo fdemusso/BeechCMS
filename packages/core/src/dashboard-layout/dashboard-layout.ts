@@ -46,7 +46,7 @@ export interface DashboardPageLayout {
   /** URL identity (?page=<slug>). Unique within the layout. */
   slug: string
   label: string
-  /** Lucide icon name, same convention as DashboardSeedConfig.icon. */
+  /** Icon name, same convention as DashboardSeedConfig.icon (a reicon-react icon, not a Lucide one). */
   icon?: string
   /** Ids (not names) of the roles this tab targets. Absent or empty = every caller.
    *  Non-empty = callers holding at least one of them through an active assignment, at any scope. */

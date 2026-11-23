@@ -16,7 +16,7 @@ export type NotificationFilter = "all" | "new"
  * @property id - Identificativo univoco della notifica
  * @property title - Titolo breve della notifica
  * @property description - Descrizione dettagliata dell'evento
- * @property icon - Icona Lucide da mostrare (FileText, UserPlus, Database, etc.)
+ * @property icon - Icona da mostrare (FileText, UserPlus, Database, etc.)
  * @property isNew - Se true, la notifica è non letta e viene evidenziata
  * @property createdAt - Data e ora di creazione della notifica
  */
