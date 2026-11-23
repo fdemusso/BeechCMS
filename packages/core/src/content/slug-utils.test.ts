@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
-import { slugify, generateEntrySlug, toTrashedSlug, fromTrashedSlug, TRASHED_SLUG_INFIX } from './slug-utils.js'
+import { slugify, generateEntrySlug, toTrashedSlug, fromTrashedSlug, MAX_SLUG_LENGTH, TRASHED_SLUG_INFIX } from './slug-utils.js'
 
 describe('Slug Utilities', () => {
   describe('toTrashedSlug', () => {
@@ -58,12 +58,18 @@ describe('Slug Utilities', () => {
       expect(slugify('Hello @ World!')).toBe('hello-world')
     })
 
-    it('limits length to 15 characters', () => {
-      expect(slugify('This is a very long title for an article')).toBe('this-is-a-very')
+    it('keeps a name longer than 15 characters whole', () => {
+      expect(slugify('This is a very long title for an article')).toBe('this-is-a-very-long-title-for-an-article')
+    })
+
+    it('limits length to MAX_SLUG_LENGTH characters and leaves no trailing dash after the cut', () => {
+      const slug = slugify(`${'a'.repeat(MAX_SLUG_LENGTH - 1)} tail`)
+
+      expect(slug).toBe('a'.repeat(MAX_SLUG_LENGTH - 1))
     })
 
     it('handles multiple dashes and underscores', () => {
-      expect(slugify('hello__world--test')).toBe('hello-world-tes')
+      expect(slugify('hello__world--test')).toBe('hello-world-test')
     })
   })
 
@@ -73,7 +79,7 @@ describe('Slug Utilities', () => {
     })
 
     it('generates from title if slug is missing', () => {
-      expect(generateEntrySlug({ title: 'An Awesome Article' })).toBe('an-awesome-arti')
+      expect(generateEntrySlug({ title: 'An Awesome Article' })).toBe('an-awesome-article')
     })
 
     it('generates from name if title and slug are missing', () => {
@@ -83,7 +89,7 @@ describe('Slug Utilities', () => {
     it('uses a fallback if no input provided', () => {
       const slug = generateEntrySlug({})
       expect(slug).toMatch(/^[a-z0-9]+$/)
-      expect(slug.length).toBeLessThanOrEqual(15)
+      expect(slug.length).toBeLessThanOrEqual(MAX_SLUG_LENGTH)
     })
   })
 })

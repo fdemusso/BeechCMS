@@ -54,7 +54,7 @@ async function deleteObjectSafely(context: JobContext, objectKey: string): Promi
  * a failed chunk from the last saved `rowOffset`), so `existsSlug` recognizes it as the row
  * already inserted before the failure and takes the SlugConflictError dedup path — the same
  * path a row with a real slug or display name already gets. A hash keeps that stable across
- * retries while still fitting `slugify`'s 15-char truncation without every row in the same
+ * retries while still fitting `slugify`'s length cap without every row in the same
  * job colliding on the job id's own leading characters.
  */
 async function fallbackSlugSeed(jobId: string, rowNumber: number): Promise<string> {
