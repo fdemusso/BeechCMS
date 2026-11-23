@@ -107,7 +107,7 @@ Configure your MCP client (Claude Code, Claude Desktop, Cursor, Antigravity) to 
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `BEECH_API_URL` | No | `http://localhost:8789` | Target BeechCMS API origin (token endpoint + REST API). Matches the port `beech dev` runs Wrangler on. If unset and `.dev.vars` exists in `process.cwd()`, the server extracts `BEECH_API_URL` from that file. |
-| `BEECH_AUTH_URL` | No | `BEECH_API_URL` | Origin the *browser* opens for `/oauth/authorize`. In local dev this must be the **dashboard** origin (`http://localhost:5173`), since the Worker does not serve the consent screen. |
+| `BEECH_AUTH_URL` | No | `BEECH_API_URL` | Origin the *browser* opens for `/oauth/authorize`. In local dev the Worker does not serve the consent screen, so `/oauth/authorize` redirects the browser to the dashboard origin set by the API's `APP_URL` (`http://localhost:5173`); set `BEECH_AUTH_URL` to that origin to skip the redirect. |
 | `BEECH_OAUTH_CLIENT_ID` | No | `beech-mcp` | Must match the OAuth client seeded in D1 (`apps/api/migrations/0000_v040_base.sql`). |
 | `BEECH_OAUTH_SCOPE` | No | `schema:read schema:write settings:read agent:read agent:approve` | Scopes requested at consent. Narrowing it disables the tools that need the dropped scope: without `agent:approve`, `beech_confirm` can only fall back to the dashboard. |
 | `BEECH_OAUTH_TIMEOUT_MS` | No | `180000` | Browser round-trip budget, in milliseconds. |
@@ -466,6 +466,15 @@ Forces an immediate in-memory cache refresh of bundled resources and broadcasts 
 7. The tool returns one result per distinct requested id, in request order.
 
 The dialog times out after 10 minutes, equal to the intent lifetime: waiting longer cannot succeed.
+
+### Answering the dialog
+
+The dialog asks for one form field, `Decision` (`approve` or `reject`). It is required and **starts empty**, and clients keep the submit button inert until it is set, without saying why. The dialog text ends with the same instruction.
+
+- **Set it first.** In Claude Code's terminal client the field shows as `Decision: not set`, collapsed. Press `→` to open it, `↑`/`↓` to choose, `Enter` to confirm, then move to **Accept** and press `Enter`. Other clients draw the form their own way; the rule is the same: set `Decision`, then submit.
+- **Accept submits your choice.** The choice is the `Decision` value, so Accept with `reject` rejects. **Decline** and dismissing the dialog decide nothing: the intents stay pending (`declined`, `cancelled`). An Accept with no valid decision is treated as `cancelled`.
+- **One decision covers every intent shown.** Several intents in one call run in the order of `intentIds`, so list an action before the one that depends on it (a purge of the child entries before the purge of the parent that they reference). A failing intent does not stop the ones after it.
+- **`failed` means the stored request ran and was refused.** The approved intent answered `400` or above, and `resultStatus` and `resultBody` carry the server's own answer. The intent is spent and cannot be approved again (a second approval answers `not_pending`): fix the cause and run the script again, which creates a new intent.
 
 ### Status
 

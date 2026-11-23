@@ -7,8 +7,14 @@
  */
 
 /**
+ * Longest slug `slugify` emits. Names that share a brand-and-model prefix (a tyre or product
+ * catalog) stay distinct well past the old 15-character cut, while URLs stay short.
+ */
+export const MAX_SLUG_LENGTH = 80
+
+/**
  * Converte una stringa in uno slug URL-safe.
- * Limita la lunghezza a 15 caratteri come richiesto.
+ * Limita la lunghezza a `MAX_SLUG_LENGTH` caratteri.
  * Never emits `_`, so a live slug can never carry `TRASHED_SLUG_INFIX`.
  */
 export function slugify(value: string): string {
@@ -19,7 +25,7 @@ export function slugify(value: string): string {
     .toLowerCase()
     .replace(/[\s_-]+/g, '-')        // Sostituisce spazi e underscore con trattino
     .replace(/^-+|-+$/g, '')         // Rimuove trattini all'inizio o alla fine
-    .slice(0, 15)                    // Limita a 15 caratteri
+    .slice(0, MAX_SLUG_LENGTH)       // Limita la lunghezza
     .replace(/-+$/g, '')             // Rimuove trattini rimasti alla fine dopo il taglio
 }
 

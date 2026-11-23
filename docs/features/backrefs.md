@@ -189,7 +189,7 @@ When editing any existing record in the Entry Editor, a collapsible card (`Refer
 ### 2. Deletion Guard & Orphan Prevention
 Accidental deletions are prevented both in the UI and at the database layer:
 - **UI Guard**: If any referencing group has `restricts: true` (`onDelete: 'RESTRICT'`) and `total > 0`, the Delete button in the form footer is **disabled** upfront with an informative tooltip (*"Cannot delete: X entries depend on this record"*).
-- **Database Invariant**: Cloudflare D1 (SQLite) foreign key constraints enforce `ON DELETE RESTRICT`. Direct API delete attempts on restricted records are rejected with HTTP **`409 Conflict`**.
+- **Database Invariant**: Cloudflare D1 (SQLite) foreign key constraints enforce `ON DELETE RESTRICT` on a hard delete (purge). Moving a record to the Trash is only an `UPDATE`, so the API runs the same check beforehand: while an active entry still references the record through a `RESTRICT` relation, both are rejected with HTTP **`409 Conflict`**. Entries already in the Trash do not block moving their parent to the Trash, but the foreign key still blocks the parent's purge.
 - **Safe Cascade**: If `onDelete: 'SET NULL'` (the default), deleting a record safely nulls the foreign key column or deletes the junction table row without blocking deletions.
 
 ---
