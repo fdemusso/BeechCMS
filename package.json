@@ -34,10 +34,7 @@
     "node": ">=18.0.0"
   },
   "bin": {
-    "cms": "bin/create.mjs",
-    "@beechcms/cms": "bin/create.mjs",
-    "beechcms": "bin/create.mjs",
-    "beech": "bin/cli.mjs"
+    "cms": "bin/create.mjs"
   },
   "scripts": {
     "docs:generate": "turbo run build && typedoc",
@@ -46,7 +43,7 @@
     "docs:build": "turbo run build && typedoc && node scripts/docs-fact-check.mjs && vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "eval:agent": "pnpm --filter @beechcms/agent-evals run eval",
-    "beech": "node bin/cli.mjs",
+    "beech": "node packages/cli/bin/beech.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:full": "node scripts/dev.mjs",
     "dev:plain": "node scripts/dev.mjs --plain",
@@ -104,7 +101,6 @@
     "vitest": "^5.0.5"
   },
   "dependencies": {
-    "@beechcms/cli": "workspace:^0.10.1",
     "@clack/prompts": "^1.8.1",
     "picocolors": "^1.1.1"
   }

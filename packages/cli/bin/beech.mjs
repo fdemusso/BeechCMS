@@ -33,7 +33,6 @@ const COMMANDS = {
   'validate':       cmdValidate,
   'deploy':         cmdDeploy,
   'update':         cmdUpdate,
-  'onboard':        cmdOnboard,
   'reset':          cmdReset,
   'forms':          cmdForms,
   'form':           cmdForms,
@@ -65,15 +64,8 @@ function help() {
   ${pc.cyan('beech')} <command> [options]
 
   ${pc.bold('1. Local Management & Onboarding')}
-    ${pc.cyan('init')}            Check project files and optionally initialise the database
-      --db            Also initialise the D1 database (system tables)
-      --remote        Target remote D1 instead of local (default: local)
-      --db-name <n>   Override D1 database name
-      --yes, -y       Run in non-interactive mode
-    ${pc.cyan('onboard')}         One-command local provisioning (init --db)
-      --remote        Target remote D1 instead of local (default: local)
-      --yes, -y       Skip all interactive prompts (non-interactive mode)
-      --db <name>     Override D1 database name
+    ${pc.cyan('init')}            Check that the project has the files BeechCMS needs
+      --remote        Skip local-only checks (.dev.vars)
     ${pc.cyan('update')}          Update internals to latest, then apply system D1 migrations
 
   ${pc.bold('2. Database & Migrations')}
@@ -170,50 +162,37 @@ function cmdBuild() {
 }
 
 async function cmdInit(args) {
-  const initDb  = args.includes('--db')
-  const remote  = args.includes('--remote')
-  const dbIdx   = args.indexOf('--db-name')
-  const db      = dbIdx !== -1 ? args[dbIdx + 1] : undefined
-  const yes     = args.includes('--yes') || args.includes('-y')
+  const remote = args.includes('--remote')
 
-  const { init } = await import('@beechcms/cli')
-  await init({ initDb, local: !remote, db, nonInteractive: yes })
+  const { init } = await import('../dist/index.js')
+  await init({ local: !remote })
 }
 
 async function cmdSeedLoad() {
-  const { seedLoad } = await import('@beechcms/cli')
+  const { seedLoad } = await import('../dist/index.js')
   await seedLoad({})
 }
 
 async function cmdValidate() {
-  const { validate } = await import('@beechcms/cli')
+  const { validate } = await import('../dist/index.js')
   await validate({})
 }
 
 async function cmdSeedCreate() {
-  const { seedCreate } = await import('@beechcms/cli')
+  const { seedCreate } = await import('../dist/index.js')
   await seedCreate({})
 }
 
 async function cmdDeploy(args) {
   const skipSeed  = args.includes('--skip-seed')
   const skipCheck = args.includes('--skip-check')
-  const { deploy } = await import('@beechcms/cli')
+  const { deploy } = await import('../dist/index.js')
   await deploy({ skipSeed, skipCheck })
 }
 
 async function cmdUpdate() {
-  const { update } = await import('@beechcms/cli')
+  const { update } = await import('../dist/index.js')
   await update({})
-}
-
-async function cmdOnboard(args) {
-  const local    = !args.includes('--remote')
-  const yes      = args.includes('--yes') || args.includes('-y')
-  const dbIdx    = args.indexOf('--db')
-  const db       = dbIdx !== -1 ? args[dbIdx + 1] : undefined
-  const { onboard } = await import('@beechcms/cli')
-  await onboard({ local, yes, db })
 }
 
 async function cmdReset(args) {
@@ -222,7 +201,7 @@ async function cmdReset(args) {
   const all    = args.includes('--all')
   const yes    = args.includes('--yes') || args.includes('-y')
 
-  const { reset } = await import('@beechcms/cli')
+  const { reset } = await import('../dist/index.js')
   await reset({ db, docker, all, yes })
 }
 
@@ -232,7 +211,7 @@ async function cmdSchemaDiff(args) {
   const manifest    = manifestIdx !== -1 ? args[manifestIdx + 1] : undefined
   const dbIdx       = args.indexOf('--db')
   const db          = dbIdx !== -1 ? args[dbIdx + 1] : undefined
-  const { schemaDiff } = await import('@beechcms/cli')
+  const { schemaDiff } = await import('../dist/index.js')
   await schemaDiff({ local: !remote, manifest, db })
 }
 
@@ -240,7 +219,7 @@ async function cmdSchemaAudit(args) {
   const remote = args.includes('--remote')
   const dbIdx  = args.indexOf('--db')
   const db     = dbIdx !== -1 ? args[dbIdx + 1] : undefined
-  const { schemaAudit } = await import('@beechcms/cli')
+  const { schemaAudit } = await import('../dist/index.js')
   await schemaAudit({ local: !remote, db })
 }
 
@@ -249,7 +228,7 @@ async function cmdSchemaMigrate(args) {
   const apply  = args.includes('--apply')
   const dbIdx  = args.indexOf('--db')
   const db     = dbIdx !== -1 ? args[dbIdx + 1] : undefined
-  const { schemaMigrate } = await import('@beechcms/cli')
+  const { schemaMigrate } = await import('../dist/index.js')
   await schemaMigrate({ apply, local: !remote, db })
 }
 
@@ -264,7 +243,7 @@ async function cmdSchemaExport(args) {
     : undefined
   const dbIdx = args.indexOf('--db')
   const db    = dbIdx !== -1 ? args[dbIdx + 1] : undefined
-  const { schemaExport } = await import('@beechcms/cli')
+  const { schemaExport } = await import('../dist/index.js')
   await schemaExport({ out, local: !remote, db })
 }
 
@@ -273,7 +252,7 @@ async function cmdSchemaPlan(args) {
   const manifest    = manifestIdx !== -1 ? args[manifestIdx + 1] : undefined
   const apiIdx      = args.indexOf('--api-url')
   const apiUrl      = apiIdx !== -1 ? args[apiIdx + 1] : undefined
-  const { schemaPlan } = await import('@beechcms/cli')
+  const { schemaPlan } = await import('../dist/index.js')
   await schemaPlan({ manifest, apiUrl })
 }
 
@@ -283,12 +262,12 @@ async function cmdSchemaApply(args) {
   const apiIdx      = args.indexOf('--api-url')
   const apiUrl      = apiIdx !== -1 ? args[apiIdx + 1] : undefined
   const yes         = args.includes('--yes') || args.includes('-y')
-  const { schemaApply } = await import('@beechcms/cli')
+  const { schemaApply } = await import('../dist/index.js')
   await schemaApply({ manifest, apiUrl, yes })
 }
 
 async function cmdRun(args) {
-  const { run } = await import('@beechcms/cli')
+  const { run } = await import('../dist/index.js')
   await run(args)
 }
 
@@ -296,7 +275,7 @@ async function cmdAgentSetup(args) {
   const force  = args.includes('--force')
   const apiIdx = args.indexOf('--api-url')
   const apiUrl = apiIdx !== -1 ? args[apiIdx + 1] : undefined
-  const { agentSetup } = await import('@beechcms/cli')
+  const { agentSetup } = await import('../dist/index.js')
   await agentSetup({ force, apiUrl })
 }
 
@@ -321,7 +300,7 @@ async function cmdGenerateTypes(args) {
   const isTypesGenerate = command === 'types:generate'
   const destination = out ?? (isTypesGenerate ? undefined : null)
 
-  const { generateTypes } = await import('@beechcms/cli')
+  const { generateTypes } = await import('../dist/index.js')
   await generateTypes({ out: destination, local, db })
 }
 
@@ -341,7 +320,7 @@ async function cmdTypesCheck(args) {
   const dbIdx = args.indexOf('--db')
   const db = dbIdx !== -1 ? args[dbIdx + 1] : undefined
 
-  const { typesCheck } = await import('@beechcms/cli')
+  const { typesCheck } = await import('../dist/index.js')
   await typesCheck({ out, local, db })
 }
 
@@ -357,50 +336,50 @@ async function cmdForms(args) {
   const outIdx = args.indexOf('--out')
   const out = outIdx !== -1 ? args[outIdx + 1] : undefined
 
-  const { forms } = await import('@beechcms/cli')
+  const { forms } = await import('../dist/index.js')
   await forms({ framework, seed, mode, out, yes, json })
 }
 
 // New unified command wrappers:
 async function cmdDbMigrate() {
-  const { dbMigrate } = await import('@beechcms/cli')
+  const { dbMigrate } = await import('../dist/index.js')
   await dbMigrate({})
 }
 
 async function cmdDbReset() {
-  const { dbReset } = await import('@beechcms/cli')
+  const { dbReset } = await import('../dist/index.js')
   await dbReset({})
 }
 
 async function cmdDev(args) {
   const plain = args.includes('--plain')
-  const { dev } = await import('@beechcms/cli')
+  const { dev } = await import('../dist/index.js')
   await dev({ plain })
 }
 
 async function cmdDevStop() {
-  const { devStop } = await import('@beechcms/cli')
+  const { devStop } = await import('../dist/index.js')
   await devStop()
 }
 
 async function cmdDevReset() {
-  const { devReset } = await import('@beechcms/cli')
+  const { devReset } = await import('../dist/index.js')
   await devReset()
 }
 
 async function cmdDevTunnel() {
-  const { devTunnel } = await import('@beechcms/cli')
+  const { devTunnel } = await import('../dist/index.js')
   await devTunnel()
 }
 
 async function cmdMailpitClear() {
-  const { mailpitClear } = await import('@beechcms/cli')
+  const { mailpitClear } = await import('../dist/index.js')
   await mailpitClear()
 }
 
 async function cmdLogs(args) {
   const service = args[0]
-  const { logs } = await import('@beechcms/cli')
+  const { logs } = await import('../dist/index.js')
   await logs({ service })
 }
 
@@ -411,17 +390,17 @@ async function cmdTest(args) {
   const tier     = tierIdx !== -1 && args[tierIdx + 1] && !args[tierIdx + 1].startsWith('--')
     ? args[tierIdx + 1]
     : undefined
-  const { test } = await import('@beechcms/cli')
+  const { test } = await import('../dist/index.js')
   await test({ coverage, diff, tier })
 }
 
 async function cmdLint() {
-  const { lint } = await import('@beechcms/cli')
+  const { lint } = await import('../dist/index.js')
   await lint()
 }
 
 async function cmdDoctor() {
-  const { doctor } = await import('@beechcms/cli')
+  const { doctor } = await import('../dist/index.js')
   await doctor()
 }
 
@@ -429,7 +408,7 @@ async function cmdSetupCloudflare(args) {
   const yes = args.includes('--yes') || args.includes('-y')
   const nameIdx = args.indexOf('--name')
   const projectName = nameIdx !== -1 ? args[nameIdx + 1] : undefined
-  const { setupCloudflare } = await import('@beechcms/cli')
+  const { setupCloudflare } = await import('../dist/index.js')
   await setupCloudflare({ projectName, nonInteractive: yes })
 }
 

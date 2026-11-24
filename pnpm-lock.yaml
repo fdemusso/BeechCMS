@@ -47,9 +47,6 @@ importers:
 
   .:
     dependencies:
-      '@beechcms/cli':
-        specifier: workspace:^0.10.1
-        version: link:packages/cli
       '@clack/prompts':
         specifier: ^1.8.1
         version: 1.8.1

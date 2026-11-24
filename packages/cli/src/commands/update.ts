@@ -31,14 +31,14 @@ export async function update(_args: UpdateOptions): Promise<void> {
   console.log(pc.dim('\n  [2/2] Applying system migrations to local database…\n'))
   const initResult = spawnSync(
     'npx',
-    ['beech', 'init', '--db', '--local'],
+    ['beech', 'db:migrate'],
     { stdio: 'inherit', cwd: process.cwd(), shell: true }
   )
 
   if (initResult.status !== 0) {
     console.log(pc.yellow('\n  ⚠ Local DB update failed\n'))
     console.log(pc.dim('  Apply system migrations manually:'))
-    console.log(pc.cyan('  → Run: npx beech init --db --local\n'))
+    console.log(pc.cyan('  → Run: npx beech db:migrate\n'))
   } else {
     console.log(pc.green('\n  ✓ Local database updated'))
   }

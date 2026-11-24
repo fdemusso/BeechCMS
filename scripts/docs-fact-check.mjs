@@ -172,7 +172,7 @@ if (clientRoot && clientBrowser && clientServer && clientRichtext) {
 // -------------------------------------------------------------
 header('3. Fact-Checking CLI Command Matrix vs docs/build/cli-workflows.md')
 
-const cliMjsPath = resolve(ROOT_DIR, 'bin/cli.mjs')
+const cliMjsPath = resolve(ROOT_DIR, 'packages/cli/bin/beech.mjs')
 const cliDocsPath = resolve(DOCS_DIR, 'build/cli-workflows.md')
 
 if (existsSync(cliMjsPath) && existsSync(cliDocsPath)) {
@@ -222,14 +222,14 @@ if (existsSync(cliMjsPath) && existsSync(cliDocsPath)) {
         }
       } else {
         if (!docsContent.includes(`beech ${cmd}`)) {
-          error(`CLI command "beech ${cmd}" is registered in bin/cli.mjs but missing from cli-workflows.md`)
+          error(`CLI command "beech ${cmd}" is registered in packages/cli/bin/beech.mjs but missing from cli-workflows.md`)
           missingDocs++
         }
       }
     }
 
     if (missingDocs === 0) {
-      success(`All ${registeredCommands.length} CLI command aliases in bin/cli.mjs are documented in cli-workflows.md.`)
+      success(`All ${registeredCommands.length} CLI command aliases in packages/cli/bin/beech.mjs are documented in cli-workflows.md.`)
     }
   }
 }

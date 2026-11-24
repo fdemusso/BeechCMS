@@ -41,13 +41,13 @@ export function createWorkspace(repoRoot: string, variant: EvalVariant, _taskId:
       name: 'eval-site',
       private: true,
       type: 'module',
-      scripts: { beech: `node ${join(repoRoot, 'bin/cli.mjs')}` },
+      scripts: { beech: `node ${join(repoRoot, 'packages/cli/bin/beech.mjs')}` },
       // Declared so `agent setup` leaves package.json unchanged.
       devDependencies: { '@beechcms/cli': 'workspace' },
     }, null, 2))
     mkdirSync(join(dir, 'node_modules/@beechcms'), { recursive: true })
     symlinkSync(join(repoRoot, 'packages/cli'), join(dir, 'node_modules/@beechcms/cli'), 'dir')
-    execFileSync('node', [join(repoRoot, 'bin/cli.mjs'), 'agent', 'setup', '--api-url', EVAL_API_URL], { cwd: dir, stdio: 'pipe' })
+    execFileSync('node', [join(repoRoot, 'packages/cli/bin/beech.mjs'), 'agent', 'setup', '--api-url', EVAL_API_URL], { cwd: dir, stdio: 'pipe' })
     copyFileSync(join(repoRoot, 'packages/mcp/SKILL.md'), systemPromptFile)
   }
 

@@ -56,7 +56,7 @@ Apply the base system schema (`seeds`, `users`, `sessions`, `api_keys`, `media`)
 
 ```bash
 npm run db:migrate:local
-# or via CLI: npx beech init --db
+# or via CLI: npx beech db:migrate
 ```
 
 ### Launch the dev server

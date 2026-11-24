@@ -102,6 +102,6 @@ export async function deploy(args: DeployOptions): Promise<void> {
     const statusStr = status != null ? ` (HTTP ${status})` : ''
     console.log(pc.yellow(`  ⚠ Admin returned an error${statusStr} at: ${adminBase}/admin\n`))
     console.log(pc.dim('  The database may not be fully initialized.'))
-    console.log(pc.cyan('  → Run: npx beech init --db --remote\n'))
+    console.log(pc.cyan('  → Run: npx wrangler d1 migrations apply <your-db> --remote\n'))
   }
 }

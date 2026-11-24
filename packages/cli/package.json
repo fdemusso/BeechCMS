@@ -2,7 +2,11 @@
   "name": "@beechcms/cli",
   "version": "0.10.1",
   "type": "module",
+  "bin": {
+    "beech": "./bin/beech.mjs"
+  },
   "files": [
+    "bin",
     "dist",
     "!dist/.tsbuildinfo"
   ],

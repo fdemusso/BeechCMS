@@ -18,9 +18,8 @@ Commands are categorized by operational scope:
 | Command | Scope | Description | Options & Aliases |
 | :--- | :--- | :--- | :--- |
 | `npx @beechcms/cms` | Consumer | Interactive scaffolding wizard for new edge projects. | `--yes` (non-interactive starter) |
-| `npx beech init` | Consumer | Verifies project config (`worker.ts`, `wrangler.jsonc`). | `--db` (applies tables), `--remote`, `--db-name <n>`, `--yes` |
-| `npx beech onboard` | Consumer | One-step project verification and D1 readiness check. | `--remote`, `--db <name>`, `--yes` |
-| `npx beech db:migrate` | Consumer | Applies local D1 database migrations. | Runs `npm run db:migrate:local` or `beech init --db` |
+| `npx beech init` | Consumer | Verifies project config (`worker.ts`, `wrangler.jsonc`, `.dev.vars`). Does not touch the database. | `--remote` |
+| `npx beech db:migrate` | Consumer | Applies local D1 database migrations. | Runs the project's `npm run db:migrate:local` script |
 | `npx beech db:reset` | Consumer | Clears local Wrangler state and re-bootstraps fresh database. | Runs `npm run db:reset:local` or purges `.wrangler/state` |
 | `npx beech reset` | Monorepo | Comprehensive environment reset. | `--db`, `--docker`, `--all`, `--yes` |
 | `npx beech types generate` (`beech types:generate`) | Consumer | Generates `beech.generated.ts` (`SeedRegistryTypes` + `SCHEMA_FINGERPRINT`) from live D1. | `--remote`, `-o`/`--output <file>`, `--db <name>` (aliases: `beech gen types typescript`, `beech gen-types`, `beech gen:types`, `beech generate:types` — these print to stdout by default) |
@@ -70,10 +69,10 @@ cd my-app
 npm install
 ```
 
-Verify your project setup and apply initial system tables:
+Verify your project setup:
 
 ```bash
-npx beech onboard
+npx beech init
 ```
 
 ### 2. Database Migrations

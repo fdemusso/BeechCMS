@@ -57,7 +57,7 @@ function buildPackageJson(name) {
       '@beechcms/core': version,
     },
     devDependencies: {
-      '@beechcms/cms': version,
+      '@beechcms/cli': version,
       '@cloudflare/workers-types': '^4.0.0',
       wrangler: '^4.0.0',
       typescript: '^5.0.0',
