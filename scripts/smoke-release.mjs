@@ -289,6 +289,12 @@ async function main() {
       }
     })
 
+    // A first run with the defaults must not print a storage warning: there is nothing for the user to fix.
+    if (/NullBucket|MEDIA_BUCKET is bound|Storage is not configured/.test(output)) {
+      fail(`The dev server warned about storage on a default project:
+${output.slice(-2000)}`)
+    }
+
     await timed('dashboard is served', async () => {
       const admin = await fetch(`${origin}/admin/`)
       const html = await admin.text()

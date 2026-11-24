@@ -284,7 +284,7 @@
       "allDone": "Proyecto listo: todos los pasos de configuración completados",
       "systemTables": {
         "label": "Base de datos inicializada",
-        "hint": "Ejecuta: npx beech init --db --local"
+        "hint": "Ejecuta: npm run db:migrate:local"
       },
       "seeds": "{{count}} tipo(s) de contenido activo(s)",
       "seedsNone": "No hay tipos de contenido configurados en la base de datos",

@@ -11,8 +11,7 @@ All commands are unified under the `pnpm beech` CLI.
 - `pnpm beech dev:tunnel`      : Prints Cloudflare Quick Tunnel URL
 - `pnpm beech mailpit:clear`   : Clears Mailpit inbox
 - `pnpm beech logs <service>`   : Streams logs for docker services: `mailpit`, `db`, `tunnel`, `storage`
-- `pnpm beech onboard --yes`    : Fully automated local provisioning (init --db)
-- `pnpm beech init --db`        : Initialises database locally
+- `pnpm beech init`            : Checks the project files (worker.ts, wrangler.jsonc, .dev.vars); does not touch the database
 - `pnpm beech db:migrate`      : Applies D1 schema migrations locally
 - `pnpm beech db:reset`        : Removes Wrangler local state and boots DB from scratch
 - `pnpm beech gen-types`       : Generates TypeScript interfaces from active D1 database

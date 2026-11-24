@@ -12,7 +12,7 @@ JWT_SECRET=sviluppo-secret-cambiami-almeno-32-byte-per-sicurezza-hono
 # =============================================================================
 # Privacy — PRIVACY_MASTER_KEY (64 caratteri hex = 32 byte). Cifra/hasha i campi protetti.
 # Senza chiave le liste/scritture su seed con campi protetti falliscono (fail-closed).
-# `pnpm beech dev` e `pnpm beech onboard` la generano se assente o vuota.
+# `pnpm beech dev` e `pnpm beech init` la generano se assente o vuota.
 # Manuale: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 # NON cambiarla dopo aver salvato dati: i campi esistenti diventano illeggibili.
 # In prod: wrangler secret put PRIVACY_MASTER_KEY

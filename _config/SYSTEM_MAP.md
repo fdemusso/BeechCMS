@@ -129,7 +129,7 @@ BeechCMS/
   - Automation CRUD routes (`/api/automations`, `/api/automations/:id`, `/api/automations/:id/toggle`).
 - **Key integrations**
   - Imports types and functions from `@beechcms/core` (`getSeed`, Botanical Engine).
-  - Uses Cloudflare D1 for persistence (schema hydrated dynamically at runtime from the `seeds` table; initialized via `beech init --db` or `beech onboard`).
+  - Uses Cloudflare D1 for persistence (schema hydrated dynamically at runtime from the `seeds` table; its system tables are created by the D1 migrations in `apps/api/migrations` (`npm run dev` applies them in a scaffolded project, `pnpm beech db:migrate` in the monorepo)).
   - Uses Cloudflare R2 for binary files.
 
 ### `apps/dashboard` – Schema-driven React Dashboard

@@ -183,7 +183,7 @@ export class R2BucketAdapter implements BeechBucket {
       res: new Response(
         JSON.stringify({
           error: 'presigned_urls_require_s3_credentials',
-          message: 'Direct client upload via Presigned URLs requires Cloudflare R2 S3 API credentials. Native R2Bucket bindings cannot generate cryptographic SigV4 signatures. Please configure R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, and R2_BUCKET_NAME via .dev.vars (dev) or `wrangler secret put` (production). Guide: https://developers.cloudflare.com/r2/api/s3/tokens/',
+          message: 'Direct client upload via Presigned URLs requires Cloudflare R2 S3 API credentials (the dashboard then uploads through the Worker, which needs no credentials outside production). Native R2Bucket bindings cannot generate cryptographic SigV4 signatures. Please configure R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, and R2_BUCKET_NAME via .dev.vars (dev) or `wrangler secret put` (production). Guide: https://developers.cloudflare.com/r2/api/s3/tokens/',
         }),
         {
           status: 501,
