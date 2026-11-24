@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { resolve } from 'node:path'
-import { loadCpuSlot } from '../lib/cpu-slot.js'
+import { loadCpuSlot } from '../../commands/cpu-slot.js'
 
 describe('loadCpuSlot', () => {
   it('loads the repo slot module with the members the CLI relies on', async () => {

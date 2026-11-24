@@ -2,11 +2,16 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { logs } from '../commands/logs.js'
+import { dev } from '../../commands/dev.js'
 import { spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 
 vi.mock('node:child_process', () => ({
   spawnSync: vi.fn(() => ({ status: 0 })),
+}))
+
+vi.mock('node:fs', () => ({
+  existsSync: vi.fn(),
 }))
 
 vi.mock('picocolors', () => ({
@@ -19,35 +24,46 @@ vi.mock('picocolors', () => ({
   },
 }))
 
-describe('logs command', () => {
+describe('dev command', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(spawnSync).mockImplementation(() => ({ status: 0 } as any))
   })
 
-  it('runs docker compose logs -f for valid service', async () => {
-    await logs({ service: 'mailpit' })
+  it('runs scripts/dev.mjs when it exists', async () => {
+    vi.mocked(existsSync).mockReturnValue(true)
+
+    await dev({})
     expect(spawnSync).toHaveBeenCalledWith(
-      'docker',
-      ['compose', '-f', 'docker/docker-compose.yml', 'logs', '-f', 'mailpit'],
-      expect.any(Object)
+      'node',
+      [expect.stringContaining('scripts/dev.mjs')],
+      expect.objectContaining({
+        env: expect.any(Object),
+      })
     )
   })
 
-  it('handles db and sqlite inputs as sqlite-web service', async () => {
-    await logs({ service: 'sqlite' })
+  it('sets BEECH_DEV_PLAIN when plain option is true', async () => {
+    vi.mocked(existsSync).mockReturnValue(true)
+
+    await dev({ plain: true })
     expect(spawnSync).toHaveBeenCalledWith(
-      'docker',
-      ['compose', '-f', 'docker/docker-compose.yml', 'logs', '-f', 'sqlite-web'],
-      expect.any(Object)
+      'node',
+      [expect.stringContaining('scripts/dev.mjs')],
+      expect.objectContaining({
+        env: expect.objectContaining({
+          BEECH_DEV_PLAIN: '1',
+        }),
+      })
     )
   })
 
-  it('fails and exits when an invalid service is passed', async () => {
+  it('fails and exits when scripts/dev.mjs does not exist', async () => {
+    vi.mocked(existsSync).mockReturnValue(false)
     const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
     try {
-      await logs({ service: 'invalid' })
+      await dev({})
       expect(spawnSync).not.toHaveBeenCalled()
       expect(mockExit).toHaveBeenCalledWith(1)
     } finally {

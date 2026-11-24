@@ -159,11 +159,6 @@ export function findWranglerConfig(): string | null {
   return null
 }
 
-/** Wraps a string value in single quotes, escaping internal single quotes for SQL literals. */
-export function sqlQuote(value: string): string {
-  return `'${value.replace(/'/g, "''")}'`
-}
-
 /**
  * Strips JSONC comments and trailing commas without touching string literals, so a value such as
  * `"APP_URL": "http://localhost:5173"` survives intact.

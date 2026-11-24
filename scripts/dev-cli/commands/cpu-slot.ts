@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-/** Surface of scripts/lib/cpu-slot.mjs used by the CLI. */
+/** Surface of scripts/lib/cpu-slot.mjs used by `beech test`. */
 export interface CpuSlotModule {
   acquireCpuSlot(options: { exclusive: boolean; label: string }): Promise<() => void>
   releaseOnExit(release: () => void): void
@@ -14,7 +14,7 @@ export interface CpuSlotModule {
 
 /**
  * Machine-wide CPU slot shared by every worktree. The policy lives in scripts/lib/cpu-slot.mjs;
- * this bundled package loads it from the repo at runtime and returns null outside the monorepo.
+ * it is loaded at runtime; null when the file is absent.
  */
 export async function loadCpuSlot(cwd: string): Promise<CpuSlotModule | null> {
   const modulePath = resolve(cwd, 'scripts', 'lib', 'cpu-slot.mjs')

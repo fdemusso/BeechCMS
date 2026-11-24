@@ -15,13 +15,15 @@ Commands are categorized by operational scope:
 
 ## Comprehensive Command Matrix
 
+Commands marked **Monorepo** drive this repository's own tooling (Docker stack, Turborepo, test tiers). They run through `pnpm beech` from a clone of the repository and are not part of the published `@beechcms/cli`.
+
 | Command | Scope | Description | Options & Aliases |
 | :--- | :--- | :--- | :--- |
 | `npx @beechcms/cms` | Consumer | Interactive scaffolding wizard for new edge projects. | `--yes` (non-interactive starter) |
 | `npx beech init` | Consumer | Verifies project config (`worker.ts`, `wrangler.jsonc`, `.dev.vars`). Does not touch the database. | `--remote` |
 | `npx beech db:migrate` | Consumer | Applies local D1 database migrations. | Runs the project's `npm run db:migrate:local` script |
 | `npx beech db:reset` | Consumer | Clears local Wrangler state and re-bootstraps fresh database. | Runs `npm run db:reset:local` or purges `.wrangler/state` |
-| `npx beech reset` | Monorepo | Comprehensive environment reset. | `--db`, `--docker`, `--all`, `--yes` |
+| `pnpm beech reset` | Monorepo | Comprehensive environment reset. | `--db`, `--docker`, `--all`, `--yes` |
 | `npx beech types generate` (`beech types:generate`) | Consumer | Generates `beech.generated.ts` (`SeedRegistryTypes` + `SCHEMA_FINGERPRINT`) from live D1. | `--remote`, `-o`/`--output <file>`, `--db <name>` (aliases: `beech gen types typescript`, `beech gen-types`, `beech gen:types`, `beech generate:types` — these print to stdout by default) |
 | `npx beech types check` (`beech types:check`) | Consumer | Diffs the committed generated types against live D1 in memory. Writes nothing. Exits 1 when the file is missing or stale. | `--remote`, `-o`/`--output <file>`, `--db <name>` |
 | `npx beech schema export` (`beech schema:export`) | Consumer | Writes `beech.schema.ts` — a reviewable snapshot of the live D1 schema. | `--out <file>`, `--stdout`, `--remote`, `--db <name>` |
@@ -35,21 +37,17 @@ Commands are categorized by operational scope:
 | `npx beech forms` | Consumer | Interactive wizard generating React, Vue, Svelte, or Web Component forms. | `--seed <slug>`, `--framework <name>`, `--mode <create\|edit>`, `--out <path>`, `--yes`, `--json` (aliases: `form`, `forms:add`) |
 | `npx beech setup:cloudflare` | Consumer | 1-step Cloudflare edge provisioning (D1, R2, S3 secrets). | `--name <name>`, `--yes` (alias: `setup:cf`) |
 | `npx beech deploy` | Consumer | Deploys Worker and embedded admin dashboard to Cloudflare. | `--skip-check`, `--skip-seed` |
-| `npx beech build` | Consumer | Informational check confirming BeechCMS requires no static build step. | None |
 | `npx beech update` | Consumer | Upgrades core engine packages and applies system migrations. | None |
-| `npx beech doctor` | Consumer | Runs health checks and React diagnostics on the Dashboard. | None |
-| `npx beech validate` | Consumer | Confirms active runtime schema validation on `/api/seeds`. | None |
-| `npx beech dev` | Monorepo | Starts local contributor environment (Docker + API + Dashboard). | `--plain` (headless non-TUI), alias `start` |
-| `npx beech dev:stop` | Monorepo | Gracefully stops local monorepo Docker containers. | None |
-| `npx beech dev:reset` | Monorepo | Stops local Docker containers and purges volumes (`docker compose down -v`). | None |
-| `npx beech dev:tunnel` | Monorepo | Displays active Cloudflare quick tunnel public URL from container logs. | None |
-| `npx beech mailpit:clear` | Monorepo | Clears local Mailpit development inbox. | None |
-| `npx beech logs <service>` | Monorepo | Streams logs from Docker services. | Services: `mailpit`, `sqlite` (`db`), `tunnel`, `minio` (`storage`) |
+| `pnpm beech doctor` | Monorepo | Runs health checks and React diagnostics on the Dashboard. | None |
+| `pnpm beech dev` | Monorepo | Starts local contributor environment (Docker + API + Dashboard). | `--plain` (headless non-TUI), alias `start` |
+| `pnpm beech dev:stop` | Monorepo | Gracefully stops local monorepo Docker containers. | None |
+| `pnpm beech dev:reset` | Monorepo | Stops local Docker containers and purges volumes (`docker compose down -v`). | None |
+| `pnpm beech dev:tunnel` | Monorepo | Displays active Cloudflare quick tunnel public URL from container logs. | None |
+| `pnpm beech mailpit:clear` | Monorepo | Clears local Mailpit development inbox. | None |
+| `pnpm beech logs <service>` | Monorepo | Streams logs from Docker services. | Services: `mailpit`, `sqlite` (`db`), `tunnel`, `minio` (`storage`) |
 | `npx beech schema diff` (`beech schema:diff`) | Consumer | Reports manifest-vs-deployed drift and definition-vs-physical-table drift. Exits 1 on drift. | `--manifest <file>`, `--remote`, `--db <name>` |
-| `npx beech seed:load` | **Deprecated** | Prints a deprecation notice and exits. Static `seeds.ts` files are no longer synchronized to the database. | Flags accepted but ignored |
-| `npx beech seed:create` | **Deprecated** | Prints a deprecation notice and exits. Create content types in the dashboard (`/admin`) or via `POST /api/seeds`. | Flags accepted but ignored |
-| `npx beech test` | Monorepo | Executes Turborepo test runner. | `--coverage`, `--diff`, `--tier <unit\|flow\|integration\|e2e>` |
-| `npx beech lint` | Monorepo | Executes project linter checks via Turborepo. | None |
+| `pnpm beech test` | Monorepo | Executes Turborepo test runner. | `--coverage`, `--diff`, `--tier <unit\|flow\|integration\|e2e>` |
+| `pnpm beech lint` | Monorepo | Executes project linter checks via Turborepo. | None |
 
 ---
 
@@ -284,7 +282,7 @@ If another writer saved in between, the call fails with `BeechSdkError` status `
 
 ## Monorepo Contributor Infrastructure
 
-For developers working directly on the BeechCMS monorepo, `npx beech dev` orchestrates local Docker services:
+For developers working directly on the BeechCMS monorepo, `pnpm beech dev` orchestrates local Docker services:
 
 ### Docker Infrastructure Services
 
@@ -298,7 +296,7 @@ For developers working directly on the BeechCMS monorepo, `npx beech dev` orches
 
 ### Interactive TUI Dashboard
 
-When executing `npx beech dev`, an interactive Ink terminal interface is launched:
+When executing `pnpm beech dev`, an interactive Ink terminal interface is launched:
 
 - Press `1`: **Status** overview of all background services.
 - Press `2`: **API Logs** from the Hono Worker.

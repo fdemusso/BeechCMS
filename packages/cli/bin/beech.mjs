@@ -5,7 +5,7 @@ import pc from 'picocolors'
 
 let [,, command, ...args] = process.argv
 
-if (command && args[0] && !args[0].startsWith('-') && ['db', 'seed', 'schema', 'types', 'dev', 'generate', 'mailpit', 'agent'].includes(command)) {
+if (command && args[0] && !args[0].startsWith('-') && ['db', 'schema', 'types', 'generate', 'agent'].includes(command)) {
   command = `${command}:${args.shift()}`
 }
 
@@ -18,9 +18,6 @@ if (command === 'gen' && args[0] === 'types') {
 }
 
 const COMMANDS = {
-  build:            cmdBuild,
-  'seed:load':      cmdSeedLoad,
-  'seed:create':    cmdSeedCreate,
   'schema:diff':    cmdSchemaDiff,
   'schema:audit':   cmdSchemaAudit,
   'schema:migrate': cmdSchemaMigrate,
@@ -30,10 +27,8 @@ const COMMANDS = {
   'types:generate': cmdGenerateTypes,
   'types:check':    cmdTypesCheck,
   'init':           cmdInit,
-  'validate':       cmdValidate,
   'deploy':         cmdDeploy,
   'update':         cmdUpdate,
-  'reset':          cmdReset,
   'forms':          cmdForms,
   'form':           cmdForms,
   'forms:add':      cmdForms,
@@ -43,16 +38,6 @@ const COMMANDS = {
   // New unified command mappings:
   'db:migrate':     cmdDbMigrate,
   'db:reset':       cmdDbReset,
-  'dev':            cmdDev,
-  'start':          cmdDev,
-  'dev:stop':       cmdDevStop,
-  'dev:reset':      cmdDevReset,
-  'dev:tunnel':     cmdDevTunnel,
-  'mailpit:clear':  cmdMailpitClear,
-  'logs':           cmdLogs,
-  'test':           cmdTest,
-  'lint':           cmdLint,
-  'doctor':         cmdDoctor,
   'setup:cloudflare': cmdSetupCloudflare,
   'setup:cf':         cmdSetupCloudflare,
   'run':              cmdRun,
@@ -106,7 +91,6 @@ function help() {
       --api-url <url> API origin
       -y, --yes       Skip the confirmation prompt
       Additive only. Authorizes in the browser on first use.
-    ${pc.cyan('validate')}        Validate runtime schema status
 
   ${pc.bold('4. Forms & Frontend Generation')}
     ${pc.cyan('forms / form')}    Interactive wizard to generate React, Vue, Svelte, or Web Component forms
@@ -115,33 +99,15 @@ function help() {
       --mode <mode>   styled (Tailwind) or headless
       --yes, -y       Skip interactive prompts
 
-  ${pc.bold('5. Local Stack & Docker')}
-    ${pc.cyan('dev / start')}     Start the local dev environment (Docker + API + Dashboard)
-      --plain         Avoid Ink visual TUI and run clean log streaming
-    ${pc.cyan('dev:stop')}        Stop Docker containers without wiping data
-    ${pc.cyan('dev:reset')}       Stop Docker containers and remove all persistent volumes
-    ${pc.cyan('dev:tunnel')}      Display Cloudflare tunnel public testing URL
-    ${pc.cyan('mailpit:clear')}   Clear local test inbox in Mailpit
-
-  ${pc.bold('6. Logs Streaming')}
-    ${pc.cyan('logs <service>')}   Show streaming logs for docker service: mailpit, db, tunnel, storage
-
-  ${pc.bold('7. Quality & Deployment')}
-    ${pc.cyan('test')}            Run the test suite via Turborepo / Vitest
-      --coverage      Generate coverage reports
-      --diff          Run test coverage only for files modified on the branch
-      --tier <list>   Run one or more tiers: unit, flow, integration, e2e (comma-separated)
-                      e2e is Playwright-driven and is never selected by --diff
-    ${pc.cyan('lint')}            Run ESLint quality checks
+  ${pc.bold('5. Cloudflare & Deployment')}
     ${pc.cyan('setup:cloudflare')} (alias: ${pc.cyan('setup:cf')})
       Interactive 1-step Cloudflare provisioning (D1, R2, Presigned S3 secrets)
       --name <n>      Project name override
       --yes, -y       Non-interactive mode
     ${pc.cyan('deploy')}          Compile, test, deploy to Cloudflare environment
       --skip-check    Skip /admin reachability check
-    ${pc.cyan('doctor')}          Execute React diagnostics check on Dashboard
 
-  ${pc.bold('8. Agent Scripts')}
+  ${pc.bold('6. Agent Scripts')}
     ${pc.cyan('run <name|path>')} Run a .beech/scripts/<name>.ts script through the typed SDK
       --arg <k=v>     Pass a string argument to the script (repeatable)
       --dry-run       Record writes without sending them
@@ -154,33 +120,11 @@ function help() {
 `)
 }
 
-function cmdBuild() {
-  console.log(
-    '\nNo build step needed for BeechCMS projects.\n' +
-    'Manage content types dynamically in the BeechCMS Dashboard at /admin.\n'
-  )
-}
-
 async function cmdInit(args) {
   const remote = args.includes('--remote')
 
   const { init } = await import('../dist/index.js')
   await init({ local: !remote })
-}
-
-async function cmdSeedLoad() {
-  const { seedLoad } = await import('../dist/index.js')
-  await seedLoad({})
-}
-
-async function cmdValidate() {
-  const { validate } = await import('../dist/index.js')
-  await validate({})
-}
-
-async function cmdSeedCreate() {
-  const { seedCreate } = await import('../dist/index.js')
-  await seedCreate({})
 }
 
 async function cmdDeploy(args) {
@@ -193,16 +137,6 @@ async function cmdDeploy(args) {
 async function cmdUpdate() {
   const { update } = await import('../dist/index.js')
   await update({})
-}
-
-async function cmdReset(args) {
-  const db     = args.includes('--db')
-  const docker = args.includes('--docker')
-  const all    = args.includes('--all')
-  const yes    = args.includes('--yes') || args.includes('-y')
-
-  const { reset } = await import('../dist/index.js')
-  await reset({ db, docker, all, yes })
 }
 
 async function cmdSchemaDiff(args) {
@@ -349,59 +283,6 @@ async function cmdDbMigrate() {
 async function cmdDbReset() {
   const { dbReset } = await import('../dist/index.js')
   await dbReset({})
-}
-
-async function cmdDev(args) {
-  const plain = args.includes('--plain')
-  const { dev } = await import('../dist/index.js')
-  await dev({ plain })
-}
-
-async function cmdDevStop() {
-  const { devStop } = await import('../dist/index.js')
-  await devStop()
-}
-
-async function cmdDevReset() {
-  const { devReset } = await import('../dist/index.js')
-  await devReset()
-}
-
-async function cmdDevTunnel() {
-  const { devTunnel } = await import('../dist/index.js')
-  await devTunnel()
-}
-
-async function cmdMailpitClear() {
-  const { mailpitClear } = await import('../dist/index.js')
-  await mailpitClear()
-}
-
-async function cmdLogs(args) {
-  const service = args[0]
-  const { logs } = await import('../dist/index.js')
-  await logs({ service })
-}
-
-async function cmdTest(args) {
-  const coverage = args.includes('--coverage')
-  const diff     = args.includes('--diff')
-  const tierIdx  = args.indexOf('--tier')
-  const tier     = tierIdx !== -1 && args[tierIdx + 1] && !args[tierIdx + 1].startsWith('--')
-    ? args[tierIdx + 1]
-    : undefined
-  const { test } = await import('../dist/index.js')
-  await test({ coverage, diff, tier })
-}
-
-async function cmdLint() {
-  const { lint } = await import('../dist/index.js')
-  await lint()
-}
-
-async function cmdDoctor() {
-  const { doctor } = await import('../dist/index.js')
-  await doctor()
 }
 
 async function cmdSetupCloudflare(args) {
