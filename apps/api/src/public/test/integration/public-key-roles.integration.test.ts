@@ -106,8 +106,9 @@ describe('public slice — key roles (real D1)', () => {
       expect(response.status).toBe(403)
       const body = await response.json<Problem>()
       expect(body.type).toBe(`${PROBLEM_BASE}operation-not-allowed`)
-      const row = await harness.db.prepare('SELECT COUNT(*) AS n FROM content_categories').first<{ n: number }>()
-      expect(row?.n).toBe(0)
+      const listed = await publishableClient.get('/api/v1/public/categories')
+      const listedBody = await listed.json<PublicList>()
+      expect(listedBody.meta.total).toBe(0)
     })
 
     it('ENV production refuses the dev secret key with 403 dev-secret-key and nothing is written', async () => {

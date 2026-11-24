@@ -1,50 +1,64 @@
 # Verdict
-PASS
+REWORK_CODE
 
 # Findings
 
-No blocking findings. Non-blocking notes:
+This is the complete list from a full audit of the working tree (runtime diff, every test file in the diff, client SDK, config, out-of-diff consumers). Blocking items are 1 and 2. Fix them in one pass.
 
-1. `pnpm beech test --diff` exited 1 on my run, unlike the execution log ("PASS: every selected test run passed"). Two `apps/api` unit tests failed in the `related` batch: `src/features/rbac/assignments.test.ts` ("a seed-scoped manage_users holder cannot create an assignment at GLOBAL_SCOPE") and `src/features/rbac/invitations.test.ts` ("refuses inviting an email that already has an account"). Both files are outside this sprint's diff, and both pass in isolation (13/13). The batch took ~69s wall and ~129s of test time, so these look like load-dependent flakes (not proven). Treat the executor's "all pass" claim as unreliable. Human decides whether to re-run before merge.
-2. Coverage gate also fails (13 / 45 files below threshold or untested). The files listed are the agent-intents API files outside the diff (known caveat from sprints 07-08: `devs` lacks sprints 05-08). Not this sprint's code.
-3. `docs/reference/mcp-server.md` Danger Zone paragraph lists five destructive seed ops but omits `seeds.orphanDrop` (also `destructive`, `catalog.ts:167`). Not a violation: the plan's table is not exhaustive and nothing claims destructive ops are impossible.
-4. `packages/mcp/README.md` links docs via relative repo paths (`../../docs/...`). They break on the npm page. The plan allowed this fallback.
-5. The plan's "commit the generated `packages/mcp/resources/**`" does not apply: the directory is gitignored (`packages/mcp/.gitignore`). Build still regenerates it and `manifest.json` contains `local-agent.md`.
-6. Nothing is committed. `git diff devs...HEAD` is polluted by sprints 05-08 (141 files), so I reviewed the working tree against `HEAD` (`e374bcb8`), which is exactly this sprint's change.
+**Blocking**
+
+1. **Rule 1.2 MUST: `scripts/dev-cli/__tests__/dev-secret-key.test.ts:1` has no SPDX header.** The file opens with `import fs from 'node:fs'`. Add the three-line BUSL-1.1 header from `_config/testing_conventions.md` Rule 1.2. `pnpm lint:tests` checks placement only, so it does not catch this. The sibling dev-cli tests lack the header too, but §8 makes a MUST violation blocking and the plan does not exempt `scripts/`.
+2. **§7.4 forbidden (conditional assertion): `apps/api/src/public/middleware/api-key-middleware.test.ts:67-68`.** The method matrix asserts `toBe(readMethods.has(method) ? 200 : 403)` and then guards the problem-type check with `if (!readMethods.has(method)) { ... }`. The branch means the test decides what to expect at run time. Expected: drive the matrix from two arrays (read methods → publishable 200; write methods → publishable 403 `public-api-secret-key-required`), or split it into two `it()` blocks, so no assertion sits behind an `if`. The secret key passing all six methods stays as it is.
+
+**Non-blocking (fix in the same pass if cheap)**
+
+3. `scripts/dev-cli/__tests__/dev-secret-key.test.ts`: uses a real temp directory (Rule 0.2 reserves the filesystem for the integration tier; `scripts/dev-cli` has no such tier) and carries no comment saying why. Add a one-line comment, or accept it as a deliberate exception. The model `ensurePrivacyMasterKey` has no test at all.
+4. `public-key-roles.integration.test.ts:109`: `SELECT COUNT(*) AS n FROM content_categories` names a physical table. The assertion is correct. An HTTP read of `/api/v1/public/categories` with the publishable key (categories has `allowPublicRead`) would match the plan's "read state back through the HTTP surface". The executor skipped this on purpose.
+5. `scripts/check-design-tokens.mjs`: drops an unused `path` import. It is outside the plan's deliverables and SECTION 7. The user approved it. Keep it, or move it to its own commit.
+6. **Plan gap, not an executor defect:** `packages/forms-react/src/examples/ClientiTestPage.tsx:19` still defaults to `'dev-public-write-key-changeme'`, and `packages/forms-react/src/test/clienti-form-e2e.test.tsx:202` passes the same value. The key no longer exists in `wrangler.jsonc`, so the example page would get 401 against the monorepo dev API. The e2e test uses a mocked fetch and still passes. The plan's census and the closing greps skip `packages/forms-react`, and SECTION 7 does not mention it. Decide: replace the value with `beech_sk_dev` now (two lines), or add `forms-react` to the scaffolder sprint (02). It does not justify REWORK_PLAN on its own.
+7. **Open check:** the manual `curl` run from SECTION 5 was not run by the executor or by me. Integration tests cover the same three cases (publishable GET 200, publishable POST 403, secret POST 201). Run it once after `pnpm beech dev` before the merge, or accept the integration coverage.
+8. **Pre-existing, not this sprint:** `scripts/dev-cli/__tests__/endpoints.test.ts` ("parses real routes from apps/api/src/factory.ts") fails. I confirmed that the sprint touches neither `factory.ts` nor `scripts/dev-cli/endpoints.ts`. Leave it, but do not read it as green when you run `vitest run scripts/dev-cli`.
+9. **Housekeeping:** the rework is uncommitted. Commit it with the fixes for 1 and 2. Until then `git diff devs...HEAD` still contains the unparseable `orchestrator.ts` from commit `3ad0b738`.
+
+Resolved since the first review: the `orchestrator.ts` parse error (`ensureDevSecretKey()` now uses `?
+` and `'
+'`, with 4 passing tests) and the `.js` extension on the `rate-limit-middleware.ts` import.
 
 # Verification Evidence
 
-Commands run by me (repo root unless noted):
+Branch `feature/key-role-runtime`: one commit, `3ad0b738`, ahead of `devs`. The working tree also holds the rework: `orchestrator.ts` and `rate-limit-middleware.ts` modified, `dev-secret-key.test.ts` untracked. I reviewed the working tree, not only the commit.
 
-- `pnpm --filter @beechcms/mcp type-check` → `tsc --noEmit`, clean.
-- `pnpm --filter @beechcms/mcp test` → 9 files, 63 tests passed.
-- `pnpm --filter @beechcms/mcp build` → `bundle-resources: wrote 860 resources`, `dist/index.js 59.5kb`.
-- `grep -c "local-agent.md" packages/mcp/resources/manifest.json` → `2`.
-- `pnpm docs:check` → checks 1-5 pass; `✓ All 13 MCP tools are documented; no unknown beech_* tool names in MCP docs.`
-- Negative check (file backed up in scratchpad, restored after): renamed `` `beech_whoami` `` → `` `beech_whoamii` `` in `mcp-server.md` → `pnpm docs:check` printed exactly 2 errors (one forward, one reverse) and `FAILED`; after restore `docs:check` exit 0, `grep -c whoamii` → 0.
-- `pnpm lint` → 19/19 tasks successful (turbo cache hit, exit 0).
-- `pnpm beech test --diff` → exit 1; see Finding 1. Rerun of the two failing files: `pnpm exec vitest run src/features/rbac/assignments.test.ts src/features/rbac/invitations.test.ts` (in `apps/api`) → 13/13 passed.
-- `graphify update .` not re-run (graph refresh, no verdict impact).
+Commands I ran (repo root), all this session:
 
-Code review (read the full diff of `packages/mcp/src`, `scripts/docs-fact-check.mjs`):
-- `mapElicitResult` / `ElicitAnswer` match the plan's building blocks. Logic: decline → decline; non-accept → cancel; accept with decision exactly `approve`/`reject` → accept; else cancel. `index.ts` `elicitDecision()` returns `mapElicitResult(result)`; capability check, timeout and `does not support` catch remain there.
-- `agent-tools.ts` has one import (`./constants.js`) and no SDK import. No `any`. SPDX headers intact.
-- Check 5 follows the plan: reads names via the specified regex, errors on zero names, forward check on backticked names in `mcp-server.md`, reverse check on the three files, missing file is an error, count computed.
-- Test audit (§8): one tier (unit), SPDX present, 7 `mapElicitResult` tests with plan names, `toEqual` on full outcome, inline literals for a pure function (sprint-08-allowed exception), no weak or conditional assertions, no `beforeEach` dependence. Misnamed test renamed to `a cancelled dialog sends no decision request`. No MUST violations.
+- `pnpm --filter @beechcms/client type-check` → exit 0 (includes `*.test.ts`, so the `@ts-expect-error` directives hold).
+- `pnpm --filter @beechcms/client test` → 130 passed. `... build` → exit 0.
+- `pnpm --filter @beechcms/testing type-check` and `build` → exit 0.
+- `pnpm --filter @beechcms/api type-check` → exit 0.
+- `pnpm --filter @beechcms/api test:unit` → 163 files, 2124 passed.
+- `pnpm --filter @beechcms/api test:integration` → 104 files, 784 passed (real D1).
+- `pnpm beech test --diff` (Docker up) → exit 0, "every selected test run passed", changed-line coverage met for all 11 changed files. `public-key-auth.ts` 28/28, `public-add.ts` 6/6, `api-key-middleware.ts` 2/2.
+- `pnpm lint` → "ESLint: No issues found". `pnpm lint:tests` → "test placement — OK".
+- `pnpm exec esbuild scripts/dev-cli/orchestrator.ts --format=esm` → exit 0. This was the failure in the previous review.
+- `pnpm exec vitest run scripts/dev-cli/__tests__/orchestrator.test.ts scripts/dev-cli/__tests__/dev-secret-key.test.ts` → 2 files, 11 passed. `orchestrator.test.ts` loads again, and the 4 new cases cover appended key, blank value replaced in place, existing value untouched, and missing file returns false.
+- Closing greps: #1 (legacy names, non-test) → no hits. #2 (legacy names, tests) → exactly one hit, `api-key-middleware.test.ts:164`, the "legacy bindings alone" case. #3 (`apiKey\s*:` in client sources and `client-sdk-e2e.test.ts`) → no hits.
+- `git diff --stat devs...HEAD -- packages/core` and `git diff --stat devs -- packages/core` → empty. `@beechcms/core` is unchanged.
+- I read `ensureDevSecretKey()` (`orchestrator.ts:200-218`) again. It now uses `/\r?\n/`, `'\n'` escapes and the plan's `BEECH_SECRET_KEY=beech_sk_dev` entry. It is called once, at `orchestrator.ts:422`.
 
-Invariant audit: no change under `apps/`, `packages/core`, `packages/cli`, `package.json`, `SKILL.md`, `tool-definitions.ts` or `constants.ts` (`git diff HEAD --stat` on those paths: empty). No D1, field names or cross-slice imports. SECTION 7 items (evals, version bump, SKILL.md, `decide()` abort) untouched.
+Code review: the runtime diff matches my first review, which found no defect. The plan's building blocks are intact: `public-key-auth.ts` (constants, types, `authorizePublicKey` rule order, `publicKeyProblem` with inferred return type, one `console.warn` with no key), `public-errors.ts` (T3), `api-key-middleware.ts` and `public-add.ts` (T4), `sanitize.ts` requires `idGenerator` (T8), and the client resolvers and config shapes (T5). The header is read only in `api-key-middleware.ts` and `public-add.ts`, and `timingSafeEqual` on keys appears only in `public-key-auth.ts`.
 
-Doc facts verified against sources: tool names, annotations and result shapes (`agent-tools.ts` types); `MCP_OAUTH_SCOPES`, `CONFIRM_*`, `SEARCH_*`, `PENDING_ACTIONS_PATH` (`constants.ts`); `CLI_OAUTH_SCOPE` = `OAUTH_SCOPES` minus `agent:approve` (`control-plane.ts:27`, `scopes.ts:12`), matching the 16-scope list in the doc; intent log rows `create`/`authorize`/`revoke` with the documented `details` (`agent-intent-gate.middleware.ts:131`, `agent-intents.handler.ts:112,145`); 413 `intent_body_too_large` at 262 144 bytes (256 KiB); `intent_expired`/`intent_not_pending`; `intents.reject` scope `agent:read`, `intents.approve` `agent:approve`; destructive seeds ops and `content.delete` `destructiveWhenPurge`; roles/assignments destructive; excluded ops (password, sessions, profile, rotate-field, direct seed writes, `users.create`); `RunReport` call outcomes (`types.ts:34`); `beech types generate` and `SeedRegistryTypes` (`cli-workflows.md`); Node ≥ 22.18 (`run.ts:145`); `elicit` rejection → `fallback`/`elicitation_failed` (`agent-tools.ts:375`); `beech_search`/`beech_docs_search` tokenization (`catalog-search.ts:116`, `resources.ts:107`); `latest-entries.ts` block identical to `EXAMPLE_SCRIPT_TEMPLATE`; OAuth client name `BeechCMS MCP Server` (migration `0000_v040_base.sql`). Anchors linked from the new docs exist by heading check (`#upgrading-from-1-x`, `#approval-lifecycle-beech-confirm`, `#permission-model-known-limitations`, `#environment-variables`, `#setup`, `#runreport`).
+Invariant audit: no D1 access outside core, no `apps/api/src/features/**` import of the public slice, no hardcoded field names. SECTION 7 is untouched except the approved `check-design-tokens.mjs` import (Finding 3).
 
-Runtime verification: not applicable. No API response or UI changed; the one code change is a pure function covered by unit tests. Docs were not rendered with `pnpm docs:dev` (anchors checked by grep).
+Runtime verification: I did not run `pnpm beech dev` plus `curl`. The new integration suite covers publishable GET 200, publishable POST 403 `public-api-secret-key-required`, secret POST 201 and PUT 200 on relation-bearing `posts`, against real D1. `orchestrator.ts` now parses and loads, so the dev launcher is no longer blocked. `apps/dashboard` has no diff.
 
-SECTION 6 walk: all 13 criteria verified true (function exports, imports, tests, check 5 + negative run, `mcp-server.md` content incl. "13 tools", 2.0 default scope, statuses, 8 outcomes, two clients, upgrade path, no impossibility claim; `local-agent.md` 8 sections, sidebar entry, manifest; `mcp.md` leads with `npx beech agent setup`, no `SKILL.md` copy advice; README 13 tools; approval only via `beech_confirm`/dashboard; residual-risk sentence in `mcp-server.md` and `local-agent.md`; no forbidden-path change; SECTION 5 commands pass except the flaky/out-of-diff failures in Findings 1-2).
+Extra audit this round: read every file of the runtime diff and the new/changed test files against §8; `git grep` of the legacy names across the whole repo outside `docs/` and `stages/` (hits: `bin/template.mjs`, `packages/cli/src/commands/{init,forms}.ts` are declared out of scope; `packages/forms-react` is Finding 6); `pnpm exec vitest run scripts/dev-cli` → 74 passed, 1 failed (`endpoints.test.ts`, Finding 8).
+
+SECTION 6 walk: all 15 criteria hold. "Every command in SECTION 5 passes" is now true, apart from the manual `curl` step. Open items are Findings 1 and 2, both in test files.
 
 # Sprint Documentation
-Sprint 09 McpDocs: documented `@beechcms/mcp` 2.0 so human docs and the bundled agent-readable docs match the shipped behaviour.
-- Rewrote `docs/reference/mcp-server.md` (13 tools, `beech_confirm` status/outcome tables, two OAuth clients, 1.x upgrade path, intent audit events, 2.0 worked session) and `docs/start/mcp.md` (`npx beech agent setup` first); rewrote `packages/mcp/README.md`.
-- Added `docs/build/local-agent.md` ("Working with an Agent Locally"), added it to the sidebar; it is bundled as `beechcms-docs://build/local-agent.md` for `beech_docs_search`.
-- Code: `mapElicitResult()` extracted from `elicitDecision()` into `agent-tools.ts` (fail closed: unknown action or accept without valid decision → cancel), with 7 unit tests; one misnamed test renamed.
-- `scripts/docs-fact-check.mjs` check 5 fails `pnpm docs:check` when a registered tool is missing from `mcp-server.md` or an unknown `beech_*` name appears in the three MCP docs.
-- Deviations: none from the plan. Generated `packages/mcp/resources/` is gitignored, so it is not committed.
-- Limits: v1-vs-v2 evals deferred to sprint 10 AgentEvals; version bump to 2.0.0 left to `pnpm release`; destructive-ops list in the danger-zone note omits `seeds.orphanDrop`; README docs links are repo-relative; two `apps/api` rbac unit tests flaked under the full diff run (pass alone).
+Sprint 01 KeyRoleRuntime (publishable and secret keys): replaces `PUBLIC_READ_API_KEY` / `PUBLIC_WRITE_API_KEY` with two key roles, `BEECH_PUBLISHABLE_KEY` (GET/HEAD/OPTIONS) and `BEECH_SECRET_KEY` (all methods), behind one shared decision, `authorizePublicKey()`, used by both `apiKeyMiddleware` and `publicAddHandler`.
+- Denials: a publishable key on a write gets 403 `public-api-secret-key-required`, a wrong key 401, unconfigured 403 `public-api-not-configured`, and `beech_sk_dev` outside `ENV=development` 403 `public-api-dev-secret-key` with one stable warning that never carries the key. There is no guard on the publishable key and no legacy name support.
+- Client SDK: `createBeechBrowserClient({ publishableKey })` (read-only, rejects `beech_sk_`) and `createBeechServerClient({ secretKey })` (one instance lists, reads and writes). `apiKey` is a type error and a runtime error naming the replacement.
+- Also fixed (T8): `sanitizePublicPayload` now requires `idGenerator`. Public add and edit on seeds with relation branches (canonical `posts`) returned 500 before. A malformed relation id now gives 400 `validation_failed`.
+- Monorepo dev: `BEECH_PUBLISHABLE_KEY=beech_pk_dev` in `wrangler.jsonc` `vars`, `BEECH_SECRET_KEY=beech_sk_dev` in `.dev.vars.example`, written into existing `.dev.vars` by `pnpm beech dev` through `ensureDevSecretKey()` (unit-tested), and passed to the e2e worker.
+- Deviation: review 1 found `ensureDevSecretKey()` committed with raw line breaks inside a regex and string literals, so `orchestrator.ts` did not parse. The rework fixed it and added a test. Neither is committed yet.
+- Known limits: a secret key still needs `allowPublicPost` on the seed (#1022). The scaffolder (02), `beech keys:migrate` (03) and docs (04) are later sprints, and the error messages already name the not-yet-existing migrate command. The manual `curl` check was not run.

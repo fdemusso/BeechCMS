@@ -202,24 +202,17 @@ export function ensureDevSecretKey(): boolean {
   if (!fs.existsSync(filePath)) return false
 
   const content = fs.readFileSync(filePath, 'utf8')
-  const lines = content.split(/?
-/)
+  const lines = content.split(/\r?\n/)
   const index = lines.findIndex((line) => /^BEECH_SECRET_KEY=/.test(line))
   if (index !== -1 && lines[index].slice('BEECH_SECRET_KEY='.length).trim() !== '') return false
 
   const entry = 'BEECH_SECRET_KEY=beech_sk_dev'
   if (index !== -1) {
     lines[index] = entry
-    fs.writeFileSync(filePath, lines.join('
-'), 'utf8')
+    fs.writeFileSync(filePath, lines.join('\n'), 'utf8')
   } else {
-    const separator = content === '' || content.endsWith('
-') ? '' : '
-'
-    fs.appendFileSync(filePath, `${separator}
-# Local Public API secret key (refused outside ENV=development).
-${entry}
-`, 'utf8')
+    const separator = content === '' || content.endsWith('\n') ? '' : '\n'
+    fs.appendFileSync(filePath, `${separator}\n# Local Public API secret key (refused outside ENV=development).\n${entry}\n`, 'utf8')
   }
   return true
 }

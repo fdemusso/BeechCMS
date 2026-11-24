@@ -55,20 +55,37 @@ describe('apiKeyMiddleware', () => {
     expect(resAddExtra.status).toBe(401)
   })
 
-  it('the publishable key passes GET and HEAD and gets 403 secret-key-required on every write, the secret key passes all six', async () => {
+  it('the publishable key passes GET and HEAD', async () => {
+    const app = buildApp({ BEECH_PUBLISHABLE_KEY: PUBLISHABLE_KEY, BEECH_SECRET_KEY: SECRET_KEY })
+    const readMethods = ['GET', 'HEAD']
+
+    for (const method of readMethods) {
+      const res = await app.request('/posts', { method, headers: { 'X-API-Key': PUBLISHABLE_KEY } })
+
+      expect(res.status).toBe(200)
+    }
+  })
+
+  it('the publishable key gets 403 secret-key-required on every write', async () => {
+    const app = buildApp({ BEECH_PUBLISHABLE_KEY: PUBLISHABLE_KEY, BEECH_SECRET_KEY: SECRET_KEY })
+    const writeMethods = ['POST', 'PUT', 'PATCH', 'DELETE']
+
+    for (const method of writeMethods) {
+      const res = await app.request('/posts', { method, headers: { 'X-API-Key': PUBLISHABLE_KEY } })
+
+      expect(res.status).toBe(403)
+      expect(await problemType(res)).toBe(`${PROBLEM_BASE}public-api-secret-key-required`)
+    }
+  })
+
+  it('the secret key passes all six methods', async () => {
     const app = buildApp({ BEECH_PUBLISHABLE_KEY: PUBLISHABLE_KEY, BEECH_SECRET_KEY: SECRET_KEY })
     const methods = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE']
-    const readMethods = new Set(['GET', 'HEAD'])
 
     for (const method of methods) {
-      const withPublishable = await app.request('/posts', { method, headers: { 'X-API-Key': PUBLISHABLE_KEY } })
-      const withSecret = await app.request('/posts', { method, headers: { 'X-API-Key': SECRET_KEY } })
+      const res = await app.request('/posts', { method, headers: { 'X-API-Key': SECRET_KEY } })
 
-      expect(withPublishable.status).toBe(readMethods.has(method) ? 200 : 403)
-      if (!readMethods.has(method)) {
-        expect(await problemType(withPublishable)).toBe(`${PROBLEM_BASE}public-api-secret-key-required`)
-      }
-      expect(withSecret.status).toBe(200)
+      expect(res.status).toBe(200)
     }
   })
 
