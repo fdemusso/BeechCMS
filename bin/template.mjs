@@ -111,9 +111,13 @@ export function buildTsConfig() {
   return JSON.stringify({
     compilerOptions: {
       target: 'ES2022',
+      // No DOM: workers-types and lib.dom declare the same globals (Request, Response, WebSocket) and clash.
+      lib: ['ES2022'],
       module: 'ES2022',
       moduleResolution: 'bundler',
       strict: true,
+      skipLibCheck: true,
+      noEmit: true,
       types: ['@cloudflare/workers-types'],
     },
     include: ['*.ts'],

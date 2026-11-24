@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { buildDevVars, buildPackageJson, buildWranglerJsonc } from '../../bin/template.mjs'
+import { buildDevVars, buildPackageJson, buildTsConfig, buildWranglerJsonc } from '../../bin/template.mjs'
 import { computeTemplateVersions } from './template-versions.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -53,4 +53,10 @@ test('without Cloudflare credentials .dev.vars sets no R2 variable, so local upl
   const vars = buildDevVars(null)
   assert.doesNotMatch(vars, /^R2_[A-Z_]+=/m)
   assert.match(vars, /^PRIVACY_MASTER_KEY=[0-9a-f]{64}$/m)
+})
+
+test('the worker is type-checked against workers-types without the DOM lib that clashes with it (#1020)', () => {
+  const { compilerOptions } = JSON.parse(buildTsConfig())
+  assert.deepEqual(compilerOptions.lib, ['ES2022'])
+  assert.deepEqual(compilerOptions.types, ['@cloudflare/workers-types'])
 })

@@ -33,6 +33,28 @@ jobs:
       - name: Run unit tier
         run: pnpm beech test --tier unit
 
+  scaffold:
+    name: Scaffold smoke (first run, no Docker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: pnpm build
+      # Packs the packages, scaffolds a project from the tarballs, installs it with plain npm,
+      # starts `npm run dev`, creates the first admin and uploads an image.
+      - name: Scaffold, install, start, upload
+        run: node scripts/smoke-release.mjs --budget-seconds 300
+
   integration:
     name: Integration Tier (real D1)
     runs-on: ubuntu-latest
