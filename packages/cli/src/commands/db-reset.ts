@@ -44,14 +44,8 @@ export async function dbReset(_args: DbResetOptions): Promise<void> {
         })
         dbResetSuccess = result.status === 0
       } else {
-        console.log(pc.yellow('  ⚠ Could not find database reset script.'))
-        const { init } = await import('./init.js')
-        try {
-          await init({ initDb: true, local: true })
-          dbResetSuccess = true
-        } catch {
-          dbResetSuccess = false
-        }
+        console.log(pc.yellow('  ⚠ Could not find database reset script. Re-apply migrations with: npm run db:migrate:local'))
+        dbResetSuccess = false
       }
     }
   } else {

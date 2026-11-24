@@ -30,8 +30,10 @@ To skip interactive prompts and scaffold immediately with sensible defaults:
 ```bash
 npx @beechcms/cms my-app --yes
 cd my-app
-npm install
+npm run dev
 ```
+
+The scaffolder installs the dependencies for you (pass `--no-install` to skip that).
 
 ### Project layout
 
@@ -50,24 +52,13 @@ The entire CMS engine and admin SPA live inside `@beechcms/api`. Your workspace 
 
 ## 2. Local environment setup
 
-### Bootstrap the D1 database
-
-Apply the base system schema (`seeds`, `users`, `sessions`, `api_keys`, `media`) to your local Cloudflare D1 emulator:
-
-```bash
-npm run db:migrate:local
-# or via CLI: npx beech init --db
-```
-
 ### Launch the dev server
-
-Start the local Wrangler Workers runtime:
 
 ```bash
 npm run dev
 ```
 
-Wrangler starts the local Workers emulator on `http://localhost:8789`.
+`npm run dev` first applies every pending system migration to your local Cloudflare D1 emulator (the same as `npm run db:migrate:local`, or `npx beech db:migrate`), then starts the local Workers runtime on `http://localhost:8789`. Nothing needs to be provisioned on Cloudflare to run locally, and media uploads work out of the box.
 
 ### Open dashboard
 

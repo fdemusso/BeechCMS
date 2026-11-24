@@ -172,26 +172,30 @@ if (clientRoot && clientBrowser && clientServer && clientRichtext) {
 // -------------------------------------------------------------
 header('3. Fact-Checking CLI Command Matrix vs docs/build/cli-workflows.md')
 
-const cliMjsPath = resolve(ROOT_DIR, 'bin/cli.mjs')
+// The published bin and the monorepo router (scripts/beech.mjs) each register their own commands.
+const cliSourcePaths = [
+  resolve(ROOT_DIR, 'packages/cli/bin/beech.mjs'),
+  resolve(ROOT_DIR, 'scripts/beech.mjs'),
+]
 const cliDocsPath = resolve(DOCS_DIR, 'build/cli-workflows.md')
 
-if (existsSync(cliMjsPath) && existsSync(cliDocsPath)) {
-  const cliSource = readFileSync(cliMjsPath, 'utf-8')
+if (cliSourcePaths.every((path) => existsSync(path)) && existsSync(cliDocsPath)) {
   const docsContent = readFileSync(cliDocsPath, 'utf-8')
 
-  const commandsMatch = cliSource.match(/const COMMANDS = \{([\s\S]*?)\n\}/)
-  if (commandsMatch) {
-    const rawLines = commandsMatch[1]
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith('//'))
-
-    const registeredCommands = []
-    for (const line of rawLines) {
+  const registeredCommands = []
+  for (const sourcePath of cliSourcePaths) {
+    const commandsMatch = readFileSync(sourcePath, 'utf-8').match(/const COMMANDS = \{([\s\S]*?)\n\}/)
+    if (!commandsMatch) {
+      error(`No COMMANDS table found in ${sourcePath}`)
+      continue
+    }
+    for (const line of commandsMatch[1].split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('//'))) {
       const match = line.match(/^['"]?([a-zA-Z0-9_:-]+)['"]?\s*:/)
       if (match) registeredCommands.push(match[1])
     }
+  }
 
+  {
     const aliasGroups = {
       forms: ['forms', 'form', 'forms:add'],
       'gen-types': ['gen-types', 'gen:types', 'generate:types', 'gen types typescript'],
@@ -222,14 +226,14 @@ if (existsSync(cliMjsPath) && existsSync(cliDocsPath)) {
         }
       } else {
         if (!docsContent.includes(`beech ${cmd}`)) {
-          error(`CLI command "beech ${cmd}" is registered in bin/cli.mjs but missing from cli-workflows.md`)
+          error(`CLI command "beech ${cmd}" is registered but missing from cli-workflows.md`)
           missingDocs++
         }
       }
     }
 
     if (missingDocs === 0) {
-      success(`All ${registeredCommands.length} CLI command aliases in bin/cli.mjs are documented in cli-workflows.md.`)
+      success(`All ${registeredCommands.length} CLI command aliases (published bin and scripts/beech.mjs) are documented in cli-workflows.md.`)
     }
   }
 }

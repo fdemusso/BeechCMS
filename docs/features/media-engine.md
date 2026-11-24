@@ -155,7 +155,7 @@ R2_BUCKET_NAME="beech-media-production"
 ```
 
 > [!TIP]
-> If S3 credentials are not configured, the system automatically falls back to native Worker streaming via `POST /api/upload`. If no storage is configured at all, `NullBucket` safely throws `503 Service Unavailable` with setup instructions.
+> Locally you need no credentials: with the `MEDIA_BUCKET` binding alone (Wrangler emulates R2) the dashboard falls back to native Worker streaming via `POST /api/upload`. That route is closed when `ENV` is `production`, where S3 credentials are required. If no storage is configured at all, `NullBucket` safely throws `503 Service Unavailable` with setup instructions.
 
 ---
 

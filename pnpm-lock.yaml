@@ -47,9 +47,6 @@ importers:
 
   .:
     dependencies:
-      '@beechcms/cli':
-        specifier: workspace:^0.10.1
-        version: link:packages/cli
       '@clack/prompts':
         specifier: ^1.8.1
         version: 1.8.1
@@ -57,6 +54,15 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1
     devDependencies:
+      '@beechcms/api':
+        specifier: workspace:^0.10.1
+        version: link:apps/api
+      '@beechcms/cli':
+        specifier: workspace:^0.10.1
+        version: link:packages/cli
+      '@beechcms/core':
+        specifier: workspace:^0.10.1
+        version: link:packages/core
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.13.0(jiti@2.7.0)(supports-color@10.2.2))

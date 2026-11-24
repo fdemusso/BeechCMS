@@ -3,8 +3,16 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+import { localStatePathHint } from '../lib/path-limits.js'
+
 export interface DbMigrateOptions {
   local?: boolean
+}
+
+function reportMigrationFailure(): void {
+  console.log(pc.red('\n  ✗ Failed to apply migrations.'))
+  const hint = localStatePathHint(process.cwd())
+  if (hint) console.log(pc.yellow(`  ${hint}`))
 }
 
 export async function dbMigrate(_args: DbMigrateOptions): Promise<void> {
@@ -21,7 +29,7 @@ export async function dbMigrate(_args: DbMigrateOptions): Promise<void> {
       shell: true,
     })
     if (result.status !== 0) {
-      console.log(pc.red('\n  ✗ Failed to apply migrations.'))
+      reportMigrationFailure()
       process.exit(1)
       return
     }
@@ -37,7 +45,7 @@ export async function dbMigrate(_args: DbMigrateOptions): Promise<void> {
       shell: true,
     })
     if (result.status !== 0) {
-      console.log(pc.red('\n  ✗ Failed to apply migrations.'))
+      reportMigrationFailure()
       process.exit(1)
       return
     }
@@ -58,7 +66,7 @@ export async function dbMigrate(_args: DbMigrateOptions): Promise<void> {
           shell: true,
         })
         if (result.status !== 0) {
-          console.log(pc.red('\n  ✗ Failed to apply migrations.'))
+          reportMigrationFailure()
           process.exit(1)
           return
         }
@@ -70,14 +78,7 @@ export async function dbMigrate(_args: DbMigrateOptions): Promise<void> {
     }
   }
 
-  // 4. Last resort: delegate to beech init --db --local which embeds the base schema
-  console.log(pc.dim('  No migration script found — initialising database via beech init --db...\n'))
-  const { init } = await import('./init.js')
-  try {
-    await init({ initDb: true, local: true, nonInteractive: true })
-  } catch {
-    console.log(pc.red('\n  ✗ Database initialisation failed.'))
-    console.log(pc.dim('  Run: npm run db:migrate:local  or  npx beech init --db\n'))
-    process.exit(1)
-  }
+  console.log(pc.red('  ✗ No migration script found.'))
+  console.log(pc.dim('  Expected a `db:migrate:local` script in package.json (present in projects scaffolded by `npx @beechcms/cms my-app`).\n'))
+  process.exit(1)
 }

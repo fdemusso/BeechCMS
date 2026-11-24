@@ -51,7 +51,7 @@ export function createD1Context(args: D1ContextOptions = {}): D1Context {
   if (local && !getLocalD1SqlitePath()) {
     throw new CliError(
       'Local D1 database state not found.',
-      'Start the local environment with `beech dev`, or initialize it with `beech init --db`.',
+      'Start the local environment with `beech dev`, or apply the migrations with `npm run db:migrate:local`.',
     )
   }
 
@@ -75,7 +75,7 @@ export async function loadLiveSeeds(context: D1Context): Promise<Seed[]> {
     if (detail.includes('no such table: seeds')) {
       throw new CliError(
         'System table `seeds` not found in the database.',
-        'Run `beech init --db` or `beech onboard` to create the system tables.',
+        'Apply the migrations first: `npm run db:migrate:local` (or `beech db:migrate` in the monorepo).',
         error,
       )
     }

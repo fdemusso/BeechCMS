@@ -22,7 +22,6 @@ Non tentare mai di indovinare le regole di migrazione o i comandi di build; legg
 BeechCMS uses a unified CLI entry point via `pnpm beech`. All local provisioning, database bootstrap/resets, Docker stack management, seed synchronization, logging, linting, testing, and deployment are orchestrated by this command.
 
 Key commands:
-- `pnpm beech onboard --yes` : Automated local onboarding (bootstraps DB and seeds)
 - `pnpm beech dev`             : Starts development environment (Docker stack + API + Dashboard)
 - `pnpm beech db:migrate`      : Applies D1 schema migrations locally
 - `pnpm beech db:reset`        : Removes Wrangler local state and boots DB from scratch

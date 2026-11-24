@@ -159,37 +159,97 @@ export function findWranglerConfig(): string | null {
   return null
 }
 
-/** Wraps a string value in single quotes, escaping internal single quotes for SQL literals. */
-export function sqlQuote(value: string): string {
-  return `'${value.replace(/'/g, "''")}'`
+/**
+ * Strips JSONC comments and trailing commas without touching string literals, so a value such as
+ * `"APP_URL": "http://localhost:5173"` survives intact.
+ */
+export function stripJsonc(raw: string): string {
+  let out = ''
+  let i = 0
+  while (i < raw.length) {
+    const ch = raw[i]
+    const next = raw[i + 1]
+    if (ch === '"') {
+      const end = stringEnd(raw, i)
+      out += raw.slice(i, end)
+      i = end
+    } else if (ch === '/' && next === '/') {
+      while (i < raw.length && raw[i] !== '\n') i++
+    } else if (ch === '/' && next === '*') {
+      const close = raw.indexOf('*/', i + 2)
+      i = close === -1 ? raw.length : close + 2
+    } else {
+      out += ch
+      i++
+    }
+  }
+  return dropTrailingCommas(out)
 }
 
-/** Risolve il nome del database D1 da wrangler.jsonc (stripping JSONC comments). */
+/** Index just past the closing quote of the string literal that starts at `start`. */
+function stringEnd(text: string, start: number): number {
+  let j = start + 1
+  while (j < text.length && text[j] !== '"') j += text[j] === '\\' ? 2 : 1
+  return j + 1
+}
+
+function skipWhitespace(text: string, from: number): number {
+  let j = from
+  while (j < text.length && /\s/.test(text[j])) j++
+  return j
+}
+
+function isClosingBracket(text: string, at: number): boolean {
+  return text[at] === '}' || text[at] === ']'
+}
+
+/** Removes a comma that is followed only by whitespace and a closing bracket, outside strings. */
+function dropTrailingCommas(text: string): string {
+  let out = ''
+  let i = 0
+  while (i < text.length) {
+    if (text[i] === '"') {
+      const end = stringEnd(text, i)
+      out += text.slice(i, end)
+      i = end
+    } else if (text[i] === ',' && isClosingBracket(text, skipWhitespace(text, i + 1))) {
+      i++
+    } else {
+      out += text[i]
+      i++
+    }
+  }
+  return out
+}
+
+/**
+ * Risolve il nome del database D1 da wrangler.jsonc/json/toml.
+ * Senza config restituisce il default; con un config presente ma illeggibile o senza
+ * `d1_databases` lancia, invece di puntare in silenzio a un database che non esiste.
+ */
 export function resolveDbName(configPath: string | null): string {
   if (!configPath) return 'beech-db'
-  let name = 'beech-db'
+  let name: string | undefined
   try {
     const raw = readFileSync(configPath, 'utf-8')
-    
+
     if (configPath.endsWith('.toml')) {
       // Basic regex-based TOML parsing for d1_databases
       // Matches both [d1_databases] and [[d1_databases]]
       const d1SectionMatch = raw.match(/\[\[?d1_databases\]\]?[\s\S]*?(?=\n\[|$)/)
-      if (d1SectionMatch) {
-        const section = d1SectionMatch[0]
-        const dbNameMatch = section.match(/database_name\s*=\s*["'](.+?)["']/)
-        if (dbNameMatch) name = dbNameMatch[1]
-      }
+      name = d1SectionMatch?.[0].match(/database_name\s*=\s*["'](.+?)["']/)?.[1]
     } else {
-      const stripped = raw
-        .replace(/\/\/[^\n]*/g, '')
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-      const parsed = JSON.parse(stripped)
+      const parsed = JSON.parse(stripJsonc(raw))
       const bindings: { database_name?: string }[] = parsed?.d1_databases ?? []
-      name = bindings[0]?.database_name ?? 'beech-db'
+      name = bindings[0]?.database_name
     }
-  } catch {
-    return 'beech-db'
+  } catch (error) {
+    throw new Error(
+      `Cannot read the D1 database name from ${configPath}: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+  if (!name) {
+    throw new Error(`No d1_databases[0].database_name found in ${configPath}. Pass --db <name> or add a D1 binding.`)
   }
   return validateDbName(name)
 }

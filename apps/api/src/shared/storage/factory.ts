@@ -16,7 +16,8 @@ export { R2BucketAdapter } from './r2-bucket'
  * @remarks
  * Every bucket operation unconditionally throws an HTTP 503 Service Unavailable exception
  * with error code `storage_not_configured`, providing diagnostic instructions on how to
- * configure Cloudflare R2 credentials or MinIO for local development.
+ * configure storage: an `r2_buckets` binding named `MEDIA_BUCKET` (enough for local development)
+ * or Cloudflare R2 S3 credentials (required for direct uploads in production).
  */
 export class NullBucket implements BeechBucket {
   /**
@@ -27,7 +28,7 @@ export class NullBucket implements BeechBucket {
       res: new Response(
         JSON.stringify({ 
           error: 'storage_not_configured',
-          message: 'Storage is not configured. Direct uploads require Cloudflare R2 S3 credentials (R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME) in .dev.vars (dev) or wrangler secrets (production). For local testing, run MinIO (pnpm dev:full). Guide: https://developers.cloudflare.com/r2/api/s3/tokens/'
+          message: 'Storage is not configured. Add an r2_buckets binding named MEDIA_BUCKET to wrangler.jsonc (enough for local development), or set the Cloudflare R2 S3 credentials (R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME) in .dev.vars (dev) or wrangler secrets (production). Guide: https://developers.cloudflare.com/r2/api/s3/tokens/'
         }),
         { 
           status: 503, 
@@ -150,12 +151,13 @@ export function createBucketProvider(env: Env, baseUrl: string): BeechBucket {
   }
 
   if (hasMediaBucketBinding) {
-    if (!hasWarnedMediaBucketOnly) {
+    // Locally the Worker stores the upload itself, so the binding alone is the normal setup and
+    // says nothing. In production that route is closed: uploads need S3 credentials to be signed.
+    if (env.ENV === 'production' && !hasWarnedMediaBucketOnly) {
       hasWarnedMediaBucketOnly = true
-      console.info(
-        'ℹ️ [BeechCMS] Native MEDIA_BUCKET binding detected. Media serving is active.\n' +
-        '   Note: Direct uploads via Presigned URLs require R2 S3 credentials (R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME).\n' +
-        '   Configure them in .dev.vars (dev) or via `wrangler secret put` (production). Guide: https://developers.cloudflare.com/r2/api/s3/tokens/'
+      console.warn(
+        '⚠️ [BeechCMS] MEDIA_BUCKET is bound but the R2 S3 credentials are not set: media uploads are refused in production.\n' +
+        '   Set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT and R2_BUCKET_NAME with `wrangler secret put`. Guide: https://developers.cloudflare.com/r2/api/s3/tokens/'
       )
     }
     return new R2BucketAdapter(
@@ -169,7 +171,7 @@ export function createBucketProvider(env: Env, baseUrl: string): BeechBucket {
     hasWarnedNullBucket = true
     console.warn(
       '⚠️ [BeechCMS] Storage is not configured. Falling back to NullBucket. Uploads will return 503.\n' +
-      '   To configure local storage for Presigned uploads, set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, and R2_BUCKET_NAME in .dev.vars or run MinIO (pnpm dev:full).'
+      '   Add an r2_buckets binding named MEDIA_BUCKET to wrangler.jsonc, or set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT and R2_BUCKET_NAME in .dev.vars.'
     )
   }
 

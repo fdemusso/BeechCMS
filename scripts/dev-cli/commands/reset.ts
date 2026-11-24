@@ -3,7 +3,7 @@
 
 import pc from 'picocolors'
 import { createInterface } from 'node:readline/promises'
-import { dbReset } from './db-reset.js'
+import { dbReset } from '../../../packages/cli/src/commands/db-reset.js'
 import { devReset } from './dev-reset.js'
 
 export interface ResetOptions {

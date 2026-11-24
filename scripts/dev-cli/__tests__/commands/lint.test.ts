@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { lint } from '../commands/lint.js'
+import { lint } from '../../commands/lint.js'
 import { spawnSync } from 'node:child_process'
 
 vi.mock('node:child_process', () => ({

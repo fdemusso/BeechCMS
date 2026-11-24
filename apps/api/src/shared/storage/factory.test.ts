@@ -25,9 +25,7 @@ describe('Storage Factory & NullBucket', () => {
     expect(provider).toBeInstanceOf(S3Bucket)
   })
 
-  it('creates R2BucketAdapter and logs informative note when MEDIA_BUCKET binding is provided without S3 credentials', () => {
-    const consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
-
+  describe('with a MEDIA_BUCKET binding and no S3 credentials', () => {
     const mockR2Bucket: any = {
       get: vi.fn(),
       head: vi.fn(),
@@ -36,19 +34,30 @@ describe('Storage Factory & NullBucket', () => {
       list: vi.fn(),
     }
 
-    const env: Partial<Env> = {
-      MEDIA_BUCKET: mockR2Bucket,
-    }
+    it('creates an R2BucketAdapter and stays silent outside production, where uploads go through the Worker', () => {
+      const consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const env: Partial<Env> = { ENV: 'development', MEDIA_BUCKET: mockR2Bucket }
 
-    const provider = createBucketProvider(env as Env, 'http://localhost:8787')
-    expect(provider).toBeInstanceOf(R2BucketAdapter)
-    expect(consoleInfoSpy).toHaveBeenCalledTimes(1)
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
-      expect.stringContaining('ℹ️ [BeechCMS] Native MEDIA_BUCKET binding detected. Media serving is active.')
-    )
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Note: Direct uploads via Presigned URLs require R2 S3 credentials')
-    )
+      const provider = createBucketProvider(env as Env, 'http://localhost:8787')
+
+      expect(provider).toBeInstanceOf(R2BucketAdapter)
+      expect(consoleInfoSpy).not.toHaveBeenCalled()
+      expect(consoleWarnSpy).not.toHaveBeenCalled()
+    })
+
+    it('warns once in production, where media uploads need S3 credentials', () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const env: Partial<Env> = { ENV: 'production', MEDIA_BUCKET: mockR2Bucket }
+
+      createBucketProvider(env as Env, 'http://localhost:8787')
+      createBucketProvider(env as Env, 'http://localhost:8787')
+
+      expect(consoleWarnSpy).toHaveBeenCalledTimes(1)
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('media uploads are refused in production')
+      )
+    })
   })
 
   it('prefers S3Bucket when both S3 credentials and MEDIA_BUCKET are provided', () => {
@@ -82,7 +91,7 @@ describe('Storage Factory & NullBucket', () => {
       expect.stringContaining('⚠️ [BeechCMS] Storage is not configured. Falling back to NullBucket. Uploads will return 503.')
     )
     expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('To configure local storage for Presigned uploads, set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, and R2_BUCKET_NAME in .dev.vars or run MinIO (pnpm dev:full).')
+      expect.stringContaining('Add an r2_buckets binding named MEDIA_BUCKET to wrangler.jsonc')
     )
   })
 
@@ -183,7 +192,7 @@ describe('Storage Factory & NullBucket', () => {
     expect(caughtError.status).toBe(503)
     const responseBody = await caughtError.res.json()
     expect(responseBody.error).toBe('storage_not_configured')
-    expect(responseBody.message).toContain('Direct uploads require Cloudflare R2 S3 credentials')
+    expect(responseBody.message).toContain('Add an r2_buckets binding named MEDIA_BUCKET')
   })
 })
 

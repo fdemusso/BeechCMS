@@ -9,15 +9,17 @@ vi.mock('node:fs', async (importOriginal) => {
   return { ...actual, existsSync: vi.fn(() => true) }
 })
 // The real loader writes slot files in the OS temp dir and can block for 30 min behind another run.
-vi.mock('../lib/cpu-slot.js', () => ({ loadCpuSlot: vi.fn() }))
+vi.mock('../../commands/cpu-slot.js', () => ({ loadCpuSlot: vi.fn() }))
 vi.mock('picocolors', () => ({ default: { cyan: (s: string) => s, red: (s: string) => s, yellow: (s: string) => s, dim: (s: string) => s } }))
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { tmpdir } from 'node:os'
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
-import { test, RUNNABLE_TIERS } from '../commands/test.js'
-import { loadCpuSlot, type CpuSlotModule } from '../lib/cpu-slot.js'
+import { test } from '../../commands/test.js'
+import { RUNNABLE_TIERS } from '../../../lib/test-tiers.mjs'
+import { loadCpuSlot, type CpuSlotModule } from '../../commands/cpu-slot.js'
 
 describe('test command', () => {
   let release: ReturnType<typeof vi.fn<() => void>>
@@ -25,6 +27,8 @@ describe('test command', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    // Outside the repo, so the local CPU-budget policy is not loaded and the turbo args stay exact.
+    vi.spyOn(process, 'cwd').mockReturnValue(resolve(tmpdir(), 'beech-test-command-outside-repo'))
     vi.mocked(spawnSync).mockImplementation(() => ({ status: 0 }) as SpawnSyncReturns<string>)
     release = vi.fn<() => void>()
     cpuSlot = {
@@ -38,6 +42,7 @@ describe('test command', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs()
+    vi.mocked(process.cwd).mockRestore()
   })
 
   // Exclusive = every slot: the full suite and coverage include the flow tier, which shares one
@@ -178,14 +183,6 @@ describe('test command', () => {
     } finally {
       mockExit.mockRestore()
     }
-  })
-
-  it('exposes the same runnable tiers as scripts/lib/test-tiers.mjs', () => {
-    const source = readFileSync(resolve(__dirname, '../../../../scripts/lib/test-tiers.mjs'), 'utf8')
-    const declared = source.match(/export const RUNNABLE_TIERS = \[([^\]]+)\]/)?.[1] ?? ''
-    const names = [...declared.matchAll(/'([^']+)'/g)].map((m) => m[1])
-
-    expect(names).toEqual([...RUNNABLE_TIERS])
   })
 })
 

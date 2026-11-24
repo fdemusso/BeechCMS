@@ -43,7 +43,7 @@ The release script detects which packages were modified since their last release
 | `@beechcms/client` | `packages/client` | ✅ Yes | Universal TypeScript HTTP SDK & subpaths |
 | `@beechcms/forms-react` | `packages/forms-react` | ✅ Yes | Secure React form toolkit & anti-bot |
 | `@beechcms/widget-sdk` | `packages/widget-sdk` | ✅ Yes | Custom dashboard widgets SDK |
-| `@beechcms/cli` | `packages/cli` | ✅ Yes | `npx beech` CLI (seed:load, forms, etc.) |
+| `@beechcms/cli` | `packages/cli` | ✅ Yes | `npx beech` CLI (schema, types, forms, deploy, etc.) |
 | `@beechcms/mcp` | `packages/mcp` | ✅ Yes | Model Context Protocol server & agent skill |
 | `@beechcms/search-client` | `packages/search-client` | ✅ Yes | Client library for BeechCMS search endpoints |
 | `@beechcms/api` | `apps/api` | ✅ Yes | Worker factory, migrations, dashboard bundle |

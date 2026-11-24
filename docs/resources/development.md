@@ -127,7 +127,7 @@ In BeechCMS, content models (Seeds) are database-resident. The Cloudflare D1 `se
 To provision your local database system tables:
 
 ```bash
-npx beech onboard --local --yes
+npm run db:migrate:local
 ```
 
 ### Dynamic Content Models during Development

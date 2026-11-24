@@ -10,6 +10,8 @@ pnpm-debug.log*
 dist/
 build/
 apps/api/assets/
+# Written at release time, ships in @beechcms/cms
+bin/template-versions.json
 stats.html
 .next/
 out/

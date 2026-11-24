@@ -3,14 +3,8 @@ import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { loadCpuSlot } from '../lib/cpu-slot.js'
-
-/**
- * Tiers with a runner. Mirrors RUNNABLE_TIERS in scripts/lib/test-tiers.mjs, which this
- * bundled package cannot import; packages/cli/src/test/test.test.ts asserts the two agree.
- */
-export const RUNNABLE_TIERS = ['unit', 'flow', 'integration', 'e2e', 'scale'] as const
-type TestTier = (typeof RUNNABLE_TIERS)[number]
+import { RUNNABLE_TIERS } from '../../lib/test-tiers.mjs'
+import { loadCpuSlot } from './cpu-slot.js'
 
 export interface TestOptions {
   coverage?: boolean
@@ -28,8 +22,7 @@ interface TestResourcesModule {
 
 /**
  * Local-only CPU budget (thermal protection). The policy lives in scripts/lib/test-resources.mjs,
- * shared with scripts/test-runner.mjs; this bundled package loads it from the repo at runtime and
- * runs unthrottled when it is absent (e.g. outside the monorepo).
+ * shared with scripts/test-runner.mjs; it is loaded at runtime and the run is unthrottled when absent.
  */
 async function loadTestResources(cwd: string): Promise<{ env: Record<string, string>; turboArgs: string[] }> {
   const modulePath = resolve(cwd, 'scripts', 'lib', 'test-resources.mjs')
@@ -52,7 +45,7 @@ export async function test(args: TestOptions): Promise<void> {
   const cwd = process.cwd()
 
   const tiers = (args.tier ?? '').split(',').map((t) => t.trim()).filter(Boolean)
-  const invalid = tiers.filter((t) => !RUNNABLE_TIERS.includes(t as TestTier))
+  const invalid = tiers.filter((t) => !RUNNABLE_TIERS.includes(t))
   if (invalid.length > 0) {
     console.log(pc.red(`  ✗ Unknown tier(s): ${invalid.join(', ')}. Valid tiers: ${RUNNABLE_TIERS.join(', ')}.`))
     process.exit(1)
