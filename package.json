@@ -82,6 +82,9 @@
   },
   "type": "module",
   "devDependencies": {
+    "@beechcms/api": "workspace:^0.10.1",
+    "@beechcms/cli": "workspace:^0.10.1",
+    "@beechcms/core": "workspace:^0.10.1",
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.5.1",
     "eslint": "^10.10.0",
