@@ -4,8 +4,8 @@
 
 /** JWT secret used by the integration tier. 32+ bytes: JoseTokenService rejects anything shorter. */
 export const TEST_JWT_SECRET = 'beech_cms_super_secret_test_key_2024_!@#'
-export const TEST_PUBLIC_READ_KEY = 'pk_read_live_6f8g9h0j1k2l'
-export const TEST_PUBLIC_WRITE_KEY = 'pk_write_live_9a8b7c6d5e4f'
+export const TEST_PUBLISHABLE_KEY = 'beech_pk_test_6f8g9h0j1k2l'
+export const TEST_SECRET_KEY = 'beech_sk_test_9a8b7c6d5e4f'
 
 /**
  * Hono `Bindings` for harness requests. Deliberately carries no R2/SMTP/webhook endpoints:
@@ -14,8 +14,8 @@ export const TEST_PUBLIC_WRITE_KEY = 'pk_write_live_9a8b7c6d5e4f'
  */
 export const TEST_ENV = {
   JWT_SECRET: TEST_JWT_SECRET,
-  PUBLIC_READ_API_KEY: TEST_PUBLIC_READ_KEY,
-  PUBLIC_WRITE_API_KEY: TEST_PUBLIC_WRITE_KEY,
+  BEECH_PUBLISHABLE_KEY: TEST_PUBLISHABLE_KEY,
+  BEECH_SECRET_KEY: TEST_SECRET_KEY,
   PUBLIC_PUBLISHED_ONLY: 'true',
   ENV: 'development',
   CORS_ORIGINS: 'http://localhost:5173',

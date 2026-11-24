@@ -6,10 +6,7 @@ import type { Context, Next } from 'hono'
 import type { AppEnv } from '../../types'
 import { publicProblem } from '../errors/problem-details'
 import { getClientIp } from '../../shared/utils/request-utils'
-
-function isReadMethod(method: string): boolean {
-  return method === 'GET' || method === 'HEAD' || method === 'OPTIONS'
-}
+import { isReadMethod } from './public-key-auth'
 
 export function publicRateLimitMiddleware() {
   return async (c: Context<AppEnv>, next: Next): Promise<Response | void> => {

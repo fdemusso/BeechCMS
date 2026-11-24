@@ -9,8 +9,8 @@ import bcrypt from 'bcryptjs'
  * GLOBAL TEST CONFIGURATION
  */
 const TEST_JWT_SECRET = 'beech_cms_super_secret_test_key_2024_!@#'
-export const TEST_PUBLIC_READ_KEY = 'pk_read_live_6f8g9h0j1k2l'
-export const TEST_PUBLIC_WRITE_KEY = 'pk_write_live_9a8b7c6d5e4f'
+export const TEST_PUBLISHABLE_KEY = 'beech_pk_test_6f8g9h0j1k2l'
+export const TEST_SECRET_KEY = 'beech_sk_test_9a8b7c6d5e4f'
 export const TEST_TIME_TRAP_SECRET = 'test-time-trap-secret-key-1234567890'
 
 /**
@@ -18,8 +18,8 @@ export const TEST_TIME_TRAP_SECRET = 'test-time-trap-secret-key-1234567890'
  */
 export const TEST_ENV = {
   JWT_SECRET: TEST_JWT_SECRET,
-  PUBLIC_READ_API_KEY: TEST_PUBLIC_READ_KEY,
-  PUBLIC_WRITE_API_KEY: TEST_PUBLIC_WRITE_KEY,
+  BEECH_PUBLISHABLE_KEY: TEST_PUBLISHABLE_KEY,
+  BEECH_SECRET_KEY: TEST_SECRET_KEY,
   PUBLIC_TIME_TRAP_SECRET: TEST_TIME_TRAP_SECRET,
   // Always use MinIO root credentials — matches docker-compose.yml MINIO_ROOT_USER/PASSWORD.
   // Do NOT read from process.env: .dev.vars may carry a stale or production access key.

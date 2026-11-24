@@ -144,6 +144,7 @@ function resolveData(
     requireAtLeastOneValidField: true,
     enforceRequiredFields: true,
     localeConfig,
+    idGenerator: context.get('idGenerator'),
   })
 
   if (!sanitized.ok) {

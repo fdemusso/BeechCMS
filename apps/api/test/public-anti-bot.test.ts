@@ -9,7 +9,7 @@ import { StaticAutomationRepository } from './mocks/static-automation.repository
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
 import { StaticTimeTrapTokenRepository } from './mocks/static-time-trap-token.repository'
-import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_WRITE_KEY } from './fixtures'
+import { TEST_SEEDS, TEST_ENV, TEST_SECRET_KEY } from './fixtures'
 
 describe('Public Form Security & Anti-Bot Defense', () => {
   let app: ReturnType<typeof createBeechApp>

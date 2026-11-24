@@ -9,7 +9,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
-import { createTestHarness, TEST_PUBLIC_READ_KEY, type TestClient, type TestHarness } from '@beechcms/testing'
+import { createTestHarness, TEST_PUBLISHABLE_KEY, type TestClient, type TestHarness } from '@beechcms/testing'
 import { createBeechApp } from '../../../factory'
 import { __resetSeedRegistryCache } from '../../../shared/services/cache/seed-registry-cache'
 
@@ -36,7 +36,7 @@ describe('public slice — integration (real D1) empty `in` filter', () => {
 
   async function listPublic(filter: unknown) {
     const response = await publicClient.get(`/api/v1/public/posts?filter=${encodeURIComponent(JSON.stringify(filter))}`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
     expect(response.status).toBe(200)
     return response.json<{ data: Array<{ id: string }>; meta: { total: number } }>()

@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { createBeechServerClient, createBeechClient } from './index.js'
-import type { BeechClientConfig } from '../types.js'
+import type { BeechServerClientConfig } from '../types.js'
 
 // The default registry types every row as `unknown`; these tests read fields off the rows.
 type TestRegistry = Record<string, Record<string, unknown>>
@@ -18,16 +18,35 @@ function mockFetch(status: number, body: unknown, contentType = 'application/jso
   } as unknown as Response)
 }
 
-const baseConfig: BeechClientConfig = {
+const baseConfig: BeechServerClientConfig = {
   baseUrl: 'https://api.example.com',
-  apiKey: 'server-secret-key',
+  secretKey: 'beech_sk_test_key',
 }
 
 describe('Server Client (@beechcms/client/server)', () => {
   it('throws error on missing or invalid configuration', () => {
-    expect(() => createBeechServerClient(null as unknown as BeechClientConfig)).toThrow(TypeError)
-    expect(() => createBeechServerClient<TestRegistry>({ baseUrl: '', apiKey: 'key' })).toThrow(/baseUrl is required/)
-    expect(() => createBeechServerClient<TestRegistry>({ baseUrl: 'https://api.example.com', apiKey: '' })).toThrow(/apiKey is required/)
+    expect(() => createBeechServerClient(null as unknown as BeechServerClientConfig)).toThrow(TypeError)
+    expect(() => createBeechServerClient<TestRegistry>({ baseUrl: '', secretKey: 'key' })).toThrow(/baseUrl is required/)
+    expect(() => createBeechServerClient<TestRegistry>({ baseUrl: 'https://api.example.com', secretKey: '' })).toThrow(/secretKey is required/)
+  })
+
+  it('a config literal with apiKey is a type error and throws at runtime', () => {
+    // @ts-expect-error apiKey was replaced by secretKey
+    const legacyConfig: BeechServerClientConfig = { baseUrl: 'https://api.example.com', apiKey: 'beech_sk_test_key' }
+
+    expect(() => createBeechServerClient(legacyConfig)).toThrow(/apiKey was removed: pass secretKey/)
+  })
+
+  it('one instance sends the same X-API-Key on list and create', async () => {
+    const fetchMock = mockFetch(200, { data: [], meta: { total: 0, returned: 0, seed: 'articles' } })
+    const client = createBeechServerClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
+    const articles = client.collection('articles')
+
+    await articles.list()
+    await articles.create({ title: 'New Article' })
+
+    const sentKeys = fetchMock.mock.calls.map(([, init]) => (init.headers as Headers).get('X-API-Key'))
+    expect(sentKeys).toEqual(['beech_sk_test_key', 'beech_sk_test_key'])
   })
 
   it('create sends POST request with body to /:seed/add', async () => {

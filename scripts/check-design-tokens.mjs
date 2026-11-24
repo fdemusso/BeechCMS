@@ -28,7 +28,6 @@
 
 import { readFileSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
-import path from 'node:path'
 import process from 'node:process'
 
 const APP_SRC = 'apps/dashboard/src/'
