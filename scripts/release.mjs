@@ -27,6 +27,7 @@ import { execSync } from 'node:child_process'
 import { readFileSync, writeFileSync, rmSync, mkdirSync, cpSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { stageScaffolder } from './lib/publish-manifest.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
@@ -787,10 +788,14 @@ for (const pkg of packagesToPublish) {
     continue
   }
 
+  // The root manifest also carries the monorepo's own scripts: the scaffolder is published from a
+  // staging directory with a sanitized manifest, never from the root itself.
+  const publishDir = pkg.rootOnly ? stageScaffolder(ROOT) : resolve(pkg.path, '..')
+
   let published = false
   for (let attempt = 1; attempt <= 3 && !published; attempt++) {
     try {
-      run(`pnpm publish --access public --no-git-checks --tag ${npmTag}`, { cwd: resolve(pkg.path, '..'), isDryRun })
+      run(`pnpm publish --access public --no-git-checks --tag ${npmTag}`, { cwd: publishDir, isDryRun })
       published = true
     } catch {
       if (!isDryRun && isOnNpm(pkg.name, version)) {
@@ -801,6 +806,8 @@ for (const pkg of packagesToPublish) {
       }
     }
   }
+
+  if (pkg.rootOnly) rmSync(publishDir, { recursive: true, force: true })
 
   if (!published) {
     // Files are rolled back, but whatever was already published stays on npm: say exactly which.

@@ -202,6 +202,15 @@ async function main() {
     process.exit(1)
   }
 
+  // wrangler keeps the local D1 file under the project folder; past ~130 characters Windows refuses
+  // it and wrangler answers with an opaque "internal error" (see packages/cli/src/lib/path-limits.ts).
+  if (process.platform === 'win32' && targetDir.length > 125) {
+    p.log.warn(
+      `This folder path is ${targetDir.length} characters long: the local database may fail with "internal error". ` +
+      'Scaffold into a shorter folder (for example C:/dev) or enable Windows long paths.'
+    )
+  }
+
   const jwtSecret = generateSecret(32)
   const publicReadKey = generateSecret(16)
   const publicWriteKey = generateSecret(16)
