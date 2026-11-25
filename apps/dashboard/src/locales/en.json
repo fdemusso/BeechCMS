@@ -282,7 +282,7 @@
       "allDone": "Project ready — all setup steps complete",
       "systemTables": {
         "label": "Database initialised",
-        "hint": "Run: npx beech init --db --local"
+        "hint": "Run: npm run db:migrate:local"
       },
       "seeds": "{{count}} active content type(s)",
       "seedsNone": "No content types configured in database",
@@ -2418,7 +2418,6 @@
           "badge": "Not available for your role"
         }
       },
-      "redirectNotice": "After approving you will be sent back to {{uri}}.",
       "approve": "Allow access",
       "deny": "Deny",
       "error": {
@@ -2446,26 +2445,54 @@
         "agent:read": "See the actions your agent is waiting for you to confirm, and reject them",
         "agent:approve": "Run an action after you confirm it in your AI client"
       },
-      "required": "Required",
-      "disclaimer": "The app never exceeds your own role. You can revoke access at any time in Settings > Connected apps.",
       "template": {
         "legend": "Access level",
-        "read": {
-          "label": "Read",
-          "description": "View everything, change nothing"
+        "custom": "Custom",
+        "reader": {
+          "label": "Reader"
         },
-        "editor": {
-          "label": "Editor",
-          "description": "Read, plus create, edit and delete content and media"
+        "writer": {
+          "label": "Writer"
         },
-        "admin": {
-          "label": "Administrator",
-          "description": "Editor, plus automations, users and settings"
-        },
-        "developer": {
-          "label": "Developer",
-          "description": "Everything requested, including schema changes"
+        "full": {
+          "label": "Full access"
         }
+      },
+      "scopeCount": "{{granted}} of {{total}} permissions",
+      "summary": {
+        "empty": "None of the requested permissions are available for your role.",
+        "readOnly": "Read-only access to the selected resources. Nothing can be changed.",
+        "readWithApprove": "Read-only access, plus running actions only after you confirm them.",
+        "writeContent": "Read access plus creating, editing, or deleting content and media.",
+        "writeContentWithApprove": "Read and write access for content and media, plus running confirmed actions.",
+        "schemaOnly": "Read access plus schema changes.",
+        "schemaWithApprove": "Read access, schema changes, and running actions after you confirm them.",
+        "fullWithoutSchema": "Read and write access across content, media, automations, users, and settings.",
+        "fullWithSchema": "Full access to all requested permissions, including schema and settings changes."
+      },
+      "domains": {
+        "schema": "Schema",
+        "content": "Content",
+        "media": "Media",
+        "automations": "Automations",
+        "users": "Users & roles",
+        "settings": "Settings",
+        "analytics": "Analytics",
+        "agent": "Agent actions"
+      },
+      "actions": {
+        "read": "Read",
+        "write": "Write"
+      },
+      "domainDescriptions": {
+        "schema": "Content type structures, fields, and schema migrations.",
+        "content": "Entries stored across your content types (read, create, edit, trash, or delete).",
+        "media": "Images and files stored in your media library.",
+        "automations": "Automated workflows, triggers, and execution logs.",
+        "users": "Team accounts, roles, permissions, and pending invitations.",
+        "settings": "Global site configuration and preferences.",
+        "analytics": "Traffic metrics, storage usage, and system statistics.",
+        "agent": "Pending actions queued by an AI agent that wait for your confirmation."
       }
     },
     "apps": {

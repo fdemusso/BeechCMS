@@ -78,4 +78,28 @@ describe('forms command (multi-framework generator)', () => {
       'utf-8'
     )
   })
+
+  it('no generated form template sends X-API-Key or accepts a key prop', async () => {
+    const matrix = [
+      { framework: 'react', mode: 'styled' },
+      { framework: 'react', mode: 'headless' },
+      { framework: 'vue', mode: 'styled' },
+      { framework: 'svelte', mode: 'headless' },
+      { framework: 'vanilla', mode: 'styled' },
+    ] as const
+
+    for (const { framework, mode } of matrix) {
+      vi.clearAllMocks()
+
+      await forms({ framework, seed: 'clienti', mode, yes: true })
+
+      const content = String(vi.mocked(fs.writeFileSync).mock.calls[0][1])
+      // The template must be real, otherwise the absence checks below pass vacuously.
+      expect(content).toContain('/add')
+      expect(content).toContain('timetrap/token')
+      for (const forbidden of ['X-API-Key', 'apiKey', 'api-key', 'BEECH_WRITE_KEY']) {
+        expect(content, `${framework}/${mode} contains ${forbidden}`).not.toContain(forbidden)
+      }
+    }
+  })
 })

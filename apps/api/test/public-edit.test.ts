@@ -9,7 +9,7 @@ import { __resetSeedRegistryCache } from '../src/shared/services/cache/seed-regi
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
 import { StaticAutomationRepository } from './mocks/static-automation.repository'
-import { TEST_ENV, TEST_PUBLIC_WRITE_KEY } from './fixtures'
+import { TEST_ENV, TEST_SECRET_KEY } from './fixtures'
 
 describe('Public Edit Integration & Confidential Lifecycle', () => {
   const EDITABLE_SEED = defineSeed({
@@ -68,7 +68,7 @@ describe('Public Edit Integration & Confidential Lifecycle', () => {
     const res = await app.request(`/api/v1/public/profiles/edit/${existingEntry.id}`, {
       method: 'PATCH',
       headers: {
-        'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+        'X-API-Key': TEST_SECRET_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -90,7 +90,7 @@ describe('Public Edit Integration & Confidential Lifecycle', () => {
     const res = await app.request(`/api/v1/public/profiles/edit/${existingEntry.id}`, {
       method: 'PATCH',
       headers: {
-        'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+        'X-API-Key': TEST_SECRET_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -111,7 +111,7 @@ describe('Public Edit Integration & Confidential Lifecycle', () => {
     const res = await app.request(`/api/v1/public/profiles/edit/${existingEntry.id}`, {
       method: 'PATCH',
       headers: {
-        'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+        'X-API-Key': TEST_SECRET_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -131,7 +131,7 @@ describe('Public Edit Integration & Confidential Lifecycle', () => {
     const res = await app.request(`/api/v1/public/profiles/edit/${existingEntry.id}`, {
       method: 'PATCH',
       headers: {
-        'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+        'X-API-Key': TEST_SECRET_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -151,7 +151,7 @@ describe('Public Edit Integration & Confidential Lifecycle', () => {
     const res = await app.request(`/api/v1/public/profiles/edit/${existingEntry.id}`, {
       method: 'PATCH',
       headers: {
-        'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+        'X-API-Key': TEST_SECRET_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -185,7 +185,7 @@ describe('Public Edit Integration & Confidential Lifecycle', () => {
     const res = await app.request(`/api/v1/public/profiles/edit/${existingEntry.id}`, {
       method: 'PUT',
       headers: {
-        'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+        'X-API-Key': TEST_SECRET_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -210,7 +210,7 @@ describe('Public Edit Integration & Confidential Lifecycle', () => {
     const res = await app.request(`/api/v1/public/profiles/edit/${existingEntry.id}`, {
       method: 'PATCH',
       headers: {
-        'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+        'X-API-Key': TEST_SECRET_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),

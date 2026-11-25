@@ -11,7 +11,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
 import { defineSeed } from '@beechcms/core'
-import { createTestHarness, TEST_PUBLIC_WRITE_KEY, type TestClient, type TestHarness } from '@beechcms/testing'
+import { createTestHarness, TEST_SECRET_KEY, type TestClient, type TestHarness } from '@beechcms/testing'
 import { createBeechApp } from '../../../factory'
 import { __resetSeedRegistryCache } from '../../../shared/services/cache/seed-registry-cache'
 
@@ -39,7 +39,7 @@ describe('public slice — localized writes (real D1)', () => {
       createApp: (authProviders) => createBeechApp({ seeds: [], authProviders }),
     })
     admin = await harness.asUser('admin')
-    publicClient = harness.anonymous().withHeaders({ 'X-API-Key': TEST_PUBLIC_WRITE_KEY })
+    publicClient = harness.anonymous().withHeaders({ 'X-API-Key': TEST_SECRET_KEY })
     // site_settings is a shared key-value table the harness never resets between tests.
     await harness.db.prepare('DELETE FROM site_settings').run()
     const configured = await admin.put('/api/settings', { locales: ['it', 'en'], defaultLocale: 'it' })

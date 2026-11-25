@@ -17,10 +17,10 @@ BeechCMS eliminates server management by running natively on Cloudflare's server
 Generate a new BeechCMS project using the scaffolding CLI:
 
 <PackageManagerTabs
-  npm="npx @beechcms/cms my-app"
-  pnpm="pnpm dlx @beechcms/cms my-app"
-  yarn="yarn dlx @beechcms/cms my-app"
-  bun="bunx @beechcms/cms my-app"
+  npm="npx @beechcms/cms@latest my-app"
+  pnpm="pnpm dlx @beechcms/cms@latest my-app"
+  yarn="yarn dlx @beechcms/cms@latest my-app"
+  bun="bunx @beechcms/cms@latest my-app"
 />
 
 ### Automated setup
@@ -28,10 +28,12 @@ Generate a new BeechCMS project using the scaffolding CLI:
 To skip interactive prompts and scaffold immediately with sensible defaults:
 
 ```bash
-npx @beechcms/cms my-app --yes
+npx @beechcms/cms@latest my-app --yes
 cd my-app
-npm install
+npm run dev
 ```
+
+The scaffolder installs the dependencies for you (pass `--no-install` to skip that).
 
 ### Project layout
 
@@ -50,24 +52,13 @@ The entire CMS engine and admin SPA live inside `@beechcms/api`. Your workspace 
 
 ## 2. Local environment setup
 
-### Bootstrap the D1 database
-
-Apply the base system schema (`seeds`, `users`, `sessions`, `api_keys`, `media`) to your local Cloudflare D1 emulator:
-
-```bash
-npm run db:migrate:local
-# or via CLI: npx beech init --db
-```
-
 ### Launch the dev server
-
-Start the local Wrangler Workers runtime:
 
 ```bash
 npm run dev
 ```
 
-Wrangler starts the local Workers emulator on `http://localhost:8789`.
+`npm run dev` first applies every pending system migration to your local Cloudflare D1 emulator (the same as `npm run db:migrate:local`, or `npx beech db:migrate`), then starts the local Workers runtime on `http://localhost:8789`. Nothing needs to be provisioned on Cloudflare to run locally, and media uploads work out of the box.
 
 ### Open dashboard
 
@@ -93,9 +84,10 @@ BeechCMS models content through **Seeds** (Blueprints) containing **Branches** (
 
 Add the following Branches to the Seed:
 - **Title**: Type `text`, alias `title`, required, search indexed (`search: true`).
-- **Slug**: Type `text`, alias `slug`, required.
 - **Cover Image**: Type `file`, alias `cover_image`, accept `image`.
 - **Body**: Type `richtext`, alias `body`.
+
+Do not add a `slug` branch. Every entry already has a `slug` system column, generated from the title (`Hello BeechCMS` becomes `hello-beechcms`), and the API rejects branch aliases that collide with system columns (`id`, `slug`, `status`, `created_at`, `updated_at`, `deleted_at`).
 
 Click **Save Seed**. Under the hood, the Botanical Engine compiles the SQLite DDL: provisioning `content_posts`, the draft mirror table `content_posts_drafts`, B-tree indexes, and the full-text search virtual table `fts_posts`.
 
@@ -122,6 +114,9 @@ BeechCMS guarantees draft isolation using **Dual-Table Mirror Staging**:
 
 1. Navigate to **Content > Posts** in the dashboard and click **New Entry**.
 2. Fill in the title `"Hello BeechCMS"`, write some body text, and click **Publish**.
+
+> [!NOTE]
+> Public API reads are edge-cached for 60 seconds and publishing does not purge the cache, so a deployed site can show the previous content for up to a minute after you publish. See [Response headers and caching](/reference/public-api#response-headers-and-caching).
 
 ---
 
@@ -196,10 +191,10 @@ interface AppRegistry {
   posts: Post
 }
 
-// Initialize the Beech client with baseUrl and apiKey
+// Initialize the Beech client with baseUrl and secretKey
 const client = createBeechServerClient<AppRegistry>({
   baseUrl: 'http://localhost:8789',             // Your Worker URL
-  apiKey: 'dev-read-key-changeme'               // PUBLIC_READ_API_KEY from wrangler.jsonc / .dev.vars
+  secretKey: 'beech_sk_dev'                      // BEECH_SECRET_KEY from .dev.vars (local only; read it from the environment in real code)
 })
 
 async function fetchPosts() {

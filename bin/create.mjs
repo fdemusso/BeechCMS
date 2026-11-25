@@ -5,144 +5,41 @@ import * as p from '@clack/prompts'
 import pc from 'picocolors'
 import { spawnSync, execSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { resolve, join } from 'node:path'
-import { randomBytes } from 'node:crypto'
-import { fileURLToPath } from 'node:url'
-import { dirname } from 'node:path'
+import { resolve, join, dirname } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import {
+  DEV_PUBLISHABLE_KEY,
+  PRODUCTION_SECRETS,
+  buildDevVars,
+  buildPackageJson,
+  buildTsConfig,
+  buildWorkerTs,
+  buildWranglerJsonc,
+} from './template.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+/**
+ * Dependency ranges for the generated project. A published @beechcms/cms ships them in
+ * `template-versions.json` (written at release time); in the monorepo they are read from the
+ * manifests that own them.
+ */
+async function loadTemplateVersions() {
+  const published = join(__dirname, 'template-versions.json')
+  if (existsSync(published)) return JSON.parse(readFileSync(published, 'utf8'))
 
-function generateSecret(bytes = 32) {
-  return randomBytes(bytes).toString('hex')
+  const helper = join(__dirname, '..', 'scripts', 'lib', 'template-versions.mjs')
+  if (existsSync(helper)) {
+    const { computeTemplateVersions } = await import(pathToFileURL(helper).href)
+    return computeTemplateVersions(join(__dirname, '..'))
+  }
+  throw new Error('template-versions.json is missing from this @beechcms/cms install; reinstall the package.')
 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function writeFile(path, content) {
   writeFileSync(path, content, 'utf8')
-}
-
-function buildWorkerTs() {
-  return `/// <reference types="@cloudflare/workers-types" />
-import { createBeechApp } from '@beechcms/api'
-
-export default createBeechApp({ seeds: [] })
-`
-}
-
-function getCurrentVersion() {
-  try {
-    const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8'))
-    return `^${pkg.version}`
-  } catch {
-    return '^0.6.6'
-  }
-}
-
-function buildPackageJson(name) {
-  const version = getCurrentVersion()
-  return JSON.stringify({
-    name,
-    version: '0.1.0',
-    private: true,
-    type: 'module',
-    scripts: {
-      dev: 'wrangler dev --port 8789',
-      deploy: 'wrangler deploy --minify',
-      'db:migrate:local': 'wrangler d1 migrations apply ' + name + '-db --local',
-      'db:reset:local': 'node -e "require(\'fs\').rmSync(\'.wrangler/state\',{recursive:true,force:true})" && npm run db:migrate:local',
-    },
-    dependencies: {
-      '@beechcms/api': version,
-      '@beechcms/core': version,
-    },
-    devDependencies: {
-      '@beechcms/cms': version,
-      '@cloudflare/workers-types': '^4.0.0',
-      wrangler: '^4.0.0',
-      typescript: '^5.0.0',
-    },
-  }, null, 2) + '\n'
-}
-
-function buildWranglerJsonc(cfg) {
-  return `{
-  "name": "${cfg.name}-api",
-  "main": "worker.ts",
-  "compatibility_date": "2025-01-01",
-  "compatibility_flags": ["nodejs_compat"],
-
-  "vars": {
-    "JWT_SECRET": "${cfg.jwtSecret}",
-    "CORS_ORIGINS": "${cfg.corsOrigins}",
-    "PUBLIC_READ_API_KEY": "${cfg.publicReadKey}",
-    "PUBLIC_WRITE_API_KEY": "${cfg.publicWriteKey}",
-    "PUBLIC_TIME_TRAP_SECRET": "${cfg.timeTrapSecret}",
-    "APP_URL": "${cfg.appUrl || 'http://localhost:5173'}"
-  },
-
-  "assets": {
-    "binding": "ASSETS",
-    "directory": "node_modules/@beechcms/api/assets/dashboard"
-  },
-
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "${cfg.d1Name}",
-      "database_id": "${cfg.d1Id}",
-      "migrations_dir": "node_modules/@beechcms/api/migrations"
-    }
-  ],
-
-  "r2_buckets": [
-    {
-      "binding": "MEDIA_BUCKET",
-      "bucket_name": "${cfg.r2Bucket}"
-    }
-  ]
-}
-`
-}
-
-function buildDevVars(cloudflare) {
-  const PRIVACY_KEY_LINES = `# Master key for protected fields (AES-GCM + blind index). Do NOT change once data is stored.\nPRIVACY_MASTER_KEY=${randomBytes(32).toString('hex')}`
-  if (cloudflare) {
-    return [
-      `# Cloudflare R2 S3 credentials (required for direct client upload via Presigned URLs)`,
-      `# Guide: https://developers.cloudflare.com/r2/api/s3/tokens/`,
-      `R2_ACCESS_KEY_ID=${cloudflare.r2AccessKey}`,
-      `R2_SECRET_ACCESS_KEY=${cloudflare.r2SecretKey}`,
-      `R2_ENDPOINT=${cloudflare.r2Endpoint}`,
-      `R2_BUCKET_NAME=${cloudflare.r2Bucket}`,
-      '',
-      PRIVACY_KEY_LINES,
-    ].join('\n') + '\n'
-  }
-  return [
-    '# Cloudflare R2 S3 credentials (required for direct client upload via Presigned URLs)',
-    '# Create an R2 API Token: Cloudflare Dashboard → R2 → "Manage R2 API Tokens" (Object Read & Write)',
-    '# Guide: https://developers.cloudflare.com/r2/api/s3/tokens/',
-    'R2_ACCESS_KEY_ID=',
-    'R2_SECRET_ACCESS_KEY=',
-    'R2_ENDPOINT=https://<YOUR_ACCOUNT_ID>.r2.cloudflarestorage.com',
-    'R2_BUCKET_NAME=',
-    '',
-    PRIVACY_KEY_LINES,
-  ].join('\n') + '\n'
-}
-
-function buildTsConfig() {
-  return JSON.stringify({
-    compilerOptions: {
-      target: 'ES2022',
-      module: 'ES2022',
-      moduleResolution: 'bundler',
-      strict: true,
-      types: ['@cloudflare/workers-types'],
-    },
-    include: ['*.ts'],
-  }, null, 2) + '\n'
 }
 
 // ── Cloudflare prompts ────────────────────────────────────────────────────────
@@ -302,15 +199,22 @@ async function main() {
     process.exit(1)
   }
 
-  const jwtSecret = generateSecret(32)
-  const publicReadKey = generateSecret(16)
-  const publicWriteKey = generateSecret(16)
-  const timeTrapSecret = generateSecret(32)
+  // wrangler keeps the local D1 file under the project folder; past ~130 characters Windows refuses
+  // it and wrangler answers with an opaque "internal error" (see packages/cli/src/lib/path-limits.ts).
+  if (process.platform === 'win32' && targetDir.length > 125) {
+    p.log.warn(
+      `This folder path is ${targetDir.length} characters long: the local database may fail with "internal error". ` +
+      'Scaffold into a shorter folder (for example C:/dev) or enable Windows long paths.'
+    )
+  }
 
   const corsOrigins = cloudflare
     ? ['http://localhost:5173', 'http://localhost:5174', cloudflare.appUrl]
         .filter(Boolean).join(',')
     : 'http://localhost:5173,http://localhost:5174'
+
+  const d1Name = cloudflare?.d1Name ?? `${name}-db`
+  const versions = await loadTemplateVersions()
 
   // Scaffold
   const s = p.spinner()
@@ -319,24 +223,38 @@ async function main() {
   mkdirSync(targetDir, { recursive: true })
 
   writeFile(join(targetDir, 'worker.ts'), buildWorkerTs())
-  writeFile(join(targetDir, 'package.json'), buildPackageJson(name))
+  writeFile(join(targetDir, 'package.json'), buildPackageJson(name, d1Name, versions))
   writeFile(join(targetDir, 'tsconfig.json'), buildTsConfig())
   writeFile(join(targetDir, 'wrangler.jsonc'), buildWranglerJsonc({
     name,
-    d1Name: cloudflare?.d1Name ?? `${name}-db`,
+    d1Name,
     d1Id: cloudflare?.d1Id ?? 'FILL_IN_YOUR_D1_DATABASE_ID',
     r2Bucket: cloudflare?.r2Bucket ?? `${name}-media`,
-    jwtSecret,
     corsOrigins,
-    publicReadKey,
-    publicWriteKey,
-    timeTrapSecret,
     appUrl: cloudflare?.appUrl ?? '',
   }))
   writeFile(join(targetDir, '.dev.vars'), buildDevVars(cloudflare))
   writeFile(join(targetDir, '.gitignore'), '.wrangler\nnode_modules\n.dev.vars\ndist\n')
 
   s.stop('Project scaffolded')
+
+  // Install dependencies so `npm run dev` works straight away
+  let installed = false
+  if (!argv.includes('--no-install')) {
+    s.start('Installing dependencies (this can take a minute)…')
+    const install = spawnSync('npm', ['install', '--no-fund', '--no-audit'], {
+      cwd: targetDir,
+      encoding: 'utf8',
+      shell: process.platform === 'win32',
+    })
+    installed = install.status === 0
+    if (installed) {
+      s.stop('Dependencies installed')
+    } else {
+      s.stop(pc.yellow('Dependency install failed'))
+      console.log(pc.dim((install.stderr || install.stdout || '').trim().split('\n').slice(-8).join('\n')))
+    }
+  }
 
   // Init git
   s.start('Initialising git repository…')
@@ -349,43 +267,34 @@ async function main() {
     s.stop('Git skipped (not available)')
   }
 
-  const pendingConfig = !cloudflare
-  const step = (n) => pc.bold(String(n + (pendingConfig ? 1 : 0)))
   console.log()
   p.note(
     [
-      `${pc.bold('1. Enter the project')}`,
+      `${pc.bold('Start the project')}`,
       `   ${pc.cyan('cd ' + name)}`,
+      ...(installed ? [] : [`   ${pc.cyan('npm install')}`]),
+      `   ${pc.cyan('npm run dev')}`,
+      `   Applies the local database migrations, then serves the API and dashboard.`,
+      `   Open ${pc.underline('http://localhost:8789/admin')} to create your admin account.`,
       '',
-      `${pc.bold('2. Install dependencies')}`,
-      `   ${pc.cyan('npm install')}`,
+      `${pc.bold('Public API keys')}`,
+      `   Publishable key: ${pc.cyan(DEV_PUBLISHABLE_KEY)} (browser and server, read only, in wrangler.jsonc)`,
+      `   The secret key (server only, reads and writes) is in ${pc.underline('.dev.vars')}.`,
       '',
-      ...(pendingConfig ? [
-        `${pc.bold('3. Complete Cloudflare configuration')}  ${pc.yellow('← pending')}`,
+      `${pc.bold('When you are ready to deploy')}`,
+      ...(cloudflare ? [] : [
         `   Edit ${pc.underline('wrangler.jsonc')}  →  fill in ${pc.yellow('database_id')} (D1) and ${pc.yellow('bucket_name')} (R2)`,
-        `   Set R2 S3 secrets for Presigned uploads in ${pc.underline('.dev.vars')} (dev) and via ${pc.cyan('npx wrangler secret put')} (prod)`,
-        `   Guide: https://developers.cloudflare.com/r2/api/s3/tokens/`,
-        '',
-      ] : [
-        `${pc.bold('3. Production R2 secrets')} (when deploying to Cloudflare)`,
-        `   ${pc.cyan('npx wrangler secret put R2_ACCESS_KEY_ID')}`,
-        `   ${pc.cyan('npx wrangler secret put R2_SECRET_ACCESS_KEY')}`,
-        `   ${pc.cyan('npx wrangler secret put R2_ENDPOINT')}  →  ${cloudflare.r2Endpoint}`,
-        `   ${pc.cyan('npx wrangler secret put R2_BUCKET_NAME')}  →  ${cloudflare.r2Bucket}`,
-        '',
       ]),
-      `${step(3)}. Run local migrations`,
-      `   ${pc.cyan('npm run db:migrate:local')}`,
-      '',
-      `${step(4)}. Start the dev server`,
-      `   ${pc.cyan('npx wrangler dev')}`,
-      `   Then open: ${pc.underline('http://localhost:8789/admin')}`,
-      '',
-      `${step(5)}. Deploy to production`,
+      ...PRODUCTION_SECRETS.map((secret) => `   ${pc.cyan('npx wrangler secret put ' + secret)}`),
+      `   Use fresh values, not the local ones.`,
+      `   The secret key starts with beech_sk_live_; the API refuses the local development key outside development.`,
+      `   Set PRIVACY_MASTER_KEY once and never change it after data is stored.`,
+      `   Generate a value: ${pc.cyan(`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)}`,
+      `   Set the R2 S3 secrets (direct uploads): ${pc.cyan('npx wrangler secret put R2_ACCESS_KEY_ID')}, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME`,
+      `   Guide: https://developers.cloudflare.com/r2/api/s3/tokens/`,
       `   ${pc.cyan('npm run deploy')}`,
       '',
-      `${pc.dim('Manage content types dynamically in the BeechCMS Dashboard at /admin.')}`,
-      `${pc.dim('JWT secret and API keys have been auto-generated.')}`,
+      `${pc.dim('Uploads work locally with no setup. Local secrets are in .dev.vars, which git ignores.')}`,
     ].join('\n'),
     'Next steps'
   )

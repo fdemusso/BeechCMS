@@ -32,10 +32,15 @@ export interface ConditionalRule {
   value?: unknown
 }
 
+/** Privacy tier of a branch, as resolved by the API (`policies.classification` on the public schema). */
+export type FormDataClassification = 'public' | 'internal' | 'restricted' | 'confidential'
+
 export interface FormBranchSchema {
   alias: string
   type: FormBranchType
   label?: string
+  /** Anything other than `public` is kept out of the local draft. */
+  classification?: FormDataClassification
   placeholder?: string
   required?: boolean
   /** Choice list for select-like branches. `color` (`#RRGGBB`) is set on `tags` options. */
@@ -74,6 +79,10 @@ export interface FormTranslations {
   invalidFileType: string
   fileTooLarge: (maxMb: number) => string
   draftRestored: string
+  /** Accessible name of the button that closes the draft-restored notice. */
+  dismissDraft: string
+  /** Shown while the form schema loads. */
+  loadingForm: string
   timeTrapWarning: string
   honeypotLabel: string
 }
@@ -88,12 +97,18 @@ export interface UseBeechFormOptions<TValues extends Record<string, unknown> = R
   translations?: Partial<FormTranslations>
   initialValues?: Partial<TValues>
   disableDraft?: boolean
+  /** Field aliases never written to the local draft, on top of every branch classified above `public`. */
+  excludeFromDraft?: string[]
+  /** Idle time after which a stored draft is discarded. Defaults to 24 hours. */
+  draftTtlMs?: number
   disableAntiBot?: boolean
   honeypotField?: string
   includeFields?: string[]
   excludeFields?: string[]
   onSuccess?: (result: { id?: string; data: TValues }) => void
   onError?: (error: { status: number; message: string; details?: unknown }) => void
+  /** Time source for the time-trap checks. Defaults to `Date.now`; inject one in tests instead of faking timers. */
+  clock?: { now(): number }
 }
 
 export interface FormFieldState {

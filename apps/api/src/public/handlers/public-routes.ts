@@ -8,7 +8,8 @@ import type { AppEnv } from '../../types'
 import { publicReadHandler } from './public-read'
 import { publicAddHandler } from './public-add'
 import { publicEditHandler } from './public-edit'
-import { publicProblem, timeTrapNotConfiguredProblem } from '../errors/problem-details'
+import { publicSeedNotFoundProblem, timeTrapNotConfiguredProblem } from '../errors/problem-details'
+import { isPubliclyExposed } from '../validation/access-policy'
 import { publicSearchRouter } from '../../features/search'
 
 const publicApp = new Hono<AppEnv>()
@@ -31,13 +32,8 @@ publicApp.route('/search', publicSearchRouter)
 publicApp.get('/:seed/schema', (c) => {
   const seedSlug = c.req.param('seed') ?? ''
   const seed = c.get('getSeed')(seedSlug)
-  if (!seed) {
-    return publicProblem(c, { type: 'seed-not-found', title: 'Not Found', status: 404, detail: `Seed '${seedSlug}' does not exist.` })
-  }
-
-  const isPublic = seed.allowPublicRead === true || seed.allowPublicPost === true || seed.allowPublicEdit === true
-  if (!isPublic) {
-    return publicProblem(c, { type: 'operation-not-allowed', title: 'Forbidden', status: 403, detail: `Public access not allowed for '${seedSlug}'.` })
+  if (!seed || !isPubliclyExposed(seed)) {
+    return publicSeedNotFoundProblem(c, seedSlug)
   }
 
   const publicBranches = (seed.branches ?? [])

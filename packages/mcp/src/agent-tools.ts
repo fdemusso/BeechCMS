@@ -77,13 +77,29 @@ export interface PendingIntentSummary {
   expiresInSeconds: number
 }
 
+export interface IntentStatusItem {
+  id: string
+  outcome: ConfirmOutcome
+  operationId: string | null
+  risk: 'publish' | 'destructive' | null
+  summary: string | null
+  status: string | null
+  expiresAt: number | null
+  expiresInSeconds: number | null
+  resultStatus: number | null
+  resultBody: unknown
+  message: string | null
+}
+
 export interface IntentsResult {
   intents: PendingIntentSummary[]
+  /** Present when `intentIds` was supplied; one entry per distinct requested id in request order. */
+  checked?: IntentStatusItem[]
   pendingActionsUrl: string
 }
 
 export type ConfirmOutcome =
-  | 'executed' | 'failed' | 'rejected' | 'pending'
+  | 'executed' | 'failed' | 'rejected' | 'pending' | 'awaiting_result'
   | 'expired' | 'not_pending' | 'not_found' | 'error'
 
 export interface ConfirmItemResult {
@@ -137,6 +153,7 @@ interface IntentBody {
   status: string
   expiresAt: number
   body?: unknown
+  result?: { status: number; body: unknown } | null
 }
 
 interface ReplayBody {
@@ -211,13 +228,47 @@ export async function beechWhoami(deps: AgentToolDeps): Promise<WhoamiResult> {
   }
 }
 
+const AWAITING_RESULT_MESSAGE =
+  'Intent was approved on the server, but no execution result is recorded yet. Check again with beech_intents before acting; do not resubmit.'
+
+/** Maps a stored intent record to its current {@link ConfirmOutcome}. */
+function mapIntentToOutcome(intent: IntentBody, now: number): ConfirmOutcome {
+  if (intent.status === 'pending') return intent.expiresAt <= now ? 'expired' : 'pending'
+  if (intent.status === 'approved') {
+    if (intent.result === null || intent.result === undefined) return 'awaiting_result'
+    return intent.result.status < 400 ? 'executed' : 'failed'
+  }
+  if (
+    intent.status === 'executed' ||
+    intent.status === 'failed' ||
+    intent.status === 'rejected' ||
+    intent.status === 'expired'
+  ) {
+    return intent.status
+  }
+  return 'not_pending'
+}
+
 /**
- * Lists the caller's pending intents, newest first as the server answers.
+ * Lists the caller's pending intents, or reads back specific intents when `input.intentIds` is provided.
  *
  * @param deps - Injected I/O.
- * @throws {AgentToolError} When the read is not 2xx JSON.
+ * @param input - Optional `{ intentIds }` list (1..20 distinct ids) to read back individual statuses.
+ * @throws {AgentToolError} When `intentIds` is invalid or the list read is not 2xx JSON.
  */
-export async function beechIntents(deps: AgentToolDeps): Promise<IntentsResult> {
+export async function beechIntents(
+  deps: AgentToolDeps,
+  input?: { intentIds?: unknown },
+): Promise<IntentsResult> {
+  if (input?.intentIds !== undefined) {
+    const ids = parseIntentIds(input.intentIds)
+    const checked: IntentStatusItem[] = []
+    for (const id of ids) {
+      checked.push(await readIntentStatus(deps, id))
+    }
+    return { intents: [], checked, pendingActionsUrl: deps.pendingActionsUrl }
+  }
+
   const { intents } = await fetchOk<{ intents: IntentBody[] }>(deps, 'GET', '/api/agent/intents')
   const now = deps.nowSeconds()
   return {
@@ -231,14 +282,6 @@ export async function beechIntents(deps: AgentToolDeps): Promise<IntentsResult> 
     })),
     pendingActionsUrl: deps.pendingActionsUrl,
   }
-}
-
-function emptyItem(id: string, outcome: ConfirmOutcome): ConfirmItemResult {
-  return { id, outcome, operationId: null, summary: null, resultStatus: null, resultBody: null, message: null }
-}
-
-function describeIntent(intent: IntentBody, item: ConfirmItemResult): ConfirmItemResult {
-  return { ...item, operationId: intent.operationId, summary: intent.summary }
 }
 
 function cutWithEllipsis(text: string, maxChars: number): string {
@@ -284,7 +327,17 @@ async function decide(deps: AgentToolDeps, item: ConfirmItemResult, decision: 'a
   try {
     response = await deps.send('POST', path)
   } catch (error) {
-    return { ...item, outcome: 'error', message: error instanceof Error ? error.message : String(error) }
+    const transportMessage = error instanceof Error ? error.message : String(error)
+    if (decision === 'approve') {
+      const { status } = await fetchIntentRecord(deps, item.id)
+      if (status.outcome === 'executed' || status.outcome === 'failed') {
+        return { ...item, outcome: status.outcome, resultStatus: status.resultStatus, resultBody: status.resultBody, message: null }
+      }
+      if (status.outcome === 'awaiting_result') {
+        return { ...item, outcome: 'awaiting_result', resultStatus: null, resultBody: null, message: status.message }
+      }
+    }
+    return { ...item, outcome: 'error', message: transportMessage }
   }
   if (response.status !== 200) {
     return failedDecisionItem(item, 'POST', path, response.status, await readErrorBody(response))
@@ -315,7 +368,8 @@ async function decide(deps: AgentToolDeps, item: ConfirmItemResult, decision: 'a
 /** Instruction the agent relays to the human when nothing was decided. */
 function buildFallbackInstruction(shown: readonly IntentBody[], now: number, pendingActionsUrl: string): string {
   const smallestRemainingMinutes = Math.min(...shown.map(intent => Math.ceil((intent.expiresAt - now) / 60)))
-  return `Nothing ran. Tell the human that ${shown.length} action(s) wait for approval in the BeechCMS dashboard: ${pendingActionsUrl}. They expire in ${smallestRemainingMinutes} min. Call beech_intents to see what is still pending.`
+  const ids = shown.map(intent => intent.id)
+  return `Nothing ran. Tell the human that ${shown.length} action(s) (${ids.join(', ')}) wait for approval in the BeechCMS dashboard: ${pendingActionsUrl}. They expire in ${smallestRemainingMinutes} min. After the human acts, call beech_intents with intentIds: ${JSON.stringify(ids)} to check the outcome; never resubmit.`
 }
 
 /** Validates `intentIds`: 1..CONFIRM_MAX_INTENTS non-empty strings, duplicates collapsed (first wins). */
@@ -330,29 +384,85 @@ function parseIntentIds(intentIds: unknown): string[] {
   return distinct
 }
 
-/** Loads one intent; a loaded pending, unexpired intent is returned as `shown`. */
-async function loadIntent(
+function emptyStatusItem(id: string, outcome: ConfirmOutcome, message: string | null): IntentStatusItem {
+  return {
+    id,
+    outcome,
+    operationId: null,
+    risk: null,
+    summary: null,
+    status: null,
+    expiresAt: null,
+    expiresInSeconds: null,
+    resultStatus: null,
+    resultBody: null,
+    message,
+  }
+}
+
+/** Fetches one intent record without throwing on 404, non-2xx, transport, or JSON errors. */
+async function fetchIntentRecord(
   deps: AgentToolDeps,
   id: string,
-): Promise<{ item: ConfirmItemResult; shown: IntentBody | null }> {
+): Promise<{ status: IntentStatusItem; intent: IntentBody | null }> {
   const path = `/api/agent/intents/${id}`
   let response: Response
   try {
     response = await deps.send('GET', path)
   } catch (error) {
-    return { item: { ...emptyItem(id, 'error'), message: error instanceof Error ? error.message : String(error) }, shown: null }
+    return { status: emptyStatusItem(id, 'error', error instanceof Error ? error.message : String(error)), intent: null }
   }
-  if (response.status === 404) return { item: emptyItem(id, 'not_found'), shown: null }
+  if (response.status === 404) return { status: emptyStatusItem(id, 'not_found', null), intent: null }
   if (!response.ok) {
     const message = describeFailure('GET', path, response.status, await readErrorBody(response))
-    return { item: { ...emptyItem(id, 'error'), message }, shown: null }
+    return { status: emptyStatusItem(id, 'error', message), intent: null }
   }
 
-  const { intent } = await readJson<{ intent: IntentBody }>(response, 'GET', path)
-  const item = describeIntent(intent, emptyItem(id, 'pending'))
-  if (intent.status !== 'pending') return { item: { ...item, outcome: 'not_pending' }, shown: null }
-  if (intent.expiresAt <= deps.nowSeconds()) return { item: { ...item, outcome: 'expired' }, shown: null }
-  return { item, shown: intent }
+  let intent: IntentBody
+  try {
+    ;({ intent } = await readJson<{ intent: IntentBody }>(response, 'GET', path))
+  } catch (error) {
+    return { status: emptyStatusItem(id, 'error', error instanceof Error ? error.message : String(error)), intent: null }
+  }
+
+  const now = deps.nowSeconds()
+  const outcome = mapIntentToOutcome(intent, now)
+  const status: IntentStatusItem = {
+    id,
+    outcome,
+    operationId: intent.operationId,
+    risk: intent.risk,
+    summary: intent.summary,
+    status: intent.status,
+    expiresAt: intent.expiresAt,
+    expiresInSeconds: Math.max(0, intent.expiresAt - now),
+    resultStatus: intent.result ? intent.result.status : null,
+    resultBody: intent.result ? previewResultBody(intent.result.body) : null,
+    message: outcome === 'awaiting_result' ? AWAITING_RESULT_MESSAGE : null,
+  }
+  return { status, intent }
+}
+
+async function readIntentStatus(deps: AgentToolDeps, id: string): Promise<IntentStatusItem> {
+  return (await fetchIntentRecord(deps, id)).status
+}
+
+/** Loads one intent; a loaded pending, unexpired intent is returned as `shown`. */
+async function loadIntent(
+  deps: AgentToolDeps,
+  id: string,
+): Promise<{ item: ConfirmItemResult; shown: IntentBody | null }> {
+  const { status, intent } = await fetchIntentRecord(deps, id)
+  const item: ConfirmItemResult = {
+    id: status.id,
+    outcome: status.outcome,
+    operationId: status.operationId,
+    summary: status.summary,
+    resultStatus: status.resultStatus,
+    resultBody: status.resultBody,
+    message: status.message,
+  }
+  return { item, shown: status.outcome === 'pending' ? intent : null }
 }
 
 /**

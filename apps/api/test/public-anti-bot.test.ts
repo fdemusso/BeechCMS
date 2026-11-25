@@ -9,7 +9,7 @@ import { StaticAutomationRepository } from './mocks/static-automation.repository
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
 import { StaticTimeTrapTokenRepository } from './mocks/static-time-trap-token.repository'
-import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_WRITE_KEY } from './fixtures'
+import { TEST_SEEDS, TEST_ENV, TEST_SECRET_KEY } from './fixtures'
 
 describe('Public Form Security & Anti-Bot Defense', () => {
   let app: ReturnType<typeof createBeechApp>
@@ -153,7 +153,7 @@ describe('Public Form Security & Anti-Bot Defense', () => {
   })
 
   describe('Backend-Driven Status Enforcement', () => {
-    it('disregards client-supplied status and defaults to published', async () => {
+    it('disregards client-supplied status and defaults to draft', async () => {
       const t0 = Math.floor(Date.now() / 1000) - 2
       const token = await generateTimeTrapToken(SECRET, t0)
 
@@ -164,7 +164,7 @@ describe('Public Form Security & Anti-Bot Defense', () => {
         },
         body: JSON.stringify({
           data: { title: 'Status Test Post' },
-          status: 'draft',
+          status: 'published',
           _timeTrapToken: token,
         }),
       }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
@@ -172,7 +172,7 @@ describe('Public Form Security & Anti-Bot Defense', () => {
       expect(res.status).toBe(201)
       const body = await res.json<{ id: string }>()
       const entry = await repo.findById(TEST_SEEDS[0], body.id)
-      expect(entry?.status).toBe('published')
+      expect(entry?.status).toBe('draft')
     })
   })
 

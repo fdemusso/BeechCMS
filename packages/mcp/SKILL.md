@@ -29,8 +29,13 @@ value answers 409 `layout-conflict`: read again and re-apply the edit.
 
 ## 4. Approval
 `pendingIntents` did not run. Call `beech_confirm` with their ids: the human sees one dialog built from what the
-server stored and approves or rejects. On `declined`, `cancelled` or `fallback`, relay `instruction` verbatim and
-stop. Never retry a declined confirm in a loop. Never try to approve another way.
+server stored and approves or rejects. On `declined` or `cancelled`, relay `instruction` verbatim and stop. On
+`fallback`, relay `instruction` (including the `intentIds`) to the human, and once they act in the dashboard, call
+`beech_intents({ intentIds })` to read back each intent's outcome (`executed`, `failed`, `rejected`, `expired`, or
+`awaiting_result`). Never retry a declined confirm in a loop. Never try to approve another way.
+
+If an outcome is `awaiting_result`, the server recorded the approval but has not persisted the execution result yet
+(or was interrupted mid-flight): check again with `beech_intents({ intentIds })` and **never resubmit** the action.
 
 The dialog has a required `Decision` field that starts empty, and Accept does nothing until it is set. Tell the human
 to set it (terminal client: `→` opens the field, `↑`/`↓` choose, `Enter` confirms) and then press Accept; Accept with

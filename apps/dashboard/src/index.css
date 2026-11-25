@@ -354,6 +354,28 @@ body {
   }
 }
 
+/* Equivalent squircles (~1.8x radius) where corner-shape is supported; unsupported browsers keep 10px/16px round. */
+@layer base {
+  @supports (corner-shape: squircle) {
+    :root {
+      --radius: 1.5rem;
+      --radius-control: 18px;
+      --radius-lg: 28px;
+    }
+
+    * {
+      corner-shape: squircle;
+    }
+  }
+}
+
+/* Keep pills, avatars and status dots truly round. */
+@layer utilities {
+  .rounded-full {
+    corner-shape: round;
+  }
+}
+
 /*
   Layout content-area: limita il contenuto principale a una larghezza
   leggibile anche su monitor ultrawide 21:9 (≥ 2560px).

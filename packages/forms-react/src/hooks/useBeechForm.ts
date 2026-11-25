@@ -2,19 +2,63 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { FormBranchSchema, FormSeedSchema, UseBeechFormOptions, UseBeechFormReturn } from '../types.js'
+import type {
+  FormBranchSchema,
+  FormDataClassification,
+  FormSeedSchema,
+  UseBeechFormOptions,
+  UseBeechFormReturn,
+} from '../types.js'
 import { DEFAULT_HONEYPOT_NAME } from '../core/honeypot.js'
 import { fetchTimeTrapToken } from '../core/time-trap.js'
-import { clearFormDraft, loadFormDraft, saveFormDraft } from '../core/draft-storage.js'
+import { clearFormDraft, loadFormDraft, purgeStaleFormDrafts, saveFormDraft } from '../core/draft-storage.js'
 import { evaluateCondition } from '../core/conditional-logic.js'
 import { fileToAttachment } from '../core/file-uploader.js'
 import { getTranslations } from '../i18n/translations.js'
+
+/** Server window of a time-trap token (public-add.ts): usable from 1.5 s to 3600 s after it was issued. */
+const TIME_TRAP_MIN_DELAY_MS = 1_500
+const TIME_TRAP_MAX_AGE_MS = 3_600_000
+/** A token this close to expiry is replaced before submit, so it cannot lapse in flight. */
+const TIME_TRAP_EXPIRY_MARGIN_MS = 60_000
+
+const SYSTEM_CLOCK = { now: () => Date.now() }
 
 /** Normalizes a form value to the `string[]` a `tags` branch is written as. */
 function toTagsArray(value: unknown): unknown[] {
   if (Array.isArray(value)) return value
   if (value === undefined || value === null || value === '') return []
   return [value]
+}
+
+/**
+ * Splits a Problem Details `errors[]` (core ValidationDetail: `{ field, message }`) into messages for
+ * fields the form renders and messages for anything else.
+ */
+function splitServerErrors(
+  errors: unknown,
+  schema: FormSeedSchema | null
+): { fieldErrors: Record<string, string>; unmatched: string[] } {
+  const fieldErrors: Record<string, string> = {}
+  const unmatched: string[] = []
+  if (!Array.isArray(errors)) return { fieldErrors, unmatched }
+  const aliases = new Set(schema?.branches.map((b) => b.alias))
+  for (const entry of errors) {
+    if (!entry || typeof entry !== 'object') continue
+    const { field, message } = entry as { field?: unknown; message?: unknown }
+    if (typeof message !== 'string' || !message) continue
+    if (typeof field === 'string' && aliases.has(field) && !Object.hasOwn(fieldErrors, field)) fieldErrors[field] = message
+    else if (typeof field !== 'string' || !aliases.has(field)) unmatched.push(message)
+  }
+  return { fieldErrors, unmatched }
+}
+
+const CLASSIFICATIONS: readonly string[] = ['public', 'internal', 'restricted', 'confidential']
+
+/** Reads the canonical tier the public schema reports under `policies.classification`. */
+function toClassification(policies: unknown): FormDataClassification | undefined {
+  const raw = (policies as { classification?: unknown } | null | undefined)?.classification
+  return typeof raw === 'string' && CLASSIFICATIONS.includes(raw) ? (raw as FormDataClassification) : undefined
 }
 
 export function useBeechForm<TValues extends Record<string, unknown> = Record<string, unknown>>(
@@ -28,12 +72,15 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
     translations: customTranslations,
     initialValues = {},
     disableDraft = false,
+    excludeFromDraft,
+    draftTtlMs,
     disableAntiBot = false,
     honeypotField = DEFAULT_HONEYPOT_NAME,
     includeFields,
     excludeFields,
     onSuccess,
     onError,
+    clock = SYSTEM_CLOCK,
   } = options
 
   const seedSlug = typeof seed === 'string' ? seed : seed.slug
@@ -119,6 +166,7 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
                 alias,
                 type: formType,
                 label,
+                classification: toClassification(b.policies),
                 required: Boolean(b.requiredOnCreate ?? b.required),
                 placeholder: typeof b.placeholder === 'string' ? b.placeholder : undefined,
                 options: optionsList,
@@ -173,34 +221,53 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
 
   // Anti-Bot: Time Trap State
   const [timeTrapToken, setTimeTrapToken] = useState<string | null>(null)
-  const mountTimeRef = useRef<number>(Date.now())
+  // A ref, so an inline `clock` object does not re-run the token effect on every render.
+  const clockRef = useRef(clock)
+  useEffect(() => {
+    clockRef.current = clock
+  }, [clock])
+  // When the current token was received, on `clock`: the 1.5 s and 1 h checks count from here.
+  const tokenIssuedAtRef = useRef<number>(clock.now())
+
+  // Tokens are single use: one is fetched on mount and again after every submit the server answered.
+  const refreshTimeTrapToken = useCallback(async () => {
+    if (disableAntiBot || !baseUrl) return
+    const res = await fetchTimeTrapToken(baseUrl)
+    if (res) {
+      setTimeTrapToken(res.token)
+      tokenIssuedAtRef.current = clockRef.current.now()
+    }
+  }, [disableAntiBot, baseUrl])
 
   // Initial mount: load draft indicator & fetch time-trap token
   useEffect(() => {
-    mountTimeRef.current = Date.now()
+    tokenIssuedAtRef.current = clockRef.current.now()
     if (!disableDraft) {
+      purgeStaleFormDrafts()
       const saved = loadFormDraft<TValues>(seedSlug)
       if (saved && Object.keys(saved).length > 0) {
         setIsDraftRestored(true)
       }
     }
 
-    if (!disableAntiBot && baseUrl) {
-      fetchTimeTrapToken(baseUrl).then((res) => {
-        if (res) {
-          setTimeTrapToken(res.token)
-          mountTimeRef.current = res.timestamp
-        }
-      })
-    }
-  }, [seedSlug, baseUrl, disableDraft, disableAntiBot])
+    void refreshTimeTrapToken()
+  }, [seedSlug, disableDraft, refreshTimeTrapToken])
+
+  // Keyed by content so an inline `excludeFromDraft={[...]}` does not re-run the save effect every render
+  const excludeFromDraftKey = (excludeFromDraft ?? []).join('\n')
+  const draftExclude = useMemo(() => {
+    const classified = (schema?.branches ?? [])
+      .filter((b) => b.classification !== undefined && b.classification !== 'public')
+      .map((b) => b.alias)
+    return [...classified, ...excludeFromDraftKey.split('\n').filter(Boolean)]
+  }, [schema, excludeFromDraftKey])
 
   // Real-time auto-save draft
   useEffect(() => {
     if (!disableDraft && !isSuccess) {
-      saveFormDraft(seedSlug, values)
+      saveFormDraft(seedSlug, values, { exclude: draftExclude, ttlMs: draftTtlMs })
     }
-  }, [seedSlug, values, disableDraft, isSuccess])
+  }, [seedSlug, values, disableDraft, isSuccess, draftExclude, draftTtlMs])
 
   const setFieldValue = useCallback((field: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [field]: value }))
@@ -261,7 +328,8 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
         onBlur: () => setFieldTouched(field, true),
         'aria-invalid': !!(isFieldTouched && fieldError),
         'aria-required': isRequired,
-        'aria-describedby': fieldError ? `${field}-error` : undefined,
+        // Same condition as FormField rendering the message, so the reference never points at nothing.
+        'aria-describedby': isFieldTouched && fieldError ? `${field}-error` : undefined,
       }
     },
     [errors, touched, schema, values, setFieldValue, setFieldTouched]
@@ -359,9 +427,13 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
         return false
       }
 
+      // A token near the end of its 1 h window would be refused by the server: replace it first.
+      if (!disableAntiBot && clockRef.current.now() - tokenIssuedAtRef.current > TIME_TRAP_MAX_AGE_MS - TIME_TRAP_EXPIRY_MARGIN_MS) {
+        await refreshTimeTrapToken()
+      }
+
       // Check Time Trap Delta on client (< 1.5s)
-      const elapsedSeconds = (Date.now() - mountTimeRef.current) / 1000
-      if (!disableAntiBot && elapsedSeconds < 1.5) {
+      if (!disableAntiBot && clockRef.current.now() - tokenIssuedAtRef.current < TIME_TRAP_MIN_DELAY_MS) {
         setServerError(translations.timeTrapWarning)
         onError?.({ status: 422, message: 'Time trap delta violation' })
         return false
@@ -406,10 +478,19 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
         })
 
         const json = await response.json().catch(() => null)
+        // The server consumed or rejected this token either way; the next submit needs a fresh one.
+        if (timeTrapToken) void refreshTimeTrapToken()
 
         if (!response.ok) {
           const detail = json?.detail || json?.title || translations.genericErrorMessage
-          setServerError(detail)
+          const { fieldErrors, unmatched } = splitServerErrors(json?.errors, schema)
+          if (Object.keys(fieldErrors).length > 0) {
+            setErrors((prev) => ({ ...prev, ...fieldErrors }))
+            setTouched((prev) => ({ ...prev, ...Object.fromEntries(Object.keys(fieldErrors).map((field) => [field, true])) }))
+          }
+          // The banner keeps what no field can show: unmatched entries, or the whole problem when there are none.
+          const banner = unmatched.length > 0 ? unmatched.join(' ') : Object.keys(fieldErrors).length > 0 ? null : detail
+          setServerError(banner)
           onError?.({ status: response.status, message: detail, details: json })
           return false
         }
@@ -442,6 +523,7 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
       apiKey,
       onSuccess,
       onError,
+      refreshTimeTrapToken,
     ]
   )
 

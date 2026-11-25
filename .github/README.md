@@ -16,18 +16,19 @@ BeechCMS runs entirely on Cloudflare: Workers for the API, D1 (SQLite at the edg
 ## Quick start
 
 ```bash
-npx @beechcms/cms my-app
+npx @beechcms/cms@latest my-app
 ```
 
-The wizard scaffolds the project. Add `--yes` to skip it and use the starter template.
+The wizard scaffolds the project and installs its dependencies. Add `--yes` to skip the wizard and use the starter template.
 
-Then create the database tables:
+Then start it:
 
 ```bash
-npx beech onboard
+cd my-app
+npm run dev
 ```
 
-`npx beech init --db` does the same job. From there, the [docs](https://fdemusso.github.io/BeechCMS/start/) take you through configuration and deployment.
+`npm run dev` applies the database migrations, then serves the API and the dashboard at `http://localhost:8789/admin`, where you create your admin account. Nothing needs to be set up on Cloudflare to run locally, and media uploads work out of the box. From there, the [docs](https://fdemusso.github.io/BeechCMS/start/) take you through configuration and deployment.
 
 ## Why Beech
 

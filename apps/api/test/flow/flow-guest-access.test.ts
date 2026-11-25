@@ -29,7 +29,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
   describe('Configuration & Authentication', () => {
     it('error: returns 403 when public keys are not configured', async () => {
-      const res = await app.request('/api/v1/public/posts', {}, { ...TEST_ENV, PUBLIC_READ_API_KEY: undefined })
+      const res = await app.request('/api/v1/public/posts', {}, { ...TEST_ENV, BEECH_PUBLISHABLE_KEY: undefined, BEECH_SECRET_KEY: undefined })
       expect(res.status).toBe(403)
     })
 
@@ -48,7 +48,7 @@ describe('Flow: Guest Access (Public API)', () => {
       ])
 
       const res = await app.request('/api/v1/public/posts?orderBy=title&orderDir=asc', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
 
       expect(res.status).toBe(200)
@@ -67,7 +67,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
       const filter = JSON.stringify({ where: [{ field: 'title', op: 'eq', value: 'Beta' }] })
       const res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
 
       expect(res.status).toBe(200)
@@ -85,7 +85,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
       const filter = JSON.stringify({ where: [{ field: 'title', op: 'contains', value: 'World' }] })
       const res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
 
       expect(res.status).toBe(200)
@@ -95,7 +95,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
     it('error: unknown seed returns 404', async () => {
       const res = await app.request('/api/v1/public/nonexistent-seed', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(404)
     })
@@ -111,7 +111,7 @@ describe('Flow: Guest Access (Public API)', () => {
         rateLimiterRegistry: blockedRegistry,
       })
       const res = await rateLimitedApp.request('/api/v1/public/posts', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
 
       expect(res.status).toBe(429)
@@ -135,17 +135,17 @@ describe('Flow: Guest Access (Public API)', () => {
       })
 
       await spyApp.request('/api/v1/public/posts', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(checkedKeys.at(-1)).toContain(':posts:')
 
       await spyApp.request('/api/v1/public/documentation', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(checkedKeys.at(-1)).toContain(':documentation:')
 
       await spyApp.request('/api/v1/public/health', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(checkedKeys.at(-1)).toContain(':no-seed:')
     })
@@ -169,7 +169,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
       for (const segment of ['aaaa1', 'aaaa2', 'aaaa3', 'constructor', '__proto__']) {
         await spyApp.request(`/api/v1/public/${segment}`, {
-          headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+          headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
         }, TEST_ENV)
 
         expect(checkedKeys.at(-1)).toContain(':invalid-seed:')
@@ -182,7 +182,7 @@ describe('Flow: Guest Access (Public API)', () => {
       repo.load('posts', [{ id: 'p_slug', slug: 'find-me', status: 'published', title: 'Slug Test' }])
 
       const res = await app.request('/api/v1/public/posts?slug=find-me', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
 
       expect(res.status).toBe(200)
@@ -310,7 +310,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
       const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ data: { title: 'New Public Title' } }),
       }, TEST_ENV)
 
@@ -324,7 +324,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
       const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ data: { contact_email: null } }),
       }, TEST_ENV)
 
@@ -338,7 +338,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
       const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ data: { constructor: { name: 'Evil' }, toString: 'exploit' } }),
       }, TEST_ENV)
 
@@ -348,20 +348,20 @@ describe('Flow: Guest Access (Public API)', () => {
       expect(updated.toString).not.toEqual('exploit')
     })
 
-    it('error: returns 403 if seed does not allow public edit', async () => {
+    it('error: returns 404 if the seed has no public flag, the same as an unknown seed', async () => {
       const res = await app.request(`/api/v1/public/documentation/edit/${validUuid}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ data: { title: 'X' } }),
       }, TEST_ENV)
 
-      expect(res.status).toBe(403)
+      expect(res.status).toBe(404)
     })
 
     it('error: returns 404 if entry does not exist', async () => {
       const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ data: { title: 'X' } }),
       }, TEST_ENV)
       expect(res.status).toBe(404)
@@ -370,7 +370,7 @@ describe('Flow: Guest Access (Public API)', () => {
     it('error: returns 400 if ID is not a UUID', async () => {
       const res = await app.request('/api/v1/public/posts/edit/invalid-id', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ data: { title: 'X' } }),
       }, TEST_ENV)
       expect(res.status).toBe(400)
@@ -384,7 +384,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
       const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ slug: 'other' }),
       }, TEST_ENV)
       expect(res.status).toBe(409)
@@ -395,7 +395,7 @@ describe('Flow: Guest Access (Public API)', () => {
       // In TEST_SEEDS, internal_note is private
       const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ data: { internal_note: 'Sneaky update' } }),
       }, TEST_ENV)
       expect(res.status).toBe(422)
@@ -406,7 +406,7 @@ describe('Flow: Guest Access (Public API)', () => {
       repo.load('posts', [{ id: validUuid, status: 'published', title: 'X' }])
       const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ slug: '' }),
       }, TEST_ENV)
       expect(res.status).toBe(400)
@@ -416,7 +416,7 @@ describe('Flow: Guest Access (Public API)', () => {
       repo.load('posts', [{ id: validUuid, status: 'published', title: 'X' }])
       const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ data: 'not-an-object' }),
       }, TEST_ENV)
       expect(res.status).toBe(400)
@@ -428,7 +428,7 @@ describe('Flow: Guest Access (Public API)', () => {
 
       const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ data: { body: dangerousBody } }),
       }, TEST_ENV)
       expect(res.status).toBe(422)
@@ -439,7 +439,7 @@ describe('Flow: Guest Access (Public API)', () => {
       vi.spyOn(repo, 'update').mockRejectedValueOnce(new Error('DB error'))
       const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ data: { title: 'New Title' } }),
       }, TEST_ENV)
       expect(res.status).toBe(500)
@@ -449,7 +449,7 @@ describe('Flow: Guest Access (Public API)', () => {
       repo.load('posts', [{ id: validUuid, status: 'published', title: 'Old Title', slug: 'proto-test-edit' }])
       const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ data: { title: 'Prototype Test Edit', constructor: 'evil', toString: 'bad' }, slug: 'constructor' }),
       }, TEST_ENV)
       
@@ -462,37 +462,37 @@ describe('Flow: Guest Access (Public API)', () => {
     it('GET /api/v1/public/:seed with invalid filters returns 400', async () => {
       // Invalid logic value type
       let res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent('{"logic":123}')}`, {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(400)
 
       // Malformed JSON
       res = await app.request('/api/v1/public/posts?filter=malformed', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(400)
 
       // Filter object not an object
       res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent('123')}`, {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(400)
 
       // Invalid logic name
       res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent('{"logic":"INVALID"}')}`, {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(400)
 
       // Where is not an array
       res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent('{"where":"not-array"}')}`, {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(400)
 
       // Invalid operator
       res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent('{"where":[{"field":"title","op":"unknown"}]}')}`, {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(400)
     })
@@ -502,17 +502,17 @@ describe('Flow: Guest Access (Public API)', () => {
         { id: '1', status: 'published', title: 'A' }
       ])
       let res = await app.request('/api/v1/public/posts?latest=abc', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(200)
 
       res = await app.request('/api/v1/public/posts?latest=0', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(200)
 
       res = await app.request('/api/v1/public/posts?latest=150', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(200)
     })
@@ -520,14 +520,14 @@ describe('Flow: Guest Access (Public API)', () => {
     it('GET /api/v1/public/:seed by slug returns 404 if status is not published', async () => {
       repo.load('posts', [{ id: 'p_draft', slug: 'draft-slug', status: 'draft', title: 'Draft' }])
       const res = await app.request('/api/v1/public/posts?slug=draft-slug', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(404)
     })
 
     it('GET /api/v1/public/:seed by id/slug returns 404 if not found', async () => {
       const res = await app.request('/api/v1/public/posts?id=ghost-id', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(404)
     })
@@ -535,7 +535,7 @@ describe('Flow: Guest Access (Public API)', () => {
     it('GET /api/v1/public/:seed returns 500 when repository throws generic error', async () => {
       vi.spyOn(repo, 'findMany').mockRejectedValueOnce(new Error('Generic list error'))
       const res = await app.request('/api/v1/public/posts', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(500)
     })
@@ -543,7 +543,7 @@ describe('Flow: Guest Access (Public API)', () => {
     it('GET /api/v1/public/:seed single entry returns 500 when repository throws generic error', async () => {
       vi.spyOn(repo, 'findBySlug').mockRejectedValueOnce(new Error('Generic detail error'))
       const res = await app.request('/api/v1/public/posts?slug=find-me', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        headers: { 'X-API-Key': TEST_ENV.BEECH_PUBLISHABLE_KEY },
       }, TEST_ENV)
       expect(res.status).toBe(500)
     })
@@ -552,7 +552,7 @@ describe('Flow: Guest Access (Public API)', () => {
       const dangerousBody = { type: 'doc', content: [{ type: 'script', attrs: { src: 'http://evil.com' } }] }
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ data: { title: 'Valid Title', body: dangerousBody } }),
       }, TEST_ENV)
       expect(res.status).toBe(422)

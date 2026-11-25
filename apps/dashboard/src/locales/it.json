@@ -282,7 +282,7 @@
       "allDone": "Progetto pronto — tutti i passaggi completati",
       "systemTables": {
         "label": "Database inizializzato",
-        "hint": "Esegui: npx beech init --db --local"
+        "hint": "Esegui: npm run db:migrate:local"
       },
       "seeds": "{{count}} content type attivi",
       "seedsNone": "Nessun content type configurato nel database",
@@ -2418,7 +2418,6 @@
           "badge": "Non disponibile per il tuo ruolo"
         }
       },
-      "redirectNotice": "Dopo l'approvazione verrai reindirizzato a {{uri}}.",
       "approve": "Consenti accesso",
       "deny": "Nega",
       "error": {
@@ -2446,26 +2445,54 @@
         "agent:read": "Vedi le azioni che il tuo agente attende di farti confermare e rifiutale",
         "agent:approve": "Esegui un'azione dopo che la confermi nel tuo client AI"
       },
-      "required": "Obbligatorio",
-      "disclaimer": "L'app non supera mai il tuo ruolo. Puoi revocare l'accesso in qualsiasi momento da Impostazioni > App connesse.",
       "template": {
         "legend": "Livello di accesso",
-        "read": {
-          "label": "Lettura",
-          "description": "Visualizza tutto, non modifica nulla"
+        "custom": "Personalizzato",
+        "reader": {
+          "label": "Lettura"
         },
-        "editor": {
-          "label": "Editor",
-          "description": "Lettura, più creazione, modifica ed eliminazione di contenuti e media"
+        "writer": {
+          "label": "Scrittura"
         },
-        "admin": {
-          "label": "Amministratore",
-          "description": "Editor, più automazioni, utenti e impostazioni"
-        },
-        "developer": {
-          "label": "Sviluppatore",
-          "description": "Tutto ciò che è richiesto, comprese le modifiche allo schema"
+        "full": {
+          "label": "Accesso completo"
         }
+      },
+      "scopeCount": "{{granted}} su {{total}} permessi",
+      "summary": {
+        "empty": "Nessuno dei permessi richiesti è disponibile per il tuo ruolo.",
+        "readOnly": "Accesso in sola lettura alle risorse selezionate. Nessuna modifica consentita.",
+        "readWithApprove": "Accesso in sola lettura, più esecuzione di azioni solo dopo tua conferma.",
+        "writeContent": "Accesso in lettura più creazione, modifica ed eliminazione di contenuti e media.",
+        "writeContentWithApprove": "Accesso in lettura e scrittura per contenuti e media, più azioni confermate.",
+        "schemaOnly": "Accesso in lettura più modifiche allo schema.",
+        "schemaWithApprove": "Accesso in lettura, modifiche allo schema ed esecuzione di azioni dopo tua conferma.",
+        "fullWithoutSchema": "Accesso in lettura e scrittura per contenuti, media, automazioni, utenti e impostazioni.",
+        "fullWithSchema": "Accesso completo a tutti i permessi richiesti, incluse modifiche a schema e impostazioni."
+      },
+      "domains": {
+        "schema": "Schema",
+        "content": "Contenuti",
+        "media": "Media",
+        "automations": "Automazioni",
+        "users": "Utenti e ruoli",
+        "settings": "Impostazioni",
+        "analytics": "Analitiche",
+        "agent": "Azioni agente"
+      },
+      "actions": {
+        "read": "Lettura",
+        "write": "Scrittura"
+      },
+      "domainDescriptions": {
+        "schema": "Struttura dei content type, campi e migrazioni dello schema.",
+        "content": "Voci salvate nei tuoi content type (lettura, creazione, modifica o eliminazione).",
+        "media": "Immagini e file caricati nella libreria media.",
+        "automations": "Automazioni, trigger e storico delle esecuzioni.",
+        "users": "Account del team, ruoli, permessi e inviti in sospeso.",
+        "settings": "Configurazione e preferenze globali del sito.",
+        "analytics": "Metriche di traffico, utilizzo dello storage e statistiche di sistema.",
+        "agent": "Azioni in attesa proposte da un agente AI che richiedono la tua conferma."
       }
     },
     "apps": {

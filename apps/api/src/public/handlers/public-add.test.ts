@@ -3,13 +3,13 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { generateTimeTrapToken, type IAntivirusProvider, type INotificationService, type BeechBucket } from '@beechcms/core'
+import { defineSeed, generateTimeTrapToken, type IAntivirusProvider, type INotificationService, type BeechBucket } from '@beechcms/core'
 import { createBeechApp } from '../../factory'
 import { __resetSeedRegistryCache } from '../../shared/services/cache/seed-registry-cache'
 import { StaticContentRepository } from '../../../test/mocks/static-content.repository'
 import { StaticIdempotencyRepository } from '../../../test/mocks/static-idempotency.repository'
 import { StaticAutomationRepository } from '../../../test/mocks/static-automation.repository'
-import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_WRITE_KEY, TEST_TIME_TRAP_SECRET } from '../../../test/fixtures'
+import { TEST_SEEDS, TEST_ENV, TEST_PUBLISHABLE_KEY, TEST_SECRET_KEY, TEST_TIME_TRAP_SECRET } from '../../../test/fixtures'
 
 describe('publicAddHandler Quarantine & Security Integration', () => {
   let app: ReturnType<typeof createBeechApp>
@@ -70,7 +70,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
     const res = await customApp.request('/api/v1/public/posts/add', {
       method: 'POST',
       headers: {
-        'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+        'X-API-Key': TEST_SECRET_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -91,6 +91,29 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
     expect(res.status).toBe(201)
     expect(scan).toHaveBeenCalledTimes(1)
     expect(del).not.toHaveBeenCalled()
+  })
+
+  it('a seed with no public flag answers the same 404 seed-not-found as an unknown seed and stores nothing', async () => {
+    const repository = new StaticContentRepository(TEST_SEEDS)
+    const privateApp = createBeechApp({ seeds: TEST_SEEDS, repository })
+    const privateSeed = TEST_SEEDS.find((seed) => seed.slug === 'documentation')!
+    const post = (slug: string) => privateApp.request(`/api/v1/public/${slug}/add`, {
+      method: 'POST',
+      headers: { 'X-API-Key': TEST_SECRET_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { title: 'Nope' } }),
+    }, TEST_ENV)
+    const unknown = await post('ghost')
+    const unknownBody = await unknown.json<{ type: string; title: string; detail: string }>()
+
+    const response = await post(privateSeed.slug)
+
+    expect(response.status).toBe(404)
+    expect(unknown.status).toBe(404)
+    const body = await response.json<{ type: string; title: string; detail: string }>()
+    expect(body.type).toBe(unknownBody.type)
+    expect(body.title).toBe(unknownBody.title)
+    expect(body.detail.replace(privateSeed.slug, '<requested>')).toBe(unknownBody.detail.replace('ghost', '<requested>'))
+    expect((await repository.findMany(privateSeed, {})).total).toBe(0)
   })
 
   describe('Confidential Data & Access Policies on Public Add', () => {
@@ -127,7 +150,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+          'X-API-Key': TEST_SECRET_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -171,7 +194,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+          'X-API-Key': TEST_SECRET_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -205,7 +228,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+          'X-API-Key': TEST_SECRET_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -234,7 +257,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+          'X-API-Key': TEST_SECRET_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -274,6 +297,84 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       const body = await res.json<{ type: string; status: number }>()
       expect(body.type).toBe('https://beechcms.dev/problems/public-api-key-unauthorized')
       expect(body.status).toBe(401)
+    })
+
+    it('rejects POST /add with 403 secret-key-required when the publishable key is sent', async () => {
+      const repository = new StaticContentRepository([leadsSeed])
+      const testApp = createBeechApp({
+        seeds: [leadsSeed],
+        repository,
+      })
+
+      const res = await testApp.request('/api/v1/public/leads/add', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': TEST_PUBLISHABLE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Browser Lead',
+        }),
+      }, TEST_ENV)
+
+      expect(res.status).toBe(403)
+      const body = await res.json<{ type: string; status: number }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/public-api-secret-key-required')
+      const stored = await repository.findMany(leadsSeed, {})
+      expect(stored.total).toBe(0)
+    })
+  })
+
+  describe('Access and status by caller', () => {
+    // Readable but closed to anonymous submissions: public for another operation, so it is not hidden as unknown.
+    const readOnlySeed = defineSeed({
+      slug: 'catalog',
+      label: 'Catalog',
+      displayNameAlias: 'title',
+      allowPublicRead: true,
+      branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text' }],
+    })
+    const accessApp = () => createBeechApp({
+      seeds: [...TEST_SEEDS, readOnlySeed],
+      repository: new StaticContentRepository([...TEST_SEEDS, readOnlySeed]),
+      idempotencyRepository: new StaticIdempotencyRepository(),
+      automationRepository: new StaticAutomationRepository(),
+    })
+
+    async function post(path: string, headers: Record<string, string>, body: Record<string, unknown>) {
+      return accessApp().request(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify(body),
+      }, TEST_ENV)
+    }
+
+    it('answers an anonymous submission to a seed without allowPublicPost with 403 operation-not-allowed', async () => {
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 2)
+
+      const res = await post('/api/v1/public/catalog/add', {}, { data: { title: 'Nope' }, _timeTrapToken: token })
+
+      expect(res.status).toBe(403)
+      const body = await res.json<{ type: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/operation-not-allowed')
+    })
+
+    it('lets the secret key create an entry on a seed without allowPublicPost', async () => {
+      const res = await post('/api/v1/public/catalog/add', { 'X-API-Key': TEST_SECRET_KEY }, { data: { title: 'From the server' } })
+
+      expect(res.status).toBe(201)
+      const body = await res.json<{ data: { status: string } }>()
+      expect(body.data.status).toBe('published')
+    })
+
+    it('stores an anonymous submission as draft and ignores a status in the body', async () => {
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 2)
+
+      const res = await post('/api/v1/public/posts/add', {}, { data: { title: 'Anon post' }, _timeTrapToken: token, status: 'published' })
+
+      expect(res.status).toBe(201)
+      const body = await res.json<{ data: { status: string } }>()
+      expect(body.data.status).toBe('draft')
     })
   })
 })

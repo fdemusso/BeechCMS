@@ -3,8 +3,11 @@
 
 export { buildSearchParams } from './query-builder.js'
 export type {
-  BeechClientConfig,
+  BeechClientBaseConfig,
+  BeechBrowserClientConfig,
+  BeechServerClientConfig,
   RequestOptions,
+  ListOptions,
   BeechResult,
   BeechProblem,
   BeechFilterOperator,

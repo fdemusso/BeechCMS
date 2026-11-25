@@ -260,6 +260,12 @@ export interface Seed {
   allowPublicRead?: boolean
   /** Enable creation from the Public API (`POST /api/v1/public/:seed/add`). Default: false. */
   allowPublicPost?: boolean
+  /**
+   * Status of an entry created by an anonymous submission (`POST /api/v1/public/:seed/add` without a key).
+   * Default: `'draft'`, so unmoderated input never reaches the public list. Set `'published'` to opt in.
+   * A secret-key write is trusted: it takes the `status` in its body, else this value, else `'published'`.
+   */
+  defaultPublicStatus?: 'draft' | 'review' | 'published'
   /** Enable edits from the Public API (`PUT /api/v1/public/:seed/edit/:id`). Default: false. */
   allowPublicEdit?: boolean
   /**

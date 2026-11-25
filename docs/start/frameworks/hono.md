@@ -14,7 +14,7 @@ Before querying data in Hono, ensure you have a running BeechCMS instance with s
 
 1. **Start BeechCMS**: If running locally, start your backend via `pnpm run dev` (running on `http://localhost:8789`), or use your deployed Cloudflare Worker URL.
 2. **Verify or Create the Seed**: In your BeechCMS admin dashboard (`/admin`), verify you have an `articles` Seed with:
-   - **Branches**: `title` (Text), `slug` (Slug), and `body` (Rich Text).
+   - **Branches**: `title` (Text) and `body` (Rich Text). Do not add a `slug` branch: `slug` is a reserved system column that BeechCMS fills from the title on every entry (`hello-beechcms`); the `slug` field used below is that column.
    - **Permissions**: Ensure **Allow Public Read** (`allowPublicRead`) is checked so public requests can fetch content without admin secrets.
 3. **Publish a Fruit (Record)**: Create at least one article and click **Publish**.
 
@@ -39,10 +39,10 @@ For Cloudflare Workers development, configure variables in `.dev.vars`:
 
 ```bash
 BEECH_API_URL=http://localhost:8789
-BEECH_READ_KEY=dev-read-key-changeme
+BEECH_SECRET_KEY=beech_sk_dev
 ```
 
-> In local development, the default read key is pre-configured. In production, configure secrets via `wrangler secret put BEECH_READ_KEY`.
+> `beech_sk_dev` is the local secret key every new project has in `.dev.vars`. In production, run `npx wrangler secret put BEECH_SECRET_KEY` for the frontend Worker.
 
 ## 5. Initialize the Beech client
 
@@ -70,7 +70,7 @@ export interface AppRegistry {
 
 type Bindings = {
   BEECH_API_URL: string
-  BEECH_READ_KEY: string
+  BEECH_SECRET_KEY: string
 }
 
 type Variables = {
@@ -83,7 +83,7 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 app.use('*', async (c, next) => {
   const client = createBeechServerClient<AppRegistry>({
     baseUrl: c.env.BEECH_API_URL || 'http://localhost:8789',
-    apiKey: c.env.BEECH_READ_KEY || 'dev-read-key-changeme'
+    secretKey: c.env.BEECH_SECRET_KEY
   })
   c.set('beech', client)
   await next()
@@ -171,7 +171,7 @@ Before deploying to production:
 
 - **Configure Seed Permissions**: Ensure your Seed has `allowPublicRead: true` enabled in the admin dashboard so public visitors can fetch published content.
 - **Production API URL**: Point `BEECH_API_URL` to your production Cloudflare Worker URL (`https://api.yourdomain.com`).
-- **Production API Keys**: Set `BEECH_READ_KEY` to your `PUBLIC_READ_API_KEY`.
+- **Production Secret Key**: Set `BEECH_SECRET_KEY` to the production secret key, the generated `beech_sk_live_…` value you stored on the BeechCMS Worker with `npx wrangler secret put BEECH_SECRET_KEY`. The API refuses `beech_sk_dev` outside development.
 - **Edge Performance**: Running Hono alongside BeechCMS on Cloudflare Workers allows sub-millisecond edge invocation with zero cold starts.
 
 ## Cloudflare Edge Deployment

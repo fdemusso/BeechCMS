@@ -150,7 +150,7 @@ describe('public-read module', () => {
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
-        expect(result.detail).toBe("Entry 'p-draft' not found or not published.")
+        expect(result.detail).toBe("Entry 'p-draft' not found.")
       }
     })
 
@@ -170,7 +170,7 @@ describe('public-read module', () => {
 
       expect(result.ok).toBe(false)
       if (!result.ok) {
-        expect(result.detail).toBe("Entry 'missing' not found for content type 'posts'.")
+        expect(result.detail).toBe("Entry 'missing' not found.")
       }
     })
   })
@@ -199,7 +199,7 @@ describe('public-read module', () => {
       expect(body.type).toBe('https://beechcms.dev/problems/seed-not-found')
     })
 
-    it('returns 403 operation-not-allowed when allowPublicRead is false on seed', async () => {
+    it('returns 404 seed-not-found when allowPublicRead is false on seed', async () => {
       const privateSeed: Seed = {
         slug: 'private_content',
         label: 'Private',
@@ -219,9 +219,9 @@ describe('public-read module', () => {
 
       const response = await app.request('/api/v1/public/private_content', {}, { PUBLIC_PUBLISHED_ONLY: 'true' })
 
-      expect(response.status).toBe(403)
+      expect(response.status).toBe(404)
       const body = await response.json<{ type: string }>()
-      expect(body.type).toBe('https://beechcms.dev/problems/operation-not-allowed')
+      expect(body.type).toBe('https://beechcms.dev/problems/seed-not-found')
     })
 
     it('returns 400 invalid-include Problem Details when include parameter fails validation', async () => {

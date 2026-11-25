@@ -8,6 +8,11 @@
         "docs/.vitepress/config.mts",
         "docs/.vitepress/theme/index.ts"
       ],
+      "ignoreDependencies": [
+        "@beechcms/api",
+        "@beechcms/cli",
+        "@beechcms/core"
+      ],
       "project": [
         "bin/**/*.mjs",
         "scripts/**/*.{mjs,js,ts,tsx}",

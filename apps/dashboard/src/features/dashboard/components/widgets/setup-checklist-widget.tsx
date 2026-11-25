@@ -75,9 +75,6 @@ export function SetupChecklistWidget({ variant = "full" }: SetupChecklistWidgetP
     {
       done: data.contentTablesOk,
       label: t("dashboard.setupChecklist.contentTables.label"),
-      action: !data.contentTablesOk
-        ? { label: "npx beech seed:load --local", command: "npx beech seed:load --local" }
-        : undefined,
     },
     {
       done: data.adminExists,

@@ -66,9 +66,10 @@ export async function updateHandler(context: Context<AppEnv, '/:slug/:id', ZodJs
     const current = await repository.findById(seed, id)
 
     const newSlug = body.slug !== undefined ? slugify(String(body.slug)) : (current.slug as string)
-    const newStatus = body.status !== undefined ? (cleanStr(body.status) ?? current.status as string) : current.status as string
+    // Only a status the caller sent is written: echoing the one read above would undo a concurrent publish.
+    const requestedStatus = cleanStr(body.status) ?? undefined
 
-    if (!isValidContentStatus(newStatus)) {
+    if (requestedStatus !== undefined && !isValidContentStatus(requestedStatus)) {
       return publicProblem(context, { 
         type: 'content-invalid-status', 
         title: 'Bad Request', 
@@ -170,13 +171,13 @@ export async function updateHandler(context: Context<AppEnv, '/:slug/:id', ZodJs
     // landing in between would lose its translation silently. Fall back to the version we merged against
     // when the client sent none, turning that race into the usual 409.
     const guard = ifMatch ?? (mergesLocalized ? (current.updated_at as number) : undefined)
-    await repository.update(seed, id, mergedData, newStatus, { actor, ifMatch: guard })
+    await repository.update(seed, id, mergedData, requestedStatus, { actor, ifMatch: guard })
 
     const displayData = resolveLocalizedFields(seed, mergedData, localeConfig)
     const title = displayData.title || displayData.name || newSlug
 
     logContentActivity(context, 'update', id, slug, String(title))
-    dispatchContentAutomation(context, slug, 'update', { ...current, ...mergedData, id, status: newStatus })
+    dispatchContentAutomation(context, slug, 'update', { ...current, ...mergedData, id, ...(requestedStatus ? { status: requestedStatus } : {}) })
 
     return context.json({ success: true }, 200)
   } catch (error) {

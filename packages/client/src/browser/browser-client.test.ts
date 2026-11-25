@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { createBeechBrowserClient, createBeechClient } from './index.js'
-import type { BeechClientConfig } from '../types.js'
+import type { BeechBrowserClientConfig } from '../types.js'
 
 // The default registry types every row as `unknown`; these tests read fields off the rows.
 type TestRegistry = Record<string, Record<string, unknown>>
@@ -18,16 +18,16 @@ function mockFetch(status: number, body: unknown, contentType = 'application/jso
   } as unknown as Response)
 }
 
-const baseConfig: BeechClientConfig = {
+const baseConfig: BeechBrowserClientConfig = {
   baseUrl: 'https://api.example.com/',
-  apiKey: 'test-key',
+  publishableKey: 'beech_pk_test_key',
 }
 
 describe('Browser Client (@beechcms/client/browser)', () => {
   it('throws error on missing or invalid configuration', () => {
-    expect(() => createBeechBrowserClient(null as unknown as BeechClientConfig)).toThrow(TypeError)
-    expect(() => createBeechBrowserClient<TestRegistry>({ baseUrl: '', apiKey: 'key' })).toThrow(/baseUrl is required/)
-    expect(() => createBeechBrowserClient<TestRegistry>({ baseUrl: 'https://api.example.com', apiKey: '' })).toThrow(/apiKey is required/)
+    expect(() => createBeechBrowserClient(null as unknown as BeechBrowserClientConfig)).toThrow(TypeError)
+    expect(() => createBeechBrowserClient<TestRegistry>({ baseUrl: '', publishableKey: 'key' })).toThrow(/baseUrl is required/)
+    expect(() => createBeechBrowserClient<TestRegistry>({ baseUrl: 'https://api.example.com', publishableKey: '' })).toThrow(/publishableKey is required/)
   })
 
   it('normalizes trailing slashes on baseUrl', async () => {
@@ -81,19 +81,33 @@ describe('Browser Client (@beechcms/client/browser)', () => {
     expect(res.error).toEqual(expect.objectContaining({ status: 404, type: 'not_found' }))
   })
 
-  it('list forwards the validate option without altering the response', async () => {
-    const fetchMock = mockFetch(200, { data: [{ id: '1' }], meta: { total: 1, returned: 1, seed: 'posts' } })
-    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
-    const res = await client.collection('posts').list({ validate: true })
-    expect(res.error).toBeNull()
-    expect(res.data?.data).toHaveLength(1)
+  it('list rejects the removed validate option at the type level', () => {
+    const query = createBeechBrowserClient<TestRegistry>(baseConfig).collection('posts')
+
+    // `type-check` enforces this directive. validate never validated anything, and the RequestOptions
+    // index signature would accept it silently if the option were only deleted from the type.
+    // @ts-expect-error validate was removed
+    const listWithValidate = () => query.list({ validate: true })
+
+    expect(listWithValidate).toBeTypeOf('function')
   })
 
-  it('does NOT expose mutation methods (create, update)', () => {
+  it('the resource type has no create or update', () => {
     const client = createBeechBrowserClient(baseConfig)
-    const resource = client.collection('posts') as unknown as Record<string, unknown>
+    const resource = client.collection('posts')
+
+    // `type-check` enforces these directives: a browser resource must not type-check a write.
+    // @ts-expect-error create is not part of the browser resource
     expect(resource.create).toBeUndefined()
+    // @ts-expect-error update is not part of the browser resource
     expect(resource.update).toBeUndefined()
+  })
+
+  it('a config literal with apiKey is a type error and throws at runtime', () => {
+    // @ts-expect-error apiKey was replaced by publishableKey
+    const legacyConfig: BeechBrowserClientConfig = { baseUrl: 'https://api.example.com', apiKey: 'beech_pk_test_key' }
+
+    expect(() => createBeechBrowserClient(legacyConfig)).toThrow(/apiKey was removed: pass publishableKey/)
   })
 
   it('returns normalized RFC 9457 error on 4xx/5xx HTTP failure without throwing', async () => {
@@ -124,59 +138,41 @@ describe('Browser Client (@beechcms/client/browser)', () => {
 })
 
 describe('createBeechBrowserClient — schema fingerprint drift', () => {
-  it('returns a 409 BeechProblem when X-Schema-Revision header does not match expected fingerprint', async () => {
-    vi.resetModules()
-    vi.doMock('../types.js', async () => {
-      const actual = await vi.importActual<typeof import('../types.js')>('../types.js')
-      return { ...actual, SCHEMA_FINGERPRINT: 'v1.expected' }
-    })
-
-    // Re-import after mocking types.js so the client sees the stubbed fingerprint.
-    const { createBeechBrowserClient: createClientMocked } = await import('./client.js')
-
-    const fetchMock = vi.fn().mockResolvedValue({
+  function revisionFetch(revision: string) {
+    return vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       statusText: 'OK',
-      headers: new Headers({
-        'Content-Type': 'application/json',
-        'X-Schema-Revision': 'v1.stale',
-      }),
-      json: async () => ({ data: [], meta: { seed: 'posts' } }),
-    })
-    const client = createClientMocked({ ...baseConfig, fetch: fetchMock })
+      headers: new Headers({ 'Content-Type': 'application/json', 'X-Schema-Revision': revision }),
+      json: async () => ({ data: [], meta: { total: 0, returned: 0, seed: 'posts' } }),
+    } as unknown as Response)
+  }
+
+  it('a schemaFingerprint that differs from X-Schema-Revision returns a 409 schema_drift problem', async () => {
+    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, schemaFingerprint: 'v2:expected', fetch: revisionFetch('v2:stale') })
 
     const res = await client.collection('posts').list()
 
-    expect(res.error).not.toBeNull()
-    expect(res.error?.status).toBe(409)
-    expect(res.error?.type).toBe('schema_drift')
+    // The value comes from the config, as exported by beech types generate. No module mock: the old
+    // tests stubbed the client's own empty constant, so the check passed here and never ran for users.
+    expect(res.data).toBeNull()
+    expect(res.error).toMatchObject({ type: 'schema_drift', status: 409 })
   })
 
-  it('passes normally when X-Schema-Revision matches or is absent', async () => {
-    vi.resetModules()
-    vi.doMock('../types.js', async () => {
-      const actual = await vi.importActual<typeof import('../types.js')>('../types.js')
-      return { ...actual, SCHEMA_FINGERPRINT: 'v1.expected' }
-    })
-
-    const { createBeechBrowserClient: createClientMocked } = await import('./client.js')
-
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      statusText: 'OK',
-      headers: new Headers({
-        'Content-Type': 'application/json',
-        'X-Schema-Revision': 'v1.expected',
-      }),
-      json: async () => ({ data: [], meta: { seed: 'posts' } }),
-    })
-    const client = createClientMocked({ ...baseConfig, fetch: fetchMock })
+  it('a schemaFingerprint equal to X-Schema-Revision returns the data', async () => {
+    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, schemaFingerprint: 'v2:expected', fetch: revisionFetch('v2:expected') })
 
     const res = await client.collection('posts').list()
 
     expect(res.error).toBeNull()
-    expect(res.data).toBeDefined()
+    expect(res.data).toEqual({ data: [], meta: { total: 0, returned: 0, seed: 'posts' } })
+  })
+
+  it('without schemaFingerprint the drift check stays off', async () => {
+    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, fetch: revisionFetch('v2:anything') })
+
+    const res = await client.collection('posts').list()
+
+    expect(res.error).toBeNull()
   })
 })

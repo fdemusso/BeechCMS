@@ -22,6 +22,7 @@ export const MINIO_ENDPOINT = 'http://localhost:9000'
 const API_VARS = [
   '--var', 'ENV:development',
   '--var', 'JWT_SECRET:e2e-secret-at-least-32-bytes-long-for-hono-jwt',
+  '--var', 'BEECH_SECRET_KEY:beech_sk_dev',
   '--var', `CORS_ORIGINS:${BASE_URL}`,
   '--var', `APP_URL:${BASE_URL}`,
   '--var', `MEDIA_BASE_URL:${BASE_URL}`,

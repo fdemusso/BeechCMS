@@ -4,7 +4,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
-import { createTestHarness, UUID_V4_PATTERN, TEST_PUBLIC_READ_KEY, type TestClient, type TestHarness } from '@beechcms/testing'
+import { createTestHarness, UUID_V4_PATTERN, TEST_PUBLISHABLE_KEY, type TestClient, type TestHarness } from '@beechcms/testing'
 import { createBeechApp } from '../../../factory'
 import { __resetSeedRegistryCache } from '../../../shared/services/cache/seed-registry-cache'
 
@@ -34,7 +34,7 @@ describe('public slice — integration (real D1) relation expansion', () => {
     const postBody = await postRes.json<{ id: string }>()
 
     const response = await publicClient.get(`/api/v1/public/posts?id=${postBody.id}&include=category_id`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(200)
@@ -67,7 +67,7 @@ describe('public slice — integration (real D1) relation expansion', () => {
     const postBody = await postRes.json<{ id: string }>()
 
     const response = await publicClient.get(`/api/v1/public/posts?id=${postBody.id}&fields=title&include=category_id`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(200)
@@ -97,7 +97,7 @@ describe('public slice — integration (real D1) relation expansion', () => {
     const p2 = await p2Res.json<{ id: string }>()
 
     const response = await publicClient.get(`/api/v1/public/posts?id=${p2.id}&include=related_posts`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(200)
@@ -123,7 +123,7 @@ describe('public slice — integration (real D1) relation expansion', () => {
     const post = await postRes.json<{ id: string }>()
 
     const response = await publicClient.get(`/api/v1/public/posts?id=${post.id}&include=author_id`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(400)
@@ -143,7 +143,7 @@ describe('public slice — integration (real D1) relation expansion', () => {
     const post = await postRes.json<{ id: string }>()
 
     const response = await publicClient.get(`/api/v1/public/posts?id=${post.id}&include=unknown_branch`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(400)
@@ -163,7 +163,7 @@ describe('public slice — integration (real D1) relation expansion', () => {
     const post = await postRes.json<{ id: string }>()
 
     const response = await publicClient.get(`/api/v1/public/posts?id=${post.id}&include=category_id.name`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(400)
@@ -182,7 +182,7 @@ describe('public slice — integration (real D1) relation expansion', () => {
     expect(postRes.status).toBe(201)
 
     const response = await publicClient.get('/api/v1/public/posts', {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(200)
@@ -195,7 +195,7 @@ describe('public slice — integration (real D1) relation expansion', () => {
 
   it('attaches X-Schema-Revision header on 400 Bad Request error responses', async () => {
     const response = await publicClient.get('/api/v1/public/posts?include=invalid_alias', {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(400)

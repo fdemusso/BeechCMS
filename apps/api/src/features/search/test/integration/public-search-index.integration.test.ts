@@ -11,7 +11,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
 import { defineSeed, generateVectorTable, vectorTableName } from '@beechcms/core'
-import { createTestHarness, TEST_PUBLIC_READ_KEY, type TestClient, type TestHarness } from '@beechcms/testing'
+import { createTestHarness, TEST_PUBLISHABLE_KEY, type TestClient, type TestHarness } from '@beechcms/testing'
 import { createBeechApp } from '../../../../factory'
 import { D1VectorRepository } from '../../../../shared/db/repositories/d1-vector.repository'
 import { __resetSeedRegistryCache } from '../../../../shared/services/cache/seed-registry-cache'
@@ -52,7 +52,7 @@ describe('public search index — integration (real D1 + R2)', () => {
       createApp: (authProviders) => createBeechApp({ seeds: [], authProviders }),
     })
     admin = await harness.asUser('admin')
-    publicClient = harness.anonymous().withHeaders({ 'X-API-Key': TEST_PUBLIC_READ_KEY })
+    publicClient = harness.anonymous().withHeaders({ 'X-API-Key': TEST_PUBLISHABLE_KEY })
     // The harness provisions content tables only; vector tables are created by the seed-apply flow.
     for (const seed of [privateSeed, publicSeed, hiddenTitleSeed]) {
       await env.DB.exec(generateVectorTable(seed)!.replace(/\s*\n\s*/g, ' '))

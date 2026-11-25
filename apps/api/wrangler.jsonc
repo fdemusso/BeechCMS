@@ -101,8 +101,8 @@
   // Secrets che NON devono mai stare in vars (né qui né in env.production):
   //   JWT_SECRET          → npx wrangler secret put JWT_SECRET --env production
   //   RESEND_API_KEY      → npx wrangler secret put RESEND_API_KEY --env production
-  //   PUBLIC_READ_API_KEY → npx wrangler secret put PUBLIC_READ_API_KEY --env production
-  //   PUBLIC_WRITE_API_KEY→ npx wrangler secret put PUBLIC_WRITE_API_KEY --env production
+  //   BEECH_SECRET_KEY    → npx wrangler secret put BEECH_SECRET_KEY --env production
+  //   BEECH_PUBLISHABLE_KEY → npx wrangler secret put BEECH_PUBLISHABLE_KEY --env production (beech_pk_live_…)
   //   PUBLIC_TIME_TRAP_SECRET → npx wrangler secret put PUBLIC_TIME_TRAP_SECRET --env production
   //   WEBHOOK_SECRET      → npx wrangler secret put WEBHOOK_SECRET --env production
   //   PRIVACY_MASTER_KEY  → npx wrangler secret put PRIVACY_MASTER_KEY --env production
@@ -110,8 +110,7 @@
   "vars": {
     "ENV": "development",
     "CORS_ORIGINS": "http://localhost:5173,http://localhost:5174,https://dashboard.beech.local",
-    "PUBLIC_READ_API_KEY": "dev-public-read-key-changeme",
-    "PUBLIC_WRITE_API_KEY": "dev-public-write-key-changeme",
+    "BEECH_PUBLISHABLE_KEY": "beech_pk_dev",
     "PUBLIC_TIME_TRAP_SECRET": "dev-public-time-trap-secret-changeme",
     "PUBLIC_PUBLISHED_ONLY": "true",
     "PUBLIC_IDEMPOTENCY_TTL_SECONDS": "86400",
@@ -134,8 +133,8 @@
   // Prima del primo deploy, configura i secrets con:
   //   npx wrangler secret put JWT_SECRET --env production
   //   npx wrangler secret put RESEND_API_KEY --env production
-  //   npx wrangler secret put PUBLIC_READ_API_KEY --env production
-  //   npx wrangler secret put PUBLIC_WRITE_API_KEY --env production
+  //   npx wrangler secret put BEECH_SECRET_KEY --env production
+  //   npx wrangler secret put BEECH_PUBLISHABLE_KEY --env production
   //   npx wrangler secret put PUBLIC_TIME_TRAP_SECRET --env production
   //   npx wrangler secret put WEBHOOK_SECRET --env production
   //   npx wrangler secret put PRIVACY_MASTER_KEY --env production
@@ -165,7 +164,7 @@
         "EMAIL_FROM": "Beech CMS <noreply@SOSTITUISCI_CON_IL_TUO_DOMINIO>"
 
         // Le seguenti vars NON compaiono qui: sono wrangler secrets.
-        // PUBLIC_READ_API_KEY, PUBLIC_WRITE_API_KEY, PUBLIC_TIME_TRAP_SECRET, JWT_SECRET,
+        // BEECH_SECRET_KEY, BEECH_PUBLISHABLE_KEY, PUBLIC_TIME_TRAP_SECRET, JWT_SECRET,
         // RESEND_API_KEY, WEBHOOK_SECRET, R2_*, SMTP_*
       }
     }

@@ -9,7 +9,7 @@ export type { TestClient } from './client/test-client'
 export { FixedClock } from './services/fixed-clock'
 export { FakeTokenService, TEST_TOKEN_PREFIX } from './services/fake-token.service'
 
-export { TEST_ENV, TEST_JWT_SECRET, TEST_PUBLIC_READ_KEY, TEST_PUBLIC_WRITE_KEY } from './env'
+export { TEST_ENV, TEST_JWT_SECRET, TEST_PUBLISHABLE_KEY, TEST_SECRET_KEY } from './env'
 export type { TestEnv } from './env'
 
 export { CANONICAL_SEEDS, CANONICAL_SEED_SLUGS } from './seeds/canonical.seeds'

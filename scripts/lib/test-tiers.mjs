@@ -3,8 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 // Single source of truth for test tiers. Consumed by scripts/test-coverage-diff.mjs and
-// mirrored (names only) by packages/cli/src/commands/test.ts, which cannot import a root
-// .mjs from its bundled build. packages/cli/src/test/test.test.ts asserts the two agree.
+// scripts/dev-cli/commands/test.ts (`beech test`).
 
 /** Every tier that exists. */
 export const TIERS = ['unit', 'flow', 'integration', 'e2e', 'scale']

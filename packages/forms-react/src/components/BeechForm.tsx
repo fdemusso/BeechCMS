@@ -21,8 +21,8 @@ export const BeechForm: FC<BeechFormProps> = (props) => {
       {form.isDraftRestored && !form.isSuccess && (
         <div className="beech-alert beech-alert-info" role="status">
           <span>{form.translations.draftRestored}</span>
-          <button type="button" onClick={form.clearDraft} className="beech-btn-link">
-            &times;
+          <button type="button" onClick={form.clearDraft} className="beech-btn-link" aria-label={form.translations.dismissDraft}>
+            <span aria-hidden="true">&times;</span>
           </button>
         </div>
       )}
@@ -37,8 +37,9 @@ export const BeechForm: FC<BeechFormProps> = (props) => {
 
       {/* Schema Loading State */}
       {form.isLoadingSchema ? (
-        <div className="beech-loading-schema" style={{ padding: '24px 0', textAlign: 'center', color: '#6b7280' }}>
-          <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span> Caricamento schema form in corso...
+        <div className="beech-loading-schema" role="status" aria-live="polite" aria-busy="true">
+          <span className="beech-spinner" aria-hidden="true" />
+          {form.translations.loadingForm}
         </div>
       ) : form.isSuccess ? (
         <div className="beech-alert beech-alert-success" role="status">

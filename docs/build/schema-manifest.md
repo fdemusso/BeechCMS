@@ -92,7 +92,8 @@ export default defineSchema({
 | `labelPlural` | `string` | Falls back to `label` |
 | `displayNameAlias` | `string` | **Required.** Alias of the branch used as the entry's human-readable name |
 | `allowPublicRead` | `boolean` | Enables `GET /api/v1/public/:seed`. Default `false` |
-| `allowPublicPost` | `boolean` | Enables `POST /api/v1/public/:seed/add`. Default `false` |
+| `allowPublicPost` | `boolean` | Enables anonymous `POST /api/v1/public/:seed/add` (public forms). A secret-key write does not need it. Default `false` |
+| `defaultPublicStatus` | `'draft' \| 'review' \| 'published'` | Status of an anonymous submission. Default `draft` |
 | `allowPublicEdit` | `boolean` | Enables `PUT /api/v1/public/:seed/edit/:id`. Default `false` |
 | `allowDrafts` | `boolean` | Generates the `content_{slug}_drafts` staging table. Default `false` |
 | `softDelete` | `boolean` | Deprecated, ignored: every seed has a [Trash](/features/trash), and `deleted_at` is always present. Not compared by `beech schema diff` |

@@ -28,7 +28,7 @@ Building forms manually requires repetitive boilerplate: state management, valid
 Generate a customized form component for **React**, **Vue 3**, **Svelte 5**, or **Vanilla JS / Web Components** in seconds:
 
 ```bash
-npx @beechcms/cli forms
+npx @beechcms/cli@latest forms
 # or using local beech CLI:
 pnpm beech forms
 ```
@@ -61,7 +61,6 @@ export function ContactSection() {
       <BeechForm
         seed="clienti"
         baseUrl="https://api.yourdomain.com"
-        apiKey="your-public-write-api-key"
         locale="it"
         onSuccess={({ id }) => alert(`Success! ID: ${id}`)}
       />
@@ -70,11 +69,14 @@ export function ContactSection() {
 }
 ```
 
+> [!NOTE]
+> Forms need no key. The schema read and the submission are zero-secret and protected by the Time-Trap token. Do not set `apiKey`: the publishable key is refused on submissions (403 `public-api-secret-key-required`), and the secret key must never reach a browser.
+
 ### Under the Hood
 1. **Dynamic Schema**: Loads public fields from `GET /api/v1/public/:seed/schema`.
 2. **Auto-Rendering**: Generates inputs, dropdowns, textareas, and file uploaders.
 3. **Anti-Bot Defense**: Injects invisible honeypot and verifies HMAC time token.
-4. **Draft Storage**: Auto-saves typing progress to prevent data loss.
+4. **Draft Storage**: Auto-saves typing progress to `localStorage` to prevent data loss. Drafts expire after 24 hours of inactivity and never include fields classified above `public` (see [Draft Storage](#draft-storage)).
 
 ---
 
@@ -90,7 +92,6 @@ export function CustomContactForm() {
   const form = useBeechForm({
     seed: 'clienti',
     baseUrl: 'https://api.yourdomain.com',
-    apiKey: 'your-public-write-api-key',
     onSuccess: (res) => alert(`Saved! ID: ${res.id}`),
   })
 
@@ -125,6 +126,8 @@ export function CustomContactForm() {
 }
 ```
 
+When the API rejects a submission with per-field errors (`400` with an `errors[]` array, e.g. a `min`/`max` or tag-vocabulary rule the browser cannot check), each message lands in `form.errors[field]` and the field is marked touched. `form.serverError` then holds only the messages for fields the form does not render, or the problem `detail` when the response has no `errors[]`.
+
 ---
 
 ## Customization
@@ -140,6 +143,26 @@ Filter which fields to render without changing CMS definitions:
   excludeFields={['internal_notes']}
 />
 ```
+
+### Draft Storage
+While a visitor types, the form writes its values in plain text to `localStorage` (`beech_form_draft_<seed>`) and restores them on the next visit. Anything typed stays readable on that browser until the draft expires or the form is submitted, so treat it as a privacy decision:
+
+- Fields whose branch `policies.classification` is `internal`, `restricted` or `confidential` are never stored.
+- `excludeFromDraft` keeps further fields out, e.g. a phone number or a free-text message.
+- `draftTtlMs` sets how long an untouched draft survives (default 24 hours). Expired drafts, and drafts written before expiry existed, are deleted the next time any form from the same origin mounts.
+- `disableDraft` turns the feature off entirely.
+
+```tsx
+<BeechForm
+  seed="clienti"
+  baseUrl="https://api.yourdomain.com"
+  excludeFromDraft={['phone', 'message']}
+  draftTtlMs={60 * 60 * 1000}
+/>
+```
+
+> [!NOTE]
+> Branches without an explicit classification count as `public` and are stored. On forms that collect personal data, classify the sensitive branches, list them in `excludeFromDraft`, or set `disableDraft`.
 
 ### Localization
 Switch languages (`it` | `en`) or pass custom dictionaries:
@@ -202,6 +225,8 @@ sequenceDiagram
     Worker->>Storage: Store entry in D1
     Worker-->>User: 201 Created { id, slug }
 ```
+
+The time-trap token is single use and valid from 1.5 seconds to 1 hour after it is issued. `useBeechForm` fetches one on mount and a new one after every submit the server answers (success or failure), so a second submission after `reset()` and a retry after an error both work in the same page. A token close to the end of its hour is replaced at submit time; because the new token is younger than 1.5 seconds, that submit shows the `timeTrapWarning` message and the next click goes through. Tests can pass a `clock` (`{ now(): number }`) instead of faking timers.
 
 ---
 

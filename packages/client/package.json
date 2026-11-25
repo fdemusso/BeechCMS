@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/client",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -42,7 +42,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@beechcms/core": "workspace:^0.10.1",
+    "@beechcms/core": "workspace:^0.11.0",
     "@types/node": "^26.5.1",
     "@vitest/coverage-v8": "^5.0.5",
     "typescript": "~7.0.2",

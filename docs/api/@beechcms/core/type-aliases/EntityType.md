@@ -6,6 +6,6 @@
 
 # Type Alias: EntityType
 
-> **EntityType** = `"content"` \| `"media"` \| `"seed"` \| `"user"` \| `"role"` \| `"assignment"` \| `"invitation"` \| `"settings"` \| `"session"` \| `"auth"` \| `"app"` \| `"automation"` \| `"layout"` \| `"view"`
+> **EntityType** = `"content"` \| `"media"` \| `"seed"` \| `"user"` \| `"role"` \| `"assignment"` \| `"invitation"` \| `"settings"` \| `"session"` \| `"auth"` \| `"app"` \| `"automation"` \| `"layout"` \| `"view"` \| `"intent"`
 
 What it happened to.

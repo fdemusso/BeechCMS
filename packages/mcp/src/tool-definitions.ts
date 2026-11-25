@@ -119,8 +119,14 @@ export const TOOLS = [
   {
     name: 'beech_intents',
     annotations: READ_ONLY,
-    description: 'List your pending agent intents: actions a script or agent requested that wait for human approval.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    description: 'List your pending agent intents, or pass intentIds to read back the status and result of specific intents (including approved, executed, failed, rejected, expired, or awaiting_result).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        intentIds: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 20 },
+      },
+      additionalProperties: false,
+    },
   },
   {
     name: 'beech_confirm',

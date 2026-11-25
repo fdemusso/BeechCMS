@@ -60,6 +60,16 @@ Optional dashboard-specific UI config. Ignored by the Botanical Engine.
 
 ***
 
+### defaultPublicStatus?
+
+> `optional` **defaultPublicStatus?**: `"draft"` \| `"review"` \| `"published"`
+
+Status of an entry created by an anonymous submission (`POST /api/v1/public/:seed/add` without a key).
+Default: `'draft'`, so unmoderated input never reaches the public list. Set `'published'` to opt in.
+A secret-key write is trusted: it takes the `status` in its body, else this value, else `'published'`.
+
+***
+
 ### displayNameAlias
 
 > **displayNameAlias**: `string`

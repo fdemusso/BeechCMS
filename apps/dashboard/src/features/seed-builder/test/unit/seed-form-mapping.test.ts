@@ -90,6 +90,17 @@ describe("formDataToSeed", () => {
     expect(seed.dashboard?.features).toEqual({ export: false })
   })
 
+  it("carries defaultPublicStatus over from the stored definition", () => {
+    const base = { ...record.definition, defaultPublicStatus: "published" } as Seed
+    const seed = formDataToSeed(seedToFormData({ ...record, definition: base }), base)
+    expect(seed.defaultPublicStatus).toBe("published")
+  })
+
+  it("leaves defaultPublicStatus unset when the stored definition has none", () => {
+    const seed = formDataToSeed(seedToFormData(record), record.definition)
+    expect(seed).not.toHaveProperty("defaultPublicStatus")
+  })
+
   it("strips client-only ids from new branches (br_new_*)", () => {
     const newBranch: Branch = { id: "br_new_123", alias: "subtitle", label: "Subtitle", type: "text" }
     const seed = formDataToSeed({

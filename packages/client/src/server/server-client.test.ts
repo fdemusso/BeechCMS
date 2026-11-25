@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { createBeechServerClient, createBeechClient } from './index.js'
-import type { BeechClientConfig } from '../types.js'
+import type { BeechServerClientConfig } from '../types.js'
 
 // The default registry types every row as `unknown`; these tests read fields off the rows.
 type TestRegistry = Record<string, Record<string, unknown>>
@@ -18,16 +18,35 @@ function mockFetch(status: number, body: unknown, contentType = 'application/jso
   } as unknown as Response)
 }
 
-const baseConfig: BeechClientConfig = {
+const baseConfig: BeechServerClientConfig = {
   baseUrl: 'https://api.example.com',
-  apiKey: 'server-secret-key',
+  secretKey: 'beech_sk_test_key',
 }
 
 describe('Server Client (@beechcms/client/server)', () => {
   it('throws error on missing or invalid configuration', () => {
-    expect(() => createBeechServerClient(null as unknown as BeechClientConfig)).toThrow(TypeError)
-    expect(() => createBeechServerClient<TestRegistry>({ baseUrl: '', apiKey: 'key' })).toThrow(/baseUrl is required/)
-    expect(() => createBeechServerClient<TestRegistry>({ baseUrl: 'https://api.example.com', apiKey: '' })).toThrow(/apiKey is required/)
+    expect(() => createBeechServerClient(null as unknown as BeechServerClientConfig)).toThrow(TypeError)
+    expect(() => createBeechServerClient<TestRegistry>({ baseUrl: '', secretKey: 'key' })).toThrow(/baseUrl is required/)
+    expect(() => createBeechServerClient<TestRegistry>({ baseUrl: 'https://api.example.com', secretKey: '' })).toThrow(/secretKey is required/)
+  })
+
+  it('a config literal with apiKey is a type error and throws at runtime', () => {
+    // @ts-expect-error apiKey was replaced by secretKey
+    const legacyConfig: BeechServerClientConfig = { baseUrl: 'https://api.example.com', apiKey: 'beech_sk_test_key' }
+
+    expect(() => createBeechServerClient(legacyConfig)).toThrow(/apiKey was removed: pass secretKey/)
+  })
+
+  it('one instance sends the same X-API-Key on list and create', async () => {
+    const fetchMock = mockFetch(200, { data: [], meta: { total: 0, returned: 0, seed: 'articles' } })
+    const client = createBeechServerClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
+    const articles = client.collection('articles')
+
+    await articles.list()
+    await articles.create({ title: 'New Article' })
+
+    const sentKeys = fetchMock.mock.calls.map(([, init]) => (init.headers as Headers).get('X-API-Key'))
+    expect(sentKeys).toEqual(['beech_sk_test_key', 'beech_sk_test_key'])
   })
 
   it('create sends POST request with body to /:seed/add', async () => {
@@ -83,12 +102,15 @@ describe('Server Client (@beechcms/client/server)', () => {
     expect(res.error).toEqual(expect.objectContaining({ status: 404, type: 'not_found' }))
   })
 
-  it('list forwards the validate option without altering the response', async () => {
-    const fetchMock = mockFetch(200, { data: [{ id: '1' }], meta: { total: 1, returned: 1, seed: 'articles' } })
-    const client = createBeechServerClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
-    const res = await client.collection('articles').list({ validate: true })
-    expect(res.error).toBeNull()
-    expect(res.data?.data).toHaveLength(1)
+  it('list rejects the removed validate option at the type level', () => {
+    const query = createBeechServerClient<TestRegistry>(baseConfig).collection('articles')
+
+    // `type-check` enforces this directive. validate never validated anything, and the RequestOptions
+    // index signature would accept it silently if the option were only deleted from the type.
+    // @ts-expect-error validate was removed
+    const listWithValidate = () => query.list({ validate: true })
+
+    expect(listWithValidate).toBeTypeOf('function')
   })
 
   it('create splits slug and status out of the input body while wrapping the rest in data', async () => {
@@ -164,33 +186,34 @@ describe('Server Client (@beechcms/client/server)', () => {
   it('alias createBeechClient works identically to createBeechServerClient', () => {
     expect(createBeechClient).toBe(createBeechServerClient)
   })
+})
 
-  it('returns a 409 BeechProblem when X-Schema-Revision header does not match expected fingerprint', async () => {
-    vi.resetModules()
-    vi.doMock('../types.js', async () => {
-      const actual = await vi.importActual<typeof import('../types.js')>('../types.js')
-      return { ...actual, SCHEMA_FINGERPRINT: 'v1.expected' }
-    })
-
-    // Re-import after mocking types.js so the client sees the stubbed fingerprint.
-    const { createBeechServerClient: createClientMocked } = await import('./client.js')
-
-    const fetchMock = vi.fn().mockResolvedValue({
+describe('createBeechServerClient — schema fingerprint drift', () => {
+  function revisionFetch(revision: string) {
+    return vi.fn().mockResolvedValue({
       ok: true,
       status: 201,
       statusText: 'Created',
-      headers: new Headers({
-        'Content-Type': 'application/json',
-        'X-Schema-Revision': 'v1.stale',
-      }),
+      headers: new Headers({ 'Content-Type': 'application/json', 'X-Schema-Revision': revision }),
       json: async () => ({ data: { id: 'p_1', title: 'New Article' }, meta: { seed: 'articles' } }),
-    })
-    const client = createClientMocked({ ...baseConfig, fetch: fetchMock })
+    } as unknown as Response)
+  }
+
+  it('a schemaFingerprint that differs from X-Schema-Revision returns a 409 schema_drift problem', async () => {
+    const client = createBeechServerClient<TestRegistry>({ ...baseConfig, schemaFingerprint: 'v2:expected', fetch: revisionFetch('v2:stale') })
 
     const res = await client.collection('articles').create({ title: 'New Article' })
 
-    expect(res.error).not.toBeNull()
-    expect(res.error?.status).toBe(409)
-    expect(res.error?.type).toBe('schema_drift')
+    // No module mock: the value must come from the config, as exported by beech types generate.
+    expect(res.data).toBeNull()
+    expect(res.error).toMatchObject({ type: 'schema_drift', status: 409 })
+  })
+
+  it('without schemaFingerprint the drift check stays off', async () => {
+    const client = createBeechServerClient<TestRegistry>({ ...baseConfig, fetch: revisionFetch('v2:anything') })
+
+    const res = await client.collection('articles').create({ title: 'New Article' })
+
+    expect(res.error).toBeNull()
   })
 })

@@ -13,10 +13,10 @@ To ensure zero bundle bloat and eliminate frontend credential leakage, the SDK i
 Every read goes through one entry point — `client.collection(seed)` — which returns a **typed fluent query builder** that compiles to the documented [Public REST API](/reference/public-api) query string. There is no second query language: `.where()`, `.orderBy()`, `.include()` and friends serialize into the same `filter`, `orderBy`, `include` parameters you could type by hand.
 
 - **`@beechcms/client/browser`**: Safe read-only client for client-side and browser environments. Mutation methods (`create`, `update`) are physically omitted from both types and bundle runtime.
-- **`@beechcms/client/server`**: Read and write client with mutation operations (`create`, `update`) merged onto the same fluent builder, administrative authentication, and advanced fetch options (`next` cache tags, revalidation, AbortSignal). Deletion is intentionally omitted from public client scopes.
+- **`@beechcms/client/server`**: Read and write client with mutation operations (`create`, `update`) merged onto the same fluent builder, secret-key authentication, and advanced fetch options (`next` cache tags, revalidation, AbortSignal). Deletion is intentionally omitted from public client scopes.
 - **`@beechcms/client/webhooks`**: Dedicated, zero-dependency submodule for HMAC-SHA256 signature verification (`verifyBeechWebhookSignature`), error handling (`WebhookVerificationError`), and strongly typed event deserialization (`constructWebhookEvent<T>`).
 - **`@beechcms/client/richtext`**: Isomorphic, zero-dependency TipTap AST HTML renderer (`renderRichText` / `renderRichTextHtml`), plain-text extractor (`richTextToPlainText` / `extractPlainText`), and AST normalizer/sanitizer utilities (`normalizeRichtextDocument`, `escapeHtml`, `isSafeUrl`).
-- **`@beechcms/client`**: Root entrypoint exporting shared contracts, TypeScript types (`BeechResult`, `BeechProblem`, `ListQuery`, `ListMeta`, `Listable`, `Single`, `RequestOptions`, `BeechClientConfig`), query serializer (`buildSearchParams`), canonical media URL builders (`media`, `mediaSrcSet`), and re-exporting webhook signature utilities.
+- **`@beechcms/client`**: Root entrypoint exporting shared contracts, TypeScript types (`BeechResult`, `BeechProblem`, `ListQuery`, `ListMeta`, `Listable`, `Single`, `RequestOptions`, `ListOptions`, `BeechClientBaseConfig`, `BeechBrowserClientConfig`, `BeechServerClientConfig`), query serializer (`buildSearchParams`), canonical media URL builders (`media`, `mediaSrcSet`), and re-exporting webhook signature utilities.
 
 ---
 
@@ -42,9 +42,31 @@ npm install @beechcms/client
 
 ---
 
+## Keys and roles
+
+| Key | Client option | Allows | Configured in | Local value | Use from |
+| --- | --- | --- | --- | --- | --- |
+| Publishable | `publishableKey` | `GET` / `HEAD` / `OPTIONS` reads | `wrangler.jsonc` `vars` (committed) as `BEECH_PUBLISHABLE_KEY` | `beech_pk_dev` | Browser and server |
+| Secret | `secretKey` | Reads and writes | `.dev.vars` locally as `BEECH_SECRET_KEY`; `npx wrangler secret put BEECH_SECRET_KEY` in production with a generated `beech_sk_live_…` value | `beech_sk_dev` | Server only |
+
+The key authenticates and the seed authorizes: `allowPublicRead` / `allowPublicEdit` still apply to both keys. `allowPublicPost` gates anonymous form submissions only: the secret key creates entries without it. See the [permission model](/reference/public-api#permission-model).
+
+A new project serves `beech_pk_dev` in production too, unless you change `BEECH_PUBLISHABLE_KEY`. This is safe because the key is read-only.
+
+Server code that only reads can use the browser client with the publishable key.
+
+> [!WARNING]
+> Never pass the secret key to browser code or to a `NEXT_PUBLIC_` / `VITE_` / `PUBLIC_` variable. `createBeechBrowserClient` throws when `publishableKey` starts with `beech_sk_`, and the browser client has no `create` / `update` (a compile-time error). The API refuses `beech_sk_dev` outside `ENV=development` (403 `public-api-dev-secret-key`).
+
+### Migrating from `apiKey`
+
+`apiKey` was removed. Passing it throws `apiKey was removed: pass publishableKey to createBeechBrowserClient` (or `secretKey` / `createBeechServerClient`). For the Worker side, see [moving a 0.10.x project to publishable and secret keys](/build/cli-workflows#moving-a-0-10-x-project-to-publishable-and-secret-keys).
+
+---
+
 ## Browser Client (`@beechcms/client/browser`)
 
-The browser entrypoint is strictly read-only. It is designed for client-side web applications where read tokens (`PUBLIC_READ_API_KEY`) are safe to expose, but mutation endpoints and write credentials must **never** be bundled.
+The browser entrypoint is strictly read-only. It is designed for client-side web applications where the publishable key is safe to expose, but mutation endpoints and write credentials must **never** be bundled.
 
 ### Quick Start
 
@@ -54,12 +76,12 @@ import { createBeechBrowserClient } from '@beechcms/client/browser'
 
 export const beech = createBeechBrowserClient({
   baseUrl: process.env.NEXT_PUBLIC_BEECH_API_URL || 'https://api.yourdomain.com',
-  apiKey: process.env.NEXT_PUBLIC_BEECH_READ_KEY!,
+  publishableKey: process.env.NEXT_PUBLIC_BEECH_PUBLISHABLE_KEY!,
 })
 ```
 
 > [!NOTE]
-> `apiKey` and `baseUrl` are required non-empty strings. Omitting them or providing an empty string will throw an initialization error.
+> `baseUrl` and `publishableKey` are required non-empty strings. Omitting one, passing `apiKey`, or passing a `beech_sk_` value throws when the client is created.
 
 ### 1. List Entries with Filters & Pagination
 
@@ -292,12 +314,12 @@ import { createBeechServerClient } from '@beechcms/client/server'
 
 export const beechAdmin = createBeechServerClient({
   baseUrl: process.env.BEECH_API_URL || 'https://api.yourdomain.com',
-  apiKey: process.env.BEECH_WRITE_API_KEY!,
+  secretKey: process.env.BEECH_SECRET_KEY!,
 })
 ```
 
 > [!NOTE]
-> Authenticated requests passing `PUBLIC_WRITE_API_KEY` in `apiKey` automatically bypass public anti-bot defenses (Time-Trap tokens). For anonymous client-side web form submissions, use the dedicated [Forms SDK (`@beechcms/forms-react`)](/features/forms).
+> Requests sent with the secret key skip the Time-Trap and honeypot checks. Seed flags still apply. Anonymous browser forms use the dedicated [Forms SDK (`@beechcms/forms-react`)](/features/forms) with no key.
 
 ### 1. Creating Content (`create`)
 
@@ -394,19 +416,22 @@ npx beech types generate --remote -o src/types/beech.ts
 
 ```typescript
 import { createBeechBrowserClient } from '@beechcms/client/browser'
-import type { BeechDatabase } from './beech.generated'
+import { SCHEMA_FINGERPRINT, type BeechDatabase } from './beech.generated'
 
 export const beech = createBeechBrowserClient<BeechDatabase>({
   baseUrl: process.env.NEXT_PUBLIC_BEECH_API_URL!,
-  apiKey: process.env.NEXT_PUBLIC_BEECH_READ_KEY!,
+  publishableKey: process.env.NEXT_PUBLIC_BEECH_PUBLISHABLE_KEY!,
+  schemaFingerprint: SCHEMA_FINGERPRINT,
 })
 
 await beech.collection('artciles')            // ✗ compile error — not a seed slug
 await beech.collection('articles').select(['titel'])  // ✗ compile error — not a branch alias
 ```
 
-> [!WARNING]
-> Generated types go stale the moment someone applies a schema change, and the SDK does **not** yet catch it at runtime: its `SCHEMA_FINGERPRINT` ships as an empty stub, so the `X-Schema-Revision` comparison inside the client is inert until that constant is populated at build time. Guard drift in CI instead — [`beech types check`](/build/cli-workflows#_3-typescript-type-generation) regenerates in memory and fails on mismatch, without touching the working tree:
+Generated types go stale the moment someone applies a schema change. Pass the generated `SCHEMA_FINGERPRINT` as `schemaFingerprint` (both clients accept it) and every response whose `X-Schema-Revision` header differs returns a `409` problem with `type: 'schema_drift'` instead of data typed against the old schema. Without `schemaFingerprint` the check is off.
+
+> [!TIP]
+> The runtime check fires only once a request is made. Guard drift in CI as well: [`beech types check`](/build/cli-workflows#_3-typescript-type-generation) regenerates in memory and fails on mismatch, without touching the working tree:
 >
 > ```bash
 > npx beech types check --remote -o src/types/beech.ts   # exits 1 when committed types are stale
@@ -448,7 +473,7 @@ export interface AppContentRegistry {
 // 3. Initialize typed client
 export const beech = createBeechBrowserClient<AppContentRegistry>({
   baseUrl: 'https://api.yourdomain.com',
-  apiKey: process.env.NEXT_PUBLIC_BEECH_READ_KEY!,
+  publishableKey: process.env.NEXT_PUBLIC_BEECH_PUBLISHABLE_KEY!,
 })
 
 // Types are automatically inferred!
@@ -681,6 +706,13 @@ if (!result.error) {
   }
 }
 ```
+
+Exactly one of `data` and `error` is set. Two client-side problem types complete the server's codes:
+
+| `type` | `status` | When |
+|---|---|---|
+| `about:blank` with title `Network Error` | `0` | `fetch` itself failed (offline, DNS, CORS). |
+| `invalid-response` | the HTTP status (usually `200`) | A successful response without a JSON body. The usual cause is a `baseUrl` that points at the dashboard (`/admin`) or at a site that answers every path with HTML; `detail` names the URL and the content type received. |
 
 ---
 

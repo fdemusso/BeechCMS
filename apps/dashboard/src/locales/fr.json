@@ -284,7 +284,7 @@
       "allDone": "Projet prêt : toutes les étapes de configuration sont terminées",
       "systemTables": {
         "label": "Base de données initialisée",
-        "hint": "Exécuter : npx beech init --db --local"
+        "hint": "Exécuter : npm run db:migrate:local"
       },
       "seeds": "{{count}} type(s) de contenu actif(s)",
       "seedsNone": "Aucun type de contenu configuré dans la base de données",
@@ -2432,7 +2432,6 @@
           "badge": "Non disponible pour votre rôle"
         }
       },
-      "redirectNotice": "Après approbation, vous serez redirigé vers {{uri}}.",
       "approve": "Autoriser l’accès",
       "deny": "Refuser",
       "error": {
@@ -2460,26 +2459,54 @@
         "agent:read": "Voir les actions que votre agent attend de vous faire confirmer, et les refuser",
         "agent:approve": "Exécuter une action après que vous l'avez confirmée dans votre client IA"
       },
-      "required": "Obligatoire",
-      "disclaimer": "L’application ne dépasse jamais votre propre rôle. Vous pouvez révoquer l’accès à tout moment dans Paramètres > Apps connectées.",
       "template": {
         "legend": "Niveau d’accès",
-        "read": {
-          "label": "Lecture",
-          "description": "Tout consulter, rien modifier"
+        "custom": "Personnalisé",
+        "reader": {
+          "label": "Lecture"
         },
-        "editor": {
-          "label": "Éditeur",
-          "description": "Lecture, plus création, modification et suppression de contenus et de médias"
+        "writer": {
+          "label": "Écriture"
         },
-        "admin": {
-          "label": "Administrateur",
-          "description": "Éditeur, plus automatisations, utilisateurs et paramètres"
-        },
-        "developer": {
-          "label": "Développeur",
-          "description": "Tout ce qui est demandé, y compris les modifications du schéma"
+        "full": {
+          "label": "Accès complet"
         }
+      },
+      "scopeCount": "{{granted}} sur {{total}} autorisations",
+      "summary": {
+        "empty": "Aucune des autorisations demandées n’est disponible pour votre rôle.",
+        "readOnly": "Accès en lecture seule aux ressources sélectionnées. Aucune modification possible.",
+        "readWithApprove": "Accès en lecture seule, plus exécution d’actions uniquement après votre confirmation.",
+        "writeContent": "Accès en lecture plus création, modification et suppression de contenus et de médias.",
+        "writeContentWithApprove": "Accès en lecture et écriture pour les contenus et médias, plus actions confirmées.",
+        "schemaOnly": "Accès en lecture plus modifications du schéma.",
+        "schemaWithApprove": "Accès en lecture, modifications du schéma et exécution d’actions après votre confirmation.",
+        "fullWithoutSchema": "Accès en lecture et écriture pour les contenus, médias, automatisations, utilisateurs et paramètres.",
+        "fullWithSchema": "Accès complet à toutes les autorisations demandées, y compris les modifications du schéma et des paramètres."
+      },
+      "domains": {
+        "schema": "Schéma",
+        "content": "Contenu",
+        "media": "Médias",
+        "automations": "Automatisations",
+        "users": "Utilisateurs et rôles",
+        "settings": "Paramètres",
+        "analytics": "Analyses",
+        "agent": "Actions de l’agent"
+      },
+      "actions": {
+        "read": "Lecture",
+        "write": "Écriture"
+      },
+      "domainDescriptions": {
+        "schema": "Structure des types de contenu, champs et migrations du schéma.",
+        "content": "Entrées enregistrées dans vos types de contenu (lire, créer, modifier ou supprimer).",
+        "media": "Images et fichiers stockés dans votre médiathèque.",
+        "automations": "Flux automatisés, déclencheurs et historique des exécutions.",
+        "users": "Comptes de l’équipe, rôles, permissions et invitations en attente.",
+        "settings": "Configuration et préférences globales du site.",
+        "analytics": "Indicateurs de trafic, utilisation du stockage et statistiques système.",
+        "agent": "Actions en attente proposées par un agent IA nécessitant votre confirmation."
       }
     },
     "apps": {

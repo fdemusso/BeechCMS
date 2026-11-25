@@ -2,12 +2,13 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { resolveClassification, SlugConflictError, verifyMagicBytes, verifyTimeTrapToken, sha256hex, SystemClock, timingSafeEqual, isValidContentStatus, mergeLocalizedFields, resolveLocalizedFields, localizedAliasesIn } from '@beechcms/core'
+import { resolveClassification, SlugConflictError, verifyMagicBytes, verifyTimeTrapToken, sha256hex, SystemClock, isValidContentStatus, mergeLocalizedFields, resolveLocalizedFields, localizedAliasesIn } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../../shared/utils/query-utils.js'
-import { checkPublicOperation } from '../validation/access-policy.js'
-import { publicProblem, internalErrorDetail, timeTrapNotConfiguredProblem } from '../errors/problem-details.js'
+import { checkPublicOperation, isPubliclyExposed } from '../validation/access-policy.js'
+import { authorizePublicKey, publicKeyProblem } from '../middleware/public-key-auth.js'
+import { publicProblem, publicSeedNotFoundProblem, internalErrorDetail, timeTrapNotConfiguredProblem } from '../errors/problem-details.js'
 import { generateEntrySlug, slugify } from '../utils/slug-utils.js'
 import { sanitizePublicPayload } from '../validation/sanitize.js'
 import { parseIdempotencyKey, buildRequestFingerprint } from '../validation/idempotency.js'
@@ -130,13 +131,25 @@ const DECOY_FIELDS = ['fax_number', 'website_url', 'middle_name', 'secondary_pho
 export async function publicAddHandler(context: Context<AppEnv>) {
   const seedSlug = context.req.param('seed') ?? ''
   const seed = context.get('getSeed')(seedSlug)
-  if (!seed) {
-    return publicProblem(context, { type: 'seed-not-found', title: 'Seed Not Found', status: 404, detail: `The content type '${seedSlug}' does not exist.` })
+  if (!seed || !isPubliclyExposed(seed)) {
+    return publicSeedNotFoundProblem(context, seedSlug)
   }
 
-  const access = checkPublicOperation(seed, 'add')
-  if (!access.ok) {
-    return publicProblem(context, { type: 'operation-not-allowed', title: access.error.error, status: 403, detail: access.error.message })
+  // Authenticate API key if provided; an absent or blank key is an anonymous submission
+  const providedKey = context.req.header('X-API-Key')
+  let isApiKeyAuthenticated = false
+  if (providedKey?.trim()) {
+    const decision = authorizePublicKey({ method: 'POST', providedKey, env: context.env })
+    if (!decision.ok) return publicKeyProblem(context, decision)
+    isApiKeyAuthenticated = true
+  }
+
+  // allowPublicPost opens anonymous submissions only; a secret-key write is trusted and never depends on it
+  if (!isApiKeyAuthenticated) {
+    const access = checkPublicOperation(seed, 'add')
+    if (!access.ok) {
+      return publicProblem(context, { type: 'operation-not-allowed', title: access.error.error, status: 403, detail: access.error.message })
+    }
   }
 
   const allowedOrigins = context.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean)
@@ -164,22 +177,6 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     body = asRecord(parsed) ?? {}
   } catch {
     return publicProblem(context, { type: 'invalid-json-body', title: 'Bad Request', status: 400, detail: 'Invalid JSON body' })
-  }
-
-  // Authenticate API key if provided
-  const configuredWriteKey = context.env.PUBLIC_WRITE_API_KEY
-  const providedKey = context.req.header('X-API-Key')
-  const isApiKeyAuthenticated = Boolean(
-    configuredWriteKey && providedKey && timingSafeEqual(providedKey, configuredWriteKey)
-  )
-
-  if (providedKey && !isApiKeyAuthenticated) {
-    return publicProblem(context, {
-      type: 'public-api-key-unauthorized',
-      title: 'Unauthorized',
-      status: 401,
-      detail: 'Invalid or unauthorized API key',
-    })
   }
 
   let rawData = asRecord(body.data)
@@ -274,8 +271,9 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     return publicProblem(context, { type: 'invalid-data-object', title: 'Bad Request', status: 400, detail: "Field 'data' is required and must be a non-empty object" })
   }
 
-  // Backend-Driven Status Management (disregard client status on unauthenticated submissions, allow on authenticated)
-  const defaultStatus = ((seed as any).defaultPublicStatus as string) || 'published'
+  // Backend-Driven Status Management (disregard client status on unauthenticated submissions, allow on authenticated).
+  // Anonymous input is untrusted, so it lands as a draft unless the seed opts in; a trusted write publishes by default.
+  const defaultStatus = seed.defaultPublicStatus ?? (isApiKeyAuthenticated ? 'published' : 'draft')
   const statusValue = (isApiKeyAuthenticated && typeof body.status === 'string' && isValidContentStatus(body.status))
     ? body.status
     : defaultStatus
@@ -325,7 +323,7 @@ export async function publicAddHandler(context: Context<AppEnv>) {
   }
   const language = negotiated?.ok ? negotiated.language : undefined
 
-  const sanitized = sanitizePublicPayload(seed, rawData, { operation: 'create', allowNull: false, requireAtLeastOneValidField: true, enforceRequiredFields: true, localeConfig })
+  const sanitized = sanitizePublicPayload(seed, rawData, { operation: 'create', allowNull: false, requireAtLeastOneValidField: true, enforceRequiredFields: true, localeConfig, idGenerator: context.get('idGenerator') })
   if (!sanitized.ok) {
     if (sanitized.status === 422) {
       return publicProblem(context, { type: sanitized.code, title: 'Unprocessable Entity', status: 422, detail: sanitized.message })

@@ -71,9 +71,9 @@ Declared in `wrangler.toml` and bound at runtime:
 
 | Variable | Required | Description |
 | :--- | :---: | :--- |
-| `PUBLIC_READ_API_KEY` | Recommended | Key required to query public content via `/api/v1/public/*`. |
-| `PUBLIC_WRITE_API_KEY` | Recommended | Key required for public submissions and form entries. |
-| `PUBLIC_TIME_TRAP_SECRET` | Required for anonymous forms | HMAC key (use 32+ random bytes) that signs the anti-bot Time-Trap tokens. When unset, `GET /api/v1/public/timetrap/token` and anonymous `POST /api/v1/public/:seed/add` answer `503 time-trap-not-configured` instead of signing with a guessable key. Requests authenticated with `PUBLIC_WRITE_API_KEY` are not affected. |
+| `BEECH_PUBLISHABLE_KEY` | Recommended | Read-only key for `/api/v1/public/*`. Lives in `wrangler.jsonc` `vars`, local value `beech_pk_dev`, safe in browsers. |
+| `BEECH_SECRET_KEY` | Required for public writes | Reads and writes. A secret (`.dev.vars` / `wrangler secret put`), local value `beech_sk_dev`, refused outside `ENV=development`. |
+| `PUBLIC_TIME_TRAP_SECRET` | Required for anonymous forms | HMAC key (use 32+ random bytes) that signs the anti-bot Time-Trap tokens. When unset, `GET /api/v1/public/timetrap/token` and anonymous `POST /api/v1/public/:seed/add` answer `503 time-trap-not-configured` instead of signing with a guessable key. Requests authenticated with the secret key are not affected. The value lives in `.dev.vars` locally and in the secret store in production. |
 | `PUBLIC_PUBLISHED_ONLY`| Optional | When set to `true`, restricts public reads strictly to published items. |
 
 ### Automations & Delivery
@@ -100,12 +100,13 @@ JWT_SECRET=super-secret-local-jwt-token-key-change-me
 PRIVACY_MASTER_KEY=4a2f8c9b... # 64 hex characters, see Field Policies
 RESEND_API_KEY=re_dev_123456789
 EMAIL_FROM="BeechCMS Dev <noreply@localhost>"
-PUBLIC_READ_API_KEY=pk_live_read_12345
-PUBLIC_WRITE_API_KEY=pk_live_write_12345
+BEECH_SECRET_KEY=beech_sk_dev
 PUBLIC_TIME_TRAP_SECRET=local-time-trap-secret-change-me
 WEBHOOK_SECRET=whsec_dev_local_secret
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
+
+The publishable key is not a secret and lives in `wrangler.jsonc` `vars` (`"BEECH_PUBLISHABLE_KEY": "beech_pk_dev"`).
 
 To run local development with D1 and R2 emulated:
 
@@ -132,7 +133,18 @@ npx wrangler secret put WEBHOOK_SECRET --env production
 # Set QStash tokens
 npx wrangler secret put QSTASH_TOKEN --env production
 npx wrangler secret put QSTASH_CURRENT_SIGNING_KEY --env production
+
+# Set the public API secret key
+npx wrangler secret put BEECH_SECRET_KEY --env production
+
+# Set the Time-Trap signing secret
+npx wrangler secret put PUBLIC_TIME_TRAP_SECRET --env production
+
+# Set the field-policy master key (once, never replaced)
+npx wrangler secret put PRIVACY_MASTER_KEY --env production
 ```
+
+Projects created with `npx @beechcms/cms@latest` have no `env` block, so they drop `--env production`. The secret key value is `beech_sk_live_` + 32 hex characters (the same generator `beech keys:migrate` uses). `PRIVACY_MASTER_KEY` is set once and never replaced: see [master key provisioning](../build/field-policies.md#master-key-provisioning).
 
 Wrangler prompts you interactively to enter each secret, ensuring they remain encrypted at rest.
 

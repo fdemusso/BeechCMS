@@ -8,24 +8,8 @@
 
 ## Properties
 
-### db?
-
-> `optional` **db?**: `string`
-
-***
-
-### initDb
-
-> **initDb**: `boolean`
-
-***
-
 ### local
 
 > **local**: `boolean`
 
-***
-
-### nonInteractive?
-
-> `optional` **nonInteractive?**: `boolean`
+Local project (checks `.dev.vars`) as opposed to a remote-only check.

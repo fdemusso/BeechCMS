@@ -9,7 +9,7 @@ import { queryD1, type WranglerOptions } from './wrangler.js'
  * to the executor `@beechcms/core`'s introspection primitive expects.
  *
  * `queryD1` stays untouched: it is a degree-17 hub shared with `init`, `db:migrate`, `db:reset`,
- * `onboard` and `generate-types`. This wrapper adds a Promise and nothing else — no caching, no
+ * `generate-types`. This wrapper adds a Promise and nothing else — no caching, no
  * retry, no statement rewriting (see the `SchemaQueryExecutor` contract).
  */
 export function createWranglerExecutor(options: WranglerOptions): SchemaQueryExecutor {

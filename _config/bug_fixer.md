@@ -28,6 +28,7 @@ Output, exactly one of:
 5. **Flow tier = shared Docker stack** (one MinIO test bucket that global setup empties, one Mailpit inbox, one webhook-tester). Run it only when the fix touches Docker-bound code. `cpu-slot.mjs` auto-detects `flow` / `apps/api/test/` arguments and makes the run exclusive. Pass `--exclusive` if you invoke the flow tier any other way.
 6. **No watch mode, no `--coverage` on single-file runs, no `pnpm install` without `--frozen-lockfile`.**
 7. **Commits**: one commit per fix, through the slot, with `GRAPHIFY_SKIP_HOOK=1` (the post-commit graph rebuild is wasted CPU in a throwaway worktree). Never `--no-verify`.
+8. **Never `git stash`** (`push`, `pop`, `apply`, `drop`): the stash stack lives in the common git dir and is shared across every worktree. Two concurrent agents stashing and popping overwrite each other's trees.
 
 ---
 
@@ -152,11 +153,13 @@ Do this before designing anything. Most fixes here have prior art.
 ### PHASE 5: FIX + PROVE IT
 1. Implement the plan. Code style follows `_config/caveman_coder.md` rules 2, 3, 4, 6, 7, 9 (YAGNI, Botanical dialect, VSA, short English comments, readable names, minimal diagnostic diffs). Do NOT apply its sprint-pipeline rules: 5 (graphify update), 8 (rejections.md) and 10 (trust the map). Recon is part of your job.
 2. **GREEN**: the same single-file command passes.
-3. **Revert check** (mandatory, cheap): prove the test is coupled to the fix, not passing by accident.
+3. **Revert check** (mandatory, cheap, per-worktree): prove the test is coupled to the fix, not passing by accident. Never use `git stash`; keep the backup in a temporary directory (e.g. `mktemp -d`), preserving relative paths:
    ```bash
-   git stash push -m revert-check -- <fix source files, NOT the test files>   # add -u for new untracked source files
+   REVERT_BAK=$(mktemp -d)
+   cp --parents <fix source files, NOT the test files> "$REVERT_BAK/"
+   git checkout origin/devs -- <tracked fix source files>   # and `rm` any newly added untracked fix files
    node "$MAIN/scripts/cpu-slot.mjs" -- <the single-file command>            # MUST fail again
-   git stash pop
+   cp -r "$REVERT_BAK/." . && rm -rf "$REVERT_BAK"
    ```
    If it still passes with the fix removed, the test does not prove the fix. Rewrite it.
 4. **Out of scope** findings (a different root cause, refactors): do not fix them. Search for duplicates first, then file:
@@ -219,7 +222,7 @@ Stop at the first failure, fix it, and re-run from step 1.
    ### Evidence
    - Regression test: `<path>` › "<it name>" (<tier>)
    - RED on origin/devs: `<expected vs received excerpt>`
-   - Revert check: fails again with the fix stashed
+   - Revert check: fails again with the fix reverted
    - GREEN: `<single-file command>`
 
    ### Verification

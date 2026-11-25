@@ -11,15 +11,11 @@ All commands are unified under the `pnpm beech` CLI.
 - `pnpm beech dev:tunnel`      : Prints Cloudflare Quick Tunnel URL
 - `pnpm beech mailpit:clear`   : Clears Mailpit inbox
 - `pnpm beech logs <service>`   : Streams logs for docker services: `mailpit`, `db`, `tunnel`, `storage`
-- `pnpm beech onboard --yes`    : Fully automated local provisioning (init --db)
-- `pnpm beech init --db`        : Initialises database locally
+- `pnpm beech init`            : Checks the project files (worker.ts, wrangler.jsonc, .dev.vars); does not touch the database
 - `pnpm beech db:migrate`      : Applies D1 schema migrations locally
 - `pnpm beech db:reset`        : Removes Wrangler local state and boots DB from scratch
 - `pnpm beech gen-types`       : Generates TypeScript interfaces from active D1 database
 - `pnpm beech types check`     : Diffs committed generated types against live D1, writes nothing, exits 1 on drift
-- `pnpm beech validate`        : Validates runtime schema status
-- `pnpm beech seed:create`     : (Deprecated) Content types are created via dashboard or /api/seeds
-- `pnpm beech seed:load`       : (Deprecated) Schemas are stored canonically in D1
 - `pnpm beech schema:diff`     : (Deprecated) Schema mutations are handled by the Botanical Engine
 - `pnpm beech schema:audit`    : Read-only audit of relation FK/junction storage and legacy tag definitions (exit 1 on mismatch)
 - `pnpm beech schema:migrate`  : Migrates pre-0.9 tag/choice seeds to the tags contract (dry run; `--apply` writes; `--remote` for production)

@@ -6,10 +6,10 @@ import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 describe('CLI and Documentation Parity (Fact-Checking)', () => {
-  const cliMjsPath = resolve(__dirname, '../../../../bin/cli.mjs')
+  const cliMjsPath = resolve(__dirname, '../../bin/beech.mjs')
   const docsPath = resolve(__dirname, '../../../../docs/build/cli-workflows.md')
 
-  it('verifies bin/cli.mjs and cli-workflows.md exist', () => {
+  it('verifies packages/cli/bin/beech.mjs and cli-workflows.md exist', () => {
     expect(existsSync(cliMjsPath)).toBe(true)
     expect(existsSync(docsPath)).toBe(true)
   })
@@ -18,7 +18,7 @@ describe('CLI and Documentation Parity (Fact-Checking)', () => {
     const cliSource = readFileSync(cliMjsPath, 'utf-8')
     const docsContent = readFileSync(docsPath, 'utf-8')
 
-    // Extract COMMANDS dictionary keys from bin/cli.mjs
+    // Extract COMMANDS dictionary keys from packages/cli/bin/beech.mjs
     const commandsMatch = cliSource.match(/const COMMANDS = \{([\s\S]*?)\n\}/)
     expect(commandsMatch).not.toBeNull()
 
@@ -71,7 +71,7 @@ describe('CLI and Documentation Parity (Fact-Checking)', () => {
       } else {
         expect(
           docsContent.includes(`beech ${cmd}`),
-          `Command "beech ${cmd}" is defined in bin/cli.mjs but missing from docs/build/cli-workflows.md`
+          `Command "beech ${cmd}" is defined in packages/cli/bin/beech.mjs but missing from docs/build/cli-workflows.md`
         ).toBe(true)
       }
     }

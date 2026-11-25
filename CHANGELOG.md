@@ -1,5 +1,107 @@
 # Changelog
 
+## Bug fixes & hardening — 2026-11-25
+
+Follow-up fixes and hardening across the Public API, client SDKs, forms, CLI, MCP, and dashboard.
+
+### Breaking
+
+- **Client**: removed the no-op `validate` option on `list()`, which previously did nothing (#1000).
+
+### Fixed
+
+**API & Public API**
+- Public API now answers `404` consistently for private seeds and unpublished entries without leaking other seed slugs (#1015).
+- Anonymous public add now defaults to `draft` (while respecting `defaultPublicStatus`), and secret-key writes skip `allowPublicPost` (#1022).
+- Public edit leaves `status` unchanged unless the request explicitly sets it, preventing concurrent publishes from being overwritten (#1018).
+- Content `PUT /api/content/:slug/:id` leaves `status` unchanged unless the body sends one, preventing concurrent publishes from being overwritten (#1049).
+- Public `operation-not-allowed` `403` errors now name the seed flag to enable (#1007).
+- Public reads send the same `Cache-Control` on cache miss and hit, with the 60s edge cache window documented (#1017).
+- `beech db:migrate` / `bootstrap-d1` now tracks applied migrations in `d1_migrations` and applies pending migrations on an already-initialized local DB (#967).
+- RBAC agent intent summaries now resolve and name the account, role, and scope instead of showing raw IDs, and `invitations.create` / `invitations.regenerate` are now `destructive` so OAuth callers require human approval in every environment (#979).
+
+**Client & Search (`@beechcms/client`, `@beechcms/search-client`)**
+- Non-JSON `2xx` responses now return an `invalid-response` problem instead of `{ data: null, error: null }` (#998).
+- Schema drift check compares `X-Schema-Revision` against a `schemaFingerprint` passed in the client config instead of an empty stub (#999).
+- `SearchClient` now sends the publishable key on index and embed requests and reports embed failures (#1009).
+
+**Forms (`@beechcms/forms-react`)**
+- Refreshes the single-use time-trap token after answered submits and before expiry (#1013).
+- Maps per-field API validation errors onto the corresponding form fields (#1014).
+- Replaces the hardcoded Italian loading text with translations and adds accessible draft-dismiss and error references (#1011).
+- Keeps classified fields out of local `localStorage` drafts and expires saved drafts (#1010).
+
+**MCP, CLI & Dashboard**
+- MCP adds intent readback and `awaiting_result` resilience for clients without form elicitation (#1027).
+- OAuth consent screen deduplicates access presets and groups domain permissions (#968).
+- Seed builder preserves `defaultPublicStatus` when saving a seed (#1041).
+- Quick-start and framework guides drop the reserved `slug` branch (#1023), and `npx` specs pin `@latest` to avoid stale cached versions (#1024).
+
+## Publishable and secret keys — 2026-11-25
+
+Two key roles replace the per-method keys of the Public API: a read-only **publishable** key that is safe in a browser, and a **secret** key for server code. Fixes #995, #996 and #997. Ships with `api`, `client`, `cli` and `cms`.
+
+### Breaking
+
+- **The Worker reads only `BEECH_PUBLISHABLE_KEY` and `BEECH_SECRET_KEY`.** The client takes `publishableKey` (browser) or `secretKey` (server), and passing `apiKey` throws. The browser client refuses `beech_sk_…` values.
+- **Two new 403 problem types**: `public-api-secret-key-required` (a publishable key on a write) and `public-api-dev-secret-key` (`beech_sk_dev` while `ENV` is not `development`). The dev secret key is refused outside `ENV=development`.
+- **New projects keep their secrets in `.dev.vars`**: `JWT_SECRET`, `BEECH_SECRET_KEY`, `PUBLIC_TIME_TRAP_SECRET` and `PRIVACY_MASTER_KEY`. `vars` in `wrangler.jsonc` holds only `ENV`, `CORS_ORIGINS`, `BEECH_PUBLISHABLE_KEY` and `APP_URL`.
+
+### Upgrading from 0.10.x
+
+1. Run the migration from the project root:
+
+   ```bash
+   npx beech keys:migrate
+   ```
+
+   It removes `PUBLIC_READ_API_KEY`, `PUBLIC_WRITE_API_KEY`, `JWT_SECRET` and `PUBLIC_TIME_TRAP_SECRET` from the `vars` of `wrangler.jsonc`, adds `BEECH_PUBLISHABLE_KEY` there, and writes `JWT_SECRET`, `BEECH_SECRET_KEY` and `PUBLIC_TIME_TRAP_SECRET` to `.dev.vars`.
+2. **Treat the old values as compromised.** They are in the git history. The command writes fresh `JWT_SECRET` and `PUBLIC_TIME_TRAP_SECRET` values, so every session ends, and it never rewrites history.
+3. **Production order:** run `npm run deploy` first (Cloudflare refuses a secret whose name is still a plain-text var, error 10053), then `npx wrangler secret put` for `JWT_SECRET`, `BEECH_SECRET_KEY` and `PUBLIC_TIME_TRAP_SECRET`. Never set a new `PRIVACY_MASTER_KEY`.
+4. In client code, replace `apiKey` with `publishableKey` and `createBeechBrowserClient`, or with `secretKey` and `createBeechServerClient`, and rename the env vars as in the [client SDK reference](/reference/client-sdk#keys-and-roles).
+
+### Fixed
+
+- The first documented request no longer fails: local keys are fixed values (`beech_pk_dev`, `beech_sk_dev`) and the docs use them.
+- One `createBeechServerClient` instance reads and writes.
+- Public add and edit no longer answer 500 on seeds with relations.
+- `beech setup:cloudflare` merges the R2 credentials into `.dev.vars` instead of overwriting it.
+- `beech init` shows the publishable key and reports only whether the secret key is set, and it flags legacy names.
+
+## First run in minutes — 2026-11-25
+
+A new project now goes from nothing to a working admin in two commands, with no Docker and no Cloudflare account: `npx @beechcms/cms my-app`, then `npm run dev`. Fixes #1019, #1020 and #1021. Ships as a minor bump of `cms`, `cli` and `api`.
+
+### Highlights
+
+- **`npm run dev` applies the migrations.** It runs `wrangler d1 migrations apply --local` and then serves the API and dashboard on `http://localhost:8789`; the first admin is created at `/admin`. `beech onboard` is no longer needed.
+- **Media uploads work locally.** With only the `MEDIA_BUCKET` binding (wrangler emulates R2), the dashboard falls back to uploading through the Worker. No S3 credentials, no MinIO.
+- **The scaffolder installs the project's dependencies** (`--no-install` skips it).
+- **A release smoke test.** `scripts/smoke-release.mjs` packs the packages, installs the scaffolder from its tarball, scaffolds a project, installs it with plain npm, type-checks the worker, runs `npm run dev`, creates the admin and uploads an image. It runs in the release pipeline (skip with `--skip-smoke`) and as a CI job; the whole path takes about a minute.
+
+### Breaking
+
+- **The `beech` bin moves from `@beechcms/cms` to `@beechcms/cli`.** Scaffolded projects now depend on `@beechcms/cli`. A project that lists `@beechcms/cms` only to get `beech` must depend on `@beechcms/cli` instead. `@beechcms/cms` keeps a single `cms` bin (`npx @beechcms/cms`); the `@beechcms/cms` and `beechcms` bin aliases are gone.
+- **`beech onboard` is removed, and `beech init` no longer touches the database** (`--db`, `--db-name`, `--yes` are gone). Both applied an embedded copy of `0000_v040_base.sql` and never the later migrations. Use `npm run db:migrate:local` or `beech db:migrate`. `beech update` now runs `beech db:migrate` instead of `init --db`.
+- **`beech seed:load`, `seed:create`, `validate` and `build` are removed.** They only printed a notice.
+- **Monorepo-only commands leave the published CLI**: `dev`, `dev:stop`, `dev:reset`, `dev:tunnel`, `mailpit:clear`, `logs`, `test`, `lint`, `doctor` and `reset` need this repository (Docker stack, Turborepo, test tiers). They run through `pnpm beech` (`scripts/beech.mjs`); `npx beech dev` outside the repository now reports an unknown command.
+- A scaffolded project's `deploy` script passes `--var ENV:production`, and `wrangler.jsonc` sets `ENV` to `development` locally. `ENV` decides dev-only behaviour (relaxed rate limits, reset links in responses), so a deploy must say it is production.
+
+### Fixed
+
+- `npx @beechcms/cms` aborted on a clean machine: the published manifest carried the monorepo's `postinstall` (`node scripts/check-docker.mjs`) without shipping the script, and the same hook ran again on the new project's `npm install` (#1019). `@beechcms/cms` is now published from a staging directory with a whitelisted manifest: no scripts, no devDependencies.
+- The first `npm install` of a scaffolded project failed with `ERESOLVE`: the template pinned `@cloudflare/workers-types@^4` against the `wrangler@^4.100` the CLI installs (#1020). The template now takes `wrangler` and `workers-types` from the ranges the CLI and API are built against, and the `@beechcms/*` ranges from the versions being released.
+- The scaffolded `tsconfig.json` pulled in `lib.dom`, which clashes with `workers-types`; it now sets `lib: ["ES2022"]`.
+- `resolveDbName` stripped `//` inside JSON strings, so `"APP_URL": "http://localhost:5173"` broke the parse and the CLI silently fell back to `beech-db` (#1021). It now reads JSONC string-aware (comments and trailing commas), and throws when a config exists but names no D1 database. Only a missing config falls back to the default.
+- On Windows, a project path past about 130 characters pushes wrangler's local D1 file over the 260 character limit and wrangler answers `internal error`. The scaffolder warns about long folders and `beech db:migrate` explains the failure.
+- Storage messages: a `MEDIA_BUCKET` binding alone no longer logs a warning in development (it warns once in production, where uploads need S3 credentials), and the unconfigured-storage messages no longer point at the monorepo's MinIO stack.
+- The dashboard setup checklist hinted `npx beech init --db --local` and `npx beech seed:load --local`; both are gone. The first now says `npm run db:migrate:local`, the second hint is dropped.
+
+### Internal
+
+- `bin/create.mjs` is split: the template builders live in `bin/template.mjs`, the dependency ranges in `scripts/lib/template-versions.mjs` (shipped as `bin/template-versions.json`). The root keeps `@beechcms/api`, `core` and `cli` as devDependencies so a release cascade republishes the scaffolder.
+- The monorepo command tests moved to `scripts/dev-cli/__tests__/commands` and now run in CI (`pnpm test:dev-commands`); they were never wired in before. `docs-fact-check` covers both command tables.
+
 ## MCP 2.0 — 2026-11-23
 
 `@beechcms/mcp@2.0.0` turns the MCP server from a set of schema tools into an **agent control plane**: an agent can see who it is and what it may do, search the whole operation catalog, and ask the owner to approve anything destructive or publishing, without ever approving for itself. Released with `core`, `api`, `cli`, `widget-sdk` and `cms` at `0.10.1`. Base: `@beechcms/mcp@1.2.0`. Two migrations (`0045`, `0046`).

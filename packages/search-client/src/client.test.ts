@@ -48,8 +48,8 @@ function bufferResponse(buf: ArrayBuffer, etag = 'etag-1', status = 200): Respon
 
 // Suppress Cache API (not available in jsdom) — fetchWithCache falls back to plain fetch.
 vi.mock('./utils/cache.js', () => ({
-  fetchWithCache: (_url: string, _fingerprint: string) =>
-    fetch(_url).then(r => r.arrayBuffer()),
+  fetchWithCache: (_url: string, _fingerprint: string, headers?: HeadersInit) =>
+    fetch(_url, { headers }).then(r => r.arrayBuffer()),
 }));
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -282,7 +282,7 @@ describe('SearchClient', () => {
 
       vi.useFakeTimers();
 
-      const fetchSpy = vi.fn(() => Promise.resolve(new Response(null, { status: 503 })));
+      const fetchSpy = vi.fn((_url: string, _init?: RequestInit) => Promise.resolve(new Response(null, { status: 503 })));
       vi.stubGlobal('fetch', fetchSpy);
 
       // Call search rapidly
@@ -298,7 +298,7 @@ describe('SearchClient', () => {
 
       // Only 1 fetch call should have been made for the second query, first was cancelled
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(fetchSpy).toHaveBeenCalledWith('https://api.example.com/api/v1/public/search/embed?q=react');
+      expect(fetchSpy.mock.calls[0]?.[0]).toBe('https://api.example.com/api/v1/public/search/embed?q=react');
     });
 
     it('resolves superseded pending search with an empty array instead of hanging', async () => {
@@ -377,4 +377,69 @@ describe('SearchClient', () => {
   });
 });
 
+describe('SearchClient — publishable key', () => {
+  const KEY = 'beech_pk_live_abc';
 
+  function headerOf(call: unknown[]): string | null {
+    const init = call[1] as RequestInit | undefined;
+    return new Headers(init?.headers).get('X-API-Key');
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('sends the publishableKey as X-API-Key on the manifest, vectors and embed requests', async () => {
+    const client = new SearchClient('https://api.example.com', { publishableKey: KEY, debounceMs: 0 });
+    const fetchSpy = vi.fn((url: string) => {
+      if (url.endsWith('manifest.json')) return Promise.resolve(jsonResponse(makeManifest(1)));
+      if (url.endsWith('vectors.bin')) return Promise.resolve(bufferResponse(makeBuffer(1)));
+      return Promise.resolve(jsonResponse({ embedding: Array(DIMS).fill(0) }));
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    await client.loadIndex('https://api.example.com/api/v1/public/search/index/posts/manifest.json', 'https://api.example.com/api/v1/public/search/index/posts/vectors.bin');
+
+    await client.search('record', 5);
+
+    // Every one of these routes sits behind the Public API key middleware; without the header they answer 401.
+    expect(fetchSpy.mock.calls.map(headerOf)).toEqual([KEY, KEY, KEY]);
+  });
+
+  it('refuses a secret key, which must never reach the browser', () => {
+    const create = () => new SearchClient('https://api.example.com', { publishableKey: 'beech_sk_live_abc' });
+
+    expect(create).toThrow(/secret key/);
+  });
+
+  it('reports a refused embed call through onEmbedError and still returns lexical results', async () => {
+    const onEmbedError = vi.fn();
+    const client = new SearchClient('https://api.example.com', { debounceMs: 0, onEmbedError });
+    stubFetch(
+      () => jsonResponse(makeManifest(1)),
+      () => bufferResponse(makeBuffer(1)),
+      () => new Response(null, { status: 401 }),
+    );
+    await client.loadIndex('https://cdn/manifest.json', 'https://cdn/vectors.bin');
+
+    const results = await client.search('record', 5);
+
+    expect(results.map(r => r.record.id)).toEqual(['id-0']);
+    expect(onEmbedError).toHaveBeenCalledWith(expect.objectContaining({ status: 401 }));
+  });
+
+  it('warns on a 401 embed answer when no onEmbedError is given', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const client = new SearchClient('https://api.example.com', { debounceMs: 0 });
+    stubFetch(
+      () => jsonResponse(makeManifest(1)),
+      () => bufferResponse(makeBuffer(1)),
+      () => new Response(null, { status: 401 }),
+    );
+    await client.loadIndex('https://cdn/manifest.json', 'https://cdn/vectors.bin');
+
+    await client.search('record', 5);
+
+    // The warning is the only signal a misconfigured key leaves when the caller wires no callback.
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('publishableKey'));
+  });
+});

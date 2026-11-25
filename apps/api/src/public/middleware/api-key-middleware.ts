@@ -2,14 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
 import type { Context, Next } from 'hono'
-import { timingSafeEqual } from '@beechcms/core'
-import { PUBLIC_ERRORS } from '../errors/public-errors.js'
-import { publicProblem } from '../errors/problem-details.js'
-
-type PublicBindings = {
-  PUBLIC_READ_API_KEY?: string
-  PUBLIC_WRITE_API_KEY?: string
-}
+import { authorizePublicKey, publicKeyProblem } from './public-key-auth.js'
+import type { PublicKeyBindings } from './public-key-auth.js'
 
 function isZeroSecretPath(path: string, method: string): boolean {
   // Public health & Time-Trap token endpoints are strictly zero-secret
@@ -34,28 +28,12 @@ export function apiKeyMiddleware() {
       return next()
     }
 
-    const env = c.env as PublicBindings
-    const isRead = c.req.method === 'GET' || c.req.method === 'HEAD' || c.req.method === 'OPTIONS'
-    const configuredKey = isRead ? env.PUBLIC_READ_API_KEY : env.PUBLIC_WRITE_API_KEY
-
-    if (!configuredKey) {
-      return publicProblem(c, {
-        type: 'public-api-not-configured',
-        title: PUBLIC_ERRORS.API_KEY_FORBIDDEN.error,
-        status: 403,
-        detail: PUBLIC_ERRORS.API_KEY_FORBIDDEN.message,
-      })
-    }
-
-    const providedKey = c.req.header('X-API-Key')
-    if (!providedKey || !timingSafeEqual(providedKey, configuredKey)) {
-      return publicProblem(c, {
-        type: 'public-api-key-unauthorized',
-        title: PUBLIC_ERRORS.API_KEY_UNAUTHORIZED.error,
-        status: 401,
-        detail: PUBLIC_ERRORS.API_KEY_UNAUTHORIZED.message,
-      })
-    }
+    const decision = authorizePublicKey({
+      method: c.req.method,
+      providedKey: c.req.header('X-API-Key'),
+      env: c.env as PublicKeyBindings,
+    })
+    if (!decision.ok) return publicKeyProblem(c, decision)
 
     await next()
   }

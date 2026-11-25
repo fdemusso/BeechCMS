@@ -10,9 +10,17 @@
 JWT_SECRET=sviluppo-secret-cambiami-almeno-32-byte-per-sicurezza-hono
 
 # =============================================================================
+# Public API — BEECH_SECRET_KEY (chiave segreta: letture e scritture, solo lato server).
+# Valore locale `beech_sk_dev`: rifiutato fuori da ENV=development.
+# La chiave pubblicabile (sola lettura) è BEECH_PUBLISHABLE_KEY, già in wrangler.jsonc vars.
+# In prod: wrangler secret put BEECH_SECRET_KEY --env production con un valore generato `beech_sk_live_…`
+# =============================================================================
+BEECH_SECRET_KEY=beech_sk_dev
+
+# =============================================================================
 # Privacy — PRIVACY_MASTER_KEY (64 caratteri hex = 32 byte). Cifra/hasha i campi protetti.
 # Senza chiave le liste/scritture su seed con campi protetti falliscono (fail-closed).
-# `pnpm beech dev` e `pnpm beech onboard` la generano se assente o vuota.
+# `pnpm beech dev` e `pnpm beech init` la generano se assente o vuota.
 # Manuale: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 # NON cambiarla dopo aver salvato dati: i campi esistenti diventano illeggibili.
 # In prod: wrangler secret put PRIVACY_MASTER_KEY

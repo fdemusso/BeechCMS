@@ -195,6 +195,28 @@ export function ensurePrivacyMasterKey(): boolean {
   return true
 }
 
+// Adds the local BEECH_SECRET_KEY to apps/api/.dev.vars when absent or blank. Never overwrites an
+// existing value. Returns true when the key was written.
+export function ensureDevSecretKey(): boolean {
+  const filePath = path.join(process.cwd(), 'apps', 'api', '.dev.vars')
+  if (!fs.existsSync(filePath)) return false
+
+  const content = fs.readFileSync(filePath, 'utf8')
+  const lines = content.split(/\r?\n/)
+  const index = lines.findIndex((line) => /^BEECH_SECRET_KEY=/.test(line))
+  if (index !== -1 && lines[index].slice('BEECH_SECRET_KEY='.length).trim() !== '') return false
+
+  const entry = 'BEECH_SECRET_KEY=beech_sk_dev'
+  if (index !== -1) {
+    lines[index] = entry
+    fs.writeFileSync(filePath, lines.join('\n'), 'utf8')
+  } else {
+    const separator = content === '' || content.endsWith('\n') ? '' : '\n'
+    fs.appendFileSync(filePath, `${separator}\n# Local Public API secret key (refused outside ENV=development).\n${entry}\n`, 'utf8')
+  }
+  return true
+}
+
 // Polls `docker compose logs tunnel` for the cloudflared quick-tunnel URL.
 export async function getTunnelUrl(retries = 15, delayMs = 1000): Promise<string | null> {
   for (let attempt = 0; attempt < retries; attempt++) {
@@ -396,6 +418,9 @@ export class Orchestrator extends TypedEmitter<OrchestratorEvents> {
 
     if (ensurePrivacyMasterKey()) {
       this.logLine('bootstrap', 'Generated PRIVACY_MASTER_KEY in apps/api/.dev.vars')
+    }
+    if (ensureDevSecretKey()) {
+      this.logLine('bootstrap', 'Added BEECH_SECRET_KEY to apps/api/.dev.vars')
     }
 
     updateDevVars(

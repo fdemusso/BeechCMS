@@ -31,7 +31,7 @@ export function seedToFormData(record: SeedRecordDTO | null): Record<string, unk
 /**
  * `base` is the stored definition when editing. The form only edits part of a Seed and the server
  * replaces the whole definition on PUT, so settings it has no input for (`retentionDays`,
- * `dashboard.features`) are carried over from `base` instead of being silently wiped.
+ * `defaultPublicStatus`, `dashboard.features`) are carried over from `base` instead of being silently wiped.
  */
 export function formDataToSeed(f: Record<string, unknown>, base?: Seed): Seed {
   // Strip client-only ids from *new* branches (br_new_*) — the server assigns
@@ -54,6 +54,7 @@ export function formDataToSeed(f: Record<string, unknown>, base?: Seed): Seed {
     allowDrafts: !!f.allow_drafts,
     branches,
     ...(base?.retentionDays !== undefined ? { retentionDays: base.retentionDays } : {}),
+    ...(base?.defaultPublicStatus !== undefined ? { defaultPublicStatus: base.defaultPublicStatus } : {}),
     dashboard: {
       ...(base?.dashboard?.features ? { features: base.dashboard.features } : {}),
       icon: (f.dash_icon as string) || undefined,

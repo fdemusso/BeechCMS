@@ -11,7 +11,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
 import { defineSeed } from '@beechcms/core'
-import { createTestHarness, TEST_PUBLIC_READ_KEY, TEST_PUBLIC_WRITE_KEY, type TestHarness } from '@beechcms/testing'
+import { createTestHarness, TEST_PUBLISHABLE_KEY, TEST_SECRET_KEY, type TestHarness } from '@beechcms/testing'
 import { createBeechApp } from '../../../factory'
 import { __resetSeedRegistryCache } from '../../../shared/services/cache/seed-registry-cache'
 
@@ -66,7 +66,7 @@ describe('public slice — internal error redaction (real D1)', () => {
 
     it('GET /api/v1/public/:seed answers 500 with the generic detail', async () => {
       const response = await harness.anonymous().get('/api/v1/public/redact_probe', {
-        headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+        headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
       })
 
       expect(response.status).toBe(500)
@@ -77,7 +77,7 @@ describe('public slice — internal error redaction (real D1)', () => {
     it('PUT /api/v1/public/:seed/edit/:id answers 500 with the generic detail', async () => {
       const response = await harness
         .anonymous()
-        .withHeaders({ 'X-API-Key': TEST_PUBLIC_WRITE_KEY })
+        .withHeaders({ 'X-API-Key': TEST_SECRET_KEY })
         .put(`/api/v1/public/redact_probe/edit/${ENTRY_ID}`, { title: 'New' })
 
       expect(response.status).toBe(500)

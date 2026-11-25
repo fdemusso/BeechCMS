@@ -282,7 +282,7 @@
       "allDone": "Projekt bereit – alle Einrichtungsschritte abgeschlossen",
       "systemTables": {
         "label": "Datenbank initialisiert",
-        "hint": "Ausführen: npx beech init --db --local"
+        "hint": "Ausführen: npm run db:migrate:local"
       },
       "seeds": "{{count}} aktive(r) Inhaltstyp(en)",
       "seedsNone": "Keine Inhaltstypen in der Datenbank konfiguriert",
@@ -2418,7 +2418,6 @@
           "badge": "Für Ihre Rolle nicht verfügbar"
         }
       },
-      "redirectNotice": "Nach der Freigabe werden Sie zu {{uri}} zurückgeleitet.",
       "approve": "Zugriff erlauben",
       "deny": "Ablehnen",
       "error": {
@@ -2446,26 +2445,54 @@
         "agent:read": "Aktionen sehen, die dein Agent von dir bestätigen lassen will, und sie ablehnen",
         "agent:approve": "Eine Aktion ausführen, nachdem du sie in deinem KI-Client bestätigt hast"
       },
-      "required": "Erforderlich",
-      "disclaimer": "Die App geht nie über Ihre eigene Rolle hinaus. Sie können den Zugriff jederzeit unter Einstellungen > Verbundene Apps widerrufen.",
       "template": {
         "legend": "Zugriffsebene",
-        "read": {
-          "label": "Lesen",
-          "description": "Alles ansehen, nichts ändern"
+        "custom": "Benutzerdefiniert",
+        "reader": {
+          "label": "Lesen"
         },
-        "editor": {
-          "label": "Editor",
-          "description": "Lesen, plus Inhalte und Medien erstellen, bearbeiten und löschen"
+        "writer": {
+          "label": "Schreiben"
         },
-        "admin": {
-          "label": "Administrator",
-          "description": "Editor, plus Automatisierungen, Benutzer und Einstellungen"
-        },
-        "developer": {
-          "label": "Entwickler",
-          "description": "Alles Angefragte, einschließlich Schemaänderungen"
+        "full": {
+          "label": "Vollzugriff"
         }
+      },
+      "scopeCount": "{{granted}} von {{total}} Berechtigungen",
+      "summary": {
+        "empty": "Keine der angefragten Berechtigungen ist für Ihre Rolle verfügbar.",
+        "readOnly": "Nur-Lese-Zugriff auf die ausgewählten Ressourcen. Nichts kann geändert werden.",
+        "readWithApprove": "Nur-Lese-Zugriff sowie Ausführen von Aktionen erst nach Ihrer Bestätigung.",
+        "writeContent": "Lesezugriff sowie Erstellen, Bearbeiten und Löschen von Inhalten und Medien.",
+        "writeContentWithApprove": "Lese- und Schreibzugriff für Inhalte und Medien sowie bestätigte Aktionen.",
+        "schemaOnly": "Lesezugriff plus Schemaänderungen.",
+        "schemaWithApprove": "Lesezugriff, Schemaänderungen und Ausführen von Aktionen nach Ihrer Bestätigung.",
+        "fullWithoutSchema": "Lese- und Schreibzugriff für Inhalte, Medien, Automatisierungen, Benutzer und Einstellungen.",
+        "fullWithSchema": "Vollzugriff auf alle angefragten Berechtigungen, einschließlich Schema- und Einstellungsänderungen."
+      },
+      "domains": {
+        "schema": "Schema",
+        "content": "Inhalte",
+        "media": "Medien",
+        "automations": "Automatisierungen",
+        "users": "Benutzer & Rollen",
+        "settings": "Einstellungen",
+        "analytics": "Analysen",
+        "agent": "Agent-Aktionen"
+      },
+      "actions": {
+        "read": "Lesen",
+        "write": "Schreiben"
+      },
+      "domainDescriptions": {
+        "schema": "Struktur der Inhaltstypen, Felder und Schemamigrationen.",
+        "content": "Einträge in Ihren Inhaltstypen (lesen, erstellen, bearbeiten oder löschen).",
+        "media": "Bilder und Dateien in Ihrer Medienbibliothek.",
+        "automations": "Automatisierte Workflows, Auslöser und Ausführungsverlauf.",
+        "users": "Teamkonten, Rollen, Berechtigungen und ausstehende Einladungen.",
+        "settings": "Globale Website-Konfiguration und Einstellungen.",
+        "analytics": "Zugriffsmetriken, Speichernutzung und Systemstatistiken.",
+        "agent": "Ausstehende Aktionen eines KI-Agenten, die auf Ihre Bestätigung warten."
       }
     },
     "apps": {
