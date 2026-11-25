@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AgentToolError,
   beechConfirm,
+  beechIntents,
   beechWhoami,
   mapElicitResult,
   type AgentToolDeps,
@@ -170,6 +171,116 @@ describe('agent tools', () => {
       const result = await beechConfirm({ intentIds: [FIRST_ID] }, deps)
 
       expect(result.results[0].resultBody).toBe('y'.repeat(CONFIRM_RESULT_PREVIEW_CHARS))
+    })
+
+    it('decide readback returns executed with resultStatus when POST approve loses connection after server recorded result', async () => {
+      let getCount = 0
+      send.mockImplementation(async (method, path) => {
+        if (method === 'GET' && path === `/api/agent/intents/${FIRST_ID}`) {
+          getCount++
+          if (getCount === 1) return json(intentBody(FIRST_ID))
+          return json(intentBody(FIRST_ID, { status: 'approved', result: { status: 201, body: { id: 'created-1' } } }))
+        }
+        throw new Error('socket hang up')
+      })
+
+      const result = await beechConfirm({ intentIds: [FIRST_ID] }, deps)
+
+      expect(result.status).toBe('decided')
+      expect(result.results[0]).toMatchObject({
+        id: FIRST_ID,
+        outcome: 'executed',
+        resultStatus: 201,
+        resultBody: { id: 'created-1' },
+        message: null,
+      })
+      expect(send.mock.calls.filter(([method]) => method === 'POST')).toHaveLength(1)
+    })
+
+    it('decide readback returns awaiting_result without retrying when POST approve is interrupted after approved but before result persistence', async () => {
+      let getCount = 0
+      send.mockImplementation(async (method, path) => {
+        if (method === 'GET' && path === `/api/agent/intents/${FIRST_ID}`) {
+          getCount++
+          if (getCount === 1) return json(intentBody(FIRST_ID))
+          return json(intentBody(FIRST_ID, { status: 'approved', result: null }))
+        }
+        throw new Error('connection reset')
+      })
+
+      const result = await beechConfirm({ intentIds: [FIRST_ID] }, deps)
+
+      expect(result.status).toBe('decided')
+      expect(result.results[0]).toMatchObject({
+        id: FIRST_ID,
+        outcome: 'awaiting_result',
+        resultStatus: null,
+        resultBody: null,
+      })
+      expect(result.results[0].message).toContain('not resubmit')
+      expect(send.mock.calls.filter(([method]) => method === 'POST')).toHaveLength(1)
+    })
+
+    it('decide returns error when POST approve fails and readback still sees pending or fails', async () => {
+      send.mockImplementation(async method => {
+        if (method === 'GET') return json(intentBody(FIRST_ID))
+        throw new Error('ECONNRESET')
+      })
+
+      const result = await beechConfirm({ intentIds: [FIRST_ID] }, deps)
+
+      expect(result.status).toBe('decided')
+      expect(result.results[0]).toMatchObject({
+        id: FIRST_ID,
+        outcome: 'error',
+        message: 'ECONNRESET',
+      })
+      expect(send.mock.calls.filter(([method]) => method === 'POST')).toHaveLength(1)
+    })
+
+    it('beechConfirm on an already approved intent without result returns awaiting_result instead of not_pending', async () => {
+      routeIntents({ [FIRST_ID]: intentBody(FIRST_ID, { status: 'approved', result: null }) }, approved)
+
+      const result = await beechConfirm({ intentIds: [FIRST_ID] }, deps)
+
+      expect(result.status).toBe('nothing_pending')
+      expect(result.results[0]).toMatchObject({
+        id: FIRST_ID,
+        outcome: 'awaiting_result',
+        resultStatus: null,
+      })
+      expect(result.results[0].message).toContain('not resubmit')
+      expect(elicit).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('beechIntents', () => {
+    it('beechIntents with intentIds returns awaiting_result, executed, rejected, expired and not_found accurately', async () => {
+      const thirdId = '11111111-1111-4111-8111-111111111111'
+      const fourthId = '22222222-2222-4222-8222-222222222222'
+      const fifthId = '33333333-3333-4333-8333-333333333333'
+      const details: Record<string, Response> = {
+        [FIRST_ID]: json(intentBody(FIRST_ID, { status: 'approved', result: null })),
+        [SECOND_ID]: json(intentBody(SECOND_ID, { status: 'approved', result: { status: 200, body: { ok: true } } })),
+        [thirdId]: json(intentBody(thirdId, { status: 'rejected', result: null })),
+        [fourthId]: json(intentBody(fourthId, { status: 'pending', expiresAt: NOW_SECONDS - 10 })),
+      }
+      send.mockImplementation(async (_method, path) => {
+        const id = path.split('/')[4]
+        return details[id] ?? json({ type: 'not_found' }, 404)
+      })
+
+      const result = await beechIntents(deps, { intentIds: [FIRST_ID, SECOND_ID, thirdId, fourthId, fifthId] })
+
+      expect(result.intents).toEqual([])
+      expect(result.checked?.map(item => [item.id, item.outcome])).toEqual([
+        [FIRST_ID, 'awaiting_result'],
+        [SECOND_ID, 'executed'],
+        [thirdId, 'rejected'],
+        [fourthId, 'expired'],
+        [fifthId, 'not_found'],
+      ])
+      expect(result.checked?.[1]).toMatchObject({ resultStatus: 200, resultBody: { ok: true } })
     })
   })
 

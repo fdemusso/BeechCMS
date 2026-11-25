@@ -313,7 +313,7 @@ async function handleTool(name: string, args: Record<string, unknown>) {
       return textResult(await beechWhoami(agentDeps()))
 
     case 'beech_intents':
-      return textResult(await beechIntents(agentDeps()))
+      return textResult(await beechIntents(agentDeps(), args.intentIds !== undefined ? { intentIds: args.intentIds } : undefined))
 
     case 'beech_confirm':
       return textResult(await beechConfirm({ intentIds: args.intentIds }, agentDeps()))
