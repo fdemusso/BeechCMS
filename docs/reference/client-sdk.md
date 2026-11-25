@@ -16,7 +16,7 @@ Every read goes through one entry point — `client.collection(seed)` — which 
 - **`@beechcms/client/server`**: Read and write client with mutation operations (`create`, `update`) merged onto the same fluent builder, secret-key authentication, and advanced fetch options (`next` cache tags, revalidation, AbortSignal). Deletion is intentionally omitted from public client scopes.
 - **`@beechcms/client/webhooks`**: Dedicated, zero-dependency submodule for HMAC-SHA256 signature verification (`verifyBeechWebhookSignature`), error handling (`WebhookVerificationError`), and strongly typed event deserialization (`constructWebhookEvent<T>`).
 - **`@beechcms/client/richtext`**: Isomorphic, zero-dependency TipTap AST HTML renderer (`renderRichText` / `renderRichTextHtml`), plain-text extractor (`richTextToPlainText` / `extractPlainText`), and AST normalizer/sanitizer utilities (`normalizeRichtextDocument`, `escapeHtml`, `isSafeUrl`).
-- **`@beechcms/client`**: Root entrypoint exporting shared contracts, TypeScript types (`BeechResult`, `BeechProblem`, `ListQuery`, `ListMeta`, `Listable`, `Single`, `RequestOptions`, `BeechClientBaseConfig`, `BeechBrowserClientConfig`, `BeechServerClientConfig`), query serializer (`buildSearchParams`), canonical media URL builders (`media`, `mediaSrcSet`), and re-exporting webhook signature utilities.
+- **`@beechcms/client`**: Root entrypoint exporting shared contracts, TypeScript types (`BeechResult`, `BeechProblem`, `ListQuery`, `ListMeta`, `Listable`, `Single`, `RequestOptions`, `ListOptions`, `BeechClientBaseConfig`, `BeechBrowserClientConfig`, `BeechServerClientConfig`), query serializer (`buildSearchParams`), canonical media URL builders (`media`, `mediaSrcSet`), and re-exporting webhook signature utilities.
 
 ---
 

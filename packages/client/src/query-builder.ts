@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { BeechFilterOperator, ListQuery, FluentQuery, FieldFilter, RequestOptions, BeechResult, Single, Listable, RelationSubquery } from './types.js'
+import type { BeechFilterOperator, ListQuery, FluentQuery, FieldFilter, RequestOptions, ListOptions, BeechResult, Single, Listable, RelationSubquery } from './types.js'
 
 const OPERATORS = new Set<BeechFilterOperator>([
   'eq','neq','gt','gte','lt','lte','contains','not_contains','starts_with',
@@ -10,7 +10,7 @@ const OPERATORS = new Set<BeechFilterOperator>([
 
 export type QueryExecutor<TRow> = {
   first(query: ListQuery<TRow>, options?: RequestOptions): Promise<BeechResult<Single<TRow>>>
-  list(query: ListQuery<TRow>, options?: RequestOptions & { validate?: boolean }): Promise<BeechResult<Listable<TRow>>>
+  list(query: ListQuery<TRow>, options?: RequestOptions): Promise<BeechResult<Listable<TRow>>>
 }
 
 function areFilterValuesEqual(a: unknown, b: unknown): boolean {
@@ -139,7 +139,7 @@ export class FluentQueryBuilder<TRow> implements FluentQuery<TRow> {
     return this.executor.first(this.query, options)
   }
 
-  list(options?: RequestOptions & { validate?: boolean }): Promise<BeechResult<Listable<TRow>>> {
+  list(options?: ListOptions): Promise<BeechResult<Listable<TRow>>> {
     return this.executor.list(this.query, options)
   }
 

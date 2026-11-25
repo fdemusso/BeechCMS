@@ -50,16 +50,12 @@ export function createBeechServerClient<TRegistry = Record<string, unknown>>(
       const enc = encodeURIComponent(seed)
       
       const executor = {
-        list: async (q: ListQuery<TRow>, options?: RequestOptions & { validate?: boolean }) => {
+        list: async (q: ListQuery<TRow>, options?: RequestOptions) => {
           const res = await request<Listable<TRow>>(httpConfig, 'GET', `/${enc}`, {
             params: buildSearchParams(q as ListQuery<Record<string, unknown>>),
             options,
           })
-          const checked = verifySchemaFingerprint(httpConfig, res)
-          if (options?.validate && !checked.error) {
-            // stub zod parsing/validation logic
-          }
-          return checked
+          return verifySchemaFingerprint(httpConfig, res)
         },
         first: async (q: ListQuery<TRow>, options?: RequestOptions) => {
           const qFirst = { ...q, limit: 1 }

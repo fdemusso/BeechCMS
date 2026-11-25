@@ -81,12 +81,15 @@ describe('Browser Client (@beechcms/client/browser)', () => {
     expect(res.error).toEqual(expect.objectContaining({ status: 404, type: 'not_found' }))
   })
 
-  it('list forwards the validate option without altering the response', async () => {
-    const fetchMock = mockFetch(200, { data: [{ id: '1' }], meta: { total: 1, returned: 1, seed: 'posts' } })
-    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
-    const res = await client.collection('posts').list({ validate: true })
-    expect(res.error).toBeNull()
-    expect(res.data?.data).toHaveLength(1)
+  it('list rejects the removed validate option at the type level', () => {
+    const query = createBeechBrowserClient<TestRegistry>(baseConfig).collection('posts')
+
+    // `type-check` enforces this directive. validate never validated anything, and the RequestOptions
+    // index signature would accept it silently if the option were only deleted from the type.
+    // @ts-expect-error validate was removed
+    const listWithValidate = () => query.list({ validate: true })
+
+    expect(listWithValidate).toBeTypeOf('function')
   })
 
   it('the resource type has no create or update', () => {

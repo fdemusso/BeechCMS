@@ -44,6 +44,12 @@ export interface RequestOptions {
   [key: string]: unknown
 }
 
+/**
+ * `list()` options. `validate` was removed: it never validated the response, and the `RequestOptions` index
+ * signature would accept it silently, so it is typed `never` to make passing it a compile error.
+ */
+export type ListOptions = RequestOptions & { validate?: never }
+
 /** RFC 9457 Problem Details as returned by the Public API. */
 export interface BeechProblem {
   type: string
@@ -134,7 +140,7 @@ export interface FluentQuery<TRow> {
    */
   lang(code: string): this
   first(options?: RequestOptions): Promise<BeechResult<Single<TRow>>>
-  list(options?: RequestOptions & { validate?: boolean }): Promise<BeechResult<Listable<TRow>>>
+  list(options?: ListOptions): Promise<BeechResult<Listable<TRow>>>
 }
 
 /** Browser Client Interface. */
