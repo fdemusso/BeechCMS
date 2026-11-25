@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { OAUTH_SCOPES, formatScopes } from "@beechcms/core"
@@ -60,15 +61,35 @@ describe("ConsentScreen", () => {
     assignMock.mockReset()
   })
 
-  it("renders the client name and one row per requested scope", () => {
+  it("renders the client name and groups requested scopes into 3-slot icon groups", () => {
     renderScreen()
     expect(screen.getByText(/Beech MCP CLI/)).toBeInTheDocument()
-    expect(screen.getByText("schema:read")).toBeInTheDocument()
-    expect(screen.getByText("schema:write")).toBeInTheDocument()
+    expect(screen.getByText("Schema")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Schema: Read" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Schema: Write" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Schema: Delete" })).toBeDisabled()
   })
 
-  it("marks a scope absent from newScopes as already granted", () => {
-    renderScreen()
+  it("omits action icons on Agent actions and disables unrequested slots on standard domains", () => {
+    renderScreen({
+      ...metadata,
+      client: { clientId: "beech-mcp", name: "Beech MCP" },
+      requestedScopes: ["schema:read", "settings:read", "agent:read", "agent:approve"],
+      newScopes: ["schema:read", "settings:read", "agent:read", "agent:approve"],
+    })
+
+    expect(screen.queryByRole("button", { name: /^Agent actions:/ })).not.toBeInTheDocument()
+    expect(screen.getByRole("checkbox", { name: "Agent actions" })).toBeChecked()
+    expect(screen.getByRole("button", { name: "Settings: Write" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Settings: Delete" })).toBeDisabled()
+  })
+
+  it("marks a domain absent from newScopes as already granted", () => {
+    renderScreen({
+      ...metadata,
+      requestedScopes: ["schema:read"],
+      newScopes: [],
+    })
     expect(screen.getByText(/already granted/i)).toBeInTheDocument()
   })
 
@@ -114,20 +135,35 @@ describe("ConsentScreen", () => {
       mocked.submitConsent.mockResolvedValue({ redirectTo: "http://127.0.0.1:8976/callback?code=xyz" })
     })
 
-    it("preselects the smallest template that covers the request", () => {
+    it("preselects the smallest preset that covers the request and hides redundant ones", () => {
       renderScreen(
-        { ...metadata, requestedScopes: ["content:read", "content:write"], newScopes: ["content:read", "content:write"] },
-        withScope("content:read content:write"),
+        {
+          ...metadata,
+          client: { clientId: "beech-mcp", name: "Beech MCP" },
+          requestedScopes: ["schema:read", "schema:write", "settings:read", "agent:read", "agent:approve"],
+          newScopes: ["schema:read", "schema:write", "settings:read", "agent:read", "agent:approve"],
+        },
+        withScope("schema:read schema:write settings:read agent:read agent:approve"),
       )
 
-      expect(screen.getByRole("radio", { name: /^Editor/ })).toHaveAttribute("aria-checked", "true")
+      const tabs = screen.getAllByRole("tab")
+      expect(tabs.map(tab => tab.textContent)).toEqual(["Reader", "Full access"])
+      expect(screen.getByRole("tab", { name: "Full access" })).toHaveAttribute("aria-selected", "true")
     })
 
-    it("posts only the selected template scopes on Allow", async () => {
+    it("shows all three presets when all three yield distinct scopes", () => {
       renderScreen(allScopesMetadata, withScope(formatScopes(OAUTH_SCOPES)))
-      fireEvent.click(screen.getByRole("radio", { name: /^Read/ }))
 
-      fireEvent.click(screen.getByText("Allow access"))
+      expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Reader", "Writer", "Full access"])
+      expect(screen.getByRole("tab", { name: "Full access" })).toHaveAttribute("aria-selected", "true")
+    })
+
+    it("posts only the selected preset scopes on Allow", async () => {
+      const user = userEvent.setup()
+      renderScreen(allScopesMetadata, withScope(formatScopes(OAUTH_SCOPES)))
+      await user.click(screen.getByRole("tab", { name: "Reader" }))
+
+      await user.click(screen.getByText("Allow access"))
 
       expect(await postedScope()).toBe(
         "schema:read content:read media:read automations:read users:read settings:read analytics:read agent:read agent:approve",
@@ -135,10 +171,11 @@ describe("ConsentScreen", () => {
     })
 
     it("posts the original scope string on Deny", async () => {
+      const user = userEvent.setup()
       renderScreen(allScopesMetadata, withScope(formatScopes(OAUTH_SCOPES)))
-      fireEvent.click(screen.getByRole("radio", { name: /^Read/ }))
+      await user.click(screen.getByRole("tab", { name: "Reader" }))
 
-      fireEvent.click(screen.getByText("Deny"))
+      await user.click(screen.getByText("Deny"))
 
       expect(await postedScope()).toBe(formatScopes(OAUTH_SCOPES))
     })
@@ -152,14 +189,33 @@ describe("ConsentScreen", () => {
       expect(await postedScope()).toBe("schema:read")
     })
 
-    it("disables templates and Allow when nothing would be granted", () => {
+    it("disables presets and Allow when nothing would be granted", () => {
       renderScreen(
         { ...metadata, requestedScopes: ["schema:write"], newScopes: [], deniedScopes: ["schema:write"] },
         withScope("schema:write"),
       )
 
-      screen.getAllByRole("radio").forEach(radio => expect(radio).toBeDisabled())
+      screen.getAllByRole("tab").forEach(tab => expect(tab).toBeDisabled())
       expect(screen.getByRole("button", { name: /Allow access/ })).toBeDisabled()
+    })
+
+    it("allows customizing individual permissions and marks the selection as Custom", async () => {
+      const user = userEvent.setup()
+      renderScreen(
+        {
+          ...metadata,
+          client: { clientId: "beech-mcp", name: "Beech MCP" },
+          requestedScopes: ["schema:read", "schema:write", "settings:read", "agent:read", "agent:approve"],
+          newScopes: ["schema:read", "schema:write", "settings:read", "agent:read", "agent:approve"],
+        },
+        withScope("schema:read schema:write settings:read agent:read agent:approve"),
+      )
+
+      await user.click(screen.getByRole("button", { name: "Settings: Read" }))
+      expect(screen.getByText("Custom")).toBeInTheDocument()
+
+      await user.click(screen.getByText("Allow access"))
+      expect(await postedScope()).toBe("schema:read schema:write agent:read agent:approve")
     })
   })
 })
