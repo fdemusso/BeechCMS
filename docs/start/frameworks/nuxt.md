@@ -43,7 +43,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       beechApiUrl: process.env.BEECH_API_URL || 'http://localhost:8789',
-      beechReadKey: process.env.BEECH_READ_KEY || 'dev-read-key-changeme'
+      beechPublishableKey: process.env.BEECH_PUBLISHABLE_KEY
     }
   }
 })
@@ -53,16 +53,18 @@ Create a `.env` file in your Nuxt project root:
 
 ```bash
 BEECH_API_URL=http://localhost:8789
-BEECH_READ_KEY=dev-read-key-changeme
+BEECH_PUBLISHABLE_KEY=beech_pk_dev
 ```
+
+> `beech_pk_dev` is the publishable key every new project has in `wrangler.jsonc`. It is read-only and safe in the bundle. `runtimeConfig.public` is shipped to the browser, so it must never hold the secret key.
 
 ## 5. Initialize the Beech client plugin
 
-Create a Nuxt plugin in `plugins/beech.ts` to provide the typed server client to the universal Nuxt context:
+Create a Nuxt plugin in `plugins/beech.ts` to provide the typed browser client to the universal Nuxt context:
 
 ```typescript
 // plugins/beech.ts
-import { createBeechServerClient } from '@beechcms/client/server'
+import { createBeechBrowserClient } from '@beechcms/client/browser'
 
 export interface Article {
   id: string
@@ -81,9 +83,9 @@ export interface AppRegistry {
 export default defineNuxtPlugin(() => {
   const config = useRuntimeConfig()
 
-  const client = createBeechServerClient<AppRegistry>({
+  const client = createBeechBrowserClient<AppRegistry>({
     baseUrl: config.public.beechApiUrl,
-    apiKey: config.public.beechReadKey
+    publishableKey: config.public.beechPublishableKey!
   })
 
   return {
@@ -161,7 +163,7 @@ Before deploying to production:
 
 - **Configure Seed Permissions**: Ensure your Seed has `allowPublicRead: true` enabled in the admin dashboard so public visitors can fetch published content.
 - **Production API URL**: Point `BEECH_API_URL` to your production Cloudflare Worker URL (`https://api.yourdomain.com`).
-- **Production API Keys**: Set `BEECH_READ_KEY` to your `PUBLIC_READ_API_KEY`.
+- **Production Publishable Key**: Set `BEECH_PUBLISHABLE_KEY` to the `BEECH_PUBLISHABLE_KEY` value in the BeechCMS Worker's `wrangler.jsonc` `vars`. It is read-only and public by design.
 - **Hydration & SSR**: `useAsyncData` serializes payloads during server-side rendering and avoids duplicate requests during client hydration.
 
 ## Cloudflare Edge Deployment

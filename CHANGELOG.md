@@ -1,5 +1,37 @@
 # Changelog
 
+## Publishable and secret keys — unreleased
+
+Two key roles replace the per-method keys of the Public API: a read-only **publishable** key that is safe in a browser, and a **secret** key for server code. Fixes #995, #996 and #997. Ships with `api`, `client`, `cli` and `cms`.
+
+### Breaking
+
+- **The Worker reads only `BEECH_PUBLISHABLE_KEY` and `BEECH_SECRET_KEY`.** The client takes `publishableKey` (browser) or `secretKey` (server), and passing `apiKey` throws. The browser client refuses `beech_sk_…` values.
+- **Two new 403 problem types**: `public-api-secret-key-required` (a publishable key on a write) and `public-api-dev-secret-key` (`beech_sk_dev` while `ENV` is not `development`). The dev secret key is refused outside `ENV=development`.
+- **New projects keep their secrets in `.dev.vars`**: `JWT_SECRET`, `BEECH_SECRET_KEY`, `PUBLIC_TIME_TRAP_SECRET` and `PRIVACY_MASTER_KEY`. `vars` in `wrangler.jsonc` holds only `ENV`, `CORS_ORIGINS`, `BEECH_PUBLISHABLE_KEY` and `APP_URL`.
+
+### Upgrading from 0.10.x
+
+1. Run the migration from the project root:
+
+   ```bash
+   npx beech keys:migrate
+   ```
+
+   It removes `PUBLIC_READ_API_KEY`, `PUBLIC_WRITE_API_KEY`, `JWT_SECRET` and `PUBLIC_TIME_TRAP_SECRET` from the `vars` of `wrangler.jsonc`, adds `BEECH_PUBLISHABLE_KEY` there, and writes `JWT_SECRET`, `BEECH_SECRET_KEY` and `PUBLIC_TIME_TRAP_SECRET` to `.dev.vars`.
+2. **Treat the old values as compromised.** They are in the git history. The command writes fresh `JWT_SECRET` and `PUBLIC_TIME_TRAP_SECRET` values, so every session ends, and it never rewrites history.
+3. **Production order:** run `npm run deploy` first (Cloudflare refuses a secret whose name is still a plain-text var, error 10053), then `npx wrangler secret put` for `JWT_SECRET`, `BEECH_SECRET_KEY` and `PUBLIC_TIME_TRAP_SECRET`. Never set a new `PRIVACY_MASTER_KEY`.
+4. In client code, replace `apiKey` with `publishableKey` and `createBeechBrowserClient`, or with `secretKey` and `createBeechServerClient`, and rename the env vars as in the [client SDK reference](/reference/client-sdk#keys-and-roles).
+5. Known limit: writing with the secret key still needs `allowPublicPost` on the seed (#1022).
+
+### Fixed
+
+- The first documented request no longer fails: local keys are fixed values (`beech_pk_dev`, `beech_sk_dev`) and the docs use them.
+- One `createBeechServerClient` instance reads and writes.
+- Public add and edit no longer answer 500 on seeds with relations.
+- `beech setup:cloudflare` merges the R2 credentials into `.dev.vars` instead of overwriting it.
+- `beech init` shows the publishable key and reports only whether the secret key is set, and it flags legacy names.
+
 ## First run in minutes — unreleased
 
 A new project now goes from nothing to a working admin in two commands, with no Docker and no Cloudflare account: `npx @beechcms/cms my-app`, then `npm run dev`. Fixes #1019, #1020 and #1021. Ships as a minor bump of `cms`, `cli` and `api`.

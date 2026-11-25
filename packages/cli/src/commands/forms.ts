@@ -21,7 +21,6 @@ function getReactTemplate(seedSlug: string, mode: 'styled' | 'headless'): string
 
 export interface BeechFormProps {
   baseUrl?: string
-  apiKey?: string
   seed?: string
   onSuccess?: (res: { id?: string; data: Record<string, unknown> }) => void
   onError?: (err: { status: number; message: string }) => void
@@ -29,7 +28,6 @@ export interface BeechFormProps {
 
 export function BeechForm({
   baseUrl = process.env.NEXT_PUBLIC_BEECH_API_URL || 'https://api.yourdomain.com',
-  apiKey = process.env.NEXT_PUBLIC_BEECH_WRITE_KEY || '',
   seed = '${seedSlug}',
   onSuccess,
   onError,
@@ -67,7 +65,7 @@ export function BeechForm({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(apiKey ? { 'X-API-Key': apiKey } : {}),
+          // Anonymous submission: the Time-Trap token protects it. Never put a Public API key in browser code.
           ...(timeTrapToken ? { 'x-time-trap': timeTrapToken } : {}),
         },
         body: JSON.stringify({
@@ -157,7 +155,6 @@ export function BeechForm({
 
 export interface BeechFormProps {
   baseUrl?: string
-  apiKey?: string
   seed?: string
   onSuccess?: (res: { id?: string; data: Record<string, unknown> }) => void
   onError?: (err: { status: number; message: string }) => void
@@ -166,7 +163,6 @@ export interface BeechFormProps {
 
 export function BeechForm({
   baseUrl = process.env.NEXT_PUBLIC_BEECH_API_URL || 'https://api.yourdomain.com',
-  apiKey = process.env.NEXT_PUBLIC_BEECH_WRITE_KEY || '',
   seed = '${seedSlug}',
   onSuccess,
   onError,
@@ -204,7 +200,7 @@ export function BeechForm({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(apiKey ? { 'X-API-Key': apiKey } : {}),
+          // Anonymous submission: the Time-Trap token protects it. Never put a Public API key in browser code.
           ...(timeTrapToken ? { 'x-time-trap': timeTrapToken } : {}),
         },
         body: JSON.stringify({
@@ -313,12 +309,10 @@ import { ref, onMounted } from 'vue'
 const props = withDefaults(
   defineProps<{
     baseUrl?: string
-    apiKey?: string
     seed?: string
   }>(),
   {
     baseUrl: 'https://api.yourdomain.com',
-    apiKey: '',
     seed: '${seedSlug}',
   }
 )
@@ -360,7 +354,7 @@ async function handleSubmit() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(props.apiKey ? { 'X-API-Key': props.apiKey } : {}),
+        // Anonymous submission: the Time-Trap token protects it. Never put a Public API key in browser code.
         ...(timeTrapToken.value ? { 'x-time-trap': timeTrapToken.value } : {}),
       },
       body: JSON.stringify({
@@ -429,7 +423,6 @@ function getSvelteTemplate(seedSlug: string, mode: 'styled' | 'headless'): strin
 
   interface Props {
     baseUrl?: string
-    apiKey?: string
     seed?: string
     onSuccess?: (res: { id?: string; data: Record<string, unknown> }) => void
     onError?: (err: { status: number; message: string }) => void
@@ -437,7 +430,6 @@ function getSvelteTemplate(seedSlug: string, mode: 'styled' | 'headless'): strin
 
   let {
     baseUrl = 'https://api.yourdomain.com',
-    apiKey = '',
     seed = '${seedSlug}',
     onSuccess,
     onError,
@@ -476,7 +468,7 @@ function getSvelteTemplate(seedSlug: string, mode: 'styled' | 'headless'): strin
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(apiKey ? { 'X-API-Key': apiKey } : {}),
+          // Anonymous submission: the Time-Trap token protects it. Never put a Public API key in browser code.
           ...(timeTrapToken ? { 'x-time-trap': timeTrapToken } : {}),
         },
         body: JSON.stringify({
@@ -552,7 +544,6 @@ class BeechFormElement extends HTMLElement {
   connectedCallback() {
     const seed = this.getAttribute('seed') || '${seedSlug}'
     const baseUrl = (this.getAttribute('base-url') || 'https://api.yourdomain.com').replace(/\\/+$/, '')
-    const apiKey = this.getAttribute('api-key') || ''
 
     this.innerHTML = \`
       <form class="beech-form" style="max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; font-family: system-ui, sans-serif;">
@@ -606,7 +597,7 @@ class BeechFormElement extends HTMLElement {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(apiKey ? { 'X-API-Key': apiKey } : {}),
+            // Anonymous submission: the Time-Trap token protects it. Never put a Public API key in browser code.
             ...(timeTrapToken ? { 'x-time-trap': timeTrapToken } : {}),
           },
           body: JSON.stringify({

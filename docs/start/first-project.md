@@ -187,10 +187,10 @@ interface AppRegistry {
   posts: Post
 }
 
-// Initialize the Beech client with baseUrl and apiKey
+// Initialize the Beech client with baseUrl and secretKey
 const client = createBeechServerClient<AppRegistry>({
   baseUrl: 'http://localhost:8789',             // Your Worker URL
-  apiKey: 'dev-read-key-changeme'               // PUBLIC_READ_API_KEY from wrangler.jsonc / .dev.vars
+  secretKey: 'beech_sk_dev'                      // BEECH_SECRET_KEY from .dev.vars (local only; read it from the environment in real code)
 })
 
 async function fetchPosts() {

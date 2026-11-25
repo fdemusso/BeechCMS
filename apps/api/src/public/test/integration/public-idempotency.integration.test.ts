@@ -10,7 +10,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
 import { defineSeed, generateTimeTrapToken } from '@beechcms/core'
-import { createTestHarness, TEST_PUBLIC_WRITE_KEY, type TestClient, type TestHarness } from '@beechcms/testing'
+import { createTestHarness, TEST_SECRET_KEY, type TestClient, type TestHarness } from '@beechcms/testing'
 import { createBeechApp } from '../../../factory'
 import { __resetSeedRegistryCache } from '../../../shared/services/cache/seed-registry-cache'
 
@@ -42,7 +42,7 @@ describe('public slice — idempotent add (real D1)', () => {
       createApp: (authProviders) => createBeechApp({ seeds: [], authProviders }),
     })
     await harness.db.prepare('DELETE FROM public_time_trap_tokens').run()
-    publicClient = harness.anonymous().withHeaders({ 'X-API-Key': TEST_PUBLIC_WRITE_KEY })
+    publicClient = harness.anonymous().withHeaders({ 'X-API-Key': TEST_SECRET_KEY })
   })
 
   describe('POST /api/v1/public/:seed/add', () => {

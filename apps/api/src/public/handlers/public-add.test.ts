@@ -9,7 +9,7 @@ import { __resetSeedRegistryCache } from '../../shared/services/cache/seed-regis
 import { StaticContentRepository } from '../../../test/mocks/static-content.repository'
 import { StaticIdempotencyRepository } from '../../../test/mocks/static-idempotency.repository'
 import { StaticAutomationRepository } from '../../../test/mocks/static-automation.repository'
-import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_WRITE_KEY, TEST_TIME_TRAP_SECRET } from '../../../test/fixtures'
+import { TEST_SEEDS, TEST_ENV, TEST_PUBLISHABLE_KEY, TEST_SECRET_KEY, TEST_TIME_TRAP_SECRET } from '../../../test/fixtures'
 
 describe('publicAddHandler Quarantine & Security Integration', () => {
   let app: ReturnType<typeof createBeechApp>
@@ -70,7 +70,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
     const res = await customApp.request('/api/v1/public/posts/add', {
       method: 'POST',
       headers: {
-        'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+        'X-API-Key': TEST_SECRET_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -127,7 +127,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+          'X-API-Key': TEST_SECRET_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -171,7 +171,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+          'X-API-Key': TEST_SECRET_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -205,7 +205,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+          'X-API-Key': TEST_SECRET_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -234,7 +234,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+          'X-API-Key': TEST_SECRET_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -274,6 +274,31 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       const body = await res.json<{ type: string; status: number }>()
       expect(body.type).toBe('https://beechcms.dev/problems/public-api-key-unauthorized')
       expect(body.status).toBe(401)
+    })
+
+    it('rejects POST /add with 403 secret-key-required when the publishable key is sent', async () => {
+      const repository = new StaticContentRepository([leadsSeed])
+      const testApp = createBeechApp({
+        seeds: [leadsSeed],
+        repository,
+      })
+
+      const res = await testApp.request('/api/v1/public/leads/add', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': TEST_PUBLISHABLE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Browser Lead',
+        }),
+      }, TEST_ENV)
+
+      expect(res.status).toBe(403)
+      const body = await res.json<{ type: string; status: number }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/public-api-secret-key-required')
+      const stored = await repository.findMany(leadsSeed, {})
+      expect(stored.total).toBe(0)
     })
   })
 })

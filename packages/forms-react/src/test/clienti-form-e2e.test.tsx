@@ -199,7 +199,7 @@ describe('Clienti Seed Form Integration E2E Test', () => {
       <BeechForm
         seed={CLIENTI_SEED_SCHEMA}
         baseUrl="http://localhost:8787"
-        apiKey="dev-public-write-key-changeme"
+        apiKey="beech_sk_dev"
         onSuccess={onSuccess}
         onError={onError}
       />

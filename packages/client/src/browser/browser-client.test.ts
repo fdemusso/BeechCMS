@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { createBeechBrowserClient, createBeechClient } from './index.js'
-import type { BeechClientConfig } from '../types.js'
+import type { BeechBrowserClientConfig } from '../types.js'
 
 // The default registry types every row as `unknown`; these tests read fields off the rows.
 type TestRegistry = Record<string, Record<string, unknown>>
@@ -18,16 +18,16 @@ function mockFetch(status: number, body: unknown, contentType = 'application/jso
   } as unknown as Response)
 }
 
-const baseConfig: BeechClientConfig = {
+const baseConfig: BeechBrowserClientConfig = {
   baseUrl: 'https://api.example.com/',
-  apiKey: 'test-key',
+  publishableKey: 'beech_pk_test_key',
 }
 
 describe('Browser Client (@beechcms/client/browser)', () => {
   it('throws error on missing or invalid configuration', () => {
-    expect(() => createBeechBrowserClient(null as unknown as BeechClientConfig)).toThrow(TypeError)
-    expect(() => createBeechBrowserClient<TestRegistry>({ baseUrl: '', apiKey: 'key' })).toThrow(/baseUrl is required/)
-    expect(() => createBeechBrowserClient<TestRegistry>({ baseUrl: 'https://api.example.com', apiKey: '' })).toThrow(/apiKey is required/)
+    expect(() => createBeechBrowserClient(null as unknown as BeechBrowserClientConfig)).toThrow(TypeError)
+    expect(() => createBeechBrowserClient<TestRegistry>({ baseUrl: '', publishableKey: 'key' })).toThrow(/baseUrl is required/)
+    expect(() => createBeechBrowserClient<TestRegistry>({ baseUrl: 'https://api.example.com', publishableKey: '' })).toThrow(/publishableKey is required/)
   })
 
   it('normalizes trailing slashes on baseUrl', async () => {
@@ -89,11 +89,22 @@ describe('Browser Client (@beechcms/client/browser)', () => {
     expect(res.data?.data).toHaveLength(1)
   })
 
-  it('does NOT expose mutation methods (create, update)', () => {
+  it('the resource type has no create or update', () => {
     const client = createBeechBrowserClient(baseConfig)
-    const resource = client.collection('posts') as unknown as Record<string, unknown>
+    const resource = client.collection('posts')
+
+    // `type-check` enforces these directives: a browser resource must not type-check a write.
+    // @ts-expect-error create is not part of the browser resource
     expect(resource.create).toBeUndefined()
+    // @ts-expect-error update is not part of the browser resource
     expect(resource.update).toBeUndefined()
+  })
+
+  it('a config literal with apiKey is a type error and throws at runtime', () => {
+    // @ts-expect-error apiKey was replaced by publishableKey
+    const legacyConfig: BeechBrowserClientConfig = { baseUrl: 'https://api.example.com', apiKey: 'beech_pk_test_key' }
+
+    expect(() => createBeechBrowserClient(legacyConfig)).toThrow(/apiKey was removed: pass publishableKey/)
   })
 
   it('returns normalized RFC 9457 error on 4xx/5xx HTTP failure without throwing', async () => {

@@ -2,17 +2,61 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect, vi } from 'vitest'
-import { request, validateClientConfig } from './http.js'
-import type { BeechClientConfig } from './types.js'
+import { request, resolveBrowserConfig, resolveServerConfig } from './http.js'
+import type { HttpConfig } from './http.js'
+import type { BeechBrowserClientConfig, BeechServerClientConfig } from './types.js'
 
-const baseConfig: BeechClientConfig = {
+const baseConfig: HttpConfig = {
   baseUrl: 'https://api.example.com',
-  apiKey: 'test-key',
+  key: 'test-key',
 }
 
-describe('validateClientConfig', () => {
-  it('accepts a well-formed config', () => {
-    expect(() => validateClientConfig(baseConfig)).not.toThrow()
+describe('resolveBrowserConfig', () => {
+  it('returns the publishable key as the transport key', () => {
+    const resolved = resolveBrowserConfig({ baseUrl: 'https://api.example.com', publishableKey: 'beech_pk_live_abc' })
+
+    expect(resolved.key).toBe('beech_pk_live_abc')
+  })
+
+  it('throws a message naming publishableKey when given apiKey', () => {
+    const legacyConfig = { baseUrl: 'https://api.example.com', apiKey: 'beech_pk_live_abc' } as unknown as BeechBrowserClientConfig
+
+    // The message naming the replacement parameter is the migration contract.
+    expect(() => resolveBrowserConfig(legacyConfig)).toThrow(/apiKey was removed: pass publishableKey to createBeechBrowserClient/)
+  })
+
+  it('throws a message naming publishableKey when the key is missing or blank', () => {
+    const missing = { baseUrl: 'https://api.example.com' } as unknown as BeechBrowserClientConfig
+    const blank: BeechBrowserClientConfig = { baseUrl: 'https://api.example.com', publishableKey: '  ' }
+
+    expect(() => resolveBrowserConfig(missing)).toThrow(/publishableKey is required/)
+    expect(() => resolveBrowserConfig(blank)).toThrow(/publishableKey is required/)
+  })
+
+  it('refuses a beech_sk_ key', () => {
+    const secretInBrowser: BeechBrowserClientConfig = { baseUrl: 'https://api.example.com', publishableKey: 'beech_sk_live_abc' }
+
+    expect(() => resolveBrowserConfig(secretInBrowser)).toThrow(/secret keys must never reach the browser/)
+  })
+})
+
+describe('resolveServerConfig', () => {
+  it('returns the secret key as the transport key', () => {
+    const resolved = resolveServerConfig({ baseUrl: 'https://api.example.com', secretKey: 'beech_sk_live_abc' })
+
+    expect(resolved.key).toBe('beech_sk_live_abc')
+  })
+
+  it('throws a message naming secretKey when given apiKey', () => {
+    const legacyConfig = { baseUrl: 'https://api.example.com', apiKey: 'beech_sk_live_abc' } as unknown as BeechServerClientConfig
+
+    expect(() => resolveServerConfig(legacyConfig)).toThrow(/apiKey was removed: pass secretKey to createBeechServerClient/)
+  })
+
+  it('throws a message naming secretKey when the key is missing', () => {
+    const missing = { baseUrl: 'https://api.example.com' } as unknown as BeechServerClientConfig
+
+    expect(() => resolveServerConfig(missing)).toThrow(/secretKey is required/)
   })
 })
 
@@ -79,6 +123,21 @@ describe('request', () => {
 
     expect(res.error).toBeNull()
     expect(res.data).toBeNull()
+  })
+
+  it('sends X-API-Key equal to cfg.key', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: async () => ({ ok: true }),
+    })
+
+    await request({ ...baseConfig, fetch: fetchMock as unknown as typeof fetch }, 'GET', '/posts', {})
+
+    const sentHeaders = fetchMock.mock.calls[0][1].headers as Headers
+    expect(sentHeaders.get('X-API-Key')).toBe(baseConfig.key)
   })
 
   it('merges custom headers on top of the default API key header', async () => {

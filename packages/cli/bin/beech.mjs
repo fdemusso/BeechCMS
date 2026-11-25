@@ -5,7 +5,7 @@ import pc from 'picocolors'
 
 let [,, command, ...args] = process.argv
 
-if (command && args[0] && !args[0].startsWith('-') && ['db', 'schema', 'types', 'generate', 'agent'].includes(command)) {
+if (command && args[0] && !args[0].startsWith('-') && ['db', 'schema', 'types', 'generate', 'agent', 'keys'].includes(command)) {
   command = `${command}:${args.shift()}`
 }
 
@@ -27,6 +27,7 @@ const COMMANDS = {
   'types:generate': cmdGenerateTypes,
   'types:check':    cmdTypesCheck,
   'init':           cmdInit,
+  'keys:migrate':   cmdKeysMigrate,
   'deploy':         cmdDeploy,
   'update':         cmdUpdate,
   'forms':          cmdForms,
@@ -51,6 +52,7 @@ function help() {
   ${pc.bold('1. Local Management & Onboarding')}
     ${pc.cyan('init')}            Check that the project has the files BeechCMS needs
       --remote        Skip local-only checks (.dev.vars)
+    ${pc.cyan('keys:migrate')}    Move a 0.10.x project to publishable/secret keys (rotates committed secrets)
     ${pc.cyan('update')}          Update internals to latest, then apply system D1 migrations
 
   ${pc.bold('2. Database & Migrations')}
@@ -125,6 +127,11 @@ async function cmdInit(args) {
 
   const { init } = await import('../dist/index.js')
   await init({ local: !remote })
+}
+
+async function cmdKeysMigrate() {
+  const { keysMigrate } = await import('../dist/index.js')
+  await keysMigrate()
 }
 
 async function cmdDeploy(args) {

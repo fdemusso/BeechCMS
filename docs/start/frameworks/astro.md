@@ -39,10 +39,10 @@ Create a `.env` file in your Astro project root:
 
 ```bash
 BEECH_API_URL=http://localhost:8789
-BEECH_READ_KEY=dev-read-key-changeme
+BEECH_SECRET_KEY=beech_sk_dev
 ```
 
-> In local development, the default read key is pre-configured. In production, set these variables in your deployment environment.
+> `beech_sk_dev` is the local secret key every new project has in `.dev.vars`. Keep this variable server-only. In production, set these variables in your deployment environment.
 
 ## 5. Initialize the Beech client
 
@@ -68,7 +68,7 @@ export interface AppRegistry {
 
 export const beech = createBeechServerClient<AppRegistry>({
   baseUrl: import.meta.env.BEECH_API_URL || 'http://localhost:8789',
-  apiKey: import.meta.env.BEECH_READ_KEY || 'dev-read-key-changeme'
+  secretKey: import.meta.env.BEECH_SECRET_KEY!
 })
 ```
 
@@ -177,7 +177,7 @@ Before deploying to production:
 
 - **Configure Seed Permissions**: Ensure your Seed has `allowPublicRead: true` enabled in the admin dashboard so public visitors can fetch published content.
 - **Production API URL**: Point `BEECH_API_URL` to your production Cloudflare Worker URL (`https://api.yourdomain.com`).
-- **Production API Keys**: Set `BEECH_READ_KEY` to your `PUBLIC_READ_API_KEY`.
+- **Production Secret Key**: Set `BEECH_SECRET_KEY` to the production secret key, the generated `beech_sk_live_…` value you stored on the BeechCMS Worker with `npx wrangler secret put BEECH_SECRET_KEY`. The API refuses `beech_sk_dev` outside development.
 - **Zero-JS by Default**: Astro executes data fetching on the server/build isolate and ships zero client-side JavaScript by default, making it ideal for content-heavy sites.
 
 ## Cloudflare Edge Deployment

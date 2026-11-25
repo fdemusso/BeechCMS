@@ -71,7 +71,7 @@ test.describe('rate limiting enforcement', () => {
   test('sequential requests to public API decrement the remaining token count', async ({ request }) => {
     // 1. ARRANGE
     // Public read rate limiter starts with capacity 60.
-    const headers = { 'X-API-Key': 'dev-public-read-key-changeme' }
+    const headers = { 'X-API-Key': 'beech_pk_dev' }
 
     // 2. ACT
     const res1 = await request.get(`${API}/api/v1/public/posts`, { headers })
@@ -98,7 +98,7 @@ test.describe('rate limiting enforcement', () => {
         data: { title: `Spam Post ${i}` },
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': 'dev-public-write-key-changeme',
+          'X-API-Key': 'beech_sk_dev',
         },
       })
       statuses.push(res.status())

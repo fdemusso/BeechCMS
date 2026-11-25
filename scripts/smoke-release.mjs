@@ -4,7 +4,8 @@
  *
  * Packs @beechcms/cms (from the same staging directory a release publishes), core, cli and api,
  * installs the scaffolder from its tarball in a clean folder, scaffolds a project with it, installs
- * the project (npm only, no --legacy-peer-deps), starts `npm run dev`, creates the first admin and
+ * the project (npm only, no --legacy-peer-deps), starts `npm run dev`, creates the first admin,
+ * checks the Public API keys (publishable reads, secret writes, publishable write refused) and
  * uploads an image with no Docker and no Cloudflare credentials.
  *
  * Needs the workspace built (`pnpm build`). Usage:
@@ -36,6 +37,11 @@ const PROJECT_PACKAGES = [
 ]
 
 const PASSWORD = 'Sup3r-Secret-Pass!9'
+// The values the docs promise, written as literals on purpose and not imported from bin/template.mjs,
+// so a template typo fails the smoke test.
+const PUBLISHABLE_KEY = 'beech_pk_dev'
+const SECRET_KEY = 'beech_sk_dev'
+const SMOKE_SEED = 'smoke_notes'
 const ONE_PIXEL_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   'base64',
@@ -263,6 +269,63 @@ async function main() {
       if (!login.ok) fail(`POST /auth/login returned ${login.status}`)
       const { token } = await json(login)
       globalThis.smokeToken = token
+    })
+
+    await timed('public API keys', async () => {
+      const bearer = { Authorization: `Bearer ${globalThis.smokeToken}` }
+      const jsonHeaders = { 'Content-Type': 'application/json' }
+      const entriesUrl = `${origin}/api/v1/public/${SMOKE_SEED}`
+      const describeFailure = async (step, response) =>
+        `${step} returned ${response.status}: ${(await response.text()).slice(0, 200)}`
+
+      // The Time-Trap secret is read from .dev.vars.
+      const trap = await fetch(`${origin}/api/v1/public/timetrap/token`)
+      if (trap.status !== 200) fail(await describeFailure('GET /api/v1/public/timetrap/token', trap))
+      const { token: trapToken } = await json(trap)
+      if (!trapToken) fail('GET /api/v1/public/timetrap/token returned no token')
+
+      const created = await fetch(`${origin}/api/seeds`, {
+        method: 'POST',
+        headers: { ...bearer, ...jsonHeaders },
+        body: JSON.stringify({
+          slug: SMOKE_SEED,
+          label: 'Smoke note',
+          displayNameAlias: 'title',
+          allowPublicRead: true,
+          allowPublicPost: true,
+          branches: [{ alias: 'title', label: 'Title', type: 'text' }],
+        }),
+      })
+      if (created.status !== 201) fail(await describeFailure('POST /api/seeds', created))
+
+      const read = await fetch(entriesUrl, { headers: { 'X-API-Key': PUBLISHABLE_KEY } })
+      if (read.status !== 200) fail(await describeFailure('GET public entries with the publishable key', read))
+
+      const add = (key) => fetch(`${entriesUrl}/add`, {
+        method: 'POST',
+        headers: { ...jsonHeaders, 'X-API-Key': key },
+        body: JSON.stringify({ data: { title: 'From the server' } }),
+      })
+
+      const serverWrite = await add(SECRET_KEY)
+      if (serverWrite.status !== 201) fail(await describeFailure('POST public add with the secret key', serverWrite))
+
+      const browserWrite = await add(PUBLISHABLE_KEY)
+      if (browserWrite.status !== 403) fail(await describeFailure('POST public add with the publishable key', browserWrite))
+      const rejection = await json(browserWrite)
+      if (!String(rejection.type).endsWith('public-api-secret-key-required')) {
+        fail(`POST public add with the publishable key: unexpected error ${JSON.stringify(rejection).slice(0, 200)}`)
+      }
+
+      // One entry proves the 201 persisted and the 403 wrote nothing.
+      // A different URL: the first read is edge-cached for 60 s and still answers with the empty list.
+      const listed = await fetch(`${entriesUrl}?limit=10`, { headers: { 'X-API-Key': PUBLISHABLE_KEY } })
+      if (listed.status !== 200) fail(await describeFailure('GET public entries after the writes', listed))
+      const { data, meta } = await json(listed)
+      const titles = data.map((entry) => entry.title)
+      if (meta.total !== 1 || titles.length !== 1 || titles[0] !== 'From the server') {
+        fail(`Expected exactly one entry "From the server", got total ${meta.total}: ${JSON.stringify(data).slice(0, 200)}`)
+      }
     })
 
     await timed('upload and read back an image', async () => {

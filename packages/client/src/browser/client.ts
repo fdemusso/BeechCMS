@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { BeechBrowserClient, BeechClientConfig, Listable, ListQuery, Single, BeechProblem, BeechResult, RequestOptions } from '../types.js'
+import type { BeechBrowserClient, BeechBrowserClientConfig, Listable, ListQuery, Single, BeechProblem, BeechResult, RequestOptions } from '../types.js'
 import { SCHEMA_FINGERPRINT } from '../types.js'
 import { FluentQueryBuilder, buildSearchParams } from '../query-builder.js'
-import { request, validateClientConfig } from '../http.js'
+import { request, resolveBrowserConfig } from '../http.js'
 
 function verifySchemaFingerprint<T>(res: BeechResult<T>): BeechResult<T> {
   const revision = res.headers?.get('X-Schema-Revision')
@@ -15,9 +15,9 @@ function verifySchemaFingerprint<T>(res: BeechResult<T>): BeechResult<T> {
 }
 
 export function createBeechBrowserClient<TRegistry = Record<string, unknown>>(
-  config: BeechClientConfig,
+  config: BeechBrowserClientConfig,
 ): BeechBrowserClient<TRegistry> {
-  validateClientConfig(config)
+  const httpConfig = resolveBrowserConfig(config)
 
   return {
     collection(seed) {
@@ -26,7 +26,7 @@ export function createBeechBrowserClient<TRegistry = Record<string, unknown>>(
       
       const executor = {
         list: async (q: ListQuery<TRow>, options?: RequestOptions & { validate?: boolean }) => {
-          const res = await request<Listable<TRow>>(config, 'GET', `/${enc}`, {
+          const res = await request<Listable<TRow>>(httpConfig, 'GET', `/${enc}`, {
             params: buildSearchParams(q as ListQuery<Record<string, unknown>>),
             options,
           })
@@ -39,7 +39,7 @@ export function createBeechBrowserClient<TRegistry = Record<string, unknown>>(
         first: async (q: ListQuery<TRow>, options?: RequestOptions) => {
           // to get first, we can just limit to 1
           const qFirst = { ...q, limit: 1 }
-          const res = await request<Listable<TRow>>(config, 'GET', `/${enc}`, {
+          const res = await request<Listable<TRow>>(httpConfig, 'GET', `/${enc}`, {
             params: buildSearchParams(qFirst as ListQuery<Record<string, unknown>>),
             options,
           })

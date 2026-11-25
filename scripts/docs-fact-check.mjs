@@ -6,6 +6,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { resolve, join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import pc from 'picocolors'
+import { findLegacyKeyMentions } from './lib/legacy-key-names.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = resolve(__dirname, '..')
@@ -317,6 +318,47 @@ if (mcpToolNames.length === 0) {
 
   if (failureCount === failuresBefore) {
     success(`All ${mcpToolNames.length} MCP tools are documented; no unknown beech_* tool names in MCP docs.`)
+  }
+}
+
+// -------------------------------------------------------------
+// 6. Fact-Checking key model names (publishable / secret)
+// -------------------------------------------------------------
+header('6. Fact-Checking key model names (publishable / secret)')
+
+function getSiteSourceFiles(dir) {
+  const results = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (['dist', 'cache', 'node_modules'].includes(entry.name)) continue
+      results.push(...getSiteSourceFiles(fullPath))
+    } else if (entry.isFile() && /\.(vue|ts|mts)$/.test(entry.name)) {
+      results.push(fullPath)
+    }
+  }
+  return results
+}
+
+{
+  const vitepressDir = resolve(DOCS_DIR, '.vitepress')
+  const keyModelFiles = [
+    ...getMarkdownFiles(DOCS_DIR),
+    resolve(ROOT_DIR, 'CHANGELOG.md'),
+    ...getSiteSourceFiles(resolve(vitepressDir, 'theme')),
+    resolve(vitepressDir, 'config.mts'),
+  ].filter((file) => existsSync(file))
+  const failuresBefore = failureCount
+
+  for (const file of keyModelFiles) {
+    const relPath = relative(ROOT_DIR, file).replaceAll('\\', '/')
+    for (const { line, match } of findLegacyKeyMentions(relPath, readFileSync(file, 'utf-8'))) {
+      error(`${relPath}:${line}: legacy key name "${match}". Use BEECH_PUBLISHABLE_KEY / BEECH_SECRET_KEY (publishableKey / secretKey).`)
+    }
+  }
+
+  if (failureCount === failuresBefore) {
+    success(`No legacy key names in ${keyModelFiles.length} files (migration sections excepted).`)
   }
 }
 

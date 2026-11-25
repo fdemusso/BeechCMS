@@ -7,11 +7,21 @@ export type BeechFilterOperator =
   | 'is_empty' | 'is_not_empty' | 'in' | 'not_in'
   | 'has_tag' | 'has_any_tag' | 'has_all_tags'
 
-export interface BeechClientConfig {
+/** Options shared by the browser and the server client. */
+export interface BeechClientBaseConfig {
   baseUrl: string
-  apiKey: string
   fetch?: typeof fetch
   headers?: Record<string, string> | Headers
+}
+
+/** Browser client: read-only, authenticated with the publishable key (`beech_pk_…`). */
+export interface BeechBrowserClientConfig extends BeechClientBaseConfig {
+  publishableKey: string
+}
+
+/** Server client: reads and writes with one instance, authenticated with the secret key (`beech_sk_…`). Never ship it to a browser. */
+export interface BeechServerClientConfig extends BeechClientBaseConfig {
+  secretKey: string
 }
 
 /** Mirrors the DOM `RequestCache` union without depending on the `dom` lib. */

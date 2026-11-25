@@ -6,7 +6,7 @@ import { defineSeed } from '@beechcms/core'
 import { createBeechApp } from '../src/factory'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticAutomationRepository } from './mocks/static-automation.repository'
-import { TEST_ENV, TEST_PUBLIC_READ_KEY, TEST_PUBLIC_WRITE_KEY } from './fixtures'
+import { TEST_ENV, TEST_PUBLISHABLE_KEY, TEST_SECRET_KEY } from './fixtures'
 import { createBeechBrowserClient } from '../../../packages/client/src/browser/index.js'
 import { createBeechServerClient } from '../../../packages/client/src/server/index.js'
 
@@ -79,7 +79,7 @@ describe('End-to-End: @beechcms/client SDK with Real BeechCMS API Engine', () =>
   describe('Browser Client (@beechcms/client/browser)', () => {
     const browserClient = createBeechBrowserClient<AppRegistry>({
       baseUrl: 'https://api.beechcms.local',
-      apiKey: TEST_PUBLIC_READ_KEY,
+      publishableKey: TEST_PUBLISHABLE_KEY,
       fetch: appFetch,
     })
 
@@ -121,11 +121,11 @@ describe('End-to-End: @beechcms/client SDK with Real BeechCMS API Engine', () =>
   describe('Server Client (@beechcms/client/server)', () => {
     const serverClient = createBeechServerClient<AppRegistry>({
       baseUrl: 'https://api.beechcms.local',
-      apiKey: TEST_PUBLIC_WRITE_KEY,
+      secretKey: TEST_SECRET_KEY,
       fetch: appFetch,
     })
 
-    it('creates content using flat payload and bypasses Time-Trap anti-bot via PUBLIC_WRITE_API_KEY', async () => {
+    it('creates content using flat payload and bypasses Time-Trap anti-bot via BEECH_SECRET_KEY', async () => {
       const result = await serverClient.collection('articles').create({
         title: 'Brand New Post',
         slug: 'brand-new-post',
@@ -161,7 +161,7 @@ describe('End-to-End: @beechcms/client SDK with Real BeechCMS API Engine', () =>
     it('returns 401 Unauthorized when invalid API key is provided on server operations', async () => {
       const unauthorizedClient = createBeechServerClient<AppRegistry>({
         baseUrl: 'https://api.beechcms.local',
-        apiKey: 'invalid-secret-key',
+        secretKey: 'invalid-secret-key',
         fetch: appFetch,
       })
 

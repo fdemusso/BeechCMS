@@ -11,7 +11,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
-import { createTestHarness, TEST_PUBLIC_READ_KEY, type TestClient, type TestHarness } from '@beechcms/testing'
+import { createTestHarness, TEST_PUBLISHABLE_KEY, type TestClient, type TestHarness } from '@beechcms/testing'
 import { createBeechApp } from '../../../factory'
 import { __resetSeedRegistryCache } from '../../../shared/services/cache/seed-registry-cache'
 
@@ -48,7 +48,7 @@ describe('public slice — integration (real D1) relation subquery filters', () 
 
     const filter = JSON.stringify({ where: [{ field: 'category_id', op: 'in', value: { where: [{ field: 'name', op: 'eq', value: 'Tech' }] } }] })
     const response = await publicClient.get(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(200)
@@ -76,7 +76,7 @@ describe('public slice — integration (real D1) relation subquery filters', () 
 
     const filter = JSON.stringify({ where: [{ field: 'related_posts', op: 'in', value: { where: [{ field: 'title', op: 'eq', value: 'Target' }] } }] })
     const response = await publicClient.get(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(200)
@@ -105,7 +105,7 @@ describe('public slice — integration (real D1) relation subquery filters', () 
     // Outer: posts referencing any post that references `target`.
     const filter = JSON.stringify({ where: [{ field: 'related_posts', op: 'in', value: { where: [{ field: 'related_posts', op: 'in', value: [target.id] }] } }] })
     const response = await publicClient.get(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(200)
@@ -127,7 +127,7 @@ describe('public slice — integration (real D1) relation subquery filters', () 
 
     const filter = JSON.stringify({ where: [{ field: 'category_id', op: 'in', value: { where: [{ field: 'name', op: 'eq', value: 'NoSuchCategory' }] } }] })
     const response = await publicClient.get(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(200)
@@ -139,7 +139,7 @@ describe('public slice — integration (real D1) relation subquery filters', () 
   it('a subquery through the non-public author_id relation returns 400 invalid-subquery', async () => {
     const filter = JSON.stringify({ where: [{ field: 'author_id', op: 'in', value: { where: [{ field: 'name', op: 'eq', value: 'Anyone' }] } }] })
     const response = await publicClient.get(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(400)
@@ -156,7 +156,7 @@ describe('public slice — integration (real D1) relation subquery filters', () 
     // filters go through. The offending field just happens to sit inside a subquery.
     const filter = JSON.stringify({ where: [{ field: 'related_posts', op: 'in', value: { where: [{ field: 'internal_note', op: 'eq', value: 'x' }] } }] })
     const response = await publicClient.get(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(400)
@@ -174,7 +174,7 @@ describe('public slice — integration (real D1) relation subquery filters', () 
 
     const filter = JSON.stringify({ where: [{ field: 'category_id', op: 'in', value: { where: [{ field: 'name', op: 'eq', value: 'Compose' }] } }] })
     const response = await publicClient.get(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}&include=category_id`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(200)
@@ -191,7 +191,7 @@ describe('public slice — integration (real D1) relation subquery filters', () 
 
     const filter = JSON.stringify({ where: [{ field: 'category_id', op: 'in', value: { where: [{ field: 'name', op: 'eq', value: 'Nope' }] } }] })
     const response = await publicClient.get(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY },
     })
 
     expect(response.status).toBe(200)

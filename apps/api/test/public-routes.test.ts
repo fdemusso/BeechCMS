@@ -7,7 +7,7 @@ import { createBeechApp } from '../src/factory'
 import { StaticAutomationRepository } from './mocks/static-automation.repository'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
-import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_READ_KEY, TEST_PUBLIC_WRITE_KEY } from './fixtures'
+import { TEST_SEEDS, TEST_ENV, TEST_PUBLISHABLE_KEY, TEST_SECRET_KEY } from './fixtures'
 
 describe('Public API Routes', () => {
   let app: ReturnType<typeof createBeechApp>
@@ -21,7 +21,7 @@ describe('Public API Routes', () => {
 
   it('GET /api/v1/public/health returns 200 ok', async () => {
     const res = await app.request('/api/v1/public/health', {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY }
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY }
     }, TEST_ENV)
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -30,7 +30,7 @@ describe('Public API Routes', () => {
 
   it('GET /api/v1/public/:seed/schema returns scoped JSON schema of public seed', async () => {
     const res = await app.request('/api/v1/public/posts/schema', {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY }
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY }
     }, TEST_ENV)
     expect(res.status).toBe(200)
     const postSeed = await res.json<{ slug: string; branches: any[] }>()
@@ -45,7 +45,7 @@ describe('Public API Routes', () => {
 
   it('GET /api/v1/public/schema is not found (global schema discovery disabled)', async () => {
     const res = await app.request('/api/v1/public/schema', {
-      headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY }
+      headers: { 'X-API-Key': TEST_PUBLISHABLE_KEY }
     }, TEST_ENV)
     expect(res.status).toBe(404)
   })
@@ -54,7 +54,7 @@ describe('Public API Routes', () => {
     it('allows same-origin requests with matching protocol, hostname, and port', async () => {
       const res = await app.request('https://cms.example.com/api/v1/public/health', {
         headers: {
-          'X-API-Key': TEST_PUBLIC_READ_KEY,
+          'X-API-Key': TEST_PUBLISHABLE_KEY,
           'Origin': 'https://cms.example.com',
         }
       }, { ...TEST_ENV, CORS_ORIGINS: '' })
@@ -64,7 +64,7 @@ describe('Public API Routes', () => {
     it('rejects same-origin requests with different protocols (HTTP origin on HTTPS deployment)', async () => {
       const res = await app.request('https://cms.example.com/api/v1/public/health', {
         headers: {
-          'X-API-Key': TEST_PUBLIC_READ_KEY,
+          'X-API-Key': TEST_PUBLISHABLE_KEY,
           'Origin': 'http://cms.example.com',
         }
       }, { ...TEST_ENV, CORS_ORIGINS: '' })
@@ -89,7 +89,7 @@ describe('Public API Routes', () => {
     it('returns 404 Not Found instead of 401 Unauthorized for unmapped public endpoint', async () => {
       const res = await app.request('/api/v1/public/leads', {
         method: 'POST',
-        headers: { 'X-API-Key': TEST_PUBLIC_WRITE_KEY }
+        headers: { 'X-API-Key': TEST_SECRET_KEY }
       }, TEST_ENV)
       expect(res.status).toBe(404)
       const body = await res.json<{ error: string; message: string }>()
@@ -100,7 +100,7 @@ describe('Public API Routes', () => {
     it('returns 404 Not Found for reserved prototype property names as unmapped path', async () => {
       const res = await app.request('/api/v1/public/constructor', {
         method: 'POST',
-        headers: { 'X-API-Key': TEST_PUBLIC_WRITE_KEY }
+        headers: { 'X-API-Key': TEST_SECRET_KEY }
       }, TEST_ENV)
       expect(res.status).toBe(404)
       const body = await res.json<{ error: string; message: string }>()

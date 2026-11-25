@@ -52,10 +52,10 @@ export interface Env {
   PUBLIC_WRITE_RATE_LIMITER?: RateLimit
   /** Comma-separated list of allowed CORS origins. */
   CORS_ORIGINS?: string
-  /** API key required for public read-only requests. */
-  PUBLIC_READ_API_KEY?: string
-  /** API key required for public write requests. */
-  PUBLIC_WRITE_API_KEY?: string
+  /** Publishable key: read-only Public API access (GET/HEAD/OPTIONS), safe in a browser. Local value `beech_pk_dev`. */
+  BEECH_PUBLISHABLE_KEY?: string
+  /** Secret key: full Public API access (every method), server-side only. Lives in `.dev.vars` / `wrangler secret put`. */
+  BEECH_SECRET_KEY?: string
   /** When set, restricts the public API to `published` status entries only. */
   PUBLIC_PUBLISHED_ONLY?: string
   /** TTL, in seconds, for public API idempotency keys. */

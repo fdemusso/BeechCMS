@@ -10,6 +10,8 @@ export interface EndpointInfo {
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const
 
 const FACTORY_PATH = path.join('apps', 'api', 'src', 'factory.ts')
+// The feature routers are assembled as method chains in routes.ts and mounted by the factory.
+const ROUTES_PATH = path.join('apps', 'api', 'src', 'routes.ts')
 const API_SRC = path.join('apps', 'api', 'src')
 
 // Curated fallback used if factory.ts can't be parsed (e.g. after a refactor).
@@ -76,6 +78,25 @@ function parseRouteMounts(source: string): RouteMount[] {
   return mounts
 }
 
+/**
+ * Mounts declared as a method chain: `const router = new Hono<...>().route('/a', a).route('/b', b)`.
+ * The chain ends at the first statement terminator, a blank line.
+ */
+function parseChainMounts(source: string): RouteMount[] {
+  const mounts: RouteMount[] = []
+  const chainRe = /(?:const|let)\s+(\w+)\s*=\s*new\s+Hono\b[^\n]*\n((?:[ \t]*\.route\([^\n]*\n?)*)/g
+  const routeRe = /\.route\(\s*['"]([^'"]*)['"]\s*,\s*(\w+)\s*\)/g
+  let chain: RegExpExecArray | null
+  while ((chain = chainRe.exec(source))) {
+    let match: RegExpExecArray | null
+    routeRe.lastIndex = 0
+    while ((match = routeRe.exec(chain[2]))) {
+      mounts.push({ appVar: chain[1], prefix: match[1], target: match[2] })
+    }
+  }
+  return mounts
+}
+
 function joinPrefix(base: string, prefix: string): string {
   if (prefix === '/' || prefix === '') return base || ''
   const combined = `${base}/${prefix}`.replace(/\/{2,}/g, '/')
@@ -126,8 +147,10 @@ export function parseEndpoints(rootDir: string = process.cwd()): EndpointInfo[] 
     if (!fs.existsSync(factoryFull)) return FALLBACK_ENDPOINTS
 
     const source = fs.readFileSync(factoryFull, 'utf8')
-    const imports = parseImports(source)
-    const mounts = parseRouteMounts(source)
+    const routesFull = path.join(rootDir, ROUTES_PATH)
+    const routesSource = fs.existsSync(routesFull) ? fs.readFileSync(routesFull, 'utf8') : ''
+    const imports = new Map([...parseImports(routesSource), ...parseImports(source)])
+    const mounts = [...parseRouteMounts(source), ...parseChainMounts(routesSource)]
 
     // Vars that are mounted *into* another router are local sub-apps (e.g. apiProtected).
     const mountTargets = new Set(mounts.map((m) => m.target))

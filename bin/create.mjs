@@ -6,9 +6,10 @@ import pc from 'picocolors'
 import { spawnSync, execSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve, join, dirname } from 'node:path'
-import { randomBytes } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
+  DEV_PUBLISHABLE_KEY,
+  PRODUCTION_SECRETS,
   buildDevVars,
   buildPackageJson,
   buildTsConfig,
@@ -36,10 +37,6 @@ async function loadTemplateVersions() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function generateSecret(bytes = 32) {
-  return randomBytes(bytes).toString('hex')
-}
 
 function writeFile(path, content) {
   writeFileSync(path, content, 'utf8')
@@ -211,11 +208,6 @@ async function main() {
     )
   }
 
-  const jwtSecret = generateSecret(32)
-  const publicReadKey = generateSecret(16)
-  const publicWriteKey = generateSecret(16)
-  const timeTrapSecret = generateSecret(32)
-
   const corsOrigins = cloudflare
     ? ['http://localhost:5173', 'http://localhost:5174', cloudflare.appUrl]
         .filter(Boolean).join(',')
@@ -238,11 +230,7 @@ async function main() {
     d1Name,
     d1Id: cloudflare?.d1Id ?? 'FILL_IN_YOUR_D1_DATABASE_ID',
     r2Bucket: cloudflare?.r2Bucket ?? `${name}-media`,
-    jwtSecret,
     corsOrigins,
-    publicReadKey,
-    publicWriteKey,
-    timeTrapSecret,
     appUrl: cloudflare?.appUrl ?? '',
   }))
   writeFile(join(targetDir, '.dev.vars'), buildDevVars(cloudflare))
@@ -289,15 +277,24 @@ async function main() {
       `   Applies the local database migrations, then serves the API and dashboard.`,
       `   Open ${pc.underline('http://localhost:8789/admin')} to create your admin account.`,
       '',
+      `${pc.bold('Public API keys')}`,
+      `   Publishable key: ${pc.cyan(DEV_PUBLISHABLE_KEY)} (browser and server, read only, in wrangler.jsonc)`,
+      `   The secret key (server only, reads and writes) is in ${pc.underline('.dev.vars')}.`,
+      '',
       `${pc.bold('When you are ready to deploy')}`,
       ...(cloudflare ? [] : [
         `   Edit ${pc.underline('wrangler.jsonc')}  →  fill in ${pc.yellow('database_id')} (D1) and ${pc.yellow('bucket_name')} (R2)`,
       ]),
+      ...PRODUCTION_SECRETS.map((secret) => `   ${pc.cyan('npx wrangler secret put ' + secret)}`),
+      `   Use fresh values, not the local ones.`,
+      `   The secret key starts with beech_sk_live_; the API refuses the local development key outside development.`,
+      `   Set PRIVACY_MASTER_KEY once and never change it after data is stored.`,
+      `   Generate a value: ${pc.cyan(`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)}`,
       `   Set the R2 S3 secrets (direct uploads): ${pc.cyan('npx wrangler secret put R2_ACCESS_KEY_ID')}, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME`,
       `   Guide: https://developers.cloudflare.com/r2/api/s3/tokens/`,
       `   ${pc.cyan('npm run deploy')}`,
       '',
-      `${pc.dim('Uploads work locally with no setup. JWT secret and API keys have been auto-generated.')}`,
+      `${pc.dim('Uploads work locally with no setup. Local secrets are in .dev.vars, which git ignores.')}`,
     ].join('\n'),
     'Next steps'
   )

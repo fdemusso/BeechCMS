@@ -13,9 +13,11 @@
 ## Interfaces
 
 - [BeechBrowserClient](interfaces/BeechBrowserClient.md)
-- [BeechClientConfig](interfaces/BeechClientConfig.md)
+- [BeechBrowserClientConfig](interfaces/BeechBrowserClientConfig.md)
+- [BeechClientBaseConfig](interfaces/BeechClientBaseConfig.md)
 - [BeechProblem](interfaces/BeechProblem.md)
 - [BeechServerClient](interfaces/BeechServerClient.md)
+- [BeechServerClientConfig](interfaces/BeechServerClientConfig.md)
 - [BrowserContentResource](interfaces/BrowserContentResource.md)
 - [ConstructWebhookEventOptions](interfaces/ConstructWebhookEventOptions.md)
 - [FluentQuery](interfaces/FluentQuery.md)

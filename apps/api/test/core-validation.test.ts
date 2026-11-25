@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, expect, it } from 'vitest'
-import { isValidContentStatus, validateAndSanitizeSeedPayload } from '@beechcms/core'
+import { SystemIdGenerator, isValidContentStatus, validateAndSanitizeSeedPayload } from '@beechcms/core'
 import {
   sanitizePublicPayload,
   generateEntrySlug,
@@ -98,9 +98,11 @@ describe('core validation foundation', () => {
 
 describe('public sanitize adapter', () => {
   it('mappa dangerous richtext a 422', () => {
-    const result = sanitizePublicPayload(articoliSeed, {
-      body: { type: 'doc', content: [{ type: 'iframe', attrs: { src: 'x' } }] },
-    })
+    const result = sanitizePublicPayload(
+      articoliSeed,
+      { body: { type: 'doc', content: [{ type: 'iframe', attrs: { src: 'x' } }] } },
+      { idGenerator: SystemIdGenerator },
+    )
 
     expect(result.ok).toBe(false)
     if (!result.ok) {
@@ -109,10 +111,11 @@ describe('public sanitize adapter', () => {
   })
 
   it('rifiuta alias sconosciuti nel path strict', () => {
-    const result = sanitizePublicPayload(articoliSeed, {
-      title: 'Titolo ok',
-      notInSchema: 'x',
-    })
+    const result = sanitizePublicPayload(
+      articoliSeed,
+      { title: 'Titolo ok', notInSchema: 'x' },
+      { idGenerator: SystemIdGenerator },
+    )
 
     expect(result.ok).toBe(false)
     if (!result.ok) {

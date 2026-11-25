@@ -5,6 +5,8 @@ import pc from 'picocolors'
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve, basename } from 'node:path'
 import { randomBytes } from 'node:crypto'
+import { parseDevVars } from '../lib/dev-vars.js'
+import { legacyVarNames } from '../lib/key-model.js'
 import { findWranglerConfig, stripJsonc } from '../lib/wrangler.js'
 
 export interface InitOptions {
@@ -12,24 +14,47 @@ export interface InitOptions {
   local: boolean
 }
 
-function echoApiKeys(configPath: string | null | undefined): void {
+/**
+ * Lines reporting the Public API keys of a project. Reports the publishable key in full and only the
+ * presence of the secret key; empty when the project has neither (`init` warns separately about 0.10.x names).
+ */
+export function keyReportLines(input: {
+  wranglerVars: Record<string, string>
+  devVars: Record<string, string> | null
+}): string[] {
+  const publishableKey = input.wranglerVars['BEECH_PUBLISHABLE_KEY']?.trim()
+  const hasSecretKey = Boolean(input.devVars?.['BEECH_SECRET_KEY']?.trim())
+  if (!publishableKey && !hasSecretKey) return []
+
+  const lines: string[] = []
+  if (publishableKey) {
+    lines.push(`BEECH_PUBLISHABLE_KEY = ${publishableKey} (wrangler.jsonc, read only, safe in the browser)`)
+  }
+  if (hasSecretKey) {
+    lines.push('BEECH_SECRET_KEY = set in .dev.vars (server only, never printed)')
+  } else if (input.devVars) {
+    lines.push('BEECH_SECRET_KEY = missing from .dev.vars: writes answer 403')
+  }
+  return lines
+}
+
+function echoKeys(configPath: string | null | undefined, devVarsPath: string): void {
   if (!configPath) return
   try {
     const parsed = JSON.parse(stripJsonc(readFileSync(configPath, 'utf-8')))
-    const vars: Record<string, string> = parsed?.vars ?? {}
-    const readKey = vars['PUBLIC_READ_API_KEY']
-    const writeKey = vars['PUBLIC_WRITE_API_KEY']
-    if (!readKey && !writeKey) return
-    console.log(pc.dim('  API keys detected in wrangler.jsonc:\n'))
-    if (readKey) {
-      const masked = readKey.length > 8 ? readKey.slice(0, 4) + '****' + readKey.slice(-4) : '****'
-      console.log(pc.dim(`    PUBLIC_READ_API_KEY  = ${masked}`))
+    const wranglerVars: Record<string, string> = parsed?.vars ?? {}
+    const devVars = existsSync(devVarsPath) ? parseDevVars(readFileSync(devVarsPath, 'utf-8')) : null
+    const legacyNames = legacyVarNames(wranglerVars)
+    if (legacyNames.length > 0) {
+      console.log(pc.yellow(`  ! ${basename(configPath)} still has 0.10.x key names in vars: ${legacyNames.join(', ')}`))
+      console.log(pc.yellow('    The runtime no longer reads them, and any secret listed here is committed: rotate it.'))
+      console.log(pc.yellow('    Run: npx beech keys:migrate\n'))
     }
-    if (writeKey) {
-      const masked = writeKey.length > 8 ? writeKey.slice(0, 4) + '****' + writeKey.slice(-4) : '****'
-      console.log(pc.dim(`    PUBLIC_WRITE_API_KEY = ${masked}`))
-    }
-    console.log(pc.dim('\n  Use these in your frontend as the X-API-Key header.\n'))
+    const lines = keyReportLines({ wranglerVars, devVars })
+    if (lines.length === 0) return
+    console.log(pc.dim('  Public API keys:\n'))
+    for (const line of lines) console.log(pc.dim(`    ${line}`))
+    console.log(pc.dim('\n  Send a key in the X-API-Key header. The publishable key is safe in browser code; the secret key is not.\n'))
   } catch {
     // wrangler.jsonc may be missing or malformed — skip silently
   }
@@ -82,7 +107,8 @@ function checkFiles(cwd: string, checkDevVars: boolean): boolean {
 
   if (checkDevVars) {
     if (!existsSync(resolve(cwd, '.dev.vars'))) {
-      console.log(pc.dim('  ○ .dev.vars        — not found (optional: only needed for production R2 credentials)'))
+      console.log(pc.red('  ✗ .dev.vars        — missing (required: holds JWT_SECRET, BEECH_SECRET_KEY, PUBLIC_TIME_TRAP_SECRET, PRIVACY_MASTER_KEY)'))
+      ok = false
     } else {
       console.log(pc.green('  ✓ .dev.vars'))
       if (ensurePrivacyMasterKey(resolve(cwd, '.dev.vars'))) {
@@ -108,7 +134,7 @@ export async function init(args: InitOptions): Promise<void> {
   }
 
   console.log(pc.green('\n  All required files present.\n'))
-  echoApiKeys(findWranglerConfig())
+  echoKeys(findWranglerConfig(), resolve(process.cwd(), '.dev.vars'))
   console.log(pc.dim('  Next steps:'))
   console.log(pc.cyan('  1. npm run dev'))
   console.log(pc.dim('      → apply local migrations and start API + dashboard'))

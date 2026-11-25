@@ -16,7 +16,7 @@ const DEFAULT_API_URL =
 const DEFAULT_API_KEY =
   (typeof import.meta !== 'undefined' && (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_BEECH_PUBLIC_API_KEY) ||
   (typeof process !== 'undefined' && (process as unknown as { env?: Record<string, string> }).env?.NEXT_PUBLIC_BEECH_PUBLIC_API_KEY) ||
-  'dev-public-write-key-changeme'
+  'beech_sk_dev'
 
 /**
  * Properties for the {@link ClientiTestPage} component.

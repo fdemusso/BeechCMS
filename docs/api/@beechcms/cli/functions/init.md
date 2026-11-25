@@ -8,6 +8,9 @@
 
 > **init**(`args`): `Promise`&lt;`void`&gt;
 
+Checks that the project has the files BeechCMS needs. The database is not touched here:
+`npm run dev` applies the system migrations, and `beech setup:cloudflare` provisions D1/R2.
+
 ## Parameters
 
 ### args
