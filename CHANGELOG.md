@@ -14,10 +14,11 @@ Follow-up fixes and hardening across the Public API, client SDKs, forms, CLI, MC
 - Public API now answers `404` consistently for private seeds and unpublished entries without leaking other seed slugs (#1015).
 - Anonymous public add now defaults to `draft` (while respecting `defaultPublicStatus`), and secret-key writes skip `allowPublicPost` (#1022).
 - Public edit leaves `status` unchanged unless the request explicitly sets it, preventing concurrent publishes from being overwritten (#1018).
+- Content `PUT /api/content/:slug/:id` leaves `status` unchanged unless the body sends one, preventing concurrent publishes from being overwritten (#1049).
 - Public `operation-not-allowed` `403` errors now name the seed flag to enable (#1007).
 - Public reads send the same `Cache-Control` on cache miss and hit, with the 60s edge cache window documented (#1017).
 - `beech db:migrate` / `bootstrap-d1` now tracks applied migrations in `d1_migrations` and applies pending migrations on an already-initialized local DB (#967).
-- RBAC agent intent summaries now resolve and name the account, role, and scope instead of showing raw IDs (#979).
+- RBAC agent intent summaries now resolve and name the account, role, and scope instead of showing raw IDs, and `invitations.create` / `invitations.regenerate` are now `destructive` so OAuth callers require human approval in every environment (#979).
 
 **Client & Search (`@beechcms/client`, `@beechcms/search-client`)**
 - Non-JSON `2xx` responses now return an `invalid-response` problem instead of `{ data: null, error: null }` (#998).
