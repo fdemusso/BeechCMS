@@ -1,60 +1,33 @@
-# Execution log — KeyRoleRuntime
+# Execution Log — KeyModelDocs (re-plan: LlmPromptNode + theme scan)
 
-## SECTION 6 — Acceptance criteria
+## Acceptance criteria
 
-- [x] `authorizePublicKey` sole key comparison; header read only in `api-key-middleware.ts` and `public-add.ts`, both pass it straight through.
-- [x] `apps/api/src` has no `PUBLIC_READ_API_KEY` / `PUBLIC_WRITE_API_KEY` (grep 1 empty; grep 2 = the one "legacy bindings alone" test).
-- [x] Publishable key: GET/HEAD pass; writes (incl. `POST /:seed/add`, `PUT /edit`) 403 `public-api-secret-key-required`.
-- [x] Secret key: every method passes; `categories` add → 403 `operation-not-allowed`.
-- [x] Wrong key 401; no secret → write 403 `public-api-not-configured`; nothing configured → read 403 (unit matrix).
-- [x] `beech_sk_dev` with `ENV` ≠ development/unset → 403 `public-api-dev-secret-key`, one `console.warn`, no key value; no publishable guard.
-- [x] `timingSafeEqual` kept; only `ENV` branch is the dev-secret guard.
-- [x] Zero-secret paths unchanged (unit + anonymous 422 `time-trap-missing` integration).
-- [x] Client: only `publishableKey` / `secretKey` shapes; `apiKey` type error + runtime error naming parameter; browser rejects `beech_sk_`.
-- [x] Browser resource `create`/`update` fail type-check (`@ts-expect-error` holds under client `type-check`).
-- [x] One server instance does `list`, `first`, `create` (integration green).
-- [x] `BeechClientConfig` not exported; `HttpConfig` not exported from `index.ts`.
-- [x] Secret key creates and edits canonical `posts`: 201 / 200; malformed `category_id` → 400 `validation_failed`.
-- [x] `sanitizePublicPayload` requires `idGenerator`; add and edit pass `context.get('idGenerator')`.
-- [x] Every SECTION 5 command passes; greps 1 and 3 empty, grep 2 exactly one hit.
-- [x] `@beechcms/core` unchanged (`git diff --stat -- packages/core` empty).
+- [x] `pnpm docs:check` prints section 6 green. Hand check (first run): `PUBLIC_READ_API_KEY` appended to `docs/start/index.md` → `docs/start/index.md:102: legacy key name "PUBLIC_READ_API_KEY"`, exit 1. Reverted.
+- [x] `findLegacyKeyMentions`, `LEGACY_KEY_PATTERNS`, `LEGACY_KEY_ALLOWED_SECTIONS` verbatim; `LEGACY_KEY_SITE_PATTERNS` added, applied only under `docs/.vitepress/`. Module has no I/O. Test file: BUSL header, four zones, no conditionals or randomness.
+- [x] 8 framework guides, `first-project.md`, `start/index.md` use the shared vocabulary. No key fallback, no secret in a public variable.
+- [x] `client-sdk.md`: "Keys and roles" table, browser warning, `apiKey` migration note.
+- [x] `public-api.md` + `error-model.md`: four denials with statuses and problem types. Reads send `beech_pk_dev`, writes send `beech_sk_dev`.
+- [x] `environments.md`: `BEECH_PUBLISHABLE_KEY` / `BEECH_SECRET_KEY`; production block covers `BEECH_SECRET_KEY`, `PUBLIC_TIME_TRAP_SECRET`, `PRIVACY_MASTER_KEY`.
+- [x] No page claims the publishable key is generated in production.
+- [x] `CHANGELOG.md`: `## Publishable and secret keys — unreleased` with `### Upgrading from 0.10.x`.
+- [x] `docs/api` is the unedited `pnpm docs:generate` output; `BeechClientConfig.md` gone.
+- [x] `packages/mcp/resources` has no legacy key name outside `build/cli-workflows.md` (after mcp build).
+- [x] **[REWORK]** `LlmPromptNode.vue:56` names `publishableKey` / `secretKey`, no `apiKey`; `git grep -w apiKey -- docs/.vitepress ':!docs/.vitepress/dist'` empty.
+- [x] **[REWORK]** Section 6 scans theme sources (`.vue`/`.ts`/`.mts` under `docs/.vitepress/theme`, plus `config.mts`). Hand check: `apiKey` put back in `LlmPromptNode.vue` → `docs/.vitepress/theme/components/LlmPromptNode.vue:56: legacy key name "apiKey"`, `FACT-CHECK FAILED with 1 issue(s)`. Reverted; next `docs:check` passed.
+- [x] Every SECTION 5 command passes; closing greps clean.
+- [x] No change in `apps/`, `packages/*/src`, `bin/`, `packages/forms-react` from this sprint. (`git diff --stat -- apps packages bin` shows only sprint 02/03 files.)
 
 ## Validation
 
-- `@beechcms/client` type-check, test (130 passed), build: pass.
-- `@beechcms/testing` type-check, build: pass.
-- `@beechcms/api` type-check: pass.
-- `@beechcms/api` test:unit: 163 files, 2124 passed.
-- `@beechcms/api` test:integration: 104 files, 784 passed (includes 3 new T8 cases: malformed relation id, two edit cases).
-- `pnpm beech test --diff` (Docker started): PASS, all selected runs; changed-line coverage met for all 10 changed files.
-- `pnpm lint:tests`: test placement OK.
-- `pnpm lint`: pass (removed unused `path` import in `scripts/check-design-tokens.mjs`, pre-existing error, user-approved).
-- `graphify update .`: 33058 nodes, 48352 edges.
+```
+node --test scripts/lib/legacy-key-names.test.mjs   tests 18, pass 18, fail 0
+node --test scripts/lib/*.test.mjs                  tests 51, pass 51, fail 0
+pnpm docs:check                        ✔ DOCUMENTATION FACT-CHECK PASSED (6. No legacy key names in 901 files)
+pnpm --filter @beechcms/cli test       Test Files 34 passed, Tests 251 passed
+pnpm --filter @beechcms/mcp build      OK
+pnpm docs:build                        typedoc 0 errors 2 warnings, fact-check passed, build complete in 37.48s
+pnpm lint                              ESLint: No issues found
+graphify update .                      OK
+```
 
-## Notes
-
-- Manual `curl` check (after `pnpm beech dev`) not run. The integration tests cover the same three cases (publishable GET 200, publishable POST 403, secret POST 201).
-- Nothing committed (stage contract).
-
-## Rework (review_report REWORK_CODE)
-
-- [x] F1 `scripts/dev-cli/orchestrator.ts`: `ensureDevSecretKey()` uses `\r?\n`, `'\n'` escapes; esbuild parse OK.
-- [x] F1 new `scripts/dev-cli/__tests__/dev-secret-key.test.ts`: absent key appended, blank replaced, existing untouched, missing file false (4 passed); `orchestrator.test.ts` passes again (11 total passed).
-- [x] F4 `rate-limit-middleware.ts` import now `./public-key-auth.js`.
-- Skipped F5 (non-blocking), F3 kept, F6 manual curl not run.
-- `pnpm lint`, `pnpm lint:tests`, `@beechcms/api` type-check: pass. `graphify update .`: done.
-- `scripts/dev-cli/__tests__/endpoints.test.ts` fails (`Settings` group); file untouched by sprint, pre-existing.
-
-## Rework 2 (review_report REWORK_CODE, findings 1-9)
-
-- [x] F1 `dev-secret-key.test.ts`: BUSL-1.1 SPDX header added.
-- [x] F2 `api-key-middleware.test.ts`: method matrix split into three `it()` (publishable reads, publishable writes, secret all six); no `if` around assertions.
-- [x] F3 `dev-secret-key.test.ts`: comment says why a real `.dev.vars` file is used.
-- [x] F4 `public-key-roles.integration.test.ts`: categories state read back via publishable-key HTTP list, no `content_categories` SQL.
-- [x] F5 kept: `check-design-tokens.mjs` unused `path` import stays (user-approved).
-- [x] F6 `forms-react` `ClientiTestPage.tsx` default key and `clienti-form-e2e.test.tsx` now `beech_sk_dev`.
-- [x] F7 manual check on `pnpm beech dev` (API :8789): no key 401, wrong key 401, publishable GET passes auth, publishable PUT 403 `public-api-secret-key-required`, secret PUT passes auth. The dev DB has no `posts` seed (404 seed-not-found), so the 201 add case is covered only by the integration suite.
-- [ ] F8 not touched: `endpoints.test.ts` (`Settings` group) fails on untouched `factory.ts`/`endpoints.ts`; outside sprint scope.
-- [ ] F9 not done: stage contract forbids committing; the human commits.
-
-Validation: `@beechcms/api` type-check pass; `test:unit` 163 files, 2126 passed; `test:integration` 104 files, 784 passed; `forms-react` test 43 passed, type-check pass; dev-cli orchestrator + dev-secret-key 11 passed; `pnpm beech test --diff` PASS (12 changed files meet coverage); `pnpm lint`, `pnpm lint:tests` pass; `graphify update .` done.
+Closing greps 1, 3 and 4: no output.
