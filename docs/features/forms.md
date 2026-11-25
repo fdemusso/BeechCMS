@@ -204,6 +204,8 @@ sequenceDiagram
     Worker-->>User: 201 Created { id, slug }
 ```
 
+The time-trap token is single use and valid from 1.5 seconds to 1 hour after it is issued. `useBeechForm` fetches one on mount and a new one after every submit the server answers (success or failure), so a second submission after `reset()` and a retry after an error both work in the same page. A token close to the end of its hour is replaced at submit time; because the new token is younger than 1.5 seconds, that submit shows the `timeTrapWarning` message and the next click goes through. Tests can pass a `clock` (`{ now(): number }`) instead of faking timers.
+
 ---
 
 ## Related Guides

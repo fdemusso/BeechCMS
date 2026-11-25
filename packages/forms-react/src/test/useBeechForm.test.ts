@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { useBeechForm } from '../hooks/useBeechForm.js'
 import type { FormSeedSchema } from '../types.js'
 import { saveFormDraft } from '../core/draft-storage.js'
@@ -322,3 +322,96 @@ describe('useBeechForm', () => {
     expect(result.current.errors).toEqual({})
   })
 })
+
+describe('useBeechForm — time-trap token lifecycle', () => {
+  const schema: FormSeedSchema = { slug: 'contact-us', branches: [{ alias: 'fullName', type: 'string', required: true }] }
+  // Server rules (public-add.ts): a token is single use, valid from 1.5 s to 3600 s after it was issued.
+  const HUMAN_DELAY_MS = 2_000
+  const TOKEN_TTL_MS = 3_600_000
+
+  let nowMs: number
+  const clock = { now: () => nowMs }
+  let issued: string[]
+  let sentTokens: Array<string | undefined>
+  let addStatuses: number[]
+
+  function routeFetch() {
+    return vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/timetrap/token')) {
+        const token = `t0_${issued.length + 1}.${'ab'.repeat(32)}`
+        issued.push(token)
+        return new Response(JSON.stringify({ token }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      sentTokens.push((JSON.parse(String(init?.body)) as { _timeTrapToken?: string })._timeTrapToken)
+      const status = addStatuses.shift() ?? 201
+      const body = status < 300 ? { data: { id: 'rec_1' } } : { type: 'https://beechcms.dev/problems/internal-server-error', detail: 'boom' }
+      return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+    })
+  }
+
+  async function mountForm() {
+    const hook = renderHook(() => useBeechForm({ seed: schema, baseUrl: 'https://api.example.com', disableDraft: true, clock }))
+    await waitFor(() => expect(hook.result.current.timeTrapReady).toBe(true))
+    return hook
+  }
+
+  async function fillAndSubmit(result: { current: ReturnType<typeof useBeechForm> }): Promise<boolean> {
+    act(() => result.current.setFieldValue('fullName', 'Jane'))
+    nowMs += HUMAN_DELAY_MS
+    let ok = false
+    await act(async () => {
+      ok = await result.current.handleSubmit()
+    })
+    await waitFor(() => expect(issued.length).toBeGreaterThan(sentTokens.length))
+    return ok
+  }
+
+  beforeEach(() => {
+    nowMs = 1_700_000_000_000
+    issued = []
+    sentTokens = []
+    addStatuses = []
+    globalThis.fetch = routeFetch() as unknown as typeof fetch
+  })
+
+  it('a second submit after reset() carries a fresh token instead of the consumed one', async () => {
+    const { result } = await mountForm()
+    await fillAndSubmit(result)
+    act(() => result.current.reset())
+
+    const secondOk = await fillAndSubmit(result)
+
+    expect(secondOk).toBe(true)
+    expect(sentTokens).toEqual([issued[0], issued[1]])
+  })
+
+  it('a retry after a failed insert carries a new token', async () => {
+    addStatuses = [500, 201]
+    const { result } = await mountForm()
+    const firstOk = await fillAndSubmit(result)
+
+    const retryOk = await fillAndSubmit(result)
+
+    expect(firstOk).toBe(false)
+    expect(retryOk).toBe(true)
+    expect(sentTokens).toEqual([issued[0], issued[1]])
+  })
+
+  it('a token older than the server window is replaced before it is sent', async () => {
+    const { result } = await mountForm()
+    act(() => result.current.setFieldValue('fullName', 'Jane'))
+    nowMs += TOKEN_TTL_MS
+
+    let staleOk = true
+    await act(async () => {
+      staleOk = await result.current.handleSubmit()
+    })
+
+    // The fresh token is younger than the 1.5 s minimum, so this submit stops at the client-side warning.
+    expect(staleOk).toBe(false)
+    expect(result.current.serverError).toBe(result.current.translations.timeTrapWarning)
+    expect(issued).toHaveLength(2)
+    expect(sentTokens).toEqual([])
+  })
+})
+

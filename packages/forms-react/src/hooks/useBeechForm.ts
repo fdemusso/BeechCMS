@@ -10,6 +10,14 @@ import { evaluateCondition } from '../core/conditional-logic.js'
 import { fileToAttachment } from '../core/file-uploader.js'
 import { getTranslations } from '../i18n/translations.js'
 
+/** Server window of a time-trap token (public-add.ts): usable from 1.5 s to 3600 s after it was issued. */
+const TIME_TRAP_MIN_DELAY_MS = 1_500
+const TIME_TRAP_MAX_AGE_MS = 3_600_000
+/** A token this close to expiry is replaced before submit, so it cannot lapse in flight. */
+const TIME_TRAP_EXPIRY_MARGIN_MS = 60_000
+
+const SYSTEM_CLOCK = { now: () => Date.now() }
+
 /** Normalizes a form value to the `string[]` a `tags` branch is written as. */
 function toTagsArray(value: unknown): unknown[] {
   if (Array.isArray(value)) return value
@@ -34,6 +42,7 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
     excludeFields,
     onSuccess,
     onError,
+    clock = SYSTEM_CLOCK,
   } = options
 
   const seedSlug = typeof seed === 'string' ? seed : seed.slug
@@ -173,11 +182,27 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
 
   // Anti-Bot: Time Trap State
   const [timeTrapToken, setTimeTrapToken] = useState<string | null>(null)
-  const mountTimeRef = useRef<number>(Date.now())
+  // A ref, so an inline `clock` object does not re-run the token effect on every render.
+  const clockRef = useRef(clock)
+  useEffect(() => {
+    clockRef.current = clock
+  }, [clock])
+  // When the current token was received, on `clock`: the 1.5 s and 1 h checks count from here.
+  const tokenIssuedAtRef = useRef<number>(clock.now())
+
+  // Tokens are single use: one is fetched on mount and again after every submit the server answered.
+  const refreshTimeTrapToken = useCallback(async () => {
+    if (disableAntiBot || !baseUrl) return
+    const res = await fetchTimeTrapToken(baseUrl)
+    if (res) {
+      setTimeTrapToken(res.token)
+      tokenIssuedAtRef.current = clockRef.current.now()
+    }
+  }, [disableAntiBot, baseUrl])
 
   // Initial mount: load draft indicator & fetch time-trap token
   useEffect(() => {
-    mountTimeRef.current = Date.now()
+    tokenIssuedAtRef.current = clockRef.current.now()
     if (!disableDraft) {
       const saved = loadFormDraft<TValues>(seedSlug)
       if (saved && Object.keys(saved).length > 0) {
@@ -185,15 +210,8 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
       }
     }
 
-    if (!disableAntiBot && baseUrl) {
-      fetchTimeTrapToken(baseUrl).then((res) => {
-        if (res) {
-          setTimeTrapToken(res.token)
-          mountTimeRef.current = res.timestamp
-        }
-      })
-    }
-  }, [seedSlug, baseUrl, disableDraft, disableAntiBot])
+    void refreshTimeTrapToken()
+  }, [seedSlug, disableDraft, refreshTimeTrapToken])
 
   // Real-time auto-save draft
   useEffect(() => {
@@ -359,9 +377,13 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
         return false
       }
 
+      // A token near the end of its 1 h window would be refused by the server: replace it first.
+      if (!disableAntiBot && clockRef.current.now() - tokenIssuedAtRef.current > TIME_TRAP_MAX_AGE_MS - TIME_TRAP_EXPIRY_MARGIN_MS) {
+        await refreshTimeTrapToken()
+      }
+
       // Check Time Trap Delta on client (< 1.5s)
-      const elapsedSeconds = (Date.now() - mountTimeRef.current) / 1000
-      if (!disableAntiBot && elapsedSeconds < 1.5) {
+      if (!disableAntiBot && clockRef.current.now() - tokenIssuedAtRef.current < TIME_TRAP_MIN_DELAY_MS) {
         setServerError(translations.timeTrapWarning)
         onError?.({ status: 422, message: 'Time trap delta violation' })
         return false
@@ -406,6 +428,8 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
         })
 
         const json = await response.json().catch(() => null)
+        // The server consumed or rejected this token either way; the next submit needs a fresh one.
+        if (timeTrapToken) void refreshTimeTrapToken()
 
         if (!response.ok) {
           const detail = json?.detail || json?.title || translations.genericErrorMessage
@@ -442,6 +466,7 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
       apiKey,
       onSuccess,
       onError,
+      refreshTimeTrapToken,
     ]
   )
 
