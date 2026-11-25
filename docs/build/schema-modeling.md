@@ -52,7 +52,8 @@ A `Seed` is the top-level content type definition. Only `slug`, `label`, `displa
 | `displayNameAlias` | `string` | ✅ | — | Alias of the branch shown as the entry's human-readable name in lists/pickers. Must match `^[a-z][a-zA-Z0-9_]*$`, must not be a system column, must not be a SQL reserved keyword. **Should** point to an existing branch alias — if it doesn't, validation emits a non-fatal warning (`applicable` stays `true`), but the UI will show blank names until fixed. |
 | `branches` | `Branch[]` | ✅ | `[]` | The field list — see [Branch: Full Field Reference](#branch-full-field-reference) below. |
 | `allowPublicRead` | `boolean` | — | `false` | Enables `GET /api/v1/public/:seed`. |
-| `allowPublicPost` | `boolean` | — | `false` | Enables `POST /api/v1/public/:seed/add`. |
+| `allowPublicPost` | `boolean` | — | `false` | Enables anonymous `POST /api/v1/public/:seed/add` (public forms). A secret-key write does not need it. |
+| `defaultPublicStatus` | `'draft' \| 'review' \| 'published'` | — | `'draft'` | Status of an entry created by an anonymous submission. `'published'` makes unmoderated public content visible at once. |
 | `allowPublicEdit` | `boolean` | — | `false` | Enables `PUT /api/v1/public/:seed/edit/:id`. |
 | `allowDrafts` | `boolean` | — | `false` | Provisions a mirror `content_{slug}_drafts` table and enables `/draft` endpoints for pending-review workflows. |
 | `softDelete` | `boolean` | — | — | Deprecated, ignored: every seed has a Trash. Kept only so existing definitions still validate. See [Trash, Soft Delete & GDPR Purge](/features/trash). |

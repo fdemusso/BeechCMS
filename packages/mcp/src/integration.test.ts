@@ -15,6 +15,7 @@ import { MCP_OAUTH_SCOPE } from './constants.js'
 import { MCP_SERVER_VERSION } from './version.js'
 
 const PENDING_INTENT_ID = '3f2b8c1e-5a47-4d0e-9b6a-1c2d3e4f5a6b'
+const AWAITING_INTENT_ID = '9c4e1a7b-2d63-4f8e-a512-6b8d0e3f9a1c'
 
 interface ToolPayload {
   content: { type: string; text: string }[]
@@ -89,6 +90,23 @@ describe('MCP Server Integration & Operational Test', () => {
             status: 'pending',
             expiresAt: Math.floor(Date.now() / 1000) + 600,
             body: null,
+          },
+        }))
+        return
+      }
+
+      if (url.pathname === `/api/agent/intents/${AWAITING_INTENT_ID}` && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          intent: {
+            id: AWAITING_INTENT_ID,
+            operationId: 'seeds.delete',
+            risk: 'destructive',
+            summary: 'Delete a seed: DELETE /api/seeds/articles',
+            status: 'approved',
+            expiresAt: Math.floor(Date.now() / 1000) + 600,
+            body: null,
+            result: null,
           },
         }))
         return
@@ -486,16 +504,31 @@ describe('MCP Server Integration & Operational Test', () => {
     expect(applyParsed.error).toContain('Re-run beech_schema_plan; the previous plan has been discarded.')
   })
 
-  it('beech_confirm without elicitation support returns the dashboard fallback', async () => {
+  it('beech_confirm without elicitation support returns dashboard fallback naming the intentIds and beech_intents readback', async () => {
     approveCalls = 0
 
     const res = (await client.callTool({ name: 'beech_confirm', arguments: { intentIds: [PENDING_INTENT_ID] } })) as ToolPayload
 
     expect(res.isError).toBeFalsy()
-    const parsed = JSON.parse(res.content[0].text) as ConfirmPayload
+    const parsed = JSON.parse(res.content[0].text) as ConfirmPayload & { instruction: string | null }
     expect(parsed.status).toBe('fallback')
     expect(parsed.reason).toBe('elicitation_unsupported')
+    expect(parsed.instruction).toContain(PENDING_INTENT_ID)
+    expect(parsed.instruction).toContain('beech_intents')
     expect(approveCalls).toBe(0)
+  })
+
+  it('beech_intents with intentIds reads back approved-without-result as awaiting_result', async () => {
+    const res = (await client.callTool({ name: 'beech_intents', arguments: { intentIds: [AWAITING_INTENT_ID] } })) as ToolPayload
+
+    expect(res.isError).toBeFalsy()
+    const parsed = JSON.parse(res.content[0].text) as { checked: { id: string; outcome: string; resultStatus: number | null }[] }
+    expect(parsed.checked).toHaveLength(1)
+    expect(parsed.checked[0]).toMatchObject({
+      id: AWAITING_INTENT_ID,
+      outcome: 'awaiting_result',
+      resultStatus: null,
+    })
   })
 
   it('beech_confirm round-trips an elicitation through the supervisor and approves', async () => {
