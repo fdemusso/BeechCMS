@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useBeechForm } from '../hooks/useBeechForm.js'
 import type { FormSeedSchema } from '../types.js'
-import { saveFormDraft } from '../core/draft-storage.js'
+import { getDraftStorageKey, loadFormDraft, saveFormDraft } from '../core/draft-storage.js'
 
 describe('useBeechForm', () => {
   const mockSchema: FormSeedSchema = {
@@ -238,6 +238,83 @@ describe('useBeechForm', () => {
     expect(addCall).toBeDefined()
     expect(addCall?.[1]?.headers?.['X-API-Key']).toBeUndefined()
     expect(addCall?.[1]?.headers?.['x-time-trap']).toBe('t0_1000.abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234')
+  })
+
+  describe('draft persistence', () => {
+    const draftKey = getDraftStorageKey('contact-us')
+
+    const classifiedSchema: FormSeedSchema = {
+      slug: 'contact-us',
+      branches: [
+        { alias: 'fullName', type: 'string' },
+        { alias: 'email', type: 'email', classification: 'confidential' },
+        { alias: 'note', type: 'string' },
+      ],
+    }
+
+    it('a branch classified above public never reaches the stored draft', () => {
+      const { result } = renderHook(() => useBeechForm({ seed: classifiedSchema }))
+
+      act(() => {
+        result.current.setFieldValue('fullName', 'Mario Rossi')
+        result.current.setFieldValue('email', 'mario@secret.test')
+      })
+
+      expect(window.localStorage.getItem(draftKey)).not.toContain('mario@secret.test')
+      expect(loadFormDraft('contact-us')).toEqual({ fullName: 'Mario Rossi' })
+    })
+
+    it('a classification delivered by the fetched public schema keeps that branch out of the draft', async () => {
+      window.sessionStorage.clear()
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          slug: 'contact-us',
+          branches: [
+            { alias: 'fullName', type: 'text', policies: { classification: 'public' } },
+            { alias: 'email', type: 'text', policies: { classification: 'confidential' } },
+          ],
+        }),
+      })
+      const { result } = renderHook(() =>
+        useBeechForm({ seed: 'contact-us', baseUrl: 'https://api.example.com', disableAntiBot: true })
+      )
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      })
+
+      act(() => {
+        result.current.setFieldValue('fullName', 'Mario Rossi')
+        result.current.setFieldValue('email', 'mario@secret.test')
+      })
+
+      expect(window.localStorage.getItem(draftKey)).not.toContain('mario@secret.test')
+      expect(window.localStorage.getItem(draftKey)).toContain('Mario Rossi')
+    })
+
+    it('excludeFromDraft keeps the listed fields out of the stored draft', () => {
+      const { result } = renderHook(() =>
+        useBeechForm({ seed: classifiedSchema, excludeFromDraft: ['note'] })
+      )
+
+      act(() => {
+        result.current.setFieldValue('fullName', 'Mario Rossi')
+        result.current.setFieldValue('note', 'call me at 555-0100')
+      })
+
+      expect(window.localStorage.getItem(draftKey)).not.toContain('555-0100')
+      expect(window.localStorage.getItem(draftKey)).toContain('Mario Rossi')
+    })
+
+    it('a draft past its TTL is neither restored nor kept in localStorage', () => {
+      saveFormDraft('contact-us', { fullName: 'Stale User' }, { ttlMs: 1000, now: Date.now() - 5000 })
+
+      const { result } = renderHook(() => useBeechForm({ seed: classifiedSchema }))
+
+      expect(result.current.values.fullName).toBeUndefined()
+      expect(result.current.isDraftRestored).toBe(false)
+      expect(window.localStorage.getItem(draftKey)).not.toContain('Stale User')
+    })
   })
 
   describe('tags branch payload', () => {

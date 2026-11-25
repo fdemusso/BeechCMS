@@ -2,10 +2,16 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { FormBranchSchema, FormSeedSchema, UseBeechFormOptions, UseBeechFormReturn } from '../types.js'
+import type {
+  FormBranchSchema,
+  FormDataClassification,
+  FormSeedSchema,
+  UseBeechFormOptions,
+  UseBeechFormReturn,
+} from '../types.js'
 import { DEFAULT_HONEYPOT_NAME } from '../core/honeypot.js'
 import { fetchTimeTrapToken } from '../core/time-trap.js'
-import { clearFormDraft, loadFormDraft, saveFormDraft } from '../core/draft-storage.js'
+import { clearFormDraft, loadFormDraft, purgeStaleFormDrafts, saveFormDraft } from '../core/draft-storage.js'
 import { evaluateCondition } from '../core/conditional-logic.js'
 import { fileToAttachment } from '../core/file-uploader.js'
 import { getTranslations } from '../i18n/translations.js'
@@ -47,6 +53,14 @@ function splitServerErrors(
   return { fieldErrors, unmatched }
 }
 
+const CLASSIFICATIONS: readonly string[] = ['public', 'internal', 'restricted', 'confidential']
+
+/** Reads the canonical tier the public schema reports under `policies.classification`. */
+function toClassification(policies: unknown): FormDataClassification | undefined {
+  const raw = (policies as { classification?: unknown } | null | undefined)?.classification
+  return typeof raw === 'string' && CLASSIFICATIONS.includes(raw) ? (raw as FormDataClassification) : undefined
+}
+
 export function useBeechForm<TValues extends Record<string, unknown> = Record<string, unknown>>(
   options: UseBeechFormOptions<TValues>
 ): UseBeechFormReturn<TValues> {
@@ -58,6 +72,8 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
     translations: customTranslations,
     initialValues = {},
     disableDraft = false,
+    excludeFromDraft,
+    draftTtlMs,
     disableAntiBot = false,
     honeypotField = DEFAULT_HONEYPOT_NAME,
     includeFields,
@@ -150,6 +166,7 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
                 alias,
                 type: formType,
                 label,
+                classification: toClassification(b.policies),
                 required: Boolean(b.requiredOnCreate ?? b.required),
                 placeholder: typeof b.placeholder === 'string' ? b.placeholder : undefined,
                 options: optionsList,
@@ -226,6 +243,7 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
   useEffect(() => {
     tokenIssuedAtRef.current = clockRef.current.now()
     if (!disableDraft) {
+      purgeStaleFormDrafts()
       const saved = loadFormDraft<TValues>(seedSlug)
       if (saved && Object.keys(saved).length > 0) {
         setIsDraftRestored(true)
@@ -235,12 +253,21 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
     void refreshTimeTrapToken()
   }, [seedSlug, disableDraft, refreshTimeTrapToken])
 
+  // Keyed by content so an inline `excludeFromDraft={[...]}` does not re-run the save effect every render
+  const excludeFromDraftKey = (excludeFromDraft ?? []).join('\n')
+  const draftExclude = useMemo(() => {
+    const classified = (schema?.branches ?? [])
+      .filter((b) => b.classification !== undefined && b.classification !== 'public')
+      .map((b) => b.alias)
+    return [...classified, ...excludeFromDraftKey.split('\n').filter(Boolean)]
+  }, [schema, excludeFromDraftKey])
+
   // Real-time auto-save draft
   useEffect(() => {
     if (!disableDraft && !isSuccess) {
-      saveFormDraft(seedSlug, values)
+      saveFormDraft(seedSlug, values, { exclude: draftExclude, ttlMs: draftTtlMs })
     }
-  }, [seedSlug, values, disableDraft, isSuccess])
+  }, [seedSlug, values, disableDraft, isSuccess, draftExclude, draftTtlMs])
 
   const setFieldValue = useCallback((field: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [field]: value }))

@@ -7,6 +7,7 @@ import {
   saveFormDraft,
   loadFormDraft,
   clearFormDraft,
+  purgeStaleFormDrafts,
 } from '../core/draft-storage.js'
 
 describe('draft-storage', () => {
@@ -57,6 +58,52 @@ describe('draft-storage', () => {
   it('returns null when loading non-existent draft', () => {
     const loaded = loadFormDraft('non-existent')
     expect(loaded).toBeNull()
+  })
+
+  it('a draft saved with a ttl is dropped from localStorage once it expires', () => {
+    saveFormDraft(seedSlug, { name: 'Mario Rossi' }, { ttlMs: 1000, now: 10_000 })
+
+    const loaded = loadFormDraft(seedSlug, { now: 11_001 })
+
+    expect(loaded).toBeNull()
+    expect(window.localStorage.getItem(getDraftStorageKey(seedSlug))).toBeNull()
+  })
+
+  it('a draft still inside its ttl is loaded', () => {
+    saveFormDraft(seedSlug, { name: 'Mario Rossi' }, { ttlMs: 1000, now: 10_000 })
+
+    const loaded = loadFormDraft(seedSlug, { now: 10_999 })
+
+    expect(loaded).toEqual({ name: 'Mario Rossi' })
+  })
+
+  it('exclude keeps the named fields out of the stored draft', () => {
+    saveFormDraft(seedSlug, { name: 'Mario Rossi', phone: '555-0100' }, { exclude: ['phone'] })
+
+    expect(window.localStorage.getItem(getDraftStorageKey(seedSlug))).not.toContain('555-0100')
+  })
+
+  it('a draft written before drafts expired is discarded on load', () => {
+    window.localStorage.setItem(getDraftStorageKey(seedSlug), JSON.stringify({ name: 'Mario Rossi' }))
+
+    const loaded = loadFormDraft(seedSlug)
+
+    expect(loaded).toBeNull()
+    expect(window.localStorage.getItem(getDraftStorageKey(seedSlug))).toBeNull()
+  })
+
+  it('purgeStaleFormDrafts removes expired and legacy drafts of every form and keeps live ones', () => {
+    saveFormDraft('expired-form', { a: '1' }, { ttlMs: 1000, now: 1 })
+    saveFormDraft('live-form', { b: '2' }, { ttlMs: 1000, now: 10_000 })
+    window.localStorage.setItem(getDraftStorageKey('legacy-form'), JSON.stringify({ c: '3' }))
+    window.localStorage.setItem('unrelated_key', 'keep')
+
+    purgeStaleFormDrafts({ now: 10_500 })
+
+    expect(window.localStorage.getItem(getDraftStorageKey('expired-form'))).toBeNull()
+    expect(window.localStorage.getItem(getDraftStorageKey('legacy-form'))).toBeNull()
+    expect(window.localStorage.getItem(getDraftStorageKey('live-form'))).not.toBeNull()
+    expect(window.localStorage.getItem('unrelated_key')).toBe('keep')
   })
 
   it('clears saved drafts from localStorage', () => {

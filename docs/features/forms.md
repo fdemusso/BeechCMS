@@ -76,7 +76,7 @@ export function ContactSection() {
 1. **Dynamic Schema**: Loads public fields from `GET /api/v1/public/:seed/schema`.
 2. **Auto-Rendering**: Generates inputs, dropdowns, textareas, and file uploaders.
 3. **Anti-Bot Defense**: Injects invisible honeypot and verifies HMAC time token.
-4. **Draft Storage**: Auto-saves typing progress to prevent data loss.
+4. **Draft Storage**: Auto-saves typing progress to `localStorage` to prevent data loss. Drafts expire after 24 hours of inactivity and never include fields classified above `public` (see [Draft Storage](#draft-storage)).
 
 ---
 
@@ -143,6 +143,26 @@ Filter which fields to render without changing CMS definitions:
   excludeFields={['internal_notes']}
 />
 ```
+
+### Draft Storage
+While a visitor types, the form writes its values in plain text to `localStorage` (`beech_form_draft_<seed>`) and restores them on the next visit. Anything typed stays readable on that browser until the draft expires or the form is submitted, so treat it as a privacy decision:
+
+- Fields whose branch `policies.classification` is `internal`, `restricted` or `confidential` are never stored.
+- `excludeFromDraft` keeps further fields out, e.g. a phone number or a free-text message.
+- `draftTtlMs` sets how long an untouched draft survives (default 24 hours). Expired drafts, and drafts written before expiry existed, are deleted the next time any form from the same origin mounts.
+- `disableDraft` turns the feature off entirely.
+
+```tsx
+<BeechForm
+  seed="clienti"
+  baseUrl="https://api.yourdomain.com"
+  excludeFromDraft={['phone', 'message']}
+  draftTtlMs={60 * 60 * 1000}
+/>
+```
+
+> [!NOTE]
+> Branches without an explicit classification count as `public` and are stored. On forms that collect personal data, classify the sensitive branches, list them in `excludeFromDraft`, or set `disableDraft`.
 
 ### Localization
 Switch languages (`it` | `en`) or pass custom dictionaries:
