@@ -5,7 +5,7 @@ import pc from 'picocolors'
 
 let [,, command, ...args] = process.argv
 
-if (command && args[0] && !args[0].startsWith('-') && ['db', 'schema', 'types', 'generate', 'agent', 'keys'].includes(command)) {
+if (command && args[0] && !args[0].startsWith('-') && ['db', 'schema', 'types', 'generate', 'agent', 'keys', 'hooks'].includes(command)) {
   command = `${command}:${args.shift()}`
 }
 
@@ -43,6 +43,7 @@ const COMMANDS = {
   'setup:cf':         cmdSetupCloudflare,
   'run':              cmdRun,
   'agent:setup':      cmdAgentSetup,
+  'hooks:init':       cmdHooksInit,
 }
 
 function help() {
@@ -119,6 +120,8 @@ function help() {
     ${pc.cyan('agent setup')}     Write .mcp.json entry, agent skill, scripts README and example script
       --force         Overwrite files that differ from the templates
       --api-url <url> API origin written to .mcp.json
+    ${pc.cyan('hooks init')}      Scaffold typed hooks.ts and wire it into worker.ts
+      --force         Overwrite hooks.ts if it differs from the template
 `)
 }
 
@@ -218,6 +221,12 @@ async function cmdAgentSetup(args) {
   const apiUrl = apiIdx !== -1 ? args[apiIdx + 1] : undefined
   const { agentSetup } = await import('../dist/index.js')
   await agentSetup({ force, apiUrl })
+}
+
+async function cmdHooksInit(args) {
+  const force = args.includes('--force')
+  const { hooksInit } = await import('../dist/index.js')
+  await hooksInit({ force })
 }
 
 async function cmdGenerateTypes(args) {

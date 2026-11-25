@@ -1,3 +1,9 @@
+---
+title: Technical Architecture
+description: Vertical Slice Architecture, Content Repository pattern (mutateField, runBatch), programmatic lifecycle hooks (beforeCreate, HookValidationError), and Cloudflare D1 transaction semantics.
+keywords: hooks, lifecycle hooks, beforeCreate, beforeUpdate, beforeDelete, afterCreate, HookValidationError, mutateField, runBatch, validation rule, cross-field, stock, computed field, custom endpoint
+---
+
 # Technical Architecture
 
 Starting from v0.4.0, the Beech CMS API follows a **Vertical Slice Architecture** and the **Repository Pattern**.
@@ -66,7 +72,7 @@ Each hook receives a `HookContext`: `{ seed, repository, actor?, db, queue? }`:
 
 ### Registration
 
-Hooks are configured at app-construction time via `createBeechApp` (`apps/api/src/index.ts`):
+Hooks are configured at app-construction time via `createBeechApp` (`worker.ts` in scaffolded projects — generated with `npx beech hooks init` — or `apps/api/src/index.ts` in the monorepo). See [Business Rules, Hooks & Automations](/build/business-rules) for the decision matrix with automations and `customRoutes`:
 
 ```typescript
 import { createBeechApp } from './factory'

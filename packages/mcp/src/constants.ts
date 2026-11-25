@@ -8,10 +8,18 @@ export const MCP_SERVER_NAME = 'beechcms-mcp'
 export const MCP_OAUTH_CLIENT_ID = 'beech-mcp'
 /** Client `beech run` uses (`packages/cli/src/lib/control-plane.ts`). Read only to report its cached scopes. */
 export const SCRIPT_OAUTH_CLIENT_ID = 'beech-mcp-cli'
-/** What the 2.0 tools need: schema tools, whoami (`settings.me`), intents, approve. */
-export const MCP_OAUTH_SCOPES = ['schema:read', 'schema:write', 'settings:read', 'agent:read', 'agent:approve'] as const satisfies readonly OAuthScope[]
+/** What the 2.0+ tools need: schema tools, whoami (`settings.me`), automations read, intents, approve. */
+export const MCP_OAUTH_SCOPES = [
+  'schema:read',
+  'schema:write',
+  'settings:read',
+  'automations:read',
+  'agent:read',
+  'agent:approve',
+] as const satisfies readonly OAuthScope[]
 export const MCP_OAUTH_SCOPE: string = MCP_OAUTH_SCOPES.join(' ')
-/** A cached grant without this scope predates 2.0 and is dropped once (client.ts). */
+/** Scopes that trigger a one-time grant reset when missing from a cached grant (e.g. pre-2.0 or pre-automations grants). */
+export const MCP_CONSENT_MARKER_SCOPES: readonly OAuthScope[] = ['agent:read', 'automations:read']
 export const MCP_V2_MARKER_SCOPE: OAuthScope = 'agent:read'
 /** Dashboard address of "Pending agent actions" (sprint 05b), relative to the auth origin. */
 export const PENDING_ACTIONS_PATH = '/admin/?settings=connected-apps&section=agent-actions'

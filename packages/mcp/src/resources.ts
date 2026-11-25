@@ -12,16 +12,19 @@ interface ResourceEntry {
   uri: string
   title: string
   description: string
+  keywords?: string[]
   file: string
 }
 
 let cachedManifest: ResourceEntry[] | null = null
 let cachedManifestMtime = 0
+const cachedContents = new Map<string, string>()
 
-/** Clears the cached resource manifest. */
+/** Clears the cached resource manifest and file contents. */
 export function clearResourceCache(): void {
   cachedManifest = null
   cachedManifestMtime = 0
+  cachedContents.clear()
 }
 
 /** Returns the number of bundled resources currently loaded. */
@@ -43,6 +46,7 @@ function loadManifest(): ResourceEntry[] {
     const raw = readFileSync(manifestPath, 'utf8')
     cachedManifest = JSON.parse(raw) as ResourceEntry[]
     cachedManifestMtime = mtime
+    cachedContents.clear()
     return cachedManifest
   } catch (err) {
     if (cachedManifest) return cachedManifest
@@ -66,11 +70,24 @@ export function listResources(): { uri: string; name: string; description: strin
   }))
 }
 
+function readCachedContent(file: string): string | null {
+  const cached = cachedContents.get(file)
+  if (cached !== undefined) return cached
+  try {
+    const text = readFileSync(join(RESOURCES_DIR, file), 'utf8')
+    cachedContents.set(file, text)
+    return text
+  } catch {
+    return null
+  }
+}
+
 /** Reads the full text content of a single resource by URI. Throws if the URI is unknown. */
 export function readResource(uri: string): { uri: string; mimeType: string; text: string } {
   const entry = loadManifest().find(e => e.uri === uri)
   if (!entry) throw new Error(`Unknown resource URI '${uri}'.`)
-  const text = readFileSync(join(RESOURCES_DIR, entry.file), 'utf8')
+  const text = readCachedContent(entry.file)
+  if (text === null) throw new Error(`Resource file missing for URI '${uri}'.`)
   return { uri: entry.uri, mimeType: 'text/markdown', text }
 }
 
@@ -93,60 +110,88 @@ function buildSnippet(text: string, query: string, radius = 100): string {
   return prefix + text.slice(start, end).replace(/\s+/g, ' ').trim() + suffix
 }
 
+export interface ResourceSearchOptions {
+  /** 'and' (default) requires every token to match; 'any' matches any token; 'fallback' returns AND hits first and fills up to limit with partial matches in one pass. */
+  matchMode?: 'and' | 'any' | 'fallback'
+}
+
 /**
- * Full-text search over the bundled resource corpus (title, description, file content).
- * The query is split into whitespace-separated tokens; a resource must contain every token
- * (case-insensitive substring, AND logic) somewhere across title/description/content to match —
- * a single-phrase substring search would miss any resource that doesn't repeat the exact typed
- * phrase verbatim. Scoring is a simple weighted sum per token: title hits rank highest, then
- * description, then content occurrence count. No external index; scans the manifest and reads
- * each candidate file directly, which is fine at this corpus size (low hundreds of short
- * markdown files, rebuilt on every build).
+ * Full-text search over the bundled resource corpus (title, keywords, description, file content).
+ * The query is split into whitespace-separated tokens; in 'and' mode a resource must contain
+ * every token (case-insensitive substring) somewhere across title/keywords/description/content.
+ * Scoring is a weighted sum per token: title (+100), keywords (+40), description (+20), content (+2 * occ).
  */
-export function searchResources(query: string, limit = 10): ResourceSearchHit[] {
+export function searchResources(query: string, limit = 10, options: ResourceSearchOptions = {}): ResourceSearchHit[] {
   const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
   if (tokens.length === 0) return []
+  const matchMode = options.matchMode ?? 'and'
 
-  const hits: ResourceSearchHit[] = []
+  const andHits: ResourceSearchHit[] = []
+  const partialHits: Array<ResourceSearchHit & { matchedTokens: number }> = []
+
   for (const entry of loadManifest()) {
     const titleLower = entry.title.toLowerCase()
+    const keywordsLower = (entry.keywords ?? []).join(' ').toLowerCase()
     const descLower = entry.description.toLowerCase()
 
-    let content = ''
-    try {
-      content = readFileSync(join(RESOURCES_DIR, entry.file), 'utf8')
-    } catch {
-      continue
-    }
+    const content = readCachedContent(entry.file)
+    if (content === null) continue
     const contentLower = content.toLowerCase()
 
     let score = 0
-    let matchedAllTokens = true
+    let matchedTokens = 0
     let firstMatchToken: string | undefined
     for (const token of tokens) {
       const titleMatch = titleLower.includes(token)
+      const keywordMatch = keywordsLower.includes(token)
       const descMatch = descLower.includes(token)
       const contentOccurrences = contentLower.split(token).length - 1
-      if (!titleMatch && !descMatch && contentOccurrences === 0) {
-        matchedAllTokens = false
-        break
+      if (!titleMatch && !keywordMatch && !descMatch && contentOccurrences === 0) {
+        if (matchMode === 'and') {
+          matchedTokens = -1
+          break
+        }
+        continue
       }
-      if (firstMatchToken === undefined && (titleMatch || descMatch || contentOccurrences > 0)) {
+      matchedTokens += 1
+      if (firstMatchToken === undefined) {
         firstMatchToken = token
       }
-      score += (titleMatch ? 100 : 0) + (descMatch ? 20 : 0) + Math.min(contentOccurrences, 10) * 2
+      score += (titleMatch ? 100 : 0) + (keywordMatch ? 40 : 0) + (descMatch ? 20 : 0) + Math.min(contentOccurrences, 10) * 2
     }
-    if (!matchedAllTokens) continue
+    if (matchedTokens <= 0) continue
 
-    hits.push({
+    const baseHit: ResourceSearchHit = {
       uri: entry.uri,
       title: entry.title,
       description: entry.description,
       score,
       snippet: buildSnippet(content, firstMatchToken ?? tokens[0]),
-    })
+    }
+
+    if (matchedTokens === tokens.length) {
+      andHits.push(baseHit)
+    } else if (matchMode === 'any' || matchMode === 'fallback') {
+      partialHits.push({ ...baseHit, score: matchedTokens * 1000 + score, matchedTokens })
+    }
   }
 
-  hits.sort((a, b) => b.score - a.score)
-  return hits.slice(0, limit)
+  andHits.sort((a, b) => b.score - a.score || a.uri.localeCompare(b.uri))
+  if (matchMode === 'and') return andHits.slice(0, limit)
+
+  partialHits.sort((a, b) => b.score - a.score || a.uri.localeCompare(b.uri))
+  if (matchMode === 'any') {
+    const combined = [
+      ...andHits.map(hit => ({ ...hit, score: tokens.length * 1000 + hit.score })),
+      ...partialHits.map(({ matchedTokens: _, ...hit }) => hit),
+    ]
+    combined.sort((a, b) => b.score - a.score || a.uri.localeCompare(b.uri))
+    return combined.slice(0, limit)
+  }
+
+  // 'fallback': exact AND matches first, then partial matches up to limit
+  return [
+    ...andHits,
+    ...partialHits.map(({ matchedTokens: _, ...hit }) => hit),
+  ].slice(0, limit)
 }

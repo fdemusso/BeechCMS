@@ -104,7 +104,7 @@ export const TOOLS = [
   {
     name: 'beech_search',
     annotations: READ_ONLY,
-    description: 'Search the BeechCMS operation catalog and docs. Returns operation id, SDK method (beech.<id>), HTTP route, scope, risk and approval rule, plus matching beechcms-docs:// resources. Use it to write .beech/scripts/*.ts instead of guessing endpoints.',
+    description: 'Search the BeechCMS operation catalog and docs (including business rules, lifecycle hooks, mutateField, runBatch, and automations). Returns operation id, SDK method (beech.<id>), HTTP route, scope, risk and approval rule, plus matching beechcms-docs:// resources. Use it to write .beech/scripts/*.ts instead of guessing endpoints.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -113,6 +113,18 @@ export const TOOLS = [
         limit: { type: 'number', description: 'Max operations to return. Defaults to 10, max 50.' },
       },
       required: ['query'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'beech_automations',
+    annotations: READ_ONLY,
+    description: 'Return the authoritative BeechCMS automation rule schema (triggers, WhenNode conditions, action shapes, interpolated fields, and limits), and optionally list existing automations for a seed when `seed` is passed. Write automations via beech.automations.* in a beech run script.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        seed: { type: 'string', description: 'Optional seed slug to list existing automations for.' },
+      },
       additionalProperties: false,
     },
   },

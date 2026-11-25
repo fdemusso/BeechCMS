@@ -61,6 +61,16 @@ spent, so fix the cause and run the script again.
 the \`updatedAt\` read with \`beech.layout.get()\`, or \`null\` for a first save (needs \`manage_roles\` at \`*\`). A stale value
 answers 409 \`layout-conflict\`: read again and re-apply the edit.
 
+## Business rules (hooks vs automations vs scripts)
+
+Do not assume BeechCMS lacks cross-field validation, atomic counters, computed fields, or custom endpoints (\`beech_docs_search "business rules"\` or \`beechcms-docs://build/business-rules.md\`):
+
+- **Lifecycle hooks** (\`createBeechApp({ hooks })\` in \`hooks.ts\` -> \`worker.ts\`, scaffold with \`npx beech hooks init\`): use \`beforeCreate\` / \`beforeUpdate\` / \`beforeDelete\` and \`HookValidationError\` (maps to \`422\` with \`errors[]\`) for cross-field rules and derived fields. Always filter by \`ctx.seed.slug\` (\`BeechHooks\` is global). \`after*\` hooks run post-commit with **no rollback** on D1.
+- **Atomic counters & multi-seed batches**: use \`ctx.repository.mutateField(seed, id, field, { type: 'increment' | 'decrement', value }, { min, max })\` for race-safe stock/balances, and \`ctx.repository.runBatch([...])\` for multi-seed atomic D1 batches. Both bypass document-level hooks.
+- **Custom endpoints & queues**: use \`createBeechApp({ customRoutes, jobs })\` when logic needs its own route or async queue job.
+- **Automations** (D1-stored, no deploy): call \`beech_automations\` for the rule schema (\`WhenNode\`, actions, interpolation) and \`beech.automations.*\` in scripts (\`create\`/\`update\`/\`toggle\` are \`publish\` risk; \`delete\` is \`destructive\`). Limits: \`edit_field\` updates only the triggering entry (no child-to-parent updates) and refuses localized fields; \`send_mail.to\` supports \`{{...}}\` while \`webhook.url\` is static \`https://\`; \`create_entry.field_map\` does not interpolate \`{{...}}\`; no arithmetic in templates; no previous values in \`WhenNode\`.
+- **Public forms**: set \`allowPublicPost\`, \`defaultPublicStatus\`, Time-Trap, and \`Idempotency-Key\` via seed/Public API instead of writing custom intake routes.
+
 ## Rules
 
 - Use \`import type\` for types and the \`.ts\` extension on relative value imports. No \`enum\` or \`namespace\`.

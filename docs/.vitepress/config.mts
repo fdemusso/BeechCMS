@@ -102,6 +102,7 @@ export default defineConfig({
         {
           text: 'Extension & Customization',
           items: [
+            { text: 'Business Rules & Hooks', link: '/build/business-rules' },
             { text: 'Custom Widgets', link: '/build/custom-widgets' }
           ]
         },

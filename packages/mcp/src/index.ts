@@ -41,6 +41,7 @@ import {
   type AgentToolDeps,
   type ElicitOutcome,
 } from './agent-tools.js'
+import { beechAutomations } from './automations-tool.js'
 import { searchOperations, type SearchDetail } from './catalog-search.js'
 import {
   CONFIRM_DECISION_SCHEMA,
@@ -328,14 +329,18 @@ async function handleTool(name: string, args: Record<string, unknown>) {
       const requestedLimit = typeof args.limit === 'number' && Number.isFinite(args.limit) ? Math.trunc(args.limit) : SEARCH_DEFAULT_LIMIT
       const limit = Math.min(SEARCH_MAX_LIMIT, Math.max(1, requestedLimit))
       const allowedScopes = scriptGrantScopes()
+      const docs = searchResources(query, SEARCH_DOCS_LIMIT, { matchMode: 'fallback' })
       return textResult({
         query,
         detail,
         scriptScopesKnown: allowedScopes !== null,
         operations: searchOperations(query, { detail: detail as SearchDetail, limit, allowedScopes }),
-        docs: searchResources(query, SEARCH_DOCS_LIMIT).map(({ uri, title, snippet }) => ({ uri, title, snippet })),
+        docs: docs.map(({ uri, title, snippet }) => ({ uri, title, snippet })),
       })
     }
+
+    case 'beech_automations':
+      return textResult(await beechAutomations({ seed: args.seed }, { send }))
 
     case 'beech_mcp_status': {
       const bundleHash = computeBundleHash([fileURLToPath(import.meta.url)])

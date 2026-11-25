@@ -13,9 +13,9 @@
 
 import { clearGrant, createApiClient, readGrant, resolveApiConfig, type ApiResponse } from '@beechcms/api-client'
 import {
+  MCP_CONSENT_MARKER_SCOPES,
   MCP_OAUTH_CLIENT_ID,
   MCP_OAUTH_SCOPE,
-  MCP_V2_MARKER_SCOPE,
   PENDING_ACTIONS_PATH,
   SCRIPT_OAUTH_CLIENT_ID,
 } from './constants.js'
@@ -33,18 +33,21 @@ dropLegacyGrant()
 const client = createApiClient(config)
 
 /**
- * Clears a cached grant that predates 2.0 (no `agent:read`), so the next call asks for the new scopes once.
- * Writes to stderr only: stdout is the stdio protocol channel.
+ * Clears a cached grant that predates current required marker scopes (e.g. `agent:read`, `automations:read`),
+ * so the next call asks for the updated scopes once. Writes to stderr only: stdout is the stdio protocol channel.
  */
 function dropLegacyGrant(): void {
   const requestedScopes = config.oauth.scope.split(/\s+/)
-  if (!requestedScopes.includes(MCP_V2_MARKER_SCOPE)) return
+  const requiredMarkers = MCP_CONSENT_MARKER_SCOPES.filter(marker => requestedScopes.includes(marker))
+  if (requiredMarkers.length === 0) return
 
   const cached = readGrant(config.baseUrl, config.oauth.clientId)
-  if (!cached || cached.scope.split(/\s+/).includes(MCP_V2_MARKER_SCOPE)) return
+  if (!cached) return
+  const cachedScopes = cached.scope.split(/\s+/)
+  if (requiredMarkers.every(marker => cachedScopes.includes(marker))) return
 
   clearGrant(config.baseUrl, config.oauth.clientId)
-  console.error('BeechCMS MCP 2.0 needs new permissions: your browser opens for consent on the next call.')
+  console.error('BeechCMS MCP needs new permissions: your browser opens for consent on the next call.')
 }
 
 /** Sends an authenticated request to the BeechCMS API. See `@beechcms/api-client`. */

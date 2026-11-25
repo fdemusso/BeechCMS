@@ -90,6 +90,15 @@ Read three fields of the report: `result` (what the script returned), `calls` (e
 
 For typed per-seed access, run `beech types generate` and type the script with `defineScript<SeedRegistryTypes>`.
 
+## Business rules: hooks vs automations
+
+Schema and content operations run through the control plane (`beech_schema_*` and `beech run` scripts). For business logic:
+
+- **Automations** (`beech_automations` to inspect rules and schema; `beech.automations.*` in scripts to create or edit) handle async `send_mail`, `webhook`, `edit_field` on the triggering entry, `create_entry`, and `set_variable` workflows in D1 without a deploy.
+- **Lifecycle hooks & atomic repository helpers** (`beforeCreate`, `beforeUpdate`, `beforeDelete`, `HookValidationError`, `mutateField`, `runBatch`, `customRoutes`) live in Worker application code (`hooks.ts` -> `worker.ts`, scaffolded with `npx beech hooks init`). An agent can generate and wire the code for you to review and deploy.
+
+See [Business Rules, Hooks & Automations](/build/business-rules) for the full decision matrix and D1 transaction constraints.
+
 ## Approving risky actions
 
 The API decides per `ENV` which calls need a human:

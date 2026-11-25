@@ -38,6 +38,13 @@ Explore the key building blocks and engineering guides:
 </div>
 
 <div style="border: 1px solid var(--vp-c-border); border-radius: 8px; padding: 18px; background: var(--vp-c-bg-elv);">
+  <h3 style="margin-top: 0;"><a :href="withBase('/build/business-rules.html')">Business Rules, Hooks & Automations</a></h3>
+  <p style="color: var(--vp-c-text-2); font-size: 0.9rem;">
+    Enforce cross-field validation, derived fields, atomic counters (<code>mutateField</code>), multi-seed batches (<code>runBatch</code>), custom routes, and event automations.
+  </p>
+</div>
+
+<div style="border: 1px solid var(--vp-c-border); border-radius: 8px; padding: 18px; background: var(--vp-c-bg-elv);">
   <h3 style="margin-top: 0;"><a :href="withBase('/build/custom-widgets.html')">Custom Widgets SDK</a></h3>
   <p style="color: var(--vp-c-text-2); font-size: 0.9rem;">
     Extend the dashboard editor with sandboxed iframe widgets using <code>@beechcms/widget-sdk</code>, postMessage bridges, and manifests.

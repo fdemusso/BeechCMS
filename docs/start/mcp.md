@@ -88,7 +88,9 @@ The agent calls `beech_list_seeds` for the seeds and `beech_whoami` for your use
 
 ## 4. The Agent Skill
 
-`beech agent setup` writes the skill to `.claude/skills/beechcms-scripts/SKILL.md`; your agent loads it on its own. It teaches the script workflow, the dry-run habit and the rule that only `beech_confirm` or the dashboard approves an intent. `packages/mcp/SKILL.md` is the MCP-side version of the same rules, shipped with the server.
+`beech agent setup` writes the skill to `.claude/skills/beechcms-scripts/SKILL.md`; your agent loads it on its own. It teaches the script workflow, the dry-run habit, the rule that only `beech_confirm` or the dashboard approves an intent, and when to reach for **hooks** vs **automations** vs **scripts** for business logic. `packages/mcp/SKILL.md` is the MCP-side version of the same rules, shipped with the server.
+
+For custom validation rules, atomic stock/counter mutations (`mutateField`), multi-seed batches (`runBatch`), and event automations, see [Business Rules, Hooks & Automations](/build/business-rules) and [Programmatic Lifecycle Hooks](/reference/architecture#programmatic-lifecycle-hooks).
 
 ---
 

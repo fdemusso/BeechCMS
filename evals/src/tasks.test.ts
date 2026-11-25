@@ -5,8 +5,8 @@
 import { describe, expect, it } from 'vitest'
 import { CANONICAL_SEEDS } from '../../packages/testing/src/seeds/canonical.seeds.ts'
 import {
-  addBranchTask, authorReportTask, bulkTagTask, createManyTask, createSeedTask, EVAL_SUITE,
-  purgeIntentTask, seedDeleteIntentTask, trashRestoreTask,
+  addBranchTask, authorReportTask, automationRuleCreateTask, bulkTagTask, businessRuleHooksTask,
+  createManyTask, createSeedTask, EVAL_SUITE, purgeIntentTask, seedDeleteIntentTask, trashRestoreTask,
 } from './tasks.ts'
 
 type Entry = Record<string, unknown>
@@ -206,13 +206,80 @@ describe('seedDeleteIntentTask.check', () => {
   })
 })
 
+describe('automationRuleCreateTask.check', () => {
+  it('passes when Notify booking triggers on create/update for status confirmed and emails customer_email', () => {
+    const verdict = automationRuleCreateTask.check({
+      status: 200,
+      body: [
+        {
+          id: 'a1',
+          name: 'Notify booking',
+          triggers: [{ event: 'create' }, { event: 'update' }],
+          trigger_conditions: {
+            kind: 'predicate',
+            left: { kind: 'ref', key: 'this.status' },
+            op: 'eq',
+            right: { kind: 'literal', value: 'confirmed' },
+          },
+          actions: [{ type: 'send_mail', to: '{{this.customer_email}}', subject_template: 'Confirmed', body_template: 'Booking confirmed' }],
+        },
+      ],
+    })
+
+    expect(verdict.success).toBe(true)
+  })
+
+  it('fails when send_mail.to uses a static address instead of customer_email', () => {
+    const verdict = automationRuleCreateTask.check({
+      status: 200,
+      body: [
+        {
+          id: 'a1',
+          name: 'Notify booking',
+          triggers: [{ event: 'create' }, { event: 'update' }],
+          trigger_conditions: { kind: 'predicate', left: { kind: 'ref', key: 'this.status' }, op: 'eq', right: { kind: 'literal', value: 'confirmed' } },
+          actions: [{ type: 'send_mail', to: 'admin@example.com', subject_template: 'Confirmed', body_template: 'Booking confirmed' }],
+        },
+      ],
+    })
+
+    expect(verdict.success).toBe(false)
+    expect(verdict.detail).toContain('customer_email')
+  })
+})
+
+describe('businessRuleHooksTask.check', () => {
+  const ordersOk = { status: 200, body: { slug: 'orders', status: 'active' } }
+
+  it('passes when HookValidationError, mutateField, and afterHookRollback: false are identified', () => {
+    const verdict = businessRuleHooksTask.check(ordersOk, null, {
+      validationMechanism: 'beforeCreate + HookValidationError',
+      atomicCounterMethod: 'repository.mutateField',
+      afterHookRollback: false,
+    })
+
+    expect(verdict.success).toBe(true)
+  })
+
+  it('fails when afterHookRollback is true or mutateField is missing', () => {
+    const verdict = businessRuleHooksTask.check(ordersOk, null, {
+      validationMechanism: 'HookValidationError',
+      atomicCounterMethod: 'update',
+      afterHookRollback: true,
+    })
+
+    expect(verdict.success).toBe(false)
+  })
+})
+
 describe('EVAL_SUITE', () => {
-  it('holds eight tasks with unique ids in the documented order', () => {
+  it('holds ten tasks with unique ids in the documented order', () => {
     const ids = EVAL_SUITE.map(task => task.id)
 
     expect(ids).toEqual([
       'schema-add-branch', 'schema-create-seed', 'content-create-many', 'content-bulk-tag',
       'content-author-report', 'trash-restore', 'content-purge-intent', 'seed-delete-intent',
+      'automation-rule-create', 'business-rule-hooks-design',
     ])
   })
 })

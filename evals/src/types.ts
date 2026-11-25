@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 export type EvalVariant = 'v1' | 'v2'
-export type TaskArea = 'schema' | 'content' | 'trash' | 'intent'
+export type TaskArea = 'schema' | 'content' | 'trash' | 'intent' | 'automations' | 'business-rules'
 
 export interface TaskVerdict {
   success: boolean

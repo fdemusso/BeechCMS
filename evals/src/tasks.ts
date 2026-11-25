@@ -404,6 +404,148 @@ export const seedDeleteIntentTask = {
   },
 } satisfies TaskSpec<null, SeedDeleteSnapshot>
 
+// ---------------------------------------------------------------------------------------------
+// 9 — automation-rule-create
+// ---------------------------------------------------------------------------------------------
+
+interface AutomationTriggerView { event?: string }
+interface WhenNodeView { kind?: string; op?: string; left?: { kind?: string; key?: string }; right?: { kind?: string; value?: unknown }; children?: WhenNodeView[] }
+interface AutomationActionView { type?: string; to?: string; subject_template?: string; body_template?: string }
+interface AutomationRecordView {
+  id?: string
+  name?: string
+  triggers?: AutomationTriggerView[]
+  trigger_conditions?: WhenNodeView | null
+  actions?: AutomationActionView[]
+}
+
+function hasStatusConfirmedCondition(node: WhenNodeView | null | undefined): boolean {
+  if (!node) return false
+  if (node.kind === 'predicate') {
+    const key = node.left?.kind === 'ref' ? node.left.key : ''
+    const matchesField = key === 'this.status' || key === 'this:status' || key === 'status'
+    return matchesField && node.op === 'eq' && node.right?.kind === 'literal' && node.right.value === 'confirmed'
+  }
+  return Array.isArray(node.children) && node.children.some(child => hasStatusConfirmedCondition(child))
+}
+
+export const automationRuleCreateTask = {
+  id: 'automation-rule-create',
+  title: 'Create a conditional send_mail automation on bookings',
+  area: 'automations',
+  expectV1: false,
+  answers: false,
+  async setup(api: AdminApi): Promise<null> {
+    await api.expect('POST', '/api/seeds', 201, {
+      slug: 'bookings',
+      label: 'Booking',
+      labelPlural: 'Bookings',
+      displayNameAlias: 'customer_email',
+      branches: [
+        { id: 'br_01', alias: 'customer_email', label: 'Customer email', type: 'text', requiredOnCreate: true },
+        {
+          id: 'br_02',
+          alias: 'booking_status',
+          label: 'Booking status',
+          type: 'tags',
+          multiple: false,
+          options: [
+            { value: 'pending', color: '#eab308' },
+            { value: 'confirmed', color: '#22c55e' },
+          ],
+        },
+      ],
+    })
+    return null
+  },
+  prompt: () =>
+    'Configure an automation named "Notify booking" on the "bookings" content type: when an entry is created or updated with status "confirmed", send an email to the customer\'s `customer_email` field with subject "Confirmed" and body "Booking confirmed".',
+  collect: (api: AdminApi) => api.get<AutomationRecordView[] | null>('/api/automations?seed=bookings'),
+  check(automations: ApiResult<AutomationRecordView[] | null>): TaskVerdict {
+    if (automations.status !== 200 || !Array.isArray(automations.body)) {
+      return fail(`GET /api/automations?seed=bookings answered ${automations.status}`)
+    }
+    const rule = automations.body.find(item => item.name === 'Notify booking')
+    if (!rule) return fail('no automation named "Notify booking" found for bookings')
+
+    const events = (rule.triggers ?? []).map(trigger => trigger.event).filter((event): event is string => typeof event === 'string')
+    if (!events.includes('create') || !events.includes('update')) {
+      return fail(`triggers are [${events.join(', ')}], expected create and update`)
+    }
+    if (!hasStatusConfirmedCondition(rule.trigger_conditions)) {
+      return fail('trigger_conditions does not check status eq "confirmed"')
+    }
+    const mail = (rule.actions ?? []).find(action => action.type === 'send_mail')
+    if (!mail) return fail('no send_mail action found')
+    const to = mail.to ?? ''
+    if (!/\{\{\s*(?:this[.:])?customer_email\s*\}\}/.test(to)) {
+      return fail(`send_mail.to is "${to}", expected customer_email placeholder`)
+    }
+    return pass('Notify booking triggers on create/update when status is confirmed and emails {{this.customer_email}}')
+  },
+} satisfies TaskSpec<null, ApiResult<AutomationRecordView[] | null>>
+
+// ---------------------------------------------------------------------------------------------
+// 10 — business-rule-hooks-design
+// ---------------------------------------------------------------------------------------------
+
+export const businessRuleHooksTask = {
+  id: 'business-rule-hooks-design',
+  title: 'Identify hooks, HookValidationError, mutateField, and D1 rollback limits',
+  area: 'business-rules',
+  expectV1: false,
+  answers: true,
+  async setup(api: AdminApi): Promise<null> {
+    await api.expect('POST', '/api/seeds', 201, {
+      slug: 'products',
+      label: 'Product',
+      labelPlural: 'Products',
+      displayNameAlias: 'name',
+      branches: [
+        { id: 'br_01', alias: 'name', label: 'Name', type: 'text', requiredOnCreate: true },
+        { id: 'br_02', alias: 'stock', label: 'Stock', type: 'number', requiredOnCreate: true },
+      ],
+    })
+    await api.expect('POST', '/api/seeds', 201, {
+      slug: 'orders',
+      label: 'Order',
+      labelPlural: 'Orders',
+      displayNameAlias: 'reference',
+      branches: [
+        { id: 'br_01', alias: 'reference', label: 'Reference', type: 'text', requiredOnCreate: true },
+        { id: 'br_02', alias: 'product_id', label: 'Product', type: 'relation', targetSeed: 'products', multiple: false },
+        { id: 'br_03', alias: 'starts_at', label: 'Starts at', type: 'date' },
+        { id: 'br_04', alias: 'ends_at', label: 'Ends at', type: 'date' },
+      ],
+    })
+    return null
+  },
+  prompt: () =>
+    'We need two business rules on "orders" and "products": (1) reject an order with a 422 field-level error if `ends_at` is before `starts_at`, and (2) atomically decrement `products.stock` without going negative (`min: 0`) when fulfilling an order. Check how BeechCMS implements these rules (do not modify the schemas) and answer with JSON `{ "validationMechanism": string, "atomicCounterMethod": string, "afterHookRollback": boolean }` naming the hook/error class for (1), the repository method for (2), and whether `after*` hooks roll back D1 writes.',
+  collect: (api: AdminApi) => api.get<SeedRecordView | null>('/api/seeds/orders'),
+  check(ordersSeed: ApiResult<SeedRecordView | null>, _fixture: null, answer: unknown): TaskVerdict {
+    if (ordersSeed.status !== 200) return fail(`GET /api/seeds/orders answered ${ordersSeed.status}`)
+    if (answer === undefined) return fail('no parsable ANSWER line')
+    if (answer === null || typeof answer !== 'object' || Array.isArray(answer)) return fail('answer is not a JSON object')
+
+    const record = answer as Record<string, unknown>
+    const validation = typeof record.validationMechanism === 'string' ? record.validationMechanism : ''
+    const counter = typeof record.atomicCounterMethod === 'string' ? record.atomicCounterMethod : ''
+    const rollback = record.afterHookRollback
+
+    if (!validation.includes('HookValidationError') && !validation.includes('beforeCreate')) {
+      return fail(`validationMechanism "${validation}" does not name HookValidationError or beforeCreate`)
+    }
+    if (!counter.includes('mutateField')) {
+      return fail(`atomicCounterMethod "${counter}" does not name mutateField`)
+    }
+    if (rollback !== false) {
+      return fail(`afterHookRollback is ${JSON.stringify(rollback)}, expected false`)
+    }
+    return pass('identified HookValidationError/beforeCreate, mutateField, and non-rollback after* constraint')
+  },
+} satisfies TaskSpec<null, ApiResult<SeedRecordView | null>>
+
 export const EVAL_SUITE: readonly EvalTask[] = [
   defineTask(addBranchTask),
   defineTask(createSeedTask),
@@ -413,4 +555,6 @@ export const EVAL_SUITE: readonly EvalTask[] = [
   defineTask(trashRestoreTask),
   defineTask(purgeIntentTask),
   defineTask(seedDeleteIntentTask),
+  defineTask(automationRuleCreateTask),
+  defineTask(businessRuleHooksTask),
 ]

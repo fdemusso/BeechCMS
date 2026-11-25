@@ -44,6 +44,7 @@ describe('CLI and Documentation Parity (Fact-Checking)', () => {
       'setup:cloudflare': ['setup:cloudflare', 'setup:cf'],
       dev: ['dev', 'start'],
       'agent:setup': ['agent:setup', 'agent setup'],
+      'hooks:init': ['hooks:init', 'hooks init'],
     }
 
     const checkedCommands = new Set<string>()

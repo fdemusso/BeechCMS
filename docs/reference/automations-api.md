@@ -1,3 +1,9 @@
+---
+title: Automations API
+description: REST API, WhenNode conditions, action schemas (send_mail, webhook, edit_field, create_entry, set_variable), template interpolation, and limits for BeechCMS automations.
+keywords: automations, webhook, send_mail, edit_field, create_entry, set_variable, WhenNode, cron, trigger_conditions, template interpolation
+---
+
 # Automations API
 
 All automation routes require JWT authentication (same `Authorization: Bearer` header as the content API).
@@ -108,18 +114,24 @@ When `event` is `'cron'`, `cron` must be a valid cron expression string (e.g. `"
 
 | Type | Required Fields | Optional Fields | Notes |
 |---|---|---|---|
-| `webhook` | `url`, `body_template` | `method` (POST/GET/PUT), `headers` | `url` must be `https://` and cannot point to private IP ranges (anti-SSRF). `body_template` is required. |
-| `send_mail` | `to`, `subject_template`, `body_template` | — | `to` must be a valid email format. |
-| `edit_field` | `field`, `value` | — | `value` supports template interpolation when string. |
-| `create_entry` | `seed_slug`, `field_map` | — | `field_map` maps `targetField: sourceFieldAlias` directly from the triggering entry. |
+| `webhook` | `url`, `body_template` | `method` (POST/GET/PUT), `headers` | `url` must be a static `https://` URL (no `\{\{...\}\}` interpolation) and cannot point to private IP ranges (anti-SSRF). `body_template` is required. |
+| `send_mail` | `to`, `subject_template`, `body_template` | — | `to` must be a valid email address or contain a `\{\{...\}\}` template placeholder (e.g. `\{\{this.email\}\}`). |
+| `edit_field` | `field`, `value` | — | Updates the **triggering entry only** (no parent/sibling seed updates). Refuses localized fields. `value` supports template interpolation when string. |
+| `create_entry` | `seed_slug`, `field_map` | — | `field_map` maps `targetField: sourceFieldAlias` (or a literal value; no `\{\{...\}\}` template interpolation) and always creates entries with status `'draft'`. |
 | `set_variable` | `name` | `seed_slug`, `fixed_id`, `column`, `filters`, `order_by`, `order` | `fixed_id` and string filter values support template interpolation. |
 
 ### Template Interpolation
-`body_template`, `subject_template`, `edit_field.value`, and `set_variable.fixed_id` support template interpolation:
+`send_mail.to`, `body_template`, `subject_template`, `edit_field.value`, `set_variable.fixed_id`, and string `set_variable.filters[].value` support template interpolation:
 - Access fields from the triggering entry: <span v-pre>`\{\{this.fieldAlias\}\}`</span> or <span v-pre>`\{\{this:fieldAlias\}\}`</span>
 - Access variables declared by `set_variable`: <span v-pre>`\{\{varName.column\}\}`</span> or <span v-pre>`\{\{varName.count\}\}`</span>
 
 For webhook bodies, place placeholders inside JSON string quotes. Substituted values are JSON-escaped, preserving quotes, backslashes, newlines, and other control characters after the receiver parses the body. The surrounding template is unchanged. For example, <span v-pre>`{"note":"\{\{this.note\}\}"}`</span> sends `note` as a string, including when the source value is numeric or boolean.
+
+### Constraints & Limits
+- **Triggering entry scope**: `edit_field` only modifies the entry that fired the automation. Use [Lifecycle Hooks](/build/business-rules) (`ctx.repository.mutateField` / `runBatch`) to update a parent or related seed.
+- **No arithmetic in templates**: Expressions such as `{{this.stock - 1}}` are not evaluated. Use `mutateField` in a lifecycle hook or custom route for counters.
+- **No previous entry values in `WhenNode`**: Conditions evaluate the current state of the entry (`this.*`), `batch`, and literal seed-scoped refs; prior values before an update are not tracked.
+- **`set_variable` runs in `actions[]` only**: Variables declared by `set_variable` are not available during `trigger_conditions` evaluation.
 
 **Response `201 Created`:**
 

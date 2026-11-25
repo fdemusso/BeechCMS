@@ -32,16 +32,26 @@ function walkMarkdown(dir) {
   return out
 }
 
-function extractTitleAndDescription(absPath, fallbackRelPath) {
+function parseKeywords(raw) {
+  if (!raw) return []
+  const cleaned = raw.trim().replace(/^\[|\]$/g, '')
+  return cleaned
+    .split(',')
+    .map((item) => item.trim().replace(/^['"]|['"]$/g, ''))
+    .filter(Boolean)
+}
+
+function extractMetadata(absPath, fallbackRelPath) {
   const raw = readFileSync(absPath, 'utf8')
-  const fm = raw.match(/^---\n([\s\S]*?)\n---/)
+  const fm = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
   if (fm) {
     const title = fm[1].match(/^title:\s*(.+)$/m)?.[1]?.trim()
     const description = fm[1].match(/^description:\s*(.+)$/m)?.[1]?.trim()
-    if (title) return { title, description: description ?? '' }
+    const keywords = parseKeywords(fm[1].match(/^keywords:\s*(.+)$/m)?.[1])
+    if (title) return { title, description: description ?? '', keywords }
   }
   const heading = raw.match(/^#{1,2}\s+(.+)$/m)?.[1]?.trim()
-  return { title: heading ?? fallbackRelPath, description: '' }
+  return { title: heading ?? fallbackRelPath, description: '', keywords: [] }
 }
 
 rmSync(OUT_DIR, { recursive: true, force: true })
@@ -56,8 +66,14 @@ for (const item of INCLUDE) {
     const destAbs = join(OUT_DIR, item.dest)
     mkdirSync(dirname(destAbs), { recursive: true })
     cpSync(srcAbs, destAbs)
-    const { title, description } = extractTitleAndDescription(srcAbs, item.dest)
-    manifest.push({ uri: `beechcms-docs://${item.dest}`, title, description, file: item.dest })
+    const { title, description, keywords } = extractMetadata(srcAbs, item.dest)
+    manifest.push({
+      uri: `beechcms-docs://${item.dest}`,
+      title,
+      description,
+      ...(keywords.length > 0 ? { keywords } : {}),
+      file: item.dest,
+    })
     continue
   }
   const files = walkMarkdown(srcAbs)
@@ -67,8 +83,14 @@ for (const item of INCLUDE) {
     const destAbs = join(OUT_DIR, destRel)
     mkdirSync(dirname(destAbs), { recursive: true })
     cpSync(absFile, destAbs)
-    const { title, description } = extractTitleAndDescription(absFile, destRel)
-    manifest.push({ uri: `beechcms-docs://${destRel.split('\\').join('/')}`, title, description, file: destRel.split('\\').join('/') })
+    const { title, description, keywords } = extractMetadata(absFile, destRel)
+    manifest.push({
+      uri: `beechcms-docs://${destRel.split('\\').join('/')}`,
+      title,
+      description,
+      ...(keywords.length > 0 ? { keywords } : {}),
+      file: destRel.split('\\').join('/'),
+    })
   }
 }
 

@@ -48,19 +48,23 @@ describe('mcp client', () => {
     expect(createApiClient).toHaveBeenCalledWith(expect.objectContaining({ oauth: expect.objectContaining({ clientId: 'beech-mcp' }) }))
   })
 
-  it('a cached grant without agent:read is cleared once at startup', async () => {
-    vi.mocked(readGrant).mockReturnValue({ accessToken: 'a', refreshToken: 'r', scope: 'schema:read schema:write', expiresAt: 0 })
-    const stderr = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  it('a cached grant without agent:read or automations:read is cleared once at startup', async () => {
+    for (const legacyScope of ['schema:read schema:write', 'schema:read schema:write settings:read agent:read agent:approve']) {
+      vi.resetModules()
+      vi.clearAllMocks()
+      vi.mocked(readGrant).mockReturnValue({ accessToken: 'a', refreshToken: 'r', scope: legacyScope, expiresAt: 0 })
+      const stderr = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
-    await import('./client.js')
+      await import('./client.js')
 
-    expect(clearGrant).toHaveBeenCalledExactlyOnceWith('http://localhost:8789', 'beech-mcp')
-    expect(stderr).toHaveBeenCalledOnce()
-    stderr.mockRestore()
+      expect(clearGrant).toHaveBeenCalledExactlyOnceWith('http://localhost:8789', 'beech-mcp')
+      expect(stderr).toHaveBeenCalledOnce()
+      stderr.mockRestore()
+    }
   })
 
-  it('a cached grant with agent:read is kept even when narrower than requested', async () => {
-    vi.mocked(readGrant).mockReturnValue({ accessToken: 'a', refreshToken: 'r', scope: 'agent:read', expiresAt: 0 })
+  it('a cached grant with agent:read and automations:read is kept even when narrower than requested', async () => {
+    vi.mocked(readGrant).mockReturnValue({ accessToken: 'a', refreshToken: 'r', scope: 'agent:read automations:read', expiresAt: 0 })
 
     await import('./client.js')
 

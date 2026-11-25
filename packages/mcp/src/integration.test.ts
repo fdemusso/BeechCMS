@@ -150,6 +150,18 @@ describe('MCP Server Integration & Operational Test', () => {
         return
       }
 
+      if (url.pathname === '/api/automations' && req.method === 'GET') {
+        const seed = url.searchParams.get('seed')
+        if (!seed) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ status: 400, type: 'missing-seed', detail: 'Query param `seed` is required' }))
+          return
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify([{ id: 'auto_1', seed_slug: seed, name: 'Notify', enabled: true }]))
+        return
+      }
+
       if (url.pathname.endsWith('/mcp-plan') && req.method === 'POST') {
         const slug = url.pathname.split('/')[3]
         const candidate = parsedBody.candidate
@@ -264,6 +276,7 @@ describe('MCP Server Integration & Operational Test', () => {
     const tools = await client.listTools()
     const names = tools.tools.map(t => t.name).sort()
     expect(names).toEqual([
+      'beech_automations',
       'beech_confirm',
       'beech_docs_search',
       'beech_get_seed',
@@ -279,6 +292,28 @@ describe('MCP Server Integration & Operational Test', () => {
       'beech_whoami',
     ])
   })
+
+  it('beech_automations returns the rule schema without seed and fetches seed automations when seed is set', async () => {
+    const schemaOnly = (await client.callTool({ name: 'beech_automations', arguments: {} })) as ToolPayload
+    expect(schemaOnly.isError).toBeFalsy()
+    const parsedSchema = JSON.parse(schemaOnly.content[0].text) as { automations?: unknown; schema: { limits: string[] } }
+    expect(parsedSchema.automations).toBeUndefined()
+    expect(parsedSchema.schema.limits.length).toBeGreaterThan(0)
+
+    const withSeed = (await client.callTool({ name: 'beech_automations', arguments: { seed: 'articles' } })) as ToolPayload
+    expect(withSeed.isError).toBeFalsy()
+    const parsedSeed = JSON.parse(withSeed.content[0].text) as { seed: string; automations: Array<{ id: string }> }
+    expect(parsedSeed.seed).toBe('articles')
+    expect(parsedSeed.automations[0]?.id).toBe('auto_1')
+  })
+
+  it('beech_search surfaces business-rules and architecture docs for business-rule queries', async () => {
+    const res = (await client.callTool({ name: 'beech_search', arguments: { query: 'validation rule custom endpoint' } })) as ToolPayload
+    expect(res.isError).toBeFalsy()
+    const parsed = JSON.parse(res.content[0].text) as { docs: Array<{ uri: string }> }
+    const uris = parsed.docs.map(doc => doc.uri)
+    expect(uris).toContain('beechcms-docs://build/business-rules.md')
+  }, 15_000)
 
   it('beech_mcp_status returns server status and bundle hash', async () => {
     const res = (await client.callTool({ name: 'beech_mcp_status', arguments: {} })) as any

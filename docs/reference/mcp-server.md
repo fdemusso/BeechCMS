@@ -109,7 +109,7 @@ Configure your MCP client (Claude Code, Claude Desktop, Cursor, Antigravity) to 
 | `BEECH_API_URL` | No | `http://localhost:8789` | Target BeechCMS API origin (token endpoint + REST API). Matches the port `beech dev` runs Wrangler on. If unset and `.dev.vars` exists in `process.cwd()`, the server extracts `BEECH_API_URL` from that file. |
 | `BEECH_AUTH_URL` | No | `BEECH_API_URL` | Origin the *browser* opens for `/oauth/authorize`. In local dev the Worker does not serve the consent screen, so `/oauth/authorize` redirects the browser to the dashboard origin set by the API's `APP_URL` (`http://localhost:5173`); set `BEECH_AUTH_URL` to that origin to skip the redirect. |
 | `BEECH_OAUTH_CLIENT_ID` | No | `beech-mcp` | Must match the OAuth client seeded in D1 (`apps/api/migrations/0000_v040_base.sql`). |
-| `BEECH_OAUTH_SCOPE` | No | `schema:read schema:write settings:read agent:read agent:approve` | Scopes requested at consent. Narrowing it disables the tools that need the dropped scope: without `agent:approve`, `beech_confirm` can only fall back to the dashboard. |
+| `BEECH_OAUTH_SCOPE` | No | `schema:read schema:write settings:read automations:read agent:read agent:approve` | Scopes requested at consent. Narrowing it disables the tools that need the dropped scope: without `agent:approve`, `beech_confirm` can only fall back to the dashboard; without `automations:read`, `beech_automations({ seed })` still works schema-only without `seed`. |
 | `BEECH_OAUTH_TIMEOUT_MS` | No | `180000` | Browser round-trip budget, in milliseconds. |
 | `BEECH_TOKEN_CACHE` | No | `~/.beechcms/mcp-tokens.json` | Token cache path override (tests, containers). |
 
@@ -126,7 +126,7 @@ Two OAuth clients take part in the control plane. Each triggers its own browser 
 
 | Client id | Used by | Requested scopes | Can approve intents |
 |---|---|---|---|
-| `beech-mcp` | This MCP server | `schema:read schema:write settings:read agent:read agent:approve` | **Yes**: the only client granted `agent:approve` |
+| `beech-mcp` | This MCP server | `schema:read schema:write settings:read automations:read agent:read agent:approve` | **Yes**: the only client granted `agent:approve` |
 | `beech-mcp-cli` | `beech run` and the script SDK | Every scope except `agent:approve`: `schema:read schema:write content:read content:write content:delete media:read media:write automations:read automations:write users:read users:write settings:read settings:write analytics:read agent:read` | **Never** |
 
 The consent is **partial**: each requested scope is granted only if the account holds the authority behind it, and the rest are listed as `deniedScopes`. See [Permission Model](#permission-model-known-limitations).
@@ -145,13 +145,14 @@ The next tool call opens the browser for **one new consent** with the 2.0 scopes
 
 ## Tools Reference
 
-The server registers 13 tools prefixed with `beech_`:
+The server registers 14 tools prefixed with `beech_`:
 
 | Tool | Annotation | Purpose |
 |---|---|---|
 | `beech_whoami` | read-only | Who the agent acts as, its permissions, scopes, `ENV` and approval policy |
 | `beech_search` | read-only | Search the operation catalog and docs; returns the SDK method for each operation |
 | `beech_docs_search` | read-only | Full-text search over the bundled `beechcms-docs://` resources |
+| `beech_automations` | read-only | Inspect automation rule schemas, `WhenNode` / template rules, limits, and existing rules per seed |
 | `beech_intents` | read-only | List your pending intents |
 | `beech_confirm` | destructive | Ask the human to approve or reject pending intents in one dialog |
 | `beech_list_seeds` | read-only | List seed summaries and the schema version |
@@ -181,7 +182,7 @@ Reports who the agent acts as and what the server enforces for it. Call it once 
     "environment": "development",
     "confirmation": { "publish": false, "destructive": true },
     "schemaVersion": 12,
-    "mcp": { "clientId": "beech-mcp", "scopes": ["schema:read", "schema:write", "settings:read", "agent:read", "agent:approve"] },
+    "mcp": { "clientId": "beech-mcp", "scopes": ["schema:read", "schema:write", "settings:read", "automations:read", "agent:read", "agent:approve"] },
     "scripts": { "clientId": "beech-mcp-cli", "scopes": ["content:read", "content:write", "agent:read"] },
     "apiUrl": "http://localhost:8789",
     "pendingActionsUrl": "http://localhost:5173/admin/?settings=connected-apps&section=agent-actions"
@@ -234,7 +235,7 @@ Searches the operation catalog and the bundled docs, so an agent writes scripts 
 Full-text search over the bundled `beechcms-docs://` resources (API reference, field types, branch policies, guides). Cheaper than listing every resource and guessing a URI when the agent is unsure about a field type, policy, or workflow.
 
 - **Parameters**:
-  - `query` (string, required): Search terms. Tokenized on whitespace; a document must match **every** token (in its title, description, or body) to be returned.
+  - `query` (string, required): Search terms. Tokenized on whitespace; a document must match **every** token (in its title, keywords, description, or body) to be returned.
   - `limit` (number, optional): Maximum results. Defaults to `10`.
 - **Transport**: In-process search over the bundled resource manifest.
 - **Returns**:
@@ -252,6 +253,16 @@ Full-text search over the bundled `beechcms-docs://` resources (API reference, f
     ]
   }
   ```
+
+#### `beech_automations`
+
+Returns the authoritative schema for BeechCMS automation rules (`triggers`, `WhenNode` `trigger_conditions`, `actions`, template interpolation fields, and hard limits) and, when `seed` is passed, lists existing automations for that seed. Writing automations runs through `beech.automations.*` in a `beech run` script, subject to the intent approval policy (`publish` in `production`, `destructive` for delete).
+
+- **Parameters**:
+  - `seed` (string, optional): Seed slug to list existing automations for. Omit to inspect the rule schema and limits with zero API calls.
+- **Transport**: In-process schema reference; `GET /api/automations?seed=<slug>` (`automations:read`) when `seed` is set.
+- **Returns**: `{ schema }` or `{ seed, automations, schema }`.
+- **Errors**: `403 insufficient_scope` when `seed` is provided without `automations:read`.
 
 ### Approval
 
@@ -727,7 +738,8 @@ The schema tools follow the same shape. To create a `products` seed: `beech_sche
 ## Related Documentation
 
 - [Working with an Agent Locally](/build/local-agent) — Setup, scripts, approvals and troubleshooting.
-- [AI & MCP Setup Guide](/start/mcp) — Getting started with Claude Code, Claude Desktop, Cursor, and IDE assistants.
+- [Business Rules, Hooks & Automations](/build/business-rules) — Lifecycle hooks, `HookValidationError`, `mutateField`, `runBatch`, custom endpoints, and automation limits.
+- [AI & MCP Setup](/start/mcp) — Getting started with Claude Code, Claude Desktop, Cursor, and IDE assistants.
 - [CLI Workflows](/build/cli-workflows) — `beech run`, `beech agent setup` and the `RunReport` fields.
 - [Schema Modeling & Evolution](/build/schema-modeling) — Botanical Engine mental model and field specifications.
 - [Seed Builder & Schema Mutation API](/reference/seed-builder) — Low-level REST API contracts and endpoints.
