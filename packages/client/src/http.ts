@@ -94,7 +94,26 @@ export async function request<T>(
     return { data: null, error: normalizeProblem(res.status, payload, res.statusText), headers: res.headers }
   }
 
+  if (res.status === 204) {
+    return { data: null as T, error: null, headers: res.headers }
+  }
+
+  // Non-JSON, unparseable or `null` body on a 2xx: answering { data: null, error: null } would break the union.
+  if (payload === null) {
+    return { data: null, error: invalidResponseProblem(res.status, ct, url), headers: res.headers }
+  }
+
   return { data: payload as T, error: null, headers: res.headers }
+}
+
+function invalidResponseProblem(status: number, contentType: string, url: string): BeechProblem {
+  return {
+    type: 'invalid-response',
+    title: 'Invalid Response',
+    status,
+    detail: `Expected a JSON body from ${url}, got ${contentType || 'no Content-Type'}. ` +
+      'Check that baseUrl is the BeechCMS API origin, not the dashboard (/admin) or a site that answers every path with HTML.',
+  }
 }
 
 function networkProblem(e: unknown): BeechProblem {

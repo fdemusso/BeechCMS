@@ -61,19 +61,35 @@ describe('resolveServerConfig', () => {
 })
 
 describe('request', () => {
-  it('non-JSON content type yields null payload on success', async () => {
+  it('a 200 HTML response, as from a baseUrl pointing at the dashboard, yields an invalid-response problem', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       statusText: 'OK',
-      headers: new Headers({ 'Content-Type': 'text/plain' }),
+      headers: new Headers({ 'Content-Type': 'text/html; charset=utf-8' }),
       json: async () => { throw new Error('should not be called') },
     })
 
     const res = await request({ ...baseConfig, fetch: fetchMock as unknown as typeof fetch }, 'GET', '/posts', {})
 
-    expect(res.error).toBeNull()
+    // BeechResult promises exactly one of data/error; { data: null, error: null } made callers crash on result.data.data.
     expect(res.data).toBeNull()
+    expect(res.error).toMatchObject({ type: 'invalid-response', status: 200 })
+    expect(res.error?.detail).toContain('baseUrl')
+  })
+
+  it('a 204 response stays a success with no data', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      statusText: 'No Content',
+      headers: new Headers(),
+      json: async () => { throw new Error('should not be called') },
+    })
+
+    const res = await request({ ...baseConfig, fetch: fetchMock as unknown as typeof fetch }, 'DELETE', '/posts/1', {})
+
+    expect(res).toMatchObject({ data: null, error: null })
   })
 
   it('missing Content-Type header treats the payload as null on failure', async () => {
@@ -110,7 +126,7 @@ describe('request', () => {
     expect(res.error?.detail).toBe('Request failed with status 400')
   })
 
-  it('a failed json() parse on an ok response falls back to a null payload', async () => {
+  it('a JSON body that fails to parse on an ok response yields an invalid-response problem', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -121,8 +137,8 @@ describe('request', () => {
 
     const res = await request({ ...baseConfig, fetch: fetchMock as unknown as typeof fetch }, 'GET', '/posts', {})
 
-    expect(res.error).toBeNull()
     expect(res.data).toBeNull()
+    expect(res.error).toMatchObject({ type: 'invalid-response', status: 200 })
   })
 
   it('sends X-API-Key equal to cfg.key', async () => {

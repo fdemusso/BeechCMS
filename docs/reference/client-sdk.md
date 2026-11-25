@@ -704,6 +704,13 @@ if (!result.error) {
 }
 ```
 
+Exactly one of `data` and `error` is set. Two client-side problem types complete the server's codes:
+
+| `type` | `status` | When |
+|---|---|---|
+| `about:blank` with title `Network Error` | `0` | `fetch` itself failed (offline, DNS, CORS). |
+| `invalid-response` | the HTTP status (usually `200`) | A successful response without a JSON body. The usual cause is a `baseUrl` that points at the dashboard (`/admin`) or at a site that answers every path with HTML; `detail` names the URL and the content type received. |
+
 ---
 
 ## Related Guides
