@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/cli",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "type": "module",
   "bin": {
     "beech": "./bin/beech.mjs"
@@ -28,7 +28,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.10.1",
+    "@beechcms/core": "workspace:^0.11.0",
     "@clack/prompts": "^1.8.1",
     "picocolors": "^1.1.1",
     "wrangler": "^4.100.0"
