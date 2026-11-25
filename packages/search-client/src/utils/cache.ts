@@ -1,4 +1,5 @@
-export async function fetchWithCache(url: string, etag?: string): Promise<ArrayBuffer> {
+/** `headers` are sent on every request (e.g. `X-API-Key` for the Worker-served index). */
+export async function fetchWithCache(url: string, etag?: string, headers?: HeadersInit): Promise<ArrayBuffer> {
   const isCachesAvailable = typeof caches !== 'undefined';
   
   if (isCachesAvailable) {
@@ -6,17 +7,17 @@ export async function fetchWithCache(url: string, etag?: string): Promise<ArrayB
     const cache = await caches.open(CACHE_NAME);
     const cachedResponse = await cache.match(url);
     
-    const headers = new Headers();
+    const requestHeaders = new Headers(headers);
     if (cachedResponse) {
       if (etag) {
-        headers.set('If-None-Match', etag);
+        requestHeaders.set('If-None-Match', etag);
       } else {
         const cachedEtag = cachedResponse.headers.get('ETag');
-        if (cachedEtag) headers.set('If-None-Match', cachedEtag);
+        if (cachedEtag) requestHeaders.set('If-None-Match', cachedEtag);
       }
     }
 
-    const response = await fetch(url, { headers });
+    const response = await fetch(url, { headers: requestHeaders });
 
     if (response.status === 304 && cachedResponse) {
       return cachedResponse.arrayBuffer();
@@ -32,7 +33,7 @@ export async function fetchWithCache(url: string, etag?: string): Promise<ArrayB
   }
 
   // Fallback to IndexedDB
-  return fetchWithIDBCache(url, etag);
+  return fetchWithIDBCache(url, etag, headers);
 }
 
 function openIndexedDB(): Promise<IDBDatabase> {
@@ -77,18 +78,18 @@ async function idbPut(key: string, buffer: ArrayBuffer, etag: string | null): Pr
   } catch {}
 }
 
-async function fetchWithIDBCache(url: string, etag?: string): Promise<ArrayBuffer> {
+async function fetchWithIDBCache(url: string, etag?: string, headers?: HeadersInit): Promise<ArrayBuffer> {
   const cached = await idbGet(url);
-  const headers = new Headers();
+  const requestHeaders = new Headers(headers);
   if (cached) {
     if (etag) {
-      headers.set('If-None-Match', etag);
+      requestHeaders.set('If-None-Match', etag);
     } else if (cached.etag) {
-      headers.set('If-None-Match', cached.etag);
+      requestHeaders.set('If-None-Match', cached.etag);
     }
   }
 
-  const response = await fetch(url, { headers });
+  const response = await fetch(url, { headers: requestHeaders });
 
   if (response.status === 304 && cached) {
     return cached.buffer;

@@ -1,4 +1,4 @@
-import { IndexManifest, SearchResult, SearchClientOptions } from './types.js';
+import { IndexManifest, SearchResult, SearchClientOptions, SearchEmbedError } from './types.js';
 import { fetchWithCache } from './utils/cache.js';
 import { dotProduct } from './utils/math.js';
 
@@ -10,6 +10,8 @@ export class SearchClient {
   private debounceMs = 250;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingResolve: ((results: SearchResult[]) => void) | null = null;
+  private headers: Record<string, string> = {};
+  private onEmbedError?: (error: SearchEmbedError) => void;
 
   constructor(apiOrigin: string, options?: SearchClientOptions) {
     this.apiOrigin = apiOrigin;
@@ -19,10 +21,26 @@ export class SearchClient {
     if (options?.debounceMs !== undefined) {
       this.debounceMs = options.debounceMs;
     }
+    if (options?.publishableKey) {
+      if (options.publishableKey.startsWith('beech_sk_')) {
+        throw new Error('publishableKey is a secret key (beech_sk_…): secret keys must never reach the browser. Use the publishable key (beech_pk_…).');
+      }
+      this.headers = { 'X-API-Key': options.publishableKey };
+    }
+    this.onEmbedError = options?.onEmbedError;
+  }
+
+  private reportEmbedError(error: SearchEmbedError): void {
+    if (this.onEmbedError) {
+      this.onEmbedError(error);
+    } else if (error.status === 401 || error.status === 403) {
+      // A key problem never heals by retrying, so it must not hide behind the lexical fallback.
+      console.warn(`[search-client] semantic search disabled: ${error.message}`);
+    }
   }
 
   async loadIndex(manifestUrl: string, vectorsUrl: string): Promise<void> {
-    const manifestRes = await fetch(manifestUrl);
+    const manifestRes = await fetch(manifestUrl, { headers: this.headers });
     if (!manifestRes.ok) throw new Error('Failed to load manifest');
     this.manifest = await manifestRes.json();
     
@@ -30,7 +48,7 @@ export class SearchClient {
       throw new Error(`Invalid dimensions: expected ${this.dimensions}`);
     }
 
-    const buffer = await fetchWithCache(vectorsUrl, this.manifest!.fingerprint);
+    const buffer = await fetchWithCache(vectorsUrl, this.manifest!.fingerprint, this.headers);
     this.vectors = new Float32Array(buffer);
     
     const expectedLength = this.manifest!.records.length * this.dimensions;
@@ -92,7 +110,7 @@ export class SearchClient {
       try {
         const url = new URL(`${this.apiOrigin}/api/v1/public/search/embed`);
         url.searchParams.set('q', query);
-        const res = await fetch(url.toString());
+        const res = await fetch(url.toString(), { headers: this.headers });
         
         if (res.ok) {
           const { embedding } = await res.json();
@@ -107,10 +125,13 @@ export class SearchClient {
               return { record, score };
             }).filter(r => r.score > 0);
           }
+        } else {
+          const keyHint = res.status === 401 || res.status === 403 ? ': check the publishableKey option' : '';
+          this.reportEmbedError({ status: res.status, message: `embed request answered ${res.status}${keyHint}` });
         }
-        // Silently fail on 429, 503, or other errors to degrade gracefully
       } catch (e) {
-        // Fallback to purely lexical
+        // Lexical results still go out; the failure is reported, not swallowed.
+        this.reportEmbedError({ status: 0, message: e instanceof Error ? e.message : 'embed request failed' });
       }
     }
 
