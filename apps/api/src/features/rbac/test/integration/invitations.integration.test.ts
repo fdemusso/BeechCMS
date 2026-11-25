@@ -124,20 +124,59 @@ describe('rbac invitations — integration (real D1)', () => {
       agent = harness.anonymous().withHeaders({ Authorization: `Bearer ${OAUTH_TOKEN}` })
     })
 
-    it('does not return the plaintext invite link when issuing an invitation', async () => {
+    // Invitations are `destructive`: an OAuth call becomes an intent in every environment, so the
+    // handler's own response is the approved replay, read back from the stored result.
+    const pendingIntentId = async (response: Response): Promise<string> => {
+      expect(response.status).toBe(202)
+      return (await response.json<{ intent: { id: string } }>()).intent.id
+    }
+
+    const approve = async (intentId: string): Promise<{ status: number; body: unknown }> => {
+      const response = await admin.post(`/api/agent/intents/${intentId}/approve`)
+      expect(response.status).toBe(200)
+      return (await response.json<{ result: { status: number; body: unknown } }>()).result
+    }
+
+    it('holds an invitation for human approval instead of issuing it', async () => {
       const response = await agent.post('/api/rbac/invitations', { email: CANONICAL_USERS.viewer.email, roleId, scope: GLOBAL_SCOPE })
 
-      expect(response.status).toBe(201)
-      expect(await response.json()).not.toHaveProperty('inviteUrl')
+      await pendingIntentId(response)
+      const { results } = await harness.db.prepare('SELECT id FROM invitations').all()
+      expect(results).toEqual([])
     })
 
-    it('does not return the plaintext invite link when regenerating an invitation', async () => {
+    it('holds a regeneration for human approval instead of reissuing the token', async () => {
       const id = await issue()
+      const before = await harness.db.prepare('SELECT token_hash FROM invitations WHERE id = ?').bind(id).first<{ token_hash: string }>()
 
       const response = await agent.post(`/api/rbac/invitations/${id}/regenerate`)
 
-      expect(response.status).toBe(200)
-      expect(await response.json()).not.toHaveProperty('inviteUrl')
+      await pendingIntentId(response)
+      const after = await harness.db.prepare('SELECT token_hash FROM invitations WHERE id = ?').bind(id).first<{ token_hash: string }>()
+      expect(after).toEqual(before)
+    })
+
+    it('does not put the plaintext invite link in the approved result of an invitation', async () => {
+      const intentId = await pendingIntentId(
+        await agent.post('/api/rbac/invitations', { email: CANONICAL_USERS.viewer.email, roleId, scope: GLOBAL_SCOPE }),
+      )
+
+      const result = await approve(intentId)
+
+      expect(result.status).toBe(201)
+      expect(result.body).toMatchObject({ id: expect.any(String), email: CANONICAL_USERS.viewer.email })
+      expect(result.body).not.toHaveProperty('inviteUrl')
+    })
+
+    it('does not put the plaintext invite link in the approved result of a regeneration', async () => {
+      const id = await issue()
+      const intentId = await pendingIntentId(await agent.post(`/api/rbac/invitations/${id}/regenerate`))
+
+      const result = await approve(intentId)
+
+      expect(result.status).toBe(200)
+      expect(result.body).toMatchObject({ id, expiresAt: expect.any(Number) })
+      expect(result.body).not.toHaveProperty('inviteUrl')
     })
   })
 })

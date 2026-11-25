@@ -96,6 +96,15 @@ describe('OPERATION_CATALOG', () => {
     expect(readScopedMutationIds).toEqual(['seeds.plan', 'intents.reject'])
   })
 
+  it('gates every operation that grants a role behind a human approval in every environment', () => {
+    // An invitation is a deferred role assignment: it must not need less approval than assignments.create.
+    const grantIds = ['assignments.create', 'invitations.create', 'invitations.regenerate']
+
+    const risks = grantIds.map(id => [id, agentOperations.find(operation => operation.id === id)?.risk])
+
+    expect(risks).toEqual(grantIds.map(id => [id, 'destructive']))
+  })
+
   it('keeps the three request-dependent risk rules on content.create, content.update and content.delete only', () => {
     const ruleOperations = agentOperations.filter(operation => typeof operation.risk === 'function')
 
