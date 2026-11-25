@@ -15,6 +15,7 @@ import type { AppEnv } from '../types'
 import { insufficientScopeResponse } from './oauth-scope.middleware'
 import { logActivity } from '../shared/services/activity-log/log-activity'
 import { intentPayloadHash, readIntentReplay, type IntentDispatcher } from '../shared/agent-intents/replay'
+import { buildIntentSummary } from '../shared/agent-intents/summary'
 
 /** Lifetime of a pending intent (ROADMAP §5: 10 minutes). */
 export const AGENT_INTENT_TTL_SECONDS = 600
@@ -101,7 +102,8 @@ export function agentIntentGate(options: AgentIntentGateOptions) {
     const mayNeedIntent = typeof operation.risk === 'function' || operation.risk === 'publish' || operation.risk === 'destructive'
     const bodyText = mayNeedIntent ? (await c.req.text()) || null : null
 
-    const risk = resolveOperationRisk(operation, { query: c.req.query(), body: parseJsonOrUndefined(bodyText) })
+    const body = parseJsonOrUndefined(bodyText)
+    const risk = resolveOperationRisk(operation, { query: c.req.query(), body })
     if (!requiresConfirmation(risk, agentEnvironment(c.env.ENV)) || (risk !== 'publish' && risk !== 'destructive')) {
       await next()
       return
@@ -112,7 +114,7 @@ export function agentIntentGate(options: AgentIntentGateOptions) {
     }
 
     const now = c.get('clock').nowSeconds()
-    const summary = `${operation.summary}: ${method} ${pathWithQuery}`
+    const summary = await buildIntentSummary(c, operation, { method, pathname: url.pathname, pathWithQuery, body })
     const expiresAt = now + AGENT_INTENT_TTL_SECONDS
     const id = await c.get('agentIntentRepository').create({
       userId: grant.userId,
