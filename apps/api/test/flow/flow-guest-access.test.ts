@@ -348,14 +348,14 @@ describe('Flow: Guest Access (Public API)', () => {
       expect(updated.toString).not.toEqual('exploit')
     })
 
-    it('error: returns 403 if seed does not allow public edit', async () => {
+    it('error: returns 404 if the seed has no public flag, the same as an unknown seed', async () => {
       const res = await app.request(`/api/v1/public/documentation/edit/${validUuid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.BEECH_SECRET_KEY },
         body: JSON.stringify({ data: { title: 'X' } }),
       }, TEST_ENV)
 
-      expect(res.status).toBe(403)
+      expect(res.status).toBe(404)
     })
 
     it('error: returns 404 if entry does not exist', async () => {

@@ -123,9 +123,11 @@ export function renderRunReport(report: RunReport): string {
   }
 
   if (report.pendingIntents.length > 0) {
+    const intentIds = report.pendingIntents.map(intent => intent.id)
     lines.push('', pc.yellow('  pending intents'))
     for (const intent of report.pendingIntents) lines.push(`    ${intent.id}  ${intent.risk}  ${intent.summary}`)
     lines.push(pc.gray('  Waiting for human approval: Dashboard → Agent actions'))
+    lines.push(pc.gray(`  MCP: call beech_confirm({ intentIds: ${JSON.stringify(intentIds)} }) or beech_intents({ intentIds: ${JSON.stringify(intentIds)} }) after dashboard approval`))
   }
 
   if (report.error !== null) {

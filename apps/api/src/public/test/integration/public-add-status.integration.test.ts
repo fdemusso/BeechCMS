@@ -23,6 +23,7 @@ const titleBranch = { id: 'br_01', alias: 'title', label: 'Title', type: 'text',
 const blogSeed = defineSeed({ slug: 'blog', label: 'Blog', displayNameAlias: 'title', allowPublicRead: true, allowPublicPost: true, branches: [titleBranch] })
 const noticesSeed = defineSeed({ slug: 'notices', label: 'Notices', displayNameAlias: 'title', allowPublicRead: true, allowPublicPost: true, defaultPublicStatus: 'published', branches: [titleBranch] })
 const archiveSeed = defineSeed({ slug: 'archive', label: 'Archive', displayNameAlias: 'title', allowPublicRead: true, branches: [titleBranch] })
+const vaultSeed = defineSeed({ slug: 'vault', label: 'Vault', displayNameAlias: 'title', branches: [titleBranch] })
 
 interface PublicList {
   data: Array<{ title: string }>
@@ -53,7 +54,7 @@ describe('public slice — add status and access (real D1)', () => {
     __resetSeedRegistryCache()
     harness = await createTestHarness({
       db: env.DB,
-      seeds: [blogSeed, noticesSeed, archiveSeed],
+      seeds: [blogSeed, noticesSeed, archiveSeed, vaultSeed],
       env: { PUBLIC_TIME_TRAP_SECRET: TIME_TRAP_SECRET },
       createApp: (authProviders) => createBeechApp({ seeds: [], authProviders }),
     })
@@ -102,6 +103,14 @@ describe('public slice — add status and access (real D1)', () => {
 
       expect(response.status).toBe(201)
       expect(await storedStatuses('content_archive')).toEqual(['published'])
+    })
+
+    it('still answers 404 seed-not-found on a seed with no public flag at all and writes nothing', async () => {
+      const response = await secretClient.post('/api/v1/public/vault/add', { data: { title: 'Private' } })
+
+      expect(response.status).toBe(404)
+      expect((await response.json<{ type: string }>()).type).toBe(`${PROBLEM_BASE}seed-not-found`)
+      expect(await storedStatuses('content_vault')).toEqual([])
     })
 
     it('honours an explicit status in the body', async () => {

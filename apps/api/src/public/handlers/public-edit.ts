@@ -6,8 +6,8 @@ import { isValidContentStatus, resolveClassification, resolvePolicies, EntryConf
 import type { LocaleConfig, Seed } from '@beechcms/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../../shared/utils/query-utils'
-import { checkPublicOperation } from '../validation/access-policy'
-import { publicProblem, internalErrorDetail } from '../errors/problem-details'
+import { checkPublicOperation, isPubliclyExposed } from '../validation/access-policy'
+import { publicProblem, publicSeedNotFoundProblem, internalErrorDetail } from '../errors/problem-details'
 import { slugify } from '../utils/slug-utils'
 import { sanitizePublicPayload } from '../validation/sanitize'
 import { loadLocaleConfig } from '../../shared/localization/locale-config'
@@ -178,8 +178,8 @@ export async function publicEditHandler(context: PublicCtx) {
   const seedSlug = context.req.param('seed') ?? ''
   const id = context.req.param('id') ?? ''
   const seed = context.get('getSeed')(seedSlug)
-  if (!seed) {
-    return publicProblem(context, { type: 'seed-not-found', title: 'Seed Not Found', status: 404, detail: `The content type '${seedSlug}' does not exist.` })
+  if (!seed || !isPubliclyExposed(seed)) {
+    return publicSeedNotFoundProblem(context, seedSlug)
   }
   const access = checkPublicOperation(seed, 'edit')
   if (!access.ok) {
