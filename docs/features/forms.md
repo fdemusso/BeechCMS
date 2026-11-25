@@ -61,7 +61,6 @@ export function ContactSection() {
       <BeechForm
         seed="clienti"
         baseUrl="https://api.yourdomain.com"
-        apiKey="your-public-write-api-key"
         locale="it"
         onSuccess={({ id }) => alert(`Success! ID: ${id}`)}
       />
@@ -69,6 +68,9 @@ export function ContactSection() {
   )
 }
 ```
+
+> [!NOTE]
+> Forms need no key. The schema read and the submission are zero-secret and protected by the Time-Trap token. Do not set `apiKey`: the publishable key is refused on submissions (403 `public-api-secret-key-required`), and the secret key must never reach a browser.
 
 ### Under the Hood
 1. **Dynamic Schema**: Loads public fields from `GET /api/v1/public/:seed/schema`.
@@ -90,7 +92,6 @@ export function CustomContactForm() {
   const form = useBeechForm({
     seed: 'clienti',
     baseUrl: 'https://api.yourdomain.com',
-    apiKey: 'your-public-write-api-key',
     onSuccess: (res) => alert(`Saved! ID: ${res.id}`),
   })
 

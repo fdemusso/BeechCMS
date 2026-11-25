@@ -34,7 +34,7 @@
 
 ### scopes
 
-> **scopes**: (`"schema:read"` \| `"schema:write"`)[]
+> **scopes**: (`"content:read"` \| `"content:delete"` \| `"schema:read"` \| `"schema:write"` \| `"content:write"` \| `"media:read"` \| `"media:write"` \| `"automations:read"` \| `"automations:write"` \| `"users:read"` \| `"users:write"` \| `"settings:read"` \| `"settings:write"` \| `"analytics:read"` \| `"agent:read"` \| `"agent:approve"`)[]
 
 Cumulative set of scopes the user has approved for this client.
 

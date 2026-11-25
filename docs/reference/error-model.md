@@ -36,7 +36,9 @@ All API errors from the Public API use **RFC 9457 Problem Details** (obsoleting 
 | `entry-not-found` | `404` | No entry with the specified UUID or slug |
 | `operation-not-allowed` | `403` | Seed capability flag (`allowPublicRead`, `allowPublicPost`, `allowPublicEdit`) is `false` |
 | `public-api-key-unauthorized` | `401` | Missing or invalid API key |
-| `public-api-not-configured` | `403` | Required public API key environment variable is not configured |
+| `public-api-not-configured` | `403` | The key the request needs is not configured (`BEECH_SECRET_KEY` for writes, no key at all for reads) |
+| `public-api-secret-key-required` | `403` | A publishable key was sent for a write; writes need the secret key |
+| `public-api-dev-secret-key` | `403` | The local secret key `beech_sk_dev` was sent while `ENV` is not `development` |
 | `forbidden-origin` | `403` | Origin header does not match allowed CORS origins |
 | `validation-failed` | `400` | Field type mismatch, missing required field, or unknown alias |
 | `dangerous-content` | `422` | Dangerous HTML/script markup detected in text or richtext |

@@ -201,11 +201,11 @@ The `/backrefs` endpoint is an authenticated administrative endpoint for the CMS
 Because BeechCMS uses an edge-native relational data model (Cloudflare D1) rather than heavy nested ORM hydration, relations emit foreign key IDs. To query records by relationship or perform reverse lookups in frontend applications, query the referencing collection using `filter`:
 
 ```typescript
-import { createBeechClient } from '@beechcms/client/server' // or @beechcms/client/browser
+import { createBeechClient } from '@beechcms/client/server' // browser: @beechcms/client/browser with publishableKey
 
 const client = createBeechClient({
   baseUrl: 'https://cms.example.com', // the SDK appends /api/v1/public itself
-  apiKey: 'beech_pub_...',
+  secretKey: process.env.BEECH_SECRET_KEY!,
 })
 
 // 1. Fetch an author entry

@@ -58,7 +58,7 @@ import type { BeechDatabase } from './beech.generated' // npx beech types genera
 
 const beech = createBeechBrowserClient<BeechDatabase>({
   baseUrl: 'https://api.yourdomain.com',
-  apiKey: process.env.NEXT_PUBLIC_BEECH_READ_KEY!,
+  publishableKey: process.env.NEXT_PUBLIC_BEECH_PUBLISHABLE_KEY!,
 })
 
 // List: filter, sort, paginate

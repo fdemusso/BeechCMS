@@ -21,6 +21,7 @@ Commands marked **Monorepo** drive this repository's own tooling (Docker stack, 
 | :--- | :--- | :--- | :--- |
 | `npx @beechcms/cms` | Consumer | Interactive scaffolding wizard for new edge projects. | `--yes` (non-interactive starter) |
 | `npx beech init` | Consumer | Verifies project config (`worker.ts`, `wrangler.jsonc`, `.dev.vars`). Does not touch the database. | `--remote` |
+| `npx beech keys:migrate` (`beech keys migrate`) | Consumer | Moves a 0.10.x project to publishable and secret keys. Removes the 0.10.x key names and the committed secrets from `wrangler.jsonc`, writes fresh secrets to `.dev.vars`, never touches `PRIVACY_MASTER_KEY`, and prints the production commands. Idempotent. | None |
 | `npx beech db:migrate` | Consumer | Applies local D1 database migrations. | Runs the project's `npm run db:migrate:local` script |
 | `npx beech db:reset` | Consumer | Clears local Wrangler state and re-bootstraps fresh database. | Runs `npm run db:reset:local` or purges `.wrangler/state` |
 | `pnpm beech reset` | Monorepo | Comprehensive environment reset. | `--db`, `--docker`, `--all`, `--yes` |
@@ -72,6 +73,18 @@ Verify your project setup:
 ```bash
 npx beech init
 ```
+
+#### Moving a 0.10.x project to publishable and secret keys
+
+```bash
+npx beech keys:migrate
+```
+
+Run it from the project root. It removes `PUBLIC_READ_API_KEY`, `PUBLIC_WRITE_API_KEY`, `JWT_SECRET` and `PUBLIC_TIME_TRAP_SECRET` from the `vars` of `wrangler.jsonc` and adds `BEECH_PUBLISHABLE_KEY` there. `JWT_SECRET`, `BEECH_SECRET_KEY` and `PUBLIC_TIME_TRAP_SECRET` go to `.dev.vars`; `PRIVACY_MASTER_KEY` is never touched.
+
+- The committed secrets get fresh values, because the old ones are in the git history. Sessions signed with the old `JWT_SECRET` end, so everyone signs in again.
+- It prints the production steps and runs none of them. Run `npm run deploy` first, then `npx wrangler secret put` for the three names: Cloudflare refuses a secret whose name is still a plain-text var.
+- It stops without writing when `wrangler.jsonc` or `.dev.vars` is missing or `vars` cannot be edited safely, and it refuses legacy names inside `env.<name>.vars`. A second run changes nothing.
 
 ### 2. Database Migrations
 

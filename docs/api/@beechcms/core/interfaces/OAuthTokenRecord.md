@@ -68,7 +68,7 @@ Hash of the authorization code this token descends from, for cascade revocation.
 
 ### scope
 
-> **scope**: (`"schema:read"` \| `"schema:write"`)[]
+> **scope**: (`"content:read"` \| `"content:delete"` \| `"schema:read"` \| `"schema:write"` \| `"content:write"` \| `"media:read"` \| `"media:write"` \| `"automations:read"` \| `"automations:write"` \| `"users:read"` \| `"users:write"` \| `"settings:read"` \| `"settings:write"` \| `"analytics:read"` \| `"agent:read"` \| `"agent:approve"`)[]
 
 #### Inherited from
 

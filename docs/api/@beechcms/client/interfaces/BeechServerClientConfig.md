@@ -2,21 +2,25 @@
 
 ***
 
-[BeechCMS](../../../index.md) / [@beechcms/client](../index.md) / BeechClientConfig
+[BeechCMS](../../../index.md) / [@beechcms/client](../index.md) / BeechServerClientConfig
 
-# Interface: BeechClientConfig
+# Interface: BeechServerClientConfig
+
+Server client: reads and writes with one instance, authenticated with the secret key (`beech_sk_…`). Never ship it to a browser.
+
+## Extends
+
+- [`BeechClientBaseConfig`](BeechClientBaseConfig.md)
 
 ## Properties
-
-### apiKey
-
-> **apiKey**: `string`
-
-***
 
 ### baseUrl
 
 > **baseUrl**: `string`
+
+#### Inherited from
+
+[`BeechClientBaseConfig`](BeechClientBaseConfig.md).[`baseUrl`](BeechClientBaseConfig.md#baseurl)
 
 ***
 
@@ -64,8 +68,22 @@
 
 `Promise`&lt;`Response`&gt;
 
+#### Inherited from
+
+[`BeechClientBaseConfig`](BeechClientBaseConfig.md).[`fetch`](BeechClientBaseConfig.md#fetch)
+
 ***
 
 ### headers?
 
 > `optional` **headers?**: `Record`&lt;`string`, `string`&gt; \| `Headers`
+
+#### Inherited from
+
+[`BeechClientBaseConfig`](BeechClientBaseConfig.md).[`headers`](BeechClientBaseConfig.md#headers)
+
+***
+
+### secretKey
+
+> **secretKey**: `string`

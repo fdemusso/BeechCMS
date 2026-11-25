@@ -39,10 +39,10 @@ Create a `.env.local` file in your React project root:
 
 ```bash
 VITE_BEECH_API_URL=http://localhost:8789
-VITE_BEECH_READ_KEY=dev-read-key-changeme
+VITE_BEECH_PUBLISHABLE_KEY=beech_pk_dev
 ```
 
-> In local development, the default read key is pre-configured. In production, use the `PUBLIC_READ_API_KEY` set in your Cloudflare Worker environment.
+> `beech_pk_dev` is the publishable key every new project has in `wrangler.jsonc`. It is read-only and safe in the bundle.
 
 ## 5. Initialize the Beech client
 
@@ -68,7 +68,7 @@ export interface AppRegistry {
 
 export const beech = createBeechBrowserClient<AppRegistry>({
   baseUrl: import.meta.env.VITE_BEECH_API_URL || 'http://localhost:8789',
-  apiKey: import.meta.env.VITE_BEECH_READ_KEY || 'dev-read-key-changeme'
+  publishableKey: import.meta.env.VITE_BEECH_PUBLISHABLE_KEY!
 })
 ```
 
@@ -165,7 +165,7 @@ The quickstart procedure in this guide optimizes for getting you to a working ap
 
 - **Configure Seed Permissions**: Verify that your Seed has `allowPublicRead: true` enabled in the admin dashboard so public visitors can fetch published content.
 - **Production API URL**: Point `VITE_BEECH_API_URL` to your production Cloudflare Worker URL (`https://api.yourdomain.com`).
-- **Production API Keys**: Set `VITE_BEECH_READ_KEY` to the `PUBLIC_READ_API_KEY` defined in your Cloudflare environment variables.
+- **Production Publishable Key**: Set `VITE_BEECH_PUBLISHABLE_KEY` to the `BEECH_PUBLISHABLE_KEY` value in the BeechCMS Worker's `wrangler.jsonc` `vars`. It is read-only and public by design.
 - **Client Security**: Notice that `@beechcms/client/browser` is physically read-only. Mutation methods (`create`, `update`, `delete`) are omitted from browser bundles to keep your administrative write keys secure.
 
 ## Cloudflare Edge Deployment

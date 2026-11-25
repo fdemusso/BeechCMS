@@ -19,13 +19,28 @@ interface Seed {
 ```
 If a capability flag is `false` or absent, the endpoint fails closed and returns `403 Forbidden` (`operation-not-allowed`) regardless of credentials.
 
-### Level 2 — API Key Split & Zero-Secret Mode
+### Level 2 — Key Roles & Zero-Secret Mode
 1. **Authenticated Requests (`X-API-Key` header):**
-   - `PUBLIC_READ_API_KEY`: Grants read access to `GET /api/v1/public/*`.
-   - `PUBLIC_WRITE_API_KEY`: Grants write access to `POST` and `PUT/PATCH /api/v1/public/*`.
+
+   | Key | Variable | Allows | Local value |
+   | --- | --- | --- | --- |
+   | Publishable | `BEECH_PUBLISHABLE_KEY` | `GET` / `HEAD` / `OPTIONS` | `beech_pk_dev` |
+   | Secret | `BEECH_SECRET_KEY` | Every method, server only | `beech_sk_dev` |
+
+   The key authenticates, Level 1 still authorizes. The API denies a request in four cases:
+
+   | Case | Status | Problem type |
+   | --- | --- | --- |
+   | The key is wrong | `401` | `public-api-key-unauthorized` |
+   | A publishable key is sent on a write | `403` | `public-api-secret-key-required` |
+   | No secret key is configured on a write, or neither key on a read | `403` | `public-api-not-configured` |
+   | The secret key is `beech_sk_dev` while `ENV` is not `development` | `403` | `public-api-dev-secret-key` |
+
+   For the last case the Worker also logs a warning once per refused request. The log never prints the key.
 2. **Zero-Secret Public Form Mode:**
    - Public frontends can create entries via `POST /api/v1/public/:seed/add` without exposing any secret API key by utilizing the built-in **Time-Trap token** anti-bot mechanism (`_timeTrapToken`) and hidden honeypot fields.
-   - Seed schema discovery (`GET /api/v1/public/:seed/schema`) is zero-secret and requires no API key.
+   - These routes need no key: `GET /api/v1/public/health`, `GET /api/v1/public/timetrap/token`, `GET /api/v1/public/:seed/schema` and `POST /api/v1/public/:seed/add`. `PUT` / `PATCH /api/v1/public/:seed/edit/:id` always needs the secret key.
+   - A key sent on `POST /add` is checked: a publishable key gets `403`, and the secret key skips the Time-Trap and honeypot checks.
 
 ### Level 3 — Published-Only Filter
 By default, all public read queries automatically filter by `AND status = 'published'` (`PUBLIC_PUBLISHED_ONLY !== 'false'`). Content in `draft` or `review` status is invisible to external consumers. To expose drafts publicly, explicitly set `PUBLIC_PUBLISHED_ONLY=false`.
@@ -136,7 +151,7 @@ Tag values are normalized on write (invisible/control characters removed, whites
 
 ## Read — `GET /api/v1/public/:seed`
 
-Reads entries for a seed. Requires `allowPublicRead: true` and `PUBLIC_READ_API_KEY`.
+Reads entries for a seed. Requires `allowPublicRead: true` and the publishable or the secret key.
 
 **Query parameters:**
 
@@ -178,7 +193,7 @@ On a `tags` field, `eq`, `contains` and `in` test membership of the stored array
 
 ```http
 GET /api/v1/public/articoli?slug=my-article
-X-API-Key: dev-public-read-key-changeme
+X-API-Key: beech_pk_dev
 ```
 
 **Response `200 OK` (single entry):**
@@ -205,7 +220,7 @@ X-API-Key: dev-public-read-key-changeme
 
 ```http
 GET /api/v1/public/articoli?page=1&limit=10&orderBy=created_at&orderDir=desc
-X-API-Key: dev-public-read-key-changeme
+X-API-Key: beech_pk_dev
 ```
 
 **Response `200 OK` (list):**
@@ -235,7 +250,7 @@ The `include` query parameter enables server-side resolution and expansion of re
 
 ```http
 GET /api/v1/public/posts?slug=my-first-post&include=category_id,related_posts
-X-API-Key: dev-public-read-key-changeme
+X-API-Key: beech_pk_dev
 ```
 
 **Response `200 OK` with `_includes`:**
@@ -289,7 +304,7 @@ A relation subquery filters the collection by a condition evaluated against the 
 GET /api/v1/public/posts?filter={"logic":"AND","where":[
   {"field":"category_id","op":"in","value":{"logic":"AND","where":[{"field":"name","op":"eq","value":"Tech"}]}}
 ]}
-X-API-Key: dev-public-read-key-changeme
+X-API-Key: beech_pk_dev
 ```
 
 The nested value is `{ where: [...], logic?: 'AND' | 'OR' }`; `where` entries share the ordinary `{field, op, value}` shape and are validated **against the target seed**, through the same public + filterable policy gate as a top-level filter. An `in` condition on a relation alias whose value is a **plain array of ids** (rather than a subquery object) stays legal and is routed through the same resolver — this also fixes a multi-relation `in` filter that answered `500` before this endpoint existed.
@@ -338,7 +353,7 @@ Localized fields are returned as **plain values** in the resolved language, foll
 
 ```http
 GET /api/v1/public/products?slug=trail-shoe&lang=en
-X-API-Key: dev-public-read-key-changeme
+X-API-Key: beech_pk_dev
 ```
 
 ```json
@@ -399,7 +414,7 @@ The edge cache keys each read on the URL **plus** the resolved language, so two 
 
 ```http
 PUT /api/v1/public/products/edit/550e8400-e29b-41d4-a716-446655440000?lang=en
-X-API-Key: dev-public-write-key-changeme
+X-API-Key: beech_sk_dev
 Content-Type: application/json
 
 {
@@ -448,14 +463,14 @@ Generates an encrypted, single-use Time-Trap token for zero-secret form submissi
 Creates an entry via the Public API. Requires `allowPublicPost: true`.
 
 **Authentication Modes:**
-1. **Authenticated Mode:** Send `X-API-Key: <PUBLIC_WRITE_API_KEY>`.
+1. **Authenticated Mode:** Send `X-API-Key` with the secret key (`beech_sk_dev` locally). A publishable key answers 403 `public-api-secret-key-required`.
 2. **Zero-Secret Form Mode:** Include `_timeTrapToken` in the payload (or `x-time-trap` header) and ensure the anti-bot honeypot fields (`fax_number`, `website_url`, `middle_name`, `secondary_phone`, `_gotcha`, `honeypot`) remain empty.
 
 **Request**
 
 ```http
 POST /api/v1/public/articoli/add
-X-API-Key: dev-public-write-key-changeme
+X-API-Key: beech_sk_dev
 Content-Type: application/json
 Idempotency-Key: my-client-request-id-001
 
@@ -498,7 +513,7 @@ Idempotency-Key: my-client-request-id-001
 
 ## Update — `PUT` & `PATCH /api/v1/public/:seed/edit/:id`
 
-Partially updates an existing entry. Requires `allowPublicEdit: true` and `PUBLIC_WRITE_API_KEY`.
+Partially updates an existing entry. Requires `allowPublicEdit: true` and the secret key.
 
 **Merge semantics:**
 - Fields present in `data` overwrite existing values.
@@ -509,7 +524,7 @@ Partially updates an existing entry. Requires `allowPublicEdit: true` and `PUBLI
 
 ```http
 PUT /api/v1/public/articoli/edit/550e8400-e29b-41d4-a716-446655440000
-X-API-Key: dev-public-write-key-changeme
+X-API-Key: beech_sk_dev
 Content-Type: application/json
 
 {

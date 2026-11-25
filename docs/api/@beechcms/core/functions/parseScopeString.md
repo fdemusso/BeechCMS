@@ -6,7 +6,7 @@
 
 # Function: parseScopeString()
 
-> **parseScopeString**(`raw`): (`"schema:read"` \| `"schema:write"`)[] \| `null`
+> **parseScopeString**(`raw`): (`"content:read"` \| `"content:delete"` \| `"schema:read"` \| `"schema:write"` \| `"content:write"` \| `"media:read"` \| `"media:write"` \| `"automations:read"` \| `"automations:write"` \| `"users:read"` \| `"users:write"` \| `"settings:read"` \| `"settings:write"` \| `"analytics:read"` \| `"agent:read"` \| `"agent:approve"`)[] \| `null`
 
 Parses an RFC 6749 §3.3 space-delimited scope string.
 Returns null if the string is empty or contains any unknown scope — callers
@@ -21,4 +21,4 @@ Duplicates are collapsed; order is not significant.
 
 ## Returns
 
-(`"schema:read"` \| `"schema:write"`)[] \| `null`
+(`"content:read"` \| `"content:delete"` \| `"schema:read"` \| `"schema:write"` \| `"content:write"` \| `"media:read"` \| `"media:write"` \| `"automations:read"` \| `"automations:write"` \| `"users:read"` \| `"users:write"` \| `"settings:read"` \| `"settings:write"` \| `"analytics:read"` \| `"agent:read"` \| `"agent:approve"`)[] \| `null`

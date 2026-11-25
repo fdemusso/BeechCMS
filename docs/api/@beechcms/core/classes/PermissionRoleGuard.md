@@ -6,16 +6,12 @@
 
 # Class: PermissionRoleGuard
 
-Production guard: only a holder of `manage_seeds` at [GLOBAL\_SCOPE](../variables/GLOBAL_SCOPE.md) may delegate
-authority to an OAuth/MCP client.
+Production guard: grants each requested scope whose [SCOPE\_GRANT\_REQUIREMENTS](../variables/SCOPE_GRANT_REQUIREMENTS.md)
+the owner meets on at least one RBAC scope. Delegation requires the authority it delegates,
+evaluated per OAuth scope, so the outcome is a partial grant.
 
-Every OAuth scope in this system (`schema:read`, `schema:write`) drives seed-schema
-routes, which the route gate refuses to anyone without `manage_seeds@*`. So the question
-this guard answers is the same one the `/api/seeds/*` rows ask: delegation requires the
-authority it delegates. `manage_users@*` alone no longer suffices.
-
-A seed-scoped collaborator therefore cannot mint an MCP token, no matter which
-scopes the client requests. Denial is all-or-nothing: there is no partial grant.
+RBAC remains the runtime authority (`permissionMiddleware`); this guard only refuses scopes
+the owner could never use. Never grants a scope that was not requested.
 
 ## Implements
 
@@ -47,7 +43,7 @@ The resource owner's effective permissions, already folded.
 
 ##### requestedScopes
 
-readonly (`"schema:read"` \| `"schema:write"`)[]
+readonly (`"content:read"` \| `"content:delete"` \| `"schema:read"` \| `"schema:write"` \| `"content:write"` \| `"media:read"` \| `"media:write"` \| `"automations:read"` \| `"automations:write"` \| `"users:read"` \| `"users:write"` \| `"settings:read"` \| `"settings:write"` \| `"analytics:read"` \| `"agent:read"` \| `"agent:approve"`)[]
 
 Scopes the client asked for, already validated.
 
