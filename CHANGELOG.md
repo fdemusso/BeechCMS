@@ -1,6 +1,6 @@
 # Changelog
 
-## Bug fixes & hardening — unreleased
+## Bug fixes & hardening — 2026-11-25
 
 Follow-up fixes and hardening across the Public API, client SDKs, forms, CLI, MCP, and dashboard.
 
@@ -37,7 +37,7 @@ Follow-up fixes and hardening across the Public API, client SDKs, forms, CLI, MC
 - Seed builder preserves `defaultPublicStatus` when saving a seed (#1041).
 - Quick-start and framework guides drop the reserved `slug` branch (#1023), and `npx` specs pin `@latest` to avoid stale cached versions (#1024).
 
-## Publishable and secret keys — unreleased
+## Publishable and secret keys — 2026-11-25
 
 Two key roles replace the per-method keys of the Public API: a read-only **publishable** key that is safe in a browser, and a **secret** key for server code. Fixes #995, #996 and #997. Ships with `api`, `client`, `cli` and `cms`.
 
@@ -68,7 +68,7 @@ Two key roles replace the per-method keys of the Public API: a read-only **publi
 - `beech setup:cloudflare` merges the R2 credentials into `.dev.vars` instead of overwriting it.
 - `beech init` shows the publishable key and reports only whether the secret key is set, and it flags legacy names.
 
-## First run in minutes — unreleased
+## First run in minutes — 2026-11-25
 
 A new project now goes from nothing to a working admin in two commands, with no Docker and no Cloudflare account: `npx @beechcms/cms my-app`, then `npm run dev`. Fixes #1019, #1020 and #1021. Ships as a minor bump of `cms`, `cli` and `api`.
 
