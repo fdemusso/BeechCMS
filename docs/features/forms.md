@@ -126,6 +126,8 @@ export function CustomContactForm() {
 }
 ```
 
+When the API rejects a submission with per-field errors (`400` with an `errors[]` array, e.g. a `min`/`max` or tag-vocabulary rule the browser cannot check), each message lands in `form.errors[field]` and the field is marked touched. `form.serverError` then holds only the messages for fields the form does not render, or the problem `detail` when the response has no `errors[]`.
+
 ---
 
 ## Customization

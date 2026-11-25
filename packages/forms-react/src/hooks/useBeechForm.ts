@@ -25,6 +25,28 @@ function toTagsArray(value: unknown): unknown[] {
   return [value]
 }
 
+/**
+ * Splits a Problem Details `errors[]` (core ValidationDetail: `{ field, message }`) into messages for
+ * fields the form renders and messages for anything else.
+ */
+function splitServerErrors(
+  errors: unknown,
+  schema: FormSeedSchema | null
+): { fieldErrors: Record<string, string>; unmatched: string[] } {
+  const fieldErrors: Record<string, string> = {}
+  const unmatched: string[] = []
+  if (!Array.isArray(errors)) return { fieldErrors, unmatched }
+  const aliases = new Set(schema?.branches.map((b) => b.alias))
+  for (const entry of errors) {
+    if (!entry || typeof entry !== 'object') continue
+    const { field, message } = entry as { field?: unknown; message?: unknown }
+    if (typeof message !== 'string' || !message) continue
+    if (typeof field === 'string' && aliases.has(field) && !Object.hasOwn(fieldErrors, field)) fieldErrors[field] = message
+    else if (typeof field !== 'string' || !aliases.has(field)) unmatched.push(message)
+  }
+  return { fieldErrors, unmatched }
+}
+
 export function useBeechForm<TValues extends Record<string, unknown> = Record<string, unknown>>(
   options: UseBeechFormOptions<TValues>
 ): UseBeechFormReturn<TValues> {
@@ -433,7 +455,14 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
 
         if (!response.ok) {
           const detail = json?.detail || json?.title || translations.genericErrorMessage
-          setServerError(detail)
+          const { fieldErrors, unmatched } = splitServerErrors(json?.errors, schema)
+          if (Object.keys(fieldErrors).length > 0) {
+            setErrors((prev) => ({ ...prev, ...fieldErrors }))
+            setTouched((prev) => ({ ...prev, ...Object.fromEntries(Object.keys(fieldErrors).map((field) => [field, true])) }))
+          }
+          // The banner keeps what no field can show: unmatched entries, or the whole problem when there are none.
+          const banner = unmatched.length > 0 ? unmatched.join(' ') : Object.keys(fieldErrors).length > 0 ? null : detail
+          setServerError(banner)
           onError?.({ status: response.status, message: detail, details: json })
           return false
         }

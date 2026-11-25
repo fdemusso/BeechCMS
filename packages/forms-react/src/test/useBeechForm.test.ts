@@ -415,3 +415,72 @@ describe('useBeechForm — time-trap token lifecycle', () => {
   })
 })
 
+describe('useBeechForm — server validation errors', () => {
+  const schema: FormSeedSchema = {
+    slug: 'contact-us',
+    branches: [
+      { alias: 'fullName', type: 'string', required: true },
+      { alias: 'age', type: 'number' },
+    ],
+  }
+
+  // Shape of public-add.ts 400 validation-failed: errors[] are core ValidationDetail entries.
+  function answer(status: number, body: Record<string, unknown>) {
+    globalThis.fetch = vi.fn(async () =>
+      new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/problem+json' } })
+    ) as unknown as typeof fetch
+  }
+
+  async function submitFilled() {
+    const { result } = renderHook(() => useBeechForm({ seed: schema, baseUrl: 'https://api.example.com', disableAntiBot: true, disableDraft: true }))
+    act(() => result.current.setFieldValue('fullName', 'Jane'))
+    let ok = true
+    await act(async () => {
+      ok = await result.current.handleSubmit()
+    })
+    return { result, ok }
+  }
+
+  it('puts each errors[] entry on its field and shows it without a banner', async () => {
+    answer(400, {
+      type: 'https://beechcms.dev/problems/validation-failed',
+      detail: 'Validation failed',
+      errors: [{ field: 'age', expected: 'number(min:18)', received: '12', message: 'Must be at least 18' }],
+    })
+
+    const { result, ok } = await submitFilled()
+
+    expect(ok).toBe(false)
+    expect(result.current.errors.age).toBe('Must be at least 18')
+    // FormField renders an error only for a touched field, so a server error must mark it touched.
+    expect(result.current.touched.age).toBe(true)
+    expect(result.current.serverError).toBeNull()
+  })
+
+  it('an errors[] entry for an unknown field goes to the banner', async () => {
+    answer(400, {
+      type: 'https://beechcms.dev/problems/validation-failed',
+      detail: 'Validation failed',
+      errors: [
+        { field: 'age', expected: 'number', received: 'string', message: 'Must be a number' },
+        { field: 'internalNotes', expected: 'string', received: 'null', message: 'Notes are required' },
+      ],
+    })
+
+    const { result } = await submitFilled()
+
+    expect(result.current.errors.age).toBe('Must be a number')
+    expect(result.current.errors.internalNotes).toBeUndefined()
+    expect(result.current.serverError).toBe('Notes are required')
+  })
+
+  it('a problem without errors[] keeps the generic banner', async () => {
+    answer(409, { type: 'https://beechcms.dev/problems/slug-conflict', detail: 'An entry with slug jane already exists' })
+
+    const { result } = await submitFilled()
+
+    expect(result.current.serverError).toBe('An entry with slug jane already exists')
+    expect(result.current.errors).toEqual({})
+  })
+})
+
