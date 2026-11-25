@@ -52,9 +52,9 @@ export function AcceptInvitePage() {
         <Card className="overflow-hidden shadow-md">
           <CardContent className="p-6 md:p-8">
             <div className="flex flex-col items-center gap-4 text-center">
-              <h1 className="font-heading text-2xl font-bold">{t("acceptInvite.title")}</h1>
+              <h1 className="font-heading text-5xl font-bold">{t("acceptInvite.title")}</h1>
               <p className="text-muted-foreground text-sm">{t("acceptInvite.invalidOrExpired")}</p>
-              <Link to="/login" className="text-sm hover:opacity-80 transition-opacity">
+              <Link to="/login" className="text-sm font-medium hover:opacity-80 transition-opacity">
                 {t("forgotPassword.backToLogin")}
               </Link>
             </div>
@@ -125,7 +125,7 @@ export function AcceptInvitePage() {
             <form onSubmit={handleSubmit} noValidate>
               <FieldGroup>
                 <div className="flex flex-col items-center gap-2 text-center">
-                  <h1 className="font-heading text-2xl font-bold">{t("acceptInvite.title")}</h1>
+                  <h1 className="font-heading text-5xl font-bold">{t("acceptInvite.title")}</h1>
                   <p className="text-muted-foreground text-balance text-sm">
                     {t("acceptInvite.invitation.sentence", { role: preview.roleName, scope: scopeLabel })}
                   </p>
@@ -211,7 +211,7 @@ export function AcceptInvitePage() {
                   </Button>
                 </Field>
                 <div className="text-center">
-                  <Link to="/login" className="text-sm hover:opacity-80 transition-opacity">
+                  <Link to="/login" className="text-sm font-medium hover:opacity-80 transition-opacity">
                     {t("forgotPassword.backToLogin")}
                   </Link>
                 </div>

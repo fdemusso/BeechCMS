@@ -1498,6 +1498,12 @@
     "upload": "Datei hochladen"
   },
   "login": {
+    "title": "Willkommen zurück",
+    "subtitle": "Melden Sie sich bei Ihrem Beech CMS-Konto an",
+    "email": "E-Mail",
+    "emailPlaceholder": "m@example.com",
+    "password": "Passwort",
+    "submit": "Anmelden",
     "hidePassword": "Passwort ausblenden",
     "showPassword": "Passwort anzeigen",
     "signingIn": "Anmeldung läuft...",

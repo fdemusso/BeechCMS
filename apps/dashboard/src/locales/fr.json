@@ -1509,6 +1509,12 @@
     "upload": "Téléverser un fichier"
   },
   "login": {
+    "title": "Bon retour",
+    "subtitle": "Connectez-vous à votre compte Beech CMS",
+    "email": "E-mail",
+    "emailPlaceholder": "m@example.com",
+    "password": "Mot de passe",
+    "submit": "Se connecter",
     "hidePassword": "Masquer le mot de passe",
     "showPassword": "Afficher le mot de passe",
     "signingIn": "Connexion...",

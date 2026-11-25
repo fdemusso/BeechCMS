@@ -1509,6 +1509,12 @@
     "upload": "Subir archivo"
   },
   "login": {
+    "title": "Bienvenido de nuevo",
+    "subtitle": "Inicia sesión en tu cuenta de Beech CMS",
+    "email": "Correo",
+    "emailPlaceholder": "m@example.com",
+    "password": "Contraseña",
+    "submit": "Iniciar sesión",
     "hidePassword": "Ocultar contraseña",
     "showPassword": "Mostrar contraseña",
     "signingIn": "Iniciando sesión...",

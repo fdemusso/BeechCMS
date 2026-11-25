@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -89,20 +88,20 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
               <FieldGroup className="w-full max-w-sm">
                 <div className="flex flex-col items-center gap-2 text-center">
-                  <h1 className="font-heading text-2xl font-bold">
-                    Welcome back
+                  <h1 className="font-heading text-5xl font-bold">
+                    {t("login.title")}
                   </h1>
                   <p className="text-muted-foreground text-balance text-sm">
-                    Login to your Beech CMS account
+                    {t("login.subtitle")}
                   </p>
                 </div>
                 <Field>
-                  <FieldLabel htmlFor="email">Email</FieldLabel>
+                  <FieldLabel htmlFor="email">{t("login.email")}</FieldLabel>
                   <Input
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="m@example.com"
+                    placeholder={t("login.emailPlaceholder")}
                     autoComplete="username"
                     inputMode="email"
                     value={emailValue}
@@ -114,11 +113,11 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
                 </Field>
                 <Field>
                   <div className="flex items-center">
-                    <FieldLabel htmlFor="password">Password</FieldLabel>
+                    <FieldLabel htmlFor="password">{t("login.password")}</FieldLabel>
                     {passwordReset && (
                       <Link
                         to="/forgot-password"
-                        className="ml-auto text-sm hover:opacity-80 transition-opacity"
+                        className="ml-auto text-sm font-medium hover:opacity-80 transition-opacity"
                       >
                         {t("login.forgotPassword")}
                       </Link>
@@ -149,7 +148,7 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
                     >
                       <span
                         key={isPasswordVisible ? "visible" : "hidden"}
-                        className="inline-flex origin-center animate-[icon-swap_0.15s_ease-out]"
+                        className="inline-flex origin-center animate-[icon-swap_var(--duration-enter)_ease-out]"
                       >
                         {isPasswordVisible ? (
                           <EyeOff className="text-muted-foreground size-4" />
@@ -170,7 +169,7 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
                     type="submit"
                     disabled={!isFormValid || isLoading}
                   >
-                    {isLoading ? t("login.signingIn") : "Login"}
+                    {isLoading ? t("login.signingIn") : t("login.submit")}
                   </Button>
                 </Field>
               </FieldGroup>
@@ -179,16 +178,13 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
           <div className="relative hidden md:block md:min-h-[36rem] md:overflow-hidden">
             <img
                src={`${import.meta.env.BASE_URL}undraw_enter_nwx3.svg`}
-               alt="Illustrazione area login"
+               alt=""
+               aria-hidden="true"
                className="absolute -bottom-7 -right-28 h-full max-h-[42rem] w-full max-w-lg object-contain object-right-bottom scale-x-[-1]"
             />
           </div>
         </CardContent>
       </Card>
-      <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
-        and <a href="#">Privacy Policy</a>.
-      </FieldDescription>
     </div>
   )
 }

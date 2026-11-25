@@ -245,7 +245,7 @@ export function SetupPage() {
     <div className="flex min-h-svh w-full items-center justify-center bg-background p-4">
       <Card className="w-full max-w-lg">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">{t('setup.title')}</CardTitle>
+          <CardTitle className="text-5xl font-bold">{t('setup.title')}</CardTitle>
           <CardDescription>{t('setup.subtitle')}</CardDescription>
         </CardHeader>
         <CardContent>

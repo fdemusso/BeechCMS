@@ -38,9 +38,9 @@ export function ResetPasswordPage() {
           <Card className="overflow-hidden shadow-md">
             <CardContent className="p-6 md:p-8">
               <div className="flex flex-col items-center gap-4 text-center">
-                <h1 className="font-heading text-2xl font-bold">{t("resetPassword.invalidLink.title")}</h1>
+                <h1 className="font-heading text-5xl font-bold">{t("resetPassword.invalidLink.title")}</h1>
                 <p className="text-muted-foreground text-sm">{t("resetPassword.invalidLink.label")}</p>
-                <Link to="/forgot-password" className="text-sm hover:opacity-80 transition-opacity">
+                <Link to="/forgot-password" className="text-sm font-medium hover:opacity-80 transition-opacity">
                   {t("resetPassword.requestNew")}
                 </Link>
               </div>
@@ -94,7 +94,7 @@ export function ResetPasswordPage() {
             <form onSubmit={handleSubmit} noValidate>
               <FieldGroup>
                 <div className="flex flex-col items-center gap-2 text-center">
-                  <h1 className="font-heading text-2xl font-bold">{t("resetPassword.title")}</h1>
+                  <h1 className="font-heading text-5xl font-bold">{t("resetPassword.title")}</h1>
                   <p className="text-muted-foreground text-balance text-sm">
                     {t("resetPassword.desc")}
                   </p>
@@ -118,7 +118,7 @@ export function ResetPasswordPage() {
                       onClick={() => setIsPasswordVisible((p) => !p)}
                       aria-label={isPasswordVisible ? t("login.hidePassword") : t("login.showPassword")}
                     >
-                      <span className="inline-flex origin-center animate-[icon-swap_0.15s_ease-out]">
+                      <span className="inline-flex origin-center animate-[icon-swap_var(--duration-enter)_ease-out]">
                         {isPasswordVisible ? (
                           <EyeOff className="text-muted-foreground size-4" />
                         ) : (
@@ -147,7 +147,7 @@ export function ResetPasswordPage() {
                       onClick={() => setIsConfirmVisible((p) => !p)}
                       aria-label={isConfirmVisible ? t("login.hidePassword") : t("login.showPassword")}
                     >
-                      <span className="inline-flex origin-center animate-[icon-swap_0.15s_ease-out]">
+                      <span className="inline-flex origin-center animate-[icon-swap_var(--duration-enter)_ease-out]">
                         {isConfirmVisible ? (
                           <EyeOff className="text-muted-foreground size-4" />
                         ) : (
@@ -167,7 +167,7 @@ export function ResetPasswordPage() {
                   </Button>
                 </Field>
                 <div className="text-center">
-                  <Link to="/login" className="text-sm hover:opacity-80 transition-opacity">
+                  <Link to="/login" className="text-sm font-medium hover:opacity-80 transition-opacity">
                     {t("forgotPassword.backToLogin")}
                   </Link>
                 </div>

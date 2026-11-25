@@ -44,7 +44,6 @@ describe("LoginForm", () => {
     expect(form).toBeInTheDocument()
     if (!form) throw new Error("Form non trovato")
     fireEvent.submit(form)
-    expect(screen.getByText(/Terms of Service/i)).toBeInTheDocument()
   })
 })
 
