@@ -14,18 +14,19 @@ describe('withCachedResponse', () => {
     expect(result).toBe(response)
   })
 
-  it('schedules a short-lived cache write and returns the original response untouched', async () => {
+  it('the response served on a miss carries the same Cache-Control as the copy stored for hits', async () => {
     const put = vi.fn().mockResolvedValue(undefined)
     const waitUntil = vi.fn()
     const edgeCache = { cache: { put } as unknown as Cache, executionCtx: { waitUntil } }
     const response = new Response('body', { status: 200, headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } })
 
-    const result = withCachedResponse(edgeCache, new Request('http://localhost/x'), response)
+    const served = withCachedResponse(edgeCache, new Request('http://localhost/x'), response)
 
-    expect(result).toBe(response)
-    expect(waitUntil).toHaveBeenCalledTimes(1)
     await waitUntil.mock.calls[0][0]
     const [, cachedResponse] = put.mock.calls[0]
+    // A hit answers with the stored copy: a miss without the same header made browsers cache hits only.
+    expect(served.headers.get('Cache-Control')).toBe('public, max-age=60')
     expect(cachedResponse.headers.get('Cache-Control')).toBe('public, max-age=60')
+    expect(await served.text()).toBe('body')
   })
 })
