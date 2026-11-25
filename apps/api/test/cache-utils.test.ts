@@ -108,7 +108,9 @@ describe('cache-utils', () => {
       })
 
       const result = withCachedResponse(edgeCache, request, response)
-      expect(result).toBe(response)
+      // The miss is served with the same Cache-Control as the cached copy (#1017), not the original response.
+      expect(result.headers.get('Cache-Control')).toBe('public, max-age=60')
+      expect(result.headers.get('X-Test')).toBe('true')
       expect(mockExecutionCtx.waitUntil).toHaveBeenCalled()
 
       // Extract the promise passed to waitUntil and wait for it
