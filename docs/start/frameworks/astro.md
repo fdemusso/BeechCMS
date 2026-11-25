@@ -14,7 +14,7 @@ Before querying data in Astro, ensure you have a running BeechCMS instance with 
 
 1. **Start BeechCMS**: If running locally, start your backend via `pnpm run dev` (running on `http://localhost:8789`), or use your deployed Cloudflare Worker URL.
 2. **Verify or Create the Seed**: In your BeechCMS admin dashboard (`/admin`), verify you have an `articles` Seed with:
-   - **Branches**: `title` (Text), `slug` (Slug), and `body` (Rich Text).
+   - **Branches**: `title` (Text) and `body` (Rich Text). Do not add a `slug` branch: `slug` is a reserved system column that BeechCMS fills from the title on every entry (`hello-beechcms`); the `slug` field used below is that column.
    - **Permissions**: Ensure **Allow Public Read** (`allowPublicRead`) is checked so public requests can fetch content without admin secrets.
 3. **Publish a Fruit (Record)**: Create at least one article and click **Publish**.
 

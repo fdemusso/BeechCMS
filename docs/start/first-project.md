@@ -84,9 +84,10 @@ BeechCMS models content through **Seeds** (Blueprints) containing **Branches** (
 
 Add the following Branches to the Seed:
 - **Title**: Type `text`, alias `title`, required, search indexed (`search: true`).
-- **Slug**: Type `text`, alias `slug`, required.
 - **Cover Image**: Type `file`, alias `cover_image`, accept `image`.
 - **Body**: Type `richtext`, alias `body`.
+
+Do not add a `slug` branch. Every entry already has a `slug` system column, generated from the title (`Hello BeechCMS` becomes `hello-beechcms`), and the API rejects branch aliases that collide with system columns (`id`, `slug`, `status`, `created_at`, `updated_at`, `deleted_at`).
 
 Click **Save Seed**. Under the hood, the Botanical Engine compiles the SQLite DDL: provisioning `content_posts`, the draft mirror table `content_posts_drafts`, B-tree indexes, and the full-text search virtual table `fts_posts`.
 
