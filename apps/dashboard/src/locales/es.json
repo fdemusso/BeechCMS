@@ -2432,7 +2432,6 @@
           "badge": "No disponible para tu rol"
         }
       },
-      "redirectNotice": "Tras aprobar, volverás a {{uri}}.",
       "approve": "Permitir acceso",
       "deny": "Denegar",
       "error": {
@@ -2460,26 +2459,54 @@
         "agent:read": "Ver las acciones que tu agente espera que confirmes y rechazarlas",
         "agent:approve": "Ejecutar una acción después de que la confirmes en tu cliente de IA"
       },
-      "required": "Obligatorio",
-      "disclaimer": "La app nunca supera tu propio rol. Puedes revocar el acceso en cualquier momento en Ajustes > Apps conectadas.",
       "template": {
         "legend": "Nivel de acceso",
-        "read": {
-          "label": "Lectura",
-          "description": "Ver todo, no cambiar nada"
+        "custom": "Personalizado",
+        "reader": {
+          "label": "Lectura"
         },
-        "editor": {
-          "label": "Editor",
-          "description": "Lectura, más crear, editar y eliminar contenido y multimedia"
+        "writer": {
+          "label": "Escritura"
         },
-        "admin": {
-          "label": "Administrador",
-          "description": "Editor, más automatizaciones, usuarios y ajustes"
-        },
-        "developer": {
-          "label": "Desarrollador",
-          "description": "Todo lo solicitado, incluidos los cambios de esquema"
+        "full": {
+          "label": "Acceso completo"
         }
+      },
+      "scopeCount": "{{granted}} de {{total}} permisos",
+      "summary": {
+        "empty": "Ninguno de los permisos solicitados está disponible para tu rol.",
+        "readOnly": "Acceso de solo lectura a los recursos seleccionados. No se puede modificar nada.",
+        "readWithApprove": "Acceso de solo lectura, más ejecución de acciones solo tras tu confirmación.",
+        "writeContent": "Acceso de lectura más creación, edición y eliminación de contenido y medios.",
+        "writeContentWithApprove": "Acceso de lectura y escritura para contenido y medios, más acciones confirmadas.",
+        "schemaOnly": "Acceso de lectura más cambios de esquema.",
+        "schemaWithApprove": "Acceso de lectura, cambios de esquema y ejecución de acciones tras tu confirmación.",
+        "fullWithoutSchema": "Acceso de lectura y escritura para contenido, medios, automatizaciones, usuarios y ajustes.",
+        "fullWithSchema": "Acceso completo a todos los permisos solicitados, incluidos cambios de esquema y ajustes."
+      },
+      "domains": {
+        "schema": "Esquema",
+        "content": "Contenido",
+        "media": "Medios",
+        "automations": "Automatizaciones",
+        "users": "Usuarios y roles",
+        "settings": "Ajustes",
+        "analytics": "Analíticas",
+        "agent": "Acciones del agente"
+      },
+      "actions": {
+        "read": "Lectura",
+        "write": "Escritura"
+      },
+      "domainDescriptions": {
+        "schema": "Estructura de los tipos de contenido, campos y migraciones de esquema.",
+        "content": "Entradas almacenadas en tus tipos de contenido (leer, crear, editar o eliminar).",
+        "media": "Imágenes y archivos almacenados en tu biblioteca de medios.",
+        "automations": "Flujos automatizados, disparadores e historial de ejecuciones.",
+        "users": "Cuentas del equipo, roles, permisos e invitaciones pendientes.",
+        "settings": "Configuración y preferencias globales del sitio.",
+        "analytics": "Métricas de tráfico, uso de almacenamiento y estadísticas del sistema.",
+        "agent": "Acciones pendientes propuestas por un agente de IA que esperan tu confirmación."
       }
     },
     "apps": {
