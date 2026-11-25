@@ -139,6 +139,14 @@ export function publicProblem<S extends PublicProblemStatus>(c: Context, input: 
 }
 
 /** 503 for the Time-Trap routes while PUBLIC_TIME_TRAP_SECRET is unset: no key means no trustworthy token. */
+/**
+ * The single answer for an unknown seed and for a seed the public API does not expose, so the status and
+ * the body never tell a caller holding only a key which private seeds exist. It lists no other slug.
+ */
+export function publicSeedNotFoundProblem(c: Context, seedSlug: string) {
+  return publicProblem(c, { type: 'seed-not-found', title: 'Seed Not Found', status: 404, detail: `Content type '${seedSlug}' not found.` })
+}
+
 export function timeTrapNotConfiguredProblem(c: Context): Response {
   return publicProblem(c, {
     type: 'time-trap-not-configured',

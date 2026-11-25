@@ -93,6 +93,29 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
     expect(del).not.toHaveBeenCalled()
   })
 
+  it('a seed with no public flag answers the same 404 seed-not-found as an unknown seed and stores nothing', async () => {
+    const repository = new StaticContentRepository(TEST_SEEDS)
+    const privateApp = createBeechApp({ seeds: TEST_SEEDS, repository })
+    const privateSeed = TEST_SEEDS.find((seed) => seed.slug === 'documentation')!
+    const post = (slug: string) => privateApp.request(`/api/v1/public/${slug}/add`, {
+      method: 'POST',
+      headers: { 'X-API-Key': TEST_SECRET_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { title: 'Nope' } }),
+    }, TEST_ENV)
+    const unknown = await post('ghost')
+    const unknownBody = await unknown.json<{ type: string; title: string; detail: string }>()
+
+    const response = await post(privateSeed.slug)
+
+    expect(response.status).toBe(404)
+    expect(unknown.status).toBe(404)
+    const body = await response.json<{ type: string; title: string; detail: string }>()
+    expect(body.type).toBe(unknownBody.type)
+    expect(body.title).toBe(unknownBody.title)
+    expect(body.detail.replace(privateSeed.slug, '<requested>')).toBe(unknownBody.detail.replace('ghost', '<requested>'))
+    expect((await repository.findMany(privateSeed, {})).total).toBe(0)
+  })
+
   describe('Confidential Data & Access Policies on Public Add', () => {
     const leadsSeed = {
       slug: 'leads',

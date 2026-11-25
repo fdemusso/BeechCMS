@@ -26,6 +26,9 @@ export type ReadSingleResult =
   | { ok: true; data: Record<string, unknown>; meta: { seed: string } }
   | { ok: false; detail: string }
 
+// One text for a missing and an unpublished entry, so a read-key holder cannot probe for drafts.
+const notFoundDetail = (label: string) => `Entry '${label}' not found.`
+
 export async function readSingleEntry(input: ReadSingleInput): Promise<ReadSingleResult> {
   const { seed, seedSlug, repository, id, slug, publishedOnly, fieldsParam, query, getSeed, language } = input
   const label = id ?? slug!
@@ -36,7 +39,7 @@ export async function readSingleEntry(input: ReadSingleInput): Promise<ReadSingl
       : await repository.findBySlug(seed, slug!)
 
     if (publishedOnly && entry.status !== 'published') {
-      return { ok: false, detail: `Entry '${label}' not found or not published.` }
+      return { ok: false, detail: notFoundDetail(label) }
     }
 
     const data = toFlatPublicEntry(entry, seed, fieldsParam, language)
@@ -49,7 +52,7 @@ export async function readSingleEntry(input: ReadSingleInput): Promise<ReadSingl
     }
   } catch (error) {
     if (error instanceof EntryNotFoundError) {
-      return { ok: false, detail: `Entry '${label}' not found for content type '${seedSlug}'.` }
+      return { ok: false, detail: notFoundDetail(label) }
     }
     throw error
   }
