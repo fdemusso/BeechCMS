@@ -54,7 +54,7 @@ export async function dbMigrate(_args: DbMigrateOptions): Promise<void> {
   }
 
   // 3. Generated consumer project: root package.json with db:migrate:local script
-  //    (present in projects scaffolded by `npx @beechcms/cms my-app`)
+  //    (present in projects scaffolded by `npx @beechcms/cms@latest my-app`)
   const rootPkgPath = resolve(cwd, 'package.json')
   if (existsSync(rootPkgPath)) {
     try {
@@ -79,6 +79,6 @@ export async function dbMigrate(_args: DbMigrateOptions): Promise<void> {
   }
 
   console.log(pc.red('  ✗ No migration script found.'))
-  console.log(pc.dim('  Expected a `db:migrate:local` script in package.json (present in projects scaffolded by `npx @beechcms/cms my-app`).\n'))
+  console.log(pc.dim('  Expected a `db:migrate:local` script in package.json (present in projects scaffolded by `npx @beechcms/cms@latest my-app`).\n'))
   process.exit(1)
 }

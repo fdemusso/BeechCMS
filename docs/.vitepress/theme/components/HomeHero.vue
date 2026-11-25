@@ -6,9 +6,9 @@ type TabType = 'ai' | 'cli'
 const activeTab = ref<TabType>('ai')
 const copied = ref(false)
 
-const aiPromptText = `Help me get set up with BeechCMS. Do the following: 1. Scaffold a new project with npx @beechcms/cms my-app (or npx @beechcms/cms my-app --yes). 2. Review project structure (worker.ts, wrangler.jsonc, .dev.vars) and verify Cloudflare bindings. 3. Start it with npm run dev (it applies the local database migrations) and open http://localhost:8789/admin to create the admin account. 4. Connect @beechcms/client to Cloudflare Workers and D1 SQLite. 5. Suggest the most relevant next steps.`
+const aiPromptText = `Help me get set up with BeechCMS. Do the following: 1. Scaffold a new project with npx @beechcms/cms@latest my-app (or npx @beechcms/cms@latest my-app --yes). 2. Review project structure (worker.ts, wrangler.jsonc, .dev.vars) and verify Cloudflare bindings. 3. Start it with npm run dev (it applies the local database migrations) and open http://localhost:8789/admin to create the admin account. 4. Connect @beechcms/client to Cloudflare Workers and D1 SQLite. 5. Suggest the most relevant next steps.`
 
-const cliText = `npx @beechcms/cms my-app`
+const cliText = `npx @beechcms/cms@latest my-app`
 
 const activeTextToCopy = computed(() => {
   return activeTab.value === 'ai' ? aiPromptText : cliText
@@ -100,11 +100,11 @@ async function copyContent() {
 
           <div class="card-body">
             <div v-show="activeTab === 'ai'" class="prompt-text">
-              Help me get set up with BeechCMS. Do the following: 1. Scaffold a new project with <code class="code-badge">npx @beechcms/cms my-app</code> (or <code class="code-badge">npx @beechcms/cms my-app --yes</code>). 2. Review project structure and verify that <code class="code-badge">.dev.vars</code> and <code class="code-badge">wrangler.jsonc</code> are configured. 3. Start it with <code class="code-badge">npm run dev</code> (it applies the local database migrations) and open <code class="code-badge">http://localhost:8789/admin</code> to create the admin account. 4. Connect <code class="code-badge">@beechcms/client</code> to Cloudflare Workers and D1 SQLite. 5. Suggest the most relevant next steps.
+              Help me get set up with BeechCMS. Do the following: 1. Scaffold a new project with <code class="code-badge">npx @beechcms/cms@latest my-app</code> (or <code class="code-badge">npx @beechcms/cms@latest my-app --yes</code>). 2. Review project structure and verify that <code class="code-badge">.dev.vars</code> and <code class="code-badge">wrangler.jsonc</code> are configured. 3. Start it with <code class="code-badge">npm run dev</code> (it applies the local database migrations) and open <code class="code-badge">http://localhost:8789/admin</code> to create the admin account. 4. Connect <code class="code-badge">@beechcms/client</code> to Cloudflare Workers and D1 SQLite. 5. Suggest the most relevant next steps.
             </div>
 
             <div v-show="activeTab === 'cli'" class="cli-text">
-              <pre><code><span class="cmd-prompt">$</span> npx @beechcms/cms my-app</code></pre>
+              <pre><code><span class="cmd-prompt">$</span> npx @beechcms/cms@latest my-app</code></pre>
             </div>
           </div>
         </div>

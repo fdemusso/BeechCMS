@@ -53,7 +53,7 @@ Add the server to `claude_desktop_config.json` (or `.cursor/mcp.json`):
   "mcpServers": {
     "beechcms": {
       "command": "npx",
-      "args": ["-y", "@beechcms/mcp"],
+      "args": ["-y", "@beechcms/mcp@latest"],
       "env": {
         "BEECH_API_URL": "http://localhost:8789"
       }

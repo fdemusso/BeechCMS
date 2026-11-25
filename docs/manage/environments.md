@@ -144,7 +144,7 @@ npx wrangler secret put PUBLIC_TIME_TRAP_SECRET --env production
 npx wrangler secret put PRIVACY_MASTER_KEY --env production
 ```
 
-Projects created with `npx @beechcms/cms` have no `env` block, so they drop `--env production`. The secret key value is `beech_sk_live_` + 32 hex characters (the same generator `beech keys:migrate` uses). `PRIVACY_MASTER_KEY` is set once and never replaced: see [master key provisioning](../build/field-policies.md#master-key-provisioning).
+Projects created with `npx @beechcms/cms@latest` have no `env` block, so they drop `--env production`. The secret key value is `beech_sk_live_` + 32 hex characters (the same generator `beech keys:migrate` uses). `PRIVACY_MASTER_KEY` is set once and never replaced: see [master key provisioning](../build/field-policies.md#master-key-provisioning).
 
 Wrangler prompts you interactively to enter each secret, ensuring they remain encrypted at rest.
 

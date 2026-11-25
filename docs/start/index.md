@@ -21,10 +21,10 @@ BeechCMS replaces traditional server-hosted CMS stacks with serverless edge prim
 Scaffold a production-ready edge backend in seconds:
 
 <PackageManagerTabs
-  npm="npx @beechcms/cms my-app"
-  pnpm="pnpm dlx @beechcms/cms my-app"
-  yarn="yarn dlx @beechcms/cms my-app"
-  bun="bunx @beechcms/cms my-app"
+  npm="npx @beechcms/cms@latest my-app"
+  pnpm="pnpm dlx @beechcms/cms@latest my-app"
+  yarn="yarn dlx @beechcms/cms@latest my-app"
+  bun="bunx @beechcms/cms@latest my-app"
 />
 
 ## AI Assistant & MCP Quickstart
