@@ -115,6 +115,9 @@ BeechCMS guarantees draft isolation using **Dual-Table Mirror Staging**:
 1. Navigate to **Content > Posts** in the dashboard and click **New Entry**.
 2. Fill in the title `"Hello BeechCMS"`, write some body text, and click **Publish**.
 
+> [!NOTE]
+> Public API reads are edge-cached for 60 seconds and publishing does not purge the cache, so a deployed site can show the previous content for up to a minute after you publish. See [Response headers and caching](/reference/public-api#response-headers-and-caching).
+
 ---
 
 ## 5. Invite your team

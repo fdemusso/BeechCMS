@@ -399,8 +399,11 @@ X-API-Key: beech_pk_dev
 | :--- | :--- | :--- |
 | `Content-Language` | Single-language responses | The locale the response resolved to (use it to detect a fallback) |
 | `Vary` | Every negotiated response | Includes `Accept-Language` |
+| `Cache-Control` | Successful reads (`200`) served through the edge cache | `public, max-age=60`, the same on a cache miss and a cache hit |
 
 The edge cache keys each read on the URL **plus** the resolved language, so two visitors sending different `Accept-Language` headers never share a cached response.
+
+A cached read lives **60 seconds** at each Cloudflare location. Publishing, editing or deleting an entry does **not** purge it: after you press **Publish**, a read of the same URL can return the previous content for up to 60 seconds per location (browsers and CDNs in front of your site honour the same `max-age`). Plan for that window, for example by revalidating a static page after 60 seconds rather than right after publishing. Error responses are never cached.
 
 ### Writing localized fields
 
