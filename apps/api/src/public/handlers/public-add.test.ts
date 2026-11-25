@@ -301,5 +301,43 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       expect(stored.total).toBe(0)
     })
   })
+
+  describe('Access and status by caller', () => {
+    async function post(path: string, headers: Record<string, string>, body: Record<string, unknown>) {
+      return app.request(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify(body),
+      }, TEST_ENV)
+    }
+
+    it('answers an anonymous submission to a seed without allowPublicPost with 403 operation-not-allowed', async () => {
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 2)
+
+      const res = await post('/api/v1/public/documentation/add', {}, { data: { title: 'Nope' }, _timeTrapToken: token })
+
+      expect(res.status).toBe(403)
+      const body = await res.json<{ type: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/operation-not-allowed')
+    })
+
+    it('lets the secret key create an entry on a seed without allowPublicPost', async () => {
+      const res = await post('/api/v1/public/documentation/add', { 'X-API-Key': TEST_SECRET_KEY }, { data: { title: 'From the server' } })
+
+      expect(res.status).toBe(201)
+      const body = await res.json<{ data: { status: string } }>()
+      expect(body.data.status).toBe('published')
+    })
+
+    it('stores an anonymous submission as draft and ignores a status in the body', async () => {
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 2)
+
+      const res = await post('/api/v1/public/posts/add', {}, { data: { title: 'Anon post' }, _timeTrapToken: token, status: 'published' })
+
+      expect(res.status).toBe(201)
+      const body = await res.json<{ data: { status: string } }>()
+      expect(body.data.status).toBe('draft')
+    })
+  })
 })
 

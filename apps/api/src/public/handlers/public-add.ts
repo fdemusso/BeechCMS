@@ -135,9 +135,21 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     return publicProblem(context, { type: 'seed-not-found', title: 'Seed Not Found', status: 404, detail: `The content type '${seedSlug}' does not exist.` })
   }
 
-  const access = checkPublicOperation(seed, 'add')
-  if (!access.ok) {
-    return publicProblem(context, { type: 'operation-not-allowed', title: access.error.error, status: 403, detail: access.error.message })
+  // Authenticate API key if provided; an absent or blank key is an anonymous submission
+  const providedKey = context.req.header('X-API-Key')
+  let isApiKeyAuthenticated = false
+  if (providedKey?.trim()) {
+    const decision = authorizePublicKey({ method: 'POST', providedKey, env: context.env })
+    if (!decision.ok) return publicKeyProblem(context, decision)
+    isApiKeyAuthenticated = true
+  }
+
+  // allowPublicPost opens anonymous submissions only; a secret-key write is trusted and never depends on it
+  if (!isApiKeyAuthenticated) {
+    const access = checkPublicOperation(seed, 'add')
+    if (!access.ok) {
+      return publicProblem(context, { type: 'operation-not-allowed', title: access.error.error, status: 403, detail: access.error.message })
+    }
   }
 
   const allowedOrigins = context.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean)
@@ -165,15 +177,6 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     body = asRecord(parsed) ?? {}
   } catch {
     return publicProblem(context, { type: 'invalid-json-body', title: 'Bad Request', status: 400, detail: 'Invalid JSON body' })
-  }
-
-  // Authenticate API key if provided; an absent or blank key is an anonymous submission
-  const providedKey = context.req.header('X-API-Key')
-  let isApiKeyAuthenticated = false
-  if (providedKey?.trim()) {
-    const decision = authorizePublicKey({ method: 'POST', providedKey, env: context.env })
-    if (!decision.ok) return publicKeyProblem(context, decision)
-    isApiKeyAuthenticated = true
   }
 
   let rawData = asRecord(body.data)
@@ -268,8 +271,9 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     return publicProblem(context, { type: 'invalid-data-object', title: 'Bad Request', status: 400, detail: "Field 'data' is required and must be a non-empty object" })
   }
 
-  // Backend-Driven Status Management (disregard client status on unauthenticated submissions, allow on authenticated)
-  const defaultStatus = ((seed as any).defaultPublicStatus as string) || 'published'
+  // Backend-Driven Status Management (disregard client status on unauthenticated submissions, allow on authenticated).
+  // Anonymous input is untrusted, so it lands as a draft unless the seed opts in; a trusted write publishes by default.
+  const defaultStatus = seed.defaultPublicStatus ?? (isApiKeyAuthenticated ? 'published' : 'draft')
   const statusValue = (isApiKeyAuthenticated && typeof body.status === 'string' && isValidContentStatus(body.status))
     ? body.status
     : defaultStatus

@@ -13,11 +13,12 @@ Defined in each Seed blueprint schema:
 ```typescript
 interface Seed {
   allowPublicRead?: boolean;   // Enables GET /api/v1/public/:seed
-  allowPublicPost?: boolean;   // Enables POST /api/v1/public/:seed/add
+  allowPublicPost?: boolean;   // Enables anonymous POST /api/v1/public/:seed/add (form submissions)
+  defaultPublicStatus?: 'draft' | 'review' | 'published'; // Status of an anonymous submission. Default: 'draft'
   allowPublicEdit?: boolean;   // Enables PUT & PATCH /api/v1/public/:seed/edit/:id
 }
 ```
-If a capability flag is `false` or absent, the endpoint fails closed and returns `403 Forbidden` (`operation-not-allowed`) regardless of credentials.
+If a read or edit flag is `false` or absent, the endpoint fails closed and returns `403 Forbidden` (`operation-not-allowed`) regardless of credentials. `allowPublicPost` gates anonymous submissions only: a request with the secret key creates entries without it.
 
 ### Level 2 — Key Roles & Zero-Secret Mode
 1. **Authenticated Requests (`X-API-Key` header):**
@@ -460,7 +461,14 @@ Generates an encrypted, single-use Time-Trap token for zero-secret form submissi
 
 ## Create — `POST /api/v1/public/:seed/add`
 
-Creates an entry via the Public API. Requires `allowPublicPost: true`.
+Creates an entry via the Public API. An anonymous submission requires `allowPublicPost: true`; a request with the secret key does not.
+
+**Status of the new entry**
+
+| Caller | Status |
+|---|---|
+| Anonymous (Time-Trap token, no key) | `defaultPublicStatus` of the seed, `draft` when unset. A `status` in the body is ignored. Set `defaultPublicStatus: 'published'` only for a seed where unmoderated public content is intended. |
+| Secret key | `status` in the body, else `defaultPublicStatus`, else `published`. |
 
 **Authentication Modes:**
 1. **Authenticated Mode:** Send `X-API-Key` with the secret key (`beech_sk_dev` locally). A publishable key answers 403 `public-api-secret-key-required`.

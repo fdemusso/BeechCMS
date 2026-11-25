@@ -49,7 +49,7 @@ npm install @beechcms/client
 | Publishable | `publishableKey` | `GET` / `HEAD` / `OPTIONS` reads | `wrangler.jsonc` `vars` (committed) as `BEECH_PUBLISHABLE_KEY` | `beech_pk_dev` | Browser and server |
 | Secret | `secretKey` | Reads and writes | `.dev.vars` locally as `BEECH_SECRET_KEY`; `npx wrangler secret put BEECH_SECRET_KEY` in production with a generated `beech_sk_live_…` value | `beech_sk_dev` | Server only |
 
-The key authenticates and the seed authorizes: `allowPublicRead` / `allowPublicPost` / `allowPublicEdit` still apply to both keys. See the [permission model](/reference/public-api#permission-model).
+The key authenticates and the seed authorizes: `allowPublicRead` / `allowPublicEdit` still apply to both keys. `allowPublicPost` gates anonymous form submissions only: the secret key creates entries without it. See the [permission model](/reference/public-api#permission-model).
 
 A new project serves `beech_pk_dev` in production too, unless you change `BEECH_PUBLISHABLE_KEY`. This is safe because the key is read-only.
 
