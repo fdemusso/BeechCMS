@@ -10,7 +10,8 @@ Add a new file in `apps/api/migrations/` following the naming convention:
 Add your new migration file to the `migrations` array in the `[[d1_databases]]` section of `apps/api/wrangler.jsonc`. Do not skip or reorder entries.
 
 ## Step 3 — Apply locally
-- `pnpm run db:migrate:local` : applies all pending migrations to local .wrangler state.
+- `pnpm run db:migrate:local` : applies every migration not yet recorded in the local `d1_migrations` table (the table wrangler uses), one transaction per file, and prints each file it applies. A fully migrated DB is a no-op. A failing migration aborts with exit 1 and is not recorded.
+- A local DB created before migration tracking existed (schema present, no `d1_migrations`) is refused with exit 1, because there is no way to tell which files already ran. Wipe it with `pnpm beech db:reset`.
 - `pnpm run db:reset:local` : wipes .wrangler state and re-runs all migrations.
 
 ## Step 4 — Deploy to production
