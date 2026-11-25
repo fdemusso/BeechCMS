@@ -99,16 +99,14 @@ describe('public slice — key roles (real D1)', () => {
       expect(await countPosts()).toBe(0)
     })
 
-    it('the secret key on categories gets 403 operation-not-allowed and nothing is written', async () => {
-      // The key authenticates, the seed authorizes: categories has no allowPublicPost (the split is tracked in #1022).
-      const response = await secretClient.post('/api/v1/public/categories/add', { data: { name: 'Nope' } })
+    it('the secret key creates a categories entry although the seed opens no anonymous submissions', async () => {
+      // The key authenticates and is trusted: allowPublicPost gates anonymous submissions only (#1022).
+      const response = await secretClient.post('/api/v1/public/categories/add', { data: { name: 'From the server' } })
 
-      expect(response.status).toBe(403)
-      const body = await response.json<Problem>()
-      expect(body.type).toBe(`${PROBLEM_BASE}operation-not-allowed`)
+      expect(response.status).toBe(201)
       const listed = await publishableClient.get('/api/v1/public/categories')
       const listedBody = await listed.json<PublicList>()
-      expect(listedBody.meta.total).toBe(0)
+      expect(listedBody.meta.total).toBe(1)
     })
 
     it('ENV production refuses the dev secret key with 403 dev-secret-key and nothing is written', async () => {

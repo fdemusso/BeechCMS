@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { generateTimeTrapToken, type IAntivirusProvider, type INotificationService, type BeechBucket } from '@beechcms/core'
+import { defineSeed, generateTimeTrapToken, type IAntivirusProvider, type INotificationService, type BeechBucket } from '@beechcms/core'
 import { createBeechApp } from '../../factory'
 import { __resetSeedRegistryCache } from '../../shared/services/cache/seed-registry-cache'
 import { StaticContentRepository } from '../../../test/mocks/static-content.repository'
@@ -322,6 +322,59 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       expect(body.type).toBe('https://beechcms.dev/problems/public-api-secret-key-required')
       const stored = await repository.findMany(leadsSeed, {})
       expect(stored.total).toBe(0)
+    })
+  })
+
+  describe('Access and status by caller', () => {
+    // Readable but closed to anonymous submissions: public for another operation, so it is not hidden as unknown.
+    const readOnlySeed = defineSeed({
+      slug: 'catalog',
+      label: 'Catalog',
+      displayNameAlias: 'title',
+      allowPublicRead: true,
+      branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text' }],
+    })
+    const accessApp = () => createBeechApp({
+      seeds: [...TEST_SEEDS, readOnlySeed],
+      repository: new StaticContentRepository([...TEST_SEEDS, readOnlySeed]),
+      idempotencyRepository: new StaticIdempotencyRepository(),
+      automationRepository: new StaticAutomationRepository(),
+    })
+
+    async function post(path: string, headers: Record<string, string>, body: Record<string, unknown>) {
+      return accessApp().request(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify(body),
+      }, TEST_ENV)
+    }
+
+    it('answers an anonymous submission to a seed without allowPublicPost with 403 operation-not-allowed', async () => {
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 2)
+
+      const res = await post('/api/v1/public/catalog/add', {}, { data: { title: 'Nope' }, _timeTrapToken: token })
+
+      expect(res.status).toBe(403)
+      const body = await res.json<{ type: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/operation-not-allowed')
+    })
+
+    it('lets the secret key create an entry on a seed without allowPublicPost', async () => {
+      const res = await post('/api/v1/public/catalog/add', { 'X-API-Key': TEST_SECRET_KEY }, { data: { title: 'From the server' } })
+
+      expect(res.status).toBe(201)
+      const body = await res.json<{ data: { status: string } }>()
+      expect(body.data.status).toBe('published')
+    })
+
+    it('stores an anonymous submission as draft and ignores a status in the body', async () => {
+      const token = await generateTimeTrapToken(TEST_TIME_TRAP_SECRET, Math.floor(Date.now() / 1000) - 2)
+
+      const res = await post('/api/v1/public/posts/add', {}, { data: { title: 'Anon post' }, _timeTrapToken: token, status: 'published' })
+
+      expect(res.status).toBe(201)
+      const body = await res.json<{ data: { status: string } }>()
+      expect(body.data.status).toBe('draft')
     })
   })
 })

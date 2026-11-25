@@ -34,7 +34,7 @@ All API errors from the Public API use **RFC 9457 Problem Details** (obsoleting 
 |---|---|---|
 | `seed-not-found` | `404` | Content type does not exist in registry, or the public API does not expose it (same answer, no list of other types) |
 | `entry-not-found` | `404` | No entry with the specified UUID or slug |
-| `operation-not-allowed` | `403` | Seed is public for another operation, but its `allowPublicPost` or `allowPublicEdit` flag is `false` for this write |
+| `operation-not-allowed` | `403` | Seed is public for another operation, but its `allowPublicPost` flag is `false` for an anonymous submission, or its `allowPublicEdit` flag is `false` for this edit |
 | `public-api-key-unauthorized` | `401` | Missing or invalid API key |
 | `public-api-not-configured` | `403` | The key the request needs is not configured (`BEECH_SECRET_KEY` for writes, no key at all for reads) |
 | `public-api-secret-key-required` | `403` | A publishable key was sent for a write; writes need the secret key |
