@@ -80,7 +80,7 @@ describe('updateHandler — localized fields', () => {
       SEED,
       'entry-1',
       expect.objectContaining({ title: { it: 'Scarpa', en: 'Shoe' } }),
-      'draft',
+      undefined,
       expect.objectContaining({ ifMatch: 1700000000 }),
     )
   })
@@ -94,7 +94,7 @@ describe('updateHandler — localized fields', () => {
       SEED,
       'entry-1',
       expect.objectContaining({ title: { it: 'Scarpa', en: 'Shoe' } }),
-      'draft',
+      undefined,
       expect.objectContaining({ ifMatch: 1699999999 }),
     )
   })
@@ -108,7 +108,7 @@ describe('updateHandler — localized fields', () => {
       SEED,
       'entry-1',
       expect.objectContaining({ code: 'Y' }),
-      'draft',
+      undefined,
       expect.objectContaining({ ifMatch: undefined }),
     )
   })
