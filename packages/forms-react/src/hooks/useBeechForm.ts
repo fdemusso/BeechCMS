@@ -301,7 +301,8 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
         onBlur: () => setFieldTouched(field, true),
         'aria-invalid': !!(isFieldTouched && fieldError),
         'aria-required': isRequired,
-        'aria-describedby': fieldError ? `${field}-error` : undefined,
+        // Same condition as FormField rendering the message, so the reference never points at nothing.
+        'aria-describedby': isFieldTouched && fieldError ? `${field}-error` : undefined,
       }
     },
     [errors, touched, schema, values, setFieldValue, setFieldTouched]

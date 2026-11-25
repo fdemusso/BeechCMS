@@ -484,3 +484,30 @@ describe('useBeechForm — server validation errors', () => {
   })
 })
 
+describe('useBeechForm — register accessibility attributes', () => {
+  const schema: FormSeedSchema = { slug: 'a11y', branches: [{ alias: 'email', type: 'email', required: true }] }
+
+  it('an error on an untouched field does not point aria-describedby at a message that is not rendered', () => {
+    const { result } = renderHook(() => useBeechForm({ seed: schema, disableDraft: true }))
+    act(() => result.current.setFieldError('email', 'Invalid'))
+
+    const attrs = result.current.register('email')
+
+    // FormField renders the #email-error message only once the field is touched.
+    expect(attrs['aria-describedby']).toBeUndefined()
+    expect(attrs['aria-invalid']).toBe(false)
+  })
+
+  it('a touched field with an error is invalid and described by its message', () => {
+    const { result } = renderHook(() => useBeechForm({ seed: schema, disableDraft: true }))
+    act(() => {
+      result.current.setFieldError('email', 'Invalid')
+      result.current.setFieldTouched('email')
+    })
+
+    const attrs = result.current.register('email')
+
+    expect(attrs).toMatchObject({ 'aria-invalid': true, 'aria-describedby': 'email-error' })
+  })
+})
+

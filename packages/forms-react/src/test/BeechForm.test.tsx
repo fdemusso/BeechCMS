@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BeechForm } from '../components/BeechForm.js'
 import type { FormSeedSchema } from '../types.js'
+import { saveFormDraft } from '../core/draft-storage.js'
 
 describe('BeechForm Component', () => {
   const testSchema: FormSeedSchema = {
@@ -115,3 +116,33 @@ describe('BeechForm Component', () => {
     })
   })
 })
+
+describe('BeechForm — loading state and accessibility', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('the schema loading state is a status region in the form locale', () => {
+    // A fetch that never settles keeps the form in its loading state for the whole test.
+    globalThis.fetch = vi.fn(() => new Promise<Response>(() => undefined)) as unknown as typeof fetch
+
+    render(<BeechForm seed="loading-test" baseUrl="https://api.example.com" locale="en" disableAntiBot />)
+
+    const status = screen.getByRole('status')
+    expect(status.textContent).toContain('Loading form')
+    expect(status.getAttribute('aria-busy')).toBe('true')
+    expect(screen.queryByText(/Caricamento/)).toBeNull()
+  })
+
+  it('the draft-restored dismiss button has an accessible name', () => {
+    saveFormDraft('draft-test', { name: 'Jane' })
+    const schema: FormSeedSchema = { slug: 'draft-test', branches: [{ alias: 'name', type: 'string' }] }
+
+    render(<BeechForm seed={schema} locale="en" disableAntiBot />)
+
+    expect(screen.getByRole('button', { name: 'Dismiss draft notice' })).toBeDefined()
+  })
+})
+

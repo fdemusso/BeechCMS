@@ -74,6 +74,10 @@ export interface FormTranslations {
   invalidFileType: string
   fileTooLarge: (maxMb: number) => string
   draftRestored: string
+  /** Accessible name of the button that closes the draft-restored notice. */
+  dismissDraft: string
+  /** Shown while the form schema loads. */
+  loadingForm: string
   timeTrapWarning: string
   honeypotLabel: string
 }
