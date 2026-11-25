@@ -12,6 +12,7 @@ import { seedTestUsers } from '../helpers/seed-fixtures'
 import { SequentialIdGenerator } from '../../src/shared/services/id-generator/sequential-id-generator'
 import { D1RoleRepository } from '../../src/shared/db/repositories/d1-role.repository'
 import { D1RoleAssignmentRepository } from '../../src/shared/db/repositories/d1-role-assignment.repository'
+import { D1InvitationRepository } from '../../src/shared/db/repositories/d1-invitation.repository'
 import { TEST_USERS, TEST_ENV } from '../fixtures'
 import {
   CODE_VERIFIER, SEED_SLUG, createTargetSeed, issueToken, requestConsent,
@@ -313,6 +314,68 @@ describe('agent intents — flow (real D1)', () => {
       const body = await response.json<SessionBody>()
       expect(body.environment).toBe('production')
       expect(body.confirmation).toEqual({ publish: true, destructive: true })
+    })
+  })
+
+  describe('RBAC intent summaries', () => {
+    const TARGET = { id: 'user_summary_target', email: 'operatore.test@example.com' }
+    const ROLE_NAME = 'Operatore banco'
+    let roleId: string
+    let usersToken: string
+    let ids: SequentialIdGenerator
+
+    // Invitations are `publish`: they are only held for approval in production.
+    const productionEnv = () => ({ ...TEST_ENV, ENV: 'production', DB: db })
+    const jsonHeaders = () => ({ ...bearer(usersToken), 'Content-Type': 'application/json' })
+
+    async function pendingSummary(response: Response): Promise<string> {
+      expect(response.status).toBe(202)
+      return (await response.json<AgentIntentPendingResponse>()).intent.summary
+    }
+
+    beforeEach(async () => {
+      await seedTestUsers(db, [{ ...TARGET, password_hash: await bcrypt.hash('password123', 10), grantSuperAdmin: false }])
+      ids = new SequentialIdGenerator()
+      roleId = await new D1RoleRepository(db, ids).create({ name: ROLE_NAME, description: null, permissions: ['manage_seeds'] })
+      usersToken = (await issueToken(app, db, adminToken, 'users:write', 'state-users')).access_token
+    })
+
+    it('an assignment intent names the user, the role and the scope instead of their ids', async () => {
+      const response = await app.request('/api/rbac/assignments', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ userId: TARGET.id, roleId, scope: SEED_SLUG }),
+      }, env())
+
+      expect(await pendingSummary(response)).toBe(`Assign role "${ROLE_NAME}" to ${TARGET.email} on ${SEED_SLUG}`)
+    })
+
+    it('an invitation intent names the invitee, the role and the scope', async () => {
+      const response = await app.request('/api/rbac/invitations', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ email: 'new.person@example.com', roleId, scope: '*' }),
+      }, productionEnv())
+
+      expect(await pendingSummary(response)).toBe(`Invite new.person@example.com as "${ROLE_NAME}" on all seeds`)
+    })
+
+    it('a removal intent names the holder, the role and the scope of the stored assignment', async () => {
+      const assignmentId = await new D1RoleAssignmentRepository(db, ids).create({ userId: TARGET.id, roleId, scope: SEED_SLUG })
+
+      const response = await app.request(`/api/rbac/assignments/${assignmentId}`, { method: 'DELETE', headers: bearer(usersToken) }, env())
+
+      expect(await pendingSummary(response)).toBe(`Remove role "${ROLE_NAME}" from ${TARGET.email} on ${SEED_SLUG}`)
+    })
+
+    it('a regenerate intent names the invitee, the role and the scope of the stored invitation', async () => {
+      const invitationId = await new D1InvitationRepository(db, ids).create({
+        email: 'pending.person@example.com', tokenHash: 'hash', roleId, scope: SEED_SLUG, invitedBy: TEST_USERS[0].id, expiresAt: 4_000_000_000,
+      })
+
+      const response = await app.request(`/api/rbac/invitations/${invitationId}/regenerate`, { method: 'POST', headers: bearer(usersToken) }, productionEnv())
+
+      expect(await pendingSummary(response)).toBe(`Regenerate the invitation of pending.person@example.com as "${ROLE_NAME}" on ${SEED_SLUG}`)
     })
   })
 })
