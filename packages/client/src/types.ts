@@ -12,6 +12,11 @@ export interface BeechClientBaseConfig {
   baseUrl: string
   fetch?: typeof fetch
   headers?: Record<string, string> | Headers
+  /**
+   * `SCHEMA_FINGERPRINT` exported by `beech types generate`. When set, a response whose `X-Schema-Revision`
+   * differs returns a 409 `schema_drift` problem instead of data typed against a stale schema.
+   */
+  schemaFingerprint?: string
 }
 
 /** Browser client: read-only, authenticated with the publishable key (`beech_pk_…`). */
@@ -96,9 +101,6 @@ export interface ListMeta {
 export interface SeedRegistryTypes {
   [key: string]: Record<string, unknown>
 }
-
-/** Stub for the auto-generated schema fingerprint */
-export const SCHEMA_FINGERPRINT = ''
 
 /** Browser Client Content Resource: Strictly Read-Only (no create/update). */
 export interface BrowserContentResource<TRow> {

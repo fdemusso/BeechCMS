@@ -35,7 +35,7 @@ function resolveConfig(
   if (!key || typeof key !== 'string' || !key.trim()) {
     throw new Error(`${keyName} is required and must be a non-empty string`)
   }
-  return { baseUrl: config.baseUrl, fetch: config.fetch, headers: config.headers, key }
+  return { baseUrl: config.baseUrl, fetch: config.fetch, headers: config.headers, schemaFingerprint: config.schemaFingerprint, key }
 }
 
 export function resolveBrowserConfig(config: BeechBrowserClientConfig): HttpConfig {
@@ -114,6 +114,19 @@ function invalidResponseProblem(status: number, contentType: string, url: string
     detail: `Expected a JSON body from ${url}, got ${contentType || 'no Content-Type'}. ` +
       'Check that baseUrl is the BeechCMS API origin, not the dashboard (/admin) or a site that answers every path with HTML.',
   }
+}
+
+/** Off when no fingerprint is configured: an unset value must not flag every response as drift. */
+export function verifySchemaFingerprint<T>(cfg: HttpConfig, res: BeechResult<T>): BeechResult<T> {
+  const revision = res.headers?.get('X-Schema-Revision')
+  if (cfg.schemaFingerprint && revision && revision !== cfg.schemaFingerprint) {
+    return {
+      data: null,
+      error: { type: 'schema_drift', title: 'Stale Types', status: 409, detail: 'Client types stale, regenerate with `beech types generate`' },
+      headers: res.headers,
+    }
+  }
+  return res
 }
 
 function networkProblem(e: unknown): BeechProblem {

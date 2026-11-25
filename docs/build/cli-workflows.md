@@ -102,8 +102,8 @@ npx beech db:reset
 
 BeechCMS generates typed TypeScript interfaces directly from your live Seed schemas stored in D1.
 `npx beech types generate` writes `beech.generated.ts`, containing `SeedRegistryTypes` **and** a
-`SCHEMA_FINGERPRINT` constant — the value a future `@beechcms/client` compares against the API's
-`X-Schema-Revision` response header to detect a stale build:
+`SCHEMA_FINGERPRINT` constant. Pass it to `@beechcms/client` as `schemaFingerprint`: the client compares it
+against the API's `X-Schema-Revision` response header and returns a `409 schema_drift` problem on a stale build:
 
 ```bash
 # Generate types + fingerprint for all seeds to beech.generated.ts

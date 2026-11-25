@@ -2,17 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import type { BeechBrowserClient, BeechBrowserClientConfig, Listable, ListQuery, Single, BeechProblem, BeechResult, RequestOptions } from '../types.js'
-import { SCHEMA_FINGERPRINT } from '../types.js'
 import { FluentQueryBuilder, buildSearchParams } from '../query-builder.js'
-import { request, resolveBrowserConfig } from '../http.js'
-
-function verifySchemaFingerprint<T>(res: BeechResult<T>): BeechResult<T> {
-  const revision = res.headers?.get('X-Schema-Revision')
-  if (SCHEMA_FINGERPRINT && revision && revision !== SCHEMA_FINGERPRINT) {
-    return { data: null, error: { type: 'schema_drift', title: 'Stale Types', status: 409, detail: 'Client types stale, regenerate with `beech types generate`' } as BeechProblem }
-  }
-  return res
-}
+import { request, resolveBrowserConfig, verifySchemaFingerprint } from '../http.js'
 
 export function createBeechBrowserClient<TRegistry = Record<string, unknown>>(
   config: BeechBrowserClientConfig,
@@ -30,7 +21,7 @@ export function createBeechBrowserClient<TRegistry = Record<string, unknown>>(
             params: buildSearchParams(q as ListQuery<Record<string, unknown>>),
             options,
           })
-          const checked = verifySchemaFingerprint(res)
+          const checked = verifySchemaFingerprint(httpConfig, res)
           if (options?.validate && !checked.error) {
             // stub zod parsing/validation logic
           }
@@ -43,7 +34,7 @@ export function createBeechBrowserClient<TRegistry = Record<string, unknown>>(
             params: buildSearchParams(qFirst as ListQuery<Record<string, unknown>>),
             options,
           })
-          const checked = verifySchemaFingerprint(res)
+          const checked = verifySchemaFingerprint(httpConfig, res)
           if (checked.error) return checked as unknown as BeechResult<Single<TRow>>
           const singleData = checked.data.data[0]
           if (!singleData) return { data: null, error: { type: 'not_found', title: 'Not Found', status: 404, detail: 'No result' } as BeechProblem }

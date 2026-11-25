@@ -442,7 +442,7 @@ X-Schema-Revision: v2:a1b2c3d4e5f60718293a4b5c6d7e8f90
 - **Format**: `v<version>:<32_hex_sha256>`.
 - **Ubiquity**: Injected early by `schemaRevisionMiddleware` on all status codes (`200`, `201`, `400`, `401`, `404`, `429`).
 - **Cache Memoization**: Computed once from `computeSchemaFingerprint` and cached per isolate via a `WeakMap` on the `SeedRegistry` instance.
-- **Drift Detection**: Used by the Fluent Client Query Builder to verify contract alignment and detect schema updates without out-of-band polling.
+- **Drift Detection**: `@beechcms/client` compares it with the `schemaFingerprint` passed to the client (the generated `SCHEMA_FINGERPRINT`) and returns a `409 schema_drift` problem on mismatch, without out-of-band polling.
 
 ## Anti-Bot Helper — `GET /api/v1/public/timetrap/token`
 

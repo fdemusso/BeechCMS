@@ -416,19 +416,22 @@ npx beech types generate --remote -o src/types/beech.ts
 
 ```typescript
 import { createBeechBrowserClient } from '@beechcms/client/browser'
-import type { BeechDatabase } from './beech.generated'
+import { SCHEMA_FINGERPRINT, type BeechDatabase } from './beech.generated'
 
 export const beech = createBeechBrowserClient<BeechDatabase>({
   baseUrl: process.env.NEXT_PUBLIC_BEECH_API_URL!,
   publishableKey: process.env.NEXT_PUBLIC_BEECH_PUBLISHABLE_KEY!,
+  schemaFingerprint: SCHEMA_FINGERPRINT,
 })
 
 await beech.collection('artciles')            // ✗ compile error — not a seed slug
 await beech.collection('articles').select(['titel'])  // ✗ compile error — not a branch alias
 ```
 
-> [!WARNING]
-> Generated types go stale the moment someone applies a schema change, and the SDK does **not** yet catch it at runtime: its `SCHEMA_FINGERPRINT` ships as an empty stub, so the `X-Schema-Revision` comparison inside the client is inert until that constant is populated at build time. Guard drift in CI instead — [`beech types check`](/build/cli-workflows#_3-typescript-type-generation) regenerates in memory and fails on mismatch, without touching the working tree:
+Generated types go stale the moment someone applies a schema change. Pass the generated `SCHEMA_FINGERPRINT` as `schemaFingerprint` (both clients accept it) and every response whose `X-Schema-Revision` header differs returns a `409` problem with `type: 'schema_drift'` instead of data typed against the old schema. Without `schemaFingerprint` the check is off.
+
+> [!TIP]
+> The runtime check fires only once a request is made. Guard drift in CI as well: [`beech types check`](/build/cli-workflows#_3-typescript-type-generation) regenerates in memory and fails on mismatch, without touching the working tree:
 >
 > ```bash
 > npx beech types check --remote -o src/types/beech.ts   # exits 1 when committed types are stale
