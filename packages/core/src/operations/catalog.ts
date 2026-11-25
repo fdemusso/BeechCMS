@@ -179,8 +179,8 @@ export const OPERATION_CATALOG: readonly OperationSpec[] = [
   agent('assignments.create', 'POST', '/api/rbac/assignments', 'users:write', 'destructive', 'Assign a role to a user', DOCS_RBAC),
   agent('assignments.delete', 'DELETE', '/api/rbac/assignments/:assignmentId', 'users:write', 'destructive', 'Remove a role assignment', DOCS_RBAC),
   agent('invitations.list', 'GET', '/api/rbac/invitations', 'users:read', 'read', 'List pending invitations', DOCS_RBAC),
-  agent('invitations.create', 'POST', '/api/rbac/invitations', 'users:write', 'publish', 'Invite a new user by email', DOCS_RBAC),
-  agent('invitations.regenerate', 'POST', '/api/rbac/invitations/:invitationId/regenerate', 'users:write', 'publish', 'Regenerate and resend an invitation', DOCS_RBAC),
+  agent('invitations.create', 'POST', '/api/rbac/invitations', 'users:write', 'destructive', 'Invite a new user by email', DOCS_RBAC),
+  agent('invitations.regenerate', 'POST', '/api/rbac/invitations/:invitationId/regenerate', 'users:write', 'destructive', 'Regenerate and resend an invitation', DOCS_RBAC),
   agent('invitations.delete', 'DELETE', '/api/rbac/invitations/:invitationId', 'users:write', 'write', 'Cancel an invitation', DOCS_RBAC),
 
   // --- Content literal prefixes: notifications, stats --------------------------
