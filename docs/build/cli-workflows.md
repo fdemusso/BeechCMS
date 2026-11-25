@@ -8,7 +8,7 @@ The `beech` CLI provides unified workflows for scaffolding projects, running loc
 
 Commands are categorized by operational scope:
 
-- **Consumer Projects**: Scaffolded via `npx @beechcms/cms`. Workspaces contain `worker.ts`, `wrangler.jsonc`, and `.dev.vars`. Run via `npx beech <cmd>` or `npm run <script>`.
+- **Consumer Projects**: Scaffolded via `npx @beechcms/cms@latest`. Workspaces contain `worker.ts`, `wrangler.jsonc`, and `.dev.vars`. Run via `npx beech <cmd>` or `npm run <script>`.
 - **Monorepo Contributors**: Engineers contributing directly to the core BeechCMS engine (`apps/api`, `apps/dashboard`, `packages/*`). Utilizes Docker Compose, Turborepo, Vitest, and interactive terminal TUI.
 
 ---
@@ -19,7 +19,7 @@ Commands marked **Monorepo** drive this repository's own tooling (Docker stack, 
 
 | Command | Scope | Description | Options & Aliases |
 | :--- | :--- | :--- | :--- |
-| `npx @beechcms/cms` | Consumer | Interactive scaffolding wizard for new edge projects. | `--yes` (non-interactive starter) |
+| `npx @beechcms/cms@latest` | Consumer | Interactive scaffolding wizard for new edge projects. | `--yes` (non-interactive starter) |
 | `npx beech init` | Consumer | Verifies project config (`worker.ts`, `wrangler.jsonc`, `.dev.vars`). Does not touch the database. | `--remote` |
 | `npx beech keys:migrate` (`beech keys migrate`) | Consumer | Moves a 0.10.x project to publishable and secret keys. Removes the 0.10.x key names and the committed secrets from `wrangler.jsonc`, writes fresh secrets to `.dev.vars`, never touches `PRIVACY_MASTER_KEY`, and prints the production commands. Idempotent. | None |
 | `npx beech db:migrate` | Consumer | Applies local D1 database migrations. | Runs the project's `npm run db:migrate:local` script |
@@ -60,10 +60,10 @@ Scaffold an edge project interactively or with non-interactive flags:
 
 ```bash
 # Interactive wizard
-npx @beechcms/cms my-app
+npx @beechcms/cms@latest my-app
 
 # Non-interactive quickstart
-npx @beechcms/cms my-app --yes
+npx @beechcms/cms@latest my-app --yes
 cd my-app
 npm install
 ```

@@ -41,9 +41,19 @@ describe('planAgentSetup', () => {
     expect(fileAt(plan, AGENT_SETUP_PATHS.skill).content).toBe(SKILL_TEMPLATE)
     expect(fileAt(plan, AGENT_SETUP_PATHS.readme).content).toBe(SCRIPTS_README_TEMPLATE)
     expect(JSON.parse(fileAt(plan, AGENT_SETUP_PATHS.mcpConfig).content!)).toEqual({
-      mcpServers: { [MCP_SERVER_KEY]: { command: 'npx', args: ['-y', '@beechcms/mcp'], env: { BEECH_API_URL: 'http://localhost:8789' } } },
+      mcpServers: { [MCP_SERVER_KEY]: { command: 'npx', args: ['-y', '@beechcms/mcp@latest'], env: { BEECH_API_URL: 'http://localhost:8789' } } },
     })
     expect(JSON.parse(fileAt(plan, AGENT_SETUP_PATHS.packageJson).content!).devDependencies).toEqual({ '@beechcms/cli': '^0.10.0' })
+  })
+
+  it('the .mcp.json entry runs @beechcms/mcp@latest through npx', () => {
+    const plan = planAgentSetup(inputWith())
+
+    const entry = JSON.parse(fileAt(plan, AGENT_SETUP_PATHS.mcpConfig).content!).mcpServers[MCP_SERVER_KEY] as { args: string[] }
+
+    // An unversioned spec makes npx reuse any older copy already in its cache, so the
+    // agent would keep running a stale MCP server after a new release.
+    expect(entry.args).toEqual(['-y', '@beechcms/mcp@latest'])
   })
 
   it('a second run over its own output reports every file unchanged', () => {

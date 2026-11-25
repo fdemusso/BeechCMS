@@ -129,7 +129,7 @@ export async function init(args: InitOptions): Promise<void> {
 
   if (!checkFiles(process.cwd(), args.local)) {
     console.log(pc.red('\n  ✗ Required files missing\n'))
-    console.log(pc.dim('  Fix the errors above, or scaffold a new project with: npx @beechcms/cms my-app'))
+    console.log(pc.dim('  Fix the errors above, or scaffold a new project with: npx @beechcms/cms@latest my-app'))
     process.exit(1)
   }
 

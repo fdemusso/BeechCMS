@@ -17,10 +17,10 @@ BeechCMS eliminates server management by running natively on Cloudflare's server
 Generate a new BeechCMS project using the scaffolding CLI:
 
 <PackageManagerTabs
-  npm="npx @beechcms/cms my-app"
-  pnpm="pnpm dlx @beechcms/cms my-app"
-  yarn="yarn dlx @beechcms/cms my-app"
-  bun="bunx @beechcms/cms my-app"
+  npm="npx @beechcms/cms@latest my-app"
+  pnpm="pnpm dlx @beechcms/cms@latest my-app"
+  yarn="yarn dlx @beechcms/cms@latest my-app"
+  bun="bunx @beechcms/cms@latest my-app"
 />
 
 ### Automated setup
@@ -28,7 +28,7 @@ Generate a new BeechCMS project using the scaffolding CLI:
 To skip interactive prompts and scaffold immediately with sensible defaults:
 
 ```bash
-npx @beechcms/cms my-app --yes
+npx @beechcms/cms@latest my-app --yes
 cd my-app
 npm run dev
 ```

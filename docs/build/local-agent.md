@@ -37,7 +37,7 @@ It writes:
 
 | File | Purpose |
 |------|---------|
-| `.mcp.json` | The `beechcms` entry: `npx -y @beechcms/mcp` |
+| `.mcp.json` | The `beechcms` entry: `npx -y @beechcms/mcp@latest` |
 | `.claude/skills/beechcms-scripts/SKILL.md` | Teaches the agent the script workflow and the approval rule |
 | `.beech/scripts/README.md` | Run flags and the approval policy, for humans |
 | `.beech/scripts/latest-entries.ts` | A read-only example script |

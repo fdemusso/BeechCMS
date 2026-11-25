@@ -16,7 +16,7 @@ BeechCMS runs entirely on Cloudflare: Workers for the API, D1 (SQLite at the edg
 ## Quick start
 
 ```bash
-npx @beechcms/cms my-app
+npx @beechcms/cms@latest my-app
 ```
 
 The wizard scaffolds the project and installs its dependencies. Add `--yes` to skip the wizard and use the starter template.

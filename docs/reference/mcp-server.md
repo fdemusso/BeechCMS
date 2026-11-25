@@ -52,7 +52,7 @@ With an OAuth token, a risky request (always for `destructive`, and for `publish
 npx beech agent setup
 ```
 
-This writes the `beechcms` entry of `.mcp.json` (`npx -y @beechcms/mcp`), the agent skill `.claude/skills/beechcms-scripts/SKILL.md`, `.beech/scripts/README.md` and an example script `latest-entries.ts`, and adds `@beechcms/cli` to `devDependencies`. See [Working with an Agent Locally](/build/local-agent#setup).
+This writes the `beechcms` entry of `.mcp.json` (`npx -y @beechcms/mcp@latest`), the agent skill `.claude/skills/beechcms-scripts/SKILL.md`, `.beech/scripts/README.md` and an example script `latest-entries.ts`, and adds `@beechcms/cli` to `devDependencies`. See [Working with an Agent Locally](/build/local-agent#setup).
 
 **Monorepo contributor.** `@beechcms/mcp` is a Node.js ESM package located in `packages/mcp`:
 
@@ -76,7 +76,7 @@ Configure your MCP client (Claude Code, Claude Desktop, Cursor, Antigravity) to 
   "mcpServers": {
     "beechcms": {
       "command": "npx",
-      "args": ["-y", "@beechcms/mcp"],
+      "args": ["-y", "@beechcms/mcp@latest"],
       "env": {
         "BEECH_API_URL": "http://localhost:8789"
       }

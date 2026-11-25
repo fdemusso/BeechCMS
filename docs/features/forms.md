@@ -28,7 +28,7 @@ Building forms manually requires repetitive boilerplate: state management, valid
 Generate a customized form component for **React**, **Vue 3**, **Svelte 5**, or **Vanilla JS / Web Components** in seconds:
 
 ```bash
-npx @beechcms/cli forms
+npx @beechcms/cli@latest forms
 # or using local beech CLI:
 pnpm beech forms
 ```

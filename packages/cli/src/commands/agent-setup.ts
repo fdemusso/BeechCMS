@@ -67,7 +67,7 @@ function planMcpConfig(input: AgentSetupInput): AgentSetupFile {
   const path = AGENT_SETUP_PATHS.mcpConfig
   const desiredEntry = {
     command: 'npx',
-    args: ['-y', '@beechcms/mcp'],
+    args: ['-y', '@beechcms/mcp@latest'],
     env: { BEECH_API_URL: input.apiUrl, ...(input.authUrl === undefined ? {} : { BEECH_AUTH_URL: input.authUrl }) },
   }
   const current = input.existing[path]
