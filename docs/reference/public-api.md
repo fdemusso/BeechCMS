@@ -17,7 +17,7 @@ interface Seed {
   allowPublicEdit?: boolean;   // Enables PUT & PATCH /api/v1/public/:seed/edit/:id
 }
 ```
-If a capability flag is `false` or absent, the endpoint fails closed and returns `403 Forbidden` (`operation-not-allowed`) regardless of credentials.
+If a capability flag is `false` or absent, the endpoint fails closed regardless of credentials. A seed with no public flag at all, and a seed whose `allowPublicRead` is `false` on a read, answer the same `404` (`seed-not-found`) as a seed that does not exist, so a public caller cannot learn which private seeds exist. A seed that is public for another operation answers `403 Forbidden` (`operation-not-allowed`) on a write it does not allow. A draft entry and a missing entry answer the same `404`.
 
 ### Level 2 — Key Roles & Zero-Secret Mode
 1. **Authenticated Requests (`X-API-Key` header):**

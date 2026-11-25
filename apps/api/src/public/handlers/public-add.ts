@@ -6,9 +6,9 @@ import { resolveClassification, SlugConflictError, verifyMagicBytes, verifyTimeT
 import type { Seed } from '@beechcms/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../../shared/utils/query-utils.js'
-import { checkPublicOperation } from '../validation/access-policy.js'
+import { checkPublicOperation, isPubliclyExposed } from '../validation/access-policy.js'
 import { authorizePublicKey, publicKeyProblem } from '../middleware/public-key-auth.js'
-import { publicProblem, internalErrorDetail, timeTrapNotConfiguredProblem } from '../errors/problem-details.js'
+import { publicProblem, publicSeedNotFoundProblem, internalErrorDetail, timeTrapNotConfiguredProblem } from '../errors/problem-details.js'
 import { generateEntrySlug, slugify } from '../utils/slug-utils.js'
 import { sanitizePublicPayload } from '../validation/sanitize.js'
 import { parseIdempotencyKey, buildRequestFingerprint } from '../validation/idempotency.js'
@@ -131,8 +131,8 @@ const DECOY_FIELDS = ['fax_number', 'website_url', 'middle_name', 'secondary_pho
 export async function publicAddHandler(context: Context<AppEnv>) {
   const seedSlug = context.req.param('seed') ?? ''
   const seed = context.get('getSeed')(seedSlug)
-  if (!seed) {
-    return publicProblem(context, { type: 'seed-not-found', title: 'Seed Not Found', status: 404, detail: `The content type '${seedSlug}' does not exist.` })
+  if (!seed || !isPubliclyExposed(seed)) {
+    return publicSeedNotFoundProblem(context, seedSlug)
   }
 
   const access = checkPublicOperation(seed, 'add')

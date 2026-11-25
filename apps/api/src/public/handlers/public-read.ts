@@ -5,7 +5,7 @@
 import type { Context } from 'hono'
 import { cleanStr } from '../../shared/utils/query-utils'
 import { checkPublicOperation } from '../validation/access-policy'
-import { publicProblem, internalErrorDetail } from '../errors/problem-details'
+import { publicProblem, publicSeedNotFoundProblem, internalErrorDetail } from '../errors/problem-details'
 import { resolveEdgeCache, withCachedResponse } from '../utils/cache-utils'
 import { readSingleEntry } from './read-single'
 import { readListEntries } from './read-list'
@@ -15,19 +15,9 @@ import { AppEnv } from '../../types'
 export async function publicReadHandler(context: Context<AppEnv>) {
   const seedSlug = context.req.param('seed') ?? ''
   const seed = context.get('getSeed')(seedSlug)
-  if (!seed) {
-    const available = context.get('seedRegistry').all().map(s => s.slug).join(', ')
-    return publicProblem(context, {
-      type: 'seed-not-found',
-      title: 'Seed Not Found',
-      status: 404,
-      detail: `The content type '${seedSlug}' does not exist. Available types: ${available}.`,
-    })
-  }
-
-  const access = checkPublicOperation(seed, 'read')
-  if (!access.ok) {
-    return publicProblem(context, { type: 'operation-not-allowed', title: access.error.error, status: 403, detail: access.error.message })
+  // 404 for a private seed too (as serve-index does), so a caller cannot tell it from an unknown one.
+  if (!seed || !checkPublicOperation(seed, 'read').ok) {
+    return publicSeedNotFoundProblem(context, seedSlug)
   }
 
   const negotiated = await loadPublicLanguage({

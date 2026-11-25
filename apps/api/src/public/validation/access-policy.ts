@@ -12,6 +12,11 @@ function isAllowed(seed: Seed, operation: PublicOperation): boolean {
   return seed.allowPublicEdit === true
 }
 
+/** True when at least one public operation reaches the seed; any other seed must look unknown to a public caller. */
+export function isPubliclyExposed(seed: Seed): boolean {
+  return isAllowed(seed, 'read') || isAllowed(seed, 'add') || isAllowed(seed, 'edit')
+}
+
 export function checkPublicOperation(seed: Seed, operation: PublicOperation) {
   if (isAllowed(seed, operation)) {
     return { ok: true } as const
