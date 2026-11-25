@@ -113,6 +113,14 @@ th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);ver
 .tag.exists{background:var(--status-live-soft);color:var(--status-live-foreground)}.tag.extend{background:var(--status-warning-soft);color:var(--status-warning-foreground)}.tag.create{background:var(--status-info-soft);color:var(--status-info-foreground)}
 .btn{display:inline-flex;align-items:center;height:32px;padding:0 12px;border-radius:var(--radius-control);border:1px solid var(--border);background:transparent;color:var(--foreground);font:500 14px Geist,sans-serif;cursor:pointer}
 .comp{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px 16px;margin:12px 0}.comp h3{margin:0 0 4px}.comp ul{margin:6px 0;padding-left:20px}.comp li{margin:3px 0}
+@supports (corner-shape:squircle){
+  :root{--radius-control:18px;--radius-lg:28px}
+  code{border-radius:9px;corner-shape:squircle}
+  pre,table{border-radius:22px;corner-shape:squircle}
+  .rolebox,.comp{border-radius:28px;corner-shape:squircle}
+  .sw{border-radius:11px;corner-shape:squircle}
+  .btn{corner-shape:squircle}
+}
 .spill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 10px;border-radius:99px;font-size:12px;font-weight:500}.spill i{width:7px;height:7px;border-radius:99px}
 .chip{display:inline-block;font-size:12px;font-weight:500;height:20px;line-height:20px;padding:0 9px;border-radius:99px;background:var(--category-soft);color:var(--foreground)}
 </style>
@@ -153,7 +161,7 @@ th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);ver
  <li><b>Tint with <code>oklab</code>.</b> A brand colour mixed into a grey uses <code>color-mix(in oklab, …)</code>, or an opacity suffix (<code>bg-signal/10</code>). NEVER <code>in oklch</code>: it interpolates hue and pushes sand towards purple on tinted greys.</li>
  <li><b>Type sizes come from the scale.</b> <code>text-xs</code>, <code>text-sm</code>, <code>text-base</code>, <code>text-xl</code>, <code>text-2xl</code>, <code>text-4xl</code>, <code>text-5xl</code>, chosen by role (see #typography). NEVER <code>text-[10px]</code>. <code>text-lg</code> and <code>text-3xl</code> do not exist. Weights are <code>font-normal</code>, <code>font-medium</code>, <code>font-bold</code>; NEVER <code>font-semibold</code>.</li>
  <li><b>Headings are Lora, bold.</b> <code>font-heading font-bold</code>. Everything else is Geist.</li>
- <li><b>Radius has three levels.</b> <code>rounded-control</code> for controls, <code>rounded-lg</code> for surfaces, <code>rounded-full</code> for chips and avatars. NEVER <code>rounded-[7px]</code>.</li>
+ <li><b>Radius has three levels, rendered as equivalent squircles.</b> <code>rounded-control</code> for controls, <code>rounded-lg</code> for surfaces, <code>rounded-full</code> for chips and avatars. NEVER <code>rounded-[7px]</code>. <code>index.css</code> uses <code>@supports (corner-shape: squircle)</code> to apply <code>corner-shape: squircle</code> with ~1.8× scaled radii (<code>18px</code> / <code>28px</code>, keeping <code>rounded-full</code> as <code>round</code>), falling back to <code>10px</code> / <code>16px</code> circular corners where unsupported.</li>
  <li><b>Text and icons.</b> Every user-visible string goes through <code>t("key")</code> and exists in both <code>locales/en.json</code> and <code>locales/it.json</code>. Icons are imported from <code>@/components/icons</code> only.</li>
  <li><b>Check your work.</b> After editing a file under <code>apps/dashboard/src</code>, run <code>node scripts/check-design-tokens.mjs --format agent &lt;file&gt;</code> and fix every line. A deliberate exception takes <code>// design-ok: &lt;reason&gt;</code> on the same or previous line.</li>
 </ol>
@@ -385,13 +393,13 @@ th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);ver
 <section id="shape">
 <h2>Shape</h2>
 <table>
-<thead><tr><th>Level</th><th>Class</th><th>Value</th><th>Use for</th></tr></thead>
+<thead><tr><th>Level</th><th>Class</th><th>Fallback (<code>round</code>)</th><th>Squircle (<code>@supports</code>, ~1.8×)</th><th>Use for</th></tr></thead>
 <tbody>
-<tr><td>Control</td><td><code>rounded-control</code></td><td>10px</td><td>buttons, inputs, textareas, selects, menu items</td></tr>
-<tr><td>Surface</td><td><code>rounded-lg</code></td><td>16px</td><td>card, dialog, popover, section, table container</td></tr>
-<tr><td>Chip</td><td><code>rounded-full</code></td><td>pill</td><td>badges, pills, status badges, avatars, counters</td></tr>
+<tr><td>Control</td><td><code>rounded-control</code></td><td>10px</td><td>18px (<code>squircle</code>)</td><td>buttons, inputs, textareas, selects, menu items</td></tr>
+<tr><td>Surface</td><td><code>rounded-lg</code></td><td>16px</td><td>28px (<code>squircle</code>)</td><td>card, dialog, popover, section, table container</td></tr>
+<tr><td>Chip</td><td><code>rounded-full</code></td><td>pill</td><td>pill (<code>round</code>)</td><td>badges, pills, status badges, avatars, counters</td></tr>
 </tbody></table>
-<p>Elevation is expressed by surface level (<code>bg-card</code> on <code>bg-background</code>) and a <code>border-border</code> line, not by shadows. Change a radius level in <code>index.css</code>, never in a component.</p>
+<p>Corners use <code>corner-shape: squircle</code> inside <code>@supports (corner-shape: squircle)</code> in <code>index.css</code>, scaling the radius by ~1.8× so the perceived corner roundness matches the classic circular arc while smoothing the straight-to-curve transition. Browsers without <code>corner-shape</code> support keep the <code>10px</code> / <code>16px</code> circular fallback; <code>rounded-full</code> keeps <code>corner-shape: round</code> so dots, avatars and pills stay circular. Elevation is expressed by surface level (<code>bg-card</code> on <code>bg-background</code>) and a <code>border-border</code> line, not by shadows. Change a radius level in <code>index.css</code>, never in a component.</p>
 
 <h3 id="motion">Motion</h3>
 <p>One rule: <b>entering takes 220ms, leaving takes 20% less (176ms)</b>. Things that appear are noticed; things that go are not waited for.</p>

@@ -15,6 +15,23 @@
   --beech-radius: 8px;
 }
 
+@supports (corner-shape: squircle) {
+  :root {
+    --beech-radius: 14px;
+  }
+
+  .beech-input,
+  .beech-checkbox,
+  .beech-submit-btn,
+  .beech-alert {
+    corner-shape: squircle;
+  }
+
+  .beech-checkbox {
+    border-radius: 7px;
+  }
+}
+
 .beech-form {
   display: flex;
   flex-direction: column;
