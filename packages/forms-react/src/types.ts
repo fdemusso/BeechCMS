@@ -74,6 +74,10 @@ export interface FormTranslations {
   invalidFileType: string
   fileTooLarge: (maxMb: number) => string
   draftRestored: string
+  /** Accessible name of the button that closes the draft-restored notice. */
+  dismissDraft: string
+  /** Shown while the form schema loads. */
+  loadingForm: string
   timeTrapWarning: string
   honeypotLabel: string
 }
@@ -94,6 +98,8 @@ export interface UseBeechFormOptions<TValues extends Record<string, unknown> = R
   excludeFields?: string[]
   onSuccess?: (result: { id?: string; data: TValues }) => void
   onError?: (error: { status: number; message: string; details?: unknown }) => void
+  /** Time source for the time-trap checks. Defaults to `Date.now`; inject one in tests instead of faking timers. */
+  clock?: { now(): number }
 }
 
 export interface FormFieldState {

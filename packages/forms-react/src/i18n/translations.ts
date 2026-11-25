@@ -16,6 +16,8 @@ export const translationsIT: FormTranslations = {
   invalidFileType: 'Formato file non valido o firma non corrispondente',
   fileTooLarge: (maxMb) => `La dimensione del file supera il limite massimo di ${maxMb}MB`,
   draftRestored: 'Bozza precedente ripristinata automaticamente',
+  dismissDraft: 'Chiudi avviso bozza',
+  loadingForm: 'Caricamento del modulo…',
   timeTrapWarning: 'Compilazione troppo rapida. Attendi un secondo prima di inviare.',
   honeypotLabel: 'Non compilare questo campo',
 }
@@ -33,6 +35,8 @@ export const translationsEN: FormTranslations = {
   invalidFileType: 'Invalid file type or mismatched signature',
   fileTooLarge: (maxMb) => `File size exceeds the maximum limit of ${maxMb}MB`,
   draftRestored: 'Previous draft restored automatically',
+  dismissDraft: 'Dismiss draft notice',
+  loadingForm: 'Loading form…',
   timeTrapWarning: 'Submission too fast. Please wait a second before submitting.',
   honeypotLabel: 'Do not fill this field',
 }

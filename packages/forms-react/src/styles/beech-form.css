@@ -198,3 +198,35 @@
   line-height: 1;
   padding: 0 0.25rem;
 }
+
+/* Schema loading state */
+.beech-loading-schema {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 0;
+  color: var(--beech-muted);
+}
+
+.beech-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--beech-border);
+  border-top-color: var(--beech-primary);
+  border-radius: 50%;
+  animation: beech-spin 1s linear infinite;
+}
+
+@keyframes beech-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beech-spinner {
+    animation: none;
+  }
+}
+
