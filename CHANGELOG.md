@@ -1,5 +1,41 @@
 # Changelog
 
+## Bug fixes & hardening — unreleased
+
+Follow-up fixes and hardening across the Public API, client SDKs, forms, CLI, MCP, and dashboard.
+
+### Breaking
+
+- **Client**: removed the no-op `validate` option on `list()`, which previously did nothing (#1000).
+
+### Fixed
+
+**API & Public API**
+- Public API now answers `404` consistently for private seeds and unpublished entries without leaking other seed slugs (#1015).
+- Anonymous public add now defaults to `draft` (while respecting `defaultPublicStatus`), and secret-key writes skip `allowPublicPost` (#1022).
+- Public edit leaves `status` unchanged unless the request explicitly sets it, preventing concurrent publishes from being overwritten (#1018).
+- Public `operation-not-allowed` `403` errors now name the seed flag to enable (#1007).
+- Public reads send the same `Cache-Control` on cache miss and hit, with the 60s edge cache window documented (#1017).
+- `beech db:migrate` / `bootstrap-d1` now tracks applied migrations in `d1_migrations` and applies pending migrations on an already-initialized local DB (#967).
+- RBAC agent intent summaries now resolve and name the account, role, and scope instead of showing raw IDs (#979).
+
+**Client & Search (`@beechcms/client`, `@beechcms/search-client`)**
+- Non-JSON `2xx` responses now return an `invalid-response` problem instead of `{ data: null, error: null }` (#998).
+- Schema drift check compares `X-Schema-Revision` against a `schemaFingerprint` passed in the client config instead of an empty stub (#999).
+- `SearchClient` now sends the publishable key on index and embed requests and reports embed failures (#1009).
+
+**Forms (`@beechcms/forms-react`)**
+- Refreshes the single-use time-trap token after answered submits and before expiry (#1013).
+- Maps per-field API validation errors onto the corresponding form fields (#1014).
+- Replaces the hardcoded Italian loading text with translations and adds accessible draft-dismiss and error references (#1011).
+- Keeps classified fields out of local `localStorage` drafts and expires saved drafts (#1010).
+
+**MCP, CLI & Dashboard**
+- MCP adds intent readback and `awaiting_result` resilience for clients without form elicitation (#1027).
+- OAuth consent screen deduplicates access presets and groups domain permissions (#968).
+- Seed builder preserves `defaultPublicStatus` when saving a seed (#1041).
+- Quick-start and framework guides drop the reserved `slug` branch (#1023), and `npx` specs pin `@latest` to avoid stale cached versions (#1024).
+
 ## Publishable and secret keys — unreleased
 
 Two key roles replace the per-method keys of the Public API: a read-only **publishable** key that is safe in a browser, and a **secret** key for server code. Fixes #995, #996 and #997. Ships with `api`, `client`, `cli` and `cms`.
@@ -22,7 +58,6 @@ Two key roles replace the per-method keys of the Public API: a read-only **publi
 2. **Treat the old values as compromised.** They are in the git history. The command writes fresh `JWT_SECRET` and `PUBLIC_TIME_TRAP_SECRET` values, so every session ends, and it never rewrites history.
 3. **Production order:** run `npm run deploy` first (Cloudflare refuses a secret whose name is still a plain-text var, error 10053), then `npx wrangler secret put` for `JWT_SECRET`, `BEECH_SECRET_KEY` and `PUBLIC_TIME_TRAP_SECRET`. Never set a new `PRIVACY_MASTER_KEY`.
 4. In client code, replace `apiKey` with `publishableKey` and `createBeechBrowserClient`, or with `secretKey` and `createBeechServerClient`, and rename the env vars as in the [client SDK reference](/reference/client-sdk#keys-and-roles).
-5. Known limit: writing with the secret key still needs `allowPublicPost` on the seed (#1022).
 
 ### Fixed
 
