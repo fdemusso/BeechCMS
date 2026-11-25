@@ -12,6 +12,11 @@ export interface BeechClientBaseConfig {
   baseUrl: string
   fetch?: typeof fetch
   headers?: Record<string, string> | Headers
+  /**
+   * `SCHEMA_FINGERPRINT` exported by `beech types generate`. When set, a response whose `X-Schema-Revision`
+   * differs returns a 409 `schema_drift` problem instead of data typed against a stale schema.
+   */
+  schemaFingerprint?: string
 }
 
 /** Browser client: read-only, authenticated with the publishable key (`beech_pk_…`). */
@@ -38,6 +43,12 @@ export interface RequestOptions {
   }
   [key: string]: unknown
 }
+
+/**
+ * `list()` options. `validate` was removed: it never validated the response, and the `RequestOptions` index
+ * signature would accept it silently, so it is typed `never` to make passing it a compile error.
+ */
+export type ListOptions = RequestOptions & { validate?: never }
 
 /** RFC 9457 Problem Details as returned by the Public API. */
 export interface BeechProblem {
@@ -97,9 +108,6 @@ export interface SeedRegistryTypes {
   [key: string]: Record<string, unknown>
 }
 
-/** Stub for the auto-generated schema fingerprint */
-export const SCHEMA_FINGERPRINT = ''
-
 /** Browser Client Content Resource: Strictly Read-Only (no create/update). */
 export interface BrowserContentResource<TRow> {
   list(query?: ListQuery<TRow>, options?: RequestOptions): Promise<BeechResult<Listable<TRow>>>
@@ -132,7 +140,7 @@ export interface FluentQuery<TRow> {
    */
   lang(code: string): this
   first(options?: RequestOptions): Promise<BeechResult<Single<TRow>>>
-  list(options?: RequestOptions & { validate?: boolean }): Promise<BeechResult<Listable<TRow>>>
+  list(options?: ListOptions): Promise<BeechResult<Listable<TRow>>>
 }
 
 /** Browser Client Interface. */

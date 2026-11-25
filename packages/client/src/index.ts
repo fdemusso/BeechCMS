@@ -7,6 +7,7 @@ export type {
   BeechBrowserClientConfig,
   BeechServerClientConfig,
   RequestOptions,
+  ListOptions,
   BeechResult,
   BeechProblem,
   BeechFilterOperator,

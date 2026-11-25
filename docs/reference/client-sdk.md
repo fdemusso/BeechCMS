@@ -16,7 +16,7 @@ Every read goes through one entry point — `client.collection(seed)` — which 
 - **`@beechcms/client/server`**: Read and write client with mutation operations (`create`, `update`) merged onto the same fluent builder, secret-key authentication, and advanced fetch options (`next` cache tags, revalidation, AbortSignal). Deletion is intentionally omitted from public client scopes.
 - **`@beechcms/client/webhooks`**: Dedicated, zero-dependency submodule for HMAC-SHA256 signature verification (`verifyBeechWebhookSignature`), error handling (`WebhookVerificationError`), and strongly typed event deserialization (`constructWebhookEvent<T>`).
 - **`@beechcms/client/richtext`**: Isomorphic, zero-dependency TipTap AST HTML renderer (`renderRichText` / `renderRichTextHtml`), plain-text extractor (`richTextToPlainText` / `extractPlainText`), and AST normalizer/sanitizer utilities (`normalizeRichtextDocument`, `escapeHtml`, `isSafeUrl`).
-- **`@beechcms/client`**: Root entrypoint exporting shared contracts, TypeScript types (`BeechResult`, `BeechProblem`, `ListQuery`, `ListMeta`, `Listable`, `Single`, `RequestOptions`, `BeechClientBaseConfig`, `BeechBrowserClientConfig`, `BeechServerClientConfig`), query serializer (`buildSearchParams`), canonical media URL builders (`media`, `mediaSrcSet`), and re-exporting webhook signature utilities.
+- **`@beechcms/client`**: Root entrypoint exporting shared contracts, TypeScript types (`BeechResult`, `BeechProblem`, `ListQuery`, `ListMeta`, `Listable`, `Single`, `RequestOptions`, `ListOptions`, `BeechClientBaseConfig`, `BeechBrowserClientConfig`, `BeechServerClientConfig`), query serializer (`buildSearchParams`), canonical media URL builders (`media`, `mediaSrcSet`), and re-exporting webhook signature utilities.
 
 ---
 
@@ -416,19 +416,22 @@ npx beech types generate --remote -o src/types/beech.ts
 
 ```typescript
 import { createBeechBrowserClient } from '@beechcms/client/browser'
-import type { BeechDatabase } from './beech.generated'
+import { SCHEMA_FINGERPRINT, type BeechDatabase } from './beech.generated'
 
 export const beech = createBeechBrowserClient<BeechDatabase>({
   baseUrl: process.env.NEXT_PUBLIC_BEECH_API_URL!,
   publishableKey: process.env.NEXT_PUBLIC_BEECH_PUBLISHABLE_KEY!,
+  schemaFingerprint: SCHEMA_FINGERPRINT,
 })
 
 await beech.collection('artciles')            // ✗ compile error — not a seed slug
 await beech.collection('articles').select(['titel'])  // ✗ compile error — not a branch alias
 ```
 
-> [!WARNING]
-> Generated types go stale the moment someone applies a schema change, and the SDK does **not** yet catch it at runtime: its `SCHEMA_FINGERPRINT` ships as an empty stub, so the `X-Schema-Revision` comparison inside the client is inert until that constant is populated at build time. Guard drift in CI instead — [`beech types check`](/build/cli-workflows#_3-typescript-type-generation) regenerates in memory and fails on mismatch, without touching the working tree:
+Generated types go stale the moment someone applies a schema change. Pass the generated `SCHEMA_FINGERPRINT` as `schemaFingerprint` (both clients accept it) and every response whose `X-Schema-Revision` header differs returns a `409` problem with `type: 'schema_drift'` instead of data typed against the old schema. Without `schemaFingerprint` the check is off.
+
+> [!TIP]
+> The runtime check fires only once a request is made. Guard drift in CI as well: [`beech types check`](/build/cli-workflows#_3-typescript-type-generation) regenerates in memory and fails on mismatch, without touching the working tree:
 >
 > ```bash
 > npx beech types check --remote -o src/types/beech.ts   # exits 1 when committed types are stale
@@ -703,6 +706,13 @@ if (!result.error) {
   }
 }
 ```
+
+Exactly one of `data` and `error` is set. Two client-side problem types complete the server's codes:
+
+| `type` | `status` | When |
+|---|---|---|
+| `about:blank` with title `Network Error` | `0` | `fetch` itself failed (offline, DNS, CORS). |
+| `invalid-response` | the HTTP status (usually `200`) | A successful response without a JSON body. The usual cause is a `baseUrl` that points at the dashboard (`/admin`) or at a site that answers every path with HTML; `detail` names the URL and the content type received. |
 
 ---
 
