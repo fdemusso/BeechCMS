@@ -3,6 +3,7 @@
 
 export { init } from './commands/init.js'
 export type { InitOptions } from './commands/init.js'
+export { keysMigrate } from './commands/keys-migrate.js'
 export { deploy } from './commands/deploy.js'
 export type { DeployOptions } from './commands/deploy.js'
 export { update } from './commands/update.js'

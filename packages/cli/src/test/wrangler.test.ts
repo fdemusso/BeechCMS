@@ -14,7 +14,7 @@ vi.mock('node:os', () => ({ tmpdir: () => '/tmp/Mario Rossi' }))
 
 import { spawnSync } from 'node:child_process'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { executeD1File, queryD1, resolveDbName } from '../lib/wrangler.js'
+import { executeD1File, findTopLevelObjectSpan, queryD1, resolveDbName, stripJsonc } from '../lib/wrangler.js'
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -121,5 +121,57 @@ describe('resolveDbName', () => {
     const result = resolveDbName('wrangler.jsonc')
 
     expect(result).toBe(name)
+  })
+})
+
+describe('findTopLevelObjectSpan', () => {
+  const sliceVars = (raw: string): unknown => {
+    const span = findTopLevelObjectSpan(raw, 'vars')
+    return span ? JSON.parse(stripJsonc(raw.slice(span.open, span.close + 1))) : null
+  }
+
+  it('spans exactly the vars object of a 0.10.x-shaped config', () => {
+    const raw = `{
+  "name": "app-api",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "vars": {
+    "ENV": "development",
+    "APP_URL": "http://localhost:5173"
+  },
+
+  "d1_databases": [{ "binding": "DB" }]
+}
+`
+
+    const result = sliceVars(raw)
+
+    expect(result).toEqual(JSON.parse(stripJsonc(raw)).vars)
+  })
+
+  it.each([
+    ['a string value', '{ "note": "\\"vars\\": { \\"X\\": 1 }", "vars": { "A": "1" } }', { A: '1' }],
+    ['a line comment', '{\n  // "vars": { "X": 1 }\n  "vars": { "A": "1" }\n}', { A: '1' }],
+    ['a block comment', '{ /* "vars": { "X": 1 } */ "vars": { "A": "1" } }', { A: '1' }],
+    ['env.production', '{ "env": { "production": { "vars": { "X": "1" } } }, "vars": { "A": "1" } }', { A: '1' }],
+    ['a string value only', '{ "note": "\\"vars\\": { }" }', null],
+    ['a line comment only', '{\n  // "vars": {}\n  "name": "x"\n}', null],
+    ['env.production only', '{ "env": { "production": { "vars": { "X": "1" } } } }', null],
+  ])('never matches a "vars" inside %s', (_label, raw, expected) => {
+    const result = sliceVars(raw)
+
+    expect(result).toEqual(expected)
+  })
+
+  it.each([
+    ['vars is absent', '{ "name": "app" }'],
+    ['vars is an array', '{ "vars": ["A"] }'],
+    ['vars is a string', '{ "vars": "A" }'],
+    ['the input is unterminated', '{ "vars": { "A": "1" '],
+    ['a string is unterminated', '{ "vars": { "A": "1'],
+  ])('returns null when %s', (_label, raw) => {
+    const result = findTopLevelObjectSpan(raw, 'vars')
+
+    expect(result).toBeNull()
   })
 })

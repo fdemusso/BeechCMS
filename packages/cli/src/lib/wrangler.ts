@@ -193,6 +193,84 @@ function stringEnd(text: string, start: number): number {
   return j + 1
 }
 
+/** Index of the first character at or after `from` that is not whitespace or part of a comment. */
+function skipTrivia(text: string, from: number): number {
+  let j = from
+  while (j < text.length) {
+    if (/\s/.test(text[j])) {
+      j++
+    } else if (text[j] === '/' && text[j + 1] === '/') {
+      while (j < text.length && text[j] !== '\n') j++
+    } else if (text[j] === '/' && text[j + 1] === '*') {
+      const close = text.indexOf('*/', j + 2)
+      j = close === -1 ? text.length : close + 2
+    } else {
+      break
+    }
+  }
+  return j
+}
+
+/** Index of the `}` that closes the object opened at `open`, or -1 when the text ends first. */
+function matchingBrace(text: string, open: number): number {
+  let depth = 0
+  let i = open
+  while (i < text.length) {
+    const next = skipTrivia(text, i)
+    if (next !== i) {
+      i = next
+    } else if (text[i] === '"') {
+      i = stringEnd(text, i)
+    } else {
+      if (text[i] === '{' || text[i] === '[') depth++
+      else if (text[i] === '}' || text[i] === ']') depth--
+      if (depth === 0) return i
+      i++
+    }
+  }
+  return -1
+}
+
+function isStringTokenFor(token: string, key: string): boolean {
+  try {
+    return JSON.parse(token) === key
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Offsets of the `{` and its matching `}` for the top-level object member `key` in JSONC text. Strings and
+ * comments are skipped, so a `"vars"` inside a value, a comment or a nested object is never matched.
+ * Null when the member is absent or its value is not an object.
+ */
+export function findTopLevelObjectSpan(raw: string, key: string): { open: number; close: number } | null {
+  let depth = 0
+  let i = 0
+  while (i < raw.length) {
+    const next = skipTrivia(raw, i)
+    if (next !== i) {
+      i = next
+    } else if (raw[i] === '"') {
+      const end = stringEnd(raw, i)
+      if (depth === 1 && isStringTokenFor(raw.slice(i, end), key)) {
+        const colon = skipTrivia(raw, end)
+        const open = skipTrivia(raw, colon + 1)
+        if (raw[colon] === ':' && raw[open] === '{') {
+          const close = matchingBrace(raw, open)
+          return close === -1 ? null : { open, close }
+        }
+      }
+      i = end
+    } else {
+      if (raw[i] === '{' || raw[i] === '[') depth++
+      else if (raw[i] === '}' || raw[i] === ']') depth--
+      i++
+    }
+  }
+  return null
+}
+
 function skipWhitespace(text: string, from: number): number {
   let j = from
   while (j < text.length && /\s/.test(text[j])) j++

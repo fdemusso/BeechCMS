@@ -3,6 +3,13 @@
 
 import { randomBytes } from 'node:crypto'
 
+/** Local Public API keys. Public by design: the same in every scaffolded project and in the docs. */
+export const DEV_PUBLISHABLE_KEY = 'beech_pk_dev'
+export const DEV_SECRET_KEY = 'beech_sk_dev'
+
+/** Secrets the worker reads in production. `.dev.vars` holds their local values; the order is the order the scaffolder prints. */
+export const PRODUCTION_SECRETS = ['JWT_SECRET', 'BEECH_SECRET_KEY', 'PUBLIC_TIME_TRAP_SECRET', 'PRIVACY_MASTER_KEY']
+
 export function buildWorkerTs() {
   return `/// <reference types="@cloudflare/workers-types" />
 import { createBeechApp } from '@beechcms/api'
@@ -42,6 +49,9 @@ export function buildPackageJson(name, d1Name, versions) {
   }, null, 2) + '\n'
 }
 
+/**
+ * @param {{ name: string, d1Name: string, d1Id: string, r2Bucket: string, corsOrigins: string, appUrl?: string }} cfg
+ */
 export function buildWranglerJsonc(cfg) {
   return `{
   "name": "${cfg.name}-api",
@@ -51,11 +61,8 @@ export function buildWranglerJsonc(cfg) {
 
   "vars": {
     "ENV": "development",
-    "JWT_SECRET": "${cfg.jwtSecret}",
     "CORS_ORIGINS": "${cfg.corsOrigins}",
-    "PUBLIC_READ_API_KEY": "${cfg.publicReadKey}",
-    "PUBLIC_WRITE_API_KEY": "${cfg.publicWriteKey}",
-    "PUBLIC_TIME_TRAP_SECRET": "${cfg.timeTrapSecret}",
+    "BEECH_PUBLISHABLE_KEY": "${DEV_PUBLISHABLE_KEY}",
     "APP_URL": "${cfg.appUrl || 'http://localhost:5173'}"
   },
 
@@ -83,10 +90,28 @@ export function buildWranglerJsonc(cfg) {
 `
 }
 
+/**
+ * @param {null | { r2AccessKey: string, r2SecretKey: string, r2Endpoint: string, r2Bucket: string }} cloudflare
+ */
 export function buildDevVars(cloudflare) {
   const PRIVACY_KEY_LINES = `# Master key for protected fields (AES-GCM + blind index). Do NOT change once data is stored.\nPRIVACY_MASTER_KEY=${randomBytes(32).toString('hex')}`
+  const SECRET_LINES = [
+    '# This file is git-ignored and must never be committed.',
+    '# In production, set each value with `npx wrangler secret put <NAME>`.',
+    '',
+    '# Signs login tokens.',
+    `JWT_SECRET=${randomBytes(32).toString('hex')}`,
+    '',
+    '# Public API secret key: server-only, reads and writes, refused outside ENV=development.',
+    `BEECH_SECRET_KEY=${DEV_SECRET_KEY}`,
+    '',
+    '# Signs the anti-bot token of anonymous form submissions.',
+    `PUBLIC_TIME_TRAP_SECRET=${randomBytes(32).toString('hex')}`,
+    '',
+  ].join('\n')
   if (cloudflare) {
     return [
+      SECRET_LINES,
       `# Cloudflare R2 S3 credentials (required for direct client upload via Presigned URLs)`,
       `# Guide: https://developers.cloudflare.com/r2/api/s3/tokens/`,
       `R2_ACCESS_KEY_ID=${cloudflare.r2AccessKey}`,
@@ -98,6 +123,7 @@ export function buildDevVars(cloudflare) {
     ].join('\n') + '\n'
   }
   return [
+    SECRET_LINES,
     '# Media uploads work locally without any configuration: wrangler emulates R2 and the Worker stores the file.',
     '# For direct uploads through presigned URLs (production), add your R2 S3 credentials here and with `wrangler secret put`:',
     '#   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME',

@@ -6,6 +6,7 @@ import * as p from '@clack/prompts'
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { upsertDevVars } from '../lib/dev-vars.js'
 import { findWranglerConfig } from '../lib/wrangler.js'
 
 export interface SetupCloudflareOptions {
@@ -160,16 +161,16 @@ export async function setupCloudflare(options: SetupCloudflareOptions = {}): Pro
 
         // Write .dev.vars
         const devVarsPath = resolve(process.cwd(), '.dev.vars')
-        const devVarsContent = [
-          '# Cloudflare R2 S3 credentials (for direct Presigned URL uploads)',
-          `R2_ACCESS_KEY_ID=${accessKeyId.trim()}`,
-          `R2_SECRET_ACCESS_KEY=${secretAccessKey.trim()}`,
-          `R2_ENDPOINT=${endpoint}`,
-          `R2_BUCKET_NAME=${r2Bucket}`,
-        ].join('\n') + '\n'
+        const existingDevVars = existsSync(devVarsPath) ? readFileSync(devVarsPath, 'utf-8') : ''
+        const devVarsContent = upsertDevVars(existingDevVars, {
+          R2_ACCESS_KEY_ID: accessKeyId.trim(),
+          R2_SECRET_ACCESS_KEY: secretAccessKey.trim(),
+          R2_ENDPOINT: endpoint,
+          R2_BUCKET_NAME: r2Bucket,
+        })
 
         writeFileSync(devVarsPath, devVarsContent, 'utf-8')
-        p.log.success(pc.green(`Created ${pc.bold('.dev.vars')} with local development credentials.`))
+        p.log.success(pc.green(`Updated ${pc.bold('.dev.vars')} with the R2 credentials (other values kept).`))
 
         // Set production secrets via wrangler
         s.start('Setting production secrets on Cloudflare Worker…')
