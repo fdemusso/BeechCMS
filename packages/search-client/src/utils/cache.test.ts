@@ -58,4 +58,32 @@ describe('cache utilities', () => {
     expect(res.byteLength).toBe(16);
     expect(requestedHeaders?.get('If-None-Match')).toBe('provided-etag');
   });
+
+  it('sends the given headers on the request through the Cache API path', async () => {
+    (globalThis as any).caches = {
+      open: vi.fn().mockResolvedValue({ match: vi.fn().mockResolvedValue(undefined), put: vi.fn().mockResolvedValue(undefined) }),
+    };
+    let requestedHeaders: Headers | undefined;
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      requestedHeaders = new Headers(init?.headers);
+      return new Response(new ArrayBuffer(8), { status: 200 });
+    });
+
+    await fetchWithCache('https://example.com/vectors.bin', 'fp', { 'X-API-Key': 'beech_pk_live_abc' });
+
+    expect(requestedHeaders?.get('X-API-Key')).toBe('beech_pk_live_abc');
+  });
+
+  it('sends the given headers on the request through the IndexedDB fallback', async () => {
+    (globalThis as any).caches = undefined;
+    let requestedHeaders: Headers | undefined;
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      requestedHeaders = new Headers(init?.headers);
+      return new Response(new ArrayBuffer(8), { status: 200 });
+    });
+
+    await fetchWithCache('https://example.com/vectors.bin', 'fp', { 'X-API-Key': 'beech_pk_live_abc' });
+
+    expect(requestedHeaders?.get('X-API-Key')).toBe('beech_pk_live_abc');
+  });
 });

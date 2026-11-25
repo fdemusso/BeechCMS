@@ -15,41 +15,43 @@ Install the package via your preferred package manager:
 npm install @beechcms/search-client
 ```
 
-To get started, you'll need to instantiate the `SearchClient`. You can do this directly or by wrapping it in a factory function like `createBeechSearchClient`:
+Create the client with your API origin and the **publishable key** (`beech_pk_…`). Every search route sits under `/api/v1/public`, behind the same key check as the rest of the Public API, so without the key the index downloads fail and the semantic tier answers `401`. A secret key (`beech_sk_…`) is refused: this client runs in the browser.
 
 ```typescript
-import { SearchClient } from '@beechcms/search-client';
+import { createBeechSearchClient } from '@beechcms/search-client';
 
-// Initialize the client with your backend API origin
-export const createBeechSearchClient = (apiOrigin: string) => {
-  return new SearchClient(apiOrigin);
-};
-
-const searchClient = createBeechSearchClient('https://your-api.beechcms.com');
+const searchClient = createBeechSearchClient('https://your-api.beechcms.com', {
+  publishableKey: import.meta.env.PUBLIC_BEECH_PUBLISHABLE_KEY,
+  // Optional: called when the semantic tier fails (status 0 = network error); search() still returns lexical results.
+  onEmbedError: (error) => console.warn('semantic search unavailable', error.status, error.message),
+});
 ```
+
+| Option | Default | Description |
+| :--- | :--- | :--- |
+| `publishableKey` | — | Sent as `X-API-Key` on the index and embed requests. |
+| `onEmbedError` | — | Receives `{ status, message }` when the embed call fails. Without it, a `401`/`403` is logged with `console.warn` and other failures (`429`, `5xx`, network) degrade to lexical silently. |
+| `debounceMs` | `250` | Debounce window of `search()`. |
+| `dimensions` | `384` | Vector size; must match the index manifest. |
 
 ## Loading the Index
 
-Before performing searches, you must load the index manifest and the pre-computed vectors. `loadIndex` accepts **any two URLs** you host — these are static assets you publish yourself (typically to R2 or your CDN), not endpoints the BeechCMS Worker serves:
+The Worker compiles each seed's semantic index into R2 and serves it from the Public API:
+
+| Route | Returns |
+| :--- | :--- |
+| `GET /api/v1/public/search/index/:seedSlug/manifest.json` | The records and the index fingerprint |
+| `GET /api/v1/public/search/index/:seedSlug/vectors.bin` | The pre-computed vectors (`ETag` = the manifest fingerprint) |
+| `GET /api/v1/public/search/embed?q=…` | The query embedding, called by `search()` |
+
+The index routes answer `404` when the seed is not publicly readable (`allowPublicRead`) or has no compiled index yet. Load the index before searching:
 
 ```typescript
-await searchClient.loadIndex(
-  'https://cdn.example.com/search/manifest.json',
-  'https://cdn.example.com/search/vectors.bin'
-);
+const base = 'https://your-api.beechcms.com/api/v1/public/search/index/posts';
+await searchClient.loadIndex(`${base}/manifest.json`, `${base}/vectors.bin`);
 ```
 
-<!-- FACTCHECK: The BeechCMS API registers exactly one public search route, `GET /api/v1/public/search/embed`
-     (apps/api/src/features/search/public-search.router.ts) — used at query time to embed the user's query.
-     Nothing in apps/api, packages/core, or scripts/ serves or generates `manifest.json` / `vectors.bin`;
-     the only related hint is a comment in packages/core/src/search/vector.repository.ts ("Retrieves all
-     vectors for a given seed to compile to R2"), suggesting the compile step is not yet implemented or
-     lives outside this repo. The previous text pointed both URLs at /api/v1/public/search/, which does not
-     exist. Corrected to neutral URLs, but the actual index-generation workflow still needs documenting. -->
-
-> [!IMPORTANT]
-> The Worker exposes only `GET /api/v1/public/search/embed`, which the SDK calls internally to embed the
-> query at search time. Producing and hosting `manifest.json` and `vectors.bin` is a separate build step.
+`loadIndex` accepts any two URLs, so you can also host copies of the two files on your own CDN. The `X-API-Key` header is sent there too.
 
 ### Client-Side Vector Indexing & Caching
 
