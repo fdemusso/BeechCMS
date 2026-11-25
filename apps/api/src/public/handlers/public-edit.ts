@@ -52,8 +52,9 @@ function resolveSlug(context: PublicCtx, body: Record<string, unknown>, currentS
   return { ok: true, value: { slugRequested, nextSlug: slugify(requestedSlug) } }
 }
 
-function resolveStatus(context: PublicCtx, body: Record<string, unknown>, currentStatus: string): ResolveResult<string> {
-  if (!Object.hasOwn(body, 'status')) return { ok: true, value: currentStatus }
+/** `undefined` when the body has no `status`: the write then leaves the stored status alone instead of replaying a stale read. */
+function resolveStatus(context: PublicCtx, body: Record<string, unknown>): ResolveResult<string | undefined> {
+  if (!Object.hasOwn(body, 'status')) return { ok: true, value: undefined }
   const statusValue = body.status
   if (!isValidContentStatus(statusValue)) {
     return { ok: false, response: publicProblem(context, { type: 'invalid-status', title: 'Bad Request', status: 400, detail: 'Invalid status. Allowed values are: draft, review, published' }) }
@@ -210,7 +211,7 @@ export async function publicEditHandler(context: PublicCtx) {
     const slugResult = resolveSlug(context, bodyResult.value, (entry.slug as string) ?? '')
     if (!slugResult.ok) return slugResult.response
 
-    const statusResult = resolveStatus(context, bodyResult.value, (entry.status as string) ?? 'draft')
+    const statusResult = resolveStatus(context, bodyResult.value)
     if (!statusResult.ok) return statusResult.response
 
     const dataResult = resolveData(context, seed, bodyResult.value, localeConfig)
@@ -242,7 +243,7 @@ export async function publicEditHandler(context: PublicCtx) {
       type: 'info',
     })
 
-    const updatedEntry = { ...entry, ...updateData }
+    const updatedEntry = { ...entry, ...updateData, ...(statusResult.value ? { status: statusResult.value } : {}) }
     const displayEntry = resolveLocalizedFields(seed, updatedEntry, localeConfig)
     const safeTitle = Object.hasOwn(displayEntry, 'title') ? displayEntry.title : undefined
     const safeName = Object.hasOwn(displayEntry, 'name') ? displayEntry.name : undefined
@@ -261,7 +262,7 @@ export async function publicEditHandler(context: PublicCtx) {
       context.get('automationRunner').run({
         seedSlug,
         event: 'update',
-        entry: { ...updatedEntry, status: statusResult.value },
+        entry: updatedEntry,
       })
     )
 
@@ -269,7 +270,7 @@ export async function publicEditHandler(context: PublicCtx) {
       success: true,
       id,
       slug: slugResult.value.nextSlug,
-      data: toFlatPublicEntry({ ...updatedEntry, status: statusResult.value }, seed, undefined, language),
+      data: toFlatPublicEntry(updatedEntry, seed, undefined, language),
       meta: { seed: seedSlug },
     }, 200)
   } catch (error) {
