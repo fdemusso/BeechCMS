@@ -34,7 +34,16 @@ import { execSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { WORKSPACES, parseTiers, isNeverSelected, NEVER_SELECTED_PREFIXES } from './lib/test-tiers.mjs'
+import {
+  WORKSPACES,
+  parseTiers,
+  isNeverSelected,
+  NEVER_SELECTED_PREFIXES,
+  matchWorkspace,
+  isSharedHarnessFile,
+  isNodeTestScriptFile,
+  findUntrackedSourceFiles,
+} from './lib/test-tiers.mjs'
 import { resolveTestResources, lowerProcessPriority, describeTestResources } from './lib/test-resources.mjs'
 import { acquireCpuSlot, releaseOnExit, HELD_ENV, EXIT_SLOT_TIMEOUT } from './lib/cpu-slot.mjs'
 import {
@@ -165,8 +174,10 @@ function getChangedLines(base) {
 // Extracts coverage.exclude and coverage.include arrays from a vitest.config.ts
 // file using regex. This avoids needing to transpile/import TypeScript with
 // all its plugin dependencies (React, Tailwind, etc.).
+const DEFAULT_THRESHOLDS = { statements: 80, branches: 80, functions: 80, lines: 80 }
+
 function parseVitestConfig(configPath) {
-  if (!fs.existsSync(configPath)) return { include: null, exclude: [] }
+  if (!fs.existsSync(configPath)) return { include: null, exclude: [], thresholds: { ...DEFAULT_THRESHOLDS } }
 
   const src = fs.readFileSync(configPath, 'utf8')
 
@@ -202,7 +213,7 @@ function parseVitestConfig(configPath) {
 
   // Find the coverage block first, then extract include/exclude within it
   const coverageMatch = /coverage\s*:\s*\{/s.exec(src)
-  if (!coverageMatch) return { include: null, exclude: [] }
+  if (!coverageMatch) return { include: null, exclude: [], thresholds: { ...DEFAULT_THRESHOLDS } }
 
   // Extract the coverage block
   let start = coverageMatch.index + coverageMatch[0].length
@@ -219,7 +230,7 @@ function parseVitestConfig(configPath) {
   const exclude = extractArray(coverageBlock, 'exclude')
 
   // Extract thresholds — look for "thresholds: { statements: N, ... }"
-  const thresholds = { statements: 80, branches: 80, functions: 80, lines: 80 }
+  const thresholds = { ...DEFAULT_THRESHOLDS }
   const thresholdsMatch = /thresholds\s*:\s*\{([^}]+)\}/s.exec(coverageBlock)
   if (thresholdsMatch) {
     const block = thresholdsMatch[1]
@@ -263,7 +274,8 @@ function isExcluded(relPath, { include, exclude }) {
 // ─── Run Vitest for a workspace tier ────────────────────────────────────────
 function runVitestTier(workspace, runner, { sourceFiles, testFiles, coverageFiles }) {
   const workspaceDir = path.join(ROOT, workspace.dir)
-  const toRel = f => path.relative(workspaceDir, f).replace(/\\/g, '/')
+  const runnerCwd = runner.cwd ? path.join(ROOT, runner.cwd) : workspaceDir
+  const toRel = f => path.relative(runnerCwd, f).replace(/\\/g, '/')
   // Test selection: every changed source file plus every changed test file. Independent of coverage.exclude.
   const relFiles = [...sourceFiles, ...testFiles].map(toRel)
   // Coverage measurement: only the changed files that are not exempt via coverage.exclude.
@@ -295,7 +307,7 @@ function runVitestTier(workspace, runner, { sourceFiles, testFiles, coverageFile
     : ['run', ...coverageFlags]
 
   const result = spawnSync('npx', ['vitest', ...selection, ...configFlags, ...projectFlags], {
-    cwd: workspaceDir, encoding: 'utf8', stdio: 'pipe', shell: true,
+    cwd: runnerCwd, encoding: 'utf8', stdio: 'pipe', shell: true,
   })
 
   return { stdout: result.stdout || '', stderr: result.stderr || '', status: result.status, measuredCoverage: measureCoverage }
@@ -439,24 +451,56 @@ async function main() {
 
   const unmatched = []
   const neverSelected = []
-  for (const file of changedFiles) {
+  const nodeTestFiles = []
+  let harnessChanged = false
+
+  for (const rawFile of changedFiles) {
+    const file = rawFile.replace(/\\/g, '/')
     if (isNeverSelected(file)) { neverSelected.push(file); continue }
 
-    let matched = false
-    for (const ws of WORKSPACES) {
-      if (file.startsWith(ws.dir + '/') || file.startsWith(ws.dir + '\\')) {
-        workspaceGroups.get(ws.name).files.push(path.join(ROOT, file))
-        matched = true
-        break
-      }
+    const ws = matchWorkspace(file)
+    if (ws) {
+      workspaceGroups.get(ws.name).files.push(path.join(ROOT, file))
+      continue
     }
-    if (!matched) unmatched.push(file)
+
+    if (isSharedHarnessFile(file)) {
+      harnessChanged = true
+      continue
+    }
+
+    if (isNodeTestScriptFile(file)) {
+      if (fs.existsSync(path.join(ROOT, file))) nodeTestFiles.push(file)
+      continue
+    }
+
+    unmatched.push(file)
   }
 
-  if (unmatched.length > 0) {
-    console.log(dim(`   Ignoring ${unmatched.length} file(s) outside tracked workspaces:`))
-    for (const f of unmatched) console.log(dim(`     - ${f}`))
+  if (harnessChanged && selectedTiers.includes('integration')) {
+    const apiGroup = workspaceGroups.get('apps/api')
+    if (apiGroup && apiGroup.files.length === 0) {
+      apiGroup.harnessTriggered = true
+    }
+  }
+
+  const untrackedSources = findUntrackedSourceFiles(
+    unmatched,
+    (relPath) => fs.existsSync(path.join(ROOT, relPath)),
+  )
+  const ignoredNonSource = unmatched.filter((f) => !untrackedSources.includes(f.replace(/\\/g, '/')))
+
+  if (ignoredNonSource.length > 0) {
+    console.log(dim(`   Ignoring ${ignoredNonSource.length} non-source/config file(s) outside tracked workspaces:`))
+    for (const f of ignoredNonSource) console.log(dim(`     - ${f}`))
     console.log()
+  }
+
+  if (untrackedSources.length > 0) {
+    console.error(red(bold(`FAIL  ${untrackedSources.length} changed source file(s) fall outside every tracked workspace (zero tests would run):`)))
+    for (const f of untrackedSources) console.error(red(`     - ${f}`))
+    console.error(dim('      Register the package in scripts/lib/test-tiers.mjs WORKSPACES or exclude non-testable paths explicitly.'))
+    console.error()
   }
 
   if (neverSelected.length > 0) {
@@ -469,13 +513,42 @@ async function main() {
   const changedLines = getChangedLines(base)
 
   let anyWorkspaceRan = false
-  let anyTierFailed = false
+  let anyTierFailed = untrackedSources.length > 0
   let coverageFailures = 0
   let coverageRows = 0
   let notMeasured = 0
 
-  for (const { workspace, files } of workspaceGroups.values()) {
-    if (files.length === 0) continue
+  if (nodeTestFiles.length > 0 && selectedTiers.includes('unit')) {
+    const testDir = path.join(ROOT, 'scripts', 'lib')
+    const testSuites = fs.existsSync(testDir)
+      ? fs.readdirSync(testDir).filter((f) => f.endsWith('.test.mjs')).sort().map((f) => `scripts/lib/${f}`)
+      : []
+
+    console.log(bold('[scripts/lib + bin]'))
+    console.log(dim('  ' + '─'.repeat(60)))
+    if (testSuites.length === 0) {
+      console.error(red('   [unit] no node --test suites found in scripts/lib/'))
+      anyTierFailed = true
+    } else {
+      anyWorkspaceRan = true
+      console.log(`   ${dim(`[unit] node --test — ${testSuites.length} suite(s) triggered by ${nodeTestFiles.length} changed file(s)`)}`)
+      const res = spawnSync(process.execPath, ['--test', ...testSuites], {
+        cwd: ROOT, encoding: 'utf8', stdio: 'pipe',
+      })
+      if (res.status !== 0) {
+        anyTierFailed = true
+        process.stdout.write(res.stdout || '')
+        process.stderr.write(res.stderr || '')
+        console.log(red('   [unit] FAIL'))
+      } else {
+        console.log(green('   [unit] PASS'))
+      }
+      console.log()
+    }
+  }
+
+  for (const { workspace, files, harnessTriggered } of workspaceGroups.values()) {
+    if (files.length === 0 && !harnessTriggered) continue
 
     const workspaceDir = path.join(ROOT, workspace.dir)
     const configPath   = path.join(workspaceDir, workspace.config)
@@ -509,7 +582,7 @@ async function main() {
       if (!isExcluded(relToWs, { include, exclude })) coverageFiles.push(absFile)
     }
 
-    if (sourceFiles.length === 0 && testFiles.length === 0) {
+    if (sourceFiles.length === 0 && testFiles.length === 0 && !harnessTriggered) {
       console.log(dim('   (no testable source or test files in this workspace — all non-source or deleted)'))
       console.log()
       continue
@@ -524,6 +597,7 @@ async function main() {
     for (const tier of selectedTiers) {
       const runner = workspace.tiers[tier]
       if (!runner) continue                      // workspace does not own this tier
+      if (harnessTriggered && sourceFiles.length === 0 && testFiles.length === 0 && runner.mode !== 'all') continue
 
       anyWorkspaceRan = true
       console.log(`   ${dim(`[${tier}] vitest (${runner.mode === 'related' && !runAllMode ? 'related' : 'full'}) — ${sourceFiles.length} source + ${testFiles.length} test file(s), ${coverageFiles.length} measured for coverage…`)}`)
@@ -652,9 +726,9 @@ async function main() {
     console.log()
   }
 
-  if (!anyWorkspaceRan) {
+  if (!anyWorkspaceRan && untrackedSources.length === 0) {
     console.log(yellow('No testable source files found in any workspace.'))
-    console.log(dim('  All changed files may be excluded, non-source, or outside tracked workspaces.'))
+    console.log(dim('  All changed files may be excluded, non-source, or under e2e/.'))
     return
   }
 
