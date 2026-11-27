@@ -26,6 +26,7 @@ export type {
 
 export {
   BEECH_SIGNATURE_HEADER,
+  DEFAULT_WEBHOOK_TOLERANCE_SECONDS,
   WebhookVerificationError,
   verifyBeechWebhookSignature,
   constructWebhookEvent,

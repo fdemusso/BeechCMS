@@ -135,6 +135,29 @@ describe('Browser Client (@beechcms/client/browser)', () => {
   it('alias createBeechClient works identically to createBeechBrowserClient', () => {
     expect(createBeechClient).toBe(createBeechBrowserClient)
   })
+
+  it('throws synchronously on conflicting where() operators without calling fetch', () => {
+    const fetchMock = mockFetch(200, { data: [], meta: { total: 0, returned: 0, seed: 'posts' } })
+    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
+
+    expect(() =>
+      client.collection('posts').where({ title: 'first' }).where({ title: 'second' }),
+    ).toThrow(/Conflicting filter operator 'eq'/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects list() and first() with TypeError on unknown filter operators without calling fetch', async () => {
+    const fetchMock = mockFetch(200, { data: [], meta: { total: 0, returned: 0, seed: 'posts' } })
+    const client = createBeechBrowserClient<TestRegistry>({ ...baseConfig, fetch: fetchMock })
+
+    await expect(
+      client.collection('posts').where({ title: { bogus: 1 } as never }).list(),
+    ).rejects.toThrow(TypeError)
+    await expect(
+      client.collection('posts').where({ title: { bogus: 1 } as never }).first(),
+    ).rejects.toThrow(TypeError)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })
 
 describe('createBeechBrowserClient — schema fingerprint drift', () => {

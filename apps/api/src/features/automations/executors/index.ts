@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { AutomationAction, ContentRepository, Seed, IIdGenerator } from '@beechcms/core'
+import type { AutomationAction, ContentRepository, Seed, IIdGenerator, IClock } from '@beechcms/core'
 import type { ResolvedContext } from '../evaluator/context-resolver'
 import { executeWebhook }      from './webhook.executor'
 import { executeSendMail }     from './send-mail.executor'
@@ -17,6 +17,7 @@ export interface ActionContext {
   getSeed: (slug: string) => Seed | null
   seed: Seed
   idGenerator: IIdGenerator
+  clock?: IClock
   context: ResolvedContext
   variables: Record<string, unknown>
   // TODO Sprint 8: context will also power evaluateWhen() for per-action when-guards
@@ -25,7 +26,7 @@ export interface ActionContext {
 export async function executeAction(action: AutomationAction, ctx: ActionContext): Promise<void> {
   switch (action.type) {
     case 'set_variable':  return executeSetVariable(action, ctx)
-    case 'webhook':       return executeWebhook(action, ctx.context, ctx.env)
+    case 'webhook':       return executeWebhook(action, ctx.context, ctx.env, ctx.clock)
     case 'send_mail':     return executeSendMail(action, ctx.context, ctx.env)
     case 'edit_field':    return executeEditField(action, ctx.entry, ctx.context, ctx.repository, ctx.seed, ctx.idGenerator)
     case 'create_entry':  return executeCreateEntry(action, ctx.entry, ctx.repository, ctx.getSeed, ctx.idGenerator)

@@ -176,6 +176,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
         contentRepository: context.get('repository'),
         getSeed: (slug: string) => context.get('getSeed')?.(slug) ?? null,
         idGenerator: resolvedIdGenerator,
+        clock: resolvedClock,
         env: context.env as unknown as Record<string, string | undefined>,
       }),
     )
