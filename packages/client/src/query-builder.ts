@@ -75,6 +75,9 @@ export class FluentQueryBuilder<TRow> implements FluentQuery<TRow> {
 
   constructor(private executor: QueryExecutor<TRow>) {}
 
+  /**
+   * Merges field filters per operator; throws `Error` synchronously if two calls conflict on the same field/operator.
+   */
   where(filter: Record<string, FieldFilter>): this {
     const current: Record<string, FieldFilter> = { ...(this.query.filter ?? {}) }
     for (const [field, incoming] of Object.entries(filter)) {
@@ -167,7 +170,10 @@ function toWireConditions(filter: Record<string, FieldFilter>): WireCondition[] 
   return where
 }
 
-/** { status:'published', price:{ gt:10 } } → { where:[{field,op,value}], logic } */
+/**
+ * `{ status:'published', price:{ gt:10 } } → { where:[{field,op,value}], logic }`.
+ * Throws `TypeError` synchronously when a filter contains an unknown operator.
+ */
 export function buildSearchParams(query: ListQuery<Record<string, unknown>> = {}): URLSearchParams {
   const params = new URLSearchParams()
 
