@@ -275,8 +275,67 @@ describe('@beechcms/client/richtext', () => {
         ],
       }
       expect(renderRichText(doc)).toBe(
-        '<table><tbody><tr><th colspan="2"><p>Header</p></th></tr><tr><td><p>Cell 1</p></td><td><p>Cell 2</p></td></tr></tbody></table>',
+        '<table><thead><tr><th colspan="2"><p>Header</p></th></tr></thead><tbody><tr><td><p>Cell 1</p></td><td><p>Cell 2</p></td></tr></tbody></table>',
       )
+    })
+
+    it('renders a table without a header row as a bare tbody', () => {
+      const doc = {
+        type: 'doc',
+        content: [
+          {
+            type: 'table',
+            content: [
+              {
+                type: 'tableRow',
+                content: [{ type: 'tableCell', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'A' }] }] }],
+              },
+            ],
+          },
+        ],
+      }
+      expect(renderRichText(doc)).toBe('<table><tbody><tr><td><p>A</p></td></tr></tbody></table>')
+    })
+
+    it('keeps a row mixing tableHeader and tableCell in tbody', () => {
+      const doc = {
+        type: 'doc',
+        content: [
+          {
+            type: 'table',
+            content: [
+              {
+                type: 'tableRow',
+                content: [
+                  { type: 'tableHeader', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Row label' }] }] },
+                  { type: 'tableCell', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Value' }] }] },
+                ],
+              },
+            ],
+          },
+        ],
+      }
+      expect(renderRichText(doc)).toBe(
+        '<table><tbody><tr><th><p>Row label</p></th><td><p>Value</p></td></tr></tbody></table>',
+      )
+    })
+
+    it('renders a header-only table as thead without an empty tbody', () => {
+      const doc = {
+        type: 'doc',
+        content: [
+          {
+            type: 'table',
+            content: [
+              {
+                type: 'tableRow',
+                content: [{ type: 'tableHeader', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'H' }] }] }],
+              },
+            ],
+          },
+        ],
+      }
+      expect(renderRichText(doc)).toBe('<table><thead><tr><th><p>H</p></th></tr></thead></table>')
     })
 
     it('renders safe images and drops unsafe src', () => {
@@ -316,8 +375,38 @@ describe('@beechcms/client/richtext', () => {
       const html = renderRichText(doc)
       expect(html).toBe('<p>Safe paragraph</p>')
       expect(warnSpy).toHaveBeenCalledWith(
-        '[BeechCMS RichText] Unrecognized node type "customUnregisteredNode". Skipping node.',
+        '[BeechCMS RichText] Unrecognized node type(s) "customUnregisteredNode". Skipping nodes.',
       )
+      warnSpy.mockRestore()
+    })
+
+    it('warns once per call, listing each distinct unknown node type once', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const doc = {
+        type: 'doc',
+        content: [
+          { type: 'widgetA' },
+          { type: 'widgetA' },
+          { type: 'blockquote', content: [{ type: 'widgetB' }, { type: 'widgetA' }] },
+        ],
+      }
+      const html = renderRichText(doc)
+      expect(html).toBe('<blockquote></blockquote>')
+      expect(warnSpy).toHaveBeenCalledTimes(1)
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[BeechCMS RichText] Unrecognized node type(s) "widgetA", "widgetB". Skipping nodes.',
+      )
+      warnSpy.mockRestore()
+    })
+
+    it('does not warn when every node type is known', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const html = renderRichText({
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'ok' }] }],
+      })
+      expect(html).toBe('<p>ok</p>')
+      expect(warnSpy).not.toHaveBeenCalled()
       warnSpy.mockRestore()
     })
   })
