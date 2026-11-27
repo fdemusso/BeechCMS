@@ -491,13 +491,14 @@ if (!listRes.error) {
 
 ## Webhook Signature Verification (`@beechcms/client/webhooks`)
 
-BeechCMS sends HMAC-SHA256 signatures in the `x-beechcms-signature` header on automation webhook events. The `@beechcms/client/webhooks` submodule provides constant-time, zero-dependency cryptographic verification implemented entirely via standard Web Crypto (`crypto.subtle`).
+BeechCMS sends timestamped HMAC-SHA256 signatures (`t=<unix_sec>,v1=<hex>`, signed over `${timestamp}.${payload}`) in the `x-beechcms-signature` header on automation webhook events. The `@beechcms/client/webhooks` submodule provides constant-time, zero-dependency cryptographic verification and replay protection (300-second default tolerance window) implemented entirely via standard Web Crypto (`crypto.subtle`).
 
 ### Methods & Constants
 
-- **`constructWebhookEvent<T>(options)`**: Verifies the HMAC-SHA256 signature and returns the deserialized JSON payload typed as `T`. Throws `WebhookVerificationError` if the signature is invalid or secret/payload is missing.
-- **`verifyBeechWebhookSignature(options)`**: Returns `Promise<boolean>` in constant time (`timingSafeEqual`). Never throws runtime exceptions on invalid signatures or malformed inputs.
+- **`constructWebhookEvent<T>(options)`**: Verifies the timestamped HMAC-SHA256 signature (within `toleranceSeconds`, defaulting to `300`) and returns the deserialized JSON payload typed as `T`. Throws `WebhookVerificationError` if the signature is invalid, expired, or secret/payload is missing.
+- **`verifyBeechWebhookSignature(options)`**: Returns `Promise<boolean>` in constant time (`timingSafeEqual`), enforcing the replay tolerance window (`toleranceSeconds?: number | null`, default `300`). Never throws runtime exceptions on invalid signatures or malformed inputs.
 - **`BEECH_SIGNATURE_HEADER`**: Constant string `'x-beechcms-signature'`.
+- **`DEFAULT_WEBHOOK_TOLERANCE_SECONDS`**: Constant number `300`.
 
 ### Example: Next.js App Router Webhook Route Handler
 

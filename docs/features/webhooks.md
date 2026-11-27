@@ -11,7 +11,7 @@ BeechCMS delivers real-time notifications to external systems whenever content e
 
 ## Architectural Principles
 
-- **Cryptographic Authenticity**: Outbound webhook requests carry an HMAC-SHA256 signature in the `X-BeechCMS-Signature` header, computed against the raw JSON payload.
+- **Cryptographic Authenticity & Replay Protection**: Outbound webhook requests carry a timestamped HMAC-SHA256 signature in the `X-BeechCMS-Signature` header (`t=<unix_sec>,v1=<hex>`), computed over `${timestamp}.${rawBody}`. Verification rejects events outside a configurable tolerance window (300 seconds by default).
 - **Timing-Safe Verification**: Receivers can verify signatures without timing-attack vulnerabilities using the native `@beechcms/client/webhooks` submodule.
 - **Asynchronous & Non-Blocking**: Webhook requests are dispatched via Cloudflare's `executionCtx.waitUntil` or queued via Upstash QStash, guaranteeing that slow receiver endpoints never degrade CMS editing latency.
 
@@ -47,7 +47,7 @@ Headers sent with every delivery:
 POST /api/revalidate HTTP/1.1
 Host: your-frontend.com
 Content-Type: application/json
-X-BeechCMS-Signature: sha256=a5b9c8d7e6f5...
+X-BeechCMS-Signature: t=1700000000,v1=a5b9c8d7e6f5...
 User-Agent: BeechCMS-Webhook/1.0
 ```
 

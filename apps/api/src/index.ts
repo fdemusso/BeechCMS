@@ -167,6 +167,7 @@ export default {
           getSeed,
           env: env as unknown as Record<string, string | undefined>,
           idGenerator: SystemIdGenerator,
+          clock: SystemClock,
         },
         scheduledTime,
       ),

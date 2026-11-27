@@ -50,7 +50,7 @@ describe('executeWebhook', () => {
     expect(fetchSpy).toHaveBeenCalledOnce()
     const [, init] = fetchSpy.mock.calls[0]
     const headers = init?.headers as Record<string, string>
-    expect(headers['X-BeechCMS-Signature']).toMatch(/^sha256=[0-9a-f]{64}$/)
+    expect(headers['X-BeechCMS-Signature']).toMatch(/^t=\d+,v1=[0-9a-f]{64}$/)
   })
 
   it('omits signature header and warns once when WEBHOOK_SECRET is absent', async () => {
@@ -72,15 +72,15 @@ describe('executeWebhook', () => {
 
     const action = {
       ...baseAction,
-      headers: { 'X-BeechCMS-Signature': 'sha256=user-supplied-value' },
+      headers: { 'X-BeechCMS-Signature': 't=1,v1=user-supplied-value' },
     }
 
     await executeWebhook(action, baseContext, { WEBHOOK_SECRET: 'test-secret' })
 
     const [, init] = fetchSpy.mock.calls[0]
     const headers = init?.headers as Record<string, string>
-    expect(headers['X-BeechCMS-Signature']).toMatch(/^sha256=[0-9a-f]{64}$/)
-    expect(headers['X-BeechCMS-Signature']).not.toBe('sha256=user-supplied-value')
+    expect(headers['X-BeechCMS-Signature']).toMatch(/^t=\d+,v1=[0-9a-f]{64}$/)
+    expect(headers['X-BeechCMS-Signature']).not.toBe('t=1,v1=user-supplied-value')
   })
 
   it('throws with status code when endpoint responds with 500', async () => {
@@ -132,8 +132,10 @@ describe('executeWebhook', () => {
   it('recalculates HMAC and matches X-BeechCMS-Signature header', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeOkResponse())
     const secret = 'verify-secret'
+    const fixedTs = 1_700_000_500
+    const fixedClock = { now: () => fixedTs * 1000, nowSeconds: () => fixedTs }
 
-    await executeWebhook(baseAction, baseContext, { WEBHOOK_SECRET: secret })
+    await executeWebhook(baseAction, baseContext, { WEBHOOK_SECRET: secret }, fixedClock)
 
     const [, init] = fetchSpy.mock.calls[0]
     const headers = init?.headers as Record<string, string>
@@ -148,8 +150,8 @@ describe('executeWebhook', () => {
       false,
       ['sign'],
     )
-    const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(sentBody))
-    const expected = 'sha256=' + Array.from(new Uint8Array(sig))
+    const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(`${fixedTs}.${sentBody}`))
+    const expected = `t=${fixedTs},v1=` + Array.from(new Uint8Array(sig))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')
 
@@ -180,7 +182,7 @@ describe('executeWebhook', () => {
     const headers = init?.headers as Record<string, string>
     expect(init?.body).toBeUndefined()
     expect(headers['Content-Type']).toBeUndefined()
-    expect(headers['X-BeechCMS-Signature']).toMatch(/^sha256=[0-9a-f]{64}$/)
+    expect(headers['X-BeechCMS-Signature']).toMatch(/^t=\d+,v1=[0-9a-f]{64}$/)
   })
 
   // The schema only runs when an automation is saved. Rows written before a rule tightened, or by
@@ -221,5 +223,16 @@ describe('executeWebhook', () => {
 
     const [, init] = fetchSpy.mock.calls[0]
     expect(init?.redirect).toBe('manual')
+  })
+
+  it('signs requests in Stripe-style t=<unix_sec>,v1=<hex> format using the injected clock', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeOkResponse())
+    const fixedClock = { now: () => 1_700_000_123_456, nowSeconds: () => 1_700_000_123 }
+
+    await executeWebhook(baseAction, baseContext, { WEBHOOK_SECRET: 'test-secret' }, fixedClock)
+
+    const [, init] = fetchSpy.mock.calls[0]
+    const headers = init?.headers as Record<string, string>
+    expect(headers['X-BeechCMS-Signature']).toMatch(/^t=1700000123,v1=[0-9a-f]{64}$/)
   })
 })

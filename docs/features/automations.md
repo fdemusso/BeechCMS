@@ -106,7 +106,7 @@ BeechCMS enforces strict security rules on all outbound webhooks:
 
 ### HMAC Signature Verification
 
-Every outgoing webhook includes the header `X-BeechCMS-Signature: sha256=<hex>` when `WEBHOOK_SECRET` is configured in your Worker.
+Every outgoing webhook includes the header `X-BeechCMS-Signature: t=<unix_sec>,v1=<hex>` when `WEBHOOK_SECRET` is configured in your Worker, computed as HMAC-SHA256 over `${t}.${rawBody}`.
 
 Set the secret in production:
 
@@ -114,22 +114,40 @@ Set the secret in production:
 npx wrangler secret put WEBHOOK_SECRET --env production
 ```
 
-#### Verification Example (Node.js)
+#### Verification Example (Client SDK or Node.js)
+
+Using `@beechcms/client/webhooks` is recommended (constant-time comparison + 300s replay window):
 
 ```typescript
-import { createHmac } from 'node:crypto'
+import { constructWebhookEvent, BEECH_SIGNATURE_HEADER } from '@beechcms/client/webhooks'
 
-export function verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
-  const expected = 'sha256=' + createHmac('sha256', secret).update(body).digest('hex')
-  return expected === signature
-}
+const event = await constructWebhookEvent({
+  payload: await request.text(),
+  signature: request.headers.get(BEECH_SIGNATURE_HEADER),
+  secret: process.env.WEBHOOK_SECRET!,
+})
+```
 
-// In your API route handler:
-const rawBody = await request.text()
-const signature = request.headers.get('X-BeechCMS-Signature') ?? ''
+Manual verification in Node.js:
 
-if (!verifyWebhookSignature(rawBody, signature, process.env.WEBHOOK_SECRET!)) {
-  return new Response('Invalid signature', { status: 403 })
+```typescript
+import { createHmac, timingSafeEqual } from 'node:crypto'
+
+export function verifyWebhookSignature(
+  body: string,
+  signature: string,
+  secret: string,
+  toleranceSeconds = 300,
+): boolean {
+  const parts = Object.fromEntries(signature.split(',').map((p) => p.trim().split('=')))
+  const timestamp = Number(parts.t)
+  if (!Number.isSafeInteger(timestamp) || !parts.v1) return false
+  if (Math.abs(Math.floor(Date.now() / 1000) - timestamp) > toleranceSeconds) return false
+
+  const expected = createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex')
+  const a = Buffer.from(expected, 'hex')
+  const b = Buffer.from(parts.v1, 'hex')
+  return a.length === b.length && timingSafeEqual(a, b)
 }
 ```
 
