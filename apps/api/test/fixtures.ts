@@ -12,6 +12,7 @@ const TEST_JWT_SECRET = 'beech_cms_super_secret_test_key_2024_!@#'
 export const TEST_PUBLISHABLE_KEY = 'beech_pk_test_6f8g9h0j1k2l'
 export const TEST_SECRET_KEY = 'beech_sk_test_9a8b7c6d5e4f'
 export const TEST_TIME_TRAP_SECRET = 'test-time-trap-secret-key-1234567890'
+export const TEST_MFA_ENCRYPTION_KEY = '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f'
 
 /**
  * SHARED HONO ENVIRONMENT
@@ -21,6 +22,7 @@ export const TEST_ENV = {
   BEECH_PUBLISHABLE_KEY: TEST_PUBLISHABLE_KEY,
   BEECH_SECRET_KEY: TEST_SECRET_KEY,
   PUBLIC_TIME_TRAP_SECRET: TEST_TIME_TRAP_SECRET,
+  MFA_ENCRYPTION_KEY: TEST_MFA_ENCRYPTION_KEY,
   // Always use MinIO root credentials — matches docker-compose.yml MINIO_ROOT_USER/PASSWORD.
   // Do NOT read from process.env: .dev.vars may carry a stale or production access key.
   R2_ACCESS_KEY_ID: 'beechdev',

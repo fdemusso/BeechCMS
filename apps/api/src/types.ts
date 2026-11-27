@@ -10,7 +10,7 @@
  */
 
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedMediaPurgeRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, OAuthScope, IRoleRepository, IRoleAssignmentRepository, EffectivePermissions, IInvitationRepository, IAgentIntentRepository, IDeletionLedger, IImageTransformer, IContentViewRepository, IBackrefRepository } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedMediaPurgeRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IPrivacyService, IMfaService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, OAuthScope, IRoleRepository, IRoleAssignmentRepository, EffectivePermissions, IInvitationRepository, IAgentIntentRepository, IDeletionLedger, IImageTransformer, IContentViewRepository, IBackrefRepository } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import type { IntentDispatcher } from './shared/agent-intents/replay'
 import type { ISetupChecklistRepository } from './shared/db/repositories/d1-setup-checklist.repository'
@@ -137,6 +137,8 @@ export interface Env {
   QSTASH_NEXT_SIGNING_KEY?: string
   /** Master key used for Application-Level Encryption (ALE). */
   PRIVACY_MASTER_KEY?: string
+  /** 64 hex chars (32 random bytes). Encrypts stored TOTP secrets; never stored in D1. Changing it makes every MFA enrolment unreadable. */
+  MFA_ENCRYPTION_KEY?: string
   /** API key for VirusTotal file/hash scanning. */
   VIRUSTOTAL_API_KEY?: string
   /** Secret used to sign and verify public form time-trap tokens. */
@@ -179,6 +181,8 @@ export interface Variables {
   oauthGrant: OAuthGrantContext | null
   /** Application-level privacy and encryption service. */
   privacyService: IPrivacyService
+  /** TOTP second-factor state machine (enrolment, verification, replay protection). */
+  mfaService: IMfaService
   /** Append-only GDPR erasure log, stored outside D1 so a restore cannot rewind it. */
   deletionLedger: IDeletionLedger
   /** Looks up a Seed definition by slug from the loaded schema. */
