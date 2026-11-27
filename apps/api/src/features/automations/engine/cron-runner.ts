@@ -7,6 +7,7 @@ import type {
   ContentRepository,
   FilterGroup,
   IAutomationRepository,
+  IClock,
   IIdGenerator,
   Seed,
 } from '@beechcms/core'
@@ -23,6 +24,7 @@ export interface CronRunnerDeps {
   getSeed: (slug: string) => Seed | null
   env: Record<string, string | undefined>
   idGenerator: IIdGenerator
+  clock?: IClock
 }
 
 // These actions mutate individual entries and must run once per entry.
@@ -97,6 +99,7 @@ export async function runCronAutomations(
       getSeed: deps.getSeed,
       seed,
       idGenerator: deps.idGenerator,
+      clock: deps.clock,
       variables,
     }
 

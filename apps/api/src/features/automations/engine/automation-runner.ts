@@ -9,6 +9,7 @@ import type {
   ContentRepository,
   Seed,
   IIdGenerator,
+  IClock,
 } from '@beechcms/core'
 import { resolveAutomationContext, withVariables } from '../evaluator/context-resolver'
 import { executeAction } from '../executors/index'
@@ -19,6 +20,7 @@ export interface AutomationRunnerDeps {
   contentRepository: ContentRepository
   getSeed: (slug: string) => Seed | null
   idGenerator: IIdGenerator
+  clock?: IClock
   env: Record<string, string | undefined>
 }
 
@@ -54,6 +56,7 @@ export class AutomationRunner implements IAutomationRunner {
             getSeed: this.deps.getSeed,
             seed,
             idGenerator: this.deps.idGenerator,
+            clock: this.deps.clock,
             context: withVariables(resolved, variables),
             variables,
           })

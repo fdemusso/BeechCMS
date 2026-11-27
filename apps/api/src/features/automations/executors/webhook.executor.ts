@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { isPrivateHost, type AutomationAction } from '@beechcms/core'
+import { isPrivateHost, SystemClock, type AutomationAction, type IClock } from '@beechcms/core'
 import { signWebhookBody } from '@beechcms/core/webhook-crypto'
 import type { ResolvedContext } from '../evaluator/context-resolver'
 import { interpolate } from '../engine/automation-runner.utils'
@@ -29,6 +29,7 @@ export async function executeWebhook(
   action: WebhookAction,
   context: ResolvedContext,
   env: Record<string, string | undefined>,
+  clock: IClock = SystemClock,
 ): Promise<void> {
   // The local flow stack delivers to a plain-HTTP webhook sink on localhost, so development skips the gate.
   if (env.ENV !== 'development') assertPublicHttpsUrl(action.url)
@@ -41,7 +42,7 @@ export async function executeWebhook(
   const secret = env.WEBHOOK_SECRET
   let signatureHeader: Record<string, string> = {}
   if (secret) {
-    signatureHeader = { 'X-BeechCMS-Signature': await signWebhookBody(body ?? '', secret) }
+    signatureHeader = { 'X-BeechCMS-Signature': await signWebhookBody(body ?? '', secret, clock.nowSeconds()) }
   } else if (!warnedNoSecret) {
     warnedNoSecret = true
     console.warn('[webhook] WEBHOOK_SECRET not set — outgoing webhooks are unsigned')
