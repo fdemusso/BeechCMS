@@ -60,7 +60,18 @@ export interface BeechProblem {
   errors?: { field: string; expected: string; received: string; message: string }[]
 }
 
-/** Discriminated result — the client NEVER throws on HTTP/validation errors. */
+/**
+ * Discriminated result returned by read and write operations.
+ *
+ * Network failures, HTTP errors (4xx/5xx), server validation errors, and schema drift resolve to
+ * `{ data: null, error: BeechProblem }` without throwing.
+ *
+ * Client-side programmer misuse fails fast instead of returning a `BeechResult`:
+ * - Invalid client config (`createBeechBrowserClient` / `createBeechServerClient`) throws synchronously.
+ * - Conflicting `.where()` operators on the same field throw `Error` synchronously.
+ * - Unknown filter operators throw `TypeError` at serialization time (`buildSearchParams()` / `.build()`
+ *   synchronously, or reject `.list()` / `.first()` before any HTTP request is sent).
+ */
 export type BeechResult<T> =
   | { data: T; error: null; headers?: Headers }
   | { data: null; error: BeechProblem; headers?: Headers }
@@ -115,6 +126,11 @@ export interface BrowserContentResource<TRow> {
 }
 
 export interface FluentQuery<TRow> {
+  /**
+   * Merges field filters per operator across chained calls.
+   * Throws `Error` synchronously when two calls pass different values for the same operator on the same field.
+   * Unknown filter operators throw `TypeError` at query serialization time (`.build()`, `.list()`, `.first()`).
+   */
   where(filter: Record<string, FieldFilter>): this
   include(relations: string[]): this
   select(fields: Extract<keyof TRow, string>[]): this

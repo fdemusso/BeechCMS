@@ -137,7 +137,7 @@ if (!slugResult.error) {
 
 | Method | Compiles to | Notes |
 | :--- | :--- | :--- |
-| `.where(filter)` | `filter` (JSON `{logic, where[]}`) | Repeated calls merge field-by-field |
+| `.where(filter)` | `filter` (JSON `{logic, where[]}`) | Repeated calls merge per operator on each field; conflicting values for the same operator throw `Error` synchronously |
 | `.logic('AND' \| 'OR')` | `filter.logic` | Combines every condition in the chain. Default `AND` |
 | `.whereRelation(alias, subquery)` | nested `in` condition inside `filter` | Filters through a relation target — see below |
 | `.orderBy(field, 'asc' \| 'desc')` | `orderBy` + `orderDir` | Single sort key; a second call **replaces** the first. Direction defaults to `desc` |
@@ -176,7 +176,7 @@ console.log(params.toString())
 > [!TIP]
 > **Scalar Equality Shorthand:** For simple equality filters, you can pass scalar values directly (e.g. `{ status: 'published' }` is automatically expanded to `{ status: { eq: 'published' } }` by the query builder).
 
-An invalid operator (`{ price: { bogus: 1 } }`) throws a `TypeError` at serialization time — before any request leaves the process.
+An invalid operator (`{ price: { bogus: 1 } }`) throws a `TypeError` at query serialization time — synchronously from `.build()` / `buildSearchParams()`, and as a rejected `Promise` from `.list()` / `.first()` — before any request leaves the process.
 
 ```typescript
 // Combine several axes in one chain
@@ -687,7 +687,14 @@ export function ArticleImage({ assetKey }: { assetKey: string }) {
 
 ## Result Handling & RFC 9457 Problem Details
 
-Both `@beechcms/client/browser` and `@beechcms/client/server` encapsulate network errors into a deterministic `BeechResult<T>` discriminated union (`{ data: T; error: null } | { data: null; error: BeechProblem }`). Requests **never throw unexpected network exceptions**:
+Both `@beechcms/client/browser` and `@beechcms/client/server` encapsulate network, HTTP (4xx/5xx), server validation, and schema-drift errors into a deterministic `BeechResult<T>` discriminated union (`{ data: T; error: null } | { data: null; error: BeechProblem }`). Requests **never throw on HTTP responses, server validation failures, or network errors**:
+
+> [!NOTE]
+> **Fail-fast programmer errors that throw/reject instead of returning `BeechResult`:**
+> - **Invalid client configuration** (`createBeechBrowserClient` / `createBeechServerClient`): throws `Error` / `TypeError` synchronously at creation.
+> - **Conflicting `.where()` operators** on the same field across chained calls: throws `Error` synchronously from `.where()`.
+> - **Unknown filter operators** (`{ price: { bogus: 1 } }`): throws `TypeError` at serialization time (synchronously from `.build()` / `buildSearchParams()`, or rejects the returned `Promise` from `.list()` / `.first()` before any HTTP request is sent).
+> - **Invalid media helper arguments** (`media()` / `mediaSrcSet()`): throws `TypeError` synchronously.
 
 ```typescript
 const result = await beech.collection('articles').list()
