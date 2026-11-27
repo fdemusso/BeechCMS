@@ -101,24 +101,47 @@ function renderMarks(text: string, marks?: TipTapMark[]): string {
   return rendered
 }
 
-function renderChildren(nodes?: TipTapNode[]): string {
+/** Per-call state: unknown node types are collected so one render warns once, not once per node. */
+type RenderState = { unknownTypes: Set<string> }
+
+function renderChildren(nodes: TipTapNode[] | undefined, state: RenderState): string {
   if (!nodes || !Array.isArray(nodes)) return ''
-  return nodes.map(renderNode).join('')
+  return nodes.map((node) => renderNode(node, state)).join('')
 }
 
-function renderNode(node: TipTapNode): string {
+function isHeaderRow(row: TipTapNode): boolean {
+  return (
+    row?.type === 'tableRow' &&
+    Array.isArray(row.content) &&
+    row.content.length > 0 &&
+    row.content.every((cell) => cell?.type === 'tableHeader')
+  )
+}
+
+function renderTable(rows: TipTapNode[] | undefined, state: RenderState): string {
+  const all = Array.isArray(rows) ? rows : []
+  let headerCount = 0
+  while (headerCount < all.length && isHeaderRow(all[headerCount])) headerCount++
+
+  const head = headerCount ? `<thead>${renderChildren(all.slice(0, headerCount), state)}</thead>` : ''
+  const bodyRows = all.slice(headerCount)
+  const body = bodyRows.length || !headerCount ? `<tbody>${renderChildren(bodyRows, state)}</tbody>` : ''
+  return `<table>${head}${body}</table>`
+}
+
+function renderNode(node: TipTapNode, state: RenderState): string {
   if (!node || typeof node.type !== 'string') return ''
   const type = node.type
   const attrs = node.attrs || {}
 
   switch (type) {
     case 'doc':
-      return renderChildren(node.content)
+      return renderChildren(node.content, state)
 
     case 'paragraph': {
       const align = typeof attrs.textAlign === 'string' ? attrs.textAlign.trim() : ''
       const style = align && ['left', 'center', 'right', 'justify'].includes(align) ? ` style="text-align: ${align};"` : ''
-      return `<p${style}>${renderChildren(node.content)}</p>`
+      return `<p${style}>${renderChildren(node.content, state)}</p>`
     }
 
     case 'heading': {
@@ -126,57 +149,57 @@ function renderNode(node: TipTapNode): string {
       const level = Math.min(Math.max(Math.floor(rawLevel), 1), 6)
       const align = typeof attrs.textAlign === 'string' ? attrs.textAlign.trim() : ''
       const style = align && ['left', 'center', 'right', 'justify'].includes(align) ? ` style="text-align: ${align};"` : ''
-      return `<h${level}${style}>${renderChildren(node.content)}</h${level}>`
+      return `<h${level}${style}>${renderChildren(node.content, state)}</h${level}>`
     }
 
     case 'blockquote':
-      return `<blockquote>${renderChildren(node.content)}</blockquote>`
+      return `<blockquote>${renderChildren(node.content, state)}</blockquote>`
 
     case 'codeBlock': {
       const language = typeof attrs.language === 'string' ? attrs.language.trim() : ''
       const langClass = language && !/[<>"']/.test(language) ? ` class="language-${escapeHtml(language)}"` : ''
-      return `<pre class="richtext-code-block"><code${langClass}>${renderChildren(node.content)}</code></pre>`
+      return `<pre class="richtext-code-block"><code${langClass}>${renderChildren(node.content, state)}</code></pre>`
     }
 
     case 'horizontalRule':
       return '<hr />'
 
     case 'bulletList':
-      return `<ul>${renderChildren(node.content)}</ul>`
+      return `<ul>${renderChildren(node.content, state)}</ul>`
 
     case 'taskList':
-      return `<ul class="task-list">${renderChildren(node.content)}</ul>`
+      return `<ul class="task-list">${renderChildren(node.content, state)}</ul>`
 
     case 'taskItem': {
       const checked = attrs.checked === true
       const checkInput = `<input type="checkbox" ${checked ? 'checked ' : ''}disabled /> `
-      return `<li class="task-item">${checkInput}${renderChildren(node.content)}</li>`
+      return `<li class="task-item">${checkInput}${renderChildren(node.content, state)}</li>`
     }
 
     case 'orderedList': {
       const start = typeof attrs.start === 'number' && attrs.start !== 1 ? ` start="${attrs.start}"` : ''
-      return `<ol${start}>${renderChildren(node.content)}</ol>`
+      return `<ol${start}>${renderChildren(node.content, state)}</ol>`
     }
 
     case 'listItem':
-      return `<li>${renderChildren(node.content)}</li>`
+      return `<li>${renderChildren(node.content, state)}</li>`
 
     case 'table':
-      return `<table><tbody>${renderChildren(node.content)}</tbody></table>`
+      return renderTable(node.content, state)
 
     case 'tableRow':
-      return `<tr>${renderChildren(node.content)}</tr>`
+      return `<tr>${renderChildren(node.content, state)}</tr>`
 
     case 'tableHeader': {
       const colspan = typeof attrs.colspan === 'number' && attrs.colspan > 1 ? ` colspan="${attrs.colspan}"` : ''
       const rowspan = typeof attrs.rowspan === 'number' && attrs.rowspan > 1 ? ` rowspan="${attrs.rowspan}"` : ''
-      return `<th${colspan}${rowspan}>${renderChildren(node.content)}</th>`
+      return `<th${colspan}${rowspan}>${renderChildren(node.content, state)}</th>`
     }
 
     case 'tableCell': {
       const colspan = typeof attrs.colspan === 'number' && attrs.colspan > 1 ? ` colspan="${attrs.colspan}"` : ''
       const rowspan = typeof attrs.rowspan === 'number' && attrs.rowspan > 1 ? ` rowspan="${attrs.rowspan}"` : ''
-      return `<td${colspan}${rowspan}>${renderChildren(node.content)}</td>`
+      return `<td${colspan}${rowspan}>${renderChildren(node.content, state)}</td>`
     }
 
     case 'hardBreak':
@@ -198,7 +221,7 @@ function renderNode(node: TipTapNode): string {
     }
 
     default:
-      console.warn(`[BeechCMS RichText] Unrecognized node type "${type}". Skipping node.`)
+      state.unknownTypes.add(type)
       return ''
   }
 }
@@ -210,5 +233,12 @@ function renderNode(node: TipTapNode): string {
 export function renderRichText(value: unknown): string {
   const doc = normalizeRichtextDocument(value)
   if (!doc) return ''
-  return renderNode(doc)
+
+  const state: RenderState = { unknownTypes: new Set() }
+  const html = renderNode(doc, state)
+  if (state.unknownTypes.size) {
+    const types = [...state.unknownTypes].map((type) => `"${type}"`).join(', ')
+    console.warn(`[BeechCMS RichText] Unrecognized node type(s) ${types}. Skipping nodes.`)
+  }
+  return html
 }
