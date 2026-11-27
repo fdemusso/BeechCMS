@@ -3,7 +3,12 @@
 // See LICENSE in the repository root for license terms.
 
 import { beforeEach, describe, expect, it } from 'vitest'
-import { AesGcmMfaSecretCipher, MfaNotConfiguredError, UnconfiguredMfaSecretCipher } from './mfa-secret-cipher.js'
+import {
+  AesGcmMfaSecretCipher,
+  type IMfaSecretCipher,
+  MfaNotConfiguredError,
+  UnconfiguredMfaSecretCipher,
+} from './mfa-secret-cipher.js'
 import type { IMfaEnrolmentRepository, MfaEnrolmentRecord } from './mfa-enrolment.repository.js'
 import { MfaService } from './mfa.service.js'
 import { generateTotpCode, totpStepAt, WebCryptoTotpProvider } from './totp.js'
@@ -76,7 +81,7 @@ describe('MfaService', () => {
     }
   }
 
-  function createService(secrets: string[], cipher = new AesGcmMfaSecretCipher(KEY_HEX)): MfaService {
+  function createService(secrets: string[], cipher: IMfaSecretCipher = new AesGcmMfaSecretCipher(KEY_HEX)): MfaService {
     return new MfaService({
       repository: createFakeRepository(),
       cipher,
